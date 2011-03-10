@@ -93,6 +93,7 @@ INSTALLED_APPS = (
     # 'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
+    'climatedata',
 )
 
 # import local settings (from a file not under version control)

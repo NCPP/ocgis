@@ -5,6 +5,7 @@ from django.conf.urls.defaults import *
 # admin.autodiscover()
 
 urlpatterns = patterns('',
+    (r'^$', 'climatedata.views.index'),
     # Example:
     # (r'^openclimategis/', include('openclimategis.foo.urls')),
 

@@ -58,7 +58,7 @@ MEDIA_URL = ''
 ADMIN_MEDIA_PREFIX = '/media/'
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = '@3w(5rg!6_fd5!3&5eeyt5&6=!&p+2j87j$i-04l*(#cx^2vve'
+SECRET_KEY = 'dontshareme...'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -94,3 +94,6 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
+
+# import local settings (from a file not under version control)
+from settings_local import *

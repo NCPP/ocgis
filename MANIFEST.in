@@ -1,0 +1,7 @@
+include README.rst
+include CREDITS.txt
+include LICENSE.txt
+recursive-include src *.py
+include src/openclimategis/settings.ini.TEMPLATE
+exclude src/openclimategis/settings_local.py
+recursive-exclude dir *password*

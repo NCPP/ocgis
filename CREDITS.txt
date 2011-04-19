@@ -1,0 +1,6 @@
+Author:
+Tyler A. Erickson (Michigan Tech Research Institute)
+
+Funding:
+This work is supported by a grant from the National Oceanic and Atmospheric
+Administration (http://www.noaa.gov/).

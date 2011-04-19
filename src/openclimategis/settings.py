@@ -1,24 +1,39 @@
 # Django settings for openclimategis project.
 
-DEBUG = True
-TEMPLATE_DEBUG = DEBUG
+# Python's ConfigParser is used to access a configuration file in the /etc
+# directory, so that sensitive information is not stored under version control.
+# References:
+# http://code.djangoproject.com/wiki/SplitSettings#ini-stylefilefordeployment
+# http://docs.python.org/library/configparser.html
+from ConfigParser import RawConfigParser
+config = RawConfigParser()
+config.read('/etc/openclimategis/settings.ini')
+
+DEBUG = config.getboolean('debug','DEBUG')
+TEMPLATE_DEBUG = config.getboolean('debug','TEMPLATE_DEBUG')
 
 ADMINS = (
-    # ('Your Name', 'your_email@domain.com'),
+    tuple(config.items('error mail'))
 )
 
-MANAGERS = ADMINS
+MANAGERS = tuple(config.items('404 mail'))
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2', 
-        'NAME': 'openclimategis_sql',
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '',
-        'PORT': '',
+        'ENGINE':   'django.contrib.gis.db.backends.postgis', 
+        'NAME':     config.get('database', 'DATABASE_NAME'),
+        'USER':     config.get('database', 'DATABASE_USER'),
+        'PASSWORD': config.get('database', 'DATABASE_PASSWORD'),
+        'HOST':     config.get('database', 'DATABASE_HOST'),
+        'PORT':     config.get('database', 'DATABASE_PORT'),
     }
 }
+POSTGIS_VERSION = (1, 5, 2)
+POSTGIS_TEMPLATE = 'postgis-1.5.2-template'
+#TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner'
+TEST_RUNNER = 'django.contrib.gis.tests.GeoDjangoTestSuiteRunner'
+#GEOS_LIBRARY_PATH = '/home/bob/local/lib/libgeos_c.so'
+#GDAL_LIBRARY_PATH = '/home/sue/local/lib/libgdal.so'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -58,7 +73,7 @@ MEDIA_URL = ''
 ADMIN_MEDIA_PREFIX = '/media/'
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'dontshareme...'
+SECRET_KEY = config.get('secrets','SECRET_KEY')
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -89,6 +104,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
+    'django.contrib.gis',
     # Uncomment the next line to enable the admin:
     # 'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
@@ -96,5 +112,3 @@ INSTALLED_APPS = (
     'climatedata',
 )
 
-# import local settings (from a file not under version control)
-from settings_local import *

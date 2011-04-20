@@ -20,7 +20,7 @@ setup(
     install_requires=[
         'setuptools',
         'django>=1.3',
-        #'psycopg2',
+        'psycopg2',
         #'numpy',
         #'netCDF4',
     ],

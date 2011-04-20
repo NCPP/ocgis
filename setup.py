@@ -22,7 +22,7 @@ setup(
         'django>=1.3',
         'psycopg2',
         'numpy',
-        'netCDF4',
+        #'netCDF4',
     ],
     tests_require=['nose'],
     #test_suite='nose.collector',

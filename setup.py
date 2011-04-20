@@ -21,7 +21,7 @@ setup(
         'setuptools',
         'django>=1.3',
         'psycopg2',
-        #'numpy',
+        'numpy',
         #'netCDF4',
     ],
     tests_require=['nose'],

@@ -133,19 +133,19 @@ fn_install_netcdf4()
 # main
 #======================================
 SRCDIR=~/src
-fn_create_source_dir()
+fn_create_source_dir
 
 PROJ_VER=4.7.0
 PROJ_DIR=/usr/local/proj/$PROJ_VER
-fn_install_proj()
+fn_install_proj
 
 GEOS_VER=3.2.2
 GEOS_DIR=/usr/local/geos/$GEOS_VER
-fn_install_geos()
+fn_install_geos
 
 GDAL_VER=1.8.0
 GDAL_DIR=/usr/local/gdal/$GDAL_VER
-fn_install_gdal()
+fn_install_gdal
 
 HDF5_VER=1.8.6
 HDF5_DIR=/usr/local/hdf5/$HDF5_VER
@@ -156,7 +156,7 @@ export NETCDF4_DIR  # used by netcdf4-python
 NETCDF4_PYTHON_VER=0.9.2
 NETCDF4_PYTHON_SRC=$SRCDIR/netcdf4-python/$NETCDF4_PYTHON_VER
 NETCDF4_PYTHON_PATH=/usr/local/netcdf4-python/$NETCDF4_PYTHON_VER
-fn_install_netcdf4()
+fn_install_netcdf4
 
 
 #===============================================

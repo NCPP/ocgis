@@ -24,7 +24,7 @@ fn_install_proj()
         tar xzf proj-$PROJ_VER.tar.gz
         cd proj-$PROJ_VER
         ./configure --prefix=$PROJ_DIR > log_proj_configure.out
-        make > log_proj_make.out
+        make -j 4 > log_proj_make.out
         
         echo "    installing in $PROJ_DIR"
         sudo make install > log_proj_make_install.out
@@ -47,7 +47,7 @@ fn_install_geos()
         tar xjf geos-$GEOS_VER.tar.bz2
         cd geos-$GEOS_VER
         ./configure --prefix=$GEOS_DIR > log_geos_configure.out
-        make > log_geos_make.out
+        make -j 4 > log_geos_make.out
         
         echo "    installing in $GEOS_DIR"
         sudo make install > log_geos_make_install.out
@@ -99,7 +99,7 @@ fn_install_netcdf4()
         tar -xzvf $HDF5_TAR
         cd hdf5-$HDF5_VER
         ./configure --prefix=$HDF5_DIR --enable-shared --enable-hl > log_hdf5_configure.log
-        make > log_hdf5_make.log
+        make -j 4 > log_hdf5_make.log
         
         echo "    installing in $HDF5_DIR"
         sudo make install > log_hdf5_make_install.log 
@@ -120,7 +120,7 @@ fn_install_netcdf4()
         tar -xzvf $NETCDF4_TAR
         cd netcdf-$NETCDF4_VER
         ./configure --enable-netcdf-4 --with-hdf5=$HDF5_DIR --enable-shared --enable-dap --prefix=$NETCDF4_DIR > log_netcdf_configure.log
-        make > log_netcdf_make.log 
+        make -j 4 > log_netcdf_make.log 
         
         echo "    installing in $NETCDF4_DIR"
         sudo make install > log_netcdf_make_install.log
@@ -141,21 +141,22 @@ sudo apt-get install -y wget
 sudo apt-get install unzip
 sudo apt-get install -y gcc
 sudo apt-get install -y g++
+sudo apt-get install -y swig
 
 SRCDIR=~/src
 fn_create_source_dir
 
 PROJ_VER=4.7.0
 PROJ_DIR=/usr/local/proj/$PROJ_VER
-#fn_install_proj
+fn_install_proj
 
 GEOS_VER=3.2.2
 GEOS_DIR=/usr/local/geos/$GEOS_VER
-#fn_install_geos
+fn_install_geos
 
 GDAL_VER=1.8.0
 GDAL_DIR=/usr/local/gdal/$GDAL_VER
-#fn_install_gdal
+fn_install_gdal
 
 HDF5_VER=1.8.6
 HDF5_DIR=/usr/local/hdf5/$HDF5_VER

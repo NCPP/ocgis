@@ -10,10 +10,12 @@ fn_create_source_dir()
 
 fn_install_proj()
 {
+    echo "starting to install Proj..."
     PROJ_SRC=$SRCDIR/proj/$PROJ_VER
     if [ -e $PROJ_DIR ]; then
-        echo "The install directory $PROJ_DIR already exists; skipping installation..."
+        echo "    The install directory $PROJ_DIR already exists; skipping installation..."
     else
+        echo "    building in $PROJ_SRC"
         mkdir -p $PROJ_SRC
         cd $PROJ_SRC
         wget http://download.osgeo.org/proj/proj-datumgrid-1.5.zip
@@ -23,6 +25,8 @@ fn_install_proj()
         cd proj-$PROJ_VER
         ./configure --prefix=$PROJ_DIR > log_proj_configure.out
         make > log_proj_make.out
+        
+        echo "    installing in $PROJ_DIR"
         sudo make install > log_proj_make_install.out
         sudo sh -c "echo '$PROJ_DIR/lib' > /etc/ld.so.conf.d/proj.conf" 
         sudo ldconfig
@@ -31,10 +35,12 @@ fn_install_proj()
 
 fn_install_geos()
 {
+    echo "starting to install GEOS..."
     GEOS_SRC=$SRCDIR/geos/$GEOS_VER
     if [ -e $GEOS_DIR ]; then
-        echo "The install directory $GEOS_DIR already exists; skipping installation..."
+        echo "    The install directory $GEOS_DIR already exists; skipping installation..."
     else
+        echo "    building in $GEOS_SRC"
         mkdir -p $GEOS_SRC
         cd $GEOS_SRC
         wget http://download.osgeo.org/geos/geos-$GEOS_VER.tar.bz2
@@ -42,6 +48,8 @@ fn_install_geos()
         cd geos-$GEOS_VER
         ./configure --prefix=$GEOS_DIR > log_geos_configure.out
         make > log_geos_make.out
+        
+        echo "    installing in $GEOS_DIR"
         sudo make install > log_geos_make_install.out
         sudo sh -c "echo '$GEOS_DIR/lib' > /etc/ld.so.conf.d/geos.conf" 
         sudo ldconfig
@@ -52,10 +60,12 @@ fn_install_geos()
 
 fn_install_gdal()
 {
+    echo "starting to install GDAL..."
     GDAL_SRC=$SRCDIR/gdal/$GDAL_VER
     if [ -e $GDAL_DIR ]; then
         echo "The install directory $GDAL_DIR already exists; skipping installation..."
     else
+        echo "    building in $GDAL_SRC"
         mkdir -p $GDAL_SRC
         cd $GDAL_SRC
         wget http://download.osgeo.org/gdal/gdal-$GDAL_VER.tar.gz
@@ -63,6 +73,8 @@ fn_install_gdal()
         cd gdal-$GDAL_VER
         ./configure --prefix=$GDAL_DIR --with-geos=$GEOS_DIR/bin/geos-config --with-python > log_gdal_configure.out
         make -j 4 > log_gdal_make.out
+        
+        echo "    installing in $GDAL_DIR"
         sudo make install > log_gdal_make_install.out
         sudo sh -c "echo '$GDAL_DIR/lib' > /etc/ld.so.conf.d/gdal.conf" 
         sudo ldconfig
@@ -74,11 +86,12 @@ fn_install_netcdf4()
     #Install libcurl (necessary for OPeNDAP functionality)::
     sudo apt-get install libcurl3 libcurl4-openssl-dev
 
-    #Install HDF5::
+    echo "starting to install HDF5..."
     HDF5_SRC=$SRCDIR/hdf5/$HDF5_VER
     if [ -e $HDF5_DIR ]; then
         echo "The install directory $HDF5_DIR already exists; skipping installation..."
     else
+        echo "    building in $HDF5_SRC"
         mkdir -p $HDF5_SRC
         cd $HDF5_SRC
         HDF5_TAR=hdf5-$HDF5_VER.tar.gz
@@ -86,17 +99,20 @@ fn_install_netcdf4()
         tar -xzvf $HDF5_TAR
         cd hdf5-$HDF5_VER
         ./configure --prefix=$HDF5_DIR --enable-shared --enable-hl > log_hdf5_configure.log
-        make > log_hdf5_make.log 
+        make > log_hdf5_make.log
+        
+        echo "    installing in $HDF5_DIR"
         sudo make install > log_hdf5_make_install.log 
         sudo sh -c "echo $HDF5_DIR'/lib' > /etc/ld.so.conf.d/hdf.conf" 
         sudo ldconfig
     fi
-
-    #Install netcdf4::
+    
+    echo "starting to install netCDF4..."
     NETCDF4_SRC=$SRCDIR/hdf5/$NETCDF4_VER
     if [ -e $NETCDF4_DIR ]; then
         echo "The install directory $NETCDF4_DIR already exists; skipping installation..."
     else
+        echo "    building in $NETCDF4_SRC"
         mkdir -p $NETCDF4_SRC
         cd $NETCDF4_SRC
         NETCDF4_TAR=netcdf-$NETCDF4_VER.tar.gz
@@ -105,6 +121,8 @@ fn_install_netcdf4()
         cd netcdf-$NETCDF4_VER
         ./configure --enable-netcdf-4 --with-hdf5=$HDF5_DIR --enable-shared --enable-dap --prefix=$NETCDF4_DIR > log_netcdf_configure.log
         make > log_netcdf_make.log 
+        
+        echo "    installing in $NETCDF4_DIR"
         sudo make install > log_netcdf_make_install.log
         sudo sh -c "echo $NETCDF4_DIR'/lib' > /etc/ld.so.conf.d/netcdf.conf" 
         sudo ldconfig

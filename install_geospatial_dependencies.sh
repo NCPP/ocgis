@@ -135,8 +135,12 @@ fn_install_netcdf4()
 # upgrade system
 sudo apt-get -y update
 sudo apt-get -y upgrade
+
 # install dependencies
+sudo apt-get install -y wget
 sudo apt-get install unzip
+sudo apt-get install -y gcc
+sudo apt-get install -y g++
 
 SRCDIR=~/src
 fn_create_source_dir

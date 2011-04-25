@@ -4,10 +4,12 @@ OpenClimateGIS INSTALL Steps
 
 1. Install the non-Python geospatial dependencies::
 
+    wget --no-check-certificate https://github.com/tylere/OpenClimateGIS/raw/master/install_geospatial_dependencies.sh
     source install_geospatial_dependencies.sh
 
 2. Install the database dependencies::
 
+    wget --no-check-certificate http://github.com/tylere/OpenClimateGIS/raw/master/install_database_dependencies.sh
     source install_database_dependencies.sh
 
 3. Create a Python Virtual Environment
@@ -21,6 +23,10 @@ OpenClimateGIS INSTALL Steps
 
 5. Install the Python dependencies into a virtual environment::
 
+    pip -E $VIRTUALENVNAME install Django>=1.3
+    pip -E $VIRTUALENVNAME install psycopg2>=2.4
+    pip -E $VIRTUALENVNAME install numpy>=1.5.1
+    pip -E $VIRTUALENVNAME install netCDF4>=0.9.4
     pip -E $VIRTUALENVNAME install git+http://github.com/tylere/OpenClimateGIS
 
 6. Create a database user for the Django project

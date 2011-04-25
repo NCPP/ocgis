@@ -2,5 +2,6 @@
 Django==1.3
 psycopg2==2.4
 numpy==1.5.1
-#netCDF4==0.9.4
--e svn+http://netcdf4-python.googlecode.com/svn/trunk
+netCDF4==0.9.4
+#-e svn+http://netcdf4-python.googlecode.com/svn/trunk#egg=netCDF4
+git+http://github.com/tylere/OpenClimateGIS

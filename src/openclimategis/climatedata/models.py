@@ -6,8 +6,52 @@ class Organization(models.Model):
     Example: National Center for Atmospheric Research (ncar) 
     '''
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=10)
+    code         = models.CharField(max_length=25)
+    country      = models.CharField(max_length=50)
+    url          = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+        null=True,
+    )
     objects = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
+
+
+class Archive(models.Model):
+    '''Models an climate model data archive
+    
+    Example: Coupled Model Intercomparison Project (CMIP3) 
+    '''
+    name         = models.CharField(max_length=50)
+    code         = models.CharField(max_length=25)
+    url          = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+        null=True,
+    )
+    objects = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
+
+
+class Variable(models.Model):
+    '''Models an climate model variable
+    
+    Example: air_temperature (tas)
+    
+    Ref: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output
+    '''
+    name         = models.CharField(max_length=50)
+    code         = models.CharField(max_length=25)
+    units        = models.CharField(max_length=25)
+    description  = models.CharField(max_length=1000, null=True)
+    objects = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
 
 
 class ClimateModel(models.Model):
@@ -17,9 +61,17 @@ class ClimateModel(models.Model):
     Reference: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php
     '''
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=10)
+    code         = models.CharField(max_length=25)
     organization = models.ForeignKey(Organization)
-    objects = models.GeoManager()
+    url          = models.URLField(
+                        verify_exists=False,
+                        max_length=200,
+                        null=True,
+                    )
+    objects      = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
 
 
 class Experiment(models.Model):
@@ -29,19 +81,11 @@ class Experiment(models.Model):
     Reference: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments
     '''
     name    = models.CharField(max_length=50)
-    code         = models.CharField(max_length=10)
+    code    = models.CharField(max_length=10)
     objects = models.GeoManager()
-
-
-class Realization(models.Model):
-    '''A climate model simulation run (realization)
-    '''
-    climate_model = models.ForeignKey(ClimateModel)
-    experiment    = models.ForeignKey(Experiment)
-    run_number    = models.IntegerField()
-    start_datetime= models.DateTimeField()
-    objects = models.GeoManager()
-
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
 
 class Frequency(models.Model):
     '''Temporal frequency of the data
@@ -50,6 +94,18 @@ class Frequency(models.Model):
     '''
     code = models.CharField(max_length=2)
     name = models.CharField(max_length=50)
+    objects = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
+
+class Realization(models.Model):
+    '''A climate model simulation run (realization)
+    '''
+    climate_model = models.ForeignKey(ClimateModel)
+    experiment    = models.ForeignKey(Experiment)
+    run_number    = models.IntegerField()
+    start_datetime= models.DateTimeField()
     objects = models.GeoManager()
 
 

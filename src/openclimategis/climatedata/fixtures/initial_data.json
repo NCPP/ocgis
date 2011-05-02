@@ -1,0 +1,230 @@
+[
+  {
+    "pk": 3, 
+    "model": "climatedata.organization", 
+    "fields": {
+      "url": "http://ncar.ucar.edu/", 
+      "country": "USA", 
+      "code": "NCAR", 
+      "name": "National Center for Atmospheric Research"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.organization", 
+    "fields": {
+      "url": "http://www.bjerknes.uib.no/default.asp?lang=2", 
+      "country": "Norway", 
+      "code": "BCCR", 
+      "name": "Bjerknes Centre for Climate Research"
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.organization", 
+    "fields": {
+      "url": "http://bcc.cma.gov.cn/en/", 
+      "country": "China", 
+      "code": "BCC", 
+      "name": "Beijing Climate Center"
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.archive", 
+    "fields": {
+      "url": "http://cmip-pcmdi.llnl.gov/cmip3_overview.html", 
+      "code": "CMIP3", 
+      "name": "Coupled Model Intercomparison Project - Phase 3"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.archive", 
+    "fields": {
+      "url": "http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/", 
+      "code": "Maurer07", 
+      "name": "Bias Corrected and Downscaled  WCRP CMIP3 Climate "
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.variable", 
+    "fields": {
+      "units": "Pa", 
+      "code": "psl", 
+      "name": "air_pressure_at_sea_level", 
+      "description": "(no description)"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.variable", 
+    "fields": {
+      "units": "kg m-2 s-1", 
+      "code": "pr", 
+      "name": "precipitation_flux", 
+      "description": "includes both liquid and solid phases."
+    }
+  }, 
+  {
+    "pk": 3, 
+    "model": "climatedata.variable", 
+    "fields": {
+      "units": "K", 
+      "code": "tas", 
+      "name": "air_temperature", 
+      "description": "near-surface (usually, 2 meter) air temperature; the CMOR singleton dimension default value of 2 m can be overridden, if absolutely necessary, by redefining axis \"height1\"."
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.climatemodel", 
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm", 
+      "organization": 1, 
+      "code": "BCC-CM1", 
+      "name": "BCC-CM1"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.climatemodel", 
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm", 
+      "organization": 2, 
+      "code": "BCCR-BCM2.0", 
+      "name": "BCCR-BCM2.0"
+    }
+  }, 
+  {
+    "pk": 3, 
+    "model": "climatedata.climatemodel", 
+    "fields": {
+      "url": "http://www.cesm.ucar.edu/models/ccsm3.0/", 
+      "organization": 3, 
+      "code": "CCSM3", 
+      "name": "Community Climate System Model Version 3"
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "2xCO2", 
+      "name": "2xCO2 equilibrium experiment"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "PIcntrl", 
+      "name": "pre-industrial control experiment"
+    }
+  }, 
+  {
+    "pk": 3, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "PDcntrl", 
+      "name": "present-day control experiment"
+    }
+  }, 
+  {
+    "pk": 4, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "20C3M", 
+      "name": "climate of the 20th Century experiment"
+    }
+  }, 
+  {
+    "pk": 5, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "Commit", 
+      "name": "committed climate change experiment"
+    }
+  }, 
+  {
+    "pk": 6, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "SRESA2", 
+      "name": "SRES A2 experiment"
+    }
+  }, 
+  {
+    "pk": 7, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "SRESA1B", 
+      "name": "720 ppm stabilization experiment"
+    }
+  }, 
+  {
+    "pk": 8, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "SRESB1", 
+      "name": "550 ppm stabilization experiment"
+    }
+  }, 
+  {
+    "pk": 9, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "1%_to2x", 
+      "name": "1%/year CO2 increase experiment (to doubling)"
+    }
+  }, 
+  {
+    "pk": 10, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "1%_to4x", 
+      "name": "1%/year CO2 increase experiment (to quadrupling)"
+    }
+  }, 
+  {
+    "pk": 11, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "Slabcntl", 
+      "name": "slab ocean control experiment"
+    }
+  }, 
+  {
+    "pk": 12, 
+    "model": "climatedata.experiment", 
+    "fields": {
+      "code": "AMIP", 
+      "name": "AMIP experiment"
+    }
+  }, 
+  {
+    "pk": 1, 
+    "model": "climatedata.frequency", 
+    "fields": {
+      "code": "m", 
+      "name": "Monthly"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.frequency", 
+    "fields": {
+      "code": "d", 
+      "name": "Daily"
+    }
+  }, 
+  {
+    "pk": 3, 
+    "model": "climatedata.frequency", 
+    "fields": {
+      "code": "3", 
+      "name": "3-Hourly"
+    }
+  }
+]

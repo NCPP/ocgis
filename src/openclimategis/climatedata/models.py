@@ -53,33 +53,33 @@ class Frequency(models.Model):
     objects = models.GeoManager()
 
 
-class Grid(models.Model):
-    '''A climate model grid'''
-    pass
-    objects = models.GeoManager()
-
-
-class GridCell(models.Model):
-    '''A climate model grid cell'''
-    grid    = models.ForeignKey(Grid)
-    geom    = models.PolygonField(srid=4326)
-    objects = models.GeoManager()
-
-
-class Prediction(models.Model):
-    '''Models of a climate prediction datafile'''
-    climatemodel = models.ForeignKey(ClimateModel)
-    experiment   = models.ForeignKey(Experiment)
-    realization  = models.ForeignKey(Realization)
-    frequency    = models.ForeignKey(Frequency)
-    url          = models.URLField()
-    min_date     = models.DateTimeField()
-    max_date     = models.DateTimeField()
-    grid         = models.ForeignKey(Grid)
-    #name     = models.CharField(max_length=50)
-    #metadata = models.CharField(max_length=16)
-    #format   = models.CharField(max_length=16)
-    #datatype = models.CharField(max_length=16)
-    #size     = models.IntegerField()
-    objects = models.GeoManager()
+#class Grid(models.Model):
+#    '''A climate model grid'''
+#    pass
+#    objects = models.GeoManager()
+#
+#
+#class GridCell(models.Model):
+#    '''A climate model grid cell'''
+#    grid    = models.ForeignKey(Grid)
+#    geom    = models.PolygonField(srid=4326)
+#    objects = models.GeoManager()
+#
+#
+#class Prediction(models.Model):
+#    '''Models of a climate prediction datafile'''
+#    climate_model = models.ForeignKey(ClimateModel)
+#    experiment    = models.ForeignKey(Experiment)
+#    realization   = models.ForeignKey(Realization)
+#    frequency     = models.ForeignKey(Frequency)
+#    url           = models.URLField()
+#    min_date      = models.DateTimeField()
+#    max_date      = models.DateTimeField()
+#    grid          = models.ForeignKey(Grid)
+#    #name     = models.CharField(max_length=50)
+#    #metadata = models.CharField(max_length=16)
+#    #format   = models.CharField(max_length=16)
+#    #datatype = models.CharField(max_length=16)
+#    #size     = models.IntegerField()
+#    objects = models.GeoManager()
 

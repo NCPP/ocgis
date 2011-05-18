@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install HDF5..."
 
 #Install libcurl (necessary for OPeNDAP functionality)::
@@ -32,5 +35,5 @@ fi
 echo "...finished installing HDF5"
 echo ""
 
-cd $INSTALL_SCRIPT_DIR
-
+# switch back to the starting directory
+cd $STARTDIR

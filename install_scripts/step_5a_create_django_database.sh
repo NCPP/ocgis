@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo ""
 echo "starting to create a PostGIS database for Django..."
 
@@ -10,3 +13,6 @@ sudo -u postgres psql -d postgres -c "ALTER DATABASE $DBNAME OWNER TO $DBOWNER;"
 
 echo "... finished creating a PostGIS database for Django"
 echo ""
+
+# switch back to the starting directory
+cd $STARTDIR

@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# install Proj4
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
 
 echo "starting to install Proj..."
 
@@ -31,5 +32,5 @@ fi
 echo "...finished installing Proj"
 echo ""
 
-cd $INSTALL_SCRIPT_DIR
-
+# switch back to the starting directory
+cd $STARTDIR

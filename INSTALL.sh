@@ -1,7 +1,5 @@
 #!/bin/bash
 
-INSTALL_SCRIPT_DIR=$HOME
-
 # Update and install build tools
 . install_scripts/step_1a_install_update_system.sh
 . install_scripts/step_1b_install_install_build_dependencies.sh
@@ -23,7 +21,4 @@ INSTALL_SCRIPT_DIR=$HOME
 
 # configure Django
 . install_scripts/step_5a_create_django_database.sh
-
-# switch back to the home directory
-cd
 

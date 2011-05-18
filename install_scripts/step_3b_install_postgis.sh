@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install PostGIS..."
 
 sudo apt-get install libxml2-dev
@@ -27,6 +30,9 @@ fi
 
 echo "...finished installing PostGIS"
 echo ""
+
+# switch back to the starting directory
+cd $STARTDIR
 
 #-----------------------------------------------
 # Troubleshooting PostGIS

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install netCDF4..."
 
 NETCDF4_VER=4.1.1
@@ -33,5 +36,5 @@ fi
 echo "...finished installing netCDF4"
 echo ""
 
-cd $INSTALL_SCRIPT_DIR
-
+# switch back to the starting directory
+cd $STARTDIR

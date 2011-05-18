@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install Python packages..."
 
 VIRTUALENVNAME=openclimategis
@@ -14,3 +17,5 @@ pip -E $VIRTUALENVNAME install git+http://github.com/tylere/OpenClimateGIS
 echo "...finished installing Python packages"
 echo ""
 
+# switch back to the starting directory
+cd $STARTDIR

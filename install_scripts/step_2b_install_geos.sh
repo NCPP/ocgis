@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install GEOS..."
 
 GEOS_VER=3.2.2
@@ -27,7 +30,8 @@ fi
 echo "...finished installing GEOS"
 echo ""
 
-cd $INSTALL_SCRIPT_DIR
+# switch back to the starting directory
+cd $STARTDIR
 
 #NOTE:
 #set the GEOS_LIBRARY_PATH variable in the Django settings file to specify

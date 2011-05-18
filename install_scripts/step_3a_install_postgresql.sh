@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install PostgreSQL..."
 
 POSTGRESQL_VER=8.4
@@ -17,3 +20,5 @@ sudo -u postgres createuser $DBUSER --superuser --pwprompt
 echo "...finished installing PostgreSQL"
 echo ""
 
+# switch back to the starting directory
+cd $STARTDIR

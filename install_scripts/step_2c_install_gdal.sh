@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# save the starting directory, so it can be restored after the script has finished
+STARTDIR=`pwd`
+
 echo "starting to install GDAL..."
 
 GDAL_VER=1.8.0
@@ -27,5 +30,5 @@ fi
 echo "...finished installing GDAL"
 echo ""
 
-cd $INSTALL_SCRIPT_DIR
-
+# switch back to the starting directory
+cd $STARTDIR

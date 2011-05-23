@@ -5,3 +5,4 @@ src/openclimategis/settings_local.py
 dist/*
 README.pdf
 src/OpenClimateGIS.egg-info/*
+*.pyc

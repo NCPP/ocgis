@@ -45,12 +45,13 @@ class KmzEmitter(KmlEmitter):
         kml = super(KmzEmitter,self).render()
         
         
-class NetCDFEmitter(OpenClimateEmitter):
+class GeoJsonEmitter(OpenClimateEmitter):
     """
-    Emits NetCDf (.ncf)
+    JSON format for geospatial data (.json)
     """
     
     def render(self,request):
         pass
+    
 
 Emitter.register('helloworld',HelloWorldEmitter,'application/html; charset=utf-8')

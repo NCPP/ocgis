@@ -53,5 +53,4 @@ class GeoJsonEmitter(OpenClimateEmitter):
     def render(self,request):
         pass
     
-
 Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')

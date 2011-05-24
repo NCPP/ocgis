@@ -54,4 +54,4 @@ class GeoJsonEmitter(OpenClimateEmitter):
         pass
     
 
-Emitter.register('helloworld',HelloWorldEmitter,'application/html; charset=utf-8')
+Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')

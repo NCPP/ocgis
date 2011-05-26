@@ -30,8 +30,11 @@ DATABASES = {
 }
 POSTGIS_VERSION = (1, 5, 2)
 POSTGIS_TEMPLATE = 'postgis-1.5.2-template'
-#TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner'
-TEST_RUNNER = 'django.contrib.gis.tests.GeoDjangoTestSuiteRunner'
+
+# Use the GeoDjango Test Suite Runner to test the geospatial dependencies
+TEST_RUNNER = 'django.test.simple.DjangoTestSuiteRunner'
+#TEST_RUNNER = 'django.contrib.gis.tests.GeoDjangoTestSuiteRunner'
+
 #GEOS_LIBRARY_PATH = '/home/bob/local/lib/libgeos_c.so'
 #GDAL_LIBRARY_PATH = '/home/sue/local/lib/libgdal.so'
 
@@ -110,5 +113,6 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     'django.contrib.admindocs',
     'climatedata',
+    'api',
 )
 

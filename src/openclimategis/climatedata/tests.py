@@ -8,6 +8,18 @@ class SimpleTest(TestCase):
         """
         self.failUnlessEqual(1 + 1, 2)
 
+
+class TrivialGridTest(TestCase):
+    fixtures = ['trivial_grid.json']
+    
+    def testTrivialGridFixture(self):
+        "Tests that the grid fixture data was loaded"
+        from openclimategis.climatedata.models import Grid, GridCell
+        
+        self.assertEquals(Grid.objects.count(), 1)
+        self.assertEquals(GridCell.objects.count(), 12)
+
+
 class ClimateDataTest(TestCase):
     
     def setUp(self):

@@ -1,4 +1,4 @@
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from openclimategis.climatedata.models import Grid, GridCell
 
 class Command(BaseCommand):
@@ -34,14 +34,15 @@ class Command(BaseCommand):
             # create the associated GridCell records
                 for col in range(0,lon_cells):
                     for row in range(0,lat_cells):
-                        # create a grid record
+                        # create a grid record, using a convention that the 
+                        # origin (row,col=0,0) is in the upper left
                         wkt = ('POLYGON (({w} {s}, '
                                          '{w} {n}, '
                                          '{e} {n}, '
                                          '{e} {s}, '
                                          '{w} {s}))').format(
-                            n=lat_min+row*(lat_step+1),
-                            s=lat_min+row*lat_step,
+                            n=lat_max-row*lat_step,
+                            s=lat_max-row*(lat_step+1),
                             e=lon_min+col*(lon_step+1),
                             w=lon_min+col*lon_step,
                         )

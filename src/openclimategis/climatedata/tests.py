@@ -14,10 +14,11 @@ class TrivialGridTest(TestCase):
     
     def testTrivialGridFixture(self):
         "Tests that the grid fixture data was loaded"
-        from openclimategis.climatedata.models import Grid, GridCell
+        from openclimategis.climatedata.models import SpatialGrid
+        from openclimategis.climatedata.models import SpatialGridCell
         
-        self.assertEquals(Grid.objects.count(), 1)
-        self.assertEquals(GridCell.objects.count(), 12)
+        self.assertEquals(SpatialGrid.objects.count(), 1)
+        self.assertEquals(SpatialGridCell.objects.count(), 12)
 
 
 class ClimateDataTest(TestCase):

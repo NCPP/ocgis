@@ -202,29 +202,5 @@
       "code": "AMIP", 
       "name": "AMIP experiment"
     }
-  }, 
-  {
-    "pk": 1, 
-    "model": "climatedata.frequency", 
-    "fields": {
-      "code": "m", 
-      "name": "Monthly"
-    }
-  }, 
-  {
-    "pk": 2, 
-    "model": "climatedata.frequency", 
-    "fields": {
-      "code": "d", 
-      "name": "Daily"
-    }
-  }, 
-  {
-    "pk": 3, 
-    "model": "climatedata.frequency", 
-    "fields": {
-      "code": "3", 
-      "name": "3-Hourly"
-    }
   }
 ]

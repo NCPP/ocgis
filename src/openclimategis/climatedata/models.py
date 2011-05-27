@@ -64,10 +64,10 @@ class ClimateModel(models.Model):
     code         = models.CharField(max_length=25)
     organization = models.ForeignKey(Organization)
     url          = models.URLField(
-                        verify_exists=False,
-                        max_length=200,
-                        null=True,
-                    )
+        verify_exists=False,
+        max_length=200,
+        null=True,
+    )
     objects      = models.GeoManager()
     
     def __unicode__(self):
@@ -87,34 +87,46 @@ class Experiment(models.Model):
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
-class Frequency(models.Model):
-    '''Temporal frequency of the data
-    
-    Example: monthly, daily
-    '''
-    code = models.CharField(max_length=2)
-    name = models.CharField(max_length=50)
-    objects = models.GeoManager()
-    
-    def __unicode__(self):
-        return "{name} ({code})".format(name=self.name, code=self.code)
 
-
-class Grid(models.Model):
-    '''A climate model grid (collection of grid cells)'''
+class SpatialGrid(models.Model):
+    '''A climate model spatial grid (collection of grid cells)'''
     boundary_geom = models.PolygonField(srid=4326)
     native_srid   = models.IntegerField()
     description   = models.TextField()
     objects       = models.GeoManager()
 
 
-class GridCell(models.Model):
-    '''A climate model grid cell'''
-    grid    = models.ForeignKey(Grid)
-    row     = models.IntegerField()
-    col     = models.IntegerField()
-    geom    = models.PolygonField(srid=4326)
-    objects = models.GeoManager()
+class SpatialGridCell(models.Model):
+    '''A climate model spatial grid cell'''
+    grid_spatial = models.ForeignKey(SpatialGrid)
+    row          = models.IntegerField()
+    col          = models.IntegerField()
+    geom         = models.PolygonField(srid=4326)
+    objects      = models.GeoManager()
+
+
+class TemporalGrid(models.Model):
+    '''A climate model temporal grid (collection of grid cells)'''
+    date_min      = models.DateField()
+    date_max      = models.DateField()
+    description   = models.TextField()
+    objects       = models.GeoManager()
+
+
+class TemporalGridCell(models.Model):
+    '''A climate model temporal grid cell (time interval)'''
+    grid_temporal = models.ForeignKey(TemporalGrid)
+    index         = models.IntegerField()
+    date_min      = models.DateField(
+        help_text='the minimum date for the time interval'
+    )
+    date_ref      = models.DateField(
+        help_text='the reference date for the time interval',
+    )
+    date_max      = models.DateField(
+        help_text='the maximum date for the time interval',
+    )
+    objects       = models.GeoManager()
 
 
 class Prediction(models.Model):
@@ -122,13 +134,21 @@ class Prediction(models.Model):
     climate_model = models.ForeignKey(ClimateModel)
     experiment    = models.ForeignKey(Experiment)
     run           = models.IntegerField(
-                    help_text='a run number, which may indicating different initial conditions',
-                    )
-    min_date      = models.DateTimeField()
-    max_date      = models.DateTimeField()
-    frequency     = models.ForeignKey(Frequency)
-    url           = models.URLField()
-    grid          = models.ForeignKey(Grid)
+        help_text='a run number, which may indicating different initial conditions',
+    )
+    url           = models.URLField(
+        verify_exists=False,
+        help_text='URL for accessing the dataset',
+    )
+    grid_spatial  = models.ForeignKey(SpatialGrid)
+    grid_temporal = models.ForeignKey(TemporalGrid)
+    spacing_temporal = models.CharField(
+        max_length=1,
+        choices=(
+            ('D', 'Daily'),
+            ('M', 'Monthly'),
+        )
+    )
     description   = models.TextField()
     objects       = models.GeoManager()
 

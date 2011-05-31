@@ -5,7 +5,7 @@ STARTDIR=`pwd`
 
 echo "starting to install PostGIS..."
 
-sudo apt-get install libxml2-dev
+sudo apt-get install -y libxml2-dev
 
 POSTGIS_VER=1.5.2
 POSTGIS_SRC=$SRCDIR/postgis/$POSTGIS_VER

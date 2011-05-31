@@ -3,6 +3,7 @@ from django.test.client import Client
 from models import *
 from util.ncwrite import NcWrite
 import tempfile
+from util.helpers import get_temp_path
 
 class NcwriteTest(TestCase):
     fixtures = ['trivial_grid.json']
@@ -16,10 +17,7 @@ class NcwriteTest(TestCase):
         self.assertTrue(nw.dim_x.shape[0] > 0)
         self.assertTrue(nw.dim_y.shape[0] > 0)
         ## write to a file
-        f = tempfile.NamedTemporaryFile(suffix='.nc')
-        f.close()
-        path = f.name
-        nw.write(path)
+        path = get_temp_path(suffix='.nc')
         print('test_write NC = {0}'.format(path))
 
 

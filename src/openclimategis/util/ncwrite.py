@@ -53,8 +53,8 @@ class NcWrite(object):
                           datetime.datetime(2011,3,1)]
             self.dim_time = date2num(self.dates,self.units_time,self.calendar) 
             
-    def write(self,path,seed=1):
-        np.seed = seed
+    def write(self,path,close=True,seed=1):
+        np.random.seed = seed
         
         rootgrp = Dataset(path,'w')
         
@@ -77,7 +77,13 @@ class NcWrite(object):
         times[:] = self.dim_time
         var[:,:,:] = np.random.uniform(size=(len(self.dim_time),len(self.dim_y),len(self.dim_x)))
         
-        rootgrp.close()
+        if close:
+            rootgrp.close()
+            ret = None
+        else:
+            ret = rootgrp
+        
+        return ret
         
     def _get_dim_(self,idx):
         dim = np.unique(np.array([c.centroid[idx] for c in self.centroids]))

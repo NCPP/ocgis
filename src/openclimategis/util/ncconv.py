@@ -17,7 +17,8 @@ class GeoQuerySetFactory(object):
         explanation.
     """
     
-    _dtype_mapping = {np.dtype('float32'):[float,models.FloatField]}
+#    _dtype_mapping = {type(np.dtype('float32')):[float,models.FloatField],
+#                      type(np.dtype('float64')):[float,models.FloatField]}
     
     def __init__(self,rootgrp,var,**kwds):
         self.rootgrp = rootgrp
@@ -36,7 +37,10 @@ class GeoQuerySetFactory(object):
         self._pyfrmt = None ## used to format values from NumPy data types
         
         ## pull the nodata value
-        self.nodata = getattr(rootgrp.variables[self.var],self.nodata_var)
+        try:
+            self.nodata = getattr(rootgrp.variables[self.var],self.nodata_var)
+        except AttributeError:
+            self.nodata = None
         ## construct the time vector
         times = self.rootgrp.variables[self.time]
         self._timevec = n.num2date(times[:],units=times.units,calendar=times.calendar)
@@ -44,7 +48,8 @@ class GeoQuerySetFactory(object):
         self._base_attrs = {'id':models.IntegerField(primary_key=True),
                             'geom':models.MultiPolygonField(srid=self.srid),
                             'timestamp':models.DateTimeField(),
-                            self.var:self._dtype_mapping[rootgrp.variables[self.var].dtype][1](),
+#                            self.var:self._dtype_mapping[rootgrp.variables[self.var].dtype][1](),
+                            self.var:models.FloatField(),
                             'Meta':ClassType('Meta',(),{'app_label':self.app_label}),
                             'objects':self.objects(),}
         ## initialize the class
@@ -56,15 +61,19 @@ class GeoQuerySetFactory(object):
         """  
         
         if self._pyfrmt == None:
-            try:
-                self._pyfrmt = self._dtype_mapping[val][0]
-            ## numpy 'masked' values throws exception
-            except KeyError:
+#            self._pyfrmt = float
+#            try:
+#                self._pyfrmt = self._dtype_mapping[type(val)][0]
+#            ## numpy 'masked' values throws exception
+#            except KeyError:
+#                import ipdb;ipdb.set_trace()
                 ## map this to a NoneType returning function
-                if isinstance(val,np.ma.core.MaskedConstant):
-                    self._pyfrmt = self._masked_
-                else:
-                    raise
+            if isinstance(val,np.ma.core.MaskedConstant):
+                self._pyfrmt = self._masked_
+            else:
+                self._pyfrmt = float
+#                else:
+#                    raise
         return self._pyfrmt
         
     def get_numpy_data(self,time_indices=[],x_indices=[],y_indices=[]):

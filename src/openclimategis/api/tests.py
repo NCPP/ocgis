@@ -1,43 +1,57 @@
-from django.test import TestCase
+from django.test import TransactionTestCase, TestCase
+from util.ncconv import GeoQuerySetFactory
+from util.ncwrite import NcWrite
+from util.helpers import get_temp_path
+from climatedata.models import SpatialGridCell
 import os
-from netCDF4 import Dataset
-from api.util.ncconv import GeoQuerySetFactory
-from climatedata.models import Grid, GridCell
+import climatedata
+from django.contrib.gis.geos.collections import MultiPolygon
+from django.contrib.gis.geos.polygon import Polygon
 
 
-class LocalNetCdfTests(TestCase):
-    bin = '/home/bkoziol/git/OpenClimateGIS/bin'
-    nc = 'cnrm_cm3.1.sresa2.monthly.Tavg.2012.nc'
-    var = 'Tavg'
-    ncpath = os.path.join(bin,nc)
+def get_fixtures():
+    path = os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')
+    print path
+    return [path]
 
 
-class GeoQuerySetFactoryTests(LocalNetCdfTests):
+class NetCdfAccessTest(TransactionTestCase):
+    fixtures = get_fixtures()
+    
+    def setUp(self):
+        self.var = 'Tavg'
+        self.units_var = 'C'
+        self.nw = NcWrite(self.var,self.units_var)
+        self.path = get_temp_path(suffix='.nc')
+        self.rootgrp = self.nw.write(self.path,close=False)
+        
+    def tearDown(self):
+        self.rootgrp.close()
+
+
+class GeoQuerySetFactoryTests(NetCdfAccessTest):
     
     def test_constructor(self):
-        rootgrp = Dataset(self.ncpath,'r')
-        gf = GeoQuerySetFactory(rootgrp,self.var)
+#        import ipdb;ipdb.set_trace()
+        gf = GeoQuerySetFactory(self.rootgrp,self.var)
         
         ## check time layers are created
         self.assertTrue(len(gf._timevec) > 0)
-        
-        rootgrp.close()
-        
+
     def test_get_queryset(self):
-        rootgrp = Dataset(self.ncpath,'r')
-        gf = GeoQuerySetFactory(rootgrp,self.var)
+        qs = SpatialGridCell.objects.all().order_by('row','col')
+        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+        gf = GeoQuerySetFactory(self.rootgrp,self.var)
+        gqs = gf.get_queryset(geom_list)
+        self.assertEquals(len(gqs),len(geom_list)*len(self.nw.dim_time))
         
-        qs = GridCell.objects.all()
-        for obj in qs:
-            import ipdb;ipdb.set_trace()
-        
-        rootgrp.close()
-        
-
-__test__ = {"doctest": """
-Another way to test that 1 + 1 is equal to 2.
-
->>> 1 + 1 == 2
-True
-"""}
-
+    def test_get_queryset_intersects(self):
+        igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
+        qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
+        y_indices = [obj.row for obj in qs]
+        x_indices = [obj.col for obj in qs]
+        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+        gf = GeoQuerySetFactory(self.rootgrp,self.var)
+        gqs = gf.get_queryset(geom_list,x_indices=x_indices,y_indices=y_indices)
+#        import ipdb;ipdb.set_trace()
+        self.assertEqual(len(gqs),len(geom_list)*len(self.nw.dim_time))

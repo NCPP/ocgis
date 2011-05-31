@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from openclimategis.climatedata.models import Grid, GridCell
+from climatedata.models import SpatialGrid, SpatialGridCell
 
 class Command(BaseCommand):
     help = 'Creates sample grid data'

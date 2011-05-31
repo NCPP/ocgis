@@ -2,13 +2,25 @@ from django.test import TestCase
 from django.test.client import Client
 from models import *
 from util.ncwrite import NcWrite
+import tempfile
 
 class NcwriteTest(TestCase):
     fixtures = ['trivial_grid.json']
     
     def test_write(self):
-        nw = NcWrite()
-        self.assertTrue(len(nw.centroids)>0)
+        nw = NcWrite('Tavg','C')
+        ## confirm the centroid coordinates are returned properly
+        for c in nw.centroids:
+            self.assertEquals(len(c.centroid.coords),2)
+        ## check dimensions
+        self.assertTrue(nw.dim_x.shape[0] > 0)
+        self.assertTrue(nw.dim_y.shape[0] > 0)
+        ## write to a file
+        f = tempfile.NamedTemporaryFile(suffix='.nc')
+        f.close()
+        path = f.name
+        nw.write(path)
+        print('test_write NC = {0}'.format(path))
 
 
 class TrivialGridTest(TestCase):

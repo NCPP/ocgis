@@ -1,12 +1,14 @@
 from django.test import TestCase
 from django.test.client import Client
+from models import *
+from util.ncwrite import NcWrite
 
-class SimpleTest(TestCase):
-    def test_basic_addition(self):
-        """
-        Tests that 1 + 1 always equals 2.
-        """
-        self.failUnlessEqual(1 + 1, 2)
+class NcwriteTest(TestCase):
+    fixtures = ['trivial_grid.json']
+    
+    def test_write(self):
+        nw = NcWrite()
+        self.assertTrue(len(nw.centroids)>0)
 
 
 class TrivialGridTest(TestCase):
@@ -14,8 +16,6 @@ class TrivialGridTest(TestCase):
     
     def testTrivialGridFixture(self):
         "Tests that the grid fixture data was loaded"
-        from openclimategis.climatedata.models import SpatialGrid
-        from openclimategis.climatedata.models import SpatialGridCell
         
         self.assertEquals(SpatialGrid.objects.count(), 1)
         self.assertEquals(SpatialGridCell.objects.count(), 12)

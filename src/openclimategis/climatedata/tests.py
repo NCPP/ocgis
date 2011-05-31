@@ -10,15 +10,27 @@ class SimpleTest(TestCase):
 
 
 class TrivialGridTest(TestCase):
-    fixtures = ['trivial_grid.json']
+    fixtures = [
+        'trivial_grid.json',
+        'trivial_temporal_grid.json',
+    ]
     
-    def testTrivialGridFixture(self):
-        "Tests that the grid fixture data was loaded"
+    def testTrivialSpatialGridFixture(self):
+        "Tests that the spatial grid fixture data was loaded"
         from openclimategis.climatedata.models import SpatialGrid
         from openclimategis.climatedata.models import SpatialGridCell
         
         self.assertEquals(SpatialGrid.objects.count(), 1)
         self.assertEquals(SpatialGridCell.objects.count(), 12)
+    
+    def testTrivialTemporalGridFixture(self):
+        "Tests that the temporal grid fixture data was loaded"
+        from openclimategis.climatedata.models import TemporalGrid
+        from openclimategis.climatedata.models import TemporalGridCell
+        
+        self.assertEquals(TemporalGrid.objects.count(), 1)
+        self.assertEquals(TemporalGridCell.objects.count(), 3)
+
 
 
 class ClimateDataTest(TestCase):

@@ -1,0 +1,44 @@
+[
+  {
+    "pk": 1, 
+    "model": "climatedata.temporalgrid", 
+    "fields": {
+      "date_min": "2011-01-01", 
+      "date_max": "2011-03-31", 
+      "description": "a trivial temporal grid intended for testing purposes"
+    }
+  },
+  {
+    "pk": 1, 
+    "model": "climatedata.temporalgridcell", 
+    "fields": {
+      "grid_temporal": 1, 
+      "index": 0,
+      "date_min": "2011-01-01",
+      "date_ref": "2011-01-16",
+      "date_max": "2011-01-31"
+    }
+  }, 
+  {
+    "pk": 2, 
+    "model": "climatedata.temporalgridcell", 
+    "fields": {
+      "grid_temporal": 1, 
+      "index": 1,
+      "date_min": "2011-02-01",
+      "date_ref": "2011-02-15",
+      "date_max": "2011-02-28"
+    }
+  }, 
+  {
+    "pk": 3, 
+    "model": "climatedata.temporalgridcell", 
+    "fields": {
+      "grid_temporal": 1, 
+      "index": 2,
+      "date_min": "2011-03-01",
+      "date_ref": "2011-03-16",
+      "date_max": "2011-03-31"
+    }
+  }
+]

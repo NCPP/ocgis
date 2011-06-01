@@ -105,10 +105,69 @@ class SpatialGridCell(models.Model):
     objects      = models.GeoManager()
 
 
+class TemporalUnit(models.Model):
+    '''A unit of time
+    
+    For example: hours since 1800-01-01 00:00:00 -6:00
+    
+    Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#time-coordinate
+    '''
+    time_unit = models.CharField(max_length=7)
+    reference = models.DateField()
+    objects       = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{time_unit} since {time_reference}".format(
+            time_unit=self.time_unit,
+            time_reference=self.reference
+        )
+
+
+class Calendar(models.Model):
+    '''A calendar used by time references
+    
+    For example: hours since 1800-01-01 00:00:00 -6:00
+    
+    Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#calendar
+    '''
+    name = models.CharField(
+        max_length=20,
+        choices=(
+            ('gregorian',
+                'Mixed Gregorian/Julian calendar as defined by Udunits.'), 
+            ('standard',
+                'Mixed Gregorian/Julian calendar as defined by Udunits.'), 
+            ('proleptic_gregorian',
+                'A Gregorian calendar extended to dates before 1582-10-15.'
+                ' That is, a year is a leap year if either'
+                ' (i) it is divisible by 4 but not by 100 or'
+                ' (ii) it is divisible by 400.'),
+            ('noleap',
+                'Gregorian calendar without leap years,'
+                ' i.e., all years are 365 days long.'), 
+            ('365_day', 'Gregorian calendar without leap years,'
+                ' i.e., all years are 365 days long.'), 
+            ('all_leap', 'Gregorian calendar with every year being a leap year,'
+                ' i.e., all years are 366 days long.'),
+            ('366_day', 'Gregorian calendar with every year being a leap year,'
+                ' i.e., all years are 366 days long.'),
+            ('360_day', 
+                'All years are 360 days divided into 30 day months.'), 
+            ('julian', 
+                'Julian calendar.'), 
+            ('none', 
+                'no calendar')
+        )
+    )
+    objects       = models.GeoManager()
+
+
 class TemporalGrid(models.Model):
     '''A climate model temporal grid (collection of grid cells)'''
     date_min      = models.DateField()
     date_max      = models.DateField()
+    temporal_unit = models.ForeignKey(TemporalUnit)
+    calendar      = models.ForeignKey(Calendar)
     description   = models.TextField()
     objects       = models.GeoManager()
 

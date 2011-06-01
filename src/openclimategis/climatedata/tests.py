@@ -25,9 +25,13 @@ class TrivialGridTest(TestCase):
     
     def testTrivialTemporalGridFixture(self):
         "Tests that the temporal grid fixture data was loaded"
+        from openclimategis.climatedata.models import TemporalUnit
+        from openclimategis.climatedata.models import Calendar
         from openclimategis.climatedata.models import TemporalGrid
         from openclimategis.climatedata.models import TemporalGridCell
         
+        self.assertEquals(TemporalUnit.objects.count(), 1)
+        self.assertEquals(Calendar.objects.count(), 2)
         self.assertEquals(TemporalGrid.objects.count(), 1)
         self.assertEquals(TemporalGridCell.objects.count(), 3)
 

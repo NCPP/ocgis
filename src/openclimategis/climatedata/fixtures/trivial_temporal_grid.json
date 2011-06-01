@@ -1,10 +1,34 @@
 [
   {
     "pk": 1, 
+    "model": "climatedata.temporalunit", 
+    "fields": {
+      "time_unit": "days", 
+      "reference": "1800-01-01"
+    }
+  },
+  {
+    "pk": 1, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "gregorian" 
+    }
+  },
+  {
+    "pk": 2, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "365_day" 
+    }
+  },
+  {
+    "pk": 1, 
     "model": "climatedata.temporalgrid", 
     "fields": {
       "date_min": "2011-01-01", 
       "date_max": "2011-03-31", 
+      "temporal_unit": 1,
+      "calendar": 1,
       "description": "a trivial temporal grid intended for testing purposes"
     }
   },

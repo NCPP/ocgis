@@ -7,18 +7,18 @@ import os
 import climatedata
 from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
+from django.test.client import Client
 
 
 def get_fixtures():
-    path = os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')
-    print path
-    return [path]
+    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')]
 
 
-class NetCdfAccessTest(TransactionTestCase):
+class NetCdfAccessTest(TestCase):
     fixtures = get_fixtures()
     
     def setUp(self):
+        self.client = Client()
         self.var = 'Tavg'
         self.units_var = 'C'
         self.nw = NcWrite(self.var,self.units_var)
@@ -27,12 +27,17 @@ class NetCdfAccessTest(TransactionTestCase):
         
     def tearDown(self):
         self.rootgrp.close()
+        
+        
+class TestUrls(NetCdfAccessTest):
+    
+    def test_shapefile(self):
+        response = self.client.get('/api/shz/')
 
 
 class GeoQuerySetFactoryTests(NetCdfAccessTest):
     
     def test_constructor(self):
-#        import ipdb;ipdb.set_trace()
         gf = GeoQuerySetFactory(self.rootgrp,self.var)
         
         ## check time layers are created
@@ -53,5 +58,4 @@ class GeoQuerySetFactoryTests(NetCdfAccessTest):
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         gf = GeoQuerySetFactory(self.rootgrp,self.var)
         gqs = gf.get_queryset(geom_list,x_indices=x_indices,y_indices=y_indices)
-#        import ipdb;ipdb.set_trace()
         self.assertEqual(len(gqs),len(geom_list)*len(self.nw.dim_time))

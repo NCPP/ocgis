@@ -54,7 +54,7 @@ class NcWrite(object):
             self.dim_time = date2num(self.dates,self.units_time,self.calendar) 
             
     def write(self,path,close=True,seed=1):
-        np.random.seed = seed
+        np.random.seed(seed)
         
         rootgrp = Dataset(path,'w')
         

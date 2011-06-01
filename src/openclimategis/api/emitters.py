@@ -1,5 +1,6 @@
 from piston.emitters import Emitter
 from django.http import HttpResponse
+from util.shapes.views.export import ShpResponder
 
 
 class OpenClimateEmitter(Emitter):
@@ -8,6 +9,9 @@ class OpenClimateEmitter(Emitter):
     """
     def render(self,request):
         raise NotImplementedError
+    
+#    def construct(self):
+#        import ipdb;ipdb.set_trace()
     
 
 class HelloWorldEmitter(OpenClimateEmitter):
@@ -24,7 +28,7 @@ class ShapefileEmitter(OpenClimateEmitter):
     """
     
     def render(self,request):
-        pass
+        self.construct()
     
     
 class KmlEmitter(OpenClimateEmitter):
@@ -54,3 +58,4 @@ class GeoJsonEmitter(OpenClimateEmitter):
         pass
     
 Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
+Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')

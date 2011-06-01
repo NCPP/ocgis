@@ -9,20 +9,6 @@
   },
   {
     "pk": 1, 
-    "model": "climatedata.calendar", 
-    "fields": {
-      "name": "gregorian" 
-    }
-  },
-  {
-    "pk": 2, 
-    "model": "climatedata.calendar", 
-    "fields": {
-      "name": "365_day" 
-    }
-  },
-  {
-    "pk": 1, 
     "model": "climatedata.temporalgrid", 
     "fields": {
       "date_min": "2011-01-01", 

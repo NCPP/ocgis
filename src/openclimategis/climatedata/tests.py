@@ -1,12 +1,12 @@
 from django.test import TestCase
 from django.test.client import Client
 
-class SimpleTest(TestCase):
-    def test_basic_addition(self):
-        """
-        Tests that 1 + 1 always equals 2.
-        """
-        self.failUnlessEqual(1 + 1, 2)
+class InitialDataTest(TestCase):
+    def test_initial_data(self):
+        "Tests data installed from the intial_data fixture"
+        from openclimategis.climatedata.models import Calendar
+        
+        self.assertEquals(Calendar.objects.count(), 10)
 
 
 class TrivialGridTest(TestCase):
@@ -26,15 +26,12 @@ class TrivialGridTest(TestCase):
     def testTrivialTemporalGridFixture(self):
         "Tests that the temporal grid fixture data was loaded"
         from openclimategis.climatedata.models import TemporalUnit
-        from openclimategis.climatedata.models import Calendar
         from openclimategis.climatedata.models import TemporalGrid
         from openclimategis.climatedata.models import TemporalGridCell
         
         self.assertEquals(TemporalUnit.objects.count(), 1)
-        self.assertEquals(Calendar.objects.count(), 2)
         self.assertEquals(TemporalGrid.objects.count(), 1)
         self.assertEquals(TemporalGridCell.objects.count(), 3)
-
 
 
 class ClimateDataTest(TestCase):
@@ -52,5 +49,4 @@ class ClimateDataTest(TestCase):
         """
         response = self.client.get('/')
         self.failUnlessEqual(response.status_code, 200)
-    
 

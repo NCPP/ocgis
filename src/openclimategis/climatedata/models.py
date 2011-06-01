@@ -130,35 +130,8 @@ class Calendar(models.Model):
     
     Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#calendar
     '''
-    name = models.CharField(
-        max_length=20,
-        choices=(
-            ('gregorian',
-                'Mixed Gregorian/Julian calendar as defined by Udunits.'), 
-            ('standard',
-                'Mixed Gregorian/Julian calendar as defined by Udunits.'), 
-            ('proleptic_gregorian',
-                'A Gregorian calendar extended to dates before 1582-10-15.'
-                ' That is, a year is a leap year if either'
-                ' (i) it is divisible by 4 but not by 100 or'
-                ' (ii) it is divisible by 400.'),
-            ('noleap',
-                'Gregorian calendar without leap years,'
-                ' i.e., all years are 365 days long.'), 
-            ('365_day', 'Gregorian calendar without leap years,'
-                ' i.e., all years are 365 days long.'), 
-            ('all_leap', 'Gregorian calendar with every year being a leap year,'
-                ' i.e., all years are 366 days long.'),
-            ('366_day', 'Gregorian calendar with every year being a leap year,'
-                ' i.e., all years are 366 days long.'),
-            ('360_day', 
-                'All years are 360 days divided into 30 day months.'), 
-            ('julian', 
-                'Julian calendar.'), 
-            ('none', 
-                'no calendar')
-        )
-    )
+    name          = models.CharField(max_length=20)
+    description   = models.TextField()
     objects       = models.GeoManager()
 
 

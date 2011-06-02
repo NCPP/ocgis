@@ -1,5 +1,5 @@
 from django.test import TransactionTestCase, TestCase
-from util.ncconv import GeoQuerySetFactory
+from util.ncconv import NetCdfAccessor
 from util.ncwrite import NcWrite
 from util.helpers import get_temp_path
 from climatedata.models import SpatialGridCell
@@ -8,6 +8,7 @@ import climatedata
 from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
 from django.test.client import Client
+from util.toshp import OpenClimateShp
 
 
 def get_fixtures():
@@ -35,27 +36,43 @@ class TestUrls(NetCdfAccessTest):
         response = self.client.get('/api/shz/')
 
 
-class GeoQuerySetFactoryTests(NetCdfAccessTest):
+class NetCdfAccessorTests(NetCdfAccessTest):
     
     def test_constructor(self):
-        gf = GeoQuerySetFactory(self.rootgrp,self.var)
-        
-        ## check time layers are created
-        self.assertTrue(len(gf._timevec) > 0)
+        na = NetCdfAccessor(self.rootgrp,self.var)
+        self.assertTrue(len(na._timevec) > 0)
 
-    def test_get_queryset(self):
+    def test_get_dict(self):
+        """Convert entire NetCDF to dict."""
         qs = SpatialGridCell.objects.all().order_by('row','col')
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
-        gf = GeoQuerySetFactory(self.rootgrp,self.var)
-        gqs = gf.get_queryset(geom_list)
-        self.assertEquals(len(gqs),len(geom_list)*len(self.nw.dim_time))
+        na = NetCdfAccessor(self.rootgrp,self.var)
+        dl = na.get_dict(geom_list)
+        self.assertEquals(len(dl),len(geom_list)*len(self.nw.dim_time))
         
-    def test_get_queryset_intersects(self):
+    def test_get_dict_intersects(self):
+        """Convert subset of NetCDF to dict."""
         igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
         qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
         y_indices = [obj.row for obj in qs]
         x_indices = [obj.col for obj in qs]
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
-        gf = GeoQuerySetFactory(self.rootgrp,self.var)
-        gqs = gf.get_queryset(geom_list,x_indices=x_indices,y_indices=y_indices)
-        self.assertEqual(len(gqs),len(geom_list)*len(self.nw.dim_time))
+        na = NetCdfAccessor(self.rootgrp,self.var)
+        dl = na.get_dict(geom_list,x_indices=x_indices,y_indices=y_indices)
+        self.assertEqual(len(dl),len(geom_list)*len(self.nw.dim_time))
+        
+        
+class OpenClimateShpTests(NetCdfAccessTest):
+    
+    def test_constructor(self):
+        qs = SpatialGridCell.objects.all().order_by('row','col')
+        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+        na = NetCdfAccessor(self.rootgrp,self.var)
+        dl = na.get_dict(geom_list)
+        path = get_temp_path('.shp')
+        shp = OpenClimateShp(path,dl)
+        return(shp)
+    
+    def test_write(self):
+        shp = self.test_constructor()
+        shp.write()

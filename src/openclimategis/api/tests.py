@@ -56,22 +56,27 @@ class NetCdfAccessTest(TestCase):
 class TestUrls(NetCdfAccessTest):
     """Test URLs for correct response codes."""
 
-    def test_all(self):
+    def test_archives(self):
         urls = [
-                '/api/archives',
+                '/api/archives/',
                 '/api/archives.html',
                 '/api/archives.json',
-                '/api/archives/cmip3',
+                '/api/archives/cmip3/',
                 '/api/archives/cmip3.html',
                 '/api/archives/cmip3.json'
                 ]
         for url in urls:
             response = self.client.get(url)
-            self.assertNotEqual(response.status_code,404)
+            self.assertEqual(response.status_code,200)
         
         ## confirm the correct reponse code is raised
         response = self.client.get('/api/archives/bad_archive.json')
         self.assertEqual(response.status_code,404)
+        
+    def test_test_urls(self):
+        ## test the spatial handler and zip response
+        response = self.client.get('/api/test/shz/')
+        self.assertEqual(response.status_code,200)
 
 
 class NetCdfAccessorTests(NetCdfAccessTest):
@@ -105,6 +110,7 @@ class NetCdfAccessorTests(NetCdfAccessTest):
 class OpenClimateShpTests(NetCdfAccessTest):
     
     def get_object(self):
+        """Return an example OpenClimateShp object."""
         qs = SpatialGridCell.objects.all().order_by('row','col')
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
@@ -114,5 +120,6 @@ class OpenClimateShpTests(NetCdfAccessTest):
         return(shp)
     
     def test_write(self):
+        """Write a shapefile."""
         shp = self.get_object()
         shp.write()

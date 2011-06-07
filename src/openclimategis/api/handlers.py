@@ -88,5 +88,5 @@ class SpatialHandler(OpenClimateHandler):
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
         dl = na.get_dict(geom_list)
-        
+#        import ipdb;ipdb.set_trace()
         return dl

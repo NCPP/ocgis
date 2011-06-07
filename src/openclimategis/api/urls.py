@@ -8,6 +8,7 @@ archive_handler = Resource(handlers.ArchiveHandler)
 climatemodel_handler = Resource(handlers.ClimateModelHandler)
 experiment_handler = Resource(handlers.ExperimentHandler)
 variable_handler = Resource(handlers.VariableHandler)
+spatial_handler = Resource(handlers.SpatialHandler)
 
 #archive_regex = r'^archives/$|^archives/(?P<code>[^/]+)'
 
@@ -16,6 +17,12 @@ urlpatterns = patterns('',
 #(r'^helloworld/$|^helloworld/(?P<model_name>[^/]+)',
 # helloworld_handler,
 # {'emitter_format':'helloworld'}),
+
+## TEST URLS ONLY !!!!!!! ------------------------------------------------------
+
+(r'^test/shz/$',
+ spatial_handler,
+ {'emitter_format':'shz'}),
 
 ## ARCHIVES --------------------------------------------------------------------
 

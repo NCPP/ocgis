@@ -91,6 +91,10 @@ class NetCdfAccessor(object):
             pull from the NC.
         """
         
+        ## code expects at least one geometry
+        if len(geom_list) == 0:
+            raise ValueError('At least one geometry is expected.')
+        
         ## code expects the geometry to be included in a list, but for convenience
         ##  in the aggregation case a single geometry may be passed
         if type(geom_list) not in [list,tuple]:

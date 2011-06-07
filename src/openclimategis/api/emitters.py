@@ -1,6 +1,8 @@
 from piston.emitters import Emitter
 from django.http import HttpResponse
 from util.shapes.views.export import ShpResponder
+from util.toshp import OpenClimateShp
+from util.helpers import get_temp_path
 
 
 class OpenClimateEmitter(Emitter):
@@ -9,6 +11,11 @@ class OpenClimateEmitter(Emitter):
     """
     def render(self,request):
         raise NotImplementedError
+    
+class GeometryEmitter(OpenClimateEmitter):
+    
+    def construct(self):
+        return self.data
     
 #    def construct(self):
 #        import ipdb;ipdb.set_trace()
@@ -28,14 +35,17 @@ class HtmlEmitter(OpenClimateEmitter):
         return HttpResponse(str(self.construct()))
 
    
-class ShapefileEmitter(OpenClimateEmitter):
+class ShapefileEmitter(GeometryEmitter):
     """
     Emits zipped shapefile (.shz)
     """
     
     def render(self,request):
         dl = self.construct()
+        path = get_temp_path(suffix='.shp')
         shp = OpenClimateShp(path,dl)
+        shp.write()
+        return shp.zip_response()
     
     
 class KmlEmitter(OpenClimateEmitter):

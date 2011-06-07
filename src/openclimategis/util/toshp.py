@@ -2,10 +2,10 @@ from osgeo import ogr, osr
 import datetime
 from django.contrib.gis.gdal.geomtype import OGRGeomType
 from django.contrib.gis.gdal.error import check_err
-import StringIO
 import zipfile
 from django.http import HttpResponse
 import os
+from io import BytesIO
 
 
 class OpenClimateShp(object):
@@ -68,11 +68,12 @@ class OpenClimateShp(object):
         ds.Destroy()
         
     def zip_response(self):
-        buffer = StringIO()
-        zip = zipfile.ZipFile(buffer,'w')#,zipfile.ZIP_DEFLATED)
+        buffer = BytesIO()
+        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
         files = ['shp','shx','prj','dbf']
         for item in files:
             filepath = self.path.replace('shp',item)
+#            import ipdb;ipdb.set_trace()
 #            filename = '%s.%s' % (self.path.replace('.shp',''), item)
             zip.write(filepath)#, arcname='%s.%s' % (file_name.replace('.shp',''), item))
 #        if readme:
@@ -84,9 +85,9 @@ class OpenClimateShp(object):
         
         # Stick it all in a django HttpResponse
         response = HttpResponse()
-        response['Content-Disposition'] = 'attachment; filename={0}.shz'.format(self.filename) % file_name.replace('.shp','')
+        response['Content-Disposition'] = 'attachment; filename={0}.shz'.format(self.filename)# % file_name.replace('.shp','')
         response['Content-length'] = str(len(zip_stream))
-        response['Content-Type'] = mimetype
+        response['Content-Type'] = 'application/zip'
         response.write(zip_stream)
         return response
 

@@ -20,6 +20,12 @@ class HelloWorldEmitter(OpenClimateEmitter):
         names = [n['name'] for n in self.construct()]
         msg = 'Hello, World!! The climate model names are:<br><br>{0}'.format('<br>'.join(names))
         return HttpResponse(msg)
+    
+    
+class HtmlEmitter(OpenClimateEmitter):
+    
+    def render(self,request):
+        return HttpResponse(str(self.construct()))
 
    
 class ShapefileEmitter(OpenClimateEmitter):
@@ -28,7 +34,8 @@ class ShapefileEmitter(OpenClimateEmitter):
     """
     
     def render(self,request):
-        self.construct()
+        dl = self.construct()
+        shp = OpenClimateShp(path,dl)
     
     
 class KmlEmitter(OpenClimateEmitter):
@@ -57,5 +64,6 @@ class GeoJsonEmitter(OpenClimateEmitter):
     def render(self,request):
         pass
     
-Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
+#Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
+Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')

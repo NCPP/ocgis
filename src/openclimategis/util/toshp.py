@@ -2,6 +2,10 @@ from osgeo import ogr, osr
 import datetime
 from django.contrib.gis.gdal.geomtype import OGRGeomType
 from django.contrib.gis.gdal.error import check_err
+import StringIO
+import zipfile
+from django.http import HttpResponse
+import os
 
 
 class OpenClimateShp(object):
@@ -17,6 +21,7 @@ class OpenClimateShp(object):
     
     def __init__(self,path,attrs,geom='geom',layer='lyr',id='id'):
         self.path = path
+        self.filename = os.path.split(path)[1]
         self.attrs = attrs
         self.geom = geom
         self.layer = layer
@@ -61,6 +66,29 @@ class OpenClimateShp(object):
             check_err(layer.CreateFeature(feat))
         
         ds.Destroy()
+        
+    def zip_response(self):
+        buffer = StringIO()
+        zip = zipfile.ZipFile(buffer,'w')#,zipfile.ZIP_DEFLATED)
+        files = ['shp','shx','prj','dbf']
+        for item in files:
+            filepath = self.path.replace('shp',item)
+#            filename = '%s.%s' % (self.path.replace('.shp',''), item)
+            zip.write(filepath)#, arcname='%s.%s' % (file_name.replace('.shp',''), item))
+#        if readme:
+#            zip.writestr('README.txt',readme)
+        zip.close()
+        buffer.flush()
+        zip_stream = buffer.getvalue()
+        buffer.close()
+        
+        # Stick it all in a django HttpResponse
+        response = HttpResponse()
+        response['Content-Disposition'] = 'attachment; filename={0}.shz'.format(self.filename) % file_name.replace('.shp','')
+        response['Content-length'] = str(len(zip_stream))
+        response['Content-Type'] = mimetype
+        response.write(zip_stream)
+        return response
 
 
 class FieldCache(object):

@@ -1,4 +1,4 @@
-from django.test import TransactionTestCase, TestCase
+from django.test import TestCase
 from util.ncconv import NetCdfAccessor
 from util.ncwrite import NcWrite
 from util.helpers import get_temp_path
@@ -14,26 +14,64 @@ from util.toshp import OpenClimateShp
 def get_fixtures():
     return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')]
 
+def get_example_netcdf():
+    var = 'Tavg'
+    units_var = 'C'
+    nw = NcWrite(var,units_var)
+    path = get_temp_path(suffix='.nc')
+    rootgrp = nw.write(path,close=False)
+    return({
+            'var':var,
+            'units_var':units_var,
+            'nw':nw,
+            'path':path,
+            'rootgrp':rootgrp,
+            })
+
 
 class NetCdfAccessTest(TestCase):
+    """
+    Tests requiring an NetCDF file to read should subclass this. Once a test
+    OpenDap server is available, this object is obsolete.
+    """
+    
     fixtures = get_fixtures()
     
     def setUp(self):
         self.client = Client()
-        self.var = 'Tavg'
-        self.units_var = 'C'
-        self.nw = NcWrite(self.var,self.units_var)
-        self.path = get_temp_path(suffix='.nc')
-        self.rootgrp = self.nw.write(self.path,close=False)
+        
+        attrs = get_example_netcdf()
+        for key,value in attrs.iteritems():
+            setattr(self,key,value)
+#        self.var = 'Tavg'
+#        self.units_var = 'C'
+#        self.nw = NcWrite(self.var,self.units_var)
+#        self.path = get_temp_path(suffix='.nc')
+#        self.rootgrp = self.nw.write(self.path,close=False)
         
     def tearDown(self):
         self.rootgrp.close()
         
         
 class TestUrls(NetCdfAccessTest):
-    
-    def test_shapefile(self):
-        response = self.client.get('/api/shz/')
+    """Test URLs for correct response codes."""
+
+    def test_all(self):
+        urls = [
+                '/api/archives',
+                '/api/archives.html',
+                '/api/archives.json',
+                '/api/archives/cmip3',
+                '/api/archives/cmip3.html',
+                '/api/archives/cmip3.json'
+                ]
+        for url in urls:
+            response = self.client.get(url)
+            self.assertNotEqual(response.status_code,404)
+        
+        ## confirm the correct reponse code is raised
+        response = self.client.get('/api/archives/bad_archive.json')
+        self.assertEqual(response.status_code,404)
 
 
 class NetCdfAccessorTests(NetCdfAccessTest):
@@ -44,6 +82,7 @@ class NetCdfAccessorTests(NetCdfAccessTest):
 
     def test_get_dict(self):
         """Convert entire NetCDF to dict."""
+        
         qs = SpatialGridCell.objects.all().order_by('row','col')
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
@@ -52,6 +91,7 @@ class NetCdfAccessorTests(NetCdfAccessTest):
         
     def test_get_dict_intersects(self):
         """Convert subset of NetCDF to dict."""
+        
         igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
         qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
         y_indices = [obj.row for obj in qs]
@@ -64,7 +104,7 @@ class NetCdfAccessorTests(NetCdfAccessTest):
         
 class OpenClimateShpTests(NetCdfAccessTest):
     
-    def test_constructor(self):
+    def get_object(self):
         qs = SpatialGridCell.objects.all().order_by('row','col')
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
@@ -74,5 +114,5 @@ class OpenClimateShpTests(NetCdfAccessTest):
         return(shp)
     
     def test_write(self):
-        shp = self.test_constructor()
+        shp = self.get_object()
         shp.write()

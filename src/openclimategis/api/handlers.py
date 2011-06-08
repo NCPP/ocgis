@@ -18,6 +18,9 @@ class OpenClimateHandler(BaseHandler):
         for basic validity.
         """
         
+        ## parse the query string for subclasses
+        self._query_(request)
+        ## call the subclass read methods
         return self.check(self._read_(request,**kwds))
     
     def check(self,payload):
@@ -32,6 +35,13 @@ class OpenClimateHandler(BaseHandler):
         """Overload in subclasses."""
         
         raise NotImplementedError
+    
+    def _query_(self,request):
+        """Parse URL query string and store as attributes."""
+        
+        import ipdb;ipdb.set_trace()
+        
+        
 
 
 #class HelloWorldHandler(OpenClimateHandler):

@@ -77,6 +77,12 @@ class TestUrls(NetCdfAccessTest):
         ## test the spatial handler and zip response
         response = self.client.get('/api/test/shz/')
         self.assertEqual(response.status_code,200)
+        
+#        ## test spatial handler with a polygon intersection
+#        Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
+        url = '/api/test/shz/?poly__11_5-3_5__12_5-3_5__12_5-2_5__11_5-2_5'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code,200)
 
 
 class NetCdfAccessorTests(NetCdfAccessTest):
@@ -133,6 +139,12 @@ class TestHelpers(TestCase):
         """Test the parsing of the polygon query string."""
         
         actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'
-        q = 'poly_30-10_10-20_20-40_40-40'
-        wkt = parse_polygon_wkt(q)
-        self.assertEqual(wkt,actual)
+        
+        qs = ['poly__30-10__10-20__20-40__40-40',
+             'POLYGON__30-10__10-20__20-40__40-40']
+        
+        for q in qs: 
+            wkt = parse_polygon_wkt(q)
+            self.assertEqual(wkt,actual)
+            
+        actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'

@@ -105,10 +105,42 @@ class SpatialGridCell(models.Model):
     objects      = models.GeoManager()
 
 
+class TemporalUnit(models.Model):
+    '''A unit of time
+    
+    For example: hours since 1800-01-01 00:00:00 -6:00
+    
+    Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#time-coordinate
+    '''
+    time_unit = models.CharField(max_length=7)
+    reference = models.DateField()
+    objects       = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{time_unit} since {time_reference}".format(
+            time_unit=self.time_unit,
+            time_reference=self.reference
+        )
+
+
+class Calendar(models.Model):
+    '''A calendar used by time references
+    
+    For example: hours since 1800-01-01 00:00:00 -6:00
+    
+    Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#calendar
+    '''
+    name          = models.CharField(max_length=20)
+    description   = models.TextField()
+    objects       = models.GeoManager()
+
+
 class TemporalGrid(models.Model):
     '''A climate model temporal grid (collection of grid cells)'''
     date_min      = models.DateField()
     date_max      = models.DateField()
+    temporal_unit = models.ForeignKey(TemporalUnit)
+    calendar      = models.ForeignKey(Calendar)
     description   = models.TextField()
     objects       = models.GeoManager()
 

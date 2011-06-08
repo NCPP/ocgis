@@ -5,6 +5,7 @@ from util.ncwrite import NcWrite
 import tempfile
 from util.helpers import get_temp_path
 
+
 class NcwriteTest(TestCase):
     fixtures = ['trivial_grid.json']
     
@@ -21,14 +22,31 @@ class NcwriteTest(TestCase):
         print('test_write NC = {0}'.format(path))
 
 
+class InitialDataTest(TestCase):
+    def test_initial_data(self):
+        "Tests data installed from the intial_data fixture"
+
+        self.assertEquals(Calendar.objects.count(), 10)
+
+
 class TrivialGridTest(TestCase):
-    fixtures = ['trivial_grid.json']
+    fixtures = [
+        'trivial_grid.json',
+        'trivial_temporal_grid.json',
+    ]
     
     def testTrivialGridFixture(self):
         "Tests that the grid fixture data was loaded"
         
         self.assertEquals(SpatialGrid.objects.count(), 1)
         self.assertEquals(SpatialGridCell.objects.count(), 12)
+    
+    def testTrivialTemporalGridFixture(self):
+        "Tests that the temporal grid fixture data was loaded"
+        
+        self.assertEquals(TemporalUnit.objects.count(), 1)
+        self.assertEquals(TemporalGrid.objects.count(), 1)
+        self.assertEquals(TemporalGridCell.objects.count(), 3)
 
 
 class ClimateDataTest(TestCase):
@@ -46,5 +64,4 @@ class ClimateDataTest(TestCase):
         """
         response = self.client.get('/')
         self.failUnlessEqual(response.status_code, 200)
-    
 

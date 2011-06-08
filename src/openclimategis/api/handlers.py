@@ -107,7 +107,7 @@ class VariableHandler(NonSpatialHandler):
     
 class SpatialHandler(OpenClimateHandler):
     
-    def _read_(self,request):
+    def _read_(self,request,mode='intersection'):
         
         from tests import get_example_netcdf
         

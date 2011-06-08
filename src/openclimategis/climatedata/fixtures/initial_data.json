@@ -202,5 +202,85 @@
       "code": "AMIP", 
       "name": "AMIP experiment"
     }
+  },
+  {
+    "pk": 1, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "gregorian", 
+      "description": "Mixed Gregorian/Julian calendar as defined by Udunits. Equivalent to the standard calendar." 
+    }
+  },
+  {
+    "pk": 2, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "standard", 
+      "description": "Mixed Gregorian/Julian calendar as defined by Udunits. Equivalent to the gregorian calendar." 
+    }
+  },
+  {
+    "pk": 3, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "proleptic_gregorian", 
+      "description": "A Gregorian calendar extended to dates before 1582-10-15. That is, a year is a leap year if either (i) it is divisible by 4 but not by 100 or (ii) it is divisible by 400." 
+    }
+  },
+  {
+    "pk": 4, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "noleap", 
+      "description": "Gregorian calendar without leap years, i.e., all years are 365 days long. Equivalent to the 365_day calendar." 
+    }
+  },
+  {
+    "pk": 5, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "365_day", 
+      "description": "Gregorian calendar without leap years, i.e., all years are 365 days long. Equivalent to the noleap calendar." 
+    }
+  },
+  {
+    "pk": 6, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "all_leap", 
+      "description": "Gregorian calendar with every year being a leap year, i.e., all years are 366 days long." 
+    }
+  },
+  {
+    "pk": 7, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "366_day", 
+      "description": "Gregorian calendar with every year being a leap year, i.e., all years are 366 days long." 
+    }
+  },
+  {
+    "pk": 8, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "360_day", 
+      "description": "All years are 360 days divided into 30 day months." 
+    }
+  },
+  {
+    "pk": 9, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "julian", 
+      "description": "Julian calendar." 
+    }
+  },
+  {
+    "pk": 10, 
+    "model": "climatedata.calendar", 
+    "fields": {
+      "name": "none", 
+      "description": "No calendar." 
+    }
   }
 ]

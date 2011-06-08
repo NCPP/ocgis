@@ -1,7 +1,7 @@
 from django.test import TestCase
 from util.ncconv import NetCdfAccessor
 from util.ncwrite import NcWrite
-from util.helpers import get_temp_path
+from util.helpers import get_temp_path, parse_polygon_wkt
 from climatedata.models import SpatialGridCell
 import os
 import climatedata
@@ -111,6 +111,7 @@ class OpenClimateShpTests(NetCdfAccessTest):
     
     def get_object(self):
         """Return an example OpenClimateShp object."""
+        
         qs = SpatialGridCell.objects.all().order_by('row','col')
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
@@ -121,5 +122,17 @@ class OpenClimateShpTests(NetCdfAccessTest):
     
     def test_write(self):
         """Write a shapefile."""
+        
         shp = self.get_object()
         shp.write()
+        
+        
+class TestHelpers(TestCase):
+    
+    def test_parse_polygon_wkt(self):
+        """Test the parsing of the polygon query string."""
+        
+        actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'
+        q = 'poly_30-10_10-20_20-40_40-40'
+        wkt = parse_polygon_wkt(q)
+        self.assertEqual(wkt,actual)

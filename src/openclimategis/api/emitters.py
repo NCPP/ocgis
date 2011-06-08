@@ -43,6 +43,7 @@ class ShapefileEmitter(GeometryEmitter):
     def render(self,request):
         dl = self.construct()
         path = get_temp_path(suffix='.shp')
+#        import ipdb;ipdb.set_trace()
         shp = OpenClimateShp(path,dl)
         shp.write()
         return shp.zip_response()

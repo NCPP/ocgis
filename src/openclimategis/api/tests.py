@@ -80,7 +80,7 @@ class TestUrls(NetCdfAccessTest):
         
 #        ## test spatial handler with a polygon intersection
 #        Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
-        url = '/api/test/shz/?poly__11_5-3_5__12_5-3_5__12_5-2_5__11_5-2_5'
+        url = '/api/test/shz/?spatial=polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))&intersection=0'
         response = self.client.get(url)
         self.assertEqual(response.status_code,200)
 
@@ -140,11 +140,10 @@ class TestHelpers(TestCase):
         
         actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'
         
-        qs = ['poly__30-10__10-20__20-40__40-40',
-             'POLYGON__30-10__10-20__20-40__40-40']
+        qs = ['POLYGON((30+10,10+20,20+40,40+40))',
+              'polygon((30+10,10+20,20+40,40+40))',
+              'polygon((30 10,10 20,20 40,40 40))']
         
         for q in qs: 
             wkt = parse_polygon_wkt(q)
             self.assertEqual(wkt,actual)
-            
-        actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'

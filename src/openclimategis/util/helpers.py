@@ -12,17 +12,17 @@ def parse_polygon_wkt(txt):
     """Parse URL polygon text into WKT"""
     
     ## POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))
-    ## poly_30-10_10-20_20-40_40-40
+    ## POLYGON((30+10,10+20,20+40,40+40))
     
     def _fc(c):
-        c = c.replace('-',' ')
+        c = c.replace('+',' ')
         c = c.replace('_','.')
         return(c)
     
     txt = txt.lower()
     
-    coord = '.*-.*'
-    exp = '(poly|polygon|p)__(?P<c1>{0})__(?P<c2>{0})__(?P<c3>{0})__(?P<c4>{0})'.format(coord)
+    coord = '.*[\+ ]{1}.*'
+    exp = 'polygon\(\((?P<c1>{0}),(?P<c2>{0}),(?P<c3>{0}),(?P<c4>{0})\)\)'.format(coord)
     m = re.match(exp,txt)
     kwds = {'c1':_fc(m.group('c1')),
             'c2':_fc(m.group('c2')),

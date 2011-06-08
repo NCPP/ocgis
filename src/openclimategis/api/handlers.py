@@ -118,11 +118,29 @@ class SpatialHandler(OpenClimateHandler):
         
         from tests import get_example_netcdf
         
-#        import ipdb;ipdb.set_trace()
         attrs = get_example_netcdf()
-        qs = SpatialGridCell.objects.all().order_by('row','col')
+        ## check for a geometry
+        if self._spatial != None:
+            ## query is different if an intersection is requested
+            if self._intersection:
+                raise NotImplementedError
+            else:
+                qs = SpatialGridCell.objects.filter(geom__intersects=self._spatial)
+        else:
+            ## if not spatial or date query is provided, return all the objects
+            qs = SpatialGridCell.objects.all()
+        qs = qs.order_by('row','col')
+        ## transform the grid geometries to MultiPolygon
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
+        ## if a spatial query is provided select the correct indices
+        if self._spatial:
+            y_indices = [obj.row for obj in qs]
+            x_indices = [obj.col for obj in qs]
+        else:
+            y_indices = []
+            x_indices = []
+        ## access the netcdf
         na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
-        dl = na.get_dict(geom_list)
-#        import ipdb;ipdb.set_trace()
-        return dl
+        ## extract a dictionary representation
+        dl = na.get_dict(geom_list,y_indices=y_indices,x_indices=x_indices)
+        return(dl)

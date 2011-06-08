@@ -50,27 +50,20 @@ class OpenClimateHandler(BaseHandler):
     
     def _query_string_(self,request):
         """Parse URL query string and store as attributes."""
-
-        if request.META['QUERY_STRING']:
-            url = urlparse.parse_qs(request.META['QUERY_STRING'])
+        
+        qstr = request.META['QUERY_STRING']
+        if qstr:
+            url = urlparse.parse_qs(qstr)
             for key,value in url.iteritems():
-#                import ipdb;ipdb.set_trace()
                 key = key.lower()
                 value = value[0]
-#                import ipdb;ipdb.set_trace()
                 if key == 'spatial':
-#                    import ipdb;ipdb.set_trace()
-#                    poly = Polygon('POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))')
-#                    import ipdb;ipdb.set_trace()
                     self._spatial = GEOSGeometry(parse_polygon_wkt(value))
                 elif key == 'intersection':
                     self._intersection = bool(int(value))
                 else:
-                    raise KeyError('The query parameters "{0}" was not recognized by the handler.'.format(key))
-#            import ipdb;ipdb.set_trace()
+                    raise KeyError('The query parameters "{0}" was not recognized by the handler.'.format(key))        
         
-        
-
 
 #class HelloWorldHandler(OpenClimateHandler):
 #    allowed_methods = ('GET',)
@@ -141,6 +134,6 @@ class SpatialHandler(OpenClimateHandler):
             x_indices = []
         ## access the netcdf
         na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
-        ## extract a dictionary representation
+        ## extract a dictionary representation of the netcdf
         dl = na.get_dict(geom_list,y_indices=y_indices,x_indices=x_indices)
         return(dl)

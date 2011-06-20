@@ -17,8 +17,8 @@ else
     cd $PROJ_SRC
     wget http://download.osgeo.org/proj/proj-datumgrid-1.5.zip
     wget http://download.osgeo.org/proj/proj-$PROJ_VER.tar.gz
-    unzip proj-datumgrid-1.5.zip -d proj-$PROJ_VER/nad/
     tar xzf proj-$PROJ_VER.tar.gz
+    unzip proj-datumgrid-1.5.zip -d proj-$PROJ_VER/nad/
     cd proj-$PROJ_VER
     ./configure --prefix=$PROJ_DIR > log_proj_configure.out
     make -j 4 > log_proj_make.out

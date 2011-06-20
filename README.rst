@@ -100,6 +100,7 @@ install script::
     
     # run the script to install the dependencies
     cd OpenClimateGIS
+    chmod u+x INSTALL.sh
     ./INSTALL.sh
 
 ------------

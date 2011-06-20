@@ -93,7 +93,7 @@ install_scripts directory.  To download (clone) the respository, including the
 install script::
 
     # install version control tools
-    sudo apt-get install git-core
+    sudo apt-get -y install git-core
     
     # clone the OpenClimateGIS repository
     git clone http://github.com/tylere/OpenClimateGIS.git

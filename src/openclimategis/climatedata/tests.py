@@ -11,8 +11,7 @@ class InitialDataTest(TestCase):
 
 class TrivialGridTest(TestCase):
     fixtures = [
-        'trivial_grid.json',
-        'trivial_temporal_grid.json',
+        'trivial_example.json',
     ]
     
     def testTrivialSpatialGridFixture(self):

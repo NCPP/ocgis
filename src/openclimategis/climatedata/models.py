@@ -1,6 +1,13 @@
 from django.contrib.gis.db import models
 
-class Organization(models.Model):
+class AbstractGeoTable(models.Model):
+    objects = models.GeoManager()
+
+    class Meta:
+        abstract = True
+
+
+class Organization(AbstractGeoTable):
     '''Models an organization (that has a climate model)
     
     Example: National Center for Atmospheric Research (ncar) 
@@ -13,13 +20,12 @@ class Organization(models.Model):
         max_length=200,
         null=True,
     )
-    objects = models.GeoManager()
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Archive(models.Model):
+class Archive(AbstractGeoTable):
     '''Models an climate model data archive
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
@@ -31,13 +37,12 @@ class Archive(models.Model):
         max_length=200,
         null=True,
     )
-    objects = models.GeoManager()
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Variable(models.Model):
+class Variable(AbstractGeoTable):
     '''Models an climate model variable
     
     Example: air_temperature (tas)
@@ -48,13 +53,12 @@ class Variable(models.Model):
     code         = models.CharField(max_length=25)
     units        = models.CharField(max_length=25)
     description  = models.CharField(max_length=1000, null=True)
-    objects = models.GeoManager()
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class ClimateModel(models.Model):
+class ClimateModel(AbstractGeoTable):
     '''A climate model
     
     Example: Community Climate System Model, version 3.0 (CCSM3)
@@ -68,13 +72,12 @@ class ClimateModel(models.Model):
         max_length=200,
         null=True,
     )
-    objects      = models.GeoManager()
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Experiment(models.Model):
+class Experiment(AbstractGeoTable):
     '''A climate model simulation experiment
     
     Example: 2xCO2 equilibrium experiment (2xCO2)
@@ -82,30 +85,32 @@ class Experiment(models.Model):
     '''
     name    = models.CharField(max_length=50)
     code    = models.CharField(max_length=10)
-    objects = models.GeoManager()
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class SpatialGrid(models.Model):
+class SpatialGrid(AbstractGeoTable):
     '''A climate model spatial grid (collection of grid cells)'''
     boundary_geom = models.PolygonField(srid=4326)
     native_srid   = models.IntegerField()
     description   = models.TextField()
-    objects       = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{description}".format(
+            description=self.description,
+        )
 
 
-class SpatialGridCell(models.Model):
+class SpatialGridCell(AbstractGeoTable):
     '''A climate model spatial grid cell'''
     grid_spatial = models.ForeignKey(SpatialGrid)
     row          = models.IntegerField()
     col          = models.IntegerField()
     geom         = models.PolygonField(srid=4326)
-    objects      = models.GeoManager()
 
 
-class TemporalUnit(models.Model):
+class TemporalUnit(AbstractGeoTable):
     '''A unit of time
     
     For example: hours since 1800-01-01 00:00:00 -6:00
@@ -114,7 +119,6 @@ class TemporalUnit(models.Model):
     '''
     time_unit = models.CharField(max_length=7)
     reference = models.DateField()
-    objects       = models.GeoManager()
     
     def __unicode__(self):
         return "{time_unit} since {time_reference}".format(
@@ -123,7 +127,7 @@ class TemporalUnit(models.Model):
         )
 
 
-class Calendar(models.Model):
+class Calendar(AbstractGeoTable):
     '''A calendar used by time references
     
     For example: hours since 1800-01-01 00:00:00 -6:00
@@ -132,20 +136,31 @@ class Calendar(models.Model):
     '''
     name          = models.CharField(max_length=20)
     description   = models.TextField()
-    objects       = models.GeoManager()
+    
+    def __unicode__(self):
+        return "{name} ({description})".format(
+            name=self.name,
+            description=self.description
+        )
 
-
-class TemporalGrid(models.Model):
+class TemporalGrid(AbstractGeoTable):
     '''A climate model temporal grid (collection of grid cells)'''
     date_min      = models.DateField()
     date_max      = models.DateField()
     temporal_unit = models.ForeignKey(TemporalUnit)
     calendar      = models.ForeignKey(Calendar)
     description   = models.TextField()
-    objects       = models.GeoManager()
+
+    def __unicode__(self):
+        return "{date_min} to {date_max} (unit: {unit}; calendar: {calendar})".format(
+            date_min=self.date_min,
+            date_max=self.date_max,
+            unit=self.temporal_unit,
+            calendar=self.calendar.name,
+        )
 
 
-class TemporalGridCell(models.Model):
+class TemporalGridCell(AbstractGeoTable):
     '''A climate model temporal grid cell (time interval)'''
     grid_temporal = models.ForeignKey(TemporalGrid)
     index         = models.IntegerField()
@@ -158,13 +173,13 @@ class TemporalGridCell(models.Model):
     date_max      = models.DateField(
         help_text='the maximum date for the time interval',
     )
-    objects       = models.GeoManager()
 
 
-class Prediction(models.Model):
+class Prediction(AbstractGeoTable):
     '''Models of a climate prediction datafile'''
     climate_model = models.ForeignKey(ClimateModel)
     experiment    = models.ForeignKey(Experiment)
+    variable      = models.ForeignKey(Variable)
     run           = models.IntegerField(
         help_text='a run number, which may indicating different initial conditions',
     )
@@ -182,5 +197,9 @@ class Prediction(models.Model):
         )
     )
     description   = models.TextField()
-    objects       = models.GeoManager()
-
+    
+    def __unicode__(self):
+        return "{url} ({description})".format(
+            url=self.url,
+            description=self.description,
+        )

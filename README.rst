@@ -66,6 +66,7 @@ documentation.::
         print("Instance state = {0}".format(instance.state))
         instance.update()
         sleep(10)
+
     print "Instance state = {0}".format(instance.state)
 
     # add a tag to name the instance

@@ -126,7 +126,7 @@ else
     tar xzf gdal-$GDAL_VER.tar.gz
     cd gdal-$GDAL_VER
     ./configure --prefix=$GDAL_DIR --with-geos=$GEOS_DIR/bin/geos-config > log_gdal_configure.out
-    make > log_gdal_make.out
+    make -j 4 > log_gdal_make.out
     echo "    installing in $GDAL_DIR"
     sudo make install > log_gdal_make_install.out
     sudo sh -c "echo '$GDAL_DIR/lib' > /etc/ld.so.conf.d/gdal.conf" 

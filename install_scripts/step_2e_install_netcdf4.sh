@@ -5,10 +5,10 @@ STARTDIR=`pwd`
 
 echo "starting to install netCDF4..."
 
-NETCDF4_VER=4.1.1
-NETCDF4_SRC=$SRCDIR/hdf5/$NETCDF4_VER
-NETCDF4_DIR=/usr/local/netCDF4/$NETCDF4_VER
-export NETCDF4_DIR  # used by netcdf4-python
+export NETCDF4_VER=4.1.1
+export NETCDF4_SRC=$SRCDIR/hdf5/$NETCDF4_VER
+export NETCDF4_DIR=/usr/local/netCDF4/$NETCDF4_VER
+export NETCDF4_DIR
 
 if [ -e $NETCDF4_DIR ]; then
     echo "The install directory $NETCDF4_DIR already exists; skipping installation..."

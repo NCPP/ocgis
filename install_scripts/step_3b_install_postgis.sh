@@ -7,9 +7,9 @@ echo "starting to install PostGIS..."
 
 sudo apt-get install -y libxml2-dev
 
-POSTGIS_VER=1.5.2
-POSTGIS_SRC=$SRCDIR/postgis/$POSTGIS_VER
-POSTGIS_DIR=/usr/share/postgresql/8.4/contrib/postgis-1.5
+export POSTGIS_VER=1.5.2
+export POSTGIS_SRC=$SRCDIR/postgis/$POSTGIS_VER
+export POSTGIS_DIR=/usr/share/postgresql/8.4/contrib/postgis-1.5
 
 if [ -e $POSTGIS_DIR ]; then
     echo "The destination directory $POSTGIS_DIR already exists; skipping installation..."

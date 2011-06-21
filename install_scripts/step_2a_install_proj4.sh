@@ -5,9 +5,9 @@ STARTDIR=`pwd`
 
 echo "starting to install Proj..."
 
-PROJ_VER=4.7.0
-PROJ_SRC=$SRCDIR/proj/$PROJ_VER
-PROJ_DIR=/usr/local/proj/$PROJ_VER
+export PROJ_VER=4.7.0
+export PROJ_SRC=$SRCDIR/proj/$PROJ_VER
+export PROJ_DIR=/usr/local/proj/$PROJ_VER
 
 if [ -e $PROJ_DIR ]; then
     echo "    The install directory $PROJ_DIR already exists; skipping installation..."

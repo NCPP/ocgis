@@ -5,9 +5,9 @@ STARTDIR=`pwd`
 
 echo "starting to install GDAL..."
 
-GDAL_VER=1.8.0
-GDAL_SRC=$SRCDIR/gdal/$GDAL_VER
-GDAL_DIR=/usr/local/gdal/$GDAL_VER
+export GDAL_VER=1.8.0
+export GDAL_SRC=$SRCDIR/gdal/$GDAL_VER
+export GDAL_DIR=/usr/local/gdal/$GDAL_VER
 
 if [ -e $GDAL_DIR ]; then
     echo "The install directory $GDAL_DIR already exists; skipping installation..."

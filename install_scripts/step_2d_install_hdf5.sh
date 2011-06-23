@@ -8,9 +8,9 @@ echo "starting to install HDF5..."
 #Install libcurl (necessary for OPeNDAP functionality)::
 sudo apt-get install -y libcurl3 libcurl4-openssl-dev
 
-HDF5_VER=1.8.6
-HDF5_SRC=$SRCDIR/hdf5/$HDF5_VER
-HDF5_DIR=/usr/local/hdf5/$HDF5_VER
+export HDF5_VER=1.8.6
+export HDF5_SRC=$SRCDIR/hdf5/$HDF5_VER
+export HDF5_DIR=/usr/local/hdf5/$HDF5_VER
 export HDF5_DIR  # used by netcdf4-python
 
 if [ -e $HDF5_DIR ]; then

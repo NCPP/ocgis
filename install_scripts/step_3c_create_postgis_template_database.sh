@@ -2,8 +2,9 @@
 
 echo "starting to create a PostGIS template database..."
 
+export POSTGIS_TEMPLATE=postgis-$POSTGIS_VER-template
+
 # create a PostGIS template database
-POSTGIS_TEMPLATE=postgis-$POSTGIS_VER-template
 sudo su -c "createdb $POSTGIS_TEMPLATE" - postgres
 sudo su -c "createlang plpgsql $POSTGIS_TEMPLATE" - postgres
 sudo -u postgres psql -d postgres -c "UPDATE pg_database SET datistemplate='true' WHERE datname='$POSTGIS_TEMPLATE';"

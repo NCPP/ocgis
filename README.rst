@@ -61,7 +61,7 @@ documentation.::
         instance_type='m1.large', \
     )
     instance = reservation.instances[0]
-
+    sleep(1)
     while instance.state!=u'running':
         print("Instance state = {0}".format(instance.state))
         instance.update()
@@ -69,10 +69,12 @@ documentation.::
 
     print "Instance state = {0}".format(instance.state)
 
+    # add a tag to name the instance
     instance.add_tag('Name','OpenClimateGIS')
 
     print "DNS="
     print instance.dns_name
+    exit()
 
 Once you configured the Security Group for the instance to allow access on 
 port 22 and created an public/private key pair (See: 'AWS Security Credentials`_)
@@ -91,16 +93,14 @@ The dependencies for OpenClimateGIS are installed via a series of bash scripts.
 The main install script (INSTALL.sh) calls numerous other scripts found in the
 install_scripts directory.  To download (clone) the respository, including the
 install script::
-
-    # install version control tools
-    sudo apt-get install git-core
     
-    # clone the OpenClimateGIS repository
-    git clone http://github.com/tylere/OpenClimateGIS.git
+    # download the installation script
+    sudo apt-get install curl
+    curl -O https://raw.github.com/tylere/OpenClimateGIS/master/INSTALL.sh
     
-    # run the script to install the dependencies
-    cd OpenClimateGIS
-    ./INSTALL.sh
+    # run the installation script
+    chmod u+x INSTALL.sh
+    . INSTALL.sh
 
 ------------
 Source Code

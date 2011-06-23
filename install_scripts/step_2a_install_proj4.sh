@@ -5,9 +5,9 @@ STARTDIR=`pwd`
 
 echo "starting to install Proj..."
 
-PROJ_VER=4.7.0
-PROJ_SRC=$SRCDIR/proj/$PROJ_VER
-PROJ_DIR=/usr/local/proj/$PROJ_VER
+export PROJ_VER=4.7.0
+export PROJ_SRC=$SRCDIR/proj/$PROJ_VER
+export PROJ_DIR=/usr/local/proj/$PROJ_VER
 
 if [ -e $PROJ_DIR ]; then
     echo "    The install directory $PROJ_DIR already exists; skipping installation..."
@@ -17,8 +17,8 @@ else
     cd $PROJ_SRC
     wget http://download.osgeo.org/proj/proj-datumgrid-1.5.zip
     wget http://download.osgeo.org/proj/proj-$PROJ_VER.tar.gz
-    unzip proj-datumgrid-1.5.zip -d proj-$PROJ_VER/nad/
     tar xzf proj-$PROJ_VER.tar.gz
+    unzip proj-datumgrid-1.5.zip -d proj-$PROJ_VER/nad/
     cd proj-$PROJ_VER
     ./configure --prefix=$PROJ_DIR > log_proj_configure.out
     make -j 4 > log_proj_make.out

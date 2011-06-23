@@ -7,6 +7,8 @@ from climatedata.models import ClimateModel
 from climatedata.models import Experiment
 from climatedata.models import SpatialGrid
 from climatedata.models import SpatialGridCell
+from climatedata.models import Calendar
+from climatedata.models import TemporalUnit
 from climatedata.models import TemporalGrid
 from climatedata.models import TemporalGridCell
 from climatedata.models import Prediction
@@ -18,6 +20,8 @@ admin.site.register(ClimateModel)
 admin.site.register(Experiment)
 admin.site.register(SpatialGrid)
 admin.site.register(SpatialGridCell)
+admin.site.register(Calendar)
+admin.site.register(TemporalUnit)
 admin.site.register(TemporalGrid)
 admin.site.register(TemporalGridCell)
 admin.site.register(Prediction)

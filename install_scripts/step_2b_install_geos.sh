@@ -5,9 +5,9 @@ STARTDIR=`pwd`
 
 echo "starting to install GEOS..."
 
-GEOS_VER=3.2.2
-GEOS_SRC=$SRCDIR/geos/$GEOS_VER
-GEOS_DIR=/usr/local/geos/$GEOS_VER
+export GEOS_VER=3.2.2
+export GEOS_SRC=$SRCDIR/geos/$GEOS_VER
+export GEOS_DIR=/usr/local/geos/$GEOS_VER
 
 if [ -e $GEOS_DIR ]; then
     echo "    The install directory $GEOS_DIR already exists; skipping installation..."

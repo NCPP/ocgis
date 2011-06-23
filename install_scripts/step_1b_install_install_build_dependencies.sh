@@ -7,7 +7,8 @@ sudo apt-get install -y gcc
 sudo apt-get install -y g++
 sudo apt-get install -y swig
 
-SRCDIR=~/src
+# set environment variables
+export SRCDIR=~/src
 
 echo ""
 echo "Creating a directory for source files..."

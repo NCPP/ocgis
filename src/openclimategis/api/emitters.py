@@ -44,10 +44,10 @@ class ShapefileEmitter(GeometryEmitter):
         dl = self.construct()
         path = get_temp_path(suffix='.shp')
 #        import ipdb;ipdb.set_trace()
-        try:
-            shp = OpenClimateShp(path,dl)
-        except:
-            import ipdb;ipdb.set_trace()
+#        try:
+        shp = OpenClimateShp(path,dl)
+#        except:
+#            import ipdb;ipdb.set_trace()
         shp.write()
         return shp.zip_response()
     

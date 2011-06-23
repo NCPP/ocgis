@@ -75,13 +75,18 @@ class TestUrls(NetCdfAccessTest):
         
     def test_test_urls(self):
         ## test the spatial handler and zip response
-        response = self.client.get('/api/test/shz/')
-        self.assertEqual(response.status_code,200)
+#        response = self.client.get('/api/test/shz/')
+#        self.assertEqual(response.status_code,200)
         
 #        ## test spatial handler with a polygon intersection
 #        Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
-        url = '/api/test/shz/?spatial=polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))&intersection=0'
+#        url = '/api/test/shz/intersect_grid.shz?spatial=polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))'
+#        response = self.client.get(url)
+#        self.assertEqual(response.status_code,200)
+        
+        url = '/api/test/archive/cmip3/model/ncar_ccsm3_0/scenario/1pctto2x/temporal/1997-07-16/spatial/intersects+polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/variable/ts.shz'
         response = self.client.get(url)
+        import ipdb;ipdb.set_trace()
         self.assertEqual(response.status_code,200)
 
 

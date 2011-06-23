@@ -10,7 +10,16 @@ experiment_handler = Resource(handlers.ExperimentHandler)
 variable_handler = Resource(handlers.VariableHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 
-#archive_regex = r'^archives/$|^archives/(?P<code>[^/]+)'
+## REGEX VARIABLES -------------------------------------------------------------
+
+re_archive = 'archive/(?P<archive>.*)'
+re_model = 'model/(?P<model>.*)'
+re_scenario = 'scenario/(?P<scenario>.*)'
+re_temporal = 'temporal/(?P<temporal>.*)'
+re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
+re_aggregate = 'aggregate/(?P<aggregate>true|false)'
+re_variable = 'variable/(?P<variable>.*)\.(?P<emitter_format>.*)'
+
 
 urlpatterns = patterns('',
                        
@@ -20,9 +29,37 @@ urlpatterns = patterns('',
 
 ## TEST URLS ONLY !!!!!!! ------------------------------------------------------
 
-(r'^test/shz/$',
- spatial_handler,
- {'emitter_format':'shz'}),
+## FULL URL FOR VARIABLE QUERY
+## /test/archive/cmip3/
+##       model/ncar_ccsm3_0/
+##       scenario/1pctto2x/
+##       temporal/(1997-07-16|<from>+<to>)/
+##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
+##       aggregate/(true|false)/
+##       variable/<variable name>.<format>
+
+## URL FOR RETURNING MODEL GRID
+## /test/archive/cmip3/
+##       model/ncar_ccsm3_0/
+##       scenario/1pctto2x/
+##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
+##       grid.<format>
+
+((r'^test/{re_archive}/{re_model}/{re_scenario}/{re_temporal}/{re_spatial}/'
+   '{re_aggregate}/{re_variable}'.format(
+    re_archive=re_archive,
+    re_model=re_model,
+    re_scenario=re_scenario,
+    re_temporal=re_temporal,
+    re_spatial=re_spatial,
+    re_aggregate=re_aggregate,
+    re_variable=re_variable)),
+   spatial_handler
+ ),
+
+#(r'^test/shz/($|(?P<spatial_op>intersect|intersection)_(?P<model>dissolve|grid)\.(?P<emitter_format>))',
+# spatial_handler,
+# {'emitter_format':'shz'}),
 
 ## ARCHIVES --------------------------------------------------------------------
 

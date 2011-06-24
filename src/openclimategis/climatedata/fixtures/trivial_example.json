@@ -184,6 +184,7 @@
     "pk": 1, 
     "model": "climatedata.prediction", 
     "fields": {
+      "archive": 1,
       "climate_model": 1, 
       "experiment": 1,
       "variable": 1,

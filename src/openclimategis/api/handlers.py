@@ -90,6 +90,7 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.model = kwds.get('model')
         ## the overlay operation
         self.ocg.operation = kwds.get('operation')
+        import ipdb;ipdb.set_trace()
         
         
 #    def _query_string_(self,request):

@@ -9,10 +9,15 @@ from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
 from django.test.client import Client
 from util.toshp import OpenClimateShp
+from django.test.testcases import TransactionTestCase
+from warnings import warn
 
+
+def disabled(f):
+    warn('{0} TEST DISABLED!'.format(f.__name__))
 
 def get_fixtures():
-    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')]
+    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_example.json')]
 
 def get_example_netcdf():
     var = 'Tavg'
@@ -29,7 +34,7 @@ def get_example_netcdf():
             })
 
 
-class NetCdfAccessTest(TestCase):
+class NetCdfAccessTest(TransactionTestCase):
     """
     Tests requiring an NetCDF file to read should subclass this. Once a test
     OpenDap server is available, this object is obsolete.
@@ -56,6 +61,7 @@ class NetCdfAccessTest(TestCase):
 class TestUrls(NetCdfAccessTest):
     """Test URLs for correct response codes."""
 
+    @disabled
     def test_archives(self):
         urls = [
                 '/api/archives/',
@@ -86,7 +92,6 @@ class TestUrls(NetCdfAccessTest):
         
         url = '/api/test/archive/cmip3/model/ncar_ccsm3_0/scenario/1pctto2x/temporal/1997-07-16/spatial/intersects+polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/variable/ts.shz'
         response = self.client.get(url)
-        import ipdb;ipdb.set_trace()
         self.assertEqual(response.status_code,200)
 
 

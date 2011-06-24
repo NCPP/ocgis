@@ -90,7 +90,11 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.model = kwds.get('model')
         ## the overlay operation
         self.ocg.operation = kwds.get('operation')
+        
+        ## these queries return objects from the database classifying the NetCDF.
+        ## the goal is to return the prediction.
         import ipdb;ipdb.set_trace()
+        
         
         
 #    def _query_string_(self,request):

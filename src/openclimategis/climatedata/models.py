@@ -177,6 +177,7 @@ class TemporalGridCell(AbstractGeoTable):
 
 class Prediction(AbstractGeoTable):
     '''Models of a climate prediction datafile'''
+    archive       = models.ForeignKey(Archive)
     climate_model = models.ForeignKey(ClimateModel)
     experiment    = models.ForeignKey(Experiment)
     variable      = models.ForeignKey(Variable)

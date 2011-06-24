@@ -113,12 +113,12 @@ class SpatialGridCell(AbstractGeoTable):
 class TemporalUnit(AbstractGeoTable):
     '''A unit of time
     
-    For example: hours since 1800-01-01 00:00:00 -6:00
+    For example: hours since 1800-01-01 00:00:00
     
     Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#time-coordinate
     '''
     time_unit = models.CharField(max_length=7)
-    reference = models.DateField()
+    reference = models.DateTimeField()
     
     def __unicode__(self):
         return "{time_unit} since {time_reference}".format(
@@ -129,8 +129,6 @@ class TemporalUnit(AbstractGeoTable):
 
 class Calendar(AbstractGeoTable):
     '''A calendar used by time references
-    
-    For example: hours since 1800-01-01 00:00:00 -6:00
     
     Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#calendar
     '''

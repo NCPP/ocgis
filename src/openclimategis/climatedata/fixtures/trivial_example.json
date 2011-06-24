@@ -133,7 +133,7 @@
     "model": "climatedata.temporalunit", 
     "fields": {
       "time_unit": "days", 
-      "reference": "1800-01-01"
+      "reference": "1800-01-01 00:00"
     }
   },
   {

@@ -110,14 +110,19 @@ class TestUrls(NetCdfAccessTest):
                     '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
                     '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
                     ]
+        ## spatial operaions
+        sops = [
+#                'intersects',
+                'clip'
+                ]
         
         base_url = ('/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/'
-                    'temporal/{drange}/spatial/intersects+polygon'
+                    'temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/false/'
                     'variable/psl.{ext}')
         
-        for ext,drange,polygon in itertools.product(exts,dranges,polygons):
-            url = base_url.format(ext=ext,drange=drange,polygon=polygon)
+        for ext,drange,polygon,sop in itertools.product(exts,dranges,polygons,sops):
+            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop)
         
         
 #            url = base_url.format('shz')

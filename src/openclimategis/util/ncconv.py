@@ -78,7 +78,7 @@ class NetCdfAccessor(object):
         data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]        
         return data
     
-    def get_dict(self,geom_list,mask=None,aggregate=False,time_indices=[],x_indices=[],y_indices=[]):
+    def get_dict(self,geom_list,mask=None,aggregate=False,time_indices=[],col=[],row=[]):
         """
         Returns a dict list containing target attributes.
         
@@ -88,7 +88,7 @@ class NetCdfAccessor(object):
         aggregate -- set to True and the mean of the NC values will be
             associated with a single geometry.
         time_indices -- list of index locations for the time slices of interest.
-        x & y_indices -- must have same dimension. coordinate pairs to
+        x & row -- must have same dimension. coordinate pairs to
             pull from the NC.
         """
         
@@ -103,7 +103,7 @@ class NetCdfAccessor(object):
         
         ## if indices are passed for the x&y dimensions, they must be equal to
         ##  return data correctly from a netcdf.
-        if len(x_indices) != len(y_indices):
+        if len(col) != len(row):
             raise ValueError('Row and column index counts must be equal.')
         
         ## do some checking for geometry counts depending on the request type
@@ -111,15 +111,15 @@ class NetCdfAccessor(object):
             if len(geom_list) > 1:
                 raise ValueError('When aggregating, only a single geometry is permitted.')
         elif aggregate is False:
-            if len(x_indices) > 0 and len(geom_list) != len(x_indices):
+            if len(col) > 0 and len(geom_list) != len(col):
                 raise ValueError('The number of geometries and the number of requested indices must be equal.')
 
         ## return the netcdf data as a multi-dimensional numpy array
 #        import ipdb;ipdb.set_trace()
-        data = self.get_numpy_data(time_indices,x_indices,y_indices)
+        data = self.get_numpy_data(time_indices,col,row)
         
         ## once more check in the case of all data being returned unaggregated
-        if (aggregate is False) and not x_indices and (len(geom_list) < data.shape[1]*data.shape[2]):
+        if (aggregate is False) and not col and (len(geom_list) < data.shape[1]*data.shape[2]):
             msg = ('The number of geometries and the number of requested indices must be equal. '
                    '{0} geometry(s) passed with {1} geometry(s) required.'.format(len(geom_list),data.shape[1]*data.shape[2]))
             raise ValueError(msg)
@@ -155,19 +155,19 @@ class NetCdfAccessor(object):
             ## in the aggretation case, we summarize a time layer and link it with
             ##  the lone geometry
             if aggregate:
-#                import ipdb;ipdb.set_trace()
+                import ipdb;ipdb.set_trace()
                 attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:float(slice.mean())})
             ## otherwise, we create the rows differently if a subset or the entire
             ##  dataset was requested.
             else:
                 ## the case of requesting specific indices
-                if x_indices:
-                    for jj in xrange(len(x_indices)):
+                if col:
+                    for jj in xrange(len(col)):
                         ## offsets are required as the indices were shifted due
                         ##  to subsetting when querying the netcdf
-                        x_offset = min(x_indices)
-                        y_offset = min(y_indices)
-                        val = self._value_(slice,y_indices[jj]-y_offset,x_indices[jj]-x_offset)
+                        x_offset = min(col)
+                        y_offset = min(row)
+                        val = self._value_(slice,row[jj]-y_offset,col[jj]-x_offset)
                         attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[jj],self.var:val})
                 ## case that all data is being returned
                 else:

@@ -221,8 +221,8 @@ class SpatialHandler(OpenClimateHandler):
             geom_list = MultiPolygon(qs.unionagg())
         ## if a spatial query is provided select the correct indices
 #        if self._spatial:
-        y_indices = [obj.row for obj in qs]
-        x_indices = [obj.col for obj in qs]
+        row = [obj.row for obj in qs]
+        col = [obj.col for obj in qs]
         
         ## TEMPORAL QUERYING ---------------------------------------------------
         
@@ -243,8 +243,8 @@ class SpatialHandler(OpenClimateHandler):
         ## extract a dictionary representation of the netcdf
         dl = na.get_dict(geom_list,
                          time_indices=ti,
-                         y_indices=y_indices,
-                         x_indices=x_indices,
+                         row=row,
+                         col=col,
                          aggregate=self.ocg.aggregate)
 #        print(dl)
 #        import ipdb;ipdb.set_trace()        

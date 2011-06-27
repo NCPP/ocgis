@@ -167,7 +167,7 @@ class NetCdfAccessorTests(NetCdfAccessTest):
         x_indices = [obj.col for obj in qs]
         geom_list = [MultiPolygon(obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
-        dl = na.get_dict(geom_list,x_indices=x_indices,y_indices=y_indices)
+        dl = na.get_dict(geom_list,x_indices=x_indices,row=y_indices)
         self.assertEqual(len(dl),len(geom_list)*len(self.nw.dim_time))
         
         

@@ -108,26 +108,32 @@ class TestUrls(NetCdfAccessTest):
         ## polygons intersections to test
         polygons = [
                     '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
-                    '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
+#                    '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
                     ]
-        ## spatial operaions
+        ## spatial operations
         sops = [
 #                'intersects',
                 'clip'
                 ]
+        ## aggregation
+        aggs = [
+                'true',
+#                'false'
+                ]
         
         base_url = ('/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/'
                     'temporal/{drange}/spatial/{sop}+polygon'
-                    '(({polygon}))/aggregate/false/'
+                    '(({polygon}))/aggregate/{agg}/'
                     'variable/psl.{ext}')
         
-        for ext,drange,polygon,sop in itertools.product(exts,dranges,polygons,sops):
-            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop)
+        for ext,drange,polygon,sop,agg in itertools.product(exts,dranges,polygons,sops,aggs):
+            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg)
         
         
 #            url = base_url.format('shz')
             response = self.client.get(url)
 #            import ipdb;ipdb.set_trace()
+            self.assertTrue(response.content != None)
             self.assertEqual(response.status_code,200)
             
 #            url = base_url.format('geojson')

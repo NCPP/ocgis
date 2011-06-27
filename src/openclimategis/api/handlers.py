@@ -96,10 +96,14 @@ class OpenClimateHandler(BaseHandler):
         ## aggregation boolean
         agg = kwds.get('aggregate')
         ## the None case is different than 'true' or 'false'
-        if agg:
-            self.ocg.aggregate = bool(agg)
+#        import ipdb;ipdb.set_trace()
+        if agg.lower() == 'true':
+            self.ocg.aggregate = True
+        elif agg.lower() == 'false':
+            self.ocg.aggregate = False
         else:
-            self.ocg.aggregate = None
+            msg = '"{0}" aggregating boolean operation not recognized.'
+            raise(ValueError(msg.format(agg)))
         ## the model designation
         self.ocg.model = kwds.get('model')
         ## the overlay operation
@@ -217,8 +221,8 @@ class SpatialHandler(OpenClimateHandler):
 #        qs = qs.order_by('row','col')
         ## if the geometries are not aggregated,transform the grid geometries 
         ## to MultiPolygon
-        if not self.ocg.aggregate:
 #        import ipdb;ipdb.set_trace()
+        if not self.ocg.aggregate:
             geom_list = [MultiPolygon(getattr(obj,geom_attr)) for obj in qs]
         ## otherwise, union the geometries for the extent
         else:

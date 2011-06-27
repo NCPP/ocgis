@@ -54,7 +54,7 @@ class NetCdfAccessor(object):
         """
         Returns multi-dimensional NumPy array extracted from a NC.
         """
-        
+
         sh = self.rootgrp.variables[self.var].shape
         
         ## If indices are not passed, this method defaults to returning all
@@ -62,6 +62,8 @@ class NetCdfAccessor(object):
         
         if not time_indices:
             time_indices = range(0,sh[0])
+        elif len(time_indices) == 1:
+            time_indices = time_indices[0]
         
         if not x_indices:
             x_indices = range(0,sh[2])
@@ -73,7 +75,11 @@ class NetCdfAccessor(object):
         else:
             y_indices = range(min(y_indices),max(y_indices)+1)
         
+#        var = self.rootgrp.variables[self.var]
+        
         data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]
+        
+#        import ipdb;ipdb.set_trace()
         
         return data
     
@@ -123,18 +129,30 @@ class NetCdfAccessor(object):
             raise ValueError(msg)
         
         ## if a weighting mask is not passed, use the identity masking function
-        if mask == None: mask = np.ones((data.shape[1],data.shape[2]))
+        if mask == None:
+            ## if only a single time is returned, the indices are shifted
+            if len(data.shape) > 2:
+                mask = np.ones((data.shape[1],data.shape[2]))
+            else:
+                mask = np.ones((data.shape[0],data.shape[1]))
         
         ## POPULATE QUERYSET ---------------------------------------------------
         
         attrs = [] ## will hold "rows" in the queryset
         ids = self._gen_id_(start=1)
-        ## loop for each time slice
-        for ii in xrange(data.shape[0]):
+        ## loop for each time slice, checking that there is more than one
+        if len(data.shape) == 2:
+            itrval = 1
+        else:
+            itrval = data.shape[0]
+        for ii in xrange(itrval):
             ## retrieve the corresponding time stamp
             timestamp = self._timevec[ii]
             ## apply the mask and remove the singleton (time) dimension
-            slice = np.squeeze(data[ii,:,:])*mask
+            if len(data.shape) == 2:
+                slice = data[:,:]*mask
+            else:
+                slice = np.squeeze(data[ii,:,:])*mask
             
             ## INDEX INTO NUMPY ARRAY ------------------------------------------
             
@@ -152,7 +170,7 @@ class NetCdfAccessor(object):
                         ##  to subsetting when querying the netcdf
                         x_offset = min(x_indices)
                         y_offset = min(y_indices)
-                        val = self._value_(slice,y_indices[jj]-y_offset,x_indices[x_offset]-x_offset)
+                        val = self._value_(slice,y_indices[jj]-y_offset,x_indices[jj]-x_offset)
                         attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[jj],self.var:val})
                 ## case that all data is being returned
                 else:

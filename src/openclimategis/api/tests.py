@@ -20,8 +20,8 @@ def get_fixtures():
     return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_example.json')]
 
 def get_example_netcdf():
-    var = 'Tavg'
-    units_var = 'C'
+    var = 'psl'
+    units_var = 'pa'
     nw = NcWrite(var,units_var)
     path = get_temp_path(suffix='.nc')
     rootgrp = nw.write(path,close=False)
@@ -90,7 +90,17 @@ class TestUrls(NetCdfAccessTest):
 #        response = self.client.get(url)
 #        self.assertEqual(response.status_code,200)
         
-        url = '/api/test/archive/cmip3/model/ncar_ccsm3_0/scenario/1pctto2x/temporal/1997-07-16/spatial/intersects+polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/variable/ts.shz'
+        base_url = '/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/temporal/2011-02-15/spatial/intersects+polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/variable/psl.{0}'
+        
+        url = base_url.format('shz')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code,200)
+        
+        url = base_url.format('geojson')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code,200)
+        
+        url = base_url.format('json')
         response = self.client.get(url)
         self.assertEqual(response.status_code,200)
 

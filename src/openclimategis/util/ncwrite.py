@@ -44,16 +44,16 @@ class NcWrite(object):
         if temporal_grid != None:
             pass
         else:
-            self.units_time = 'days since 0001-01-01 00:00:00 -6:00'
-            self.calendar = 'standard'
-            self.date_ref = datetime.datetime(0001,1,1)
+            self.units_time = 'days since 1800-01-01 00:00:00 0:00'
+            self.calendar = 'gregorian'
+            self.date_ref = datetime.datetime(1800,1,1)
 #            self.dates = TemporalGridCell.objects.all().order_by('date')
-            self.dates = [datetime.datetime(2011,1,1),
-                          datetime.datetime(2011,2,1),
-                          datetime.datetime(2011,3,1)]
+            self.dates = [datetime.datetime(2011,1,16),
+                          datetime.datetime(2011,2,15),
+                          datetime.datetime(2011,3,16)]
             self.dim_time = date2num(self.dates,self.units_time,self.calendar) 
             
-    def write(self,path,close=True,seed=1):
+    def write(self,path,close=True,seed=2):
         np.random.seed(seed)
         
         rootgrp = Dataset(path,'w')

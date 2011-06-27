@@ -3,6 +3,8 @@ from django.http import HttpResponse
 from util.shapes.views.export import ShpResponder
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
+from django.core import serializers
+import geojson
 
 
 class OpenClimateEmitter(Emitter):
@@ -70,14 +72,36 @@ class KmzEmitter(KmlEmitter):
         kml = super(KmzEmitter,self).render()
         
         
-class GeoJsonEmitter(OpenClimateEmitter):
+class GeoJsonEmitter(GeometryEmitter):
     """
     JSON format for geospatial data (.json)
     """
     
     def render(self,request):
-        pass
+        ## return the data from a spatial handler
+        data = self.construct()
+        ## this list holds the features to add to a feature collection
+        features = []
+        ## loop for each row/feature in the returned data
+        for row in data:
+            ## construct the geometry
+            geom = geojson.MultiPolygon(row.pop('geom').coords)
+            ## pull the unique identifier
+            id = row.pop('id')
+            ## change the timestamp to a string
+            row['timestamp'] = str(row['timestamp'])
+            ## construct the feature
+#            import ipdb;ipdb.set_trace()
+            feature = geojson.Feature(id=id,geometry=geom,properties=row)
+            ## append the feature to the collection
+            features.append(feature)
+        ## make the feature collection
+        fc = geojson.FeatureCollection(features)
+        
+        return(geojson.dumps(fc))
     
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
+#Emitter.unregister('json')
+Emitter.register('geojson',GeoJsonEmitter,'application/geojson; charset=utf-8')

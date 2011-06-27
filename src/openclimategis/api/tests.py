@@ -11,6 +11,7 @@ from django.test.client import Client
 from util.toshp import OpenClimateShp
 from django.test.testcases import TransactionTestCase
 from warnings import warn
+import itertools
 
 
 def disabled(f):
@@ -89,20 +90,47 @@ class TestUrls(NetCdfAccessTest):
 #        url = '/api/test/shz/intersect_grid.shz?spatial=polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))'
 #        response = self.client.get(url)
 #        self.assertEqual(response.status_code,200)
+#        import ipdb;ipdb.set_trace()
         
-        base_url = '/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/temporal/2011-02-15/spatial/intersects+polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/variable/psl.{0}'
+        ## list of extensions to test
+        exts = [
+                'shz',
+                'geojson',
+                'json',
+                'html'
+                ]
+        ## date ranges to test
+        dranges = [
+                   '2011-02-15',
+                   '2011-01-16+2011-3-16',
+                   '2011-2-15'
+                   ]
         
-        url = base_url.format('shz')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code,200)
+        base_url = ('/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/'
+                    'temporal/{drange}/spatial/intersects+polygon'
+                    '((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))/aggregate/false/'
+                    'variable/psl.{ext}')
         
-        url = base_url.format('geojson')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code,200)
+        for ext,drange in itertools.product(exts,dranges):
+            url = base_url.format(ext=ext,drange=drange)
         
-        url = base_url.format('json')
-        response = self.client.get(url)
-        self.assertEqual(response.status_code,200)
+        
+#            url = base_url.format('shz')
+            response = self.client.get(url)
+#            import ipdb;ipdb.set_trace()
+            self.assertEqual(response.status_code,200)
+            
+#            url = base_url.format('geojson')
+#            response = self.client.get(url)
+#            self.assertEqual(response.status_code,200)
+            
+#            url = base_url.format('json')
+#            response = self.client.get(url)
+#            self.assertEqual(response.status_code,200)
+            
+#            url = base_url.format('html')
+#            response = self.client.get(url)
+#            self.assertEqual(response.status_code,200)
 
 
 class NetCdfAccessorTests(NetCdfAccessTest):

@@ -7,7 +7,7 @@ from util.helpers import get_temp_path
 
 
 class NcwriteTest(TestCase):
-    fixtures = ['trivial_grid.json']
+    fixtures = ['trivial_example.json']
     
     def test_write(self):
         nw = NcWrite('Tavg','C')

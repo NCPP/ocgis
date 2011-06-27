@@ -1,9 +1,5 @@
-from django.contrib.gis.db.models.manager import GeoManager
-from django.contrib.gis.db import models
 import numpy as np
-from types import ClassType
 import netCDF4 as n
-from django.contrib.gis.db.models.query import GeoQuerySet
 import itertools
 
 
@@ -64,6 +60,9 @@ class NetCdfAccessor(object):
             time_indices = range(0,sh[0])
         elif len(time_indices) == 1:
             time_indices = time_indices[0]
+        else:
+            time_indices = range(min(time_indices,max(time_indices)+1))
+#            time_indices = range(min(time_indices))
         
         if not x_indices:
             x_indices = range(0,sh[2])
@@ -75,12 +74,8 @@ class NetCdfAccessor(object):
         else:
             y_indices = range(min(y_indices),max(y_indices)+1)
         
-#        var = self.rootgrp.variables[self.var]
-        
-        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]
-        
-#        import ipdb;ipdb.set_trace()
-        
+#        import ipdb;ipdb.set_trace()       
+        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]        
         return data
     
     def get_dict(self,geom_list,mask=None,aggregate=False,time_indices=[],x_indices=[],y_indices=[]):
@@ -120,6 +115,7 @@ class NetCdfAccessor(object):
                 raise ValueError('The number of geometries and the number of requested indices must be equal.')
 
         ## return the netcdf data as a multi-dimensional numpy array
+#        import ipdb;ipdb.set_trace()
         data = self.get_numpy_data(time_indices,x_indices,y_indices)
         
         ## once more check in the case of all data being returned unaggregated

@@ -155,6 +155,7 @@ class NetCdfAccessor(object):
             ## in the aggretation case, we summarize a time layer and link it with
             ##  the lone geometry
             if aggregate:
+#                import ipdb;ipdb.set_trace()
                 attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:float(slice.mean())})
             ## otherwise, we create the rows differently if a subset or the entire
             ##  dataset was requested.

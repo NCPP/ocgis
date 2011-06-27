@@ -95,15 +95,15 @@ class TestUrls(NetCdfAccessTest):
         ## list of extensions to test
         exts = [
                 'shz',
-                'geojson',
-                'json',
-                'html'
+#                'geojson',
+#                'json',
+#                'html'
                 ]
         ## date ranges to test
         dranges = [
                    '2011-02-15',
-                   '2011-01-16+2011-3-16',
-                   '2011-2-15'
+#                   '2011-01-16+2011-3-16',
+#                   '2011-2-15'
                    ]
         ## polygons intersections to test
         polygons = [

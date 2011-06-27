@@ -211,9 +211,14 @@ class SpatialHandler(OpenClimateHandler):
             msg = 'operation "{0}" not recognized'.format(self.ocg.operation)
             raise NotImplementedError(msg)
         qs = qs.order_by('row','col')
-        ## transform the grid geometries to MultiPolygon
-        import ipdb;ipdb.set_trace()
-        geom_list = [MultiPolygon(getattr(obj,geom_attr)) for obj in qs]
+        ## if the geometries are not aggregated,transform the grid geometries 
+        ## to MultiPolygon
+        if not self.ocg.aggregate:
+#        import ipdb;ipdb.set_trace()
+            geom_list = [MultiPolygon(getattr(obj,geom_attr)) for obj in qs]
+        ## otherwise, union the geometries for the extent
+        else:
+            geom_list = MultiPolygon(qs.unionagg())
         ## if a spatial query is provided select the correct indices
 #        if self._spatial:
         y_indices = [obj.row for obj in qs]
@@ -236,7 +241,11 @@ class SpatialHandler(OpenClimateHandler):
 #        import ipdb;ipdb.set_trace()
         na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
         ## extract a dictionary representation of the netcdf
-        dl = na.get_dict(geom_list,time_indices=ti,y_indices=y_indices,x_indices=x_indices)
+        dl = na.get_dict(geom_list,
+                         time_indices=ti,
+                         y_indices=y_indices,
+                         x_indices=x_indices,
+                         aggregate=self.ocg.aggregate)
 #        print(dl)
 #        import ipdb;ipdb.set_trace()        
         return(dl)

@@ -194,6 +194,9 @@ class SpatialHandler(OpenClimateHandler):
         
         ## perform the spatial operation
         if self.ocg.operation in ['intersects','intersect','clip']:
+            ## use the default weighting mask unless the spatial operation is
+            ## an intersection.
+            weights = None
             ## specify the default attribute retrieval
             geom_attr = 'geom'
             ## always perform the intersects operation to narrow the number of results
@@ -245,7 +248,8 @@ class SpatialHandler(OpenClimateHandler):
                          time_indices=ti,
                          row=row,
                          col=col,
-                         aggregate=self.ocg.aggregate)
+                         aggregate=self.ocg.aggregate,
+                         weights=weights)
 #        print(dl)
 #        import ipdb;ipdb.set_trace()        
         return(dl)

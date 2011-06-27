@@ -78,17 +78,19 @@ class NetCdfAccessor(object):
         data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]        
         return data
     
-    def get_dict(self,geom_list,mask=None,aggregate=False,time_indices=[],col=[],row=[]):
+    def get_dict(self,geom_list,weights=None,aggregate=False,time_indices=[],col=[],row=[]):
         """
         Returns a dict list containing target attributes.
         
         geom_list -- list of GEOSGeometry objects to associate with each
-            requested NC index location.
-        mask -- a NumPy array with dimension equal to the extracted NC block.
+            requested NC index location. a single geometry is acceptable in the
+            case of an aggregate query.
+        weights -- list with dimension equal to col & row index lists. the weight
+            sums should sum to one.
         aggregate -- set to True and the mean of the NC values will be
             associated with a single geometry.
         time_indices -- list of index locations for the time slices of interest.
-        x & row -- must have same dimension. coordinate pairs to
+        row & col -- must have same dimension. coordinate pairs to
             pull from the NC.
         """
         
@@ -124,13 +126,21 @@ class NetCdfAccessor(object):
                    '{0} geometry(s) passed with {1} geometry(s) required.'.format(len(geom_list),data.shape[1]*data.shape[2]))
             raise ValueError(msg)
         
-        ## if a weighting mask is not passed, use the identity masking function
-        if mask == None:
-            ## if only a single time is returned, the indices are shifted
-            if len(data.shape) > 2:
-                mask = np.ones((data.shape[1],data.shape[2]))
-            else:
-                mask = np.ones((data.shape[0],data.shape[1]))
+        ## extract array shape depending on the number of time indices passed. 
+        ## if only one time slice is requested, the array is two-dimensional. the
+        ## variable is used to properly size the weighting mask.
+        if len(time_indices) == 1:
+            sh = (data.shape[0],data.shape[1])
+        else:
+            sh = (data.shape[1],data.shape[2])
+            
+        ## if a weighting weights is not passed, use the identity masking
+        ## function
+        if weights == None:
+            mask = np.ones(sh)
+        else:
+            mask = np.array(weights).reshape(*sh)
+        import ipdb;ipdb.set_trace()
         
         ## POPULATE QUERYSET ---------------------------------------------------
         
@@ -144,7 +154,7 @@ class NetCdfAccessor(object):
         for ii in xrange(itrval):
             ## retrieve the corresponding time stamp
             timestamp = self._timevec[ii]
-            ## apply the mask and remove the singleton (time) dimension
+            ## apply the weights and remove the singleton (time) dimension
             if len(data.shape) == 2:
                 slice = data[:,:]*mask
             else:
@@ -155,7 +165,7 @@ class NetCdfAccessor(object):
             ## in the aggretation case, we summarize a time layer and link it with
             ##  the lone geometry
             if aggregate:
-                import ipdb;ipdb.set_trace()
+#                import ipdb;ipdb.set_trace()
                 attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:float(slice.mean())})
             ## otherwise, we create the rows differently if a subset or the entire
             ##  dataset was requested.

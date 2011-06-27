@@ -3,7 +3,7 @@ from climatedata.models import ClimateModel, Archive, Experiment, Variable,\
     SpatialGridCell, TemporalGridCell
 from emitters import *
 from piston.utils import rc
-from django.contrib.gis.geos.collections import MultiPolygon
+from django.contrib.gis.geos.collections import MultiPolygon, GeometryCollection
 from util.ncconv import NetCdfAccessor
 import urlparse
 from util.helpers import parse_polygon_wkt
@@ -201,15 +201,11 @@ class SpatialHandler(OpenClimateHandler):
             ## use the default weighting mask unless the spatial operation is
             ## an intersection.
             weights = None
-            ## specify the default attribute retrieval
-            geom_attr = 'geom'
             ## always perform the intersects operation to narrow the number of results
             qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)\
                                         .order_by('row','col')
             ## this is synonymous with an intersection
             if self.ocg.operation == 'clip':
-                ## change the attribute retrieval in the case of an intersection
-                geom_attr = 'intersection'
                 ## intersection with each polygon and AOI
                 qs = qs.intersection(self.ocg.aoi)
                 ## calculate weights for each polygon
@@ -223,10 +219,19 @@ class SpatialHandler(OpenClimateHandler):
         ## to MultiPolygon
 #        import ipdb;ipdb.set_trace()
         if not self.ocg.aggregate:
-            geom_list = [MultiPolygon(getattr(obj,geom_attr)) for obj in qs]
+            geom_list = [obj.geom for obj in qs]
         ## otherwise, union the geometries for the extent
         else:
-            geom_list = MultiPolygon(qs.unionagg())
+            for ctr,obj in enumerate(qs):
+                if ctr == 0:
+                    unioned = obj.geom
+                else:
+                    unioned = unioned.union(obj.geom)
+            geom_list = unioned
+#            import ipdb;ipdb.set_trace()
+#            coll = GeometryCollection(*[obj.intersection for obj in qs])
+#            geom_list = MultiPolygon(qs.unionagg())
+#            import ipdb;ipdb.set_trace()
         ## if a spatial query is provided select the correct indices
 #        if self._spatial:
         row = [obj.row for obj in qs]

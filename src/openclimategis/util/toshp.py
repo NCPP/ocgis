@@ -41,7 +41,17 @@ class OpenClimateShp(object):
         bgeom = template[self.geom]
         self.ogr_geom = OGRGeomType(bgeom.ogr.geom_type).num
         ## the spatial reference system
-        self.srs = osr.SpatialReference(bgeom.srid)
+#        import ipdb;ipdb.set_trace()
+#        try:
+#        try:
+#            self.srs = osr.SpatialReference(bgeom.srid)
+        self.srs = osr.SpatialReference()
+        self.srs.ImportFromEPSG(bgeom.srid)
+#        except:
+#            import ipdb;ipdb.set_trace()
+#        except TypeError:
+#            import ipdb;ipdb.set_trace()
+#            self.srs = osr.SpatialReference(int(bgeom.srid))
         
     def write(self):
         """Write the shapefile to disk."""

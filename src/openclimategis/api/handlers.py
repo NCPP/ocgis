@@ -200,7 +200,8 @@ class SpatialHandler(OpenClimateHandler):
             ## specify the default attribute retrieval
             geom_attr = 'geom'
             ## always perform the intersects operation to narrow the number of results
-            qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)
+            qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)\
+                                        .order_by('row','col')
             ## this is synonymous with an intersection
             if self.ocg.operation == 'clip':
                 ## change the attribute retrieval in the case of an intersection
@@ -213,7 +214,7 @@ class SpatialHandler(OpenClimateHandler):
         else:
             msg = 'operation "{0}" not recognized'.format(self.ocg.operation)
             raise NotImplementedError(msg)
-        qs = qs.order_by('row','col')
+#        qs = qs.order_by('row','col')
         ## if the geometries are not aggregated,transform the grid geometries 
         ## to MultiPolygon
         if not self.ocg.aggregate:

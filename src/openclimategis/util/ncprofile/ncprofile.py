@@ -3,6 +3,12 @@ import os
 import db
 
 
+CLASS = dict(
+             row=['lat','latitude'],
+             col=['lon','longitude'],
+             bounds=['bnds','bounds']
+             )
+
 
 class NcProfiler(object):
     
@@ -15,7 +21,8 @@ class NcProfiler(object):
             s = db.Session()
             netcdf = self._netcdf_()
             s.add(netcdf)
-            variables = self._variables_(netcdf)
+            self._variables_(netcdf,s)
+            s.commit()
         finally:
             s.close()
         
@@ -24,8 +31,7 @@ class NcProfiler(object):
         obj.nc = os.path.split(self.uri)[1]
         return(obj)
     
-    def _variables_(self,netcdf):
-        ret = []
+    def _variables_(self,netcdf,s):
         for key,value in self.dataset.variables.iteritems():
             obj = db.Variable()
             obj.netcdf = netcdf
@@ -33,8 +39,14 @@ class NcProfiler(object):
             obj.dimensions = str(value.dimensions)
             obj.ndim = value.ndim
             obj.shape = str(value.shape)
-            ret.append(obj)
-        return(ret)
+            s.add(obj)
+            for ncattr in value.ncattrs():
+                a = db.Attribute()
+                a.variable = obj
+                a.attr_name = ncattr
+                a.value = str(getattr(value,ncattr))
+                s.add(a)
+#            import ipdb;ipdb.set_trace()
         
     def __del__(self):
         try:
@@ -45,10 +57,18 @@ class NcProfiler(object):
 
 if __name__ == '__main__':
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
-    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-    ncp = NcProfiler(uri)
-    ncp.load()
-    import ipdb;ipdb.set_trace()
+#    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
+#    ncp = NcProfiler(uri)
+#    ncp.load()
+#    import ipdb;ipdb.set_trace()
+    d = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'
+    for root,dirs,files in os.walk(d):
+        for f in files:
+            if f.endswith('.nc'):
+                uri = os.path.join(root,f)
+                print(uri)
+                ncp = NcProfiler(uri)
+                ncp.load()
 
 
 

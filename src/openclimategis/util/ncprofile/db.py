@@ -33,13 +33,14 @@ class Variable(Base):
     netcdf = relationship(NetCDF,backref=__tablename__)
 
 
-class Attributes(Base):
+class Attribute(Base):
     __tablename__ = 'attr'
     id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
     attr_name = Column(String)
     value = Column(String)
 
+    variable = relationship(Variable,backref=__tablename__)
 
 try:
     metadata.drop_all()

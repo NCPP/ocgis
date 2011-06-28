@@ -95,29 +95,29 @@ class TestUrls(NetCdfAccessTest):
         ## list of extensions to test
         exts = [
                 'shz',
-#                'geojson',
-#                'json',
-#                'html'
+                'geojson',
+                'json',
+                'html'
                 ]
         ## date ranges to test
         dranges = [
                    '2011-2-15',
-#                   '2011-01-16+2011-3-16',
+                   '2011-01-16+2011-3-16',
                    ]
         ## polygons intersections to test
         polygons = [
-#                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
+                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
                     '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
                     ]
         ## spatial operations
         sops = [
                 'intersects',
-#                'clip'
+                'clip'
                 ]
         ## aggregation
         aggs = [
                 'true',
-#                'false'
+                'false'
                 ]
         
         base_url = ('/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/'

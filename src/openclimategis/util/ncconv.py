@@ -141,7 +141,6 @@ class NetCdfAccessor(object):
             mask = np.ones(sh)
         else:
             mask = np.array(weights).reshape(*sh)
-#        import ipdb;ipdb.set_trace()
         
         ## POPULATE QUERYSET ---------------------------------------------------
         
@@ -156,7 +155,7 @@ class NetCdfAccessor(object):
             ## retrieve the corresponding time stamp
             timestamp = self._timevec[ii]
             ## apply the weights and remove the singleton (time) dimension
-            if len(data.shape) == 2:
+            if len(time_indices) == 1:
                 slice = data[:,:]*mask
             else:
                 slice = np.squeeze(data[ii,:,:])*mask
@@ -166,7 +165,6 @@ class NetCdfAccessor(object):
             ## in the aggretation case, we summarize a time layer and link it with
             ##  the lone geometry
             if aggregate:
-#                import ipdb;ipdb.set_trace()
                 attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:float(slice.sum())})
             ## otherwise, we create the rows differently if a subset or the entire
             ##  dataset was requested.

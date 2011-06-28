@@ -196,52 +196,60 @@ class SpatialHandler(OpenClimateHandler):
         
         ## SPATIAL QUERYING ----------------------------------------------------
         
-        ## perform the spatial operation
-        if self.ocg.operation in ['intersects','intersect','clip']:
-            ## use the default weighting mask unless the spatial operation is
-            ## an intersection.
-            weights = None
-            ## always perform the intersects operation to narrow the number of results
-            qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)\
-                                        .order_by('row','col')
-            ## this is synonymous with an intersection
-            if self.ocg.operation == 'clip':
-                import ipdb;ipdb.set_trace()
-                ## intersection with each polygon and AOI
-                qs = qs.intersection(self.ocg.aoi)
-                ## calculate weights for each polygon
-                areas = [obj.intersection.area for obj in qs]
-                weights = [a/sum(areas) for a in areas]
-        else:
-            msg = 'operation "{0}" not recognized'.format(self.ocg.operation)
-            raise NotImplementedError(msg)
-#        qs = qs.order_by('row','col')
-        ## if the geometries are not aggregated,transform the grid geometries 
-        ## to MultiPolygon
-#        import ipdb;ipdb.set_trace()
-        if not self.ocg.aggregate:
-            geom_list = [obj.geom for obj in qs]
-        ## otherwise, union the geometries for the extent
-        else:
-            ## if the operation is clip change the geometry attribute
-            if self.ocg.operation == 'clip':
-                gattr = 'intersection'
-            else:
-                gattr = 'geom'
-            ## loop unioning the geometries
-            for ctr,obj in enumerate(qs):
-                if ctr == 0:
-                    geom_list = getattr(obj,gattr)
-                else:
-                    geom_list = geom_list.union(getattr(obj,gattr))
-#            import ipdb;ipdb.set_trace()
-#            coll = GeometryCollection(*[obj.intersection for obj in qs])
-#            geom_list = MultiPolygon(qs.unionagg())
-#            import ipdb;ipdb.set_trace()
-        ## if a spatial query is provided select the correct indices
-#        if self._spatial:
-        row = [obj.row for obj in qs]
-        col = [obj.col for obj in qs]
+        ocgeom = OpenClimateGeometry(self.ocg.aoi,
+                                     self.ocg.operation,
+                                     self.ocg.aggregate)
+        geom_list = ocgeom.get_geom_list()
+        row,col = ocgeom.get_indices()
+        weights = ocgeom.get_weights()
+        
+        
+#        ## perform the spatial operation
+#        if self.ocg.operation in ['intersects','intersect','clip']:
+#            ## use the default weighting mask unless the spatial operation is
+#            ## an intersection.
+#            weights = None
+#            ## always perform the intersects operation to narrow the number of results
+#            qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)\
+#                                        .order_by('row','col')
+#            ## this is synonymous with an intersection
+#            if self.ocg.operation == 'clip':
+#                import ipdb;ipdb.set_trace()
+#                ## intersection with each polygon and AOI
+#                qs = qs.intersection(self.ocg.aoi)
+#                ## calculate weights for each polygon
+#                areas = [obj.intersection.area for obj in qs]
+#                weights = [a/sum(areas) for a in areas]
+#        else:
+#            msg = 'operation "{0}" not recognized'.format(self.ocg.operation)
+#            raise NotImplementedError(msg)
+##        qs = qs.order_by('row','col')
+#        ## if the geometries are not aggregated,transform the grid geometries 
+#        ## to MultiPolygon
+##        import ipdb;ipdb.set_trace()
+#        if not self.ocg.aggregate:
+#            geom_list = [obj.geom for obj in qs]
+#        ## otherwise, union the geometries for the extent
+#        else:
+#            ## if the operation is clip change the geometry attribute
+#            if self.ocg.operation == 'clip':
+#                gattr = 'intersection'
+#            else:
+#                gattr = 'geom'
+#            ## loop unioning the geometries
+#            for ctr,obj in enumerate(qs):
+#                if ctr == 0:
+#                    geom_list = getattr(obj,gattr)
+#                else:
+#                    geom_list = geom_list.union(getattr(obj,gattr))
+##            import ipdb;ipdb.set_trace()
+##            coll = GeometryCollection(*[obj.intersection for obj in qs])
+##            geom_list = MultiPolygon(qs.unionagg())
+##            import ipdb;ipdb.set_trace()
+#        ## if a spatial query is provided select the correct indices
+##        if self._spatial:
+#        row = [obj.row for obj in qs]
+#        col = [obj.col for obj in qs]
         
         ## TEMPORAL QUERYING ---------------------------------------------------
         
@@ -290,7 +298,7 @@ class OpenClimateGeometry(object):
             msg = 'spatial operation "{0}" not recognized.'.format(op)
             raise NotImplementedError(msg)
                                           
-    def get_indices(self,qs):
+    def get_indices(self):
         "Returning row and column indices used to index into NetCDF."
         
         row = [obj.row for obj in self._qs]
@@ -328,7 +336,7 @@ class OpenClimateGeometry(object):
             ## intersection operations require element-by-element intersection
             ## operations.
             if self.op == 'clip':
-                self.__qs = self.__qs.intersection(self.ocg.aoi)
+                self.__qs = self.__qs.intersection(self.aoi)
         return(self.__qs)
     
     @property
@@ -346,5 +354,5 @@ class OpenClimateGeometry(object):
                 union = geom
                 first = False
             else:
-                union = geom.union(geom)
+                union = union.union(geom)
         return(union)

@@ -1,6 +1,7 @@
 import numpy as np
 import netCDF4 as n
 import itertools
+from django.contrib.gis.db.models.query import GeoValuesListQuerySet
 
 
 class NetCdfAccessor(object):
@@ -100,7 +101,7 @@ class NetCdfAccessor(object):
         
         ## code expects the geometry to be included in a list, but for convenience
         ##  in the aggregation case a single geometry may be passed
-        if type(geom_list) not in [list,tuple]:
+        if type(geom_list) not in [list,tuple,GeoValuesListQuerySet]:
             geom_list = [geom_list]
         
         ## if indices are passed for the x&y dimensions, they must be equal to
@@ -171,7 +172,7 @@ class NetCdfAccessor(object):
             ##  dataset was requested.
             else:
                 ## the case of requesting specific indices
-                if col:
+                if len(col) > 0:
                     for jj in xrange(len(col)):
                         ## offsets are required as the indices were shifted due
                         ##  to subsetting when querying the netcdf
@@ -182,8 +183,8 @@ class NetCdfAccessor(object):
                 ## case that all data is being returned
                 else:
                     ctr = 0
-                    for row,col in itertools.product(xrange(slice.shape[0]),xrange(slice.shape[1])):
-                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[ctr],self.var:self._value_(slice,row,col)})
+                    for r,c in itertools.product(xrange(slice.shape[0]),xrange(slice.shape[1])):
+                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[ctr],self.var:self._value_(slice,r,c)})
                         ctr += 1
         
         return attrs

@@ -206,6 +206,7 @@ class SpatialHandler(OpenClimateHandler):
                                         .order_by('row','col')
             ## this is synonymous with an intersection
             if self.ocg.operation == 'clip':
+                import ipdb;ipdb.set_trace()
                 ## intersection with each polygon and AOI
                 qs = qs.intersection(self.ocg.aoi)
                 ## calculate weights for each polygon
@@ -222,12 +223,17 @@ class SpatialHandler(OpenClimateHandler):
             geom_list = [obj.geom for obj in qs]
         ## otherwise, union the geometries for the extent
         else:
+            ## if the operation is clip change the geometry attribute
+            if self.ocg.operation == 'clip':
+                gattr = 'intersection'
+            else:
+                gattr = 'geom'
+            ## loop unioning the geometries
             for ctr,obj in enumerate(qs):
                 if ctr == 0:
-                    unioned = obj.geom
+                    geom_list = getattr(obj,gattr)
                 else:
-                    unioned = unioned.union(obj.geom)
-            geom_list = unioned
+                    geom_list = geom_list.union(getattr(obj,gattr))
 #            import ipdb;ipdb.set_trace()
 #            coll = GeometryCollection(*[obj.intersection for obj in qs])
 #            geom_list = MultiPolygon(qs.unionagg())
@@ -263,3 +269,82 @@ class SpatialHandler(OpenClimateHandler):
 #        print(dl)
 #        import ipdb;ipdb.set_trace()        
         return(dl)
+    
+    
+class OpenClimateGeometry(object):
+    
+    def __init__(self,aoi,op,aggregate):
+        self.aoi = aoi
+        self.op = op
+        self.aggregate = aggregate
+        
+        self.__qs = None ## queryset with correct spatial operations
+        self.__geoms = None ## list of geometries with correct attribute selected
+        
+        ## set the geometry attribute depending on the operation
+        if op in ['intersect','intersects']:
+            self._gattr = 'geom'
+        elif op == 'clip':
+            self._gattr = 'intersection'
+        else:
+            msg = 'spatial operation "{0}" not recognized.'.format(op)
+            raise NotImplementedError(msg)
+                                          
+    def get_indices(self,qs):
+        "Returning row and column indices used to index into NetCDF."
+        
+        row = [obj.row for obj in self._qs]
+        col = [obj.col for obj in self._qs]
+        return((row,col))
+    
+    def get_weights(self):
+        "Returns weights for each polygon in the case of an aggregation."
+        
+        if self.aggregate:
+            ## calculate weights for each polygon
+            areas = [obj.area for obj in self._geoms]
+            asum = sum(areas)
+            weights = [a/asum for a in areas]
+            ret = weights
+        else:
+            ret = None
+        return(ret)
+    
+    def get_geom_list(self):
+        "Return the list of geometries accounting for processing parms."
+        
+        if self.aggregate:
+            ret = self._union_geoms_()
+        else:
+            ret = self._geoms
+        return(ret)
+    
+    @property
+    def _qs(self):
+        if self.__qs == None:
+            ## always perform the spatial select to limit returned records.
+            self.__qs = SpatialGridCell.objects.filter(geom__intersects=self.aoi)\
+                                              .order_by('row','col')
+            ## intersection operations require element-by-element intersection
+            ## operations.
+            if self.op == 'clip':
+                self.__qs = self.__qs.intersection(self.ocg.aoi)
+        return(self.__qs)
+    
+    @property
+    def _geoms(self):
+        if self.__geoms == None:
+            self.__geoms = [getattr(obj,self._gattr) for obj in self._qs]
+        return(self.__geoms)
+    
+    def _union_geoms_(self):
+        "Returns the union of geometries in the case of an aggregation."
+        
+        first = True
+        for geom in self._geoms:
+            if first:
+                union = geom
+                first = False
+            else:
+                union = geom.union(geom)
+        return(union)

@@ -115,7 +115,3 @@ INSTALLED_APPS = (
     'climatedata',
     'api',
 )
-
-## add the GeoJson serializer to available serialization objects
-SERIALIZATION_MODULES = {'geojson':'util.geojson'}
-

@@ -101,19 +101,18 @@ class TestUrls(NetCdfAccessTest):
                 ]
         ## date ranges to test
         dranges = [
-                   '2011-02-15',
+                   '2011-2-15',
 #                   '2011-01-16+2011-3-16',
-#                   '2011-2-15'
                    ]
         ## polygons intersections to test
         polygons = [
-                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
+#                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
                     '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
                     ]
         ## spatial operations
         sops = [
-#                'intersects',
-                'clip'
+                'intersects',
+#                'clip'
                 ]
         ## aggregation
         aggs = [
@@ -183,7 +182,8 @@ class OpenClimateShpTests(NetCdfAccessTest):
         """Return an example OpenClimateShp object."""
         
         qs = SpatialGridCell.objects.all().order_by('row','col')
-        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+        geom_list = qs.values_list('geom',flat=True)
+#        geom_list = obj.geom) for obj in qs]
         na = NetCdfAccessor(self.rootgrp,self.var)
         dl = na.get_dict(geom_list)
         path = get_temp_path('.shp')

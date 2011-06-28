@@ -80,18 +80,8 @@ class TestUrls(NetCdfAccessTest):
         response = self.client.get('/api/archives/bad_archive.json')
         self.assertEqual(response.status_code,404)
         
-    def test_test_urls(self):
-        ## test the spatial handler and zip response
-#        response = self.client.get('/api/test/shz/')
-#        self.assertEqual(response.status_code,200)
-        
-#        ## test spatial handler with a polygon intersection
-#        Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
-#        url = '/api/test/shz/intersect_grid.shz?spatial=polygon((11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5))'
-#        response = self.client.get(url)
-#        self.assertEqual(response.status_code,200)
-#        import ipdb;ipdb.set_trace()
-        
+    def test_urls(self):
+
         ## list of extensions to test
         exts = [
                 'shz',
@@ -127,25 +117,9 @@ class TestUrls(NetCdfAccessTest):
         
         for ext,drange,polygon,sop,agg in itertools.product(exts,dranges,polygons,sops,aggs):
             url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg)
-        
-        
-#            url = base_url.format('shz')
             response = self.client.get(url)
-#            import ipdb;ipdb.set_trace()
             self.assertTrue(response.content != None)
             self.assertEqual(response.status_code,200)
-            
-#            url = base_url.format('geojson')
-#            response = self.client.get(url)
-#            self.assertEqual(response.status_code,200)
-            
-#            url = base_url.format('json')
-#            response = self.client.get(url)
-#            self.assertEqual(response.status_code,200)
-            
-#            url = base_url.format('html')
-#            response = self.client.get(url)
-#            self.assertEqual(response.status_code,200)
 
 
 class NetCdfAccessorTests(NetCdfAccessTest):

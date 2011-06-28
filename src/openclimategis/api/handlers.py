@@ -3,11 +3,8 @@ from climatedata.models import ClimateModel, Archive, Experiment, Variable,\
     SpatialGridCell, TemporalGridCell
 from emitters import *
 from piston.utils import rc
-from django.contrib.gis.geos.collections import MultiPolygon, GeometryCollection
 from util.ncconv import NetCdfAccessor
-import urlparse
 from util.helpers import parse_polygon_wkt
-from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.gis.geos.geometry import GEOSGeometry
 import datetime
 from climatedata import models
@@ -96,7 +93,6 @@ class OpenClimateHandler(BaseHandler):
         ## aggregation boolean
         agg = kwds.get('aggregate')
         ## the None case is different than 'true' or 'false'
-#        import ipdb;ipdb.set_trace()
         if agg.lower() == 'true':
             self.ocg.aggregate = True
         elif agg.lower() == 'false':
@@ -127,37 +123,6 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.prediction_obj = self.ocg.prediction_obj[0]
         else:
             self.ocg.prediction_obj = None
-        
-        
-#    def _query_string_(self,request):
-#        """Parse URL query string and store as attributes."""
-#        
-#        qstr = request.META['QUERY_STRING']
-#        if qstr:
-#            url = urlparse.parse_qs(qstr)
-#            for key,value in url.iteritems():
-#                key = key.lower()
-#                value = value[0]
-#                if key == 'spatial':
-#                    self._spatial = GEOSGeometry(parse_polygon_wkt(value))
-##                elif key == 'intersection':
-##                    self._intersection = bool(int(value))
-#                else:
-#                    raise KeyError('The query parameters "{0}" was not recognized by the handler.'.format(key))        
-        
-
-#class HelloWorldHandler(OpenClimateHandler):
-#    allowed_methods = ('GET',)
-#    model = ClimateModel
-#    
-#    def read(self,request,model_name=None):
-#        if model_name != None:
-#            query = self.model.objects.filter(name=str(model_name))
-#            if len(query) == 0:
-#                return rc.NOT_FOUND
-#        else:
-#            query = self.model.objects.all()
-#        return query
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -203,69 +168,14 @@ class SpatialHandler(OpenClimateHandler):
         row,col = ocgeom.get_indices()
         weights = ocgeom.get_weights()
         
-        
-#        ## perform the spatial operation
-#        if self.ocg.operation in ['intersects','intersect','clip']:
-#            ## use the default weighting mask unless the spatial operation is
-#            ## an intersection.
-#            weights = None
-#            ## always perform the intersects operation to narrow the number of results
-#            qs = SpatialGridCell.objects.filter(geom__intersects=self.ocg.aoi)\
-#                                        .order_by('row','col')
-#            ## this is synonymous with an intersection
-#            if self.ocg.operation == 'clip':
-#                import ipdb;ipdb.set_trace()
-#                ## intersection with each polygon and AOI
-#                qs = qs.intersection(self.ocg.aoi)
-#                ## calculate weights for each polygon
-#                areas = [obj.intersection.area for obj in qs]
-#                weights = [a/sum(areas) for a in areas]
-#        else:
-#            msg = 'operation "{0}" not recognized'.format(self.ocg.operation)
-#            raise NotImplementedError(msg)
-##        qs = qs.order_by('row','col')
-#        ## if the geometries are not aggregated,transform the grid geometries 
-#        ## to MultiPolygon
-##        import ipdb;ipdb.set_trace()
-#        if not self.ocg.aggregate:
-#            geom_list = [obj.geom for obj in qs]
-#        ## otherwise, union the geometries for the extent
-#        else:
-#            ## if the operation is clip change the geometry attribute
-#            if self.ocg.operation == 'clip':
-#                gattr = 'intersection'
-#            else:
-#                gattr = 'geom'
-#            ## loop unioning the geometries
-#            for ctr,obj in enumerate(qs):
-#                if ctr == 0:
-#                    geom_list = getattr(obj,gattr)
-#                else:
-#                    geom_list = geom_list.union(getattr(obj,gattr))
-##            import ipdb;ipdb.set_trace()
-##            coll = GeometryCollection(*[obj.intersection for obj in qs])
-##            geom_list = MultiPolygon(qs.unionagg())
-##            import ipdb;ipdb.set_trace()
-#        ## if a spatial query is provided select the correct indices
-##        if self._spatial:
-#        row = [obj.row for obj in qs]
-#        col = [obj.col for obj in qs]
-        
         ## TEMPORAL QUERYING ---------------------------------------------------
         
-#        import ipdb;ipdb.set_trace()
         ti = TemporalGridCell.objects.filter(grid_temporal=self.ocg.prediction_obj.grid_temporal)\
                                      .filter(date_ref__range=self.ocg.temporal)
         ti = ti.order_by('index').values_list('index',flat=True)
-#        time_indices = [obj.index for obj in ti]
         
         ## RETRIEVE NETCDF DATA ------------------------------------------------
-#        else:
-#            y_indices = []
-#            x_indices = []
-        ## access the netcdf
-#        print('here')
-#        import ipdb;ipdb.set_trace()
+
         na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
         ## extract a dictionary representation of the netcdf
         dl = na.get_dict(geom_list,
@@ -273,13 +183,19 @@ class SpatialHandler(OpenClimateHandler):
                          row=row,
                          col=col,
                          aggregate=self.ocg.aggregate,
-                         weights=weights)
-#        print(dl)
-#        import ipdb;ipdb.set_trace()        
+                         weights=weights)       
         return(dl)
     
     
 class OpenClimateGeometry(object):
+    """
+    Perform OpenClimateGIS geometry operations. Manages clip v. intersect
+    operations and spatial unioning in the case of an aggregation.
+    
+    aoi -- GEOSGeometry Polygon object acting as the geometric selection overlay.
+    op -- 'intersect(s)' or 'clip'
+    aggregate -- set to True to union the geometries.
+    """
     
     def __init__(self,aoi,op,aggregate):
         self.aoi = aoi

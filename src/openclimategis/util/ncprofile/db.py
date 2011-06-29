@@ -7,8 +7,8 @@ from sqlalchemy.orm import relationship
 
 
 #connstr = 'sqlite:///:memory:'
-#connstr = 'postgresql://bkoziol:<password>@localhost/<database>'
-connstr = 'sqlite:////tmp/foo.sql'
+connstr = 'postgresql://bkoziol:BenK_84368636@localhost/test_ncprofile'
+#connstr = 'sqlite:////tmp/foo.sql'
 engine = create_engine(connstr)
 metadata = MetaData(bind=engine)
 Base = declarative_base(metadata=metadata)
@@ -25,6 +25,7 @@ class Variable(Base):
     __tablename__ = 'variable'
     id = Column(Integer,primary_key=True)
     netcdf_id = Column(ForeignKey(NetCDF.id))
+    category = Column(String)
     variable = Column(String)
     dimensions = Column(String)
     ndim = Column(Integer)
@@ -39,6 +40,16 @@ class Attribute(Base):
     variable_id = Column(ForeignKey(Variable.id))
     attr_name = Column(String)
     value = Column(String)
+
+    variable = relationship(Variable,backref=__tablename__)
+
+
+class Dimension(Base):
+    __tablename__ = 'dimension'
+    id = Column(Integer,primary_key=True)
+    variable_id = Column(ForeignKey(Variable.id))
+    dim_name = Column(String)
+    size = Column(Integer)
 
     variable = relationship(Variable,backref=__tablename__)
 

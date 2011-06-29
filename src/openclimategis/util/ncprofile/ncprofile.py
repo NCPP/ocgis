@@ -1,12 +1,15 @@
 import netCDF4 as nc
 import os
 import db
+import sys
 
 
 CLASS = dict(
              row=['lat','latitude'],
              col=['lon','longitude'],
-             bounds=['bnds','bounds']
+             bounds=['bnds','bounds'],
+             time=['time'],
+             level=['lev','level','lvl']
              )
 
 
@@ -39,6 +42,28 @@ class NcProfiler(object):
             obj.dimensions = str(value.dimensions)
             obj.ndim = value.ndim
             obj.shape = str(value.shape)
+            
+            ## construct the dimensions
+            for dim,sh in zip(value.dimensions,value.shape):
+                d = db.Dimension()
+                d.variable = obj
+                d.dim_name = dim
+                d.size = sh
+                s.add(d)
+            
+            ## classify the variable
+            obj.category = 'variable' ## the default
+            for key1,value1 in CLASS.iteritems():
+                if key1 == 'bounds':
+                    for v in value1:
+                        if v in key:
+                            obj.category = key1
+                            break
+                else:
+                    if key in value1:
+                        obj.category = key1
+                        break
+            
             s.add(obj)
             for ncattr in value.ncattrs():
                 a = db.Attribute()
@@ -69,6 +94,7 @@ if __name__ == '__main__':
                 print(uri)
                 ncp = NcProfiler(uri)
                 ncp.load()
+#                sys.exit()
 
 
 

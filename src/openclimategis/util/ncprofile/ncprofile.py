@@ -25,9 +25,18 @@ class NcModelProfiler(object):
     def load(self,s):
         cm = db.ClimateModel(code=self.code)
         s.add(cm)
+        first = True
         for uri in self.uris:
+            if first:
+                spatial = True
+                temporal = True
+                first = False
+            else:
+                spatial = False
+                temporal = False
             ndp = NcDatasetProfiler(uri)
-            ndp.load(s,cm)
+            ndp.load(s,cm,spatial=spatial,temporal=temporal)
+        s.commit()
         
 
 class NcDatasetProfiler(object):
@@ -61,22 +70,23 @@ class NcDatasetProfiler(object):
             warnings.warn('variable "{0}" not found in {1}. setting to "None" and no load is attempted.'.format(target,self.dataset.variables.keys()))
         
     def load(self,s,cm,spatial=True,temporal=True):
-        try:
-            print('loading '+self.uri+'...')
-            s = db.Session()
-            print('loading dataset...')
-            dataset = self._dataset_(s)
-            print('loading variables...')
-            self._variables_(dataset,s)
+        print('loading '+self.uri+'...')
+        print('loading dataset...')
+        dataset = self._dataset_(s,cm)
+        print('loading variables...')
+        self._variables_(s,dataset)
+        if spatial:
             print('loading spatial grid...')
             self._spatial_(s,dataset)
-            s.commit()
-            print('success.')
-        finally:
-            s.close()
+        if temporal:
+            print('loading temporal grid...')
+            self._temporal_(s,dataset)
+        s.commit()
+        print('success.')
         
-    def _dataset_(self,s):
+    def _dataset_(self,s,climatemodel):
         obj = db.Dataset()
+        obj.climatemodel = climatemodel
         obj.code = os.path.split(self.uri)[1]
         obj.uri = self.uri
         s.add(obj)
@@ -87,9 +97,26 @@ class NcDatasetProfiler(object):
             a.code = attr
             a.value = str(value)
             s.add(a)
+        s.commit()
         return(obj)
     
-    def _variables_(self,dataset,s):
+    def _temporal_(self,s,dataset):
+        value = self.dataset.variables[self.time]
+        vec = nc.num2date(value[:],value.units,value.calendar)
+        for ii in xrange(len(vec)):
+            idx = db.IndexTime()
+            idx.dataset = dataset
+            idx.index = ii
+            idx.value = vec[ii]
+            if self.time_bnds:
+                bounds = nc.num2date(self.dataset.variables[self.time_bnds][ii,:],
+                                     value.units,
+                                     value.calendar)
+                idx.lower = bounds[0]
+                idx.upper = bounds[1]
+            s.add(idx)
+    
+    def _variables_(self,s,dataset):
         for key,value in self.dataset.variables.iteritems():
             obj = db.Variable()
             obj.dataset = dataset
@@ -99,26 +126,6 @@ class NcDatasetProfiler(object):
 #            obj.shape = str(value.shape)
 
             ## TIME DIMENSION -------------------------------------------------
-            
-            if key in CLASS['time']:
-                vec = nc.num2date(value[:],value.units,value.calendar)
-                dimobj = db.Dimension()
-                dimobj.variable = obj
-                dimobj.code = key
-#                dimobj.index_name = 'time'
-                s.add(dimobj)
-                for ii in xrange(len(vec)):
-                    idx = db.IndexTime()
-                    idx.dataset = dataset
-                    idx.index = ii
-                    idx.value = vec[ii]
-                    if self.time_bnds:
-                        bounds = nc.num2date(self.dataset.variables[self.time_bnds][ii,:],
-                                             value.units,
-                                             value.calendar)
-                        idx.lower = bounds[0]
-                        idx.upper = bounds[1]
-                    s.add(idx)
             
             ## construct the dimensions
             for dim,sh in zip(value.dimensions,value.shape):
@@ -192,19 +199,29 @@ class NcDatasetProfiler(object):
 
 if __name__ == '__main__':
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
+#    s = db.Session()
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
 #    ncp = NcDatasetProfiler(uri)
-#    ncp.load()
+#    ncp.load(s,1)
+#    s.close()
 #    import ipdb;ipdb.set_trace()
 
+    s = db.Session()
     d = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'
     for root,dirs,files in os.walk(d):
-        for f in files:
-            if f.endswith('.nc'):
-                uri = os.path.join(root,f)
+        for d in dirs:
+#            for f in os.listdir(os.path.join(root,d)):
+            uris = [os.path.join(root,d,f) for f in os.listdir(os.path.join(root,d)) if f.endswith('.nc')]
+            ncm = NcModelProfiler(d,uris)
+            ncm.load(s)
+            sys.exit()
+#                if f.endswith('.nc'):
+#                    uri = os.path.join(root,f)
+#                    print d,uri
 #                print(uri)
-                ncp = NcDatasetProfiler(uri)
-                ncp.load()
+#                ncp = NcDatasetProfiler(uri)
+#                ncp.load()
+    s.close()
 #                sys.exit()
 
 

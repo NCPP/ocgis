@@ -2,9 +2,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData, Column, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.types import Integer, Float, String, Date
+from sqlalchemy.types import Integer, Float, String, Date, DateTime
 from sqlalchemy.orm import relationship
-from geoalchemy.geometry import GeometryColumn, Polygon, GeometryDDL
+from geoalchemy.geometry import GeometryColumn, Polygon, GeometryDDL, Point
 
 
 #connstr = 'sqlite:///:memory:'
@@ -19,7 +19,18 @@ Session = sessionmaker(bind=engine)
 class Dataset(Base):
     __tablename__ = 'nc_dataset'
     id = Column(Integer,primary_key=True)
+    code = Column(String)
     uri = Column(String)
+    
+    
+class AttributeDataset(Base):
+    __tablename__ = 'nc_attr_dataset'
+    id = Column(Integer,primary_key=True)
+    dataset_id = Column(ForeignKey(Dataset.id))
+    code = Column(String)
+    value = Column(String)
+
+    dataset = relationship(Dataset,backref=__tablename__)
 
 
 class Variable(Base):
@@ -35,8 +46,8 @@ class Variable(Base):
     dataset = relationship(Dataset,backref=__tablename__)
 
 
-class Attribute(Base):
-    __tablename__ = 'nc_attr'
+class AttributeVariable(Base):
+    __tablename__ = 'nc_attr_variable'
     id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
     code = Column(String)
@@ -50,32 +61,41 @@ class Dimension(Base):
     id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
     code = Column(String)
-    index = Column(Integer)
+    index_name = Column(String)
 
     variable = relationship(Variable,backref=__tablename__)
     
     
 class IndexBase(object):
     id = Column(Integer,primary_key=True)
-    index = Column(Integer)
     
     @declared_attr
-    def dimension_id(self):
-        return(Column(ForeignKey(Dimension.id)))
+    def dataset_id(self):
+        return(Column(ForeignKey(Dataset.id)))
     
     @declared_attr
-    def dimension(self):
-        return(relationship(Dimension,backref=self.__tablename__))
+    def dataset(self):
+        return(relationship(Dataset,backref=self.__tablename__))
     
     
 class IndexTime(IndexBase,Base):
     __tablename__ = 'nc_index_time'
-    value = Column(Date)
+    index = Column(Integer)
+    lower = Column(DateTime)
+    value = Column(DateTime)
+    upper = Column(DateTime)
     
     
 class IndexSpatial(IndexBase,Base):
     __tablename__ = 'nc_index_spatial'
-    value = GeometryColumn(Polygon)
+    id = Column(Integer,primary_key=True)
+    dataset_id = Column(ForeignKey(Dataset.id))
+    row = Column(Integer)
+    col = Column(Integer)
+    geom = GeometryColumn(Polygon)
+    centroid = GeometryColumn(Point)
+    
+    dataset = relationship(Dataset,backref=__tablename__)
 GeometryDDL(IndexSpatial.__table__)
     
 

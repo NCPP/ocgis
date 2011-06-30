@@ -15,10 +15,10 @@ class NetCdfAccessor(object):
     """
 
     
-    def __init__(self,rootgrp,var_name,**kwds):
+    def __init__(self,rootgrp,var,**kwds):
         self.rootgrp = rootgrp
-        self.var_name = var_name
-        self.variable = self.rootgrp.variables[var_name]
+        self.var = var
+        self.variable = self.rootgrp.variables[var]
 
         ## KEYWORD EXTRACTION --------------------------------------------------
 

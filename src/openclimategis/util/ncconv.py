@@ -9,15 +9,16 @@ class NetCdfAccessor(object):
     Access netCDF4 Dataset objects for profiling and conversion.
     
     rootgrp -- base netCDF4.Dataset object.
-    var -- name of the variable to extract. ie. 'Tavg'
+    var_name -- name of the variable to extract. ie. 'Tavg'
     **kwds -- customizable NC attribute names. see object's __init__ method for
         explanation.
     """
 
     
-    def __init__(self,rootgrp,var,**kwds):
+    def __init__(self,rootgrp,var_name,**kwds):
         self.rootgrp = rootgrp
-        self.var = var
+        self.var_name = var_name
+        self.variable = self.rootgrp.variables[var_name]
 
         ## KEYWORD EXTRACTION --------------------------------------------------
 

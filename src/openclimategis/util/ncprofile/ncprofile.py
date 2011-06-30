@@ -8,18 +8,31 @@ from shapely.geometry.polygon import Polygon
 import warnings
 
 
-CLASS = dict(
-             row=['lat','latitude'],
-             col=['lon','longitude'],
-             bounds=['bnds','bounds'],
-             time=['time'],
-             level=['lev','level','lvl']
-             )
+#CLASS = dict(
+#             row=['lat','latitude'],
+#             col=['lon','longitude'],
+#             bounds=['bnds','bounds'],
+#             time=['time'],
+#             level=['lev','level','lvl']
+#             )
 
-
-class NcProfiler(object):
+class NcModelProfiler(object):
     
-    def __init__(self,uri,**kwds):
+    def __init__(self,code,uris):
+        self.code = code
+        self.uris = uris
+        
+    def load(self,s):
+        cm = db.ClimateModel(code=self.code)
+        s.add(cm)
+        for uri in self.uris:
+            ndp = NcDatasetProfiler(uri)
+            ndp.load(s,cm)
+        
+
+class NcDatasetProfiler(object):
+    
+    def __init__(self,uri):
         self.uri = uri
         self.dataset = nc.Dataset(uri,'r')
         
@@ -47,7 +60,7 @@ class NcProfiler(object):
         if not ret:
             warnings.warn('variable "{0}" not found in {1}. setting to "None" and no load is attempted.'.format(target,self.dataset.variables.keys()))
         
-    def load(self):
+    def load(self,s,cm,spatial=True,temporal=True):
         try:
             print('loading '+self.uri+'...')
             s = db.Session()
@@ -180,7 +193,7 @@ class NcProfiler(object):
 if __name__ == '__main__':
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-#    ncp = NcProfiler(uri)
+#    ncp = NcDatasetProfiler(uri)
 #    ncp.load()
 #    import ipdb;ipdb.set_trace()
 
@@ -190,7 +203,7 @@ if __name__ == '__main__':
             if f.endswith('.nc'):
                 uri = os.path.join(root,f)
 #                print(uri)
-                ncp = NcProfiler(uri)
+                ncp = NcDatasetProfiler(uri)
                 ncp.load()
 #                sys.exit()
 
@@ -259,7 +272,7 @@ if __name__ == '__main__':
 #        return(value,ret)
 #    
 #
-#class NcProfiler(object):
+#class NcDatasetProfiler(object):
 #    
 #    def __init__(self,uri):
 #        self.uri = uri
@@ -345,5 +358,5 @@ if __name__ == '__main__':
 #if __name__ == '__main__':
 ##    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-#    ncp = NcProfiler(uri)
+#    ncp = NcDatasetProfiler(uri)
 #    import ipdb;ipdb.set_trace()

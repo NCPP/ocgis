@@ -24,13 +24,22 @@ class NcBase(object):
         return cls.__name__.lower()
 
 
+class ClimateModel(NcBase,Base):
+    code = Column(String)
+
+
 class Dataset(NcBase,Base):
 #    __tablename__ = 'nc_dataset'
 #    id = Column(Integer,primary_key=True)
+    climatemodel_id = Column(ForeignKey(ClimateModel.id))
     code = Column(String)
     uri = Column(String)
     
-    
+    @declared_attr
+    def climatemodel(cls):
+        return(relationship(ClimateModel,backref=cls.__tablename__))
+
+
 class AttributeDataset(NcBase,Base):
 #    __tablename__ = 'nc_attr_dataset'
 #    id = Column(Integer,primary_key=True)

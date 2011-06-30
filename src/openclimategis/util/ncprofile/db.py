@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData, Column, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.types import Integer, Float, String
+from sqlalchemy.types import Integer, Float, String, Date
 from sqlalchemy.orm import relationship
+from geoalchemy.geometry import GeometryColumn, Polygon, GeometryDDL
 
 
 #connstr = 'sqlite:///:memory:'
@@ -15,43 +16,68 @@ Base = declarative_base(metadata=metadata)
 Session = sessionmaker(bind=engine)
 
 
-class NetCDF(Base):
-    __tablename__ = 'netcdf'
+class Dataset(Base):
+    __tablename__ = 'nc_dataset'
     id = Column(Integer,primary_key=True)
-    nc = Column(String)
+    uri = Column(String)
 
 
 class Variable(Base):
-    __tablename__ = 'variable'
+    __tablename__ = 'nc_variable'
     id = Column(Integer,primary_key=True)
-    netcdf_id = Column(ForeignKey(NetCDF.id))
-    category = Column(String)
-    variable = Column(String)
-    dimensions = Column(String)
+    dataset_id = Column(ForeignKey(Dataset.id))
+#    category = Column(String)
+    code = Column(String)
+#    dimensions = Column(String)
     ndim = Column(Integer)
-    shape = Column(String)
+#    shape = Column(String)
     
-    netcdf = relationship(NetCDF,backref=__tablename__)
+    dataset = relationship(Dataset,backref=__tablename__)
 
 
 class Attribute(Base):
-    __tablename__ = 'attr'
+    __tablename__ = 'nc_attr'
     id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
-    attr_name = Column(String)
+    code = Column(String)
     value = Column(String)
 
     variable = relationship(Variable,backref=__tablename__)
 
 
 class Dimension(Base):
-    __tablename__ = 'dimension'
+    __tablename__ = 'nc_dimension'
     id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
-    dim_name = Column(String)
-    size = Column(Integer)
+    code = Column(String)
+    index = Column(Integer)
 
     variable = relationship(Variable,backref=__tablename__)
+    
+    
+class IndexBase(object):
+    id = Column(Integer,primary_key=True)
+    index = Column(Integer)
+    
+    @declared_attr
+    def dimension_id(self):
+        return(Column(ForeignKey(Dimension.id)))
+    
+    @declared_attr
+    def dimension(self):
+        return(relationship(Dimension,backref=self.__tablename__))
+    
+    
+class IndexTime(IndexBase,Base):
+    __tablename__ = 'nc_index_time'
+    value = Column(Date)
+    
+    
+class IndexSpatial(IndexBase,Base):
+    __tablename__ = 'nc_index_spatial'
+    value = GeometryColumn(Polygon)
+GeometryDDL(IndexSpatial.__table__)
+    
 
 try:
     metadata.drop_all()

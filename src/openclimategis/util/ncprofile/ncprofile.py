@@ -30,7 +30,7 @@ class NcProfiler(object):
             s.close()
         
     def _netcdf_(self):
-        obj = db.NetCDF()
+        obj = db.Dataset()
         obj.nc = os.path.split(self.uri)[1]
         return(obj)
     

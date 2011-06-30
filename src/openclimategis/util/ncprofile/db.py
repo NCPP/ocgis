@@ -16,26 +16,36 @@ Base = declarative_base(metadata=metadata)
 Session = sessionmaker(bind=engine)
 
 
-class Dataset(Base):
-    __tablename__ = 'nc_dataset'
+class NcBase(object):
     id = Column(Integer,primary_key=True)
+    
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
+
+
+class Dataset(NcBase,Base):
+#    __tablename__ = 'nc_dataset'
+#    id = Column(Integer,primary_key=True)
     code = Column(String)
     uri = Column(String)
     
     
-class AttributeDataset(Base):
-    __tablename__ = 'nc_attr_dataset'
-    id = Column(Integer,primary_key=True)
+class AttributeDataset(NcBase,Base):
+#    __tablename__ = 'nc_attr_dataset'
+#    id = Column(Integer,primary_key=True)
     dataset_id = Column(ForeignKey(Dataset.id))
     code = Column(String)
     value = Column(String)
+    
+    @declared_attr
+    def dataset(cls):
+        return(relationship(Dataset,backref=cls.__tablename__))
 
-    dataset = relationship(Dataset,backref=__tablename__)
 
-
-class Variable(Base):
-    __tablename__ = 'nc_variable'
-    id = Column(Integer,primary_key=True)
+class Variable(NcBase,Base):
+#    __tablename__ = 'nc_variable'
+#    id = Column(Integer,primary_key=True)
     dataset_id = Column(ForeignKey(Dataset.id))
 #    category = Column(String)
     code = Column(String)
@@ -43,43 +53,50 @@ class Variable(Base):
     ndim = Column(Integer)
 #    shape = Column(String)
     
-    dataset = relationship(Dataset,backref=__tablename__)
+    @declared_attr
+    def dataset(cls):
+        return(relationship(Dataset,backref=cls.__tablename__))
 
 
-class AttributeVariable(Base):
-    __tablename__ = 'nc_attr_variable'
-    id = Column(Integer,primary_key=True)
+class AttributeVariable(NcBase,Base):
+#    __tablename__ = 'nc_attr_variable'
+#    id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
     code = Column(String)
     value = Column(String)
 
-    variable = relationship(Variable,backref=__tablename__)
+    @declared_attr
+    def variable(cls):
+        return(relationship(Variable,backref=cls.__tablename__))
 
 
-class Dimension(Base):
-    __tablename__ = 'nc_dimension'
-    id = Column(Integer,primary_key=True)
+class Dimension(NcBase,Base):
+#    __tablename__ = 'nc_dimension'
+#    id = Column(Integer,primary_key=True)
     variable_id = Column(ForeignKey(Variable.id))
     code = Column(String)
-    index_name = Column(String)
+#    index_name = Column(String)
+    position = Column(Integer)
+    size = Column(Integer)
 
-    variable = relationship(Variable,backref=__tablename__)
-    
-    
-class IndexBase(object):
-    id = Column(Integer,primary_key=True)
-    
     @declared_attr
-    def dataset_id(self):
+    def variable(cls):
+        return(relationship(Variable,backref=cls.__tablename__))
+    
+    
+class IndexBase(NcBase):
+
+    @declared_attr
+    def dataset_id(cls):
         return(Column(ForeignKey(Dataset.id)))
     
     @declared_attr
-    def dataset(self):
-        return(relationship(Dataset,backref=self.__tablename__))
+    def dataset(cls):
+        return(relationship(Dataset,backref=cls.__tablename__))
     
     
 class IndexTime(IndexBase,Base):
-    __tablename__ = 'nc_index_time'
+#    __tablename__ = 'nc_index_time'
     index = Column(Integer)
     lower = Column(DateTime)
     value = Column(DateTime)
@@ -87,15 +104,15 @@ class IndexTime(IndexBase,Base):
     
     
 class IndexSpatial(IndexBase,Base):
-    __tablename__ = 'nc_index_spatial'
-    id = Column(Integer,primary_key=True)
+#    __tablename__ = 'nc_index_spatial'
+#    id = Column(Integer,primary_key=True)
     dataset_id = Column(ForeignKey(Dataset.id))
     row = Column(Integer)
     col = Column(Integer)
     geom = GeometryColumn(Polygon)
     centroid = GeometryColumn(Point)
     
-    dataset = relationship(Dataset,backref=__tablename__)
+#    dataset = relationship(Dataset,backref=__tablename__)
 GeometryDDL(IndexSpatial.__table__)
     
 

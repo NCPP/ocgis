@@ -5,6 +5,7 @@ import sys
 from shapely.geometry.point import Point
 from geoalchemy.base import WKTSpatialElement
 from shapely.geometry.polygon import Polygon
+import warnings
 
 
 CLASS = dict(
@@ -18,18 +19,46 @@ CLASS = dict(
 
 class NcProfiler(object):
     
-    def __init__(self,uri):
+    def __init__(self,uri,**kwds):
         self.uri = uri
         self.dataset = nc.Dataset(uri,'r')
+        
+        self.set_name('time',['time'])
+        self.set_name('time_bnds',['time_bnds','time_bounds'])
+        self.set_name('row',['lat','latitude'])
+        self.set_name('col',['lon','longitude'])
+        self.set_name('row_bnds',['lat_bounds','latitude_bounds','lat_bnds','latitude_bnds','bounds_latitude'])
+        self.set_name('col_bnds',['lon_bounds','longitude_bounds','lon_bnds','longitude_bnds','bounds_longitude'])
+#        self.time_bnds = kwds.get('time_bnds') or 'time_bnds'
+#        self.row_bnds = kwds.get('row_bnds') or 'lat_bnds'
+#        self.col_bnds = kwds.get('col_bnds') or 'lon_bnds'
+#        self.row = kwds.get('row') or 'lat'
+#        self.col = kwds.get('col') or 'lon'
+        
         pass
+    
+    def set_name(self,target,options):
+        ret = None
+        for key in self.dataset.variables.keys():
+            if key in options:
+                ret = key
+                break
+        setattr(self,target,ret)
+        if not ret:
+            warnings.warn('variable "{0}" not found in {1}. setting to "None" and no load is attempted.'.format(target,self.dataset.variables.keys()))
         
     def load(self):
         try:
+            print('loading '+self.uri+'...')
             s = db.Session()
+            print('loading dataset...')
             dataset = self._dataset_(s)
+            print('loading variables...')
             self._variables_(dataset,s)
+            print('loading spatial grid...')
             self._spatial_(s,dataset)
             s.commit()
+            print('success.')
         finally:
             s.close()
         
@@ -63,27 +92,29 @@ class NcProfiler(object):
                 dimobj = db.Dimension()
                 dimobj.variable = obj
                 dimobj.code = key
-                dimobj.index_name = 'time'
+#                dimobj.index_name = 'time'
                 s.add(dimobj)
                 for ii in xrange(len(vec)):
                     idx = db.IndexTime()
                     idx.dataset = dataset
                     idx.index = ii
                     idx.value = vec[ii]
-                    bounds = nc.num2date(self.dataset.variables['time_bnds'][ii,:],
-                                         value.units,
-                                         value.calendar)
-                    idx.lower = bounds[0]
-                    idx.upper = bounds[1]
+                    if self.time_bnds:
+                        bounds = nc.num2date(self.dataset.variables[self.time_bnds][ii,:],
+                                             value.units,
+                                             value.calendar)
+                        idx.lower = bounds[0]
+                        idx.upper = bounds[1]
                     s.add(idx)
             
-#            ## construct the dimensions
-#            for dim,sh in zip(value.dimensions,value.shape):
-#                d = db.Dimension()
-#                d.variable = obj
-#                d.dim_name = dim
-#                d.size = sh
-#                s.add(d)
+            ## construct the dimensions
+            for dim,sh in zip(value.dimensions,value.shape):
+                d = db.Dimension()
+                d.variable = obj
+                d.code = dim
+                d.size = sh
+                d.position = value.dimensions.index(dim)
+                s.add(d)
             
 #            ## classify the variable
 #            obj.category = 'variable' ## the default
@@ -108,25 +139,35 @@ class NcProfiler(object):
 #            import ipdb;ipdb.set_trace()
 
     def _spatial_(self,s,dataset):
-        x = self.dataset.variables['lon'][:]
-        y = self.dataset.variables['lat'][:]
-        x_bnds = self.dataset.variables['lon_bnds'][:]
-        y_bnds = self.dataset.variables['lat_bnds'][:]
-        for ii in xrange(len(x)):
-            for jj in xrange(len(y)):
+        col = self.dataset.variables[self.col][:]
+        row = self.dataset.variables[self.row][:]
+        col_bnds = self.dataset.variables[self.col_bnds][:]
+        row_bnds = self.dataset.variables[self.row_bnds][:]
+        geoms = []
+        total = len(col)*len(row)
+        ctr = 0
+        for ii in xrange(len(col)):
+            for jj in xrange(len(row)):
+                if ctr%2000 == 0:
+                    print('  {0} of {1}'.format(ctr,total))
+                ctr += 1
                 obj = db.IndexSpatial()
                 obj.row = ii
                 obj.col = jj
-                obj.dataset = dataset
-                pt = Point(x[ii],y[jj])
+#                obj.dataset = dataset
+                pt = Point(col[ii],row[jj])
                 obj.centroid = WKTSpatialElement(str(pt))
-                poly = Polygon(((x_bnds[ii,0],y_bnds[jj,0]),
-                               (x_bnds[ii,0],y_bnds[jj,1]),
-                               (x_bnds[ii,1],y_bnds[jj,1]),
-                               (x_bnds[ii,1],y_bnds[jj,0])))
+                poly = Polygon(((col_bnds[ii,0],row_bnds[jj,0]),
+                               (col_bnds[ii,0],row_bnds[jj,1]),
+                               (col_bnds[ii,1],row_bnds[jj,1]),
+                               (col_bnds[ii,1],row_bnds[jj,0])))
                 obj.geom = WKTSpatialElement(str(poly))
-                s.add(obj)
-                pass
+                geoms.append(obj)
+#                s.add(obj)
+        dataset.indexspatial = geoms
+        print('  committing...')
+        s.commit()
+#                pass
 
         
     def __del__(self):
@@ -142,15 +183,16 @@ if __name__ == '__main__':
 #    ncp = NcProfiler(uri)
 #    ncp.load()
 #    import ipdb;ipdb.set_trace()
+
     d = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'
     for root,dirs,files in os.walk(d):
         for f in files:
             if f.endswith('.nc'):
                 uri = os.path.join(root,f)
-                print(uri)
+#                print(uri)
                 ncp = NcProfiler(uri)
                 ncp.load()
-                sys.exit()
+#                sys.exit()
 
 
 

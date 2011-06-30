@@ -77,10 +77,10 @@ class NcDatasetProfiler(object):
         self._variables_(s,dataset)
         if spatial:
             print('loading spatial grid...')
-            self._spatial_(s,dataset)
+            self._spatial_(s,cm)
         if temporal:
             print('loading temporal grid...')
-            self._temporal_(s,dataset)
+            self._temporal_(s,cm)
         s.commit()
         print('success.')
         
@@ -100,12 +100,12 @@ class NcDatasetProfiler(object):
         s.commit()
         return(obj)
     
-    def _temporal_(self,s,dataset):
+    def _temporal_(self,s,climatemodel):
         value = self.dataset.variables[self.time]
         vec = nc.num2date(value[:],value.units,value.calendar)
         for ii in xrange(len(vec)):
             idx = db.IndexTime()
-            idx.dataset = dataset
+            idx.climatemodel = climatemodel
             idx.index = ii
             idx.value = vec[ii]
             if self.time_bnds:
@@ -158,7 +158,7 @@ class NcDatasetProfiler(object):
                 s.add(a)
 #            import ipdb;ipdb.set_trace()
 
-    def _spatial_(self,s,dataset):
+    def _spatial_(self,s,climatemodel):
         col = self.dataset.variables[self.col][:]
         row = self.dataset.variables[self.row][:]
         col_bnds = self.dataset.variables[self.col_bnds][:]
@@ -184,7 +184,7 @@ class NcDatasetProfiler(object):
                 obj.geom = WKTSpatialElement(str(poly))
                 geoms.append(obj)
 #                s.add(obj)
-        dataset.indexspatial = geoms
+        climatemodel.indexspatial = geoms
         print('  committing...')
         s.commit()
 #                pass
@@ -214,7 +214,7 @@ if __name__ == '__main__':
             uris = [os.path.join(root,d,f) for f in os.listdir(os.path.join(root,d)) if f.endswith('.nc')]
             ncm = NcModelProfiler(d,uris)
             ncm.load(s)
-            sys.exit()
+#            sys.exit()
 #                if f.endswith('.nc'):
 #                    uri = os.path.join(root,f)
 #                    print d,uri

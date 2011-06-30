@@ -96,12 +96,12 @@ class Dimension(NcBase,Base):
 class IndexBase(NcBase):
 
     @declared_attr
-    def dataset_id(cls):
-        return(Column(ForeignKey(Dataset.id)))
+    def climatemodel_id(cls):
+        return(Column(ForeignKey(ClimateModel.id)))
     
     @declared_attr
-    def dataset(cls):
-        return(relationship(Dataset,backref=cls.__tablename__))
+    def climatemodel(cls):
+        return(relationship(ClimateModel,backref=cls.__tablename__))
     
     
 class IndexTime(IndexBase,Base):
@@ -115,7 +115,7 @@ class IndexTime(IndexBase,Base):
 class IndexSpatial(IndexBase,Base):
 #    __tablename__ = 'nc_index_spatial'
 #    id = Column(Integer,primary_key=True)
-    dataset_id = Column(ForeignKey(Dataset.id))
+#    dataset_id = Column(ForeignKey(Dataset.id))
     row = Column(Integer)
     col = Column(Integer)
     geom = GeometryColumn(Polygon)

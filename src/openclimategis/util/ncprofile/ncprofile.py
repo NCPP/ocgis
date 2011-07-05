@@ -23,8 +23,8 @@ class NcModelProfiler(object):
         self.code = code
         self.uris = uris
         
-    def load(self,s):
-        cm = db.ClimateModel(code=self.code)
+    def load(self,s,archive):
+        cm = db.ClimateModel(code=self.code,archive=archive)
         s.add(cm)
         first = True
         for uri in self.uris:
@@ -81,7 +81,7 @@ class NcDatasetProfiler(object):
             self._spatial_(s,cm)
         if temporal:
             print('loading temporal grid...')
-            self._temporal_(s,cm)
+            self._temporal_(s,dataset)
         s.commit()
         print('success.')
         
@@ -101,12 +101,12 @@ class NcDatasetProfiler(object):
         s.commit()
         return(obj)
     
-    def _temporal_(self,s,climatemodel):
+    def _temporal_(self,s,dataset):
         value = self.dataset.variables[self.time]
         vec = nc.num2date(value[:],value.units,value.calendar)
         for ii in xrange(len(vec)):
             idx = db.IndexTime()
-            idx.climatemodel = climatemodel
+            idx.dataset = dataset
             idx.index = ii
             idx.value = vec[ii]
             if self.time_bnds:
@@ -215,15 +215,18 @@ if __name__ == '__main__':
 
     s = db.Session()
     d = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'
+#    climatemodels = ['bccr_bcm2.0','bccr_bcm2.0']
     for root,dirs,files in os.walk(d):
+#        dirs.sort()
         for d in dirs:
 #            for f in os.listdir(os.path.join(root,d)):
             uris = [os.path.join(root,d,f) for f in os.listdir(os.path.join(root,d)) if f.endswith('.nc')]
 #            models = []
 #            for uri in uris:
 #                models.append(uri.split('.')[0])
-            ncm = NcModelProfiler(d,uris)
-            ncm.load(s)
+            archive = db.Archive(code=d)
+            ncm = NcModelProfiler('bccr_bcm2.0',uris)
+            ncm.load(s,archive)
             sys.exit()
 #                if f.endswith('.nc'):
 #                    uri = os.path.join(root,f)

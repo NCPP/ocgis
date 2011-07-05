@@ -24,8 +24,17 @@ class NcBase(object):
         return cls.__name__.lower()
 
 
-class ClimateModel(NcBase,Base):
+class Archive(NcBase,Base):
     code = Column(String)
+
+
+class ClimateModel(NcBase,Base):
+    archive_id = Column(ForeignKey(Archive.id))
+    code = Column(String)
+    
+    @declared_attr
+    def archive(cls):
+        return(relationship(Archive,backref=cls.__tablename__))
 
 
 class Dataset(NcBase,Base):
@@ -104,12 +113,17 @@ class IndexBase(NcBase):
         return(relationship(ClimateModel,backref=cls.__tablename__))
     
     
-class IndexTime(IndexBase,Base):
+class IndexTime(NcBase,Base):
 #    __tablename__ = 'nc_index_time'
+    dataset_id = Column(ForeignKey(Dataset.id))
     index = Column(Integer)
     lower = Column(DateTime)
     value = Column(DateTime)
     upper = Column(DateTime)
+    
+    @declared_attr
+    def dataset(cls):
+        return(relationship(Dataset,backref=cls.__tablename__))
     
     
 class IndexSpatial(IndexBase,Base):

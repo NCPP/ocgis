@@ -1,13 +1,13 @@
 from django.contrib.gis.db import models
 
-class AbstractGeoTable(models.Model):
+class AbstractGeoManager(models.Model):
     objects = models.GeoManager()
 
     class Meta:
         abstract = True
 
 
-class Organization(AbstractGeoTable):
+class Organization(AbstractGeoManager):
     '''Models an organization (that has a climate model)
     
     Example: National Center for Atmospheric Research (ncar) 
@@ -25,7 +25,7 @@ class Organization(AbstractGeoTable):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Archive(AbstractGeoTable):
+class Archive(AbstractGeoManager):
     '''Models an climate model data archive
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
@@ -42,7 +42,7 @@ class Archive(AbstractGeoTable):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Variable(AbstractGeoTable):
+class Variable(AbstractGeoManager):
     '''Models an climate model variable
     
     Example: air_temperature (tas)
@@ -58,7 +58,7 @@ class Variable(AbstractGeoTable):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class ClimateModel(AbstractGeoTable):
+class ClimateModel(AbstractGeoManager):
     '''A climate model
     
     Example: Community Climate System Model, version 3.0 (CCSM3)
@@ -77,7 +77,7 @@ class ClimateModel(AbstractGeoTable):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class Experiment(AbstractGeoTable):
+class Experiment(AbstractGeoManager):
     '''A climate model simulation experiment
     
     Example: 2xCO2 equilibrium experiment (2xCO2)
@@ -90,7 +90,7 @@ class Experiment(AbstractGeoTable):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
-class SpatialGrid(AbstractGeoTable):
+class SpatialGrid(AbstractGeoManager):
     '''A climate model spatial grid (collection of grid cells)'''
     boundary_geom = models.PolygonField(srid=4326)
     native_srid   = models.IntegerField()
@@ -102,7 +102,7 @@ class SpatialGrid(AbstractGeoTable):
         )
 
 
-class SpatialGridCell(AbstractGeoTable):
+class SpatialGridCell(AbstractGeoManager):
     '''A climate model spatial grid cell'''
     grid_spatial = models.ForeignKey(SpatialGrid)
     row          = models.IntegerField()
@@ -110,7 +110,7 @@ class SpatialGridCell(AbstractGeoTable):
     geom         = models.PolygonField(srid=4326)
 
 
-class TemporalUnit(AbstractGeoTable):
+class TemporalUnit(AbstractGeoManager):
     '''A unit of time
     
     For example: hours since 1800-01-01 00:00:00
@@ -127,7 +127,7 @@ class TemporalUnit(AbstractGeoTable):
         )
 
 
-class Calendar(AbstractGeoTable):
+class Calendar(AbstractGeoManager):
     '''A calendar used by time references
     
     Ref: http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.5/cf-conventions.html#calendar
@@ -141,7 +141,7 @@ class Calendar(AbstractGeoTable):
             description=self.description
         )
 
-class TemporalGrid(AbstractGeoTable):
+class TemporalGrid(AbstractGeoManager):
     '''A climate model temporal grid (collection of grid cells)'''
     date_min      = models.DateField()
     date_max      = models.DateField()
@@ -158,7 +158,7 @@ class TemporalGrid(AbstractGeoTable):
         )
 
 
-class TemporalGridCell(AbstractGeoTable):
+class TemporalGridCell(AbstractGeoManager):
     '''A climate model temporal grid cell (time interval)'''
     grid_temporal = models.ForeignKey(TemporalGrid)
     index         = models.IntegerField()
@@ -173,7 +173,7 @@ class TemporalGridCell(AbstractGeoTable):
     )
 
 
-class Prediction(AbstractGeoTable):
+class Prediction(AbstractGeoManager):
     '''Models of a climate prediction datafile'''
     archive       = models.ForeignKey(Archive)
     climate_model = models.ForeignKey(ClimateModel)

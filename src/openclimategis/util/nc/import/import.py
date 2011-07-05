@@ -17,7 +17,7 @@ from sqlalchemy.orm.exc import NoResultFound
 #             level=['lev','level','lvl']
 #             )
 
-class NcModelProfiler(object):
+class NcModelImporter(object):
     
     def __init__(self,code,uris):
         self.code = code
@@ -35,12 +35,12 @@ class NcModelProfiler(object):
             else:
                 spatial = False
 #                temporal = False
-            ndp = NcDatasetProfiler(uri)
+            ndp = NcDatasetImporter(uri)
             ndp.load(s,cm,spatial=spatial)
         s.commit()
         
 
-class NcDatasetProfiler(object):
+class NcDatasetImporter(object):
     
     def __init__(self,uri):
         self.uri = uri
@@ -208,7 +208,7 @@ if __name__ == '__main__':
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
 #    s = db.Session()
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-#    ncp = NcDatasetProfiler(uri)
+#    ncp = NcDatasetImporter(uri)
 #    ncp.load(s,1)
 #    s.close()
 #    import ipdb;ipdb.set_trace()
@@ -225,14 +225,14 @@ if __name__ == '__main__':
 #            for uri in uris:
 #                models.append(uri.split('.')[0])
             archive = db.Archive(code=d)
-            ncm = NcModelProfiler('bccr_bcm2.0',uris)
+            ncm = NcModelImporter('bccr_bcm2.0',uris)
             ncm.load(s,archive)
             sys.exit()
 #                if f.endswith('.nc'):
 #                    uri = os.path.join(root,f)
 #                    print d,uri
 #                print(uri)
-#                ncp = NcDatasetProfiler(uri)
+#                ncp = NcDatasetImporter(uri)
 #                ncp.load()
     s.close()
 #                sys.exit()
@@ -302,7 +302,7 @@ if __name__ == '__main__':
 #        return(value,ret)
 #    
 #
-#class NcDatasetProfiler(object):
+#class NcDatasetImporter(object):
 #    
 #    def __init__(self,uri):
 #        self.uri = uri
@@ -388,5 +388,5 @@ if __name__ == '__main__':
 #if __name__ == '__main__':
 ##    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
 #    uri = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-#    ncp = NcDatasetProfiler(uri)
+#    ncp = NcDatasetImporter(uri)
 #    import ipdb;ipdb.set_trace()

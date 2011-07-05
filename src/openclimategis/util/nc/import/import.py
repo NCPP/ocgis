@@ -9,49 +9,59 @@ import warnings
 
 
 class NcModelImporter(object):
+    """
+    Load a climate model with URIs pointing to model output datasets.
+    
+    code -- short name of the climate model. i.e. 'bccr_bcm2.0'.
+    uris -- list of URIs pointing to model output datasets. each URI should return
+      a Dataset instance when used by netCDF4.Dataset().
+    """
     
     def __init__(self,code,uris):
         self.code = code
         self.uris = uris
         
     def load(self,s,archive):
+        """
+        Load the model into the database using a foreign Archive object.
+        
+        s -- Session object.
+        archive -- Archive database object.
+        """
+        
         cm = db.ClimateModel(code=self.code,archive=archive)
         s.add(cm)
         first = True
         for uri in self.uris:
             if first:
                 spatial = True
-#                temporal = True
                 first = False
             else:
                 spatial = False
-#                temporal = False
             ndp = NcDatasetImporter(uri)
             ndp.load(s,cm,spatial=spatial)
         s.commit()
         
 
 class NcDatasetImporter(object):
+    """
+    Import a netCDF4 Dataset object into the database.
+    """
     
     def __init__(self,uri):
         self.uri = uri
         self.dataset = nc.Dataset(uri,'r')
         
-        self.set_name('time',['time'])
-        self.set_name('time_bnds',['time_bnds','time_bounds'])
-        self.set_name('row',['lat','latitude'])
-        self.set_name('col',['lon','longitude'])
-        self.set_name('row_bnds',['lat_bounds','latitude_bounds','lat_bnds','latitude_bnds','bounds_latitude'])
-        self.set_name('col_bnds',['lon_bounds','longitude_bounds','lon_bnds','longitude_bnds','bounds_longitude'])
-#        self.time_bnds = kwds.get('time_bnds') or 'time_bnds'
-#        self.row_bnds = kwds.get('row_bnds') or 'lat_bnds'
-#        self.col_bnds = kwds.get('col_bnds') or 'lon_bnds'
-#        self.row = kwds.get('row') or 'lat'
-#        self.col = kwds.get('col') or 'lon'
-        
-        pass
+        self._set_name_('time',['time'])
+        self._set_name_('time_bnds',['time_bnds','time_bounds'])
+        self._set_name_('row',['lat','latitude'])
+        self._set_name_('col',['lon','longitude'])
+        self._set_name_('row_bnds',['lat_bounds','latitude_bounds','lat_bnds','latitude_bnds','bounds_latitude'])
+        self._set_name_('col_bnds',['lon_bounds','longitude_bounds','lon_bnds','longitude_bnds','bounds_longitude'])
     
-    def set_name(self,target,options):
+    def _set_name_(self,target,options):
+        "Search naming options for target variables."
+        
         ret = None
         for key in self.dataset.variables.keys():
             if key in options:

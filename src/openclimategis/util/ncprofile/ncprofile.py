@@ -6,6 +6,7 @@ from shapely.geometry.point import Point
 from geoalchemy.base import WKTSpatialElement
 from shapely.geometry.polygon import Polygon
 import warnings
+from sqlalchemy.orm.exc import NoResultFound
 
 
 #CLASS = dict(
@@ -29,13 +30,13 @@ class NcModelProfiler(object):
         for uri in self.uris:
             if first:
                 spatial = True
-                temporal = True
+#                temporal = True
                 first = False
             else:
                 spatial = False
-                temporal = False
+#                temporal = False
             ndp = NcDatasetProfiler(uri)
-            ndp.load(s,cm,spatial=spatial,temporal=temporal)
+            ndp.load(s,cm,spatial=spatial)
         s.commit()
         
 
@@ -118,10 +119,16 @@ class NcDatasetProfiler(object):
     
     def _variables_(self,s,dataset):
         for key,value in self.dataset.variables.iteritems():
+#            q = s.query(db.Variable).filter(db.Variable.climatemodel==climatemodel)\
+#                                    .filter(db.Variable.code==key)\
+#                                    .filter(db.Variable.ndim==value.ndim)
+#            try:
+#                obj = q.one()
+#            except NoResultFound:
             obj = db.Variable()
             obj.dataset = dataset
             obj.code = key
-#            obj.dimensions = str(value.dimensions)
+    #            obj.dimensions = str(value.dimensions)
             obj.ndim = value.ndim
 #            obj.shape = str(value.shape)
 
@@ -212,9 +219,12 @@ if __name__ == '__main__':
         for d in dirs:
 #            for f in os.listdir(os.path.join(root,d)):
             uris = [os.path.join(root,d,f) for f in os.listdir(os.path.join(root,d)) if f.endswith('.nc')]
+#            models = []
+#            for uri in uris:
+#                models.append(uri.split('.')[0])
             ncm = NcModelProfiler(d,uris)
             ncm.load(s)
-#            sys.exit()
+            sys.exit()
 #                if f.endswith('.nc'):
 #                    uri = os.path.join(root,f)
 #                    print d,uri

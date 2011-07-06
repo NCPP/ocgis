@@ -1,12 +1,13 @@
 import os
 from climatedata.models import ClimateModel, Dataset, AttributeDataset,\
-    IndexTime, Variable, Dimension, AttributeVariable, IndexSpatial
+    IndexTime, Variable, Dimension, AttributeVariable, IndexSpatial, Scenario
 import netCDF4
 import warnings
 from shapely.geometry.point import Point
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from shapely.geometry.polygon import Polygon
 from django.db import transaction
+import re
 
 
 
@@ -30,6 +31,7 @@ class NcModelImporter(object):
         self.name = kwds.get('name')
         self.code = kwds.get('code')
         self.url = kwds.get('url')
+        self.scenario_regex = kwds.get('scenario_regex') or '.*\..*\..*\.(.*)\.'
         
     def load(self,archive):
         """
@@ -52,8 +54,10 @@ class NcModelImporter(object):
                 first = False
             else:
                 spatial = False
-            ndp = NcDatasetImporter(uri)
-            ndp.load(cm,spatial=spatial)
+            scenario_code = re.search(self.scenario_regex,uri).group(1)
+            scenario,created = Scenario.objects.get_or_create(code=scenario_code)
+            ndp = NcDatasetImporter(uri,cm,scenario)
+            ndp.load(spatial=spatial)
 #        s.commit()
         
 
@@ -62,9 +66,11 @@ class NcDatasetImporter(object):
     Import a netCDF4 Dataset object into the database.
     """
     
-    def __init__(self,uri):
+    def __init__(self,uri,climatemodel,scenario):
         self.uri = uri
         self.dataset = netCDF4.Dataset(uri,'r')
+        self.climatemodel = climatemodel
+        self.scenario = scenario
         
         self._set_name_('time',['time'])
         self._set_name_('time_bnds',['time_bnds','time_bounds'])
@@ -85,24 +91,25 @@ class NcDatasetImporter(object):
         if not ret:
             warnings.warn('variable "{0}" not found in {1}. setting to "None" and no load is attempted.'.format(target,self.dataset.variables.keys()))
         
-    def load(self,cm,spatial=True,temporal=True):
+    def load(self,spatial=True,temporal=True):
         print('loading '+self.uri+'...')
         print('loading dataset...')
-        dataset = self._dataset_(cm)
+        dataset = self._dataset_(self.climatemodel,self.scenario)
         print('loading variables...')
         self._variables_(dataset)
         if spatial:
             print('loading spatial grid...')
-            self._spatial_(cm)
+            self._spatial_(self.climatemodel)
         if temporal:
             print('loading temporal grid...')
             self._temporal_(dataset)
 #        s.commit()
         print('success.')
         
-    def _dataset_(self,climatemodel):
+    def _dataset_(self,climatemodel,scenario):
         obj = Dataset()
         obj.climatemodel = climatemodel
+        obj.scenario = scenario
         obj.name = os.path.split(self.uri)[1]
         obj.uri = self.uri
         obj.save()

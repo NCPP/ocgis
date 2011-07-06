@@ -1,5 +1,5 @@
 from piston.handler import BaseHandler
-from climatedata.models import ClimateModel, Archive, Variable
+from climatedata.models import ClimateModel, Archive, Variable, Scenario
 from emitters import *
 from piston.utils import rc
 from util.ncconv import NetCdfAccessor
@@ -143,7 +143,7 @@ class ClimateModelHandler(NonSpatialHandler):
     
     
 class ExperimentHandler(NonSpatialHandler):
-    model = Experiment
+    model = Scenario
     
     
 class VariableHandler(NonSpatialHandler):

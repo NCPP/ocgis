@@ -24,6 +24,19 @@ class Organization(AbstractGeoManager):
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
+    
+    
+class Scenario(AbstractGeoManager):
+    '''A climate model simulation experiment
+    
+    Example: 2xCO2 equilibrium experiment (2xCO2)
+    Reference: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments
+    '''
+    name    = models.CharField(max_length=50)
+    code    = models.CharField(max_length=10)
+    
+    def __unicode__(self):
+        return "{name} ({code})".format(name=self.name, code=self.code)
 
 
 class Archive(AbstractGeoManager):
@@ -68,6 +81,7 @@ class Dataset(AbstractGeoManager):
     '''Models a netCDF4 Dataset object. Also a NC file anywhere.'''
     
     climatemodel = models.ForeignKey(ClimateModel)
+    scenario = models.ForeignKey(Scenario)
     name = models.CharField(max_length=100)
     uri = models.TextField()
 

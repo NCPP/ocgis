@@ -10,29 +10,34 @@ from django.conf import settings
 import os
 
 
-class LoadData(TransactionTestCase):
+def import_single():
+    organization,created = Organization.objects.get_or_create(
+               name='National Center for Atmospheric Research',
+               code='NCAR',
+               country='USA',
+               url='http://ncar.ucar.edu/')
+    archive,created = Archive.objects.get_or_create(
+              organization=organization,
+              name='Bias Corrected and Downscaled WCRP CMIP3 Climate',
+              code='Maurer07',
+              url='http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/')
+    scenario,created = Scenario.objects.get_or_create(
+                       name='1 percent to 2x CO2',
+                       code='1pctto2x')
     
-    def import_single(self):
-        organization,created = Organization.objects.get_or_create(
-                   name='National Center for Atmospheric Research',
-                   code='NCAR',
-                   country='USA',
-                   url='http://ncar.ucar.edu/')
-        archive,created = Archive.objects.get_or_create(
-                  organization=organization,
-                  name='Bias Corrected and Downscaled WCRP CMIP3 Climate',
-                  code='Maurer07',
-                  url='http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/')
-        
-        folder = os.path.join(settings.TEST_CLIMATE_DATA,'wcrp_cmip3')
-        uris = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.nc')]
-        kwds = dict(name='BCCR-BCM2.0',
-                    code='BCCR-BCM2.0',
-                    url='http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm')
-        load_climatemodel(archive,uris,**kwds)
+    folder = os.path.join(settings.TEST_CLIMATE_DATA,'wcrp_cmip3')
+    uris = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.nc')]
+    kwds = dict(name='BCCR-BCM2.0',
+                code='BCCR-BCM2.0',
+                url='http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm',
+                scenario_regex='pcmdi\.ipcc4\.bccr_bcm2_0\.(........)\..*nc')
+    load_climatemodel(archive,uris,**kwds)
+
+
+class LoadData(TransactionTestCase):
         
     def test_load(self):
-        self.import_single()
+        import_single()
         import pdb;pdb.set_trace()
 
 

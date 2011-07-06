@@ -30,4 +30,5 @@ def parse_polygon_wkt(txt):
             'c4':_fc(m.group('c4'))
             }
     wkt = 'POLYGON (({c1},{c2},{c3},{c4},{c1}))'.format(**kwds)
+    import ipdb;ipdb.set_trace()
     return(wkt)

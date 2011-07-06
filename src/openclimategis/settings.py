@@ -115,3 +115,6 @@ INSTALLED_APPS = (
     'climatedata',
     'api',
 )
+
+## location of binary netcdfs stored on local disk
+TEST_CLIMATE_DATA = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'

@@ -11,6 +11,8 @@ from util.toshp import OpenClimateShp
 from django.test.testcases import TransactionTestCase
 from warnings import warn
 import itertools
+#from climatedata.tests import import_single
+import unittest
 
 
 def disabled(f):
@@ -34,32 +36,35 @@ def get_example_netcdf():
             })
 
 
-class NetCdfAccessTest(TransactionTestCase):
-    """
-    Tests requiring an NetCDF file to read should subclass this. Once a test
-    OpenDap server is available, this object is obsolete.
-    """
-    
-    fixtures = get_fixtures()
+#class NetCdfAccessTest(TransactionTestCase):
+#    """
+#    Tests requiring an NetCDF file to read should subclass this. Once a test
+#    OpenDap server is available, this object is obsolete.
+#    """
+#    
+#    fixtures = get_fixtures()
+#    
+#    def setUp(self):
+#        self.client = Client()
+#        
+#        attrs = get_example_netcdf()
+#        for key,value in attrs.iteritems():
+#            setattr(self,key,value)
+##        self.var = 'Tavg'
+##        self.units_var = 'C'
+##        self.nw = NcWrite(self.var,self.units_var)
+##        self.path = get_temp_path(suffix='.nc')
+##        self.rootgrp = self.nw.write(self.path,close=False)
+#        
+#    def tearDown(self):
+#        self.rootgrp.close()
+        
+        
+class TestUrls(unittest.TestCase):
+    """Test URLs for correct response codes."""
     
     def setUp(self):
         self.client = Client()
-        
-        attrs = get_example_netcdf()
-        for key,value in attrs.iteritems():
-            setattr(self,key,value)
-#        self.var = 'Tavg'
-#        self.units_var = 'C'
-#        self.nw = NcWrite(self.var,self.units_var)
-#        self.path = get_temp_path(suffix='.nc')
-#        self.rootgrp = self.nw.write(self.path,close=False)
-        
-    def tearDown(self):
-        self.rootgrp.close()
-        
-        
-class TestUrls(NetCdfAccessTest):
-    """Test URLs for correct response codes."""
 
     @disabled
     def test_archives(self):
@@ -97,7 +102,7 @@ class TestUrls(NetCdfAccessTest):
         polygons = [
 #                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
 #                    '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
-                    '71.009248245704413+28.048816528798497,84.841541328399558+26.255741499560216,87.40307708445421+14.984984172919738,82.792312723555824+7.300376904755765,73.826937577364532+5.763455451122965,64.09310170435684+9.093451933994018,63.836948128751374+20.364209260634524,71.009248245704413+28.048816528798497',
+                    '71.009248245704413+28.048816528798497,84.841541328399558+26.255741499560216,87.40307708445421+14.984984172919738,82.792312723555824+7.300376904755765,73.826937577364532+5.763455451122965,64.09310170435684+9.093451933994018,63.836948128751374+20.364209260634524',
                     ]
         ## spatial operations
         sops = [
@@ -122,66 +127,71 @@ class TestUrls(NetCdfAccessTest):
             self.assertEqual(response.status_code,200)
 
 
-class NetCdfAccessorTests(NetCdfAccessTest):
-    
-    def test_constructor(self):
-        na = NetCdfAccessor(self.rootgrp,self.var)
-        self.assertTrue(len(na._timevec) > 0)
-
-    def test_get_dict(self):
-        """Convert entire NetCDF to dict."""
-        
-        qs = SpatialGridCell.objects.all().order_by('row','col')
-        geom_list = [MultiPolygon(obj.geom) for obj in qs]
-        na = NetCdfAccessor(self.rootgrp,self.var)
-        dl = na.get_dict(geom_list)
-        self.assertEquals(len(dl),len(geom_list)*len(self.nw.dim_time))
-        
-    def test_get_dict_intersects(self):
-        """Convert subset of NetCDF to dict."""
-        
-        igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
-        qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
-        y_indices = [obj.row for obj in qs]
-        x_indices = [obj.col for obj in qs]
-        geom_list = [MultiPolygon(obj.geom) for obj in qs]
-        na = NetCdfAccessor(self.rootgrp,self.var)
-        dl = na.get_dict(geom_list,col=x_indices,row=y_indices)
-        self.assertEqual(len(dl),len(geom_list)*len(self.nw.dim_time))
-        
-        
-class OpenClimateShpTests(NetCdfAccessTest):
-    
-    def get_object(self):
-        """Return an example OpenClimateShp object."""
-        
-        qs = SpatialGridCell.objects.all().order_by('row','col')
-        geom_list = qs.values_list('geom',flat=True)
-#        geom_list = obj.geom) for obj in qs]
-        na = NetCdfAccessor(self.rootgrp,self.var)
-        dl = na.get_dict(geom_list)
-        path = get_temp_path('.shp')
-        shp = OpenClimateShp(path,dl)
-        return(shp)
-    
-    def test_write(self):
-        """Write a shapefile."""
-        
-        shp = self.get_object()
-        shp.write()
+#class NetCdfAccessorTests(NetCdfAccessTest):
+#    
+#    def test_constructor(self):
+#        na = NetCdfAccessor(self.rootgrp,self.var)
+#        self.assertTrue(len(na._timevec) > 0)
+#
+#    def test_get_dict(self):
+#        """Convert entire NetCDF to dict."""
+#        
+#        qs = SpatialGridCell.objects.all().order_by('row','col')
+#        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+#        na = NetCdfAccessor(self.rootgrp,self.var)
+#        dl = na.get_dict(geom_list)
+#        self.assertEquals(len(dl),len(geom_list)*len(self.nw.dim_time))
+#        
+#    def test_get_dict_intersects(self):
+#        """Convert subset of NetCDF to dict."""
+#        
+#        igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
+#        qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
+#        y_indices = [obj.row for obj in qs]
+#        x_indices = [obj.col for obj in qs]
+#        geom_list = [MultiPolygon(obj.geom) for obj in qs]
+#        na = NetCdfAccessor(self.rootgrp,self.var)
+#        dl = na.get_dict(geom_list,col=x_indices,row=y_indices)
+#        self.assertEqual(len(dl),len(geom_list)*len(self.nw.dim_time))
         
         
-class TestHelpers(TestCase):
-    
-    def test_parse_polygon_wkt(self):
-        """Test the parsing of the polygon query string."""
+#class OpenClimateShpTests(NetCdfAccessTest):
+#    
+#    def get_object(self):
+#        """Return an example OpenClimateShp object."""
+#        
+#        qs = SpatialGridCell.objects.all().order_by('row','col')
+#        geom_list = qs.values_list('geom',flat=True)
+##        geom_list = obj.geom) for obj in qs]
+#        na = NetCdfAccessor(self.rootgrp,self.var)
+#        dl = na.get_dict(geom_list)
+#        path = get_temp_path('.shp')
+#        shp = OpenClimateShp(path,dl)
+#        return(shp)
+#    
+#    def test_write(self):
+#        """Write a shapefile."""
+#        
+#        shp = self.get_object()
+#        shp.write()
         
-        actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'
         
-        qs = ['POLYGON((30+10,10+20,20+40,40+40))',
-              'polygon((30+10,10+20,20+40,40+40))',
-              'polygon((30 10,10 20,20 40,40 40))']
-        
-        for q in qs: 
-            wkt = parse_polygon_wkt(q)
-            self.assertEqual(wkt,actual)
+#class TestHelpers(TestCase):
+#    
+#    def test_parse_polygon_wkt(self):
+#        """Test the parsing of the polygon query string."""
+#        
+#        actual = 'POLYGON ((30 10,10 20,20 40,40 40,30 10))'
+#        
+#        qs = ['POLYGON((30+10,10+20,20+40,40+40))',
+#              'polygon((30+10,10+20,20+40,40+40))',
+#              'polygon((30 10,10 20,20 40,40 40))']
+#        
+#        for q in qs: 
+#            wkt = parse_polygon_wkt(q)
+#            self.assertEqual(wkt,actual)
+            
+            
+if __name__ == '__main__':
+    import sys;sys.argv = ['', 'TestUrls.test_urls']
+    unittest.main()

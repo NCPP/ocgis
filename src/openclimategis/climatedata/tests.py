@@ -13,12 +13,12 @@ import os
 class LoadData(TransactionTestCase):
     
     def import_single(self):
-        organization = Organization.objects.get_or_create(
+        organization,created = Organization.objects.get_or_create(
                    name='National Center for Atmospheric Research',
                    code='NCAR',
                    country='USA',
                    url='http://ncar.ucar.edu/')
-        archive = Archive.objects.get_or_create(
+        archive,created = Archive.objects.get_or_create(
                   organization=organization,
                   name='Bias Corrected and Downscaled WCRP CMIP3 Climate',
                   code='Maurer07',
@@ -30,6 +30,10 @@ class LoadData(TransactionTestCase):
                     code='BCCR-BCM2.0',
                     url='http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm')
         load_climatemodel(archive,uris,**kwds)
+        
+    def test_load(self):
+        self.import_single()
+        import pdb;pdb.set_trace()
 
 
 class NcwriteTest(TestCase):

@@ -68,8 +68,8 @@ class Dataset(AbstractGeoManager):
     '''Models a netCDF4 Dataset object. Also a NC file anywhere.'''
     
     climatemodel = models.ForeignKey(ClimateModel)
-    name = models.CharField()
-    uri = models.CharField()
+    name = models.CharField(max_length=100)
+    uri = models.TextField()
 
 
 class Variable(AbstractGeoManager):
@@ -93,21 +93,21 @@ class Variable(AbstractGeoManager):
 class AttributeVariable(AbstractGeoManager):
     
     variable = models.ForeignKey(Variable)
-    name = models.CharField()
-    value = models.CharField()
+    name = models.CharField(max_length=50)
+    value = models.TextField()
     
 
 class AttributeDataset(AbstractGeoManager):
     
     dataset = models.ForeignKey(Dataset)
-    name = models.CharField()
-    value = models.IntegerField()
+    name = models.CharField(max_length=100)
+    value = models.TextField()
     
 
 class Dimension(AbstractGeoManager):
     
     variable = models.ForeignKey(Variable)
-    name = models.CharField()
+    name = models.CharField(max_length=100)
     position = models.IntegerField()
     size = models.IntegerField()
     
@@ -117,7 +117,7 @@ class IndexTime(AbstractGeoManager):
     dataset = models.ForeignKey(Dataset)
     index = models.IntegerField()
     lower = models.DateTimeField()
-    vale = models.DateTimeField()
+    value = models.DateTimeField()
     upper = models.DateTimeField()
     
     
@@ -127,7 +127,7 @@ class IndexSpatial(AbstractGeoManager):
     row = models.IntegerField()
     col = models.IntegerField()
     geom = models.PolygonField(srid=4326)
-    centroid = models.PointField(str=4326)
+    centroid = models.PointField(srid=4326)
 
 
 #class Experiment(AbstractGeoManager):

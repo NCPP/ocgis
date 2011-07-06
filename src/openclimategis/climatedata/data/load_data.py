@@ -11,6 +11,7 @@ from django.db import transaction
 
 
 
+@transaction.commit_on_success()
 def load_climatemodel(archive,uris,**kwds):
     ncm = NcModelImporter(uris,**kwds)
     ncm.load(archive)
@@ -103,7 +104,7 @@ class NcDatasetImporter(object):
     def _dataset_(self,climatemodel):
         obj = Dataset()
         obj.climatemodel = climatemodel
-        obj.code = os.path.split(self.uri)[1]
+        obj.name = os.path.split(self.uri)[1]
         obj.uri = self.uri
         obj.save()
 #        s.add(obj)
@@ -135,7 +136,7 @@ class NcDatasetImporter(object):
 #            s.add(idx)
             idx.save()
     
-    def _variables_(self,s,dataset):
+    def _variables_(self,dataset):
         for key,value in self.dataset.variables.iteritems():
 #            q = s.query(db.Variable).filter(db.Variable.climatemodel==climatemodel)\
 #                                    .filter(db.Variable.code==key)\
@@ -187,7 +188,7 @@ class NcDatasetImporter(object):
                 a.save()
 #            import ipdb;ipdb.set_trace()
 
-    @transaction.commit_on_sucess
+#    @transaction.commit_on_success()
     def _spatial_(self,climatemodel):
         col = self.dataset.variables[self.col][:]
         row = self.dataset.variables[self.row][:]

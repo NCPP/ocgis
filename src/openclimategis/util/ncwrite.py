@@ -1,7 +1,6 @@
 from django.core import serializers
 import os
 import climatedata
-from climatedata.models import SpatialGridCell, SpatialGrid, TemporalGridCell
 import numpy as np
 from netCDF4 import date2num, Dataset
 import datetime

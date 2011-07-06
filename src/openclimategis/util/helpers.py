@@ -14,21 +14,16 @@ def parse_polygon_wkt(txt):
     ## POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))
     ## POLYGON((30+10,10+20,20+40,40+40))
     
-    def _fc(c):
-        c = c.replace('+',' ')
-        c = c.replace('_','.')
-        return(c)
-    
     txt = txt.lower()
+    txt = txt.replace('+',' ')
     
-    coord = '.*[\+ ]{1}.*'
-    exp = 'polygon\(\((?P<c1>{0}),(?P<c2>{0}),(?P<c3>{0}),(?P<c4>{0})\)\)'.format(coord)
-    m = re.match(exp,txt)
-    kwds = {'c1':_fc(m.group('c1')),
-            'c2':_fc(m.group('c2')),
-            'c3':_fc(m.group('c3')),
-            'c4':_fc(m.group('c4'))
-            }
-    wkt = 'POLYGON (({c1},{c2},{c3},{c4},{c1}))'.format(**kwds)
-    import ipdb;ipdb.set_trace()
+    coords = re.match('.*\(\((.*)\)\)',txt).group(1)
+    coords = coords.split(',')
+    ## replicate last coordinate if it is not passed
+    if coords[0] != coords[-1]:
+        coords.append(coords[0])
+    coords = ', '.join(coords)
+    
+    wkt = 'POLYGON (({0}))'.format(str(coords))
+        
     return(wkt)

@@ -1,7 +1,6 @@
 import os
 from climatedata.models import ClimateModel, Dataset, AttributeDataset,\
-    IndexTime, Variable, Dimension, AttributeVariable, IndexSpatial,\
-    Organization, Archive
+    IndexTime, Variable, Dimension, AttributeVariable, IndexSpatial
 import netCDF4
 import warnings
 from shapely.geometry.point import Point

@@ -1,6 +1,5 @@
 from piston.handler import BaseHandler
-from climatedata.models import ClimateModel, Archive, Experiment, Variable,\
-    SpatialGridCell, TemporalGridCell
+from climatedata.models import ClimateModel, Archive, Variable
 from emitters import *
 from piston.utils import rc
 from util.ncconv import NetCdfAccessor

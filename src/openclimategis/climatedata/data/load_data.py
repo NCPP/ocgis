@@ -111,7 +111,7 @@ class NcDatasetImporter(object):
             value = getattr(self.dataset,attr)
             a = AttributeDataset()
             a.dataset = obj
-            a.code = attr
+            a.name = attr
             a.value = str(value)
             a.save()
 #            s.add(a)
@@ -145,7 +145,7 @@ class NcDatasetImporter(object):
 #            except NoResultFound:
             obj = Variable()
             obj.dataset = dataset
-            obj.code = key
+            obj.name = key
     #            obj.dimensions = str(value.dimensions)
             obj.ndim = value.ndim
             obj.save()
@@ -158,7 +158,7 @@ class NcDatasetImporter(object):
 #                d = db.Dimension()
                 d = Dimension()
                 d.variable = obj
-                d.code = dim
+                d.name = dim
                 d.size = sh
                 d.position = value.dimensions.index(dim)
 #                s.add(d)
@@ -181,7 +181,7 @@ class NcDatasetImporter(object):
             for ncattr in value.ncattrs():
                 a = AttributeVariable()
                 a.variable = obj
-                a.code = ncattr
+                a.name = ncattr
                 a.value = str(getattr(value,ncattr))
 #                s.add(a)
                 a.save()

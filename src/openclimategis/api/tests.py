@@ -2,7 +2,6 @@ from django.test import TestCase
 from util.ncconv import NetCdfAccessor
 from util.ncwrite import NcWrite
 from util.helpers import get_temp_path, parse_polygon_wkt
-from climatedata.models import SpatialGridCell
 import os
 import climatedata
 from django.contrib.gis.geos.collections import MultiPolygon
@@ -85,35 +84,36 @@ class TestUrls(NetCdfAccessTest):
         ## list of extensions to test
         exts = [
                 'shz',
-                'geojson',
-                'json',
-                'html'
+#                'geojson',
+#                'json',
+#                'html'
                 ]
         ## date ranges to test
         dranges = [
-                   '2011-2-15',
+#                   '2011-2-15',
                    '2011-01-16+2011-3-16',
                    ]
         ## polygons intersections to test
         polygons = [
-                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
-                    '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
+#                    '11.5+3.5,12.5+3.5,12.5+2.5,11.5+2.5',
+#                    '10.481+5.211,10.353+0.698,13.421+1.533,13.159+4.198',
+                    '71.009248245704413+28.048816528798497,84.841541328399558+26.255741499560216,87.40307708445421+14.984984172919738,82.792312723555824+7.300376904755765,73.826937577364532+5.763455451122965,64.09310170435684+9.093451933994018,63.836948128751374+20.364209260634524,71.009248245704413+28.048816528798497',
                     ]
         ## spatial operations
         sops = [
                 'intersects',
-                'clip'
+#                'clip'
                 ]
         ## aggregation
         aggs = [
-                'true',
+#                'true',
                 'false'
                 ]
         
-        base_url = ('/api/test/archive/cmip3/model/bcc-cm1/scenario/2xco2/'
+        base_url = ('/api/test/archive/maurer07/model/bccr-bcm2.0/scenario/2xco2/'
                     'temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/{agg}/'
-                    'variable/psl.{ext}')
+                    'variable/ps.{ext}')
         
         for ext,drange,polygon,sop,agg in itertools.product(exts,dranges,polygons,sops,aggs):
             url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg)

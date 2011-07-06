@@ -4,6 +4,32 @@ from models import *
 from util.ncwrite import NcWrite
 import tempfile
 from util.helpers import get_temp_path
+from django.test.testcases import TransactionTestCase
+from climatedata.data.load_data import load_climatemodel
+from django.conf import settings
+import os
+
+
+class LoadData(TransactionTestCase):
+    
+    def import_single(self):
+        organization = Organization.objects.get_or_create(
+                   name='National Center for Atmospheric Research',
+                   code='NCAR',
+                   country='USA',
+                   url='http://ncar.ucar.edu/')
+        archive = Archive.objects.get_or_create(
+                  organization=organization,
+                  name='Bias Corrected and Downscaled WCRP CMIP3 Climate',
+                  code='Maurer07',
+                  url='http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/')
+        
+        folder = os.path.join(settings.TEST_CLIMATE_DATA,'wcrp_cmip3')
+        uris = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.nc')]
+        kwds = dict(name='BCCR-BCM2.0',
+                    code='BCCR-BCM2.0',
+                    url='http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm')
+        load_climatemodel(archive,uris,**kwds)
 
 
 class NcwriteTest(TestCase):

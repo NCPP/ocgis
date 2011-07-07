@@ -116,7 +116,7 @@ class TestUrls(unittest.TestCase):
                 'false'
                 ]
         
-        base_url = ('/api/test/archive/maurer07/model/bccr-bcm2.0/scenario/1pctto2x/'
+        base_url = ('/api/test/archive/cmip3/model/bccr-bcm2.0/scenario/1pctto2x/'
                     'temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/{agg}/'
                     'variable/ps.{ext}')

@@ -16,14 +16,17 @@ def import_single():
                code='NCAR',
                country='USA',
                url='http://ncar.ucar.edu/')
+    organization.save()
     archive,created = Archive.objects.get_or_create(
               organization=organization,
               name='Bias Corrected and Downscaled WCRP CMIP3 Climate',
               code='Maurer07',
               url='http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/')
+    archive.save()
     scenario,created = Scenario.objects.get_or_create(
                        name='1 percent to 2x CO2',
                        code='1pctto2x')
+    scenario.save()
     
     folder = os.path.join(settings.TEST_CLIMATE_DATA,'wcrp_cmip3')
     uris = [os.path.join(folder,f) for f in os.listdir(folder) if f.endswith('.nc')]

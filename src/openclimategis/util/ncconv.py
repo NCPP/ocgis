@@ -32,10 +32,17 @@ class NetCdfAccessor(object):
         try:
             self.nodata = getattr(rootgrp.variables[self.var],self.nodata_var)
         except AttributeError:
+            raise
             self.nodata = None
         ## construct the time vector
         times = self.rootgrp.variables[self.time]
         self._timevec = n.num2date(times[:],units=times.units,calendar=times.calendar)
+        
+#        ## reference grid construction
+#        sh = self.variable.shape
+#        self.col_grid,self.row_grid = np.meshgrid(np.arange(0,sh[-1]),np.arange(0,sh[-2]))
+#        ## flip the row grid to properly orient with nc indexing
+#        self.row_grid = np.flipud(self.row_grid)
                         
     def get_pyfrmt(self,val):
         """
@@ -52,8 +59,8 @@ class NetCdfAccessor(object):
         """
         Returns multi-dimensional NumPy array extracted from a NC.
         """
-
-        sh = self.rootgrp.variables[self.var].shape
+        
+        sh = self.variable.shape
         
         ## If indices are not passed, this method defaults to returning all
         ##  data.
@@ -63,7 +70,7 @@ class NetCdfAccessor(object):
         elif len(time_indices) == 1:
             time_indices = time_indices[0]
         else:
-            time_indices = range(min(time_indices,max(time_indices)+1))
+            time_indices = range(min(time_indices),max(time_indices)+1)
 #            time_indices = range(min(time_indices))
         
         if not x_indices:
@@ -76,9 +83,13 @@ class NetCdfAccessor(object):
         else:
             y_indices = range(min(y_indices),max(y_indices)+1)
         
-#        import ipdb;ipdb.set_trace()       
-        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]        
-        return data
+        
+        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices] 
+        col_grid,row_grid = np.meshgrid(x_indices,y_indices)
+        row_grid = np.flipud(row_grid)
+        
+#        import ipdb;ipdb.set_trace()   
+        return(data,row_grid,col_grid)
     
     def get_dict(self,geom_list,weights=None,aggregate=False,time_indices=[],col=[],row=[]):
         """
@@ -120,7 +131,7 @@ class NetCdfAccessor(object):
 
         ## return the netcdf data as a multi-dimensional numpy array
 #        import ipdb;ipdb.set_trace()
-        data = self.get_numpy_data(time_indices,col,row)
+        data,row_grid,col_grid = self.get_numpy_data(time_indices,col,row)
         
         ## once more check in the case of all data being returned unaggregated
         if (aggregate is False) and not col and (len(geom_list) < data.shape[1]*data.shape[2]):
@@ -135,56 +146,85 @@ class NetCdfAccessor(object):
             sh = (data.shape[0],data.shape[1])
         else:
             sh = (data.shape[1],data.shape[2])
-            
+        
+        
+        ## apply the weight dictionary list. this serves the dual purpose of 
+        ## removing unneeded values included in the block netCDF query.
+        values = []
+        for ii in xrange(len(time_indices)):
+            vsub = []
+            for w in weights:
+                row_select = row_grid == w['row']
+                col_select = col_grid == w['col']
+                select = row_select & col_select
+                if len(time_indices) == 1:
+                    dd = data[:,:]
+                else:
+                    dd = data[ii,:,:]
+                v = float(dd[select])
+                if aggregate:
+                    vsub.append(v*w['weight'])
+                else:
+                    vsub.append(v)
+            values.append(vsub)
+        
+        ## apply the offset to zero out the indices
+        
+        
         ## if a weighting weights is not passed, use the identity masking
         ## function
-        if weights == None:
-            mask = np.ones(sh)
-        else:
-            mask = np.array(weights).reshape(*sh)
+#        if weights == None:
+#            mask = np.ones(sh)
+#        else:
+#            try:
+#            mask = np.array(weights).reshape(*sh)
+#            except:
+#                import ipdb;ipdb.set_trace()
         
         ## POPULATE QUERYSET ---------------------------------------------------
         
         attrs = [] ## will hold "rows" in the queryset
         ids = self._gen_id_(start=1)
-        ## loop for each time slice, checking that there is more than one
-        if len(data.shape) == 2:
-            itrval = 1
-        else:
-            itrval = data.shape[0]
-        for ii in xrange(itrval):
+#        ## loop for each time slice, checking that there is more than one
+#        if len(data.shape) == 2:
+#            itrval = 1
+#        else:
+#            itrval = data.shape[0]
+        for ii in xrange(len(values)):
             ## retrieve the corresponding time stamp
             timestamp = self._timevec[ii]
-            ## apply the weights and remove the singleton (time) dimension
-            if len(time_indices) == 1:
-                slice = data[:,:]*mask
-            else:
-                slice = np.squeeze(data[ii,:,:])*mask
+#            ## apply the weights and remove the singleton (time) dimension
+#            if len(time_indices) == 1:
+#                slice = data[:,:]*mask
+#            else:
+#                slice = np.squeeze(data[ii,:,:])*mask
             
             ## INDEX INTO NUMPY ARRAY ------------------------------------------
             
             ## in the aggretation case, we summarize a time layer and link it with
             ##  the lone geometry
             if aggregate:
-                attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:float(slice.sum())})
+                attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[0],self.var:sum(values[ii])})
             ## otherwise, we create the rows differently if a subset or the entire
-            ##  dataset was requested.
+            ## dataset was requested.
             else:
-                ## the case of requesting specific indices
-                if len(col) > 0:
-                    for jj in xrange(len(col)):
-                        ## offsets are required as the indices were shifted due
-                        ##  to subsetting when querying the netcdf
-                        x_offset = min(col)
-                        y_offset = min(row)
-                        val = self._value_(slice,row[jj]-y_offset,col[jj]-x_offset)
-                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[jj],self.var:val})
-                ## case that all data is being returned
-                else:
-                    ctr = 0
-                    for r,c in itertools.product(xrange(slice.shape[0]),xrange(slice.shape[1])):
-                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[ctr],self.var:self._value_(slice,r,c)})
-                        ctr += 1
+                for jj in xrange(len(values[ii])):
+                    attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[jj],self.var:values[ii][jj]})
+#                ## the case of requesting specific indices
+#                if len(col) > 0:
+#                    for jj in xrange(len(col)):
+#                        ## offsets are required as the indices were shifted due
+#                        ##  to subsetting when querying the netcdf
+#                        x_offset = min(col)
+#                        y_offset = min(row)
+#                        val = self._value_(slice,row[jj]-y_offset,col[jj]-x_offset)
+#                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[jj],self.var:val})
+#                ## case that all data is being returned
+#                else:
+#                    ctr = 0
+#                    for r,c in itertools.product(xrange(slice.shape[0]),xrange(slice.shape[1])):
+#                        attrs.append({'id':ids.next(),'timestamp':timestamp,'geom':geom_list[ctr],self.var:self._value_(slice,r,c)})
+#                        ctr += 1
         
         return attrs
     

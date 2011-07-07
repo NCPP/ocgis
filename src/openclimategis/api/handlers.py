@@ -1,5 +1,6 @@
 from piston.handler import BaseHandler
-from climatedata.models import ClimateModel, Archive, Variable, Scenario
+from climatedata.models import ClimateModel, Archive, Variable, Scenario,\
+    Dataset, IndexTime, IndexSpatial
 from emitters import *
 from piston.utils import rc
 from util.ncconv import NetCdfAccessor
@@ -7,12 +8,21 @@ from util.helpers import parse_polygon_wkt
 from django.contrib.gis.geos.geometry import GEOSGeometry
 import datetime
 from climatedata import models
+import inspect
+from util.raw_sql import get_dataset, execute
+import netCDF4
 
 
 class ocg(object):
     """Structure class to hold keyword arguments."""
-    pass
-
+    
+    def __repr__(self):
+        prints = []
+        mems = inspect.getmembers(self)
+        for mem in mems:
+            if not mem[0].startswith('__'):
+                prints.append('{0}={1}\n'.format(mem[0],mem[1]))
+        return(''.join(prints))
 
 class OpenClimateHandler(BaseHandler):
     """Superclass for all OpenClimate handlers."""
@@ -58,6 +68,7 @@ class OpenClimateHandler(BaseHandler):
         def _format_date_(start,end):
             return([datetime.datetime.strptime(d,'%Y-%m-%d') for d in [start,end]])
         def _get_iexact_(model,code):
+#            if code == 'ps': import ipdb;ipdb.set_trace()
             "Return a single record from the database. Otherwise raise exception."
             ## this is the null case and should be treated as such
             if code == None:
@@ -65,8 +76,12 @@ class OpenClimateHandler(BaseHandler):
             else:
                 obj = model.objects.filter(code__iexact=code)
                 if len(obj) != 1:
-                    msg = '{0} records returned for model {1} with code query {2}'.format(len(obj),model,code)
-                    raise ValueError(msg)
+                    obj = model.objects.filter(name__iexact=code)
+                    if len(obj) != 1:
+                        msg = '{0} records returned for model {1} with code query {2}'.format(len(obj),model,code)
+                        raise ValueError(msg)
+                    else:
+                        ret = obj[0]
                 else:
                     ret = obj[0]
             return(ret)
@@ -107,21 +122,42 @@ class OpenClimateHandler(BaseHandler):
         ## these queries return objects from the database classifying the NetCDF.
         ## the goal is to return the prediction.
         self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
-        self.ocg.model_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
-        self.ocg.scenario_obj = _get_iexact_(models.Experiment,self.ocg.scenario)
-        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
+        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
+#        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
+#        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
         ## if we have data for each component, we can return a prediction
-        if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable]):
-            fkwds = dict(archive=self.ocg.archive_obj,
-                         climate_model=self.ocg.model_obj,
-                         experiment=self.ocg.scenario_obj,
-                         variable=self.ocg.variable_obj)
-            self.ocg.prediction_obj = models.Prediction.objects.filter(**fkwds)
-            if len(self.ocg.prediction_obj) != 1:
-                raise ValueError('prediction query should return 1 record.')
-            self.ocg.prediction_obj = self.ocg.prediction_obj[0]
+        if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable,self.ocg.temporal]):
+            ## execute the raw sql select statement to return the dataset
+            sql = get_dataset(self.ocg.archive_obj.id,self.ocg.variable,self.ocg.scenario,self.ocg.temporal)
+            rows = execute(sql)
+            ## check that only one record was returned
+            assert(len(rows)==1)
+            ## return the dataset object
+            self.ocg.dataset_obj = models.Dataset.objects.filter(pk=rows[0][0])[0]
+            
+#            ## return potential climate models from the archive selection
+#            cms = ClimateModel.objects.filter(archive=self.ocg.archive_obj)
+#            ## find potential datasets
+#            datasets = Dataset.objects.filter(climatemodel__in=cms,
+#                                              scenario=self.ocg.scenario_obj)
+#            ## filter by variable
+#            var_dataset_ids = Variable.objects.filter()
+#            ## narrow down the search by looking through the time data
+#            dataset = IndexTime.objects.filter(dataset__in=datasets,
+#                                                  value__range=self.ocg.temporal).\
+#                                           values('dataset').\
+#                                           distinct()
+#            import ipdb;ipdb.set_trace()
+#            fkwds = dict(archive=self.ocg.archive_obj,
+#                         climate_model=self.ocg.model_obj,
+#                         experiment=self.ocg.scenario_obj,
+#                         variable=self.ocg.variable_obj)
+#            self.ocg.prediction_obj = models.Prediction.objects.filter(**fkwds)
+#            if len(self.ocg.prediction_obj) != 1:
+#                raise ValueError('prediction query should return 1 record.')
+#            self.ocg.prediction_obj = self.ocg.prediction_obj[0]
         else:
-            self.ocg.prediction_obj = None
+            self.ocg.dataset_obj = None
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -154,13 +190,14 @@ class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
         
-        from tests import get_example_netcdf
-        
-        attrs = get_example_netcdf()
+#        from tests import get_example_netcdf
+#        
+#        attrs = get_example_netcdf()
         
         ## SPATIAL QUERYING ----------------------------------------------------
         
-        ocgeom = OpenClimateGeometry(self.ocg.aoi,
+        ocgeom = OpenClimateGeometry(self.ocg.climatemodel_obj,
+                                     self.ocg.aoi,
                                      self.ocg.operation,
                                      self.ocg.aggregate)
         geom_list = ocgeom.get_geom_list()
@@ -169,20 +206,24 @@ class SpatialHandler(OpenClimateHandler):
         
         ## TEMPORAL QUERYING ---------------------------------------------------
         
-        ti = TemporalGridCell.objects.filter(grid_temporal=self.ocg.prediction_obj.grid_temporal)\
-                                     .filter(date_ref__range=self.ocg.temporal)
+        ti = IndexTime.objects.filter(dataset=self.ocg.dataset_obj)\
+                              .filter(value__range=self.ocg.temporal)
         ti = ti.order_by('index').values_list('index',flat=True)
-        
-        ## RETRIEVE NETCDF DATA ------------------------------------------------
 
-        na = NetCdfAccessor(attrs['rootgrp'],attrs['var'])
-        ## extract a dictionary representation of the netcdf
-        dl = na.get_dict(geom_list,
-                         time_indices=ti,
-                         row=row,
-                         col=col,
-                         aggregate=self.ocg.aggregate,
-                         weights=weights)       
+        ## RETRIEVE NETCDF DATA ------------------------------------------------
+        
+        rootgrp = netCDF4.Dataset(self.ocg.dataset_obj.uri,'r')
+        try:
+            na = NetCdfAccessor(rootgrp,self.ocg.variable)
+            ## extract a dictionary representation of the netcdf
+            dl = na.get_dict(geom_list,
+                             time_indices=ti,
+                             row=row,
+                             col=col,
+                             aggregate=self.ocg.aggregate,
+                             weights=weights)
+        finally:
+            rootgrp.close()     
         return(dl)
     
     
@@ -196,10 +237,11 @@ class OpenClimateGeometry(object):
     aggregate -- set to True to union the geometries.
     """
     
-    def __init__(self,aoi,op,aggregate):
+    def __init__(self,climatemodel,aoi,op,aggregate):
         self.aoi = aoi
         self.op = op
         self.aggregate = aggregate
+        self.climatemodel = climatemodel
         
         self.__qs = None ## queryset with correct spatial operations
         self.__geoms = None ## list of geometries with correct attribute selected
@@ -223,15 +265,19 @@ class OpenClimateGeometry(object):
     def get_weights(self):
         "Returns weights for each polygon in the case of an aggregation."
         
-        if self.aggregate:
+#        if self.aggregate:
             ## calculate weights for each polygon
-            areas = [obj.area for obj in self._geoms]
-            asum = sum(areas)
-            weights = [a/asum for a in areas]
-            ret = weights
-        else:
-            ret = None
-        return(ret)
+        areas = [obj.area for obj in self._geoms]
+        asum = sum(areas)
+        weights = [a/asum for a in areas]
+        weights = [dict(weight=w,row=obj.row,col=obj.col) for w,obj in zip(weights,self._qs)]
+#            weights = dict(zip(weights,
+#                               [dict(row=obj.row,col=obj.col) for obj in self._qs]))
+#            import ipdb;ipdb.set_trace()
+#            ret = weights
+#        else:
+#            ret = None
+        return(weights)
     
     def get_geom_list(self):
         "Return the list of geometries accounting for processing parms."
@@ -246,8 +292,9 @@ class OpenClimateGeometry(object):
     def _qs(self):
         if self.__qs == None:
             ## always perform the spatial select to limit returned records.
-            self.__qs = SpatialGridCell.objects.filter(geom__intersects=self.aoi)\
-                                              .order_by('row','col')
+            self.__qs = IndexSpatial.objects.filter(climatemodel=self.climatemodel,
+                                                    geom__intersects=self.aoi)\
+                                            .order_by('row','col')
             ## intersection operations require element-by-element intersection
             ## operations.
             if self.op == 'clip':

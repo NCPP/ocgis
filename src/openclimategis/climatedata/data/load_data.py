@@ -210,8 +210,8 @@ class NcDatasetImporter(object):
                 ctr += 1
 #                obj = db.IndexSpatial()
                 obj = IndexSpatial()
-                obj.row = ii
-                obj.col = jj
+                obj.row = jj
+                obj.col = ii
                 obj.climatemodel = climatemodel
                 pt = Point(col[ii],row[jj])
                 obj.centroid = GEOSGeometry(str(pt))

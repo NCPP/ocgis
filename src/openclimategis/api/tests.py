@@ -122,6 +122,7 @@ class TestUrls(unittest.TestCase):
                     'variable/ps.{ext}')
         
         for ext,drange,polygon,sop,agg in itertools.product(exts,dranges,polygons,sops,aggs):
+            print ext,drange,'polygon index: '+str(polygons.index(polygon)),sop,agg,'\n'
             url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg)
             response = self.client.get(url)
             self.assertTrue(response.content != None)

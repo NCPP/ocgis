@@ -122,7 +122,9 @@ class OpenClimateHandler(BaseHandler):
         ## these queries return objects from the database classifying the NetCDF.
         ## the goal is to return the prediction.
         self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
-        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
+        self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
+                                                                       code__iexact=self.ocg.model)
+#        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
 #        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
 #        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
         ## if we have data for each component, we can return a prediction

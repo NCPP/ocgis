@@ -115,19 +115,65 @@ class TestUrls(unittest.TestCase):
                 'true',
                 'false'
                 ]
+        ## climate models
+        cms = [
+               'bccr-bcm2.0'
+               ]
+        ## scenarios
+        scenarios = [
+                     '1pctto2x',
+                     ]
+        ## archives
+        archives = [
+                    'cmip3',
+                    ]
+        ## variables
+        variables = [
+                     'ps',
+                     ]
         
-        base_url = ('/api/test/archive/cmip3/model/bccr-bcm2.0/scenario/1pctto2x/'
+        base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
                     'temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/{agg}/'
-                    'variable/ps.{ext}')
+                    'variable/{variable}.{ext}')
         
-        for ext,drange,polygon,sop,agg in itertools.product(exts,dranges,polygons,sops,aggs):
-            print ext,drange,'polygon index: '+str(polygons.index(polygon)),sop,agg,'\n'
-            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg)
+#        for ext,drange,polygon,sop,agg,cm,scenario,archive,variable in itertools.product(exts,dranges,polygons,sops,aggs,cms,scenarios,archives,variables):
+#            print ext,drange,'polygon index: '+str(polygons.index(polygon)),sop,agg,cm,scenario,archive,variable,'\n'
+#            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg,cm=cm,scenario=scenario,archive=archive,variable=variable)
+#            response = self.client.get(url)
+#            self.assertTrue(response.content != None)
+#            self.assertEqual(response.status_code,200)
+
+        dranges = [
+                   '1950-5-14',
+                   '1950-9-1+1951-11-30'
+                   ]
+        polygons = [
+                    '-105.810709477731606+41.745763941079858,-104.480587924505272+41.72442509263238,-104.480587924505272+41.72442509263238,-103.634146936088499+41.639069698842455,-102.816157745601714+42.179653859511987,-101.279760657383051+42.641995575874084,-100.703611749301047+42.421494141916774,-100.390641972071322+41.994717172967142,-100.710724698783537+41.361664669025195,-101.407793748067931+40.586353175433366,-103.207369967138874+39.988865418903892,-103.925777864870753+39.66878269219167,-105.206108771719627+39.298909319101988,-106.60735981977092+39.462507157199347,-106.806522405280745+40.337399943546089,-106.642924567183385+41.240744527822798,-105.810709477731606+41.745763941079858',
+                    ]
+        archives = [
+                    'maurer07'
+                    ]
+        cms = [
+               'bccr-bcm2.0',
+               'cccma-cgcm3.1'
+               ]
+        scenarios = [
+                     'sresa1b',
+                     'sresa2'
+                     ]
+        variables = [
+                     'Prcp',
+                     ]
+        
+        for ext,drange,polygon,sop,agg,cm,scenario,archive,variable in itertools.product(exts,dranges,polygons,sops,aggs,cms,scenarios,archives,variables):
+            print ext,drange,'polygon index: '+str(polygons.index(polygon)),sop,agg,cm,scenario,archive,variable,'\n'
+            url = base_url.format(ext=ext,drange=drange,polygon=polygon,sop=sop,agg=agg,cm=cm,scenario=scenario,archive=archive,variable=variable)
             response = self.client.get(url)
             self.assertTrue(response.content != None)
             self.assertEqual(response.status_code,200)
-
+        
+        
 
 #class NetCdfAccessorTests(NetCdfAccessTest):
 #    

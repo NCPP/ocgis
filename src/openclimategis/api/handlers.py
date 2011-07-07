@@ -123,16 +123,17 @@ class OpenClimateHandler(BaseHandler):
         ## the goal is to return the prediction.
         self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
         self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
-                                                                       code__iexact=self.ocg.model)
+                                                                       code__iexact=self.ocg.model)[0]
 #        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
 #        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
 #        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
         ## if we have data for each component, we can return a prediction
         if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable,self.ocg.temporal]):
             ## execute the raw sql select statement to return the dataset
-            sql = get_dataset(self.ocg.archive_obj.id,self.ocg.variable,self.ocg.scenario,self.ocg.temporal)
+            sql = get_dataset(self.ocg.archive_obj.id,self.ocg.variable,self.ocg.scenario,self.ocg.temporal,self.ocg.climatemodel_obj.code)
             rows = execute(sql)
             ## check that only one record was returned
+            import ipdb;ipdb.set_trace()
             assert(len(rows)==1)
             ## return the dataset object
             self.ocg.dataset_obj = models.Dataset.objects.filter(pk=rows[0][0])[0]

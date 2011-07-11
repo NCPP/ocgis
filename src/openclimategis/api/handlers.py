@@ -133,8 +133,10 @@ class OpenClimateHandler(BaseHandler):
             sql = get_dataset(self.ocg.archive_obj.id,self.ocg.variable,self.ocg.scenario,self.ocg.temporal,self.ocg.climatemodel_obj.code)
             rows = execute(sql)
             ## check that only one record was returned
-            import ipdb;ipdb.set_trace()
-            assert(len(rows)==1)
+            try:
+                assert(len(rows)==1)
+            except:
+                import ipdb;ipdb.set_trace()
             ## return the dataset object
             self.ocg.dataset_obj = models.Dataset.objects.filter(pk=rows[0][0])[0]
             

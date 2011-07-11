@@ -145,7 +145,7 @@ class TestUrls(unittest.TestCase):
 #            self.assertEqual(response.status_code,200)
 
         dranges = [
-                   '1950-5-14',
+                   '1950-5-15',
                    '1950-9-1+1951-11-30'
                    ]
         polygons = [

@@ -130,9 +130,9 @@ class IndexTime(AbstractGeoManager):
     
     dataset = models.ForeignKey(Dataset)
     index = models.IntegerField()
-    lower = models.DateTimeField(null=True)
-    value = models.DateTimeField()
-    upper = models.DateTimeField(null=True)
+    lower = models.DateField(null=True)
+    value = models.DateField()
+    upper = models.DateField(null=True)
     
     
 class IndexSpatial(AbstractGeoManager):

@@ -241,5 +241,7 @@ class TestUrls(unittest.TestCase):
             
             
 if __name__ == '__main__':
-    import sys;sys.argv = ['', 'TestUrls.test_urls']
+    import sys
+    sys.path.append('/home/bkoziol/git/OpenClimateGIS/src')
+    sys.argv = ['', 'TestUrls.test_urls']
     unittest.main()

@@ -136,13 +136,13 @@ class OpenClimateHandler(BaseHandler):
                               self.ocg.temporal,
                               self.ocg.climatemodel_obj.code)
             rows = execute(sql)
-            ## check that only one record was returned
-            try:
-                assert(len(rows)==1)
-            except:
-                import ipdb;ipdb.set_trace()
-            ## return the dataset object
-            self.ocg.dataset_obj = models.Dataset.objects.filter(pk=rows[0][0])[0]
+            ## return the dataset object(s)
+#            if len(rows) > 1:
+            pks = [ii[0] for ii in rows]
+            self.ocg.dataset_obj = models.Dataset.objects.filter(pk__in=pks)
+            import pdb;pdb.set_trace()
+#            else:
+#                self.ocg.dataset_obj = [models.Dataset.objects.filter(pk=rows[0][0])[0]]
             
 #            ## return potential climate models from the archive selection
 #            cms = ClimateModel.objects.filter(archive=self.ocg.archive_obj)
@@ -212,6 +212,10 @@ class SpatialHandler(OpenClimateHandler):
         geom_list = ocgeom.get_geom_list()
         row,col = ocgeom.get_indices()
         weights = ocgeom.get_weights()
+        
+        ## it is possible that multiple datasets are returned by a query. this
+        ## occurs when a temporal range overlaps multiple datasets. hence, we 
+        ## always put the retrieval in a loop.
         
         ## TEMPORAL QUERYING ---------------------------------------------------
         

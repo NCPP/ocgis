@@ -129,8 +129,12 @@ class OpenClimateHandler(BaseHandler):
 #        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
         ## if we have data for each component, we can return a prediction
         if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable,self.ocg.temporal]):
-            ## execute the raw sql select statement to return the dataset
-            sql = get_dataset(self.ocg.archive_obj.id,self.ocg.variable,self.ocg.scenario,self.ocg.temporal,self.ocg.climatemodel_obj.code)
+            ## execute the raw sql select statement to return the dataset(s)
+            sql = get_dataset(self.ocg.archive_obj.id,
+                              self.ocg.variable,
+                              self.ocg.scenario,
+                              self.ocg.temporal,
+                              self.ocg.climatemodel_obj.code)
             rows = execute(sql)
             ## check that only one record was returned
             try:

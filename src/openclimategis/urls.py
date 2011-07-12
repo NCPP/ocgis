@@ -16,5 +16,8 @@ urlpatterns = patterns('',
     (r'^admin/', include(admin.site.urls)),
     
     # Django-piston API URL mapping:
-    (r'^api/',include('api.urls'))
+    (r'^api/',include('api.urls')),
+    
+    # climate model archives index page
+    (r'^archives|^arhives.html','climatedata.views.display_archives'),
 )

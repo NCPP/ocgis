@@ -95,7 +95,7 @@ class TestUrls(unittest.TestCase):
                 ]
         ## date ranges to test
         dranges = [
-#                   '2011-2-15',
+                   '2011-2-15',
                    '2011-01-16+2011-3-16',
                    ]
         ## polygons intersections to test
@@ -145,7 +145,7 @@ class TestUrls(unittest.TestCase):
 #            self.assertEqual(response.status_code,200)
 
         dranges = [
-                   '1950-5-15',
+#                   '1950-5-15',
                    '1950-9-1+1951-11-30'
                    ]
         polygons = [

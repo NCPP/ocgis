@@ -1,6 +1,7 @@
 import tempfile
 import re
 import copy
+import pdb
 
 
 def get_temp_path(suffix=''):
@@ -54,6 +55,31 @@ def merge_dict(*args):
         for key,value in t.iteritems():
             b[key] += value
     return(b)
+
+def html_table(ld,order):
+    """
+    Generate an HTML table code from a nested dictionary. DOEST NOT generate
+    the <table> tag to allow table customization.
+    
+    >>> ld = [dict(month='January',savings='$100'),dict(month='April',savings ='$50')]
+    >>> order = (('month','Month'),('savings','Savings'))
+    >>> html_table(ld,order)
+    """
+    
+    ## contains the formated html code
+    dump = []
+    
+    tr = '<tr>{0}</tr>'
+    th = '<th>{0}</th>'
+    td = '<td>{0}</td>'
+    
+    ## set the headings
+    dump.append(tr.format(''.join([th.format(o[1]) for o in order])))
+    ## add the data
+    for l in ld:
+        dump.append(tr.format(''.join([td.format(l[o[0]]) for o in order])))
+    
+    return(''.join(dump))
 
 
 if __name__ == '__main__':

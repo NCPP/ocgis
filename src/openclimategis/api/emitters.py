@@ -5,6 +5,7 @@ from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
 from django.core import serializers
 import geojson
+from django.shortcuts import render_to_response
 
 
 class OpenClimateEmitter(Emitter):
@@ -34,7 +35,9 @@ class HelloWorldEmitter(OpenClimateEmitter):
 class HtmlEmitter(OpenClimateEmitter):
     
     def render(self,request):
-        return HttpResponse(str(self.construct()))
+#        import pdb;pdb.set_trace()
+        return render_to_response('archives.html',self.construct())
+#        return HttpResponse(str(self.construct()))
 
    
 class ShapefileEmitter(GeometryEmitter):

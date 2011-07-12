@@ -84,7 +84,7 @@ class NetCdfAccessor(object):
             y_indices = range(min(y_indices),max(y_indices)+1)
         
         
-        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices] 
+        data = self.rootgrp.variables[self.var][time_indices,y_indices,x_indices]
         col_grid,row_grid = np.meshgrid(x_indices,y_indices)
         row_grid = np.flipud(row_grid)
         

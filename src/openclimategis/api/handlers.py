@@ -4,7 +4,7 @@ from climatedata.models import ClimateModel, Archive, Variable, Scenario,\
 from emitters import *
 from piston.utils import rc
 from util.ncconv import NetCdfAccessor
-from util.helpers import parse_polygon_wkt
+from util.helpers import parse_polygon_wkt, merge_dict
 from django.contrib.gis.geos.geometry import GEOSGeometry
 import datetime
 from climatedata import models
@@ -96,10 +96,15 @@ class OpenClimateHandler(BaseHandler):
             else:
                 start = t
                 end = t
-        self.ocg.temporal = _format_date_(start,end)
+                self.ocg.temporal = _format_date_(start,end)
+        else:
+            self.ocg.temporal = None
         ## the polygon overlay
         aoi = kwds.get('aoi')
-        self.ocg.aoi = GEOSGeometry(parse_polygon_wkt(aoi)) or aoi
+        if aoi:
+            self.ocg.aoi = GEOSGeometry(parse_polygon_wkt(aoi))
+        else:
+            self.ocg.aoi = None
         ## the model archive
         self.ocg.archive = kwds.get('archive')
         ## target variable
@@ -107,13 +112,16 @@ class OpenClimateHandler(BaseHandler):
         ## aggregation boolean
         agg = kwds.get('aggregate')
         ## the None case is different than 'true' or 'false'
-        if agg.lower() == 'true':
-            self.ocg.aggregate = True
-        elif agg.lower() == 'false':
-            self.ocg.aggregate = False
+        if agg:
+            if agg.lower() == 'true':
+                self.ocg.aggregate = True
+            elif agg.lower() == 'false':
+                self.ocg.aggregate = False
+            else:
+                msg = '"{0}" aggregating boolean operation not recognized.'
+                raise(ValueError(msg.format(agg)))
         else:
-            msg = '"{0}" aggregating boolean operation not recognized.'
-            raise(ValueError(msg.format(agg)))
+            self.ocg.aggregate = None
         ## the model designation
         self.ocg.model = kwds.get('model')
         ## the overlay operation
@@ -121,9 +129,10 @@ class OpenClimateHandler(BaseHandler):
         
         ## these queries return objects from the database classifying the NetCDF.
         ## the goal is to return the prediction.
-        self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
-        self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
-                                                                       code__iexact=self.ocg.model)[0]
+        if self.ocg.archive:
+            self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
+            self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
+                                                                           code__iexact=self.ocg.model)[0]
 #        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
 #        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
 #        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
@@ -140,7 +149,8 @@ class OpenClimateHandler(BaseHandler):
 #            if len(rows) > 1:
             pks = [ii[0] for ii in rows]
             self.ocg.dataset_obj = models.Dataset.objects.filter(pk__in=pks)
-            import pdb;pdb.set_trace()
+            
+            
 #            else:
 #                self.ocg.dataset_obj = [models.Dataset.objects.filter(pk=rows[0][0])[0]]
             
@@ -170,6 +180,7 @@ class OpenClimateHandler(BaseHandler):
 
 
 class NonSpatialHandler(OpenClimateHandler):
+    __data_kwds__ = {}
      
     def _read_(self,request,code=None):
         if code:
@@ -217,27 +228,35 @@ class SpatialHandler(OpenClimateHandler):
         ## occurs when a temporal range overlaps multiple datasets. hence, we 
         ## always put the retrieval in a loop.
         
-        ## TEMPORAL QUERYING ---------------------------------------------------
+        for ii,dataset in enumerate(self.ocg.dataset_obj):
         
-        ti = IndexTime.objects.filter(dataset=self.ocg.dataset_obj)\
-                              .filter(value__range=self.ocg.temporal)
-        ti = ti.order_by('index').values_list('index',flat=True)
-
-        ## RETRIEVE NETCDF DATA ------------------------------------------------
+            ## TEMPORAL QUERYING -----------------------------------------------
+            
+            ti = IndexTime.objects.filter(dataset=dataset)\
+                                  .filter(value__range=self.ocg.temporal)
+            ti = ti.order_by('index').values_list('index',flat=True)
+    
+            ## RETRIEVE NETCDF DATA --------------------------------------------
+            
+            rootgrp = netCDF4.Dataset(dataset.uri,'r')
+            try:
+                na = NetCdfAccessor(rootgrp,self.ocg.variable)
+                ## extract a dictionary representation of the netcdf
+                dl = na.get_dict(geom_list,
+                                 time_indices=ti,
+                                 row=row,
+                                 col=col,
+                                 aggregate=self.ocg.aggregate,
+                                 weights=weights)
+                ## append the data
+                if ii == 0:
+                    dls = dl
+                else:
+                    dls += dl
+            finally:
+                rootgrp.close()
         
-        rootgrp = netCDF4.Dataset(self.ocg.dataset_obj.uri,'r')
-        try:
-            na = NetCdfAccessor(rootgrp,self.ocg.variable)
-            ## extract a dictionary representation of the netcdf
-            dl = na.get_dict(geom_list,
-                             time_indices=ti,
-                             row=row,
-                             col=col,
-                             aggregate=self.ocg.aggregate,
-                             weights=weights)
-        finally:
-            rootgrp.close()     
-        return(dl)
+        return(dls)
     
     
 class OpenClimateGeometry(object):

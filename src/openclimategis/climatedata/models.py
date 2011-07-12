@@ -84,6 +84,9 @@ class Dataset(AbstractGeoManager):
     scenario = models.ForeignKey(Scenario)
     name = models.CharField(max_length=100)
     uri = models.TextField()
+    
+    def __unicode__(self):
+        return 'Scenario: {scenario} ({name})'.format(scenario=self.scenario,name=self.name)
 
 
 class Variable(AbstractGeoManager):

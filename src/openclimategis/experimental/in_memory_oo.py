@@ -11,6 +11,18 @@ from openclimategis.util.toshp import OpenClimateShp
 
 
 class OcgDataset(object):
+    """
+    Wraps and netCDF4-python Dataset object providing extraction methods by 
+    spatial and temporal queries.
+    
+    dataset -- netCDF4-python Dataset object
+    **kwds -- arguments for the names of spatial and temporal dimensions.
+        rowbnds_name
+        colbnds_name
+        time_name
+        time_units
+        calendar
+    """
     
     def __init__(self,dataset,**kwds):
         self.dataset = dataset
@@ -24,8 +36,8 @@ class OcgDataset(object):
         self.time_name = kwds.get('time_name') or 'time'
         self.time_units = kwds.get('time_units') or 'days since 1950-01-01 00:00:00'
         self.calendar = kwds.get('calendar') or 'proleptic_gregorian'
-        self.clip = kwds.get('clip') or False
-        self.dissolve = kwds.get('dissolve') or False
+#        self.clip = kwds.get('clip') or False
+#        self.dissolve = kwds.get('dissolve') or False
         
 #        self.row = self.dataset.variables[self.row_name][:]
 #        self.col = self.dataset.variables[self.col_name][:]
@@ -47,8 +59,9 @@ class OcgDataset(object):
         for ii,jj in itertools.product(xrange(ix),xrange(jx)):
             yield ii,jj
             
-    def _set_overlay_(self,polygon=None):
+    def _set_overlay_(self,polygon=None,clip=False):
         "polygon -- shapely polygon object"
+        print('overlay...')
         self._igrid = np.empty(self.min_row.shape,dtype=object)
         self._weights = np.empty(self.min_row.shape)
 
@@ -57,7 +70,7 @@ class OcgDataset(object):
                                  (self.min_col[ii,jj],self.max_col[ii,jj]))
             if g.intersects(polygon) or polygon is None:
                 prearea = g.area
-                if self.clip and polygon is not None:
+                if clip is True and polygon is not None:
                     ng = g.intersection(polygon)
                 else:
                     ng = g
@@ -66,7 +79,7 @@ class OcgDataset(object):
                     self._igrid[ii,jj] = ng
                     self._weights[ii,jj] = w
         self._mask = self._weights > 0
-        self._weights = self._weights/self._weights.sum()
+#        self._weights = self._weights/self._weights.sum()
     
     def _make_poly_(self,rtup,ctup):
         """
@@ -78,15 +91,15 @@ class OcgDataset(object):
                         (ctup[1],rtup[1]),
                         (ctup[1],rtup[0])))
         
-    def _get_numpy_data_(self,var_name,polygon=None,time_range=None):
+    def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False):
         """
         var_name -- NC variable to extract from
         polygon -- shapely polygon object
         time_range -- [lower datetime, upper datetime]
         """
-        
+        print('getting numpy data...')
         variable = self.dataset.variables[var_name]
-        self._set_overlay_(polygon=polygon)
+        self._set_overlay_(polygon=polygon,clip=clip)
         
         def _u(arg):
             un = np.unique(arg)
@@ -122,17 +135,25 @@ class OcgDataset(object):
             return arg
     
     def extract_elements(self,*args,**kwds):
+        print('extracting elements...')
+        if 'dissolve' in kwds:
+            dissolve = kwds.pop('dissolve')
+        else:
+            dissolve = False
+
         npd = self._get_numpy_data_(*args,**kwds)
         features = []
         ids = self._itr_id_()
-        if self.dissolve:
-            ## weight the data by area
-            weighted = npd*self._weights
+        if dissolve:
             for kk in range(len(self._idxtime)):
                 if kk == 0:
                     ## need to remove geometries that have masked data
-                    lyr = weighted[kk,:,:]
-                    geoms = self._igrid[self._mask*np.invert(lyr.mask)]
+                    lyr = npd[kk,:,:]
+                    select = self._mask*np.invert(lyr.mask)
+                    geoms = self._igrid[select]
+                    sub_weights = self._weights*select
+                    self._weights = sub_weights/sub_weights.sum()
+                    weighted = npd*self._weights
                     unioned = cascaded_union([p for p in geoms])
                 ## generate the feature
                 feature = dict(
@@ -187,20 +208,20 @@ if __name__ == '__main__':
     ## all
     #POLYINT = Polygon(((-99,39),(-94,38),(-94,40),(-100,39)))
     ## great lakes
-    POLYINT = Polygon(((-90.35,40.55),(-80.80,40.55),(-80.80,49.87),(-90.35,49.87)))
+    POLYINT = Polygon(((-90.35,40.55),(-83,43),(-80.80,49.87),(-90.35,49.87)))
     ## two areas
     #POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
     #           wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
     TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,4,30)]
-    DISSOLVE = False
-    CLIP = False
+    DISSOLVE = True
+    CLIP = True
     VAR = 'Prcp'
 
     dataset = nc.Dataset(NC,'r')
     ncp = OcgDataset(dataset)
 #    ncp._set_overlay_(POLYINT)
 #    npd = ncp._get_numpy_data_(VAR,POLYINT,TEMPORAL)
-    elements = ncp.extract_elements(VAR,POLYINT,TEMPORAL)
+    elements = ncp.extract_elements(VAR,polygon=POLYINT,time_range=TEMPORAL,clip=CLIP,dissolve=DISSOLVE)
 #    gj = ncp.as_geojson(elements)
     path = ncp.as_shp(elements)
     print(path)

@@ -45,6 +45,7 @@ class Archive(AbstractGeoManager):
     Example: Coupled Model Intercomparison Project (CMIP3) 
     '''
     organization = models.ForeignKey(Organization)
+#    climatemodel = models.ManyToManyField("ClimateModel")
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25)
     url          = models.URLField(
@@ -63,7 +64,8 @@ class ClimateModel(AbstractGeoManager):
     Example: Community Climate System Model, version 3.0 (CCSM3)
     Reference: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php
     '''
-    archive = models.ForeignKey(Archive)
+#    archive = models.ForeignKey(Archive)
+    archive = models.ManyToManyField(Archive)
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25)
 #    organization = models.ForeignKey(Organization)
@@ -82,11 +84,11 @@ class Dataset(AbstractGeoManager):
     
     climatemodel = models.ForeignKey(ClimateModel)
     scenario = models.ForeignKey(Scenario)
-    name = models.CharField(max_length=100)
+#    name = models.CharField(max_length=100)
     uri = models.TextField()
     
     def __unicode__(self):
-        return 'Scenario: {scenario} ({name})'.format(scenario=self.scenario,name=self.name)
+        return 'Scenario: {scenario} ({uri})'.format(scenario=self.scenario,name=self.uri)
 
 
 class Variable(AbstractGeoManager):
@@ -97,11 +99,12 @@ class Variable(AbstractGeoManager):
     Ref: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output
     '''
     dataset = models.ForeignKey(Dataset)
-    ndim = models.IntegerField()
-    name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25)
-    units        = models.CharField(max_length=25)
-    description  = models.CharField(max_length=1000, null=True)
+    ndim = models.IntegerField()
+#    name         = models.CharField(max_length=50)
+#    code         = models.CharField(max_length=25)
+#    units        = models.CharField(max_length=25)
+#    description  = models.CharField(max_length=1000, null=True)
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
@@ -110,41 +113,41 @@ class Variable(AbstractGeoManager):
 class AttributeVariable(AbstractGeoManager):
     
     variable = models.ForeignKey(Variable)
-    name = models.CharField(max_length=50)
+    code = models.CharField(max_length=50)
     value = models.TextField()
     
 
 class AttributeDataset(AbstractGeoManager):
     
     dataset = models.ForeignKey(Dataset)
-    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=100)
     value = models.TextField()
     
 
 class Dimension(AbstractGeoManager):
     
     variable = models.ForeignKey(Variable)
-    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=100)
     position = models.IntegerField()
     size = models.IntegerField()
     
     
-class IndexTime(AbstractGeoManager):
-    
-    dataset = models.ForeignKey(Dataset)
-    index = models.IntegerField()
-    lower = models.DateField(null=True)
-    value = models.DateField()
-    upper = models.DateField(null=True)
-    
-    
-class IndexSpatial(AbstractGeoManager):
-    
-    climatemodel = models.ForeignKey(ClimateModel)
-    row = models.IntegerField()
-    col = models.IntegerField()
-    geom = models.PolygonField(srid=4326)
-    centroid = models.PointField(srid=4326)
+#class IndexTime(AbstractGeoManager):
+#    
+#    dataset = models.ForeignKey(Dataset)
+#    index = models.IntegerField()
+#    lower = models.DateField(null=True)
+#    value = models.DateField()
+#    upper = models.DateField(null=True)
+#    
+#    
+#class IndexSpatial(AbstractGeoManager):
+#    
+#    climatemodel = models.ForeignKey(ClimateModel)
+#    row = models.IntegerField()
+#    col = models.IntegerField()
+#    geom = models.PolygonField(srid=4326)
+#    centroid = models.PointField(srid=4326)
 
 
 #class Experiment(AbstractGeoManager):

@@ -31,6 +31,9 @@ class OcgDataset(object):
 #        self.temporal = kwds.get('temporal')
 #        self.row_name = kwds.get('row_name') or 'latitude'
 #        self.col_name = kwds.get('col_name') or 'longitude'
+        
+        ## extract the names of the spatiotemporal variables/dimensions from
+        ## the keyword arguments.
         self.rowbnds_name = kwds.get('rowbnds_name') or 'bounds_latitude'
         self.colbnds_name = kwds.get('colbnds_name') or 'bounds_longitude'
         self.time_name = kwds.get('time_name') or 'time'
@@ -41,14 +44,21 @@ class OcgDataset(object):
         
 #        self.row = self.dataset.variables[self.row_name][:]
 #        self.col = self.dataset.variables[self.col_name][:]
+        ## extract the row and column bounds from the dataset
         self.row_bnds = self.dataset.variables[self.rowbnds_name][:]
         self.col_bnds = self.dataset.variables[self.colbnds_name][:]
+        ## convert the time vector to datetime objects
         self.timevec = nc.netcdftime.num2date(self.dataset.variables[self.time_name][:],
                                               self.time_units,
                                               self.calendar)
         
+        ## these are base numpy arrays used by spatial operations.
+        
+        ## four numpy arrays one for each bounding coordinate of a polygon
         self.min_col,self.min_row = np.meshgrid(self.col_bnds[:,0],self.row_bnds[:,0])
         self.max_col,self.max_row = np.meshgrid(self.col_bnds[:,1],self.row_bnds[:,1])
+        ## these are the original indices of the row and columns. they are
+        ## referenced after the spatial subset to retrieve data from the dataset
         self.real_col,self.real_row = np.meshgrid(np.arange(0,len(self.col_bnds)),
                                                   np.arange(0,len(self.row_bnds)))
 
@@ -59,25 +69,64 @@ class OcgDataset(object):
         for ii,jj in itertools.product(xrange(ix),xrange(jx)):
             yield ii,jj
             
+    def _contains_(self,grid,lower,upper):
+        s1 = grid >= lower
+        s2 = grid <= upper
+        return(s1*s2)
+            
     def _set_overlay_(self,polygon=None,clip=False):
-        "polygon -- shapely polygon object"
+        """
+        Perform spatial operations.
+        
+        polygon=None -- shapely polygon object
+        clip=False -- set to True to perform an intersection
+        """
+        
         print('overlay...')
+        
+        ## holds polygon objects
         self._igrid = np.empty(self.min_row.shape,dtype=object)
+        ## holds weights for area weighting in the case of a dissolve
         self._weights = np.empty(self.min_row.shape)
-
-        for ii,jj in self._itr_array_(self.min_row):
+        
+        ## initial subsetting to avoid iterating over all polygons unless abso-
+        ## lutely necessary
+        if polygon is not None:
+            emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
+            smin_col = self._contains_(self.min_col,emin_col,emax_col)
+            smax_col = self._contains_(self.max_col,emin_col,emax_col)
+            smin_row = self._contains_(self.min_row,emin_row,emax_row)
+            smax_row = self._contains_(self.max_row,emin_row,emax_row)
+            include = np.any((smin_col,smax_col,smin_row,smax_row),axis=0)
+        else:
+            include = np.empty(self.min_row.shape,dtype=bool)
+            include[:,:] = True
+        
+        ## loop for each spatial grid element
+        for ii,jj in self._itr_array_(include):
+            if not include[ii,jj]: continue
+            ## create the polygon
             g = self._make_poly_((self.min_row[ii,jj],self.max_row[ii,jj]),
                                  (self.min_col[ii,jj],self.max_col[ii,jj]))
+            ## add the polygon if it intersects the aoi of if all data is being
+            ## returned.
             if g.intersects(polygon) or polygon is None:
+                ## get the area before the intersection
                 prearea = g.area
+                ## full intersection in the case of a clip and an aoi is passed
                 if clip is True and polygon is not None:
                     ng = g.intersection(polygon)
+                ## otherwise, just keep the geometry
                 else:
                     ng = g
+                ## calculate the weight
                 w = ng.area/prearea
+                ## a polygon can have a true intersects but actually not overlap
+                ## i.e. shares a border.
                 if w > 0:
                     self._igrid[ii,jj] = ng
                     self._weights[ii,jj] = w
+        ## the mask is used as a subset
         self._mask = self._weights > 0
 #        self._weights = self._weights/self._weights.sum()
     

@@ -6,6 +6,8 @@ import itertools
 import geojson
 from shapely.ops import cascaded_union
 from ipdb import set_trace as tr
+from openclimategis.util.helpers import get_temp_path
+from openclimategis.util.toshp import OpenClimateShp
 
 
 class OcgDataset(object):
@@ -169,6 +171,13 @@ class OcgDataset(object):
         features = [geojson.Feature(**e) for e in elements]
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
+    
+    def as_shp(self,elements,path=None):
+        if path is None:
+            path = get_temp_path(suffix='.shp')
+        ocs = OpenClimateShp(path,elements)
+        ocs.write()
+        return(path)
         
         
 if __name__ == '__main__':
@@ -192,4 +201,6 @@ if __name__ == '__main__':
 #    ncp._set_overlay_(POLYINT)
 #    npd = ncp._get_numpy_data_(VAR,POLYINT,TEMPORAL)
     elements = ncp.extract_elements(VAR,POLYINT,TEMPORAL)
-    gj = ncp.as_geojson(elements)
+#    gj = ncp.as_geojson(elements)
+    path = ncp.as_shp(elements)
+    print(path)

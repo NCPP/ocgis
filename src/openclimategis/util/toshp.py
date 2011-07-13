@@ -7,6 +7,8 @@ from django.http import HttpResponse
 import os
 from io import BytesIO
 
+from ipdb import set_trace as tr
+
 
 class OpenClimateShp(object):
     """
@@ -19,13 +21,14 @@ class OpenClimateShp(object):
     id='id' -- name of the unique identifier field
     """
     
-    def __init__(self,path,attrs,geom='geom',layer='lyr',id='id'):
+    def __init__(self,path,attrs,geom='geometry',layer='lyr',id='id',srid=4326):
         self.path = path
         self.filename = os.path.split(path)[1]
         self.attrs = attrs
         self.geom = geom
         self.layer = layer
         self.id = id
+        self.srid = srid
         
         ## CREATE SHAPEFILE BASE ATTRS -----------------------------------------
         
@@ -34,19 +37,26 @@ class OpenClimateShp(object):
         ## need the first row to assess data types
         template = self.attrs[0]
         ## the OGR fields
-        self.ogr_fields = [OgrField(self.fcache,key,value) 
-                           for key,value in template.iteritems() 
-                           if key != self.geom]
+#        tr()
+        self.ogr_fields = [OgrField(self.fcache,id,template[id])]
+        self.ogr_fields += [OgrField(self.fcache,key,value) 
+                           for key,value in template['properties'].iteritems()]
+#        self.ogr_fields = [OgrField(self.fcache,key,value) 
+#                           for key,value in template.iteritems() 
+#                           if key != self.geom]
         ## create the geometry type
         bgeom = template[self.geom]
-        self.ogr_geom = OGRGeomType(bgeom.ogr.geom_type).num
+#        tr()
+#        self.ogr_geom = OGRGeomType(bgeom.ogr.geom_type).num
+        self.ogr_geom = OGRGeomType(bgeom.geometryType()).num
+#        tr()
         ## the spatial reference system
 #        import ipdb;ipdb.set_trace()
 #        try:
 #        try:
 #            self.srs = osr.SpatialReference(bgeom.srid)
         self.srs = osr.SpatialReference()
-        self.srs.ImportFromEPSG(bgeom.srid)
+        self.srs.ImportFromEPSG(srid)
 #        except:
 #            import ipdb;ipdb.set_trace()
 #        except TypeError:
@@ -71,7 +81,11 @@ class OpenClimateShp(object):
         for attr in self.attrs:
             feat = ogr.Feature(feature_def)
             for o in self.ogr_fields:
-                feat.SetField(o.ogr_name,attr[o.orig_name])
+                if o.orig_name == self.id:
+                    args = (o.ogr_name,attr[o.orig_name])
+                else:
+                    args = (o.ogr_name,attr['properties'][o.orig_name])
+                feat.SetField(*args)
             check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr[self.geom].wkt)))
             check_err(layer.CreateFeature(feat))
         

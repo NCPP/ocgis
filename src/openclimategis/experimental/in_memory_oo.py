@@ -8,6 +8,8 @@ from shapely.ops import cascaded_union
 from ipdb import set_trace as tr
 from openclimategis.util.helpers import get_temp_path
 from openclimategis.util.toshp import OpenClimateShp
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely import prepared
 
 
 class OcgDataset(object):
@@ -101,6 +103,10 @@ class OcgDataset(object):
         else:
             include = np.empty(self.min_row.shape,dtype=bool)
             include[:,:] = True
+            
+        vfunc = np.vectorize(self._make_poly_array_)
+        polys = vfunc(self.min_row,self.min_col,self.max_row,self.max_col)
+        tr()
         
         ## loop for each spatial grid element
         for ii,jj in self._itr_array_(include):
@@ -139,6 +145,15 @@ class OcgDataset(object):
                         (ctup[0],rtup[1]),
                         (ctup[1],rtup[1]),
                         (ctup[1],rtup[0])))
+    
+    @staticmethod    
+    def _make_poly_array_(min_row,min_col,max_row,max_col):
+        return Polygon(((min_col,min_row),
+                        (max_col,min_row),
+                        (max_col,max_row),
+                        (min_col,max_row),
+                        (min_col,min_row)))
+        
         
     def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False):
         """

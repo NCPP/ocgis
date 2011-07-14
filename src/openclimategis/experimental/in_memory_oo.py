@@ -143,21 +143,26 @@ class OcgDataset(object):
     def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False):
         """
         var_name -- NC variable to extract from
-        polygon -- shapely polygon object
-        time_range -- [lower datetime, upper datetime]
+        polygon=None -- shapely polygon object
+        time_range=None -- [lower datetime, upper datetime]
+        clip=False -- set to True to perform a full intersection
         """
         print('getting numpy data...')
-        variable = self.dataset.variables[var_name]
+        
+        ## perform the spatial operations
         self._set_overlay_(polygon=polygon,clip=clip)
         
         def _u(arg):
+            "Pulls unique values and generates an evenly spaced array."
             un = np.unique(arg)
             return(np.arange(un.min(),un.max()+1))
         
         def _sub(arg):
+            "Subset an array."
             return arg[self._idxrow.min():self._idxrow.max()+1,
                        self._idxcol.min():self._idxcol.max()+1]
         
+        ## get the time indices
         if time_range is not None:
             self._idxtime = np.arange(
              0,
@@ -166,70 +171,111 @@ class OcgDataset(object):
         else:
             self._idxtime = np.arange(0,len(self.timevec))
         
+        ## reference the original (world) coordinates of the netCDF when selecting
+        ## the spatial subset.
         self._idxrow = _u(self.real_row[self._mask])
         self._idxcol = _u(self.real_col[self._mask])
          
+        ## subset our reference arrays in a similar manner
         self._mask = _sub(self._mask)
         self._weights = _sub(self._weights)
         self._igrid = _sub(self._igrid)
         
-        npd = variable[self._idxtime,self._idxrow,self._idxcol]
+        ## hit the dataset and extract the block
+        npd = self.dataset.variables[var_name][self._idxtime,self._idxrow,self._idxcol]
+        
+        ## add in an extra dummy dimension in the case of one time layer
+        if len(npd.shape) == 2:
+            npd = npd.reshape(1,npd.shape[0],npd.shape[1])
         
         return(npd)
     
     def _is_masked_(self,arg):
+        "Ensures proper formating of masked data."
         if isinstance(arg,np.ma.core.MaskedConstant):
             return None
         else:
             return arg
     
     def extract_elements(self,*args,**kwds):
+        """
+        Merges the geometries and extracted attributes into a GeoJson-like dictionary
+        list.
+        
+        var_name -- NC variable to extract from
+        dissolve=False -- set to True to merge geometries and calculate an 
+            area-weighted average
+        polygon=None -- shapely polygon object
+        time_range=None -- [lower datetime, upper datetime]
+        clip=False -- set to True to perform a full intersection
+        """
         print('extracting elements...')
+        
+        ## dissolve argument is unique to extract_elements
         if 'dissolve' in kwds:
             dissolve = kwds.pop('dissolve')
         else:
             dissolve = False
-
+        
+        ## extract numpy data from the nc file
         npd = self._get_numpy_data_(*args,**kwds)
+        ## will hold feature dictionaries
         features = []
+        ## the unique identified iterator
         ids = self._itr_id_()
+
         if dissolve:
+            ## one feature is created for each unique time
             for kk in range(len(self._idxtime)):
+                ## check if this is the first iteration. approach assumes that
+                ## masked values are homogenous through the time layers. this
+                ## avoids multiple union operations on the geometries. i.e.
+                ##    time 1 = masked, time 2 = masked, time 3 = masked
+                ##        vs.
+                ##    time 1 = 0.5, time 2 = masked, time 3 = 0.46
                 if kk == 0:
-                    ## need to remove geometries that have masked data
+                    ## on the first iteration:
+                    ##    1. make the unioned geometry
+                    ##    2. weight the data according to area
+                    
+                    ## reference layer for the masked data
                     lyr = npd[kk,:,:]
+                    ## select values with spatial overlap and not masked
                     select = self._mask*np.invert(lyr.mask)
+                    ## select those geometries
                     geoms = self._igrid[select]
+                    ## union the geometries
+                    unioned = cascaded_union([p for p in geoms])
+                    ## select the weight subset and normalize to unity
                     sub_weights = self._weights*select
                     self._weights = sub_weights/sub_weights.sum()
+                    ## apply the weighting
                     weighted = npd*self._weights
-                    unioned = cascaded_union([p for p in geoms])
                 ## generate the feature
                 feature = dict(
                     id=ids.next(),
                     geometry=unioned,
                     properties=dict({VAR:float(weighted[kk,:,:].sum()),
-                                     'timestamp':str(self.timevec[self._idxtime[kk]])}))
+                                     'timestamp':self.timevec[self._idxtime[kk]]}))
                 features.append(feature)
         else:
+            ## loop for each feature. no dissolving.
             for ii,jj in self._itr_array_(self._mask):
+                ## if the data is included, add the feature
                 if self._mask[ii,jj] == True:
-                    if len(self._idxtime) > 1:
-                        data = npd[:,ii,jj]
-                    else:
-                        data = npd[ii,jj]
-                    data = [self._is_masked_(da) for da in data]
+                    ## extract the data and convert any mask values
+                    data = [self._is_masked_(da) for da in npd[:,ii,jj]]
                     for kk in range(len(data)):
+                        ## do not add the feature if the value is a NoneType
                         if data[kk] == None: continue
                         feature = dict(
                             id=ids.next(),
                             geometry=self._igrid[ii,jj],
                             properties=dict({VAR:float(data[kk]),
-                                             'timestamp':str(self.timevec[self._idxtime[kk]])}))
+                                             'timestamp':self.timevec[self._idxtime[kk]]}))
                         features.append(feature)
         return(features)
-        
-        
+    
     def _itr_id_(self,start=1):
         while True:
             try:
@@ -238,7 +284,10 @@ class OcgDataset(object):
                 start += 1
                 
     def as_geojson(self,elements):
-        features = [geojson.Feature(**e) for e in elements]
+        features = []
+        for e in elements:
+            e['timestamp'] = str(e['timestamp'])
+            features.append(geojson.Feature(**e))
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
     

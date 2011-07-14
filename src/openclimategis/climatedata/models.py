@@ -86,6 +86,15 @@ class Dataset(AbstractGeoManager):
     scenario = models.ForeignKey(Scenario)
 #    name = models.CharField(max_length=100)
     uri = models.TextField()
+    rowbnds_name = models.CharField(max_length=50)
+    colbnds_name = models.CharField(max_length=50)
+    time_name = models.CharField(max_length=50)
+    time_units = models.CharField(max_length=100)
+    calendar = models.CharField(max_length=50)
+    spatial_extent = models.PolygonField(srid=4326)
+    temporal_min = models.DateTimeField()
+    temporal_max = models.DateTimeField()
+    temporal_interval_days = models.FloatField()
     
     def __unicode__(self):
         return 'Scenario: {scenario} ({uri})'.format(scenario=self.scenario,name=self.uri)
@@ -129,7 +138,7 @@ class Dimension(AbstractGeoManager):
     variable = models.ForeignKey(Variable)
     code = models.CharField(max_length=100)
     position = models.IntegerField()
-    size = models.IntegerField()
+#    size = models.IntegerField()
     
     
 #class IndexTime(AbstractGeoManager):

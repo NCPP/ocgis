@@ -14,7 +14,7 @@ class Organization(AbstractGeoManager):
     Example: National Center for Atmospheric Research (ncar) 
     '''
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=25)
+    code         = models.CharField(max_length=25,unique=True)
     country      = models.CharField(max_length=50)
     url          = models.URLField(
         verify_exists=False, 
@@ -33,7 +33,7 @@ class Scenario(AbstractGeoManager):
     Reference: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments
     '''
     name    = models.CharField(max_length=50)
-    code    = models.CharField(max_length=10)
+    code    = models.CharField(max_length=10,unique=True)
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
@@ -47,7 +47,7 @@ class Archive(AbstractGeoManager):
     organization = models.ForeignKey(Organization)
 #    climatemodel = models.ManyToManyField("ClimateModel")
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=25)
+    code         = models.CharField(max_length=25,unique=True)
     url          = models.URLField(
         verify_exists=False, 
         max_length=200,
@@ -67,7 +67,7 @@ class ClimateModel(AbstractGeoManager):
 #    archive = models.ForeignKey(Archive)
     archive = models.ManyToManyField(Archive)
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=25)
+    code         = models.CharField(max_length=25,unique=True)
 #    organization = models.ForeignKey(Organization)
     url          = models.URLField(
         verify_exists=False,
@@ -84,7 +84,7 @@ class Dataset(AbstractGeoManager):
     
     climatemodel = models.ForeignKey(ClimateModel)
     scenario = models.ForeignKey(Scenario)
-#    name = models.CharField(max_length=100)
+    name = models.TextField()
     uri = models.TextField()
     rowbnds_name = models.CharField(max_length=50)
     colbnds_name = models.CharField(max_length=50)
@@ -95,6 +95,9 @@ class Dataset(AbstractGeoManager):
     temporal_min = models.DateTimeField()
     temporal_max = models.DateTimeField()
     temporal_interval_days = models.FloatField()
+    
+    class Meta():
+        unique_together = ('climatemodel','scenario','uri')
     
     def __unicode__(self):
         return 'Scenario: {scenario} ({uri})'.format(scenario=self.scenario,name=self.uri)
@@ -115,6 +118,9 @@ class Variable(AbstractGeoManager):
 #    units        = models.CharField(max_length=25)
 #    description  = models.CharField(max_length=1000, null=True)
     
+    class Meta():
+        unique_together = ('dataset','code')
+    
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
     
@@ -125,6 +131,8 @@ class AttributeVariable(AbstractGeoManager):
     code = models.CharField(max_length=50)
     value = models.TextField()
     
+    class Meta():
+        unique_together = ('variable','code')
 
 class AttributeDataset(AbstractGeoManager):
     
@@ -132,12 +140,18 @@ class AttributeDataset(AbstractGeoManager):
     code = models.CharField(max_length=100)
     value = models.TextField()
     
+    class Meta():
+        unique_together = ('dataset','code')
 
 class Dimension(AbstractGeoManager):
     
     variable = models.ForeignKey(Variable)
     code = models.CharField(max_length=100)
     position = models.IntegerField()
+    
+    class Meta():
+        unique_together = ('variable','code')
+        
 #    size = models.IntegerField()
     
     

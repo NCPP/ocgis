@@ -8,7 +8,6 @@ import re
 from climatedata import models
 import exc
 import numpy as np
-from climatedata.models import ClimateModel, Scenario
 from django.contrib.gis.geos.polygon import Polygon
 
 from ipdb import set_trace as tr
@@ -23,11 +22,12 @@ class NcDatasetImporter(object):
     Import a netCDF4 Dataset object into the database.
     """
     
-    def __init__(self,uri,climatemodel,scenario):
+    def __init__(self,uri,climatemodel_id,scenario_id,name=None):
         self.uri = uri
+        self.name = name or os.path.split(self.uri)[1]
         self.dataset = netCDF4.Dataset(uri,'r')
-        self.climatemodel = climatemodel
-        self.scenario = scenario
+        self.climatemodel = models.ClimateModel.objects.filter(pk=climatemodel_id)[0]
+        self.scenario = models.Scenario.objects.filter(pk=scenario_id)[0]
         
         self._set_name_('time_name',['time'])
         keys = self.dataset.variables[self.time_name].ncattrs()
@@ -49,6 +49,7 @@ class NcDatasetImporter(object):
     def load(self):
         attrs = dict(climatemodel=self.climatemodel,
                      scenario=self.scenario,
+                     name=self.name,
                      uri=self.uri,
                      rowbnds_name=self.rowbnds_name,
                      colbnds_name=self.colbnds_name,
@@ -59,18 +60,13 @@ class NcDatasetImporter(object):
                      )
         attrs.update(self._temporal_fields_())
         
-        dataset,created = models.Dataset.objects.get_or_create(**attrs)
-        if not created:
-            pass
-#            raise(exc.DatasetExists(self.uri))
-        else:
-            dataset.save()
+        dataset = models.Dataset(**attrs)
             
         ## get global attributes
         for attr in self.dataset.ncattrs():
             attrv = models.AttributeDataset(dataset=dataset,
-                                                 code=attr,
-                                                 value=str(getattr(self.dataset,attr)))
+                                            code=attr,
+                                            value=str(getattr(self.dataset,attr)))
             attrv.save()
             
         ## loop for each variable

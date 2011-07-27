@@ -72,7 +72,6 @@ class DjangoQuerySlug(OcgSlug):
         super(DjangoQuerySlug,self).__init__(*args,**kwds)
         
     def _get_(self):
-        filter = {self.code_field+'__iexact':self.code}
         filter.update(self._filter_kwds)
         qs = self.model.objects.filter(**filter)
         if self.one:
@@ -88,6 +87,12 @@ class DjangoQuerySlug(OcgSlug):
             setattr(self,name,kwds.pop(name))
         else:
             setattr(self,name,default)
+            
+class IExactQuerySlug(DjangoQuerySlug):
+    
+    def _get_(self):
+        self._filter_kwds.update({self.code_field+'__iexact':self.code})
+        super(IExactQuerySlug,self)._get_()
         
 
 class TemporalSlug(OcgSlug):

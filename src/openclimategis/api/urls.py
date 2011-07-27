@@ -4,10 +4,10 @@ import api.handlers as handlers
 
 
 #helloworld_handler = Resource(handlers.HelloWorldHandler)
-archive_handler = Resource(handlers.ArchiveHandler)
-climatemodel_handler = Resource(handlers.ClimateModelHandler)
-experiment_handler = Resource(handlers.ExperimentHandler)
-variable_handler = Resource(handlers.VariableHandler)
+#archive_handler = Resource(handlers.ArchiveHandler)
+#climatemodel_handler = Resource(handlers.ClimateModelHandler)
+#experiment_handler = Resource(handlers.ExperimentHandler)
+#variable_handler = Resource(handlers.VariableHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------

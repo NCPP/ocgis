@@ -1,6 +1,4 @@
 from piston.handler import BaseHandler
-from climatedata.models import ClimateModel, Archive, Variable, Scenario,\
-    Dataset, IndexTime, IndexSpatial
 from emitters import *
 from piston.utils import rc
 from util.ncconv import NetCdfAccessor
@@ -11,6 +9,7 @@ from climatedata import models
 import inspect
 from util.raw_sql import get_dataset, execute
 import netCDF4
+from slug import *
 
 
 class ocg(object):
@@ -21,7 +20,7 @@ class ocg(object):
         mems = inspect.getmembers(self)
         for mem in mems:
             if not mem[0].startswith('__'):
-                prints.append('{0}={1}\n'.format(mem[0],mem[1]))
+                prints.append('{0}\n'.format(mem[1]))
         return(''.join(prints))
 
 class OpenClimateHandler(BaseHandler):
@@ -44,7 +43,7 @@ class OpenClimateHandler(BaseHandler):
         ## parse query
 #        self._query_string_(request)
         ## parse URL arguments
-        self._parse_kwds_(kwds)
+        self._parse_slugs_(kwds)
 #        import ipdb;ipdb.set_trace()
         ## call the subclass read methods
         return self.check(self._read_(request))
@@ -61,6 +60,17 @@ class OpenClimateHandler(BaseHandler):
         """Overload in subclasses."""
         
         raise NotImplementedError
+    
+    def _parse_slugs_(self,kwds):
+        
+        self.ocg.temporal = TemporalSlug('temporal',possible=kwds)
+        self.ocg.aoi = PolygonSlug('aoi',possible=kwds)
+        self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds)
+        self.ocg.operation = OperationSlug('operation',possible=kwds)
+        
+        self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds)
+        self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds)
+        self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds)
     
     def _parse_kwds_(self,kwds):
         """Parser and formatter for potential URL keyword arguments."""
@@ -190,20 +200,20 @@ class NonSpatialHandler(OpenClimateHandler):
         return query
 
 
-class ArchiveHandler(NonSpatialHandler):
-    model = Archive
-    
-    
-class ClimateModelHandler(NonSpatialHandler):
-    model = ClimateModel
-    
-    
-class ExperimentHandler(NonSpatialHandler):
-    model = Scenario
-    
-    
-class VariableHandler(NonSpatialHandler):
-    model = Variable
+#class ArchiveHandler(NonSpatialHandler):
+#    model = Archive
+#    
+#    
+#class ClimateModelHandler(NonSpatialHandler):
+#    model = ClimateModel
+#    
+#    
+#class ExperimentHandler(NonSpatialHandler):
+#    model = Scenario
+#    
+#    
+#class VariableHandler(NonSpatialHandler):
+#    model = Variable
     
     
 class SpatialHandler(OpenClimateHandler):

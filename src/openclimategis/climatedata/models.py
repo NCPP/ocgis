@@ -82,10 +82,11 @@ class ClimateModel(AbstractGeoManager):
 class Dataset(AbstractGeoManager):
     '''Models a netCDF4 Dataset object. Also a NC file anywhere.'''
     
+    archive = models.ForeignKey(Archive)
     climatemodel = models.ForeignKey(ClimateModel)
     scenario = models.ForeignKey(Scenario)
     name = models.TextField()
-    uri = models.TextField()
+    uri = models.TextField(unique=True)
     rowbnds_name = models.CharField(max_length=50)
     colbnds_name = models.CharField(max_length=50)
     time_name = models.CharField(max_length=50)
@@ -97,7 +98,7 @@ class Dataset(AbstractGeoManager):
     temporal_interval_days = models.FloatField()
     
     class Meta():
-        unique_together = ('climatemodel','scenario','uri')
+        unique_together = ('archive','climatemodel','scenario','uri')
     
     def __unicode__(self):
         return 'Scenario: {scenario} ({uri})'.format(scenario=self.scenario,name=self.uri)
@@ -230,7 +231,10 @@ class Dimension(AbstractGeoManager):
 #    '''
 #    name          = models.CharField(max_length=20)
 #    description   = models.TextField()
-#    
+#    #    name         = models.CharField(max_length=50)
+#    code         = models.CharField(max_length=25)
+#    units        = models.CharField(max_length=25)
+#    description  = models.CharField(max_length=1000, null=True)
 #    def __unicode__(self):
 #        return "{name} ({description})".format(
 #            name=self.name,

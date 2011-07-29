@@ -65,7 +65,7 @@ class ClimateModel(AbstractGeoManager):
     Reference: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php
     '''
 #    archive = models.ForeignKey(Archive)
-    archive = models.ManyToManyField(Archive)
+#    archive = models.ManyToManyField(Archive)
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25,unique=True)
 #    organization = models.ForeignKey(Organization)
@@ -77,7 +77,12 @@ class ClimateModel(AbstractGeoManager):
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
-    
+
+
+class ArchiveCollection(AbstractGeoManager):
+    archive = models.ForeignKey(Archive)
+    climatemodel = models.ForeignKey(ClimateModel)
+
     
 class Dataset(AbstractGeoManager):
     '''Models a netCDF4 Dataset object. Also a NC file anywhere.'''

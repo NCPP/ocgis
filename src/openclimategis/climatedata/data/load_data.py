@@ -132,13 +132,19 @@ class NcDatasetImporter(object):
         
         
 if __name__ == '__main__':
+    ## dropdb openclimategis_sql
+    ## createdb -T postgis-1.5.2-template openclimategis_sql
+    ## python manage.py syncdb
+    
     organization = models.Organization(pk=1,name='NOAA',code='noaa',country='USA')
     scenario = models.Scenario(pk=1,name='sresa1b',code='sresa1b')
     archive = models.Archive(pk=1,organization=organization,name='maurer',code='maurer')
     cm = models.ClimateModel(pk=1,name='bccr_bcm2.0',code='bccr_bcm2.0')
+    ac = models.ArchiveCollection(archive=archive,climatemodel=cm)
     
-    for obj in [organization,scenario,archive,cm]:
+    for obj in [organization,scenario,archive,cm,ac]:
         obj.save()
     
     uri = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
     nc = NcDatasetImporter(uri,1,1,1)
+    nc.load()

@@ -44,8 +44,8 @@ class Archive(AbstractGeoManager):
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
     '''
+
     organization = models.ForeignKey(Organization)
-#    climatemodel = models.ManyToManyField("ClimateModel")
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25,unique=True)
     url          = models.URLField(

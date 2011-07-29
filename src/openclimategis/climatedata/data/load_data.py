@@ -52,6 +52,7 @@ class NcDatasetImporter(object):
         attrs.update(self._temporal_fields_())
         
         dataset = models.Dataset(**attrs)
+        dataset.save()
             
         ## get global attributes
         for attr in self.dataset.ncattrs():
@@ -131,4 +132,13 @@ class NcDatasetImporter(object):
         
         
 if __name__ == '__main__':
-    pass
+    organization = models.Organization(pk=1,name='NOAA',code='noaa',country='USA')
+    scenario = models.Scenario(pk=1,name='sresa1b',code='sresa1b')
+    archive = models.Archive(pk=1,organization=organization,name='maurer',code='maurer')
+    cm = models.ClimateModel(pk=1,name='bccr_bcm2.0',code='bccr_bcm2.0')
+    
+    for obj in [organization,scenario,archive,cm]:
+        obj.save()
+    
+    uri = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
+    nc = NcDatasetImporter(uri,1,1,1)

@@ -303,6 +303,7 @@ class OcgDataset(object):
         clip=False -- set to True to perform a full intersection
         """
         print('extracting elements...')
+        var_name = args[0]
         ## dissolve argument is unique to extract_elements
         if 'dissolve' in kwds:
             dissolve = kwds.pop('dissolve')
@@ -362,13 +363,13 @@ class OcgDataset(object):
                     feature = dict(
                         id=ids.next(),
                         geometry=unioned,
-                        properties=dict({VAR:float(weighted[kk,:,:].sum()),
+                        properties=dict({var_name:float(weighted[kk,:,:].sum()),
                                         'timestamp':self.timevec[self._idxtime[kk]]}))
                 elif ocgShape==4:
                     feature = dict(
                         id=ids.next(),
                         geometry=unioned,
-                        properties=dict({VAR:list(float(weighted[kk,x,:,:].sum()) for x in xrange(len(levels))),
+                        properties=dict({var_name:list(float(weighted[kk,x,:,:].sum()) for x in xrange(len(levels))),
                                         'timestamp':self.timevec[self._idxtime[kk]],
                                         'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
                 features.append(feature)
@@ -386,7 +387,7 @@ class OcgDataset(object):
                             feature = dict(
                                 id=ids.next(),
                                 geometry=self._igrid[ii,jj],
-                                properties=dict({VAR:float(data[kk]),
+                                properties=dict({var_name:float(data[kk]),
                                                 'timestamp':self.timevec[self._idxtime[kk]]}))
                             features.append(feature)
                     elif ocgShape == 4:
@@ -397,7 +398,7 @@ class OcgDataset(object):
                             feature = dict(
                                 id=ids.next(),
                                 geometry=self._igrid[ii,jj],
-                                properties=dict({VAR:list(float(data[kk][x]) for x in xrange(len(levels))),
+                                properties=dict({var_name:list(float(data[kk][x]) for x in xrange(len(levels))),
                                                 'timestamp':self.timevec[self._idxtime[kk]],
                                                 'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
                             features.append(feature)

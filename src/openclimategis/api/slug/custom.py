@@ -1,12 +1,12 @@
 from generic import *
-from django.contrib.gis.geos.geometry import GEOSGeometry
 from util.helpers import parse_polygon_wkt
+from shapely import wkt
 
 
 class PolygonSlug(OcgSlug):
     
     def _get_(self):
-        return(GEOSGeometry(parse_polygon_wkt(self.url_arg)))
+        return(wkt.loads(parse_polygon_wkt(self.url_arg)))
     
     
 class OperationSlug(OcgSlug):

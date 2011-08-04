@@ -11,6 +11,7 @@ from util.raw_sql import get_dataset, execute
 import netCDF4
 from slug import *
 import climatedata.models
+from experimental.in_memory_oo_update import OcgDataset
 
 
 class ocg(object):
@@ -21,7 +22,7 @@ class ocg(object):
         mems = inspect.getmembers(self)
         for mem in mems:
             if not mem[0].startswith('__'):
-                prints.append('{0}\n'.format(mem[1]))
+                prints.append('{0}={1}\n'.format(*mem))
         return(''.join(prints))
 
 class OpenClimateHandler(BaseHandler):
@@ -236,7 +237,37 @@ class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
         
-        return(climatedata.models.Dataset.objects.all())
+        ## arguments for the dataset object
+        kwds = dict(rowbnds_name=self.ocg.dataset.rowbnds_name,
+                    colbnds_name=self.ocg.dataset.colbnds_name,
+                    time_name=self.ocg.dataset.time_name,
+                    time_units=self.ocg.dataset.time_units,
+                    calendar=self.ocg.dataset.calendar,)
+#                    level_name=self.ocg.dataset.level_name,) TODO: add level variable name
+        ## make the dataset object
+        try:
+            dataset = netCDF4.Dataset(self.ocg.dataset.uri,'r')
+            d = OcgDataset(dataset,**kwds)
+            ## pull the elements
+            elements = d.extract_elements(self.ocg.variable.title(), # TODO: variable formatting
+                                          dissolve=self.ocg.aggregate,
+                                          polygon=self.ocg.aoi,
+                                          time_range=self.ocg.temporal,
+                                          clip=self.ocg.operation)
+        ## close the connection...
+        finally:
+            dataset.close()
+            
+        return(elements)
+        
+#        self.rowbnds_name = kwds.get('rowbnds_name') or 'bounds_latitude'
+#        self.colbnds_name = kwds.get('colbnds_name') or 'bounds_longitude'
+#        self.time_name = kwds.get('time_name') or 'time'
+#        self.time_units = kwds.get('time_units') or 'days since 1950-01-01 00:00:00'
+#        self.calendar = kwds.get('calendar') or 'proleptic_gregorian'
+#        self.level_name = kwds.get('level_name') or 'levels'
+        
+#        return(climatedata.models.Dataset.objects.all())
         
 #        from tests import get_example_netcdf
 #        
@@ -287,94 +318,94 @@ class SpatialHandler(OpenClimateHandler):
 #        return(dls)
     
     
-class OpenClimateGeometry(object):
-    """
-    Perform OpenClimateGIS geometry operations. Manages clip v. intersect
-    operations and spatial unioning in the case of an aggregation.
-    
-    aoi -- GEOSGeometry Polygon object acting as the geometric selection overlay.
-    op -- 'intersect(s)' or 'clip'
-    aggregate -- set to True to union the geometries.
-    """
-    
-    def __init__(self,climatemodel,aoi,op,aggregate):
-        self.aoi = aoi
-        self.op = op
-        self.aggregate = aggregate
-        self.climatemodel = climatemodel
-        
-        self.__qs = None ## queryset with correct spatial operations
-        self.__geoms = None ## list of geometries with correct attribute selected
-        
-        ## set the geometry attribute depending on the operation
-        if op in ['intersect','intersects']:
-            self._gattr = 'geom'
-        elif op == 'clip':
-            self._gattr = 'intersection'
-        else:
-            msg = 'spatial operation "{0}" not recognized.'.format(op)
-            raise NotImplementedError(msg)
-                                          
-    def get_indices(self):
-        "Returning row and column indices used to index into NetCDF."
-        
-        row = [obj.row for obj in self._qs]
-        col = [obj.col for obj in self._qs]
-        return((row,col))
-    
-    def get_weights(self):
-        "Returns weights for each polygon in the case of an aggregation."
-        
-#        if self.aggregate:
-            ## calculate weights for each polygon
-        areas = [obj.area for obj in self._geoms]
-        asum = sum(areas)
-        weights = [a/asum for a in areas]
-        weights = [dict(weight=w,row=obj.row,col=obj.col) for w,obj in zip(weights,self._qs)]
-#            weights = dict(zip(weights,
-#                               [dict(row=obj.row,col=obj.col) for obj in self._qs]))
-#            import ipdb;ipdb.set_trace()
-#            ret = weights
+#class OpenClimateGeometry(object):
+#    """
+#    Perform OpenClimateGIS geometry operations. Manages clip v. intersect
+#    operations and spatial unioning in the case of an aggregation.
+#    
+#    aoi -- GEOSGeometry Polygon object acting as the geometric selection overlay.
+#    op -- 'intersect(s)' or 'clip'
+#    aggregate -- set to True to union the geometries.
+#    """
+#    
+#    def __init__(self,climatemodel,aoi,op,aggregate):
+#        self.aoi = aoi
+#        self.op = op
+#        self.aggregate = aggregate
+#        self.climatemodel = climatemodel
+#        
+#        self.__qs = None ## queryset with correct spatial operations
+#        self.__geoms = None ## list of geometries with correct attribute selected
+#        
+#        ## set the geometry attribute depending on the operation
+#        if op in ['intersect','intersects']:
+#            self._gattr = 'geom'
+#        elif op == 'clip':
+#            self._gattr = 'intersection'
 #        else:
-#            ret = None
-        return(weights)
-    
-    def get_geom_list(self):
-        "Return the list of geometries accounting for processing parms."
-        
-        if self.aggregate:
-            ret = self._union_geoms_()
-        else:
-            ret = self._geoms
-        return(ret)
-    
-    @property
-    def _qs(self):
-        if self.__qs == None:
-            ## always perform the spatial select to limit returned records.
-            self.__qs = IndexSpatial.objects.filter(climatemodel=self.climatemodel,
-                                                    geom__intersects=self.aoi)\
-                                            .order_by('row','col')
-            ## intersection operations require element-by-element intersection
-            ## operations.
-            if self.op == 'clip':
-                self.__qs = self.__qs.intersection(self.aoi)
-        return(self.__qs)
-    
-    @property
-    def _geoms(self):
-        if self.__geoms == None:
-            self.__geoms = [getattr(obj,self._gattr) for obj in self._qs]
-        return(self.__geoms)
-    
-    def _union_geoms_(self):
-        "Returns the union of geometries in the case of an aggregation."
-        
-        first = True
-        for geom in self._geoms:
-            if first:
-                union = geom
-                first = False
-            else:
-                union = union.union(geom)
-        return(union)
+#            msg = 'spatial operation "{0}" not recognized.'.format(op)
+#            raise NotImplementedError(msg)
+#                                          
+#    def get_indices(self):
+#        "Returning row and column indices used to index into NetCDF."
+#        
+#        row = [obj.row for obj in self._qs]
+#        col = [obj.col for obj in self._qs]
+#        return((row,col))
+#    
+#    def get_weights(self):
+#        "Returns weights for each polygon in the case of an aggregation."
+#        
+##        if self.aggregate:
+#            ## calculate weights for each polygon
+#        areas = [obj.area for obj in self._geoms]
+#        asum = sum(areas)
+#        weights = [a/asum for a in areas]
+#        weights = [dict(weight=w,row=obj.row,col=obj.col) for w,obj in zip(weights,self._qs)]
+##            weights = dict(zip(weights,
+##                               [dict(row=obj.row,col=obj.col) for obj in self._qs]))
+##            import ipdb;ipdb.set_trace()
+##            ret = weights
+##        else:
+##            ret = None
+#        return(weights)
+#    
+#    def get_geom_list(self):
+#        "Return the list of geometries accounting for processing parms."
+#        
+#        if self.aggregate:
+#            ret = self._union_geoms_()
+#        else:
+#            ret = self._geoms
+#        return(ret)
+#    
+#    @property
+#    def _qs(self):
+#        if self.__qs == None:
+#            ## always perform the spatial select to limit returned records.
+#            self.__qs = IndexSpatial.objects.filter(climatemodel=self.climatemodel,
+#                                                    geom__intersects=self.aoi)\
+#                                            .order_by('row','col')
+#            ## intersection operations require element-by-element intersection
+#            ## operations.
+#            if self.op == 'clip':
+#                self.__qs = self.__qs.intersection(self.aoi)
+#        return(self.__qs)
+#    
+#    @property
+#    def _geoms(self):
+#        if self.__geoms == None:
+#            self.__geoms = [getattr(obj,self._gattr) for obj in self._qs]
+#        return(self.__geoms)
+#    
+#    def _union_geoms_(self):
+#        "Returns the union of geometries in the case of an aggregation."
+#        
+#        first = True
+#        for geom in self._geoms:
+#            if first:
+#                union = geom
+#                first = False
+#            else:
+#                union = union.union(geom)
+#        return(union)

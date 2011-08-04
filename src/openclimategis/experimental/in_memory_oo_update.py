@@ -7,8 +7,8 @@ import itertools
 import geojson
 from shapely.ops import cascaded_union
 #from ipdb import set_trace as tr
-#from openclimategis.util.helpers import get_temp_path
-#from openclimategis.util.toshp import OpenClimateShp
+from openclimategis.util.helpers import get_temp_path
+from openclimategis.util.toshp import OpenClimateShp
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
 from shapely import prepared, wkt
 from shapely.geometry.geo import asShape
@@ -421,11 +421,11 @@ def as_geojson(elements):
     fc = geojson.FeatureCollection(features)
     return(geojson.dumps(fc))
     
-def as_shp(elements,path=None):
+def as_shp(elements,path=None,write=True):
     if path is None:
         path = get_temp_path(suffix='.shp')
     ocs = OpenClimateShp(path,elements)
-    ocs.write()
+    if write: ocs.write()
     return(path)
 
 def multipolygon_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None):

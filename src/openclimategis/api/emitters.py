@@ -6,6 +6,7 @@ from util.helpers import get_temp_path
 from django.core import serializers
 import geojson
 from django.shortcuts import render_to_response
+from experimental.in_memory_oo_update import as_geojson
 
 
 class OpenClimateEmitter(Emitter):
@@ -50,13 +51,9 @@ class ShapefileEmitter(IdentityEmitter):
     """
     
     def render(self,request):
-        dl = self.construct()
+        elements = self.construct()
         path = get_temp_path(suffix='.shp')
-#        import ipdb;ipdb.set_trace()
-#        try:
-        shp = OpenClimateShp(path,dl)
-#        except:
-#            import ipdb;ipdb.set_trace()
+        shp = OpenClimateShp(path,elements)
         shp.write()
         return shp.zip_response()
     
@@ -85,27 +82,34 @@ class GeoJsonEmitter(IdentityEmitter):
     """
     
     def render(self,request):
-        ## return the data from a spatial handler
-        data = self.construct()
-        ## this list holds the features to add to a feature collection
-        features = []
-        ## loop for each row/feature in the returned data
-        for row in data:
-            ## construct the geometry
-            geom = geojson.MultiPolygon(row.pop('geom').coords)
-            ## pull the unique identifier
-            id = row.pop('id')
-            ## change the timestamp to a string
-            row['timestamp'] = str(row['timestamp'])
-            ## construct the feature
-#            import ipdb;ipdb.set_trace()
-            feature = geojson.Feature(id=id,geometry=geom,properties=row)
-            ## append the feature to the collection
-            features.append(feature)
-        ## make the feature collection
-        fc = geojson.FeatureCollection(features)
-        
-        return(geojson.dumps(fc))
+        ## return the elements
+        elements = self.construct()
+        ## conversion
+        conv = as_geojson(elements)
+        return(conv)
+    
+#    def render(self,request):
+#        ## return the data from a spatial handler
+#        data = self.construct()
+#        ## this list holds the features to add to a feature collection
+#        features = []
+#        ## loop for each row/feature in the returned data
+#        for row in data:
+#            ## construct the geometry
+#            geom = geojson.MultiPolygon(row.pop('geom').coords)
+#            ## pull the unique identifier
+#            id = row.pop('id')
+#            ## change the timestamp to a string
+#            row['timestamp'] = str(row['timestamp'])
+#            ## construct the feature
+##            import ipdb;ipdb.set_trace()
+#            feature = geojson.Feature(id=id,geometry=geom,properties=row)
+#            ## append the feature to the collection
+#            features.append(feature)
+#        ## make the feature collection
+#        fc = geojson.FeatureCollection(features)
+#        
+#        return(geojson.dumps(fc))
     
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')

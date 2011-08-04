@@ -15,7 +15,11 @@ class OpenClimateEmitter(Emitter):
     def render(self,request):
         raise NotImplementedError
     
-class GeometryEmitter(OpenClimateEmitter):
+class IdentityEmitter(OpenClimateEmitter):
+    """
+    The standard Django Piston emitter does unnecessary computations when an
+    emitter is searching for the raw data from its associated handler.
+    """
     
     def construct(self):
         return self.data
@@ -32,7 +36,7 @@ class HelloWorldEmitter(OpenClimateEmitter):
         return HttpResponse(msg)
     
     
-class HtmlEmitter(OpenClimateEmitter):
+class HtmlEmitter(IdentityEmitter):
     
     def render(self,request):
 #        import pdb;pdb.set_trace()
@@ -40,7 +44,7 @@ class HtmlEmitter(OpenClimateEmitter):
 #        return HttpResponse(str(self.construct()))
 
    
-class ShapefileEmitter(GeometryEmitter):
+class ShapefileEmitter(IdentityEmitter):
     """
     Emits zipped shapefile (.shz)
     """
@@ -57,7 +61,7 @@ class ShapefileEmitter(GeometryEmitter):
         return shp.zip_response()
     
     
-class KmlEmitter(OpenClimateEmitter):
+class KmlEmitter(IdentityEmitter):
     """
     Emits raw KML (.kml)
     """
@@ -75,7 +79,7 @@ class KmzEmitter(KmlEmitter):
         kml = super(KmzEmitter,self).render()
         
         
-class GeoJsonEmitter(GeometryEmitter):
+class GeoJsonEmitter(IdentityEmitter):
     """
     JSON format for geospatial data (.json)
     """

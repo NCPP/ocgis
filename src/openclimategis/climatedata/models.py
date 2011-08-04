@@ -106,7 +106,7 @@ class Dataset(AbstractGeoManager):
         unique_together = ('archive','climatemodel','scenario','uri')
     
     def __unicode__(self):
-        return 'Scenario: {scenario} ({uri})'.format(scenario=self.scenario,name=self.uri)
+        return 'URI: {name}'.format(name=self.uri)
 
 
 class Variable(AbstractGeoManager):

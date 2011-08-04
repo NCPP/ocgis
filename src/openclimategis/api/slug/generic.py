@@ -38,7 +38,7 @@ class OcgSlug(object):
         return(ret)
     
     def _get_(self):
-        raise NotImplementedError
+        return(self.url_arg)
     
     def _exception_(self):
         raise(SlugError(self))
@@ -65,18 +65,21 @@ class DjangoQuerySlug(OcgSlug):
     """
     
     def __init__(self,*args,**kwds):
-        self.model = args.pop[0]
+        args = list(args)
+        self.model = args.pop(0)
         self._extract_kwd_(kwds,'filter_kwds',{})
         self._extract_kwd_(kwds,'one',False)
         self._extract_kwd_(kwds,'code_field','code')
         super(DjangoQuerySlug,self).__init__(*args,**kwds)
         
     def _get_(self):
-        filter.update(self._filter_kwds)
-        qs = self.model.objects.filter(**filter)
+#        filter.update(self.filter_kwds)
+        qs = self.model.objects.filter(**self.filter_kwds)
         if self.one:
             if len(qs) > 1:
                 raise ValueError('One record requested, {0} records returned.'.format(len(qs)))
+            elif len(qs) == 0:
+                raise ValueError('One record requested. None returned.')
             ret = qs[0]
         else:
             ret = qs
@@ -89,10 +92,19 @@ class DjangoQuerySlug(OcgSlug):
             setattr(self,name,default)
             
 class IExactQuerySlug(DjangoQuerySlug):
+    """
+    IExactQuerySlug(model,code,filter_kwds={},code_field='code',**kwds)
+    """
+    
+#    def __init__(self,*args,**kwds):
+#        args = list(args)
+#        self.iexact_target = args.pop(0)
+#        super(IExactQuerySlug,self).__init__(*args,**kwds)
     
     def _get_(self):
-        self._filter_kwds.update({self.code_field+'__iexact':self.code})
-        super(IExactQuerySlug,self)._get_()
+        self.filter_kwds.update({self.code_field+'__iexact':self.url_arg})
+        ret = super(IExactQuerySlug,self)._get_()
+        return(ret)
         
 
 class TemporalSlug(OcgSlug):

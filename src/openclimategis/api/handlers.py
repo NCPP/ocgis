@@ -10,6 +10,7 @@ import inspect
 from util.raw_sql import get_dataset, execute
 import netCDF4
 from slug import *
+import climatedata.models
 
 
 class ocg(object):
@@ -63,130 +64,145 @@ class OpenClimateHandler(BaseHandler):
     
     def _parse_slugs_(self,kwds):
         
-        self.ocg.temporal = TemporalSlug('temporal',possible=kwds)
-        self.ocg.aoi = PolygonSlug('aoi',possible=kwds)
-        self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds)
-        self.ocg.operation = OperationSlug('operation',possible=kwds)
+        self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
+        self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
+        self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value
+        self.ocg.operation = OperationSlug('operation',possible=kwds).value
+        self.ocg.variable = OcgSlug('variable',possible=kwds).value
+        self.ocg.html_template = OcgSlug('html_template',possible=kwds).value
         
-        self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds)
-        self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds)
-        self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds)
+        self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds,one=True).value
+        self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds,one=True).value
+        self.ocg.climatemodel = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True).value
+        
+        ## return the dataset object if all components passed
+        if all([self.ocg.scenario,self.ocg.archive,self.ocg.climatemodel]):
+            fkwds = dict(archive=self.ocg.archive,
+                         scenario=self.ocg.scenario,
+                         climatemodel=self.ocg.climatemodel)
+            qs = climatedata.models.Dataset.objects.filter(**fkwds)
+            assert(len(qs) == 1)
+            self.ocg.dataset = qs[0]
+        else:
+            self.ocg.dataset = None
+            
+        pass
     
-    def _parse_kwds_(self,kwds):
-        """Parser and formatter for potential URL keyword arguments."""
-        
-        def _format_date_(start,end):
-            return([datetime.datetime.strptime(d,'%Y-%m-%d') for d in [start,end]])
-        def _get_iexact_(model,code):
-#            if code == 'ps': import ipdb;ipdb.set_trace()
-            "Return a single record from the database. Otherwise raise exception."
-            ## this is the null case and should be treated as such
-            if code == None:
-                ret = None
-            else:
-                obj = model.objects.filter(code__iexact=code)
-                if len(obj) != 1:
-                    obj = model.objects.filter(name__iexact=code)
-                    if len(obj) != 1:
-                        msg = '{0} records returned for model {1} with code query {2}'.format(len(obj),model,code)
-                        raise ValueError(msg)
-                    else:
-                        ret = obj[0]
-                else:
-                    ret = obj[0]
-            return(ret)
-        
-        ## name of the scenario
-        self.ocg.scenario = kwds.get('scenario')
-        ## the temporal arguments
-        t = kwds.get('temporal')
-        if t != None:
-            if '+' in t:
-                start,end = t.split('+')
-            else:
-                start = t
-                end = t
-                self.ocg.temporal = _format_date_(start,end)
-        else:
-            self.ocg.temporal = None
-        ## the polygon overlay
-        aoi = kwds.get('aoi')
-        if aoi:
-            self.ocg.aoi = GEOSGeometry(parse_polygon_wkt(aoi))
-        else:
-            self.ocg.aoi = None
-        ## the model archive
-        self.ocg.archive = kwds.get('archive')
-        ## target variable
-        self.ocg.variable = kwds.get('variable')
-        ## aggregation boolean
-        agg = kwds.get('aggregate')
-        ## the None case is different than 'true' or 'false'
-        if agg:
-            if agg.lower() == 'true':
-                self.ocg.aggregate = True
-            elif agg.lower() == 'false':
-                self.ocg.aggregate = False
-            else:
-                msg = '"{0}" aggregating boolean operation not recognized.'
-                raise(ValueError(msg.format(agg)))
-        else:
-            self.ocg.aggregate = None
-        ## the model designation
-        self.ocg.model = kwds.get('model')
-        ## the overlay operation
-        self.ocg.operation = kwds.get('operation')
-        
-        ## these queries return objects from the database classifying the NetCDF.
-        ## the goal is to return the prediction.
-        if self.ocg.archive:
-            self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
-            self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
-                                                                           code__iexact=self.ocg.model)[0]
-#        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
-#        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
-#        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
-        ## if we have data for each component, we can return a prediction
-        if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable,self.ocg.temporal]):
-            ## execute the raw sql select statement to return the dataset(s)
-            sql = get_dataset(self.ocg.archive_obj.id,
-                              self.ocg.variable,
-                              self.ocg.scenario,
-                              self.ocg.temporal,
-                              self.ocg.climatemodel_obj.code)
-            rows = execute(sql)
-            ## return the dataset object(s)
-#            if len(rows) > 1:
-            pks = [ii[0] for ii in rows]
-            self.ocg.dataset_obj = models.Dataset.objects.filter(pk__in=pks)
-            
-            
+#    def _parse_kwds_(self,kwds):
+#        """Parser and formatter for potential URL keyword arguments."""
+#        
+#        def _format_date_(start,end):
+#            return([datetime.datetime.strptime(d,'%Y-%m-%d') for d in [start,end]])
+#        def _get_iexact_(model,code):
+##            if code == 'ps': import ipdb;ipdb.set_trace()
+#            "Return a single record from the database. Otherwise raise exception."
+#            ## this is the null case and should be treated as such
+#            if code == None:
+#                ret = None
 #            else:
-#                self.ocg.dataset_obj = [models.Dataset.objects.filter(pk=rows[0][0])[0]]
-            
-#            ## return potential climate models from the archive selection
-#            cms = ClimateModel.objects.filter(archive=self.ocg.archive_obj)
-#            ## find potential datasets
-#            datasets = Dataset.objects.filter(climatemodel__in=cms,
-#                                              scenario=self.ocg.scenario_obj)
-#            ## filter by variable
-#            var_dataset_ids = Variable.objects.filter()
-#            ## narrow down the search by looking through the time data
-#            dataset = IndexTime.objects.filter(dataset__in=datasets,
-#                                                  value__range=self.ocg.temporal).\
-#                                           values('dataset').\
-#                                           distinct()
-#            import ipdb;ipdb.set_trace()
-#            fkwds = dict(archive=self.ocg.archive_obj,
-#                         climate_model=self.ocg.model_obj,
-#                         experiment=self.ocg.scenario_obj,
-#                         variable=self.ocg.variable_obj)
-#            self.ocg.prediction_obj = models.Prediction.objects.filter(**fkwds)
-#            if len(self.ocg.prediction_obj) != 1:
-#                raise ValueError('prediction query should return 1 record.')
-#            self.ocg.prediction_obj = self.ocg.prediction_obj[0]
-        else:
-            self.ocg.dataset_obj = None
+#                obj = model.objects.filter(code__iexact=code)
+#                if len(obj) != 1:
+#                    obj = model.objects.filter(name__iexact=code)
+#                    if len(obj) != 1:
+#                        msg = '{0} records returned for model {1} with code query {2}'.format(len(obj),model,code)
+#                        raise ValueError(msg)
+#                    else:
+#                        ret = obj[0]
+#                else:
+#                    ret = obj[0]
+#            return(ret)
+#        
+#        ## name of the scenario
+#        self.ocg.scenario = kwds.get('scenario')
+#        ## the temporal arguments
+#        t = kwds.get('temporal')
+#        if t != None:
+#            if '+' in t:
+#                start,end = t.split('+')
+#            else:
+#                start = t
+#                end = t
+#                self.ocg.temporal = _format_date_(start,end)
+#        else:
+#            self.ocg.temporal = None
+#        ## the polygon overlay
+#        aoi = kwds.get('aoi')
+#        if aoi:
+#            self.ocg.aoi = GEOSGeometry(parse_polygon_wkt(aoi))
+#        else:
+#            self.ocg.aoi = None
+#        ## the model archive
+#        self.ocg.archive = kwds.get('archive')
+#        ## target variable
+#        self.ocg.variable = kwds.get('variable')
+#        ## aggregation boolean
+#        agg = kwds.get('aggregate')
+#        ## the None case is different than 'true' or 'false'
+#        if agg:
+#            if agg.lower() == 'true':
+#                self.ocg.aggregate = True
+#            elif agg.lower() == 'false':
+#                self.ocg.aggregate = False
+#            else:
+#                msg = '"{0}" aggregating boolean operation not recognized.'
+#                raise(ValueError(msg.format(agg)))
+#        else:
+#            self.ocg.aggregate = None
+#        ## the model designation
+#        self.ocg.model = kwds.get('model')
+#        ## the overlay operation
+#        self.ocg.operation = kwds.get('operation')
+#        
+#        ## these queries return objects from the database classifying the NetCDF.
+#        ## the goal is to return the prediction.
+#        if self.ocg.archive:
+#            self.ocg.archive_obj = _get_iexact_(models.Archive,self.ocg.archive)
+#            self.ocg.climatemodel_obj = models.ClimateModel.objects.filter(archive=self.ocg.archive_obj,
+#                                                                           code__iexact=self.ocg.model)[0]
+##        self.ocg.climatemodel_obj = _get_iexact_(models.ClimateModel,self.ocg.model)
+##        self.ocg.scenario_obj = _get_iexact_(models.Scenario,self.ocg.scenario)
+##        self.ocg.variable_obj = _get_iexact_(models.Variable,self.ocg.variable)
+#        ## if we have data for each component, we can return a prediction
+#        if all([self.ocg.archive,self.ocg.model,self.ocg.scenario,self.ocg.variable,self.ocg.temporal]):
+#            ## execute the raw sql select statement to return the dataset(s)
+#            sql = get_dataset(self.ocg.archive_obj.id,
+#                              self.ocg.variable,
+#                              self.ocg.scenario,
+#                              self.ocg.temporal,
+#                              self.ocg.climatemodel_obj.code)
+#            rows = execute(sql)
+#            ## return the dataset object(s)
+##            if len(rows) > 1:
+#            pks = [ii[0] for ii in rows]
+#            self.ocg.dataset_obj = models.Dataset.objects.filter(pk__in=pks)
+#            
+#            
+##            else:
+##                self.ocg.dataset_obj = [models.Dataset.objects.filter(pk=rows[0][0])[0]]
+#            
+##            ## return potential climate models from the archive selection
+##            cms = ClimateModel.objects.filter(archive=self.ocg.archive_obj)
+##            ## find potential datasets
+##            datasets = Dataset.objects.filter(climatemodel__in=cms,
+##                                              scenario=self.ocg.scenario_obj)
+##            ## filter by variable
+##            var_dataset_ids = Variable.objects.filter()
+##            ## narrow down the search by looking through the time data
+##            dataset = IndexTime.objects.filter(dataset__in=datasets,
+##                                                  value__range=self.ocg.temporal).\
+##                                           values('dataset').\
+##                                           distinct()
+##            import ipdb;ipdb.set_trace()
+##            fkwds = dict(archive=self.ocg.archive_obj,
+##                         climate_model=self.ocg.model_obj,
+##                         experiment=self.ocg.scenario_obj,
+##                         variable=self.ocg.variable_obj)
+##            self.ocg.prediction_obj = models.Prediction.objects.filter(**fkwds)
+##            if len(self.ocg.prediction_obj) != 1:
+##                raise ValueError('prediction query should return 1 record.')
+##            self.ocg.prediction_obj = self.ocg.prediction_obj[0]
+#        else:
+#            self.ocg.dataset_obj = None
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -220,53 +236,55 @@ class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
         
+        return(climatedata.models.Dataset.objects.all())
+        
 #        from tests import get_example_netcdf
 #        
 #        attrs = get_example_netcdf()
         
-        ## SPATIAL QUERYING ----------------------------------------------------
-        
-        ocgeom = OpenClimateGeometry(self.ocg.climatemodel_obj,
-                                     self.ocg.aoi,
-                                     self.ocg.operation,
-                                     self.ocg.aggregate)
-        geom_list = ocgeom.get_geom_list()
-        row,col = ocgeom.get_indices()
-        weights = ocgeom.get_weights()
-        
-        ## it is possible that multiple datasets are returned by a query. this
-        ## occurs when a temporal range overlaps multiple datasets. hence, we 
-        ## always put the retrieval in a loop.
-        
-        for ii,dataset in enumerate(self.ocg.dataset_obj):
-        
-            ## TEMPORAL QUERYING -----------------------------------------------
-            
-            ti = IndexTime.objects.filter(dataset=dataset)\
-                                  .filter(value__range=self.ocg.temporal)
-            ti = ti.order_by('index').values_list('index',flat=True)
-    
-            ## RETRIEVE NETCDF DATA --------------------------------------------
-            
-            rootgrp = netCDF4.Dataset(dataset.uri,'r')
-            try:
-                na = NetCdfAccessor(rootgrp,self.ocg.variable)
-                ## extract a dictionary representation of the netcdf
-                dl = na.get_dict(geom_list,
-                                 time_indices=ti,
-                                 row=row,
-                                 col=col,
-                                 aggregate=self.ocg.aggregate,
-                                 weights=weights)
-                ## append the data
-                if ii == 0:
-                    dls = dl
-                else:
-                    dls += dl
-            finally:
-                rootgrp.close()
-        
-        return(dls)
+#        ## SPATIAL QUERYING ----------------------------------------------------
+#        
+#        ocgeom = OpenClimateGeometry(self.ocg.climatemodel_obj,
+#                                     self.ocg.aoi,
+#                                     self.ocg.operation,
+#                                     self.ocg.aggregate)
+#        geom_list = ocgeom.get_geom_list()
+#        row,col = ocgeom.get_indices()
+#        weights = ocgeom.get_weights()
+#        
+#        ## it is possible that multiple datasets are returned by a query. this
+#        ## occurs when a temporal range overlaps multiple datasets. hence, we 
+#        ## always put the retrieval in a loop.
+#        
+#        for ii,dataset in enumerate(self.ocg.dataset_obj):
+#        
+#            ## TEMPORAL QUERYING -----------------------------------------------
+#            
+#            ti = IndexTime.objects.filter(dataset=dataset)\
+#                                  .filter(value__range=self.ocg.temporal)
+#            ti = ti.order_by('index').values_list('index',flat=True)
+#    
+#            ## RETRIEVE NETCDF DATA --------------------------------------------
+#            
+#            rootgrp = netCDF4.Dataset(dataset.uri,'r')
+#            try:
+#                na = NetCdfAccessor(rootgrp,self.ocg.variable)
+#                ## extract a dictionary representation of the netcdf
+#                dl = na.get_dict(geom_list,
+#                                 time_indices=ti,
+#                                 row=row,
+#                                 col=col,
+#                                 aggregate=self.ocg.aggregate,
+#                                 weights=weights)
+#                ## append the data
+#                if ii == 0:
+#                    dls = dl
+#                else:
+#                    dls += dl
+#            finally:
+#                rootgrp.close()
+#        
+#        return(dls)
     
     
 class OpenClimateGeometry(object):

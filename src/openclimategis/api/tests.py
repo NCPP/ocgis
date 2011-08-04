@@ -1,39 +1,28 @@
-from django.test import TestCase
-from util.ncconv import NetCdfAccessor
-from util.ncwrite import NcWrite
-from util.helpers import get_temp_path, parse_polygon_wkt
-import os
-import climatedata
-from django.contrib.gis.geos.collections import MultiPolygon
-from django.contrib.gis.geos.polygon import Polygon
+from django.test.testcases import TestCase, TransactionTestCase
 from django.test.client import Client
-from util.toshp import OpenClimateShp
-from django.test.testcases import TransactionTestCase
-from warnings import warn
-import itertools
+
 #from climatedata.tests import import_single
-import unittest
 
 
-def disabled(f):
-    warn('{0} TEST DISABLED!'.format(f.__name__))
-
-def get_fixtures():
-    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_example.json')]
-
-def get_example_netcdf():
-    var = 'psl'
-    units_var = 'pa'
-    nw = NcWrite(var,units_var)
-    path = get_temp_path(suffix='.nc')
-    rootgrp = nw.write(path,close=False)
-    return({
-            'var':var,
-            'units_var':units_var,
-            'nw':nw,
-            'path':path,
-            'rootgrp':rootgrp,
-            })
+#def disabled(f):
+#    warn('{0} TEST DISABLED!'.format(f.__name__))
+#
+#def get_fixtures():
+#    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','luca_fixtures.json')]
+#
+#def get_example_netcdf():
+#    var = 'psl'
+#    units_var = 'pa'
+#    nw = NcWrite(var,units_var)
+#    path = get_temp_path(suffix='.nc')
+#    rootgrp = nw.write(path,close=False)
+#    return({
+#            'var':var,
+#            'units_var':units_var,
+#            'nw':nw,
+#            'path':path,
+#            'rootgrp':rootgrp,
+#            })
 
 
 #class NetCdfAccessTest(TransactionTestCase):
@@ -60,31 +49,43 @@ def get_example_netcdf():
 #        self.rootgrp.close()
         
         
-class TestUrls(unittest.TestCase):
+class TestUrls(TransactionTestCase):
     """Test URLs for correct response codes."""
+    
+    fixtures = ['luca_fixtures.json']
     
     def setUp(self):
         self.client = Client()
-
-    @disabled
-    def test_archives(self):
-        urls = [
-                '/api/archives/',
-                '/api/archives.html',
-                '/api/archives.json',
-                '/api/archives/cmip3/',
-                '/api/archives/cmip3.html',
-                '/api/archives/cmip3.json'
-                ]
-        for url in urls:
-            response = self.client.get(url)
-            self.assertEqual(response.status_code,200)
-        
-        ## confirm the correct reponse code is raised
-        response = self.client.get('/api/archives/bad_archive.json')
-        self.assertEqual(response.status_code,404)
-        
+    
     def test_urls(self):
+        ext = 'geojson'
+        drange = '2010-3-1+2010-4-30'
+        polygon = '-96+38,-95+38,-95+39,-96+39'
+        sop = 'clip'
+        agg = 'false'
+        cm = 'bccr_bcm2.0'
+        scenario = 'sresa1b'
+        archive = 'maurer'
+        var = 'prcp'
+        
+        base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
+                    'temporal/{drange}/spatial/{sop}+polygon'
+                    '(({polygon}))/aggregate/{agg}/'
+                    'variable/{variable}.{ext}')
+        
+        url = base_url.format(ext=ext,
+                              drange=drange,
+                              polygon=polygon,
+                              sop=sop,
+                              agg=agg,
+                              cm=cm,
+                              scenario=scenario,
+                              archive=archive,
+                              variable=var)
+        
+        response = self.client.get(url)
+     
+    def OLD_test_urls(self):
 
         ## list of extensions to test
         exts = [
@@ -241,7 +242,4 @@ class TestUrls(unittest.TestCase):
             
             
 if __name__ == '__main__':
-    import sys
-    sys.path.append('/home/bkoziol/git/OpenClimateGIS/src')
-    sys.argv = ['', 'TestUrls.test_urls']
-    unittest.main()
+    pass

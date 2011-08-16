@@ -26,6 +26,12 @@ import datetime
 ## organize cells into lat/lon objects
 
 class NcWrite(object):
+    """
+    >>> var = "Prcp"
+    >>> units_var = "mm"
+    >>> bounds = Polygon(((0,0),(10,0),(10,10),(0,10)))
+    >>> res = 5
+    """
     
     def __init__(self,var,units_var,spatial_grid=None,temporal_grid=None):
         self.var = var

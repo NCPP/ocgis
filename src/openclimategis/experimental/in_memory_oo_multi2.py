@@ -6,15 +6,15 @@ import netCDF4 as nc
 import itertools
 import geojson
 from shapely.ops import cascaded_union
-#from ipdb import set_trace as tr
-#from openclimategis.util.helpers import get_temp_path
-#from openclimategis.util.toshp import OpenClimateShp
+from ipdb import set_trace as tr
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
 from shapely import prepared, wkt
 from shapely.geometry.geo import asShape
 import time, sys
 from multiprocessing import Process, Queue, Lock
 from math import sqrt
+from util.helpers import get_temp_path
+from util.toshp import OpenClimateShp
 
 dtime = 0
 
@@ -362,7 +362,7 @@ class OcgDataset(object):
         recombine = {}
         ## the unique identified iterator
         ids = self._itr_id_()
-
+        
         if dissolve:
             ## one feature is created for each unique time
             for kk in range(len(self._idxtime)):
@@ -610,6 +610,7 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
         time.sleep(.1)
 
     #The subdivided geometry must be recombined into the original polygons
+    tr()
     if subdivide and dissolve:
         groups = {}
 
@@ -789,7 +790,8 @@ if __name__ == '__main__':
 #        for polygon in geom:
 #            POLYINT.append(polygon)
     
-    NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
+#    NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
+    NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
     #NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
     #NC = '/home/reid/Desktop/ncconv/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
     #NC = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
@@ -830,8 +832,12 @@ if __name__ == '__main__':
 #    out = as_shp(elements)
     dtime = time.time()
     out = as_geojson(elements)
-    with open('./out_M2','w') as f:
+    with open('/tmp/out_M2.json','w') as f:
         f.write(out)
+        
+    out_shp = as_shp(elements)
+    print(out_shp)
+    
     dtime = time.time()-dtime
 
     blarg = time.time()

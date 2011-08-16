@@ -26,7 +26,9 @@ class NcDatasetImporter(object):
         
         self._set_name_('rowbnds_name',['lat_bounds','latitude_bounds','lat_bnds','latitude_bnds','bounds_latitude'])
         self._set_name_('colbnds_name',['lon_bounds','longitude_bounds','lon_bnds','longitude_bnds','bounds_longitude'])
-    
+        
+        self._set_name_('level_name',['level','levels','lvl','lvls'])
+        
         self.time_units = getattr(self.dataset.variables[self.time_name],self.time_units_name)
         self.calendar = getattr(self.dataset.variables[self.time_name],self.calendar_name)
     
@@ -47,7 +49,8 @@ class NcDatasetImporter(object):
                      time_name=self.time_name,
                      time_units=self.time_units,
                      calendar=self.calendar,
-                     spatial_extent=self._spatial_extent_()
+                     spatial_extent=self._spatial_extent_(),
+                     level_name=self.level_name
                      )
         attrs.update(self._temporal_fields_())
         
@@ -135,6 +138,8 @@ if __name__ == '__main__':
     ## dropdb openclimategis_sql
     ## createdb -T postgis-1.5.2-template openclimategis_sql
     ## python manage.py syncdb
+    
+    ## python manage.py dumpdata climatedata > /home/bkoziol/git/OpenClimateGIS/src/openclimategis/climatedata/fixtures/luca_fixtures.json
     
     organization = models.Organization(pk=1,name='NOAA',code='noaa',country='USA')
     scenario = models.Scenario(pk=1,name='sresa1b',code='sresa1b')

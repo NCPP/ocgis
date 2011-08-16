@@ -58,7 +58,7 @@ class TestUrls(TransactionTestCase):
         self.client = Client()
     
     def test_urls(self):
-        ext = 'shztat'
+        ext = 'shz'
         drange = '2010-3-1+2010-4-30'
         polygon = '-96+38,-95+38,-95+39,-96+39'
         sop = 'clip'

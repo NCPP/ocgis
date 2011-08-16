@@ -101,6 +101,7 @@ class Dataset(AbstractGeoManager):
     temporal_min = models.DateTimeField()
     temporal_max = models.DateTimeField()
     temporal_interval_days = models.FloatField()
+    level_name = models.CharField(max_length=50,null=True)
     
     class Meta():
         unique_together = ('archive','climatemodel','scenario','uri')

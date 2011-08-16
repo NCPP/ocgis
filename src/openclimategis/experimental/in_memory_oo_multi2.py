@@ -12,7 +12,9 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
 from shapely import prepared, wkt
 from shapely.geometry.geo import asShape
-import time
+import time, sys
+from multiprocessing import Process, Queue, Lock
+from math import sqrt
 
 dtime = 0
 
@@ -31,8 +33,10 @@ class OcgDataset(object):
     """
     
     def __init__(self,dataset,**kwds):
-        self.dataset = dataset
-        
+        self.url = dataset
+
+        self.dataset = nc.Dataset(dataset,'r')
+        self.multiReset = kwds.get('multiReset') or False
 #        self.polygon = kwds.get('polygon')
 #        self.temporal = kwds.get('temporal')
 #        self.row_name = kwds.get('row_name') or 'latitude'
@@ -48,6 +52,9 @@ class OcgDataset(object):
         self.level_name = kwds.get('level_name') or 'levels'
 #        self.clip = kwds.get('clip') or False
 #        self.dissolve = kwds.get('dissolve') or False
+
+        #print self.dataset.variables[self.time_name].units
+        #sys.exit()
         
 #        self.row = self.dataset.variables[self.row_name][:]
 #        self.col = self.dataset.variables[self.col_name][:]
@@ -68,6 +75,10 @@ class OcgDataset(object):
         ## referenced after the spatial subset to retrieve data from the dataset
         self.real_col,self.real_row = np.meshgrid(np.arange(0,len(self.col_bnds)),
                                                   np.arange(0,len(self.row_bnds)))
+
+        if self.multiReset:
+            print 'closed'
+            self.dataset.close()
 
     def _itr_array_(self,a):
         "a -- 2-d ndarray"
@@ -93,6 +104,8 @@ class OcgDataset(object):
         
         ## holds polygon objects
         self._igrid = np.empty(self.min_row.shape,dtype=object)
+        ## hold point objects
+        self._jgrid = np.empty(self.min_row.shape,dtype=object)
         ## holds weights for area weighting in the case of a dissolve
         self._weights = np.zeros(self.min_row.shape)
         
@@ -183,6 +196,7 @@ class OcgDataset(object):
             if w > 0:
                 self._igrid[ii,jj] = ng
                 self._weights[ii,jj] = w
+                self._jgrid[ii,jj] = (g.centroid.x,g.centroid.y)
         ## the mask is used as a subset
         self._mask = self._weights > 0
 #        self._weights = self._weights/self._weights.sum()
@@ -223,7 +237,7 @@ class OcgDataset(object):
         return(ret)
         
         
-    def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False,levels = [0]):
+    def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False,levels = [0],lock=None):
         """
         var_name -- NC variable to extract from
         polygon=None -- shapely polygon object
@@ -263,18 +277,33 @@ class OcgDataset(object):
         self._mask = _sub(self._mask)
         self._weights = _sub(self._weights)
         self._igrid = _sub(self._igrid)
-
-        ##check if data is 3 or 4 dimensions
-        dimShape = len(self.dataset.variables[var_name].dimensions)
+        self._jgrid = _sub(self._jgrid)
         
         ## hit the dataset and extract the block
         npd = None
         
         narg = time.clock()
+
+        while not(lock.acquire(False)):
+            time.sleep(.1)
+
+        if self.multiReset:
+            self.dataset = nc.Dataset(dataset,'r')
+
+        ##check if data is 3 or 4 dimensions
+        dimShape = len(self.dataset.variables[var_name].dimensions)
+
         if dimShape == 3:
             npd = self.dataset.variables[var_name][self._idxtime,self._idxrow,self._idxcol]
         elif dimShape == 4:
+            self.levels = self.dataset.variables[self.level_name][:]
             npd = self.dataset.variables[var_name][self._idxtime,levels,self._idxrow,self._idxcol]
+            #print npd.shape
+            #print self._weights
+        if self.multiReset:
+            self.dataset.close()
+    
+        lock.release()
 
         print "dtime: ", time.clock()-narg
         
@@ -314,13 +343,23 @@ class OcgDataset(object):
 
         if 'levels' in kwds:
             levels = kwds.get('levels')
+
+        if 'parentPoly' in kwds:
+            parent = kwds.pop('parentPoly')
+        else:
+            parent = None
+
+        clip = kwds.get('clip')
             
         ## extract numpy data from the nc file
-        npd = self._get_numpy_data_(*args,**kwds)
+        q=args[0]
+        npd = self._get_numpy_data_(*args[1:],**kwds)
         ##check which flavor of climate data we are dealing with
         ocgShape = len(npd.shape)
         ## will hold feature dictionaries
         features = []
+        ## partial pixels
+        recombine = {}
         ## the unique identified iterator
         ids = self._itr_id_()
 
@@ -350,15 +389,23 @@ class OcgDataset(object):
                         select = self._mask*np.invert(lyr.mask)
                     else:
                         select = self._mask
+
+                    #print self._mask
                     ## select those geometries
                     geoms = self._igrid[select]
                     ## union the geometries
                     unioned = cascaded_union([p for p in geoms])
                     ## select the weight subset and normalize to unity
                     sub_weights = self._weights*select
+                    #print sub_weights
+                    #print sub_weights.sum()
+                    #print unioned.area
                     self._weights = sub_weights/sub_weights.sum()
                     ## apply the weighting
                     weighted = npd*self._weights
+                    #print (npd*sub_weights).sum()
+                    #print select.sum()
+                    #weighted = npd/sub_weights.sum()*sub_weights
                 ## generate the feature
 
                 if ocgShape==3:
@@ -373,13 +420,23 @@ class OcgDataset(object):
                         geometry=unioned,
                         properties=dict({VAR:list(float(weighted[kk,x,:,:].sum()) for x in xrange(len(levels))),
                                         'timestamp':self.timevec[self._idxtime[kk]],
-                                        'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
+                                        'levels':list(x for x in self.levels[levels])}))
+                #q.put(feature)
+                if not(parent == None) and dissolve:
+                    feature['weight']=sub_weights.sum()
                 features.append(feature)
         else:
+            ctr = None
             ## loop for each feature. no dissolving.
             for ii,jj in self._itr_array_(self._mask):
                 ## if the data is included, add the feature
                 if self._mask[ii,jj] == True:
+                    #if the geometry has a fraction of a pixel, the other factions could be handled by a different thread
+                    #these must be recombined later, or if it's not clipped there will be duplicates to filter out
+                    if self._weights[ii,jj] < 1 or not clip:
+                        #tag the location this data value is at so it can be compared later
+                        ctr = self._jgrid[ii,jj]
+                        recombine[ctr] = []
                     ## extract the data and convert any mask values
                     if ocgShape == 3:
                         data = [self._is_masked_(da) for da in npd[:,ii,jj]]
@@ -391,8 +448,19 @@ class OcgDataset(object):
                                 geometry=self._igrid[ii,jj],
                                 properties=dict({VAR:float(data[kk]),
                                                 'timestamp':self.timevec[self._idxtime[kk]]}))
-                            features.append(feature)
+                            #if the data point covers a partial pixel or isn't clipped add it to the recombine set, otherwise leave it alone
+                            if self._weights[ii,jj] < 1 or not clip:
+                                recombine[ctr].append(feature)
+                            else:
+                                features.append(feature)
+
+
                     elif ocgShape == 4:
+
+                        if self._weights[ii,jj] < 1 or not clip:
+                            ctr = self._jgrid[ii,jj]
+                            recombine[ctr] = []
+
                         data = [self._is_masked_(da) for da in npd[:,:,ii,jj]]
                         for kk in range(len(data)):
                             ## do not add the feature if the value is a NoneType
@@ -402,11 +470,21 @@ class OcgDataset(object):
                                 geometry=self._igrid[ii,jj],
                                 properties=dict({VAR:list(float(data[kk][x]) for x in xrange(len(levels))),
                                                 'timestamp':self.timevec[self._idxtime[kk]],
-                                                'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
-                            features.append(feature)
+                                                'levels':list(x for x in self.levels[levels])}))
+                            #q.put(feature)
+                            if self._weights[ii,jj] < 1 or not clip:
+                                recombine[ctr].append(feature)
+                            else:
+                                features.append(feature)
         print('extraction complete.')
 
-        return(features)
+        if not(parent == None) and dissolve:
+            q.put((parent,features))
+        else:
+            q.put((features,recombine))
+        return
+        #sys.exit(0)
+        #return(features)
     
     def _itr_id_(self,start=1):
         while True:
@@ -444,6 +522,232 @@ def multipolygon_operation(dataset,var,polygons,time_range=None,clip=None,dissol
 
     print(repr(len(elements)))
     return(elements)
+
+def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None,subdivide=False,subres='detect'):
+
+    elements = []
+    ret = []
+    q = Queue()
+    l = Lock()
+    pl = []
+    if not('http:' in dataset or 'www.' in dataset):
+        if ocgOpts == None:
+            ocgOpts = {}
+        ocgOpts['multiReset'] = True
+    ncp = OcgDataset(dataset,**ocgOpts)
+
+    #print ncp.row_bnds.min(),ncp.row_bnds.max()
+    #print ncp.col_bnds.min(),ncp.col_bnds.max()
+    #sys.exit()
+    #create a polygon covering the whole area so that the job can be split
+    if polygons == [None]:
+        polygons = [Polygon(((ncp.col_bnds.min(),ncp.row_bnds.min()),(ncp.col_bnds.max(),ncp.row_bnds.min()),(ncp.col_bnds.max(),ncp.row_bnds.max()),(ncp.col_bnds.min(),ncp.row_bnds.max())))]
+       
+    for ii,polygon in enumerate(polygons):
+        print(ii)
+
+        #if polygons have been specified and subdivide is True, each polygon will be subdivided
+        #into a gread with resolution of subres. If subres is undefined the resolution is half the square root of the area of the polygons envelope, or approximately 4 subpolygons
+        if subdivide and not(polygons == None):
+
+            #figure out the resolution and subdivide
+            if subres == 'detect':
+                subpolys = make_shapely_grid(polygon,sqrt(polygon.envelope.area)/2.0,clip=clip)
+            else:
+                subpolys = make_shapely_grid(polygon,subres,clip=clip)
+
+            #generate threads for each subpolygon
+            for poly in subpolys:
+                #print poly.intersection(polygon).wkt
+                p = Process(target = ncp.extract_elements,
+                                args =       (
+                                                q,
+                                                var,),
+                                kwargs= {
+                                                'lock':l,
+                                                'polygon':poly,
+                                                'time_range':time_range,
+                                                'clip':clip,
+                                                'dissolve':dissolve,
+                                                'levels' : levels,
+                                                'parentPoly':ii})
+                p.start()
+                pl.append(p)
+
+        #if no polygons are specified only 1 thread will be created
+        else:
+            p = Process(target = ncp.extract_elements,
+                            args =       (
+                                            q,
+                                            var,),
+                            kwargs= {
+                                            'lock':l,
+                                            'polygon':polygon,
+                                            'time_range':time_range,
+                                            'clip':clip,
+                                            'dissolve':dissolve,
+                                            'levels' : levels})
+            p.start()
+            pl.append(p)
+
+    #for p in pl:
+        #p.join()
+
+    #consumer thread loop, the main process will grab any feature lists added by the
+    #processing threads and continues until those threads have terminated.
+    a=True
+    while a:
+        a=False
+        #check if any threads are still active
+        for p in pl:
+            a = a or p.is_alive()
+
+        #remove anything from the queue if present
+        while not q.empty():
+            ret.append(q.get())
+
+        #give the threads some time to process more stuff
+        time.sleep(.1)
+
+    #The subdivided geometry must be recombined into the original polygons
+    if subdivide and dissolve:
+        groups = {}
+
+        #form groups of elements based on which polygon they belong to
+        for x in ret:
+
+            if not x[0] in groups:
+                groups[x[0]] = []
+
+            groups[x[0]].append(x[1])
+        #print '>',groups.keys()
+        #print groups
+        
+        #for each group, recombine the geometry and average the data points
+        for x in groups.keys():
+            group = groups[x]
+
+            #recombine the geometry using the first time period
+            total = cascaded_union([y[0]['geometry'] for y in group])
+
+            #form subgroups consisting of subpolygons that cover the same time period
+            subgroups = [[g[t] for g in group] for t in xrange(len(group[0]))]
+
+            ta = sum([y['weight'] for y in subgroups[0]])
+            #print ta
+
+            #average the data values and form new features
+            for subgroup in subgroups:
+                if not(levels == None):
+                    avg = [sum([y['properties'][var][z]*(y['weight']/ta) for y in subgroup]) for z in xrange(len(levels))]
+                    elements.append(    dict(
+                                        id=subgroup[0]['id'],
+                                        geometry=total,
+                                        properties=dict({VAR: avg,
+                                                        'timestamp':subgroup[0]['properties']['timestamp'],
+                                                        'levels': subgroup[0]['properties']['levels']})))
+                    print total.area
+                    print avg
+                else:
+                    avg = sum([y['properties'][var]*(y['weight']/ta) for y in subgroup])
+                    elements.append(    dict(
+                                        id=subgroup[0]['id'],
+                                        geometry=total,
+                                        properties=dict({VAR:avg,
+                                                        'timestamp':subgroup[0]['properties']['timestamp']})))
+
+    else:
+        recombine = []
+        for x in ret:
+            elements.extend(x[0])
+            recombine.append(x[1])
+
+        keylist = []
+        for x in recombine:
+            keylist.extend(x.keys())
+        keylist = set(keylist)
+        #print keylist
+        #print len(keylist)
+        for key in keylist:
+            cur = []
+            for x in recombine:
+                if key in x:
+                    cur.append(x[key])
+
+            if len(cur)==1:
+                elements.extend(cur[0])
+                    
+            else:
+                if clip:
+                    elements.extend(cur[0])
+                else:
+                    geo = cascaded_union([x[0]['geometry'] for x in cur])
+                    for x in cur[0]:
+                        x['geometry'] = geo
+                        elements.append(x)
+                        
+    print len(elements)
+    return(elements)
+
+
+def make_shapely_grid(poly,res,as_numpy=False,clip=True):
+    """
+    Return a list or NumPy matrix of shapely Polygon objects.
+    
+    poly -- shapely Polygon to discretize
+    res -- target grid resolution in the same units as |poly|
+    """
+    
+    ## ensure we have a floating point resolution
+    res = float(res)
+    ## check that the target polygon is a valid geometry
+    assert(poly.is_valid)
+    ## vectorize the polygon creation
+    vfunc_poly = np.vectorize(make_poly_array)#,otypes=[np.object])
+    ## prepare the geometry for faster spatial relationship checking. throws a
+    ## a warning so leaving out for now.
+#    prepped = prep(poly)
+    
+    ## extract bounding coordinates of the polygon
+    min_x,min_y,max_x,max_y = poly.envelope.bounds
+    ## convert to matrices
+    X,Y = np.meshgrid(np.arange(min_x,max_x,res),
+                      np.arange(min_y,max_y,res))
+    #print X,Y
+
+    ## shift by the resolution
+    pmin_x = X
+    pmax_x = X + res
+    pmin_y = Y
+    pmax_y = Y + res
+    ## make the 2-d array
+    if clip:
+        poly_array = vfunc_poly(pmin_y,pmin_x,pmax_y,pmax_x,poly)
+    else:
+        poly_array = vfunc_poly(pmin_y,pmin_x,pmax_y,pmax_x)
+    #print poly_array
+    #sys.exit()
+    ## format according to configuration arguments
+    if as_numpy:
+        ret = poly_array
+    else:
+        ret = list(poly_array.reshape(-1))
+    
+    return(ret)
+
+    
+def make_poly_array(min_row,min_col,max_row,max_col,polyint=None):
+    ret = Polygon(((min_col,min_row),
+                    (max_col,min_row),
+                    (max_col,max_row),
+                    (min_col,max_row),
+                    (min_col,min_row)))
+    if polyint is not None:
+        if polyint.intersects(ret) == False:
+            ret = None
+        else:
+            ret = polyint.intersection(ret)
+    return(ret)
         
         
 if __name__ == '__main__':
@@ -455,9 +759,9 @@ if __name__ == '__main__':
     #POLYINT = Polygon(((-90,30),(-70,30),(-70,50),(-90,50)))
     #POLYINT = Polygon(((-90,40),(-80,40),(-80,50),(-90,50)))
     #POLYINT = Polygon(((-130,18),(-60,18),(-60,98),(-130,98)))
+    POLYINT = Polygon(((0,0),(0,10),(10,10),(10,0)))
     ## return all data
-    #POLYINT = Polygon(((-124.75, 25.125), (-67.0, 25.125), (-67.0, 52.875), (-124.75, 52.875)))
-    POLYINT = None
+    #POLYINT = None
     ## two areas
     #POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
               #wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
@@ -493,7 +797,7 @@ if __name__ == '__main__':
 #    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,4,30)]
     #TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,3,1)]
     TEMPORAL = [datetime.datetime(1960,3,16),datetime.datetime(1961,3,16)] #time range for multi-level file
-    DISSOLVE = True
+    DISSOLVE = False
     CLIP = True
     VAR = 'cl'
     #VAR = 'Prcp'
@@ -501,30 +805,32 @@ if __name__ == '__main__':
     kwds = {
         'rowbnds_name': 'lat_bnds', 
         'colbnds_name': 'lon_bnds',
-        #'time_units': 'days since 1950-1-1 0:0:0.0',
         'time_units': 'days since 1800-1-1 00:00:0.0',
+        #'time_units': 'days since 1950-1-1 0:0:0.0',
         'level_name': 'lev'
     }
-    LEVELS = [x for x in range(0,10)]
-
+    LEVELS = [x for x in range(0,1)]
+    #LEVELS = [x for x in range(0,10)]
     ## open the dataset for reading
-    dataset = nc.Dataset(NC,'r')
+    dataset = NC#nc.Dataset(NC,'r')
     ## make iterable if only a single polygon requested
     if type(POLYINT) not in (list,tuple): POLYINT = [POLYINT]
     ## convenience function for multiple polygons
-    elements = multipolygon_operation(dataset,
+    elements = multipolygon_multicore_operation(dataset,
                                       VAR,
                                       POLYINT,
                                       time_range=TEMPORAL,
                                       clip=CLIP,
                                       dissolve=DISSOLVE,
                                       levels = LEVELS,
-                                      ocgOpts=kwds
+                                      ocgOpts=kwds,
+                                      subdivide=True,
+                                      #subres = 360
                                       )
 #    out = as_shp(elements)
     dtime = time.time()
     out = as_geojson(elements)
-    with open('./out_NM','w') as f:
+    with open('./out_M2','w') as f:
         f.write(out)
     dtime = time.time()-dtime
 

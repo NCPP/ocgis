@@ -12,7 +12,8 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
 from shapely import prepared, wkt
 from shapely.geometry.geo import asShape
-import time
+import time, sys
+from multiprocessing import Process, Queue, Lock
 
 dtime = 0
 
@@ -223,7 +224,7 @@ class OcgDataset(object):
         return(ret)
         
         
-    def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False,levels = [0]):
+    def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False,levels = [0],lock=None):
         """
         var_name -- NC variable to extract from
         polygon=None -- shapely polygon object
@@ -271,10 +272,13 @@ class OcgDataset(object):
         npd = None
         
         narg = time.clock()
+
+        lock.acquire()
         if dimShape == 3:
             npd = self.dataset.variables[var_name][self._idxtime,self._idxrow,self._idxcol]
         elif dimShape == 4:
             npd = self.dataset.variables[var_name][self._idxtime,levels,self._idxrow,self._idxcol]
+        lock.release()
 
         print "dtime: ", time.clock()-narg
         
@@ -316,7 +320,8 @@ class OcgDataset(object):
             levels = kwds.get('levels')
             
         ## extract numpy data from the nc file
-        npd = self._get_numpy_data_(*args,**kwds)
+        q=args[0]
+        npd = self._get_numpy_data_(*args[1:],**kwds)
         ##check which flavor of climate data we are dealing with
         ocgShape = len(npd.shape)
         ## will hold feature dictionaries
@@ -374,6 +379,7 @@ class OcgDataset(object):
                         properties=dict({VAR:list(float(weighted[kk,x,:,:].sum()) for x in xrange(len(levels))),
                                         'timestamp':self.timevec[self._idxtime[kk]],
                                         'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
+                #q.put(feature)
                 features.append(feature)
         else:
             ## loop for each feature. no dissolving.
@@ -391,6 +397,7 @@ class OcgDataset(object):
                                 geometry=self._igrid[ii,jj],
                                 properties=dict({VAR:float(data[kk]),
                                                 'timestamp':self.timevec[self._idxtime[kk]]}))
+                            #q.put(feature)
                             features.append(feature)
                     elif ocgShape == 4:
                         data = [self._is_masked_(da) for da in npd[:,:,ii,jj]]
@@ -403,10 +410,13 @@ class OcgDataset(object):
                                 properties=dict({VAR:list(float(data[kk][x]) for x in xrange(len(levels))),
                                                 'timestamp':self.timevec[self._idxtime[kk]],
                                                 'levels':list(x for x in self.dataset.variables[self.level_name][levels])}))
+                            #q.put(feature)
                             features.append(feature)
         print('extraction complete.')
-
-        return(features)
+        q.put(features)
+        return
+        #sys.exit(0)
+        #return(features)
     
     def _itr_id_(self,start=1):
         while True:
@@ -432,35 +442,59 @@ def as_shp(elements,path=None):
 
 def multipolygon_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None):
     elements = []
+    q = Queue()
+    l = Lock()
+    pl = []
     ncp = OcgDataset(dataset,**ocgOpts)
     for ii,polygon in enumerate(polygons):
         print(ii)
-        elements += ncp.extract_elements(var,
-                                         polygon=polygon,
-                                         time_range=time_range,
-                                         clip=clip,
-                                         dissolve=dissolve,
-                                         levels = levels)
+        p = Process(target = ncp.extract_elements,
+                           args =       (
+                                         q,
+                                         var,),
+                           kwargs= {
+                                         'lock':l,
+                                         'polygon':polygon,
+                                         'time_range':time_range,
+                                         'clip':clip,
+                                         'dissolve':dissolve,
+                                         'levels' : levels})
+        p.start()
+        pl.append(p)
 
-    print(repr(len(elements)))
+    #for p in pl:
+        #p.join()
+    a=True
+    while a:
+        a=False
+        for p in pl:
+            #print p,p.is_alive()
+            a = a or p.is_alive()
+        #if not q.empty():
+            #print q.qsize()
+            #print 'emptying'
+        while not q.empty():
+            elements.extend(q.get())
+        time.sleep(.1)
+
+    #while not q.empty():
+        #elements.append(q.get())
+    #print('>'+repr(len(elements)))
     return(elements)
         
         
 if __name__ == '__main__':
-    narg = time.time()
+    narg = time.clock()
     ## all
 #    POLYINT = Polygon(((-99,39),(-94,38),(-94,40),(-100,39)))
     ## great lakes
     #POLYINT = Polygon(((-90.35,40.55),(-83,43),(-80.80,49.87),(-90.35,49.87)))
     #POLYINT = Polygon(((-90,30),(-70,30),(-70,50),(-90,50)))
-    #POLYINT = Polygon(((-90,40),(-80,40),(-80,50),(-90,50)))
-    #POLYINT = Polygon(((-130,18),(-60,18),(-60,98),(-130,98)))
     ## return all data
-    #POLYINT = Polygon(((-124.75, 25.125), (-67.0, 25.125), (-67.0, 52.875), (-124.75, 52.875)))
-    POLYINT = None
+    #POLYINT = None
     ## two areas
-    #POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
-              #wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
+    POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
+              wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
     ## watersheds
 #    path = '/home/bkoziol/git/OpenClimateGIS/bin/geojson/watersheds_4326.geojson'
 ##    select = ['HURON']
@@ -485,27 +519,26 @@ if __name__ == '__main__':
 #        for polygon in geom:
 #            POLYINT.append(polygon)
     
-    NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
+    #NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
     #NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
     #NC = '/home/reid/Desktop/ncconv/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
-    #NC = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
+    NC = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
 
 #    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,4,30)]
     #TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,3,1)]
-    TEMPORAL = [datetime.datetime(1960,3,16),datetime.datetime(1961,3,16)] #time range for multi-level file
+    TEMPORAL = [datetime.datetime(1960,3,16),datetime.datetime(1980,3,16)] #time range for multi-level file
     DISSOLVE = True
     CLIP = True
-    VAR = 'cl'
-    #VAR = 'Prcp'
+    #VAR = 'cl'
+    VAR = 'Prcp'
     #kwds={}
     kwds = {
-        'rowbnds_name': 'lat_bnds', 
-        'colbnds_name': 'lon_bnds',
-        #'time_units': 'days since 1950-1-1 0:0:0.0',
-        'time_units': 'days since 1800-1-1 00:00:0.0',
+        #'rowbnds_name': 'lat_bnds', 
+        #'colbnds_name': 'lon_bnds',
+        'time_units': 'days since 1950-1-1 0:0:0.0',
         'level_name': 'lev'
     }
-    LEVELS = [x for x in range(0,10)]
+    LEVELS = [x for x in range(0,1)]
 
     ## open the dataset for reading
     dataset = nc.Dataset(NC,'r')
@@ -522,11 +555,11 @@ if __name__ == '__main__':
                                       ocgOpts=kwds
                                       )
 #    out = as_shp(elements)
-    dtime = time.time()
+    dtime = time.clock()
     out = as_geojson(elements)
-    with open('./out_NM','w') as f:
+    with open('./out','w') as f:
         f.write(out)
-    dtime = time.time()-dtime
+    dtime = time.clock()-dtime
 
-    blarg = time.time()
+    blarg = time.clock()
     print blarg-narg,dtime,blarg-narg-dtime

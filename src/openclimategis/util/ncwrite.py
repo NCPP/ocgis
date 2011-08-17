@@ -166,16 +166,22 @@ class NcWrite(object):
         
         self._dt = self.nctime.get_dimension()
         self._dsp = self.ncspatial.get_dimension()
+        
+    def write(self,path=None):
+        if path is None:
+            path = get_temp_path('.nc')
+        rootgrp = self.get_rootgrp(path)
+        rootgrp.close()
+        return(path)
             
     def get_rootgrp(self,path):
-        rootgrp = Dataset(path,'w')
+        rootgrp = Dataset(path,'w',format='NETCDF4')
         
         rootgrp.createDimension('time',len(self._dt))
         rootgrp.createDimension('lon',len(self._dsp['col']))
         rootgrp.createDimension('lat',len(self._dsp['row']))
         
         times = rootgrp.createVariable('time','f8',('time',))
-#        levels = rootgrp.createVariable('level','i4',('level',))
         latitudes = rootgrp.createVariable('latitude','f4',('lat',))
         longitudes = rootgrp.createVariable('longitude','f4',('lon',))
         

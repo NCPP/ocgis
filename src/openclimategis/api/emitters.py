@@ -1,6 +1,5 @@
 from piston.emitters import Emitter
 from django.http import HttpResponse
-from util.shapes.views.export import ShpResponder
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
 from django.core import serializers

@@ -39,6 +39,13 @@ class Scenario(AbstractGeoManager):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
+#class Run(AbstractGeoManager):
+#    '''Model run designation.'''
+#    
+#    code = models.IntegerField()
+#    desc = models.TextField(null=True)
+
+
 class Archive(AbstractGeoManager):
     '''Models an climate model data archive
     
@@ -90,6 +97,7 @@ class Dataset(AbstractGeoManager):
     archive = models.ForeignKey(Archive)
     climatemodel = models.ForeignKey(ClimateModel)
     scenario = models.ForeignKey(Scenario)
+    run = models.IntegerField()
     name = models.TextField()
     uri = models.TextField(unique=True)
     rowbnds_name = models.CharField(max_length=50)
@@ -104,7 +112,7 @@ class Dataset(AbstractGeoManager):
     level_name = models.CharField(max_length=50,null=True)
     
     class Meta():
-        unique_together = ('archive','climatemodel','scenario','uri')
+        unique_together = ('archive','climatemodel','scenario','uri','run')
     
     def __unicode__(self):
         return 'URI: {name}'.format(name=self.uri)

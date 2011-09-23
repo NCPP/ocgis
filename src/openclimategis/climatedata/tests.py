@@ -5,9 +5,9 @@ from util.ncwrite import NcWrite
 import tempfile
 from util.helpers import get_temp_path
 from django.test.testcases import TransactionTestCase
-from climatedata.data.load_data import load_climatemodel
 from django.conf import settings
 import os
+import django.test
 
 
 def import_examples():
@@ -136,3 +136,38 @@ class ClimateDataTest(TestCase):
         response = self.client.get('/')
         self.failUnlessEqual(response.status_code, 200)
 
+#class TestUrls(django.test.TestCase):
+#    """Test URLs for correct response codes."""
+#    
+#    fixtures = ['luca_fixtures.json']
+#    
+#    def setUp(self):
+#        self.client = Client()
+#    
+#    def test_urls(self):
+#        ext = 'geojson'
+#        drange = '2010-3-1+2010-4-30'
+#        polygon = '-96+38,-95+38,-95+39,-96+39'
+#        sop = 'clip'
+#        agg = 'false'
+#        cm = 'bccr_bcm2.0'
+#        scenario = 'sresa1b'
+#        archive = 'maurer'
+#        var = 'prcp'
+#        
+#        base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
+#                    'temporal/{drange}/spatial/{sop}+polygon'
+#                    '(({polygon}))/aggregate/{agg}/'
+#                    'variable/{variable}.{ext}')
+#        
+#        url = base_url.format(ext=ext,
+#                              drange=drange,
+#                              polygon=polygon,
+#                              sop=sop,
+#                              agg=agg,
+#                              cm=cm,
+#                              scenario=scenario,
+#                              archive=archive,
+#                              variable=var)
+#        
+#        response = self.client.get(url)

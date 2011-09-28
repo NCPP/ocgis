@@ -1,27 +1,31 @@
-from django.contrib import admin
+from django.contrib.gis import admin
+
+from climatedata.models import NetcdfDataset
+from climatedata.models import NetcdfDatasetAttribute
+from climatedata.models import NetcdfDimension
+from climatedata.models import NetcdfDimensionAttribute
+from climatedata.models import NetcdfVariable
+from climatedata.models import NetcdfVariableAttribute
+from climatedata.models import NetcdfVariableDimension
 
 from climatedata.models import Organization
+from climatedata.models import Scenario
+from climatedata.models import ClimateModel
 from climatedata.models import Archive
 from climatedata.models import Variable
-from climatedata.models import ClimateModel
-#from climatedata.models import Experiment
-#from climatedata.models import SpatialGrid
-#from climatedata.models import SpatialGridCell
-#from climatedata.models import Calendar
-#from climatedata.models import TemporalUnit
-#from climatedata.models import TemporalGrid
-#from climatedata.models import TemporalGridCell
-#from climatedata.models import Prediction
+from climatedata.models import SimulationOutput
+
+admin.site.register(NetcdfDataset)
+admin.site.register(NetcdfDatasetAttribute)
+admin.site.register(NetcdfDimension)
+admin.site.register(NetcdfDimensionAttribute)
+admin.site.register(NetcdfVariable)
+admin.site.register(NetcdfVariableAttribute)
+admin.site.register(NetcdfVariableDimension)
 
 admin.site.register(Organization)
+admin.site.register(Scenario)
+admin.site.register(ClimateModel)
 admin.site.register(Archive)
 admin.site.register(Variable)
-admin.site.register(ClimateModel)
-#admin.site.register(Experiment)
-#admin.site.register(SpatialGrid)
-#admin.site.register(SpatialGridCell)
-#admin.site.register(Calendar)
-#admin.site.register(TemporalUnit)
-#admin.site.register(TemporalGrid)
-#admin.site.register(TemporalGridCell)
-#admin.site.register(Prediction)
+admin.site.register(SimulationOutput)

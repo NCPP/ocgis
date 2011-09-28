@@ -58,14 +58,14 @@ class NetcdfVariable(AbstractGeoManager):
     '''Models an abstract NetCDF dataset variable
     '''
     netcdf_dataset = models.ForeignKey(NetcdfDataset)
-    code           = models.CharField(max_length=25)
+    code           = models.CharField(max_length=255)
     ndim           = models.IntegerField()
     
     class Meta():
         unique_together = ('netcdf_dataset','code')
     
-    def __unicode__(self):
-        return "{name} ({code})".format(name=self.name, code=self.code)
+#    def __unicode__(self):
+#        return "{name} ({code})".format(name=self.name, code=self.code)
 
 
 class NetcdfVariableAttribute(AbstractGeoManager):
@@ -100,9 +100,9 @@ class Organization(AbstractGeoManager):
     
     Example: National Center for Atmospheric Research (ncar) 
     '''
-    name         = models.CharField(max_length=50)
+    name         = models.CharField(max_length=255)
     code         = models.CharField(max_length=25,unique=True)
-    country      = models.CharField(max_length=50)
+    country      = models.CharField(max_length=255)
     url          = models.URLField(
         verify_exists=False, 
         max_length=200,
@@ -123,6 +123,9 @@ class Scenario(AbstractGeoManager):
     code         = models.CharField(max_length=10,unique=True)
     description  = models.TextField(null=True)
     
+    class Meta():
+        verbose_name = "climate emissions scenario"
+    
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
@@ -132,13 +135,17 @@ class Archive(AbstractGeoManager):
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
     '''
-    name         = models.CharField(max_length=50)
+    name         = models.CharField(max_length=255,unique=True)
     code         = models.CharField(max_length=25,unique=True)
     url          = models.URLField(
         verify_exists=False, 
         max_length=200,
         null=True,
+        unique=True,
     )
+    
+    class Meta():
+        verbose_name = "climate simulation archive"
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
@@ -158,7 +165,10 @@ class ClimateModel(AbstractGeoManager):
         max_length=200,
         null=True,
     )
-    description  = models.TextField(null=True)
+    comments     = models.TextField(null=False, blank=True)
+    
+    class Meta():
+        verbose_name = "climate model"
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
@@ -177,6 +187,9 @@ class Variable(AbstractGeoManager):
     ndim         = models.IntegerField()
     description  = models.TextField(null=True)
     
+    class Meta():
+        verbose_name = "climate simulation variable"
+    
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
@@ -193,6 +206,8 @@ class SimulationOutput(AbstractGeoManager):
     
     class Meta():
         unique_together = ('archive','scenario','climate_model','variable')
+        verbose_name = "climate simulation output"
+    
     
     def __unicode__(self):
         return '{archive}:{scenario}:{model}:{variable}'.format(

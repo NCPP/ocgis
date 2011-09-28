@@ -1,0 +1,388 @@
+[
+  {
+    "pk": 3,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.ec.gc.ca/ccmac-cccma/",
+      "country": "Canada",
+      "code": "CCCma",
+      "name": "Canadian Centre for Climate Modelling and Analysis"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://bcc.cma.gov.cn/",
+      "country": "China",
+      "code": "BCC",
+      "name": "Beijing Climate Center, National Climate Center"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.bjerknes.uib.no/",
+      "country": "Norway",
+      "code": "BCCR",
+      "name": "Bjerknes Centre for Climate Research"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.cnrm.meteo.fr/",
+      "country": "France",
+      "code": "CNRM",
+      "name": "Centre National de Recherches Meteorologiques"
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.cmar.csiro.au/",
+      "country": "Australia",
+      "code": "CSIRO",
+      "name": "CSIRO Atmospheric Research"
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.gfdl.noaa.gov/",
+      "country": "USA",
+      "code": "GFDL",
+      "name": "US Dept. of Commerce / NOAA / Geophysical Fluid Dynamics Laboratory"
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.giss.nasa.gov/",
+      "country": "USA",
+      "code": "GISS",
+      "name": "Goddard Institute for Space Studies (GISS), NASA, USA"
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.inm.ras.ru/inm_en_ver/index.htm",
+      "country": "Russia",
+      "code": "INM",
+      "name": "Institute of Numerical Mathematics, Russian Academy of Science"
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.ipsl.fr/",
+      "country": "France",
+      "code": "IPSL",
+      "name": "Institut Pierre Simon Laplace"
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.nies.go.jp/gaiyo/index-e.html",
+      "country": "Japan",
+      "code": "NIES",
+      "name": "National Institute for Environmental Studies"
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www2.meteo.uni-bonn.de/forschung/gruppen/tgwww/index_english.html",
+      "country": "Germany",
+      "code": "MIUB",
+      "name": "Meteorological Institute of the University of Bonn"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.mpimet.mpg.de/",
+      "country": "Germany",
+      "code": "MPI",
+      "name": "Max Planck Institute for Meteorology"
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.mri-jma.go.jp/",
+      "country": "Japan",
+      "code": "MRI",
+      "name": "Meteorological Research Institute"
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://ncar.ucar.edu/",
+      "country": "USA",
+      "code": "NCAR",
+      "name": "National Center for Atmospheric Research"
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.metoffice.gov.uk/climate-change/resources/hadley",
+      "country": "UK",
+      "code": "UKMO-HAD",
+      "name": "Hadley Centre for Climate Prediction and Research / Met Office"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.scenario",
+    "fields": {
+      "code": "SRES A1B",
+      "name": "720 ppm stabilization experiment",
+      "description": "From http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments\r\n#############################################\r\nImpose SRES A1B conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.scenario",
+    "fields": {
+      "code": "SRES A2",
+      "name": "SRES A2 experiment",
+      "description": "Notes: should take the end of the 20C3M run as its initial condition."
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.scenario",
+    "fields": {
+      "code": "SRES B1",
+      "name": "550 ppm stabilization experiment",
+      "description": "Notes: Impose SRES B1 conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html",
+      "organization": 2,
+      "code": "BCC-CM1",
+      "name": "Beijing Climate Center CM1",
+      "comments": "More information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-BCCR-BCM2-change.html",
+      "organization": 1,
+      "code": "BCCR-BCM2.0",
+      "name": "Bergen Climate Model Version 2",
+      "comments": "More Information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CNRM-CM3-change.html",
+      "organization": 5,
+      "code": "CNRM-CM3",
+      "name": "CNRM-CM3",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CSIRO-MK3-change.html",
+      "organization": 6,
+      "code": "CSIRO-Mk3.0",
+      "name": "CSIRO Mark 3.0",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2-change.html",
+      "organization": 7,
+      "code": "GFDL-CM2.0",
+      "name": "CM2.0 - AOGCM",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2_1-change.html",
+      "organization": 7,
+      "code": "GFDL-CM2.1",
+      "name": "CM2.1 - AOGCM",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NASA-GISS-ER-change.html",
+      "organization": 8,
+      "code": "GISS-ER",
+      "name": "GISS ModelE-R",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-INM-CM3-change.html",
+      "organization": 9,
+      "code": "INM-CM3.0",
+      "name": "INMCM3.0",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-IPSL-CM4-change.html",
+      "organization": 10,
+      "code": "IPSL-CM4",
+      "name": "IPSL-CM4",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NIES-MIROC3_2-MED-change.html",
+      "organization": 11,
+      "code": "MIROC3.2(medres)",
+      "name": "MIROC3.2 (Model for Interdisciplinary Research on ",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CONS-ECHO-G-change.html",
+      "organization": 12,
+      "code": "ECHO-G",
+      "name": "ECHO-G = ECHAM4 + HOPE-G",
+      "comments": "Additional organization: Institute of KMA, and Model and Data group, Korea"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-MPIM-ECHAM5-change.html",
+      "organization": 13,
+      "code": "ECHAM5/MPI-OM",
+      "name": "ECHAM5/MPI-OM",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-MRI-CGCM2_3_2-change.html",
+      "organization": 14,
+      "code": "MRI-CGCM2.3.2",
+      "name": "MRI-CGCM2.3.2",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-CCSM3-change.html",
+      "organization": 15,
+      "code": "CCSM3",
+      "name": "Community Climate System Model, version 3.0",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-PCM-change.html",
+      "organization": 15,
+      "code": "PCM",
+      "name": "Parallel Climate Model",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 17,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-UKMO-HADCM3-change.html",
+      "organization": 16,
+      "code": "UKMO-HadCM3",
+      "name": "HadCM3",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CCCMA-CGCM3_1-T47-change.html",
+      "organization": 3,
+      "code": "CGCM3.1(T47)",
+      "name": "Coupled Global Climate Model (T47)",
+      "comments": ""
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.variable",
+    "fields": {
+      "units": "K",
+      "ndim": 3,
+      "code": "tas",
+      "name": "air_temperature",
+      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n################################################\r\nnear-surface (usually, 2 meter) air temperature; the CMOR singleton dimension default value of 2 m can be overridden, if absolutely necessary, by redefining axis \"height1\"."
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.variable",
+    "fields": {
+      "units": "kg m^-2 s^-1",
+      "ndim": 3,
+      "code": "pr",
+      "name": "precipitation_flux",
+      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n================================================\r\nincludes both liquid and solid phases"
+    }
+  }
+]

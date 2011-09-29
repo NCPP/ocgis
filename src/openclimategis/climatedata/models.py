@@ -205,7 +205,7 @@ class SimulationOutput(AbstractGeoManager):
     netcdf_variable = models.ForeignKey(NetcdfVariable)
     
     class Meta():
-        unique_together = ('archive','scenario','climate_model','variable')
+        unique_together = ('archive','scenario','climate_model','variable','run')
         verbose_name = "climate simulation output"
     
     

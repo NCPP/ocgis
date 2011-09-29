@@ -143,13 +143,11 @@ archives = {
         {
             'name': 'NOAA OpenClimateGIS Downscaling Archive',
             'code': 'oc_gis_downscaling',
-#            'dataset_urls': [
+            'populate_netcdf_tables_method': 'PLACEHOLDER',
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Tavg.Tavg.1.aggregation.1'
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.cccma_cgcm3.sresa2.Prcp.Prcp.1.aggregation.1'
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.cccma_cgcm3.sresa2.Tavg.Tavg.1.aggregation.1'
-#            ],
-         'populate_netcdf_tables_method': 'PLACEHOLDER'
         },
 }
 
@@ -181,14 +179,6 @@ class NcDatasetImporter(object):
         
         self.time_units = self.archive_meta['variables'][self.time_name][self.time_units_name]
         self.calendar = self.archive_meta['variables'][self.time_name][self.calendar_name]
-    
-#    def __del__(self):
-#        try:
-#            #import ipdb; ipdb.set_trace()
-#            #self.remote_dataset.close()
-#            pass
-#        except:
-#            pass
     
     def load(self):
         
@@ -230,6 +220,14 @@ class NcDatasetImporter(object):
             )
             # save the dimension so it can be later paired with variables
             dimensions[key]=dim_obj
+            # save the dimension attributes
+            for dim_key, dim_value in value.items():
+                dim_attr_obj, created = models.NetcdfDimensionAttribute.objects.get_or_create(
+                    netcdf_dimension=dim_obj,
+                    key=dim_key,
+                    value=dim_value,
+                )
+            
         sys.stdout.write('Done!\n')
             
         ## loop for each NetCDF variable

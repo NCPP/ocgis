@@ -69,7 +69,7 @@ def build_netcdf_dictionary(netcdf_dataset_uri):
     return info
 
 
-def register_usgs_maurer_archive():
+def register_usgs_maurer_archive(archive_obj):
     '''populates database tables with data corresponding to the USGS CIDA
     maurer et. al archive
     '''
@@ -121,15 +121,69 @@ def register_usgs_maurer_archive():
             'run':int(run),
             'sim_variable':variable,
         }
+    
+    def extract_simulation_parameters_from_variablename(archive_meta):
+        '''Extract the simulation parameters from the NetCDF Variable name
+        '''
+        for var in archive_meta['variables']:
+            try:
+                archive_meta['variables'][var]['simulation_params'] = parse_variable_name(var)
+            except:
+                pass # ignore dimension variables
+        return archive_meta
+    
+    def populate_simulation_output_table(archive_obj, archive_meta):
+        '''Populates the SimulationOutput table
+        
+        This links simulation parameters (climate model, emissions scenario,
+        run, climate variable) to a corresponding NetCDF Variable
+        '''
+        sys.stdout.write('Starting to populate the SimulationOutput table')
+        netcdf_dataset_obj = models.NetcdfDataset.objects.get(
+            uri=archive_meta['uri']
+        )
+        for var_name in archive_meta['variables']:
+            sys.stdout.write('.')
+            try:
+                sim_params = archive_meta['variables'][var_name]['simulation_params']
+                sim, created = models.SimulationOutput.objects.get_or_create(
+                    archive = archive_obj,
+                    scenario = models.Scenario.objects.get(
+                        code=sim_params['scenario']
+                    ),
+                    climate_model = models.ClimateModel.objects.get(
+                        code=sim_params['climate_model']
+                    ),
+                    variable = models.Variable.objects.get(
+                        code=sim_params['sim_variable']
+                    ),
+                    run = sim_params['run'],
+                    netcdf_variable = models.NetcdfVariable.objects.get(
+                        netcdf_dataset=netcdf_dataset_obj,
+                        code = var_name,
+                    ),
+                )
+            except:
+                pass
+        sys.stdout.write('Done.\n')
+    
     dataset_uris= [
         'http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly',
     ]
     for dataset_uri in dataset_uris:
         # create a dictionary of metadata for the remote NetCDF Dataset
         archive_meta = build_netcdf_dictionary(dataset_uri)
+        
+        # populate the NetCDF Metadata database tables
         nc = NcDatasetImporter(archive_meta)
         nc.load()
 
+        # extract the simulation parameters which, for the USGS CIDA Maurer 
+        # archive, are stored in the variable name
+        archive_meta = extract_simulation_parameters_from_variablename(archive_meta)
+
+        # populate the SimulationOutput database table
+        populate_simulation_output_table(archive_obj, archive_meta)
 
 # list information on the archives that can be registered
 archives = {
@@ -240,17 +294,17 @@ class NcDatasetImporter(object):
                                            ndim=len(value['dimensions'])
                                         )
             for dim in value['dimensions']:
-                sys.stdout.write('{indent}dimension={dim}\n'.format(indent=' '*8,dim=dim))
+                #sys.stdout.write('{indent}dimension={dim}\n'.format(indent=' '*8,dim=dim))
                 var_dim_obj, created = models.NetcdfVariableDimension.objects.get_or_create(
                     netcdf_variable=variable_obj,
                     netcdf_dimension=dimensions[dim],
                     position=value['dimensions'].index(dim),
                 )
             for var_attr_key,var_attr_value in value.items():
-                sys.stdout.write('{indent}attribute={attr}\n'.format(
-                                                indent=' '*8,
-                                                attr=var_attr_key
-                                            ))
+#                sys.stdout.write('{indent}attribute={attr}\n'.format(
+#                                                indent=' '*8,
+#                                                attr=var_attr_key
+#                                            ))
                 if isinstance(var_attr_value, (basestring, int, tuple, np.dtype, np.float32,)):
                     attrv, created = models.NetcdfVariableAttribute.objects.get_or_create(
                         netcdf_variable=variable_obj,
@@ -329,24 +383,20 @@ class Command(LabelCommand):
                 raise ArchiveMissingException(archive_url)
             
             # create an archive
-            archive, created = Archive.objects.get_or_create(
+            archive_obj, created = Archive.objects.get_or_create(
                 url=archive_url,
                 name=info['name'],
                 code=info['code'],
             )
-            #if created:
-            if 1: # TEMP override so that code gets activated everytime
+            if created:
                 self.stdout.write('Archive record was created.\n')
-                
-                #build_simulation_output_list_usgs_maurer()
-                info['populate_netcdf_tables_method']()
-                
+                info['populate_netcdf_tables_method'](archive_obj)
+                self.stdout.write('Done!\n')
             else:
-                self.stdout.write('Archive record already exists.\n')
-            self.stdout.write('Done!\n')
+                self.stdout.write('Archive record already exists. '
+                                  'Skipping the registration process.\n')
             
         except ArchiveMissingException, (instance):
-            #import ipdb; ipdb.set_trace()
             self.stdout.write(
                 ('Archive URL ({url}) was not recognized!\n'
                 'Recognized URLs are:\n    {valid_list}\n'
@@ -356,7 +406,6 @@ class Command(LabelCommand):
                     )
             )
         except:
-            raise
-            #import sys
-            #self.stdout.write("Unexpected error:", sys.exc_info()[0])
+            import sys
+            self.stdout.write("Unexpected error:", sys.exc_info()[0])
             

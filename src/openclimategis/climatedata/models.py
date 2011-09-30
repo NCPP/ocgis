@@ -47,7 +47,9 @@ class NetcdfDimension(AbstractGeoManager):
     
     class Meta():
         unique_together = ('netcdf_dataset','name')
-
+    
+    def __unicode__(self):
+        return '{name} (size={size})'.format(name=self.name,size=self.size)
 
 class NetcdfDimensionAttribute(AbstractGeoManager):
     '''stores key value pairs for NetCDF dimension attributes'''
@@ -69,8 +71,8 @@ class NetcdfVariable(AbstractGeoManager):
     class Meta():
         unique_together = ('netcdf_dataset','code')
     
-#    def __unicode__(self):
-#        return "{name} ({code})".format(name=self.name, code=self.code)
+    def __unicode__(self):
+        return "{code} (dimensions={ndim})".format(code=self.code, ndim=self.ndim)
 
 
 class NetcdfVariableAttribute(AbstractGeoManager):
@@ -126,17 +128,14 @@ class Scenario(AbstractGeoManager):
     '''
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=10,unique=True)
+    urlslug      = models.CharField(max_length=10,unique=True)
     description  = models.TextField(null=True)
     
     class Meta():
         verbose_name = "climate emissions scenario"
     
     def __unicode__(self):
-        return "{name} ({code})".format(name=self.name, code=self.code)
-    
-    def urlslug(self):
-        return _slugify(self.code)
-    urlslug.short_description = 'URL Slug'
+        return "{code}".format(code=self.code)
 
 
 class Archive(AbstractGeoManager):
@@ -157,7 +156,7 @@ class Archive(AbstractGeoManager):
         verbose_name = "climate simulation archive"
     
     def __unicode__(self):
-        return "{name} ({code})".format(name=self.name, code=self.code)
+        return "{code}".format(code=self.code)
 
 
 class ClimateModel(AbstractGeoManager):
@@ -168,6 +167,7 @@ class ClimateModel(AbstractGeoManager):
     '''
     name         = models.CharField(max_length=50)
     code         = models.CharField(max_length=25,unique=True)
+    urlslug      = models.CharField(max_length=25,unique=True)
     organization = models.ForeignKey(Organization)
     url          = models.URLField(
         verify_exists=False,
@@ -180,11 +180,7 @@ class ClimateModel(AbstractGeoManager):
         verbose_name = "climate model"
     
     def __unicode__(self):
-        return "{name} ({code})".format(name=self.name, code=self.code)
-    
-    def urlslug(self):
-        return _slugify(self.code)
-    urlslug.short_description = 'URL Slug'
+        return "{code}".format(code=self.code)
 
 
 class Variable(AbstractGeoManager):

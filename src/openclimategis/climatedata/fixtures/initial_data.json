@@ -154,6 +154,7 @@
     "model": "climatedata.scenario",
     "fields": {
       "code": "SRES A1B",
+      "urlslug": "sres-a1b",
       "name": "720 ppm stabilization experiment",
       "description": "From http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments\r\n#############################################\r\nImpose SRES A1B conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
     }
@@ -163,6 +164,7 @@
     "model": "climatedata.scenario",
     "fields": {
       "code": "SRES A2",
+      "urlslug": "sres-a2",
       "name": "SRES A2 experiment",
       "description": "Notes: should take the end of the 20C3M run as its initial condition."
     }
@@ -172,6 +174,7 @@
     "model": "climatedata.scenario",
     "fields": {
       "code": "SRES B1",
+      "urlslug": "sres-b1",
       "name": "550 ppm stabilization experiment",
       "description": "Notes: Impose SRES B1 conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
     }
@@ -183,6 +186,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html",
       "organization": 2,
       "code": "BCC-CM1",
+      "urlslug": "bcc-cm1",
       "name": "Beijing Climate Center CM1",
       "comments": "More information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm"
     }
@@ -194,6 +198,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-BCCR-BCM2-change.html",
       "organization": 1,
       "code": "BCCR-BCM2.0",
+      "urlslug": "bccr-bcm2.0",
       "name": "Bergen Climate Model Version 2",
       "comments": "More Information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php"
     }
@@ -205,6 +210,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-CNRM-CM3-change.html",
       "organization": 5,
       "code": "CNRM-CM3",
+      "urlslug": "cnrm-cm3",
       "name": "CNRM-CM3",
       "comments": ""
     }
@@ -216,6 +222,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-CSIRO-MK3-change.html",
       "organization": 6,
       "code": "CSIRO-Mk3.0",
+      "urlslug": "csiro-mk3.0",
       "name": "CSIRO Mark 3.0",
       "comments": ""
     }
@@ -227,6 +234,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2-change.html",
       "organization": 7,
       "code": "GFDL-CM2.0",
+      "urlslug": "gfdl-cm2.0",
       "name": "CM2.0 - AOGCM",
       "comments": ""
     }
@@ -238,6 +246,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2_1-change.html",
       "organization": 7,
       "code": "GFDL-CM2.1",
+      "urlslug": "gfdl-cm2.1",
       "name": "CM2.1 - AOGCM",
       "comments": ""
     }
@@ -249,6 +258,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-NASA-GISS-ER-change.html",
       "organization": 8,
       "code": "GISS-ER",
+      "urlslug": "giss-er",
       "name": "GISS ModelE-R",
       "comments": ""
     }
@@ -260,6 +270,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-INM-CM3-change.html",
       "organization": 9,
       "code": "INM-CM3.0",
+      "urlslug": "inm-cm3.0",
       "name": "INMCM3.0",
       "comments": ""
     }
@@ -271,6 +282,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-IPSL-CM4-change.html",
       "organization": 10,
       "code": "IPSL-CM4",
+      "urlslug": "ipsl-cm4",
       "name": "IPSL-CM4",
       "comments": ""
     }
@@ -282,6 +294,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-NIES-MIROC3_2-MED-change.html",
       "organization": 11,
       "code": "MIROC3.2(medres)",
+      "urlslug": "miroc3.2(medres)",
       "name": "MIROC3.2 (Model for Interdisciplinary Research on ",
       "comments": ""
     }
@@ -293,6 +306,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-CONS-ECHO-G-change.html",
       "organization": 12,
       "code": "ECHO-G",
+      "urlslug": "echo-g",
       "name": "ECHO-G = ECHAM4 + HOPE-G",
       "comments": "Additional organization: Institute of KMA, and Model and Data group, Korea"
     }
@@ -304,6 +318,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-MPIM-ECHAM5-change.html",
       "organization": 13,
       "code": "ECHAM5/MPI-OM",
+      "urlslug": "echam5-mpi-om",
       "name": "ECHAM5/MPI-OM",
       "comments": ""
     }
@@ -315,6 +330,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-MRI-CGCM2_3_2-change.html",
       "organization": 14,
       "code": "MRI-CGCM2.3.2",
+      "urlslug": "mri-cgcm2.3.2",
       "name": "MRI-CGCM2.3.2",
       "comments": ""
     }
@@ -326,6 +342,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-NCAR-CCSM3-change.html",
       "organization": 15,
       "code": "CCSM3",
+      "urlslug": "ccsm3",
       "name": "Community Climate System Model, version 3.0",
       "comments": ""
     }
@@ -337,6 +354,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-NCAR-PCM-change.html",
       "organization": 15,
       "code": "PCM",
+      "urlslug": "pcm",
       "name": "Parallel Climate Model",
       "comments": ""
     }
@@ -348,6 +366,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-UKMO-HADCM3-change.html",
       "organization": 16,
       "code": "UKMO-HadCM3",
+      "urlslug": "ukmo-hadcm3",
       "name": "HadCM3",
       "comments": ""
     }
@@ -359,6 +378,7 @@
       "url": "http://www.ipcc-data.org/ar4/model-CCCMA-CGCM3_1-T47-change.html",
       "organization": 3,
       "code": "CGCM3.1(T47)",
+      "urlslug": "cgcm3.1-T47",
       "name": "Coupled Global Climate Model (T47)",
       "comments": ""
     }

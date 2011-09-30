@@ -5,7 +5,8 @@ from util.helpers import get_temp_path
 from django.core import serializers
 import geojson
 from django.shortcuts import render_to_response
-from experimental.in_memory_oo_update import as_geojson
+from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
+    as_keyTabular
 
 
 class OpenClimateEmitter(Emitter):
@@ -87,6 +88,32 @@ class GeoJsonEmitter(IdentityEmitter):
         conv = as_geojson(elements)
         return(conv)
     
+
+class CsvEmitter(IdentityEmitter):
+    """
+    Tabular CSV format. (.csv)
+    """
+    
+    def render(self,request):
+        elements = self.construct()
+        var = request.ocg.simulation_output.netcdf_variable.code
+        conv = as_tabular(elements,var)
+        return(conv)
+    
+
+class CsvKeyEmitter(IdentityEmitter):
+    """
+    Tabular CSV format reduced to relational tables. (.csv)
+    """
+    
+    def render(self,request):
+        elements = self.construct()
+        var = request.ocg.simulation_output.netcdf_variable.code
+        conv = as_keyTabular(elements,var)
+        print(conv)
+        return(conv)
+    
+    
 #    def render(self,request):
 #        ## return the data from a spatial handler
 #        data = self.construct()
@@ -115,3 +142,5 @@ Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
 Emitter.register('geojson',GeoJsonEmitter,'application/geojson; charset=utf-8')
+Emitter.register('csv',CsvEmitter,'text/html; charset=utf-8')
+Emitter.register('kcsv',CsvKeyEmitter,'text/html; charset=utf-8')

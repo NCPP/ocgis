@@ -46,6 +46,8 @@ class OpenClimateHandler(BaseHandler):
 #        self._query_string_(request)
         ## parse URL arguments
         self._parse_slugs_(kwds)
+        ## add OCG object to request object for use by emitters
+        request.ocg = self.ocg
 #        import ipdb;ipdb.set_trace()
         ## call the subclass read methods
         return self.check(self._read_(request))
@@ -260,7 +262,7 @@ class SpatialHandler(OpenClimateHandler):
         else:
             clip = False
 
-        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
         
         elements = multipolygon_multicore_operation(dataset.uri,
                                       self.ocg.simulation_output.netcdf_variable.code,

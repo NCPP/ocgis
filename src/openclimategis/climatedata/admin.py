@@ -15,6 +15,15 @@ from climatedata.models import Archive
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
 
+
+class ScenarioAdmin(admin.ModelAdmin):
+    #fields = ['code','name','description']
+    list_display = ('name','code','urlslug')
+
+class ClimateModelAdmin(admin.ModelAdmin):
+    #fields = ['code','name','description']
+    list_display = ('name','code','urlslug')
+
 admin.site.register(NetcdfDataset)
 admin.site.register(NetcdfDatasetAttribute)
 admin.site.register(NetcdfDimension)
@@ -24,8 +33,8 @@ admin.site.register(NetcdfVariableAttribute)
 admin.site.register(NetcdfVariableDimension)
 
 admin.site.register(Organization)
-admin.site.register(Scenario)
-admin.site.register(ClimateModel)
+admin.site.register(Scenario, ScenarioAdmin)
+admin.site.register(ClimateModel, ClimateModelAdmin)
 admin.site.register(Archive)
 admin.site.register(Variable)
 admin.site.register(SimulationOutput)

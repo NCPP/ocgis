@@ -1,5 +1,10 @@
 from django.contrib.gis.db import models
 
+def _slugify(phrase):
+    '''Returns a slug version of a phrase, suitable for including in a URL'''
+    return phrase.replace(" ","-").replace("/","-").lower()
+
+
 class AbstractGeoManager(models.Model):
     objects = models.GeoManager()
     
@@ -128,6 +133,10 @@ class Scenario(AbstractGeoManager):
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
+    
+    def urlslug(self):
+        return _slugify(self.code)
+    urlslug.short_description = 'URL Slug'
 
 
 class Archive(AbstractGeoManager):
@@ -172,6 +181,10 @@ class ClimateModel(AbstractGeoManager):
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
+    
+    def urlslug(self):
+        return _slugify(self.code)
+    urlslug.short_description = 'URL Slug'
 
 
 class Variable(AbstractGeoManager):

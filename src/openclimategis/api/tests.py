@@ -61,7 +61,7 @@ class TestUrls(unittest.TestCase):
     def test_urls(self):
         ext = 'shz'
         drange = '2010-3-1+2010-4-30'
-        polygon = '-96+38,-95+38,-95+39,-96+39'
+        polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
         sop = 'clip'
         agg = 'false'
         cm = 'MIROC3.2(medres)'

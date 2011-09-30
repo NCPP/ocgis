@@ -1,7 +1,6 @@
 from piston.handler import BaseHandler
 from emitters import *
 from piston.utils import rc
-from util.ncconv import NetCdfAccessor
 from util.helpers import parse_polygon_wkt, merge_dict
 from django.contrib.gis.geos.geometry import GEOSGeometry
 import datetime
@@ -12,6 +11,7 @@ import netCDF4
 from slug import *
 import climatedata.models
 from experimental.in_memory_oo_update import OcgDataset
+from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
 
 
 class ocg(object):
@@ -253,22 +253,41 @@ class SpatialHandler(OpenClimateHandler):
                     time_units=dataset.time_units,
                     calendar=dataset.calendar,)
 #                    level_name=self.ocg.dataset.level_name,) TODO: add level variable name
-        ## make the dataset object
-        
+
+        ## construct arguments to clip operation
+        if self.ocg.operation == 'clip':
+            clip = True
+        else:
+            clip = False
+
         import ipdb;ipdb.set_trace()
         
-        try:
-            dataset = netCDF4.Dataset(self.ocg.dataset.uri,'r')
-            d = OcgDataset(dataset,**kwds)
-            ## pull the elements
-            elements = d.extract_elements(self.ocg.variable.title(), # TODO: variable formatting
-                                          dissolve=self.ocg.aggregate,
-                                          polygon=self.ocg.aoi,
-                                          time_range=self.ocg.temporal,
-                                          clip=self.ocg.operation)
-        ## close the connection...
-        finally:
-            dataset.close()
+        elements = multipolygon_multicore_operation(dataset.uri,
+                                      self.ocg.simulation_output.netcdf_variable.code,
+                                      [self.ocg.aoi],
+                                      time_range=self.ocg.temporal,
+                                      clip=clip,
+                                      dissolve=self.ocg.aggregate,
+                                      levels=None,
+                                      ocgOpts=kwds,
+                                      subdivide=True,
+                                      #subres = 90
+                                      )
+        
+#        import ipdb;ipdb.set_trace()
+        
+#        try:
+#            dataset = netCDF4.Dataset(self.ocg.dataset.uri,'r')
+#            d = OcgDataset(dataset,**kwds)
+#            ## pull the elements
+#            elements = d.extract_elements(self.ocg.variable.title(), # TODO: variable formatting
+#                                          dissolve=self.ocg.aggregate,
+#                                          polygon=self.ocg.aoi,
+#                                          time_range=self.ocg.temporal,
+#                                          clip=self.ocg.operation)
+#        ## close the connection...
+#        finally:
+#            dataset.close()
             
         return(elements)
         

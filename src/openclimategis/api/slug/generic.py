@@ -57,6 +57,12 @@ class BooleanSlug(OcgSlug):
         else:
             self._exception_()
         return(ret)
+    
+    
+class IntegerSlug(OcgSlug):
+    
+    def _get_(self):
+        return(int(self.url_arg))
 
 
 class DjangoQuerySlug(OcgSlug):

@@ -69,25 +69,30 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
         self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value
         self.ocg.operation = OperationSlug('operation',possible=kwds).value
-        self.ocg.variable = OcgSlug('variable',possible=kwds).value
         self.ocg.html_template = OcgSlug('html_template',possible=kwds).value
+        self.ocg.run = IntegerSlug('run',possible=kwds).value
         
+        self.ocg.variable = IExactQuerySlug(models.Variable,'variable',possible=kwds,one=True).value
         self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds,one=True).value
         self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds,one=True).value
-        self.ocg.climatemodel = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True).value
+        self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True).value
         
         ## return the dataset object if all components passed
-        if all([self.ocg.scenario,self.ocg.archive,self.ocg.climatemodel]):
+        if all([self.ocg.scenario,self.ocg.archive,self.ocg.climate_model,self.ocg.run,self.ocg.variable]):
             fkwds = dict(archive=self.ocg.archive,
                          scenario=self.ocg.scenario,
-                         climatemodel=self.ocg.climatemodel)
-            qs = climatedata.models.Dataset.objects.filter(**fkwds)
+                         climate_model=self.ocg.climate_model,
+                         run=self.ocg.run,
+                         variable=self.ocg.variable)
+            qs = climatedata.models.SimulationOutput.objects.filter(**fkwds)
             assert(len(qs) == 1)
-            self.ocg.dataset = qs[0]
+            self.ocg.simulation_output = qs[0]
         else:
-            self.ocg.dataset = None
+            self.ocg.simulation_output = None
             
-        pass
+#        import ipdb;ipdb.set_trace()
+            
+        
     
 #    def _parse_kwds_(self,kwds):
 #        """Parser and formatter for potential URL keyword arguments."""
@@ -237,14 +242,21 @@ class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
         
+#        import ipdb;ipdb.set_trace()
+        
+        dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
+        
         ## arguments for the dataset object
-        kwds = dict(rowbnds_name=self.ocg.dataset.rowbnds_name,
-                    colbnds_name=self.ocg.dataset.colbnds_name,
-                    time_name=self.ocg.dataset.time_name,
-                    time_units=self.ocg.dataset.time_units,
-                    calendar=self.ocg.dataset.calendar,)
+        kwds = dict(rowbnds_name=dataset.rowbnds_name,
+                    colbnds_name=dataset.colbnds_name,
+                    time_name=dataset.time_name,
+                    time_units=dataset.time_units,
+                    calendar=dataset.calendar,)
 #                    level_name=self.ocg.dataset.level_name,) TODO: add level variable name
         ## make the dataset object
+        
+        import ipdb;ipdb.set_trace()
+        
         try:
             dataset = netCDF4.Dataset(self.ocg.dataset.uri,'r')
             d = OcgDataset(dataset,**kwds)

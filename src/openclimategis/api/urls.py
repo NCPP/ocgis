@@ -15,6 +15,7 @@ spatial_handler = Resource(handlers.SpatialHandler)
 re_archive = 'archive/(?P<archive>.*)'
 re_model = 'model/(?P<model>.*)'
 re_scenario = 'scenario/(?P<scenario>.*)'
+re_run = 'run/(?P<run>.*)'
 re_temporal = 'temporal/(?P<temporal>.*)'
 re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
 re_aggregate = 'aggregate/(?P<aggregate>true|false)'
@@ -45,7 +46,7 @@ urlpatterns = patterns('',
 ##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
 ##       grid.<format>
 
-((r'^test/{re_archive}/{re_model}/{re_scenario}/{re_temporal}/{re_spatial}/'
+((r'^test/{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
    '{re_aggregate}/{re_variable}'.format(
     re_archive=re_archive,
     re_model=re_model,
@@ -53,7 +54,8 @@ urlpatterns = patterns('',
     re_temporal=re_temporal,
     re_spatial=re_spatial,
     re_aggregate=re_aggregate,
-    re_variable=re_variable)),
+    re_variable=re_variable,
+    re_run=re_run)),
    spatial_handler
  ),
  

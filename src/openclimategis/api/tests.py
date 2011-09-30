@@ -1,5 +1,6 @@
 from django.test.testcases import TestCase, TransactionTestCase
 from django.test.client import Client
+import unittest
 
 #from climatedata.tests import import_single
 
@@ -47,12 +48,12 @@ from django.test.client import Client
 #        
 #    def tearDown(self):
 #        self.rootgrp.close()
-        
-        
-class TestUrls(TransactionTestCase):
+
+     
+class TestUrls(unittest.TestCase):
     """Test URLs for correct response codes."""
     
-    fixtures = ['luca_fixtures.json']
+#    fixtures = ['luca_fixtures.json']
     
     def setUp(self):
         self.client = Client()
@@ -63,13 +64,14 @@ class TestUrls(TransactionTestCase):
         polygon = '-96+38,-95+38,-95+39,-96+39'
         sop = 'clip'
         agg = 'false'
-        cm = 'bccr_bcm2.0'
-        scenario = 'sresa1b'
-        archive = 'maurer'
-        var = 'prcp'
+        cm = 'MIROC3.2(medres)'
+        scenario = 'SRES A1B'
+        archive = 'cida.usgs.gov/maurer'
+        var = 'pr'
+        run = 2
         
         base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
-                    'temporal/{drange}/spatial/{sop}+polygon'
+                    'run/{run}/temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/{agg}/'
                     'variable/{variable}.{ext}')
         
@@ -81,8 +83,9 @@ class TestUrls(TransactionTestCase):
                               cm=cm,
                               scenario=scenario,
                               archive=archive,
-                              variable=var)
-        
+                              variable=var,
+                              run=run)
+
         response = self.client.get(url)
      
     def OLD_test_urls(self):
@@ -242,4 +245,4 @@ class TestUrls(TransactionTestCase):
             
             
 if __name__ == '__main__':
-    pass
+    unittest.main()

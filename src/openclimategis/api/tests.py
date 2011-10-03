@@ -1,6 +1,7 @@
 from django.test.testcases import TestCase, TransactionTestCase
 from django.test.client import Client
 import unittest
+import itertools
 
 #from climatedata.tests import import_single
 
@@ -59,34 +60,38 @@ class TestUrls(unittest.TestCase):
         self.client = Client()
     
     def test_urls(self):
-        ext = 'kcsv'
+        exts = ['csv','kcsv','shz','geojson']
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
-        sop = 'clip'
-        agg = 'false'
+        sops = ['intersects','clip']
+        aggs = ['true','false']
         cm = 'MIROC3.2(medres)'
         scenario = 'SRES A1B'
         archive = 'cida.usgs.gov/maurer'
         var = 'pr'
         run = 2
         
-        base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
-                    'run/{run}/temporal/{drange}/spatial/{sop}+polygon'
-                    '(({polygon}))/aggregate/{agg}/'
-                    'variable/{variable}.{ext}')
+        for ext,sop,agg in itertools.product(exts,sops,aggs):
+            
+            print(ext,sop,agg)
         
-        url = base_url.format(ext=ext,
-                              drange=drange,
-                              polygon=polygon,
-                              sop=sop,
-                              agg=agg,
-                              cm=cm,
-                              scenario=scenario,
-                              archive=archive,
-                              variable=var,
-                              run=run)
+            base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
+                        'run/{run}/temporal/{drange}/spatial/{sop}+polygon'
+                        '(({polygon}))/aggregate/{agg}/'
+                        'variable/{variable}.{ext}')
+            
+            url = base_url.format(ext=ext,
+                                  drange=drange,
+                                  polygon=polygon,
+                                  sop=sop,
+                                  agg=agg,
+                                  cm=cm,
+                                  scenario=scenario,
+                                  archive=archive,
+                                  variable=var,
+                                  run=run)
 
-        response = self.client.get(url)
+            response = self.client.get(url)
      
     def OLD_test_urls(self):
 

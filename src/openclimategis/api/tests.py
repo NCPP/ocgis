@@ -17,8 +17,7 @@ class TestUrls(unittest.TestCase):
         self.client = Client()
     
     def test_urls(self):
-#        exts = ['csv','kcsv','shz','geojson']
-        exts = ['shz']
+        exts = ['csv','kcsv','shz','geojson']
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
 #        sops = ['intersects','clip']
@@ -27,7 +26,7 @@ class TestUrls(unittest.TestCase):
         aggs = ['true']
         cm = 'miroc3.2(medres)'
         scenario = 'sres-a1b'
-        archive = 'usgs-cida-maurer'
+        archive = 'cida.usgs.gov/maurer'
         var = 'pr'
         run = 2
         

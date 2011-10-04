@@ -21,8 +21,10 @@ class TestUrls(unittest.TestCase):
         exts = ['shz']
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
-        sops = ['intersects','clip']
-        aggs = ['true','false']
+#        sops = ['intersects','clip']
+        sops = ['intersects']
+#        aggs = ['true','false']
+        aggs = ['true']
         cm = 'miroc3.2(medres)'
         scenario = 'sres-a1b'
         archive = 'usgs-cida-maurer'

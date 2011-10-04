@@ -85,7 +85,11 @@ class OpenClimateShp(object):
                     args = (o.ogr_name,attr[o.orig_name])
                 else:
                     args = (o.ogr_name,attr['properties'][o.orig_name])
-                feat.SetField(*args)
+                try:
+                    feat.SetField(*args)
+                except NotImplementedError:
+                    args[1] = str(args[1])
+                    feat.SetField(*args)
             check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr[self.geom].wkt)))
             check_err(layer.CreateFeature(feat))
         

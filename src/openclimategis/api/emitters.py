@@ -2,8 +2,6 @@ from piston.emitters import Emitter
 from django.http import HttpResponse
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
-from django.core import serializers
-import geojson
 from django.shortcuts import render_to_response
 from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
     as_keyTabular
@@ -15,7 +13,8 @@ class OpenClimateEmitter(Emitter):
     """
     def render(self,request):
         raise NotImplementedError
-    
+
+
 class IdentityEmitter(OpenClimateEmitter):
     """
     The standard Django Piston emitter does unnecessary computations when an
@@ -24,9 +23,6 @@ class IdentityEmitter(OpenClimateEmitter):
     
     def construct(self):
         return self.data
-    
-#    def construct(self):
-#        import ipdb;ipdb.set_trace()
     
 
 class HelloWorldEmitter(OpenClimateEmitter):
@@ -40,7 +36,6 @@ class HelloWorldEmitter(OpenClimateEmitter):
 class HtmlEmitter(IdentityEmitter):
     
     def render(self,request):
-#        import pdb;pdb.set_trace()
         return render_to_response('archives.html',self.construct())
 #        return HttpResponse(str(self.construct()))
 
@@ -113,29 +108,6 @@ class CsvKeyEmitter(IdentityEmitter):
         print(conv)
         return(conv)
     
-    
-#    def render(self,request):
-#        ## return the data from a spatial handler
-#        data = self.construct()
-#        ## this list holds the features to add to a feature collection
-#        features = []
-#        ## loop for each row/feature in the returned data
-#        for row in data:
-#            ## construct the geometry
-#            geom = geojson.MultiPolygon(row.pop('geom').coords)
-#            ## pull the unique identifier
-#            id = row.pop('id')
-#            ## change the timestamp to a string
-#            row['timestamp'] = str(row['timestamp'])
-#            ## construct the feature
-##            import ipdb;ipdb.set_trace()
-#            feature = geojson.Feature(id=id,geometry=geom,properties=row)
-#            ## append the feature to the collection
-#            features.append(feature)
-#        ## make the feature collection
-#        fc = geojson.FeatureCollection(features)
-#        
-#        return(geojson.dumps(fc))
     
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')

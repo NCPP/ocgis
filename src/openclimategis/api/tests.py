@@ -3,52 +3,9 @@ from django.test.client import Client
 import unittest
 import itertools
 
-#from climatedata.tests import import_single
 
-
-#def disabled(f):
-#    warn('{0} TEST DISABLED!'.format(f.__name__))
-#
-#def get_fixtures():
-#    return [os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','luca_fixtures.json')]
-#
-#def get_example_netcdf():
-#    var = 'psl'
-#    units_var = 'pa'
-#    nw = NcWrite(var,units_var)
-#    path = get_temp_path(suffix='.nc')
-#    rootgrp = nw.write(path,close=False)
-#    return({
-#            'var':var,
-#            'units_var':units_var,
-#            'nw':nw,
-#            'path':path,
-#            'rootgrp':rootgrp,
-#            })
-
-
-#class NetCdfAccessTest(TransactionTestCase):
-#    """
-#    Tests requiring an NetCDF file to read should subclass this. Once a test
-#    OpenDap server is available, this object is obsolete.
-#    """
-#    
-#    fixtures = get_fixtures()
-#    
-#    def setUp(self):
-#        self.client = Client()
-#        
-#        attrs = get_example_netcdf()
-#        for key,value in attrs.iteritems():
-#            setattr(self,key,value)
-##        self.var = 'Tavg'
-##        self.units_var = 'C'
-##        self.nw = NcWrite(self.var,self.units_var)
-##        self.path = get_temp_path(suffix='.nc')
-##        self.rootgrp = self.nw.write(self.path,close=False)
-#        
-#    def tearDown(self):
-#        self.rootgrp.close()
+def disabled(f):
+    warn('{0} TEST DISABLED!'.format(f.__name__))
 
      
 class TestUrls(unittest.TestCase):
@@ -65,8 +22,8 @@ class TestUrls(unittest.TestCase):
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
         sops = ['intersects','clip']
         aggs = ['true','false']
-        cm = 'MIROC3.2(medres)'
-        scenario = 'SRES A1B'
+        cm = 'miroc3.2(medres)'
+        scenario = 'sres-a1b'
         archive = 'cida.usgs.gov/maurer'
         var = 'pr'
         run = 2
@@ -183,35 +140,6 @@ class TestUrls(unittest.TestCase):
             self.assertEqual(response.status_code,200)
         
         
-
-#class NetCdfAccessorTests(NetCdfAccessTest):
-#    
-#    def test_constructor(self):
-#        na = NetCdfAccessor(self.rootgrp,self.var)
-#        self.assertTrue(len(na._timevec) > 0)
-#
-#    def test_get_dict(self):
-#        """Convert entire NetCDF to dict."""
-#        
-#        qs = SpatialGridCell.objects.all().order_by('row','col')
-#        geom_list = [MultiPolygon(obj.geom) for obj in qs]
-#        na = NetCdfAccessor(self.rootgrp,self.var)
-#        dl = na.get_dict(geom_list)
-#        self.assertEquals(len(dl),len(geom_list)*len(self.nw.dim_time))
-#        
-#    def test_get_dict_intersects(self):
-#        """Convert subset of NetCDF to dict."""
-#        
-#        igeom = Polygon(((11.5,3.5),(12.5,3.5),(12.5,2.5),(11.5,2.5),(11.5,3.5)))
-#        qs = SpatialGridCell.objects.filter(geom__intersects=igeom).order_by('row','col')
-#        y_indices = [obj.row for obj in qs]
-#        x_indices = [obj.col for obj in qs]
-#        geom_list = [MultiPolygon(obj.geom) for obj in qs]
-#        na = NetCdfAccessor(self.rootgrp,self.var)
-#        dl = na.get_dict(geom_list,col=x_indices,row=y_indices)
-#        self.assertEqual(len(dl),len(geom_list)*len(self.nw.dim_time))
-        
-        
 #class OpenClimateShpTests(NetCdfAccessTest):
 #    
 #    def get_object(self):
@@ -247,7 +175,7 @@ class TestUrls(unittest.TestCase):
 #        for q in qs: 
 #            wkt = parse_polygon_wkt(q)
 #            self.assertEqual(wkt,actual)
-            
-            
+
+
 if __name__ == '__main__':
     unittest.main()

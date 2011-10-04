@@ -26,7 +26,7 @@ class TestUrls(unittest.TestCase):
         aggs = ['true']
         cm = 'miroc3.2(medres)'
         scenario = 'sres-a1b'
-        archive = 'cida.usgs.gov/maurer'
+        archive = 'usgs-cida-maurer'
         var = 'pr'
         run = 2
         

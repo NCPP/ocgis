@@ -145,6 +145,7 @@ class Archive(AbstractGeoManager):
     '''
     name         = models.CharField(max_length=255,unique=True)
     code         = models.CharField(max_length=25,unique=True)
+    urlslug      = models.CharField(max_length=25,unique=True)
     url          = models.URLField(
         verify_exists=False, 
         max_length=200,

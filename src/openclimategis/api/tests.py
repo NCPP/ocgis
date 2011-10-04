@@ -22,8 +22,8 @@ class TestUrls(unittest.TestCase):
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
         sops = ['intersects','clip']
         aggs = ['true','false']
-        cm = 'MIROC3.2(medres)'
-        scenario = 'SRES A1B'
+        cm = 'miroc3.2(medres)'
+        scenario = 'sres-a1b'
         archive = 'cida.usgs.gov/maurer'
         var = 'pr'
         run = 2

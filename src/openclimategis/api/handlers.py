@@ -69,9 +69,9 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.run = IntegerSlug('run',possible=kwds).value
         
         self.ocg.variable = IExactQuerySlug(models.Variable,'variable',possible=kwds,one=True).value
-        self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds,one=True).value
+        self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds,one=True,code_field='urlslug').value
         self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds,one=True).value
-        self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True).value
+        self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True,code_field='urlslug').value
         
         ## return the dataset object if all components passed
         if all([self.ocg.scenario,self.ocg.archive,self.ocg.climate_model,self.ocg.run,self.ocg.variable]):

@@ -63,7 +63,7 @@ class TestUrls(unittest.TestCase):
         exts = ['csv','kcsv','shz','geojson']
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
-        sops = ['intersects','clip']
+        sops = ['clip']
         aggs = ['true','false']
         cm = 'MIROC3.2(medres)'
         scenario = 'SRES A1B'

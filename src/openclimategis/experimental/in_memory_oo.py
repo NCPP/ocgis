@@ -297,6 +297,8 @@ class OcgDataset(object):
             dissolve = kwds.pop('dissolve')
         else:
             dissolve = False
+        ## pull the variable name from the arguments
+        var_name = args[0]
         
         ## extract numpy data from the nc file
         npd = self._get_numpy_data_(*args,**kwds)
@@ -339,7 +341,7 @@ class OcgDataset(object):
                 feature = dict(
                     id=ids.next(),
                     geometry=unioned,
-                    properties=dict({VAR:float(weighted[kk,:,:].sum()),
+                    properties=dict({var_name:float(weighted[kk,:,:].sum()),
                                      'timestamp':self.timevec[self._idxtime[kk]]}))
                 features.append(feature)
         else:
@@ -355,7 +357,7 @@ class OcgDataset(object):
                         feature = dict(
                             id=ids.next(),
                             geometry=self._igrid[ii,jj],
-                            properties=dict({VAR:float(data[kk]),
+                            properties=dict({var_name:float(data[kk]),
                                              'timestamp':self.timevec[self._idxtime[kk]]}))
                         features.append(feature)
         
@@ -385,12 +387,12 @@ def as_shp(elements,path=None):
     ocs.write()
     return(path)
 
-def multipolygon_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None):
+def multipolygon_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,ocg_kwds={}):
     elements = []
-    ncp = OcgDataset(dataset)
-    for ii,polygon in enumerate(polygons):
+    ncp = OcgDataset(dataset,**ocg_kwds)
+    for polygon in polygons:
 #        if ii != 2: continue
-        print(ii)
+#        print(ii)
 #        ncp = OcgDataset(dataset)
         elements += ncp.extract_elements(var,
                                          polygon=polygon,

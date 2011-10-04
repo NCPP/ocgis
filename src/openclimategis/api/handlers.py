@@ -6,6 +6,8 @@ import inspect
 from slug import *
 import climatedata.models
 from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
+import netCDF4
+from experimental.in_memory_oo import multipolygon_operation
 
 
 class ocg(object):
@@ -131,31 +133,38 @@ class SpatialHandler(OpenClimateHandler):
         else:
             clip = False
         
-        elements = multipolygon_multicore_operation(dataset.uri,
-                                      self.ocg.simulation_output.netcdf_variable.code,
-                                      [self.ocg.aoi],
-                                      time_range=self.ocg.temporal,
-                                      clip=clip,
-                                      dissolve=self.ocg.aggregate,
-                                      levels=None,
-                                      ocgOpts=kwds,
-                                      subdivide=True,
-                                      #subres = 90
-                                      )
+#        elements = multipolygon_multicore_operation(dataset.uri,
+#                                      self.ocg.simulation_output.netcdf_variable.code,
+#                                      [self.ocg.aoi],
+#                                      time_range=self.ocg.temporal,
+#                                      clip=clip,
+#                                      dissolve=self.ocg.aggregate,
+#                                      levels=None,
+#                                      ocgOpts=kwds,
+#                                      subdivide=True,
+#                                      #subres = 90
+#                                      )
         
 #        import ipdb;ipdb.set_trace()
         
-#        try:
-#            dataset = netCDF4.Dataset(self.ocg.dataset.uri,'r')
-#            d = OcgDataset(dataset,**kwds)
+        try:
+            dataset = netCDF4.Dataset(dataset.uri,'r')
+            elements = multipolygon_operation(dataset,
+                                              self.ocg.simulation_output.netcdf_variable.code,
+                                              [self.ocg.aoi],
+                                              time_range=self.ocg.temporal,
+                                              clip=clip,
+                                              dissolve=self.ocg.aggregate,
+                                              ocg_kwds=kwds
+                                              )
 #            ## pull the elements
 #            elements = d.extract_elements(self.ocg.variable.title(), # TODO: variable formatting
 #                                          dissolve=self.ocg.aggregate,
 #                                          polygon=self.ocg.aoi,
 #                                          time_range=self.ocg.temporal,
 #                                          clip=self.ocg.operation)
-#        ## close the connection...
-#        finally:
-#            dataset.close()
+        ## close the connection...
+        finally:
+            dataset.close()
             
         return(elements)

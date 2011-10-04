@@ -25,6 +25,10 @@ from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
 
+#def _slugify(phrase):
+#    '''Returns a slug version of a phrase, suitable for including in a URL'''
+#    return phrase.replace(" ","-").replace("/","-").lower()
+
 def build_netcdf_dictionary(netcdf_dataset_uri):
     '''creates a dictionary corresponding to a NetCDF file metadata'''
     try:
@@ -204,12 +208,14 @@ archives = {
         {
             'name': '1/8 degree-CONUS Monthly Bias Corrected Spatially Downscaled Climate Projections by Maurer, Brekke, Pruitt, and Duffy',
             'code': 'cida.usgs.gov/maurer',
+            'urlslug': 'usgs-cida-maurer',
             'populate_netcdf_tables_method': register_usgs_maurer_archive,
         },
     'http://hydra.fsl.noaa.gov/thredds/esgcet/catalog.html':
         {
             'name': 'NOAA OpenClimateGIS Downscaling Archive',
             'code': 'oc_gis_downscaling',
+            'urlslug': 'noaa-esg-maurer',
             'populate_netcdf_tables_method': 'PLACEHOLDER',
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
 #                'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Tavg.Tavg.1.aggregation.1'
@@ -400,6 +406,7 @@ class Command(LabelCommand):
                 url=archive_url,
                 name=info['name'],
                 code=info['code'],
+                urlslug=info['urlslug']
             )
             if created:
                 self.stdout.write('Archive record was created.\n')
@@ -419,6 +426,5 @@ class Command(LabelCommand):
                     )
             )
         except:
-            import sys
             self.stdout.write("Unexpected error:", sys.exc_info()[0])
             

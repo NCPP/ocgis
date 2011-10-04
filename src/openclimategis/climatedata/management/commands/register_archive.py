@@ -1,16 +1,29 @@
+''' Registers a climate model archive with OpenClimateGIS
+
+Example: ./manage.py register_archive http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly
+'''
+
 import sys
-import os
+#import os
 import types
 import warnings
 import netCDF4
 import numpy as np
 from django.core.management.base import LabelCommand
 from django.contrib.gis.geos.polygon import Polygon
-from climatedata import models
+#from climatedata import models
+from climatedata.models import NetcdfDataset
+from climatedata.models import NetcdfDatasetAttribute
+from climatedata.models import NetcdfDimension
+from climatedata.models import NetcdfDimensionAttribute
+from climatedata.models import NetcdfVariable
+from climatedata.models import NetcdfVariableDimension
+from climatedata.models import NetcdfVariableAttribute
 from climatedata.models import Archive
 from climatedata.models import ClimateModel
 from climatedata.models import Scenario
 from climatedata.models import Variable
+from climatedata.models import SimulationOutput
 
 def build_netcdf_dictionary(netcdf_dataset_uri):
     '''creates a dictionary corresponding to a NetCDF file metadata'''
@@ -139,26 +152,26 @@ def register_usgs_maurer_archive(archive_obj):
         run, climate variable) to a corresponding NetCDF Variable
         '''
         sys.stdout.write('Starting to populate the SimulationOutput table')
-        netcdf_dataset_obj = models.NetcdfDataset.objects.get(
+        netcdf_dataset_obj = NetcdfDataset.objects.get(
             uri=archive_meta['uri']
         )
         for var_name in archive_meta['variables']:
             sys.stdout.write('.')
             try:
                 sim_params = archive_meta['variables'][var_name]['simulation_params']
-                sim, created = models.SimulationOutput.objects.get_or_create(
+                sim, created = SimulationOutput.objects.get_or_create(
                     archive = archive_obj,
-                    scenario = models.Scenario.objects.get(
+                    scenario = Scenario.objects.get(
                         code=sim_params['scenario']
                     ),
-                    climate_model = models.ClimateModel.objects.get(
+                    climate_model = ClimateModel.objects.get(
                         code=sim_params['climate_model']
                     ),
-                    variable = models.Variable.objects.get(
+                    variable = Variable.objects.get(
                         code=sim_params['sim_variable']
                     ),
                     run = sim_params['run'],
-                    netcdf_variable = models.NetcdfVariable.objects.get(
+                    netcdf_variable = NetcdfVariable.objects.get(
                         netcdf_dataset=netcdf_dataset_obj,
                         code = var_name,
                     ),
@@ -249,14 +262,14 @@ class NcDatasetImporter(object):
             #level_name=self.level_name,
         )
         attrs.update(self._temporal_fields_())
-        dataset, created = models.NetcdfDataset.objects.get_or_create(**attrs)
+        dataset, created = NetcdfDataset.objects.get_or_create(**attrs)
         sys.stdout.write(' Done!\n')
         
         ## save the global attributes for the NetCDF Dataset
         sys.stdout.write('...saving the NetCDF global attribute records...')
         for key,value in self.archive_meta.items():
             if isinstance(value, (basestring, int, tuple,)):
-                attrv, created = models.NetcdfDatasetAttribute.objects.get_or_create(
+                attrv, created = NetcdfDatasetAttribute.objects.get_or_create(
                             netcdf_dataset=dataset,
                             key=key,
                             value=str(value),
@@ -267,7 +280,7 @@ class NcDatasetImporter(object):
         sys.stdout.write('...saving the NetCDF dataset dimension records...')
         dimensions = {}
         for key,value in self.archive_meta['dimensions'].items():
-            dim_obj, created = models.NetcdfDimension.objects.get_or_create(
+            dim_obj, created = NetcdfDimension.objects.get_or_create(
                 netcdf_dataset=dataset,
                 name=key,
                 size=value['size'],
@@ -276,7 +289,7 @@ class NcDatasetImporter(object):
             dimensions[key]=dim_obj
             # save the dimension attributes
             for dim_key, dim_value in value.items():
-                dim_attr_obj, created = models.NetcdfDimensionAttribute.objects.get_or_create(
+                dim_attr_obj, created = NetcdfDimensionAttribute.objects.get_or_create(
                     netcdf_dimension=dim_obj,
                     key=dim_key,
                     value=dim_value,
@@ -288,14 +301,14 @@ class NcDatasetImporter(object):
         sys.stdout.write('...saving the NetCDF dataset variable records...\n')
         for key,value in self.archive_meta['variables'].items():
             sys.stdout.write('{indent}variable={var}\n'.format(indent=' '*4,var=key))
-            variable_obj, created = models.NetcdfVariable.objects.get_or_create(
+            variable_obj, created = NetcdfVariable.objects.get_or_create(
                                            netcdf_dataset=dataset,
                                            code=key,
                                            ndim=len(value['dimensions'])
                                         )
             for dim in value['dimensions']:
                 #sys.stdout.write('{indent}dimension={dim}\n'.format(indent=' '*8,dim=dim))
-                var_dim_obj, created = models.NetcdfVariableDimension.objects.get_or_create(
+                var_dim_obj, created = NetcdfVariableDimension.objects.get_or_create(
                     netcdf_variable=variable_obj,
                     netcdf_dimension=dimensions[dim],
                     position=value['dimensions'].index(dim),
@@ -306,7 +319,7 @@ class NcDatasetImporter(object):
 #                                                attr=var_attr_key
 #                                            ))
                 if isinstance(var_attr_value, (basestring, int, tuple, np.dtype, np.float32,)):
-                    attrv, created = models.NetcdfVariableAttribute.objects.get_or_create(
+                    attrv, created = NetcdfVariableAttribute.objects.get_or_create(
                         netcdf_variable=variable_obj,
                         key=var_attr_key,
                         value=str(var_attr_value),

@@ -87,6 +87,8 @@ class OpenClimateShp(object):
                     args = (o.ogr_name,attr['properties'][o.orig_name])
                 try:
                     feat.SetField(*args)
+                ## hack for certain osgeo installations not liking datetime
+                ##  format passed to SetField
                 except NotImplementedError:
                     args = list(args)
                     args[1] = str(args[1])

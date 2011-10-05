@@ -112,9 +112,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     'django.contrib.admindocs',
+    #'django_extensions', # enables extra django admin commands 
     'climatedata',
     'api',
 )
-
-## location of binary netcdfs stored on local disk
-TEST_CLIMATE_DATA = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'

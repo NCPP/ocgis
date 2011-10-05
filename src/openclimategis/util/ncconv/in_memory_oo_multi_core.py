@@ -6,7 +6,6 @@ import netCDF4 as nc
 import itertools
 import geojson
 from shapely.ops import cascaded_union
-#from ipdb import set_trace as tr
 #from openclimategis.util.helpers import get_temp_path
 #from openclimategis.util.toshp import OpenClimateShp
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
@@ -15,6 +14,9 @@ from shapely.geometry.geo import asShape
 import time, sys
 from multiprocessing import Process, Queue, Lock
 from math import sqrt
+import ipdb
+import os
+from osgeo import osr, ogr
 from util.helpers import get_temp_path
 from util.toshp import OpenClimateShp
 
@@ -92,9 +94,18 @@ class OcgDataset(object):
             yield ii,jj
             
     def _contains_(self,grid,lower,upper):
+        
+        ## small ranges on coordinates requires snapping to closest coordinate
+        ## to ensure values are selected through logical comparison.
+        ugrid = np.unique(grid)
+        lower = ugrid[np.argmin(np.abs(ugrid-lower))]
+        upper = ugrid[np.argmin(np.abs(ugrid-upper))]
+        
         s1 = grid >= lower
         s2 = grid <= upper
-        return(s1*s2)
+        ret = s1*s2
+
+        return(ret)
             
     def _set_overlay_(self,polygon=None,clip=False):
         """
@@ -114,7 +125,6 @@ class OcgDataset(object):
         self._pgrid = np.zeros(self.min_row.shape,dtype=bool)
         ## holds weights for area weighting in the case of a dissolve
         self._weights = np.zeros(self.min_row.shape)
-        
         ## initial subsetting to avoid iterating over all polygons unless abso-
         ## lutely necessary
         if polygon is not None:
@@ -124,6 +134,7 @@ class OcgDataset(object):
             #print self.max_col
             #print self.min_row
             #print self.max_row
+#            ipdb.set_trace()
             smin_col = self._contains_(self.min_col,emin_col,emax_col)
             smax_col = self._contains_(self.max_col,emin_col,emax_col)
             smin_row = self._contains_(self.min_row,emin_row,emax_row)
@@ -277,14 +288,15 @@ class OcgDataset(object):
         clip=False -- set to True to perform a full intersection
         """
         if self.verbose>1: print('getting numpy data...')
-        
+
         ## perform the spatial operations
         self._set_overlay_(polygon=polygon,clip=clip)
 
         def _u(arg):
             "Pulls unique values and generates an evenly spaced array."
             un = np.unique(arg)
-            return(np.arange(un.min(),un.max()+1))
+            ret = np.arange(un.min(),un.max()+1)
+            return(ret)
         
         def _sub(arg):
             "Subset an array."
@@ -506,13 +518,13 @@ class OcgDataset(object):
                         feature = dict(
                             id=ids.next(),
                             geometry=unioned,
-                            properties=dict({var:weighted[kk,:,:].sum(),
+                            properties=dict({var:float(weighted[kk,:,:].sum()),
                                             'timestamp':self.timevec[self._idxtime[kk]]}))
                     elif ocgShape==4:
                         feature = dict(
                             id=ids.next(),
                             geometry=unioned,
-                            properties=dict({var:list(weighted[kk,x,:,:].sum() for x in xrange(len(levels))),
+                            properties=dict({var:float(list(weighted[kk,x,:,:].sum() for x in xrange(len(levels)))),
                                             'timestamp':self.timevec[self._idxtime[kk]],
                                             'levels':list(x for x in self.levels[levels])}))
                     
@@ -535,7 +547,7 @@ class OcgDataset(object):
                                     id=ids.next(),
                                     geometry=self._igrid[ii,jj],
                                     weight=1.0,
-                                    properties=dict({var:npd[kk,ii,jj],
+                                    properties=dict({var:float(npd[kk,ii,jj]),
                                                     'timestamp':self.timevec[self._idxtime[kk]]}))
                                 #print npd[kk,ii,jj]
                             if ocgShape==4:
@@ -543,7 +555,7 @@ class OcgDataset(object):
                                     id=ids.next(),
                                     geometry=self._igrid[ii,jj],
                                     weight=1.0,
-                                    properties=dict({var:list(npd[kk,x,ii,jj] for x in xrange(len(levels))),
+                                    properties=dict({var:float(list(npd[kk,x,ii,jj] for x in xrange(len(levels)))),
                                                     'timestamp':self.timevec[self._idxtime[kk]],
                                                     'level':list(x for x in self.levels[levels])}))
                             recombine[ctr].append(feature)
@@ -819,7 +831,6 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
     if polygons == [None]:
         polygons = [Polygon(((ncp.col_bnds.min(),ncp.row_bnds.min()),(ncp.col_bnds.max(),ncp.row_bnds.min()),(ncp.col_bnds.max(),ncp.row_bnds.max()),(ncp.col_bnds.min(),ncp.row_bnds.max())))]
 
-
     for ii,polygon in enumerate(polygons):
         if verbose>1: print(ii)
 
@@ -839,17 +850,26 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                 subpolys = make_shapely_grid(polygon,sqrt(polygon.envelope.area)/2.0,clip=True)
             else:
                 subpolys = make_shapely_grid(polygon,subres,clip=True)
-
             #generate threads for each subpolygon
-            for poly in subpolys:
-                if clip==False:
-                    poly2 = poly.intersection(polygon.envelope)
-                    if poly2==None:
-                        continue
 
+#            subpolys = [subpolys[1]] ## tdk
+            for poly in subpolys:
+                ## during regular gridding used to create sub-polygons, a polygon
+                ## may not intersect the actual extraction extent returning None
+                ## in the process as opposed to a Polygon. skip the Nones.
+                if poly is None: continue
+                ## continue generating threads
+                if clip is False:
+                    poly2 = poly.intersection(polygon.envelope)
+                    if poly2 is None: continue
+                
+                ## tdk #####################
+#                ipdb.set_trace()
+#                ncp.extract_elements(q,var,lock=l,polygon=poly,time_range=time_range,clip=clip,dissolve=dissolve,levels=levels,parentPoly=11)
+                ############################
+                
                 p = Process(target = ncp.extract_elements,
-                                args =       (
-                                                q,
+                                args =       (q,
                                                 var,),
                                 kwargs= {
                                                 'lock':l,
@@ -954,7 +974,7 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                     elements.append(    dict(
                                         id=subgroup[0]['id'],
                                         geometry=total,
-                                        properties=dict({var:avg,
+                                        properties=dict({var:float(avg),
                                                         'timestamp':subgroup[0]['properties']['timestamp']})))
     #handle recombining undissolved features
     else:
@@ -1046,7 +1066,7 @@ def make_shapely_grid(poly,res,as_numpy=False,clip=True):
     pmin_y = Y
     pmax_y = Y + res
     ## make the 2-d array
-    print pmin_y,pmin_x,pmax_y,pmax_x,poly.wkt
+#    print pmin_y,pmin_x,pmax_y,pmax_x,poly.wkt
     if clip:
         poly_array = vfunc_poly(pmin_y,pmin_x,pmax_y,pmax_x,poly)
     else:
@@ -1075,7 +1095,27 @@ def make_poly_array(min_row,min_col,max_row,max_col,polyint=None):
             ret = polyint.intersection(ret)
     return(ret)
         
-        
+def shapely_to_shp(obj,outname):
+    path = os.path.join('/tmp',outname+'.shp')
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ogr_geom = 3
+    
+    dr = ogr.GetDriverByName('ESRI Shapefile')
+    ds = dr.CreateDataSource(path)
+    try:
+        if ds is None:
+            raise IOError('Could not create file on disk. Does it already exist?')
+            
+        layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
+        feature_def = layer.GetLayerDefn()
+        feat = ogr.Feature(feature_def)
+        feat.SetGeometry(ogr.CreateGeometryFromWkt(obj.wkt))
+        layer.CreateFeature(feat)
+    finally:
+        ds.Destroy()
+
+       
 if __name__ == '__main__':
     narg = time.time()
     ## all

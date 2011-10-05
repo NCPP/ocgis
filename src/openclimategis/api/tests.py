@@ -1,5 +1,7 @@
-from django.test.testcases import TestCase, TransactionTestCase
+from django.test import TestCase
+from django.test import TransactionTestCase
 from django.test.client import Client
+from climatedata.models import NetcdfDataset
 import unittest
 import itertools
 
@@ -7,23 +9,44 @@ import itertools
 def disabled(f):
     warn('{0} TEST DISABLED!'.format(f.__name__))
 
-     
-class TestUrls(unittest.TestCase):
+
+class TestUrls(TestCase):
     """Test URLs for correct response codes."""
     
 #    fixtures = ['luca_fixtures.json']
+    fixtures = ['test_usgs-cida-maurer.json']
     
     def setUp(self):
         self.client = Client()
     
+    def test_fixture_loading(self):
+        '''Check that the test fixture loaded correctly'''
+        self.assertEqual(NetcdfDataset.objects.count(), 1)
+    
     def test_urls(self):
-        exts = ['csv','kcsv','shz','geojson']
+        '''tests that data request URLs work
+        
+        This tests many different combinations of:
+        * output formats (CSV, Shapefile, GeoJSON)
+        * spatial operations (intersects or clip)
+        * aggregation
+        '''
+        exts = [
+            'csv',
+            'kcsv',
+            'shz',
+            'geojson',
+        ]
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
-        #sops = ['intersects','clip']
-        sops = ['clip']
-#        aggs = ['true','false']
-        aggs = ['true']
+        sops = [
+            'intersects',
+            'clip',
+        ]
+        aggs = [
+            'true',
+            'false',
+        ]
         cm = 'miroc3.2(medres)'
         scenario = 'sres-a1b'
         archive = 'usgs-cida-maurer'
@@ -34,10 +57,14 @@ class TestUrls(unittest.TestCase):
             
             print(ext,sop,agg)
         
-            base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
-                        'run/{run}/temporal/{drange}/spatial/{sop}+polygon'
-                        '(({polygon}))/aggregate/{agg}/'
-                        'variable/{variable}.{ext}')
+            base_url = ('/api/test'
+                        '/archive/{archive}/model'
+                        '/{cm}/scenario/{scenario}'
+                        '/run/{run}'
+                        '/temporal/{drange}'
+                        '/spatial/{sop}+polygon(({polygon}))'
+                        '/aggregate/{agg}'
+                        '/variable/{variable}.{ext}')
             
             url = base_url.format(ext=ext,
                                   drange=drange,
@@ -49,8 +76,6 @@ class TestUrls(unittest.TestCase):
                                   archive=archive,
                                   variable=var,
                                   run=run)
-            print url
-
             response = self.client.get(url)
             if response.status_code != 200:
                 print response.content

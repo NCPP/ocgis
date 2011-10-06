@@ -79,12 +79,17 @@ urlpatterns = patterns('',
 #
 ### CLIMATE MODELS --------------------------------------------------------------
 
-(r'^models.html$', climatemodel_handler, {'emitter_format':'html'}),
+url(
+    r'^models.html$', 
+    climatemodel_handler, 
+    {'emitter_format':'html'},
+    name='climatemodel_list',
+),
 url(
     r'^model/(?P<code>.*).html$',
     climatemodel_handler,
     {'emitter_format':'html'},
-    name='single_climatemodel',
+    name='climatemodel_single',
 ),
 
 #(r'^models/$|models\.html|^models/(?P<code>[^/]+)/$',

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load htmlemitter %}
+
+{% block header %}
+    {{ block.super }}
+    <style type="text/css">
+        dt {
+            padding-left: 6px;
+        }
+        dd > ul {
+            border: 1px solid blue;
+            list-style-position: outside;
+        }
+        li > dl {
+            border: 1px solid red;
+            margin: 8px 2px;
+        }
+    </style>
+{% endblock header %}
+
+{% block content %}
+    {{data|annotate|safe}}
+{% endblock content %}

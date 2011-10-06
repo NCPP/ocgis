@@ -5,6 +5,7 @@ from climatedata import models
 import inspect
 from slug import *
 import climatedata.models
+from climatedata.models import ClimateModel
 from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
 import netCDF4
 from experimental.in_memory_oo import multipolygon_operation
@@ -44,7 +45,10 @@ class OpenClimateHandler(BaseHandler):
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
         ## call the subclass read methods
-        return self.check(self._read_(request))
+        if kwds.has_key('code'):
+            return self.check(self._read_(request,kwds['code']))
+        else:
+            return self.check(self._read_(request))
     
     def check(self,payload):
         """Basic checks on returned data."""
@@ -102,10 +106,10 @@ class NonSpatialHandler(OpenClimateHandler):
 #    model = Archive
 #    
 #    
-#class ClimateModelHandler(NonSpatialHandler):
-#    model = ClimateModel
-#    
-#    
+class ClimateModelHandler(NonSpatialHandler):
+    model = ClimateModel
+    
+    
 #class ExperimentHandler(NonSpatialHandler):
 #    model = Scenario
 #    
@@ -116,7 +120,7 @@ class NonSpatialHandler(OpenClimateHandler):
     
 class SpatialHandler(OpenClimateHandler):
     
-    def _read_(self,request):        
+    def _read_(self,request):
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
         ## arguments for the dataset object

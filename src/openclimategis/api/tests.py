@@ -80,7 +80,22 @@ class TestUrls(TestCase):
             if response.status_code != 200:
                 print response.content
             self.assertEqual(response.status_code, 200)
-     
+    
+    def test_resource_models_html(self):
+        '''Creates an HTML representation of climate models'''
+        response = self.client.get('/api/models.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_single_model_html(self):
+        '''Creates an HTML representation of a single climate model'''
+        response = self.client.get('/api/model/bcc-cm1.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    
     def OLD_test_urls(self):
 
         ## list of extensions to test

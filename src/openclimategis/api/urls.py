@@ -5,7 +5,7 @@ import api.handlers as handlers
 
 #helloworld_handler = Resource(handlers.HelloWorldHandler)
 #archive_handler = Resource(handlers.ArchiveHandler)
-#climatemodel_handler = Resource(handlers.ClimateModelHandler)
+climatemodel_handler = Resource(handlers.ClimateModelHandler)
 #experiment_handler = Resource(handlers.ExperimentHandler)
 #variable_handler = Resource(handlers.VariableHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
@@ -58,8 +58,6 @@ urlpatterns = patterns('',
     re_run=re_run)),
    spatial_handler
  ),
- 
- )
 
 #(r'^test/shz/($|(?P<spatial_op>intersect|intersection)_(?P<model>dissolve|grid)\.(?P<emitter_format>))',
 # spatial_handler,
@@ -80,7 +78,15 @@ urlpatterns = patterns('',
 # {'emitter_format':'json'}),
 #
 ### CLIMATE MODELS --------------------------------------------------------------
-#
+
+(r'^models.html$', climatemodel_handler, {'emitter_format':'html'}),
+url(
+    r'^model/(?P<code>.*).html$',
+    climatemodel_handler,
+    {'emitter_format':'html'},
+    name='single_climatemodel',
+),
+
 #(r'^models/$|models\.html|^models/(?P<code>[^/]+)/$',
 # climatemodel_handler,
 # {'emitter_format':'html'}),
@@ -92,7 +98,7 @@ urlpatterns = patterns('',
 #(r'^models.json|^models/(?P<code>.*)\.json',
 # climatemodel_handler,
 # {'emitter_format':'json'}),
-#
+
 ### EXPERIMENTS -----------------------------------------------------------------
 #
 #(r'^experiments/$|experiments\.html|^experiments/(?P<code>[^/]+)/$',
@@ -121,6 +127,6 @@ urlpatterns = patterns('',
 # variable_handler,
 # {'emitter_format':'json'}),
 #
-#                       )
+)
 #
 ##print archive_regex + '.json'

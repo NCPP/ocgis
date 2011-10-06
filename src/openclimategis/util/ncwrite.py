@@ -6,7 +6,6 @@ from netCDF4 import date2num, Dataset
 import datetime
 from shapely.geometry import Polygon
 from util.helpers import get_temp_path
-from pdb import set_trace as tr
 
 
 #PATH = os.path.join(os.path.split(climatedata.__file__)[0],'fixtures','trivial_grid.json')

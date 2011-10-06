@@ -1,0 +1,1205 @@
+[
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfdataset",
+    "fields": {
+      "temporal_interval_days": 30.4363535297387,
+      "temporal_max": "2099-12-15 00:00:00",
+      "time_units": "days since 1950-01-01 00:00:00",
+      "uri": "http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly",
+      "temporal_min": "1950-01-16 00:00:00",
+      "spatial_extent": "POLYGON ((-124.7500000000000000 25.1250000000000000, -67.0000000000000000 25.1250000000000000, -67.0000000000000000 52.8750000000000000, -124.7500000000000000 52.8750000000000000, -124.7500000000000000 25.1250000000000000))",
+      "colbnds_name": "bounds_longitude",
+      "time_name": "time",
+      "calendar": "proleptic_gregorian",
+      "rowbnds_name": "bounds_latitude"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Monthly",
+      "netcdf_dataset": 1,
+      "key": "time_coverage_resolution"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Levi Brekke, Phil Duffy",
+      "netcdf_dataset": 1,
+      "key": "contributors"
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc",
+      "netcdf_dataset": 1,
+      "key": "file_name"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "July-Sept, 2007",
+      "netcdf_dataset": 1,
+      "key": "creation_date"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Unidata Dataset Discovery v1.0",
+      "netcdf_dataset": 1,
+      "key": "Metadata_Conventions"
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Atmospheric Temperature > Air Temperature Atmosphere > Precipitation > Rain > Maximum Daily Temperature > Minimum Daily Temperature",
+      "netcdf_dataset": 1,
+      "key": "keywords"
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": " This archive contains fine spatial-resolution translations of 112 contemporary climate projections over the contiguous United States. The original projections are from the World Climate Research Programme's (WCRP's) Coupled Model Intercomparison Project phase 3 (CMIP3) multi-model dataset, which was referenced in the Intergovernmental Panel on Climate Change Fourth Assessment Report.",
+      "netcdf_dataset": 1,
+      "key": "summary"
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Center for Integrated Data Analytics",
+      "netcdf_dataset": 1,
+      "key": "publisher_name"
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "cida.usgs.gov/thredds/",
+      "netcdf_dataset": 1,
+      "key": "id"
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "cida.usgs.gov",
+      "netcdf_dataset": 1,
+      "key": "naming_authority"
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "53",
+      "netcdf_dataset": 1,
+      "key": "geospatial_lat_max"
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "NETCDF3_64BIT",
+      "netcdf_dataset": 1,
+      "key": "file_format"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "GCMD Science Keywords",
+      "netcdf_dataset": 1,
+      "key": "keywords_vocabulary"
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Downscaled GCM simulation",
+      "netcdf_dataset": 1,
+      "key": "processing_level"
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "2099-12-31T00:00",
+      "netcdf_dataset": 1,
+      "key": "time_coverage_end"
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "cida@usgs.gov",
+      "netcdf_dataset": 1,
+      "key": "publisher_email"
+    }
+  },
+  {
+    "pk": 17,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Statistically downscaled GCM data",
+      "netcdf_dataset": 1,
+      "key": "description"
+    }
+  },
+  {
+    "pk": 18,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "emaurer@scu.edu",
+      "netcdf_dataset": 1,
+      "key": "creator_email"
+    }
+  },
+  {
+    "pk": 19,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Bias Corrected Spatially Downscaled Monthly Climate Predictions",
+      "netcdf_dataset": 1,
+      "key": "title"
+    }
+  },
+  {
+    "pk": 20,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "2011-07-20",
+      "netcdf_dataset": 1,
+      "key": "date_issued"
+    }
+  },
+  {
+    "pk": 21,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "24",
+      "netcdf_dataset": 1,
+      "key": "geospatial_lat_min"
+    }
+  },
+  {
+    "pk": 22,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "1950-01-01T00:00",
+      "netcdf_dataset": 1,
+      "key": "time_coverage_start"
+    }
+  },
+  {
+    "pk": 23,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "E.Maurer,L.Brekke,T.Pruitt",
+      "netcdf_dataset": 1,
+      "key": "authors"
+    }
+  },
+  {
+    "pk": 24,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "/",
+      "netcdf_dataset": 1,
+      "key": "path"
+    }
+  },
+  {
+    "pk": 25,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Santa Clara U., U.S. Bureau of Reclamation, U.S.  Dept. of Energy",
+      "netcdf_dataset": 1,
+      "key": "institution"
+    }
+  },
+  {
+    "pk": 26,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "-67",
+      "netcdf_dataset": 1,
+      "key": "geospatial_lon_max"
+    }
+  },
+  {
+    "pk": 27,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Thu Sep 20 15:22:27 2007: ncrcat -o sresa1b.bccr_bcm2_0.1.monthly.Prcp.1950-2099.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1951.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1952.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1953.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1954.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1955.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1956.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1957.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1958.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1959.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1960.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1961.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1962.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1963.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1964.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1965.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1966.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1967.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1968.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1969.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1970.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1971.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1972.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1973.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1974.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1975.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1976.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1977.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1978.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1979.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1980.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1981.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1982.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1983.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1984.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1985.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1986.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1987.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1988.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1989.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1990.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1991.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1992.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1993.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1994.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1995.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1996.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1997.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1998.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.1999.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2000.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2001.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2002.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2003.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2004.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2005.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2006.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2007.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2008.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2009.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2010.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2011.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2012.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2013.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2014.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2015.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2016.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2017.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2018.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2019.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2020.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2021.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2022.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2023.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2024.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2025.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2026.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2027.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2028.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2029.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2030.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2031.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2032.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2033.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2034.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2035.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2036.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2037.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2038.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2039.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2040.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2041.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2042.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2043.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2044.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2045.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2046.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2047.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2048.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2049.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2050.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2051.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2052.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2053.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2054.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2055.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2056.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2057.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2058.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2059.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2060.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2061.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2062.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2063.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2064.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2065.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2066.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2067.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2068.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2069.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2070.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2071.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2072.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2073.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2074.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2075.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2076.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2077.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2078.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2079.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2080.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2081.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2082.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2083.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2084.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2085.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2086.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2087.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2088.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2089.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2090.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2091.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2092.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2093.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2094.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2095.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2096.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2097.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2098.nc bccr_bcm2_0.1.sresa1b.monthly.Prcp.2099.nc\nInitially created in 2007",
+      "netcdf_dataset": 1,
+      "key": "History"
+    }
+  },
+  {
+    "pk": 28,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "-125",
+      "netcdf_dataset": 1,
+      "key": "geospatial_lon_min"
+    }
+  },
+  {
+    "pk": 29,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Freely available",
+      "netcdf_dataset": 1,
+      "key": "license"
+    }
+  },
+  {
+    "pk": 30,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Ed Maurer",
+      "netcdf_dataset": 1,
+      "key": "creator_name"
+    }
+  },
+  {
+    "pk": 31,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "2007-01-01",
+      "netcdf_dataset": 1,
+      "key": "date_modified"
+    }
+  },
+  {
+    "pk": 32,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Whenever you publish research based on data from this archive, please include the following acknowledgement of the superceding CMIP3 effort: \"We acknowledge the modeling groups, the Program for Climate Model Diagnosis and Intercomparison (PCMDI) and the WCRP's Working Group on Coupled Modelling (WGCM) for their roles in making available the WCRP CMIP3 multi-model dataset. Support of this dataset is provided by the Office of Science, U.S. Department of Energy.\" In first making reference to the data from this archive, please first reference the CMIP3 dataset by including the phrase \"the World Climate Research Programme's (WCRP's) Coupled Model Intercomparison Project phase 3 (CMIP3) multi-model dataset\". Subsequent references within the same publication might refer to the CMIP3 data with terms such as \"CMIP3 data\", \"the CMIP3 multi-model dataset\", \"the CMIP3 archive\", or the \"CMIP3 dataset\". After acknowledging the CMIP3 data, please reference this archive by using the phrase \"bias-corrected and spatially downscaled climate projections derived from CMIP3 data and served at: http://gdo-dcp.ucllnl.org/downscaled_cmip3_projections/\"",
+      "netcdf_dataset": 1,
+      "key": "acknowledgement"
+    }
+  },
+  {
+    "pk": 33,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Traditional",
+      "netcdf_dataset": 1,
+      "key": "SurfSgnConvention"
+    }
+  },
+  {
+    "pk": 34,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly",
+      "netcdf_dataset": 1,
+      "key": "uri"
+    }
+  },
+  {
+    "pk": 35,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "GDT 1.2",
+      "netcdf_dataset": 1,
+      "key": "Conventions"
+    }
+  },
+  {
+    "pk": 36,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "",
+      "netcdf_dataset": 1,
+      "key": "project"
+    }
+  },
+  {
+    "pk": 37,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "Grid",
+      "netcdf_dataset": 1,
+      "key": "cdm_data_type"
+    }
+  },
+  {
+    "pk": 38,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "http://www.cida.usgs.gov/",
+      "netcdf_dataset": 1,
+      "key": "publisher_url"
+    }
+  },
+  {
+    "pk": 39,
+    "model": "climatedata.netcdfdatasetattribute",
+    "fields": {
+      "value": "2007-01-01",
+      "netcdf_dataset": 1,
+      "key": "date_created"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfdimension",
+    "fields": {
+      "size": 222,
+      "netcdf_dataset": 1,
+      "name": "latitude"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfdimension",
+    "fields": {
+      "size": 2,
+      "netcdf_dataset": 1,
+      "name": "bound"
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.netcdfdimension",
+    "fields": {
+      "size": 462,
+      "netcdf_dataset": 1,
+      "name": "longitude"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.netcdfdimension",
+    "fields": {
+      "size": 1800,
+      "netcdf_dataset": 1,
+      "name": "time"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "False",
+      "key": "isunlimited",
+      "netcdf_dimension": 1
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "222",
+      "key": "size",
+      "netcdf_dimension": 1
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "False",
+      "key": "isunlimited",
+      "netcdf_dimension": 2
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "2",
+      "key": "size",
+      "netcdf_dimension": 2
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "False",
+      "key": "isunlimited",
+      "netcdf_dimension": 3
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "462",
+      "key": "size",
+      "netcdf_dimension": 3
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "True",
+      "key": "isunlimited",
+      "netcdf_dimension": 4
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.netcdfdimensionattribute",
+    "fields": {
+      "value": "1800",
+      "key": "size",
+      "netcdf_dimension": 4
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfvariable",
+    "fields": {
+      "ndim": 3,
+      "code": "sresa1b_miroc3-2-medres_2_Prcp",
+      "netcdf_dataset": 1
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfvariable",
+    "fields": {
+      "ndim": 3,
+      "code": "sresb1_ncar-ccsm3-0_2_Tavg",
+      "netcdf_dataset": 1
+    }
+  },
+  {
+    "pk": 228,
+    "model": "climatedata.netcdfvariable",
+    "fields": {
+      "ndim": 3,
+      "code": "sresb1_mri-cgcm2-3-2a_5_Prcp",
+      "netcdf_dataset": 1
+    }
+  },
+  {
+    "pk": 229,
+    "model": "climatedata.netcdfvariable",
+    "fields": {
+      "ndim": 3,
+      "code": "sresb1_bccr-bcm2-0_1_Tavg",
+      "netcdf_dataset": 1
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "3",
+      "key": "ndim"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "(u'time', u'latitude', u'longitude')",
+      "key": "dimensions"
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "time latitude longitude",
+      "key": "associate"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "float32",
+      "key": "dtype"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "True",
+      "key": "maskandscale"
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "Prcp",
+      "key": "name"
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "(1800, 222, 462)",
+      "key": "shape"
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "184615200",
+      "key": "size"
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "mm/d",
+      "key": "units"
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "1e+20",
+      "key": "missing_value"
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 1,
+      "value": "TYX",
+      "key": "axis"
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "3",
+      "key": "ndim"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "(u'time', u'latitude', u'longitude')",
+      "key": "dimensions"
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "time latitude longitude",
+      "key": "associate"
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "float32",
+      "key": "dtype"
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "True",
+      "key": "maskandscale"
+    }
+  },
+  {
+    "pk": 17,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "Tavg",
+      "key": "name"
+    }
+  },
+  {
+    "pk": 18,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "(1800, 222, 462)",
+      "key": "shape"
+    }
+  },
+  {
+    "pk": 19,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "184615200",
+      "key": "size"
+    }
+  },
+  {
+    "pk": 20,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "C",
+      "key": "units"
+    }
+  },
+  {
+    "pk": 21,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "1e+20",
+      "key": "missing_value"
+    }
+  },
+  {
+    "pk": 22,
+    "model": "climatedata.netcdfvariableattribute",
+    "fields": {
+      "netcdf_variable": 2,
+      "value": "TYX",
+      "key": "axis"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 0,
+      "netcdf_variable": 1,
+      "netcdf_dimension": 4
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 1,
+      "netcdf_variable": 1,
+      "netcdf_dimension": 1
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 2,
+      "netcdf_variable": 1,
+      "netcdf_dimension": 3
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 0,
+      "netcdf_variable": 2,
+      "netcdf_dimension": 4
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 1,
+      "netcdf_variable": 2,
+      "netcdf_dimension": 1
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.netcdfvariabledimension",
+    "fields": {
+      "position": 2,
+      "netcdf_variable": 2,
+      "netcdf_dimension": 3
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.ec.gc.ca/ccmac-cccma/",
+      "country": "Canada",
+      "code": "CCCma",
+      "name": "Canadian Centre for Climate Modelling and Analysis"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://bcc.cma.gov.cn/",
+      "country": "China",
+      "code": "BCC",
+      "name": "Beijing Climate Center, National Climate Center"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.bjerknes.uib.no/",
+      "country": "Norway",
+      "code": "BCCR",
+      "name": "Bjerknes Centre for Climate Research"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.cnrm.meteo.fr/",
+      "country": "France",
+      "code": "CNRM",
+      "name": "Centre National de Recherches Meteorologiques"
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.cmar.csiro.au/",
+      "country": "Australia",
+      "code": "CSIRO",
+      "name": "CSIRO Atmospheric Research"
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.gfdl.noaa.gov/",
+      "country": "USA",
+      "code": "GFDL",
+      "name": "US Dept. of Commerce / NOAA / Geophysical Fluid Dynamics Laboratory"
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.giss.nasa.gov/",
+      "country": "USA",
+      "code": "GISS",
+      "name": "Goddard Institute for Space Studies (GISS), NASA, USA"
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.inm.ras.ru/inm_en_ver/index.htm",
+      "country": "Russia",
+      "code": "INM",
+      "name": "Institute of Numerical Mathematics, Russian Academy of Science"
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.ipsl.fr/",
+      "country": "France",
+      "code": "IPSL",
+      "name": "Institut Pierre Simon Laplace"
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.nies.go.jp/gaiyo/index-e.html",
+      "country": "Japan",
+      "code": "NIES",
+      "name": "National Institute for Environmental Studies"
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www2.meteo.uni-bonn.de/forschung/gruppen/tgwww/index_english.html",
+      "country": "Germany",
+      "code": "MIUB",
+      "name": "Meteorological Institute of the University of Bonn"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.mpimet.mpg.de/",
+      "country": "Germany",
+      "code": "MPI",
+      "name": "Max Planck Institute for Meteorology"
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.mri-jma.go.jp/",
+      "country": "Japan",
+      "code": "MRI",
+      "name": "Meteorological Research Institute"
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://ncar.ucar.edu/",
+      "country": "USA",
+      "code": "NCAR",
+      "name": "National Center for Atmospheric Research"
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.organization",
+    "fields": {
+      "url": "http://www.metoffice.gov.uk/climate-change/resources/hadley",
+      "country": "UK",
+      "code": "UKMO-HAD",
+      "name": "Hadley Centre for Climate Prediction and Research / Met Office"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.scenario",
+    "fields": {
+      "urlslug": "sres-a1b",
+      "code": "SRES A1B",
+      "name": "720 ppm stabilization experiment",
+      "description": "From http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments\r\n#############################################\r\nImpose SRES A1B conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.scenario",
+    "fields": {
+      "urlslug": "sres-a2",
+      "code": "SRES A2",
+      "name": "SRES A2 experiment",
+      "description": "Notes: should take the end of the 20C3M run as its initial condition."
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.scenario",
+    "fields": {
+      "urlslug": "sres-b1",
+      "code": "SRES B1",
+      "name": "550 ppm stabilization experiment",
+      "description": "Notes: Impose SRES B1 conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.archive",
+    "fields": {
+      "url": "http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly",
+      "urlslug": "usgs-cida-maurer",
+      "code": "cida.usgs.gov/maurer",
+      "name": "1/8 degree-CONUS Monthly Bias Corrected Spatially Downscaled Climate Projections by Maurer, Brekke, Pruitt, and Duffy"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "BCC-CM1",
+      "name": "Beijing Climate Center CM1",
+      "url": "http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html",
+      "comments": "More information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm",
+      "urlslug": "bcc-cm1",
+      "organization": 2
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "BCCR-BCM2.0",
+      "name": "Bergen Climate Model Version 2",
+      "url": "http://www.ipcc-data.org/ar4/model-BCCR-BCM2-change.html",
+      "comments": "More Information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php",
+      "urlslug": "bccr-bcm2.0",
+      "organization": 1
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "CNRM-CM3",
+      "name": "CNRM-CM3",
+      "url": "http://www.ipcc-data.org/ar4/model-CNRM-CM3-change.html",
+      "comments": "",
+      "urlslug": "cnrm-cm3",
+      "organization": 5
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "CSIRO-Mk3.0",
+      "name": "CSIRO Mark 3.0",
+      "url": "http://www.ipcc-data.org/ar4/model-CSIRO-MK3-change.html",
+      "comments": "",
+      "urlslug": "csiro-mk3.0",
+      "organization": 6
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "GFDL-CM2.0",
+      "name": "CM2.0 - AOGCM",
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2-change.html",
+      "comments": "",
+      "urlslug": "gfdl-cm2.0",
+      "organization": 7
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "GFDL-CM2.1",
+      "name": "CM2.1 - AOGCM",
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2_1-change.html",
+      "comments": "",
+      "urlslug": "gfdl-cm2.1",
+      "organization": 7
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "GISS-ER",
+      "name": "GISS ModelE-R",
+      "url": "http://www.ipcc-data.org/ar4/model-NASA-GISS-ER-change.html",
+      "comments": "",
+      "urlslug": "giss-er",
+      "organization": 8
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "INM-CM3.0",
+      "name": "INMCM3.0",
+      "url": "http://www.ipcc-data.org/ar4/model-INM-CM3-change.html",
+      "comments": "",
+      "urlslug": "inm-cm3.0",
+      "organization": 9
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "IPSL-CM4",
+      "name": "IPSL-CM4",
+      "url": "http://www.ipcc-data.org/ar4/model-IPSL-CM4-change.html",
+      "comments": "",
+      "urlslug": "ipsl-cm4",
+      "organization": 10
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "MIROC3.2(medres)",
+      "name": "MIROC3.2 (Model for Interdisciplinary Research on ",
+      "url": "http://www.ipcc-data.org/ar4/model-NIES-MIROC3_2-MED-change.html",
+      "comments": "",
+      "urlslug": "miroc3.2(medres)",
+      "organization": 11
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "ECHO-G",
+      "name": "ECHO-G = ECHAM4 + HOPE-G",
+      "url": "http://www.ipcc-data.org/ar4/model-CONS-ECHO-G-change.html",
+      "comments": "Additional organization: Institute of KMA, and Model and Data group, Korea",
+      "urlslug": "echo-g",
+      "organization": 12
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "ECHAM5/MPI-OM",
+      "name": "ECHAM5/MPI-OM",
+      "url": "http://www.ipcc-data.org/ar4/model-MPIM-ECHAM5-change.html",
+      "comments": "",
+      "urlslug": "echam5-mpi-om",
+      "organization": 13
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "MRI-CGCM2.3.2",
+      "name": "MRI-CGCM2.3.2",
+      "url": "http://www.ipcc-data.org/ar4/model-MRI-CGCM2_3_2-change.html",
+      "comments": "",
+      "urlslug": "mri-cgcm2.3.2",
+      "organization": 14
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "CCSM3",
+      "name": "Community Climate System Model, version 3.0",
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-CCSM3-change.html",
+      "comments": "",
+      "urlslug": "ccsm3",
+      "organization": 15
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "PCM",
+      "name": "Parallel Climate Model",
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-PCM-change.html",
+      "comments": "",
+      "urlslug": "pcm",
+      "organization": 15
+    }
+  },
+  {
+    "pk": 17,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "UKMO-HadCM3",
+      "name": "HadCM3",
+      "url": "http://www.ipcc-data.org/ar4/model-UKMO-HADCM3-change.html",
+      "comments": "",
+      "urlslug": "ukmo-hadcm3",
+      "organization": 16
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "code": "CGCM3.1(T47)",
+      "name": "Coupled Global Climate Model (T47)",
+      "url": "http://www.ipcc-data.org/ar4/model-CCCMA-CGCM3_1-T47-change.html",
+      "comments": "",
+      "urlslug": "cgcm3.1-T47",
+      "organization": 3
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.variable",
+    "fields": {
+      "units": "K",
+      "ndim": 3,
+      "code": "tas",
+      "name": "air_temperature",
+      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n################################################\r\nnear-surface (usually, 2 meter) air temperature; the CMOR singleton dimension default value of 2 m can be overridden, if absolutely necessary, by redefining axis \"height1\"."
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.variable",
+    "fields": {
+      "units": "kg m^-2 s^-1",
+      "ndim": 3,
+      "code": "pr",
+      "name": "precipitation_flux",
+      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n================================================\r\nincludes both liquid and solid phases"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.simulationoutput",
+    "fields": {
+      "climate_model": 11,
+      "run": 2,
+      "scenario": 1,
+      "netcdf_variable": 1,
+      "variable": 1,
+      "archive": 1
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.simulationoutput",
+    "fields": {
+      "climate_model": 15,
+      "run": 2,
+      "scenario": 3,
+      "netcdf_variable": 2,
+      "variable": 2,
+      "archive": 1
+    }
+  }
+]

@@ -1,8 +1,10 @@
-from piston.emitters import Emitter
+from django.template.context import RequestContext
+from django.shortcuts import render_to_response
 from django.http import HttpResponse
+from piston.emitters import Emitter
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
-from django.shortcuts import render_to_response
+
 from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
     as_keyTabular
 
@@ -33,13 +35,28 @@ class HelloWorldEmitter(OpenClimateEmitter):
         return HttpResponse(msg)
     
     
-class HtmlEmitter(IdentityEmitter):
-    
-    def render(self,request):
-        return render_to_response('archives.html',self.construct())
-#        return HttpResponse(str(self.construct()))
+class HTMLEmitter(Emitter):
+    """Emits an HTML representation 
+    """
+    def render(self, request):
+        c = RequestContext(request)
+        try:
+            template_name = self.data.model._meta.object_name + '.html'
+            response = render_to_response(
+                template_name=template_name, 
+                dictionary={'data': self.construct()},
+                context_instance=c,
+            )
+        except:
+            response = render_to_response(
+                template_name='default_html_emitter.html',
+                dictionary={'data': self.construct()},
+                context_instance=c,
+            )
+        return response
+Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
-   
+
 class ShapefileEmitter(IdentityEmitter):
     """
     Emits zipped shapefile (.shz)
@@ -110,7 +127,6 @@ class CsvKeyEmitter(IdentityEmitter):
     
     
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
-Emitter.register('html',HtmlEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
 Emitter.register('geojson',GeoJsonEmitter,'application/geojson; charset=utf-8')

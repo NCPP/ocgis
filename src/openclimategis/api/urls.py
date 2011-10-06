@@ -86,7 +86,7 @@ url(
     name='climatemodel_list',
 ),
 url(
-    r'^model/(?P<code>.*).html$',
+    r'^models/(?P<code>.*).html$',
     climatemodel_handler,
     {'emitter_format':'html'},
     name='climatemodel_single',
@@ -104,7 +104,19 @@ url(
 # climatemodel_handler,
 # {'emitter_format':'json'}),
 
-### EXPERIMENTS -----------------------------------------------------------------
+### EMISSIONS SCENARIOS -------------------------------------------------------
+#url(
+#    r'^scenarios.html$', 
+#    scenario_handler, 
+#    {'emitter_format':'html'},
+#    name='climatemodel_list',
+#),
+#url(
+#    r'^scenarios/(?P<code>.*).html$',
+#    scenario_handler,
+#    {'emitter_format':'html'},
+#    name='climatemodel_single',
+#),
 #
 #(r'^experiments/$|experiments\.html|^experiments/(?P<code>[^/]+)/$',
 # experiment_handler,

@@ -90,7 +90,7 @@ class TestUrls(TestCase):
     
     def test_resource_single_model_html(self):
         '''Creates an HTML representation of a single climate model'''
-        response = self.client.get('/api/model/bcc-cm1.html')
+        response = self.client.get('/api/models/bcc-cm1.html')
         if response.status_code != 200:
                 print response.content
         self.assertEqual(response.status_code, 200)

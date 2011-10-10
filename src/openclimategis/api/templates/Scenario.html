@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ block.super }}
+    <h2>Emissions Scenarios</h2>
+{% endblock title %}
+
+{% block content %}
+    <table border="1">
+    <tbody>
+    {% ifequal data|length 1 %}
+        {% comment %}Create table for a single emissions scenario{% endcomment %}
+        {% for listitem in data %}
+            <tr>
+                <th>Code</th>
+                <td>{{ listitem.code}}</td>
+            </tr>
+            <tr>
+                <th>Emissions Scenario Name</th>
+                <td>{{ listitem.name }}</td>
+            </tr>
+            <tr>
+                <th>URL Slug</th>
+                <td>{{ listitem.urlslug }}</td>
+            </tr>
+            <tr>
+                <th>Description</th>
+                <td>{{ listitem.description }}</td>
+            </tr>
+        {% endfor %}
+    {% else %}
+        {% comment %}Create table for a list of emissions scenarios{% endcomment %}
+        <tr>
+            <th>Code</th>
+            <th>Model Name</th>
+        </tr>
+        {% for listitem in data|dictsort:"code" %}
+        <tr>
+            <td><a href="{% url scenario_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
+            <td>{{ listitem.name }}</td>
+        </td></tr>
+        {% endfor %}
+    {% endifequal %}
+    </tbody>
+    </table>
+{% endblock content %}

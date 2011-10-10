@@ -5,7 +5,10 @@ from climatedata import models
 import inspect
 from slug import *
 import climatedata.models
+from climatedata.models import Archive
 from climatedata.models import ClimateModel
+from climatedata.models import Scenario
+from climatedata.models import Variable
 from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
 import netCDF4
 from experimental.in_memory_oo import multipolygon_operation
@@ -39,16 +42,14 @@ class OpenClimateHandler(BaseHandler):
         Subclasses should not overload this method. Each return will be checked
         for basic validity.
         """
-
+        ## save the URL argument keywords
+        request.url_args = kwds
         ## parse URL arguments
         self._parse_slugs_(kwds)
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
         ## call the subclass read methods
-        if kwds.has_key('code'):
-            return self.check(self._read_(request,kwds['code']))
-        else:
-            return self.check(self._read_(request))
+        return self.check(self._read_(request))
     
     def check(self,payload):
         """Basic checks on returned data."""
@@ -94,28 +95,36 @@ class OpenClimateHandler(BaseHandler):
 class NonSpatialHandler(OpenClimateHandler):
     __data_kwds__ = {}
      
-    def _read_(self,request,code=None):
-        if code:
-            query = self.model.objects.filter(code__iexact=str(code))
-        else:
+    def _read_(self,request):
+        
+        if not self.model:
+            return None
+        try:
+            urlslug = request.url_args['urlslug']
+            query = self.model.objects.filter(urlslug__iexact=str(urlslug))
+        except:
             query = self.model.objects.all()
         return query
 
 
-#class ArchiveHandler(NonSpatialHandler):
-#    model = Archive
-#    
-#    
+class ApiHandler(NonSpatialHandler):
+    model = None
+
+
+class ArchiveHandler(NonSpatialHandler):
+    model = Archive
+
+
 class ClimateModelHandler(NonSpatialHandler):
     model = ClimateModel
-    
-    
-#class ExperimentHandler(NonSpatialHandler):
-#    model = Scenario
-#    
-#    
-#class VariableHandler(NonSpatialHandler):
-#    model = Variable
+
+
+class ScenarioHandler(NonSpatialHandler):
+    model = Scenario
+
+
+class VariableHandler(NonSpatialHandler):
+    model = Variable
     
     
 class SpatialHandler(OpenClimateHandler):

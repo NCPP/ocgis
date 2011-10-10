@@ -1163,6 +1163,7 @@
       "units": "K",
       "ndim": 3,
       "code": "tas",
+      "urlslug": "tas",
       "name": "air_temperature",
       "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n################################################\r\nnear-surface (usually, 2 meter) air temperature; the CMOR singleton dimension default value of 2 m can be overridden, if absolutely necessary, by redefining axis \"height1\"."
     }
@@ -1174,6 +1175,7 @@
       "units": "kg m^-2 s^-1",
       "ndim": 3,
       "code": "pr",
+      "urlslug": "pr",
       "name": "precipitation_flux",
       "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n================================================\r\nincludes both liquid and solid phases"
     }

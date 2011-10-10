@@ -8,7 +8,6 @@ from util.helpers import get_temp_path
 from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
     as_keyTabular
 
-
 class OpenClimateEmitter(Emitter):
     """
     Superclass for all OpenClimateGIS emitters.
@@ -25,7 +24,7 @@ class IdentityEmitter(OpenClimateEmitter):
     
     def construct(self):
         return self.data
-    
+
 
 class HelloWorldEmitter(OpenClimateEmitter):
     
@@ -33,26 +32,45 @@ class HelloWorldEmitter(OpenClimateEmitter):
         names = [n['name'] for n in self.construct()]
         msg = 'Hello, World!! The climate model names are:<br><br>{0}'.format('<br>'.join(names))
         return HttpResponse(msg)
-    
-    
+
+
 class HTMLEmitter(Emitter):
     """Emits an HTML representation 
     """
     def render(self, request):
+        from handlers import ApiHandler
+        
         c = RequestContext(request)
-        try:
-            template_name = self.data.model._meta.object_name + '.html'
+        
+        if isinstance(self.handler, ApiHandler):
+            # return the API HTML page (not based on a data model)
             response = render_to_response(
-                template_name=template_name, 
-                dictionary={'data': self.construct()},
+                template_name='api.html', 
                 context_instance=c,
             )
-        except:
-            response = render_to_response(
-                template_name='default_html_emitter.html',
-                dictionary={'data': self.construct()},
-                context_instance=c,
-            )
+        else:
+            is_collection = not request.url_args.has_key('urlslug')
+            try:
+                # use the HTML template that matches the data model name
+                template_name = self.data.model._meta.object_name + '.html'
+                response = render_to_response(
+                    template_name=template_name, 
+                    dictionary={
+                        'data': self.construct(), 
+                        'is_collection': is_collection,
+                    },
+                    context_instance=c,
+                )
+            except:
+                # render the default HTML response
+                response = render_to_response(
+                    template_name='default_html_emitter.html',
+                    dictionary={
+                        'data': self.construct(), 
+                        'is_collection': is_collection,
+                    },
+                    context_instance=c,
+                )
         return response
 Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
@@ -68,8 +86,8 @@ class ShapefileEmitter(IdentityEmitter):
         shp = OpenClimateShp(path,elements)
         shp.write()
         return shp.zip_response()
-    
-    
+
+
 class KmlEmitter(IdentityEmitter):
     """
     Emits raw KML (.kml)
@@ -77,8 +95,8 @@ class KmlEmitter(IdentityEmitter):
 
     def render(self,request):
         pass
-    
-    
+
+
 class KmzEmitter(KmlEmitter):
     """
     Subclass of KmlEmitter. Emits KML in a zipped format (.kmz)
@@ -86,8 +104,8 @@ class KmzEmitter(KmlEmitter):
     
     def render(self,request):
         kml = super(KmzEmitter,self).render()
-        
-        
+
+
 class GeoJsonEmitter(IdentityEmitter):
     """
     JSON format for geospatial data (.json)
@@ -99,7 +117,7 @@ class GeoJsonEmitter(IdentityEmitter):
         ## conversion
         conv = as_geojson(elements)
         return(conv)
-    
+
 
 class CsvEmitter(IdentityEmitter):
     """
@@ -111,7 +129,7 @@ class CsvEmitter(IdentityEmitter):
         var = request.ocg.simulation_output.netcdf_variable.code
         conv = as_tabular(elements,var)
         return(conv)
-    
+
 
 class CsvKeyEmitter(IdentityEmitter):
     """
@@ -124,8 +142,8 @@ class CsvKeyEmitter(IdentityEmitter):
         conv = as_keyTabular(elements,var)
         print(conv)
         return(conv)
-    
-    
+
+
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')

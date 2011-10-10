@@ -23,6 +23,48 @@ class TestUrls(TestCase):
         '''Check that the test fixture loaded correctly'''
         self.assertEqual(NetcdfDataset.objects.count(), 1)
     
+    def test_api_html(self):
+        '''Creates an HTML representation of the API main page'''
+        response = self.client.get('/api/')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+
+    def test_resource_archives_html(self):
+        '''Creates an HTML representation of climate model archives'''
+        response = self.client.get('/api/archives.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_single_archive_html(self):
+        '''Creates an HTML representation of a single climate model archive'''
+        response = self.client.get('/api/archives/usgs-cida-maurer.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_models_html(self):
+        '''Creates an HTML representation of climate models'''
+        response = self.client.get('/api/models.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_single_model_html(self):
+        '''Creates an HTML representation of a single climate model'''
+        response = self.client.get('/api/models/echam5-mpi-om.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_variables_html(self):
+        '''Creates an HTML representation of output variables'''
+        response = self.client.get('/api/variables.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
     def test_urls(self):
         '''tests that data request URLs work
         
@@ -80,20 +122,6 @@ class TestUrls(TestCase):
             if response.status_code != 200:
                 print response.content
             self.assertEqual(response.status_code, 200)
-    
-    def test_resource_models_html(self):
-        '''Creates an HTML representation of climate models'''
-        response = self.client.get('/api/models.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_single_model_html(self):
-        '''Creates an HTML representation of a single climate model'''
-        response = self.client.get('/api/model/bcc-cm1.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
     
     
     def OLD_test_urls(self):

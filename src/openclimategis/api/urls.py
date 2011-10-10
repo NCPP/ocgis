@@ -4,13 +4,28 @@ import api.handlers as handlers
 
 
 #helloworld_handler = Resource(handlers.HelloWorldHandler)
-#archive_handler = Resource(handlers.ArchiveHandler)
+api_handler = Resource(handlers.ApiHandler)
+archive_handler = Resource(handlers.ArchiveHandler)
 climatemodel_handler = Resource(handlers.ClimateModelHandler)
-#experiment_handler = Resource(handlers.ExperimentHandler)
-#variable_handler = Resource(handlers.VariableHandler)
+scenario_handler = Resource(handlers.ScenarioHandler)
+variable_handler = Resource(handlers.VariableHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
+
+nonspatial_formats = '|'.join([
+    'html',
+    'json',
+    #'csv',
+    #'kcsv',
+])
+spatial_formats = '|'.join([
+    'html',
+    'json',
+    'kml',
+    'kmz',
+    'shz',
+])
 
 re_archive = 'archive/(?P<archive>.*)'
 re_model = 'model/(?P<model>.*)'
@@ -20,6 +35,7 @@ re_temporal = 'temporal/(?P<temporal>.*)'
 re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
 re_aggregate = 'aggregate/(?P<aggregate>true|false)'
 re_variable = 'variable/(?P<variable>.*)\.(?P<emitter_format>.*)'
+re_urlslug = '(?P<urlslug>[\.\(\)A-Za-z0-9_-]+)'
 
 
 urlpatterns = patterns('',
@@ -63,70 +79,120 @@ urlpatterns = patterns('',
 # spatial_handler,
 # {'emitter_format':'shz'}),
 
-### ARCHIVES --------------------------------------------------------------------
-#
-#(r'^archives/$|archives\.html|^archives/(?P<code>[^/]+)/$',
-# archive_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^archives/(?P<code>.*)\.html',
-# archive_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^archives.json|^archives/(?P<code>.*)\.json',
-# archive_handler,
-# {'emitter_format':'json'}),
-#
-### CLIMATE MODELS --------------------------------------------------------------
 
-(r'^models.html$', climatemodel_handler, {'emitter_format':'html'}),
 url(
-    r'^model/(?P<code>.*).html$',
-    climatemodel_handler,
+    r'^$|^.html$', 
+    api_handler, 
     {'emitter_format':'html'},
-    name='single_climatemodel',
+    name='api_list',
 ),
 
-#(r'^models/$|models\.html|^models/(?P<code>[^/]+)/$',
-# climatemodel_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^models/(?P<code>.*)\.html',
-# climatemodel_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^models.json|^models/(?P<code>.*)\.json',
-# climatemodel_handler,
-# {'emitter_format':'json'}),
 
-### EXPERIMENTS -----------------------------------------------------------------
-#
-#(r'^experiments/$|experiments\.html|^experiments/(?P<code>[^/]+)/$',
-# experiment_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^experiments/(?P<code>.*)\.html',
-# experiment_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^experiments.json|^experiments/(?P<code>.*)\.json',
-# experiment_handler,
-# {'emitter_format':'json'}),
-#
+### ARCHIVES --------------------------------------------------------------------
+    # collection of climate model archives
+    url(
+        r'^archives/?$|^archives\.html$',
+        archive_handler, 
+        {'emitter_format':'html'},
+        name='archive_list',
+    ),
+    # a single climate model archive resource
+    url(
+        r'^archives/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
+            formats=nonspatial_formats,
+            re_urlslug=re_urlslug,
+        ),
+        archive_handler,
+        name='archive_single',
+    ),
+    url(
+        r'^archives/{re_urlslug}$'.format(
+            re_urlslug=re_urlslug,
+        ),
+        archive_handler,
+        {'emitter_format':'html'},
+        name='archive_single_default',
+    ),
+
+### CLIMATE MODELS --------------------------------------------------------------
+    # collection of climate models
+    url(
+        r'^models/?$|^models\.html$',
+        climatemodel_handler, 
+        {'emitter_format':'html'},
+        name='climatemodel_list',
+    ),
+    # a single climate model resource
+    url(
+        r'^models/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
+            formats=nonspatial_formats,
+            re_urlslug=re_urlslug,
+        ),
+        climatemodel_handler,
+        name='climatemodel_single',
+    ),
+    url(
+        r'^models/{re_urlslug}$'.format(
+            re_urlslug=re_urlslug,
+        ),
+        climatemodel_handler,
+        {'emitter_format':'html'},
+        name='climatemodel_single_default',
+    ),
+
+### EMISSIONS SCENARIOS -------------------------------------------------------
+    # collection of emissions scenarios
+    url(
+        r'^scenarios/?$|^scenarios\.html$',
+        scenario_handler, 
+        {'emitter_format':'html'},
+        name='scenario_list',
+    ),
+    # a single emissions scenario resource
+    url(
+        r'^scenarios/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
+            formats=nonspatial_formats,
+            re_urlslug=re_urlslug,
+        ),
+        scenario_handler,
+        {'emitter_format':'html'},
+        name='scenario_single',
+    ),
+    url(
+        r'^scenarios/{re_urlslug}$'.format(
+            re_urlslug=re_urlslug,
+        ),
+        scenario_handler,
+        {'emitter_format':'html'},
+        name='scenario_single_default',
+    ),
+
 ### VARIABLES -----------------------------------------------------------------
-#
-#(r'^variables/$|variables\.html|^variables/(?P<code>[^/]+)/$',
-# variable_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^variables/(?P<code>.*)\.html',
-# variable_handler,
-# {'emitter_format':'html'}),
-#
-#(r'^variables.json|^variables/(?P<code>.*)\.json',
-# variable_handler,
-# {'emitter_format':'json'}),
-#
+    # collection of output variables
+    url(
+        r'^variables/?$|^variables\.html$',
+        variable_handler, 
+        {'emitter_format':'html'},
+        name='variable_list',
+    ),
+    # a single emissions scenario resource
+    url(
+        r'^variables/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
+            formats=nonspatial_formats,
+            re_urlslug=re_urlslug,
+        ),
+        variable_handler,
+        {'emitter_format':'html'},
+        name='variable_single',
+    ),
+    url(
+        r'^variables/{re_urlslug}$'.format(
+            re_urlslug=re_urlslug,
+        ),
+        variable_handler,
+        {'emitter_format':'html'},
+        name='variable_single_default',
+    ),
 )
 #
 ##print archive_regex + '.json'

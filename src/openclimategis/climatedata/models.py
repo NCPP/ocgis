@@ -1,9 +1,5 @@
 from django.contrib.gis.db import models
 
-def _slugify(phrase):
-    '''Returns a slug version of a phrase, suitable for including in a URL'''
-    return phrase.replace(" ","-").replace("/","-").lower()
-
 
 class AbstractGeoManager(models.Model):
     objects = models.GeoManager()
@@ -108,7 +104,7 @@ class Organization(AbstractGeoManager):
     Example: National Center for Atmospheric Research (ncar) 
     '''
     name         = models.CharField(max_length=255)
-    code         = models.CharField(max_length=25,unique=True)
+    code         = models.CharField(max_length=25, unique=True)
     country      = models.CharField(max_length=255)
     url          = models.URLField(
         verify_exists=False, 
@@ -127,8 +123,8 @@ class Scenario(AbstractGeoManager):
     Reference: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments
     '''
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=10,unique=True)
-    urlslug      = models.CharField(max_length=10,unique=True)
+    code         = models.CharField(max_length=10, unique=True)
+    urlslug      = models.CharField(max_length=10, unique=True)
     description  = models.TextField(null=True)
     
     class Meta():
@@ -143,9 +139,9 @@ class Archive(AbstractGeoManager):
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
     '''
-    name         = models.CharField(max_length=255,unique=True)
-    code         = models.CharField(max_length=25,unique=True)
-    urlslug      = models.CharField(max_length=25,unique=True)
+    name         = models.CharField(max_length=255, unique=True)
+    code         = models.CharField(max_length=25, unique=True)
+    urlslug      = models.CharField(max_length=25, unique=True)
     url          = models.URLField(
         verify_exists=False, 
         max_length=200,
@@ -167,8 +163,8 @@ class ClimateModel(AbstractGeoManager):
     Reference: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php
     '''
     name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=25,unique=True)
-    urlslug      = models.CharField(max_length=25,unique=True)
+    code         = models.CharField(max_length=25, unique=True)
+    urlslug      = models.CharField(max_length=25, unique=True)
     organization = models.ForeignKey(Organization)
     url          = models.URLField(
         verify_exists=False,
@@ -192,6 +188,7 @@ class Variable(AbstractGeoManager):
     Ref: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output
     '''
     code         = models.CharField(max_length=25, unique=True)
+    urlslug      = models.CharField(max_length=25, unique=True)
     name         = models.CharField(max_length=50)
     units        = models.CharField(max_length=25)
     ndim         = models.IntegerField()

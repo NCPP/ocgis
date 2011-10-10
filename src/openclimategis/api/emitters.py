@@ -1,4 +1,5 @@
 from django.template.context import RequestContext
+from django.template.base import TemplateDoesNotExist
 from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
@@ -49,7 +50,10 @@ class HTMLEmitter(Emitter):
                 context_instance=c,
             )
         else:
-            is_collection = not request.url_args.has_key('urlslug')
+            if request.url_args.has_key('is_collection'):
+                is_collection = request.url_args['is_collection']
+            else:
+                None
             try:
                 # use the HTML template that matches the data model name
                 template_name = self.data.model._meta.object_name + '.html'
@@ -61,7 +65,7 @@ class HTMLEmitter(Emitter):
                     },
                     context_instance=c,
                 )
-            except:
+            except TemplateDoesNotExist:
                 # render the default HTML response
                 response = render_to_response(
                     template_name='default_html_emitter.html',

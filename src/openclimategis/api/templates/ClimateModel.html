@@ -2,7 +2,12 @@
 
 {% block title %}
     {{ block.super }}
-    <h2>Climate Models</h2>
+    {% if is_collection %}
+    > Climate Models
+    {% else %}
+    > <a href="{% url climatemodel_list %}">Climate Models</a> 
+    > {% for listitem in data %}{{ listitem.code }}{% endfor %}
+    {% endif %}
 {% endblock title %}
 
 {% block content %}

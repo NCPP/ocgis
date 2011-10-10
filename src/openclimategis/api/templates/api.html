@@ -2,10 +2,10 @@
 
 {% block title %}
     {{ block.super }}
-    <h2>Resources</h2>
 {% endblock title %}
 
 {% block content %}
+<h2>Resources</h2>
     <ul>
         <li>
             <a href="{% url archive_list %}">Archives</a>
@@ -17,7 +17,10 @@
             <a href="{% url scenario_list %}">Emissions Scenarios</a>
         </li>
         <li>
-            <a href="{% url variable_list %}">Climate Simulation Output Variables</a>
+            <a href="{% url variable_list %}">Output Variables</a>
+        </li>
+        <li>
+            <a href="{% url simulation_list %}">Simulation Outputs </a>
         </li>
     </ul>
 {% endblock content %}

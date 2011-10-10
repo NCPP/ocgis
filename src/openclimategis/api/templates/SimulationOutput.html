@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ block.super }}
+    {% if is_collection %}
+    > Simulation Outputs
+    {% else %}
+    > <a href="{% url simulation_list %}">Simulation Outputs</a> 
+    > {% for listitem in data %}{{ listitem.id }}{% endfor %}
+    {% endif %}
+{% endblock title %}
+
+{% block content %}
+    <table border="1">
+    <tbody>
+    {% if is_collection %}
+        {% comment %}Create table for a list of simulation outputs{% endcomment %}
+        <tr>
+            <th>ID</th>
+            <th>Archive</th>
+            <th>Scenario</th>
+            <th>Climate Model</th>
+            <th>Output Variable</th>
+            <th>Run</th>
+        </tr>
+        {% for listitem in data %}
+        <tr>
+            <td>
+                <a href="{% url simulation_single id=listitem.id emitter_format='html' %}">
+                    {{ listitem.id }}
+                </a>
+            </td>
+            <td>
+                <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
+                    {{ listitem.archive.code }}
+                </a>
+            </td>
+            <td>
+                <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
+                    {{ listitem.scenario.code }}
+                </a>
+            </td>
+            <td>
+                <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
+                    {{ listitem.climate_model.code }}
+                </a>
+            </td>
+            <td>
+                <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
+                    {{ listitem.variable.code }}
+                </a>
+            </td>
+            <td>
+                {{ listitem.run }}
+            </td>
+        </td></tr>
+        {% endfor %}
+    {% else %}
+        {% comment %}Create table for a single simulation output{% endcomment %}
+        {% for listitem in data %}
+            <tr>
+                <th>ID</th>
+                <td>{{ listitem.id}}</td>
+            </tr>
+            <tr>
+                <th>Archive</th>
+                <td>
+                    <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
+                        {{ listitem.archive.code }}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <th>Scenario</th>
+                <td>
+                    <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
+                        {{ listitem.scenario.code }}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <th>Climate Model</th>
+                <td>
+                    <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
+                        {{ listitem.climate_model.code }}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <th>Output Variable</th>
+                <td>
+                    <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
+                        {{ listitem.variable.code }}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <th>Run</th>
+                <td>{{ listitem.run }}</td>
+            </tr>
+            <tr>
+                <th>NetCDF Variable</th>
+                <td>{{ listitem.netcdf_variable }}</td>
+            </tr>
+        {% endfor %}
+    {% endif %}
+    </tbody>
+    </table>
+{% endblock content %}

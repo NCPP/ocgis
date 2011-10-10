@@ -65,6 +65,20 @@ class TestUrls(TestCase):
                 print response.content
         self.assertEqual(response.status_code, 200)
     
+    def test_resource_simulations_html(self):
+        '''Creates an HTML representation of output simulations'''
+        response = self.client.get('/api/simulations.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_resource_single_simulation_html(self):
+        '''Creates an HTML representation of a single simulation'''
+        response = self.client.get('/api/simulations/1.html')
+        if response.status_code != 200:
+                print response.content
+        self.assertEqual(response.status_code, 200)
+    
     def test_urls(self):
         '''tests that data request URLs work
         

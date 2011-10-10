@@ -9,6 +9,7 @@ archive_handler = Resource(handlers.ArchiveHandler)
 climatemodel_handler = Resource(handlers.ClimateModelHandler)
 scenario_handler = Resource(handlers.ScenarioHandler)
 variable_handler = Resource(handlers.VariableHandler)
+simulationoutput_handler = Resource(handlers.SimulationOutputHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
@@ -36,7 +37,7 @@ re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
 re_aggregate = 'aggregate/(?P<aggregate>true|false)'
 re_variable = 'variable/(?P<variable>.*)\.(?P<emitter_format>.*)'
 re_urlslug = '(?P<urlslug>[\.\(\)A-Za-z0-9_-]+)'
-
+re_id = '(?P<id>\d+)'
 
 urlpatterns = patterns('',
                        
@@ -87,13 +88,12 @@ url(
     name='api_list',
 ),
 
-
 ### ARCHIVES --------------------------------------------------------------------
     # collection of climate model archives
     url(
         r'^archives/?$|^archives\.html$',
         archive_handler, 
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':True},
         name='archive_list',
     ),
     # a single climate model archive resource
@@ -103,6 +103,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         archive_handler,
+        {'is_collection':False},
         name='archive_single',
     ),
     url(
@@ -110,7 +111,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         archive_handler,
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':False},
         name='archive_single_default',
     ),
 
@@ -119,7 +120,7 @@ url(
     url(
         r'^models/?$|^models\.html$',
         climatemodel_handler, 
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':True},
         name='climatemodel_list',
     ),
     # a single climate model resource
@@ -129,6 +130,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         climatemodel_handler,
+        {'is_collection':False},
         name='climatemodel_single',
     ),
     url(
@@ -136,7 +138,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         climatemodel_handler,
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':False},
         name='climatemodel_single_default',
     ),
 
@@ -145,7 +147,7 @@ url(
     url(
         r'^scenarios/?$|^scenarios\.html$',
         scenario_handler, 
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':True},
         name='scenario_list',
     ),
     # a single emissions scenario resource
@@ -155,7 +157,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         scenario_handler,
-        {'emitter_format':'html'},
+        {'is_collection':False},
         name='scenario_single',
     ),
     url(
@@ -163,7 +165,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         scenario_handler,
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':False},
         name='scenario_single_default',
     ),
 
@@ -172,7 +174,7 @@ url(
     url(
         r'^variables/?$|^variables\.html$',
         variable_handler, 
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':True},
         name='variable_list',
     ),
     # a single emissions scenario resource
@@ -182,7 +184,7 @@ url(
             re_urlslug=re_urlslug,
         ),
         variable_handler,
-        {'emitter_format':'html'},
+        {'is_collection':False},
         name='variable_single',
     ),
     url(
@@ -190,8 +192,35 @@ url(
             re_urlslug=re_urlslug,
         ),
         variable_handler,
-        {'emitter_format':'html'},
+        {'emitter_format':'html', 'is_collection':False},
         name='variable_single_default',
+    ),
+    
+### SIMULATION OUTPUT ---------------------------------------------------------
+    # collection of simulation outputs
+    url(
+        r'^simulations/?$|^simulations\.html$',
+        simulationoutput_handler, 
+        {'emitter_format':'html', 'is_collection':True},
+        name='simulation_list',
+    ),
+    # a single simulation output resource
+    url(
+        r'^simulations/{re_id}.(?P<emitter_format>{formats})$'.format(
+            re_id=re_id,
+            formats=nonspatial_formats,
+        ),
+        simulationoutput_handler,
+        {'emitter_format':'html', 'is_collection':False},
+        name='simulation_single',
+    ),
+    url(
+        r'^simulations/{re_id}$'.format(
+            re_id=re_id,
+        ),
+        simulationoutput_handler,
+        {'emitter_format':'html', 'is_collection':False},
+        name='simulation_single_default',
     ),
 )
 #

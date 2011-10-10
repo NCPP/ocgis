@@ -9,6 +9,7 @@ from climatedata.models import Archive
 from climatedata.models import ClimateModel
 from climatedata.models import Scenario
 from climatedata.models import Variable
+from climatedata.models import SimulationOutput
 #from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
 import netCDF4
 from experimental.in_memory_oo import multipolygon_operation
@@ -90,15 +91,12 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None
-            
+
 
 class NonSpatialHandler(OpenClimateHandler):
     __data_kwds__ = {}
      
     def _read_(self,request):
-        
-        if not self.model:
-            return None
         try:
             urlslug = request.url_args['urlslug']
             query = self.model.objects.filter(urlslug__iexact=str(urlslug))
@@ -109,24 +107,70 @@ class NonSpatialHandler(OpenClimateHandler):
 
 class ApiHandler(NonSpatialHandler):
     model = None
-
+    
+    def _read_(self,request):
+        return None
 
 class ArchiveHandler(NonSpatialHandler):
     model = Archive
 
+    def _read_(self,request):
+        try:
+            urlslug = request.url_args['urlslug']
+            query = self.model.objects.filter(urlslug__iexact=str(urlslug))
+        except:
+            query = self.model.objects.all()
+        return query
+
 
 class ClimateModelHandler(NonSpatialHandler):
     model = ClimateModel
+    
+    def _read_(self,request):
+        try:
+            urlslug = request.url_args['urlslug']
+            query = self.model.objects.filter(urlslug__iexact=str(urlslug))
+        except:
+            query = self.model.objects.all()
+        return query
 
 
 class ScenarioHandler(NonSpatialHandler):
     model = Scenario
 
+    def _read_(self,request):
+        try:
+            urlslug = request.url_args['urlslug']
+            query = self.model.objects.filter(urlslug__iexact=str(urlslug))
+        except:
+            query = self.model.objects.all()
+        return query
+
 
 class VariableHandler(NonSpatialHandler):
     model = Variable
-    
-    
+
+    def _read_(self,request):
+        try:
+            urlslug = request.url_args['urlslug']
+            query = self.model.objects.filter(urlslug__iexact=str(urlslug))
+        except:
+            query = self.model.objects.all()
+        return query
+
+
+class SimulationOutputHandler(NonSpatialHandler):
+    model = SimulationOutput
+    exclude = ()
+    def _read_(self,request):
+        try:
+            id = request.url_args['id']
+            query = self.model.objects.filter(id__exact=int(id))
+        except:
+            query = self.model.objects.all()
+        return query
+
+
 class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):

@@ -2,13 +2,34 @@
 
 {% block title %}
     {{ block.super }}
-    <h2>Climate Simulation Output Variables</h2>
+    {% if is_collection %}
+    > Output Variables
+    {% else %}
+    > <a href="{% url variable_list %}">Output Variables</a> 
+    > {% for listitem in data %}{{ listitem.code }}{% endfor %}
+    {% endif %}
 {% endblock title %}
 
 {% block content %}
     <table border="1">
     <tbody>
-    {% ifequal data|length 1 %}
+    {% if is_collection %}
+        {% comment %}Create table for a list of climate variables{% endcomment %}
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Units</th>
+            <th>Dimensions</th>
+        </tr>
+        {% for listitem in data|dictsort:"code" %}
+        <tr>
+            <td><a href="{% url variable_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
+            <td>{{ listitem.name }}</td>
+            <td>{{ listitem.units }}</td>
+            <td>{{ listitem.ndim }}</td>
+        </td></tr>
+        {% endfor %}
+    {% else %}
         {% comment %}Create table for a single output variable{% endcomment %}
         {% for listitem in data %}
             <tr>
@@ -32,23 +53,7 @@
                 <td>{{ listitem.description }}</td>
             </tr>
         {% endfor %}
-    {% else %}
-        {% comment %}Create table for a list of climate variables{% endcomment %}
-        <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Units</th>
-            <th>Dimensions</th>
-        </tr>
-        {% for listitem in data|dictsort:"code" %}
-        <tr>
-            <td><a href="{% url variable_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
-            <td>{{ listitem.name }}</td>
-            <td>{{ listitem.units }}</td>
-            <td>{{ listitem.ndim }}</td>
-        </td></tr>
-        {% endfor %}
-    {% endifequal %}
+    {% endif %}
     </tbody>
     </table>
 {% endblock content %}

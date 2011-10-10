@@ -2,44 +2,42 @@
 
 {% block title %}
     {{ block.super }}
-    <h2>Climate Models</h2>
+    <h2>Climate Model Archives</h2>
 {% endblock title %}
 
 {% block content %}
     <table border="1">
     <tbody>
     {% if is_collection %}
-        {% comment %}Create table for a list of Climate Models{% endcomment %}
+        {% comment %}Create table for a list of archives{% endcomment %}
         <tr>
             <th>Code</th>
-            <th>Model Name</th>
-            <th>Organization</th>
+            <th>Name</th>
+            <th>URL Slug</th>
+            <th>URL</th>
         </tr>
         {% for listitem in data|dictsort:"code" %}
         <tr>
-            <td><a href="{% url climatemodel_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
+            <td><a href="{% url archive_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
             <td>{{ listitem.name }}</td>
-            <td>{{ listitem.organization.name }}</td>
+            <td>{{ listitem.urlslug }}</td>
+            <td>{{ listitem.url }}</td>
         </td></tr>
         {% endfor %}
     {% else %}
-        {% comment %}Create table for a single Climate Model{% endcomment %}
+        {% comment %}Create table for a single archive{% endcomment %}
         {% for listitem in data %}
             <tr>
                 <th>Code</th>
                 <td>{{ listitem.code}}</td>
             </tr>
             <tr>
-                <th>Model Name</th>
+                <th>Name</th>
                 <td>{{ listitem.name }}</td>
             </tr>
             <tr>
                 <th>URL Slug</th>
                 <td>{{ listitem.urlslug }}</td>
-            </tr>
-            <tr>
-                <th>Organization</th>
-                <td>{{ listitem.organization.name }}</td>
             </tr>
             <tr>
                 <th>URL</th>

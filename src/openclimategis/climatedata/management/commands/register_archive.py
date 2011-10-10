@@ -4,14 +4,12 @@ Example: ./manage.py register_archive http://cida.usgs.gov/qa/thredds/dodsC/maur
 '''
 
 import sys
-#import os
 import types
 import warnings
 import netCDF4
 import numpy as np
 from django.core.management.base import LabelCommand
 from django.contrib.gis.geos.polygon import Polygon
-#from climatedata import models
 from climatedata.models import NetcdfDataset
 from climatedata.models import NetcdfDatasetAttribute
 from climatedata.models import NetcdfDimension

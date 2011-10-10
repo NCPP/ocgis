@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {{ block.super }}
+    <h2>Climate Simulation Output Variables</h2>
+{% endblock title %}
+
+{% block content %}
+    <table border="1">
+    <tbody>
+    {% ifequal data|length 1 %}
+        {% comment %}Create table for a single output variable{% endcomment %}
+        {% for listitem in data %}
+            <tr>
+                <th>Code</th>
+                <td>{{ listitem.code}}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ listitem.name }}</td>
+            </tr>
+            <tr>
+                <th>Units</th>
+                <td>{{ listitem.units }}</td>
+            </tr>
+            <tr>
+                <th>Dimensions</th>
+                <td>{{ listitem.ndim }}</td>
+            </tr>
+            <tr>
+                <th>Description</th>
+                <td>{{ listitem.description }}</td>
+            </tr>
+        {% endfor %}
+    {% else %}
+        {% comment %}Create table for a list of climate variables{% endcomment %}
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Units</th>
+            <th>Dimensions</th>
+        </tr>
+        {% for listitem in data|dictsort:"code" %}
+        <tr>
+            <td><a href="{% url variable_single urlslug=listitem.urlslug emitter_format='html' %}">{{ listitem.code }}</a></td>
+            <td>{{ listitem.name }}</td>
+            <td>{{ listitem.units }}</td>
+            <td>{{ listitem.ndim }}</td>
+        </td></tr>
+        {% endfor %}
+    {% endifequal %}
+    </tbody>
+    </table>
+{% endblock content %}

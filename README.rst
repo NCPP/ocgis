@@ -39,8 +39,9 @@ Creating an AWS Instance
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Although it is not required, installing OpenClimateGIS on an AWS has the 
-benefits having an isolate instance with specific library versions and the
-ability to easily scale to multiple servers in the future.
+benefits having an isolated instance with specific library versions. 
+Deploying on AWS also allows for the ability to scale to multiple servers 
+in the future.
 
 An EC2 instance can be created from within Python, using boto_, a Python 
 interface to Amazon Web Services.  The following is an example script that
@@ -100,7 +101,13 @@ install script::
     
     # run the installation script
     chmod u+x INSTALL.sh
-    . INSTALL.sh
+    . INSTALL.sh > log_install.log
+
+    # copy over your settings file
+    sudo mkdir /etc/openclimategis
+    scp SOURCE??? /etc/openclimategis/settings.ini
+
+
 
 ------------
 Source Code

@@ -78,7 +78,7 @@ documentation.::
     exit()
 
 Once you configured the Security Group for the instance to allow access on 
-port 22 and created an public/private key pair (See: 'AWS Security Credentials`_)
+port 22 and created an public/private key pair (See: `AWS Security Credentials`_)
 you can connect to the instance using ssh::
 
     ssh -i ~/.ssh/aws_openclimategis/ec2-keypair.pem ubuntu@DNSNAME
@@ -101,12 +101,23 @@ install script::
     
     # run the installation script
     chmod u+x INSTALL.sh
-    . INSTALL.sh > log_install.log
+    . INSTALL.sh >& ~/log_install.log
 
-    # copy over your settings file
+The OpenClimateGIS Django project requires a settings file (which includes
+database passwords) in order to operate.  This file should be placed at
+/etc/openclimategis/settings.ini
+
     sudo mkdir /etc/openclimategis
-    scp SOURCE??? /etc/openclimategis/settings.ini
 
+You can copy over the settings file that you use for development to your AWS 
+server using the secure copy command (executed on your development machine)::
+
+    sudo scp -i ~/.ssh/aws_openclimategis/ec2-keypair.pem /etc/openclimategis/settings.ini ubuntu@PUBLICDNS:
+
+The scp copy places the file in the ubuntu user's home directory.  Move the 
+file to its destination using::
+
+    sudo mv ~/settings.ini /etc/openclimategis/settings.ini
 
 
 ------------

@@ -49,16 +49,13 @@ class OpenClimateShp(object):
         self.ogr_geom = OGRGeomType(bgeom.geometryType()).num
 #        tr()
         ## the spatial reference system
-#        import ipdb;ipdb.set_trace()
 #        try:
 #        try:
 #            self.srs = osr.SpatialReference(bgeom.srid)
         self.srs = osr.SpatialReference()
         self.srs.ImportFromEPSG(srid)
 #        except:
-#            import ipdb;ipdb.set_trace()
 #        except TypeError:
-#            import ipdb;ipdb.set_trace()
 #            self.srs = osr.SpatialReference(int(bgeom.srid))
         
     def write(self):
@@ -102,7 +99,6 @@ class OpenClimateShp(object):
         files = ['shp','shx','prj','dbf']
         for item in files:
             filepath = self.path.replace('shp',item)
-#            import ipdb;ipdb.set_trace()
 #            filename = '%s.%s' % (self.path.replace('.shp',''), item)
             zip.write(filepath)#, arcname='%s.%s' % (file_name.replace('.shp',''), item))
 #        if readme:

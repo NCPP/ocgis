@@ -129,7 +129,6 @@ class NcDatasetImporter(object):
         min_y = float(self.dataset.variables[self.rowbnds_name][:].min())
         max_x = float(self.dataset.variables[self.colbnds_name][:].max())
         max_y = float(self.dataset.variables[self.rowbnds_name][:].max())
-#        import ipdb;ipdb.set_trace()
         p = Polygon(((min_x,min_y),(max_x,min_y),(max_x,max_y),(min_x,max_y),(min_x,min_y)),srid=4326)
         return(p)
         

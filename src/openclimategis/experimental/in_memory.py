@@ -16,9 +16,7 @@ import geojson
 from numpy.ma.core import MaskedConstant
 import subprocess
 
-import ipdb
 from shapely.ops import cascaded_union
-tr = ipdb.set_trace
 
 
 #NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
@@ -182,7 +180,6 @@ def dump(polygon):
                 weights[ii,jj] = w
     mask = weights > 0
     weights = weights/weights.sum()
-    #tr()
     #for ii,jj in itertools.product(xrange(len(row_bnds)),xrange(len(col_bnds))):
     #    for jj in xrange(len(col_bnds)):
     #        grid.append(Docg(weight=None,row=ii,col=jj,geom=make_poly(row_bnds[ii],col_bnds[jj])))
@@ -225,7 +222,6 @@ def dump(polygon):
     weights = sub(idxrow,idxcol,weights)
     igrid = sub(idxrow,idxcol,igrid)
     
-    #tr()
     #idxrow = np.unique(real_row[mask])
     #idxcol = np.unique(real_col[mask])
     #for ii,jj in itr_mask(mask):
@@ -264,7 +260,6 @@ def dump(polygon):
                 ## need to remove geometries that have masked data
                 lyr = weighted[kk,:,:]
                 geoms = igrid[mask*np.invert(lyr.mask)]
-#                tr()
                 unioned = cascaded_union([p for p in geoms])
 #                unioned = geoms[0]
 #                for ii,geom in enumerate(geoms):

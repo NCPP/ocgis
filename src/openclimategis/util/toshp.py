@@ -7,8 +7,6 @@ from django.http import HttpResponse
 import os
 from io import BytesIO
 
-from ipdb import set_trace as tr
-
 
 class OpenClimateShp(object):
     """

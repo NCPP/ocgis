@@ -18,8 +18,7 @@
         IndexOptions FancyIndexing
     </Directory>
 
-    WSGIScriptAlias / /home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/apache/djang
-o.wsgi
+    WSGIScriptAlias / /home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/apache/django.wsgi
     <Directory /home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/apache>
         Order deny,allow
         Allow from all

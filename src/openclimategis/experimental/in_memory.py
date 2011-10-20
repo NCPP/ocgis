@@ -194,14 +194,12 @@ def dump(polygon):
     #    if l.geom.intersects(POLYINT):
     #        prearea = l.geom.area
     #        l.geom = l.geom.intersection(POLYINT)
-    ##        import ipdb;ipdb.set_trace()
     ##        l.update(dict(weight=l['geom'].area/prearea))
     #        l.weight = l.geom.area/prearea
     ##        igrid.append(l)
     #    if l['geom'].intersects(POLYINT):
     #        prearea = l['geom'].area
     #        l['geom'] = l['geom'].intersection(POLYINT)
-    ##        import ipdb;ipdb.set_trace()
     ##        l.update(dict(weight=l['geom'].area/prearea))
     #        w = l['geom'].area/prearea
     #        if w > 0:

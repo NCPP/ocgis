@@ -88,7 +88,6 @@ class NetCdfAccessor(object):
         col_grid,row_grid = np.meshgrid(x_indices,y_indices)
         row_grid = np.flipud(row_grid)
         
-#        import ipdb;ipdb.set_trace()   
         return(data,row_grid,col_grid)
     
     def get_dict(self,geom_list,weights=None,aggregate=False,time_indices=[],col=[],row=[]):
@@ -130,7 +129,6 @@ class NetCdfAccessor(object):
                 raise ValueError('The number of geometries and the number of requested indices must be equal.')
 
         ## return the netcdf data as a multi-dimensional numpy array
-#        import ipdb;ipdb.set_trace()
         data,row_grid,col_grid = self.get_numpy_data(time_indices,col,row)
         
         ## once more check in the case of all data being returned unaggregated
@@ -179,7 +177,6 @@ class NetCdfAccessor(object):
 #            try:
 #            mask = np.array(weights).reshape(*sh)
 #            except:
-#                import ipdb;ipdb.set_trace()
         
         ## POPULATE QUERYSET ---------------------------------------------------
         
@@ -315,7 +312,6 @@ class NetCdfAccessor(object):
 ##                self._pyfrmt = self._dtype_mapping[type(val)][0]
 ##            ## numpy 'masked' values throws exception
 ##            except KeyError:
-##                import ipdb;ipdb.set_trace()
 #                ## map this to a NoneType returning function
 #            if isinstance(val,np.ma.core.MaskedConstant):
 #                self._pyfrmt = self._masked_

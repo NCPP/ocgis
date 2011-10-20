@@ -164,7 +164,6 @@ class NcDatasetImporter(object):
                 a.code = ncattr
                 a.value = str(getattr(value,ncattr))
                 s.add(a)
-#            import ipdb;ipdb.set_trace()
 
     def _spatial_(self,s,climatemodel):
         col = self.dataset.variables[self.col][:]
@@ -212,7 +211,6 @@ if __name__ == '__main__':
 #    ncp = NcDatasetImporter(uri)
 #    ncp.load(s,1)
 #    s.close()
-#    import ipdb;ipdb.set_trace()
 
     s = db.Session()
     d = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data'

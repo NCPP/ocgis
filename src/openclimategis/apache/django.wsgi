@@ -4,7 +4,7 @@
 import os
 import sys
 
-os.environ['DJANGO_SETTINGS_MODULE'] = 'openclimategis.settings_production'
+os.environ['DJANGO_SETTINGS_MODULE'] = 'openclimategis.settings'
 
 paths = [
     '/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages',

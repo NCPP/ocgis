@@ -10,8 +10,8 @@
         IndexOptions FancyIndexing
     </Directory>
     
-    Alias /admin_media/ "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media"
-    <Directory "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media">
+    Alias /admin_media/ "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media/"
+    <Directory "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media/">
         Order allow,deny
         Options Indexes
         Allow from all

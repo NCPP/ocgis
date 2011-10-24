@@ -112,7 +112,7 @@ echo ""
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 echo "starting to install GDAL..."
 
-export GDAL_VER=1.8.0
+export GDAL_VER=1.8.1
 export GDAL_SRC=$SRCDIR/gdal/$GDAL_VER
 export GDAL_DIR=/usr/local/gdal/$GDAL_VER
 
@@ -125,7 +125,7 @@ else
     wget http://download.osgeo.org/gdal/gdal-$GDAL_VER.tar.gz
     tar xzf gdal-$GDAL_VER.tar.gz
     cd gdal-$GDAL_VER
-    ./configure --prefix=$GDAL_DIR --with-geos=$GEOS_DIR/bin/geos-config > log_gdal_configure.out
+    ./configure --prefix=$GDAL_DIR --with-geos=$GEOS_DIR/bin/geos-config --with-python > log_gdal_configure.out
     make -j 4 > log_gdal_make.out
     echo "    installing in $GDAL_DIR"
     sudo make install > log_gdal_make_install.out
@@ -213,16 +213,10 @@ echo ""
 echo "starting to install PostgreSQL..."
 
 export POSTGRESQL_VER=8.4
-export DBUSER=`logname`
 
 sudo apt-get install -y postgresql-8.4
 sudo apt-get install -y postgresql-server-dev-$POSTGRESQL_VER libpq-dev
 sudo apt-get install -y postgresql-client-8.4
-
-# Create a PostgreSQL user matching the current user's name so that the build
-# can be tested using "make check"
-echo "Creating database user $DBUSER"
-sudo -u postgres createuser $DBUSER --superuser --pwprompt
 
 echo "...finished installing PostgreSQL"
 echo ""
@@ -251,7 +245,6 @@ else
         --with-projdir=$PROJ_DIR \
         > log_postgis_configure.out
     make > log_postgis_make.out
-    make check > log_postgis_make_check.out
     sudo make install > log_postgis_make_install.out
 fi
 
@@ -291,11 +284,16 @@ export VIRTUALENVNAME=openclimategis
 sudo apt-get install python2.6-dev
 
 # create a python virtual environment
+mkdir ~/.virtualenvs
+cd ~/.virtualenvs
 curl -O https://raw.github.com/pypa/virtualenv/master/virtualenv.py
 python virtualenv.py --no-site-packages $VIRTUALENVNAME
 
 # activate the virtual environment
-. $VIRTUALENVNAME/bin/activate
+. ~/.virtualenvs/$VIRTUALENVNAME/bin/activate
+
+# install symbolic link in the virtual environment to GDAL
+ln -s $GDAL_DIR/bin/gdal-config ~/.virtualenvs/$VIRTUALENVNAME/bin/gdal-config
 
 # install the OpenClimateGIS dependencies
 pip install yolk
@@ -303,6 +301,14 @@ pip install Django==1.3
 pip install psycopg2==2.4
 pip install numpy==1.5.1
 pip install netCDF4==0.9.4
+
+# install the GDAL Python bindings
+pip install --no-install GDAL 
+# build package extensions 
+cd ~/.virtualenvs/$VIRTUALENVNAME/build/GDAL 
+python setup.py build_ext --gdal-config=$GDAL_DIR/bin/gdal-config --library-dirs=$GDAL_DIR/include 
+cd 
+pip install --no-download GDAL
 
 echo "...finished installing Python packages"
 echo ""
@@ -319,12 +325,19 @@ echo ""
 echo "starting to create a PostGIS database for Django..."
 
 # create a PostGIS database that will be used by the Django project
-DBNAME=openclimategis_sql
-DBOWNER=openclimategis_user
-sudo -u postgres createuser $DBOWNER --pwprompt
+export DBUSER=`logname`
+export DBOWNER=openclimategis_user
+export DBNAME=openclimategis_sql
+
+# Create a PostgreSQL user matching the current user's name
+echo "Creating database user $DBUSER"
+sudo -u postgres createuser $DBUSER --superuser --pwprompt
+
+# Create a PostgreSQL user for the django project
+sudo -u postgres createuser $DBOWNER --no-superuser --createdb --no-createrole --pwprompt
 sudo su -c "createdb $DBNAME -T $POSTGIS_TEMPLATE" - postgres
 sudo -u postgres psql -d postgres -c "ALTER DATABASE $DBNAME OWNER TO $DBOWNER;"
 
-echo "... finished creating a PostGIS database for Django"
+echo "... finished creating a PostGIS database for the Django project"
 echo ""
 

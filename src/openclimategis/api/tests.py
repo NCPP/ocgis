@@ -6,8 +6,8 @@ import unittest
 import itertools
 
 
-def disabled(f):
-    warn('{0} TEST DISABLED!'.format(f.__name__))
+#def disabled(f):
+#    warn('{0} TEST DISABLED!'.format(f.__name__))
 
 
 class TestUrls(TestCase):

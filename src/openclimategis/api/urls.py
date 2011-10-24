@@ -81,19 +81,23 @@ urlpatterns = patterns('',
 # {'emitter_format':'shz'}),
 
 
-url(
-    r'^$|^.html$', 
-    api_handler, 
-    {'emitter_format':'html'},
-    name='api_list',
-),
+    url(
+        r'^$|^.html$', 
+        api_handler, 
+        {'emitter_format':'html', 'template_name':'api.html'},
+        name='api_list',
+    ),
 
 ### ARCHIVES --------------------------------------------------------------------
     # collection of climate model archives
     url(
         r'^archives/?$|^archives\.html$',
         archive_handler, 
-        {'emitter_format':'html', 'is_collection':True},
+        {
+            'emitter_format':'html',
+            'template_name':'Archive.html',
+            'is_collection':True,
+        },
         name='archive_list',
     ),
     # a single climate model archive resource
@@ -103,7 +107,10 @@ url(
             re_urlslug=re_urlslug,
         ),
         archive_handler,
-        {'is_collection':False},
+        {
+            'template_name':'Archive.html',
+            'is_collection':False,
+        },
         name='archive_single',
     ),
     url(
@@ -111,7 +118,11 @@ url(
             re_urlslug=re_urlslug,
         ),
         archive_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'Archive.html',
+            'is_collection':False,
+        },
         name='archive_single_default',
     ),
 
@@ -120,7 +131,11 @@ url(
     url(
         r'^models/?$|^models\.html$',
         climatemodel_handler, 
-        {'emitter_format':'html', 'is_collection':True},
+        {
+            'emitter_format':'html',
+            'template_name':'ClimateModel.html',
+            'is_collection':True,
+        },
         name='climatemodel_list',
     ),
     # a single climate model resource
@@ -130,7 +145,10 @@ url(
             re_urlslug=re_urlslug,
         ),
         climatemodel_handler,
-        {'is_collection':False},
+        {
+            'template_name':'ClimateModel.html',
+            'is_collection':False,
+        },
         name='climatemodel_single',
     ),
     url(
@@ -138,7 +156,11 @@ url(
             re_urlslug=re_urlslug,
         ),
         climatemodel_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'ClimateModel.html',
+            'is_collection':False,
+        },
         name='climatemodel_single_default',
     ),
 
@@ -147,7 +169,11 @@ url(
     url(
         r'^scenarios/?$|^scenarios\.html$',
         scenario_handler, 
-        {'emitter_format':'html', 'is_collection':True},
+        {
+            'emitter_format':'html',
+            'template_name':'Scenario.html',
+            'is_collection':True,
+        },
         name='scenario_list',
     ),
     # a single emissions scenario resource
@@ -157,7 +183,10 @@ url(
             re_urlslug=re_urlslug,
         ),
         scenario_handler,
-        {'is_collection':False},
+        {
+            'template_name':'Scenario.html',
+            'is_collection':False,
+        },
         name='scenario_single',
     ),
     url(
@@ -165,7 +194,11 @@ url(
             re_urlslug=re_urlslug,
         ),
         scenario_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'Scenario.html',
+            'is_collection':False,
+        },
         name='scenario_single_default',
     ),
 
@@ -174,7 +207,11 @@ url(
     url(
         r'^variables/?$|^variables\.html$',
         variable_handler, 
-        {'emitter_format':'html', 'is_collection':True},
+        {
+            'emitter_format':'html',
+            'template_name':'Variable.html',
+            'is_collection':True,
+        },
         name='variable_list',
     ),
     # a single emissions scenario resource
@@ -184,7 +221,10 @@ url(
             re_urlslug=re_urlslug,
         ),
         variable_handler,
-        {'is_collection':False},
+        {
+            'template_name':'Variable.html',
+            'is_collection':False,
+        },
         name='variable_single',
     ),
     url(
@@ -192,7 +232,11 @@ url(
             re_urlslug=re_urlslug,
         ),
         variable_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'Variable.html',
+            'is_collection':False,
+        },
         name='variable_single_default',
     ),
     
@@ -201,7 +245,11 @@ url(
     url(
         r'^simulations/?$|^simulations\.html$',
         simulationoutput_handler, 
-        {'emitter_format':'html', 'is_collection':True},
+        {
+            'emitter_format':'html',
+            'template_name':'SimulationOutput.html',
+            'is_collection':True,
+        },
         name='simulation_list',
     ),
     # a single simulation output resource
@@ -211,7 +259,11 @@ url(
             formats=nonspatial_formats,
         ),
         simulationoutput_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'SimulationOutput.html',
+            'is_collection':False,
+        },
         name='simulation_single',
     ),
     url(
@@ -219,7 +271,11 @@ url(
             re_id=re_id,
         ),
         simulationoutput_handler,
-        {'emitter_format':'html', 'is_collection':False},
+        {
+            'emitter_format':'html',
+            'template_name':'SimulationOutput.html',
+            'is_collection':False,
+        },
         name='simulation_single_default',
     ),
 )

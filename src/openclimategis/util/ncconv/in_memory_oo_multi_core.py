@@ -14,7 +14,6 @@ from shapely.geometry.geo import asShape
 import time, sys
 from multiprocessing import Process, Queue, Lock
 from math import sqrt
-import ipdb
 import os
 from osgeo import osr, ogr
 from util.helpers import get_temp_path
@@ -134,7 +133,6 @@ class OcgDataset(object):
             #print self.max_col
             #print self.min_row
             #print self.max_row
-#            ipdb.set_trace()
             smin_col = self._contains_(self.min_col,emin_col,emax_col)
             smax_col = self._contains_(self.max_col,emin_col,emax_col)
             smin_row = self._contains_(self.min_row,emin_row,emax_row)
@@ -864,7 +862,6 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                     if poly2 is None: continue
                 
                 ## tdk #####################
-#                ipdb.set_trace()
 #                ncp.extract_elements(q,var,lock=l,polygon=poly,time_range=time_range,clip=clip,dissolve=dissolve,levels=levels,parentPoly=11)
                 ############################
                 

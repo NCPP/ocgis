@@ -1,0 +1,26 @@
+<VirtualHost *:80>
+    ServerName openclimategis.org
+    ServerAdmin tylerickson@gmail.com
+
+    Alias /media/ "/home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/media/"
+    <Directory "/home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/media/">
+        Order allow,deny
+        Options Indexes
+        Allow from all
+        IndexOptions FancyIndexing
+    </Directory>
+    
+    Alias /admin_media/ "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media"
+    <Directory "/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages/django/contrib/admin/media">
+        Order allow,deny
+        Options Indexes
+        Allow from all
+        IndexOptions FancyIndexing
+    </Directory>
+
+    WSGIScriptAlias / /home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/apache/django.wsgi
+    <Directory /home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis/apache>
+        Order deny,allow
+        Allow from all
+    </Directory>
+</VirtualHost>

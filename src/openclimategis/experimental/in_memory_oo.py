@@ -5,7 +5,6 @@ import netCDF4 as nc
 import itertools
 import geojson
 from shapely.ops import cascaded_union
-from ipdb import set_trace as tr
 from openclimategis.util.helpers import get_temp_path
 from openclimategis.util.toshp import OpenClimateShp
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
@@ -149,7 +148,6 @@ class OcgDataset(object):
 #        print('overlay done.')
         
         ## loop for each spatial grid element
-#        tr()
         if polygon:
 #            prepared_polygon = polygon
             prepared_polygon = prepared.prep(polygon)
@@ -422,8 +420,6 @@ if __name__ == '__main__':
     with open(path,'r') as f:
         data = ''.join(f.readlines())
 #        data2 = f.read()
-#        tr()
-#    tr()
     gj = geojson.loads(data)
     POLYINT = []
     for feature in gj['features']:
@@ -448,9 +444,7 @@ if __name__ == '__main__':
     dataset = nc.Dataset(NC,'r')
     
     if type(POLYINT) not in (list,tuple): POLYINT = [POLYINT]
-    
-#    tr()
-    
+        
     elements = multipolygon_operation(dataset,
                                       VAR,
                                       POLYINT,

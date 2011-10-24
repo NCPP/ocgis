@@ -6,7 +6,6 @@ import netCDF4 as nc
 import itertools
 import geojson
 from shapely.ops import cascaded_union
-from ipdb import set_trace as tr
 from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
 from shapely import prepared, wkt
 from shapely.geometry.geo import asShape
@@ -166,7 +165,6 @@ class OcgDataset(object):
 #        print('overlay done.')
         
         ## loop for each spatial grid element
-#        tr()
         if polygon:
 #            prepared_polygon = polygon
             prepared_polygon = prepared.prep(polygon)
@@ -610,7 +608,6 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
         time.sleep(.1)
 
     #The subdivided geometry must be recombined into the original polygons
-    tr()
     if subdivide and dissolve:
         groups = {}
 
@@ -773,8 +770,6 @@ if __name__ == '__main__':
 #    with open(path,'r') as f:
 #        data = ''.join(f.readlines())
 ##        data2 = f.read()
-##        tr()
-##    tr()
 #    gj = geojson.loads(data)
 #    POLYINT = []
 #    for feature in gj['features']:

@@ -45,6 +45,7 @@ class HTMLEmitter(Emitter):
         
         if isinstance(self.handler, ApiHandler):
             # return the API HTML page (not based on a data model)
+
             response = render_to_response(
                 template_name='api.html', 
                 context_instance=c,

@@ -63,7 +63,7 @@ urlpatterns = patterns('',
 ##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
 ##       grid.<format>
 
-((r'^test/{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
+((r'^{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
    '{re_aggregate}/{re_variable}'.format(
     re_archive=re_archive,
     re_model=re_model,
@@ -277,6 +277,12 @@ urlpatterns = patterns('',
             'is_collection':False,
         },
         name='simulation_single_default',
+    ),
+    
+## QUERY BUILDER ---------------------------------------------------------------
+    url(
+        r'^query/',
+        'api.views.display_spatial_query'
     ),
 )
 #

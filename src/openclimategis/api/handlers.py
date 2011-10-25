@@ -51,7 +51,8 @@ class OpenClimateHandler(BaseHandler):
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
         ## call the subclass read methods
-        return self.check(self._read_(request))
+#        return self.check(self._read_(request))
+        return(self._read_(request))
     
     def check(self,payload):
         """Basic checks on returned data."""

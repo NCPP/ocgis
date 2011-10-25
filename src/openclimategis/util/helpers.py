@@ -30,6 +30,30 @@ def parse_polygon_wkt(txt):
         
     return(wkt)
 
+def reverse_wkt(txt):
+    """Turn Polygon WKT into URL text
+    
+    >>> txt = 'POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))'
+    >>> reverse_wkt(txt)
+    'polygon((30+10,10+20,20+40,40+40,30+10))'
+    """
+    
+    ## POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))
+    ## POLYGON((30+10,10+20,20+40,40+40))
+    
+    def _coord(matchobj):
+        x = matchobj.group(1)
+        y = matchobj.group(2)
+        return('{0}+{1}'.format(x,y))
+    
+    txt = txt.lower()
+    txt = re.sub('([0-9\.]+) ([0-9\.]+) *,*',_coord,txt)
+    txt = re.sub('polygon ','polygon',txt)
+    txt = re.sub(' ',',',txt)
+    
+    return(txt)
+    
+
 def merge_dict(*args):
     """
     Merge two dictionaries with dict values as lists.
@@ -56,30 +80,30 @@ def merge_dict(*args):
             b[key] += value
     return(b)
 
-def html_table(ld,order):
-    """
-    Generate an HTML table code from a nested dictionary. DOEST NOT generate
-    the <table> tag to allow table customization.
-    
-    >>> ld = [dict(month='January',savings='$100'),dict(month='April',savings ='$50')]
-    >>> order = (('month','Month'),('savings','Savings'))
-    >>> html_table(ld,order)
-    """
-    
-    ## contains the formated html code
-    dump = []
-    
-    tr = '<tr>{0}</tr>'
-    th = '<th>{0}</th>'
-    td = '<td>{0}</td>'
-    
-    ## set the headings
-    dump.append(tr.format(''.join([th.format(o[1]) for o in order])))
-    ## add the data
-    for l in ld:
-        dump.append(tr.format(''.join([td.format(l[o[0]]) for o in order])))
-    
-    return(''.join(dump))
+#def html_table(ld,order):
+#    """
+#    Generate an HTML table code from a nested dictionary. DOEST NOT generate
+#    the <table> tag to allow table customization.
+#    
+#    >>> ld = [dict(month='January',savings='$100'),dict(month='April',savings ='$50')]
+#    >>> order = (('month','Month'),('savings','Savings'))
+#    >>> html_table(ld,order)
+#    """
+#    
+#    ## contains the formated html code
+#    dump = []
+#    
+#    tr = '<tr>{0}</tr>'
+#    th = '<th>{0}</th>'
+#    td = '<td>{0}</td>'
+#    
+#    ## set the headings
+#    dump.append(tr.format(''.join([th.format(o[1]) for o in order])))
+#    ## add the data
+#    for l in ld:
+#        dump.append(tr.format(''.join([td.format(l[o[0]]) for o in order])))
+#    
+#    return(''.join(dump))
 
 
 if __name__ == '__main__':

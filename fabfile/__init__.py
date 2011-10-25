@@ -37,10 +37,10 @@ def deploy(settings_file):
     3. restart the AWS image system
     '''
     
-#    system.install_system_dependencies()
-#    
-#    database.install_postgresql()
-#    database.install_psycopg2()
+    system.install_system_dependencies()
+    
+    database.install_postgresql()
+    database.install_psycopg2()
     
     database.create_postgresql_user(
         username=get_settings_value(settings_file, 'database', 'DATABASE_USER'),

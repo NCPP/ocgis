@@ -1,6 +1,7 @@
 .gitignore
 .project
 .pydevproject
+.settings
 src/openclimategis/settings_local.py
 dist/*
 README.pdf

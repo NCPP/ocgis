@@ -17,7 +17,6 @@ def install_openclimategis_django():
 def update_openclimategis_django():
     '''Update the OpenClimateGIS GeoDjango project'''
     with virtualenv():
-        #with cd('$HOME/.virtualenvs/openclimategis/src/openclimategis'):
         with cd(VIRTUALENVDIR + VIRTUALENVNAME + '/src/openclimategis'):
             run('git pull')
 

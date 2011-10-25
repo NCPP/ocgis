@@ -1,10 +1,7 @@
 from fabric.api import task
+from fabric.api import local
 from time import sleep
 from boto.ec2.connection import EC2Connection
-
-# Amazon Web Services parameters
-aws_elastic_ip = '107.22.251.99'
-USER = 'ubuntu'
 
 @task
 def create_aws_instance():
@@ -31,8 +28,11 @@ def create_aws_instance():
     # add a tag to name the instance
     instance.add_tag('Name','OpenClimateGIS')
     
-    print("DNS = {0}".format(instance.dns_name))
-    print('ID  = {0}'.format(instance.id))
+    print("PUBLIC_DNS={0}".format(instance.dns_name))
+    
+    
+    local('export PUBLIC_DNS={0}'.format(instance.dns_name))
+    local('export INSTANCE_ID={0}'.format(instance.id))
     
     return instance.id
 

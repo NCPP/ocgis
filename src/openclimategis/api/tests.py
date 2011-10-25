@@ -1,14 +1,27 @@
 from django.test import TestCase
 from django.test import TransactionTestCase
 from django.test.client import Client
-from climatedata.models import NetcdfDataset
+from climatedata.models import NetcdfDataset, Archive, SimulationOutput
 import unittest
 import itertools
+from api.views import get_choices
+import pdb
 
 
 #def disabled(f):
 #    warn('{0} TEST DISABLED!'.format(f.__name__))
 
+class TestViews(TestCase):
+    
+    fixtures = ['test_usgs-cida-maurer.json']
+    
+    def test_get_choices(self):
+        choices = get_choices(Archive)
+        self.assertEqual(len(choices),2)
+        
+        choices = get_choices(SimulationOutput,'pk','run',True)
+        self.assertEqual(len(choices),3)
+    
 
 class TestUrls(TestCase):
     """Test URLs for correct response codes."""
@@ -113,7 +126,7 @@ class TestUrls(TestCase):
             
             print(ext,sop,agg)
         
-            base_url = ('/api/test'
+            base_url = ('/api'
                         '/archive/{archive}/model'
                         '/{cm}/scenario/{scenario}'
                         '/run/{run}'
@@ -186,7 +199,7 @@ class TestUrls(TestCase):
                      'ps',
                      ]
         
-        base_url = ('/api/test/archive/{archive}/model/{cm}/scenario/{scenario}/'
+        base_url = ('/api/archive/{archive}/model/{cm}/scenario/{scenario}/'
                     'temporal/{drange}/spatial/{sop}+polygon'
                     '(({polygon}))/aggregate/{agg}/'
                     'variable/{variable}.{ext}')

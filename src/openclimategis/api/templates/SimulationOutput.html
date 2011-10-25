@@ -27,37 +27,27 @@
         {% for listitem in data %}
         <tr>
             <td>
-                <a href="{% url simulation_single
-                                id=listitem.id
-                                emitter_format='html' %}">
+                <a href="{% url simulation_single id=listitem.id emitter_format='html' %}">
                     {{ listitem.id }}
                 </a>
             </td>
             <td>
-                <a href="{% url archive_single
-                                urlslug=listitem.archive.urlslug
-                                emitter_format='html' %}">
+                <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
                     {{ listitem.archive.code }}
                 </a>
             </td>
             <td>
-                <a href="{% url scenario_single
-                                urlslug=listitem.scenario.urlslug
-                                emitter_format='html' %}">
+                <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
                     {{ listitem.scenario.code }}
                 </a>
             </td>
             <td>
-                <a href="{% url climatemodel_single
-                                urlslug=listitem.climate_model.urlslug
-                                emitter_format='html' %}">
+                <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
                     {{ listitem.climate_model.code }}
                 </a>
             </td>
             <td>
-                <a href="{% url variable_single 
-                                urlslug=listitem.variable.urlslug
-                                emitter_format='html' %}">
+                <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
                     {{ listitem.variable.code }}
                 </a>
             </td>
@@ -65,13 +55,7 @@
                 {{ listitem.run }}
             </td>
             <td>
-                <a href="{% url query_form 
-                                archive=listitem.archive.urlslug
-                                model=listitem.climate_model.urlslug
-                                scenario=listitem.scenario.urlslug
-                                variable=listitem.variable.urlslug
-                                run=listitem.run
-                                emitter_format='html' %}">
+                <a href="{% url query_form archive=listitem.archive.urlslug model=listitem.climate_model.urlslug scenario=listitem.scenario.urlslug variable=listitem.variable.urlslug run=listitem.run emitter_format='html' %}">
                     construct query
                 </a>
             </td>
@@ -87,9 +71,7 @@
             <tr>
                 <th>Archive</th>
                 <td>
-                    <a href="{% url archive_single
-                                    urlslug=listitem.archive.urlslug
-                                    emitter_format='html' %}">
+                    <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
                         {{ listitem.archive.code }}
                     </a>
                 </td>
@@ -97,9 +79,7 @@
             <tr>
                 <th>Scenario</th>
                 <td>
-                    <a href="{% url scenario_single
-                                    urlslug=listitem.scenario.urlslug
-                                    emitter_format='html' %}">
+                    <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
                         {{ listitem.scenario.code }}
                     </a>
                 </td>
@@ -107,9 +87,7 @@
             <tr>
                 <th>Climate Model</th>
                 <td>
-                    <a href="{% url climatemodel_single
-                                    urlslug=listitem.climate_model.urlslug
-                                    emitter_format='html' %}">
+                    <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
                         {{ listitem.climate_model.code }}
                     </a>
                 </td>
@@ -117,9 +95,7 @@
             <tr>
                 <th>Output Variable</th>
                 <td>
-                    <a href="{% url variable_single
-                                    urlslug=listitem.variable.urlslug
-                                    emitter_format='html' %}">
+                    <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
                         {{ listitem.variable.code }}
                     </a>
                 </td>

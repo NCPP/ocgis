@@ -11,6 +11,7 @@ scenario_handler = Resource(handlers.ScenarioHandler)
 variable_handler = Resource(handlers.VariableHandler)
 simulationoutput_handler = Resource(handlers.SimulationOutputHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
+query_handler = Resource(handlers.QueryHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
 
@@ -35,7 +36,8 @@ re_run = 'run/(?P<run>.*)'
 re_temporal = 'temporal/(?P<temporal>.*)'
 re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
 re_aggregate = 'aggregate/(?P<aggregate>true|false)'
-re_variable = 'variable/(?P<variable>.*)\.(?P<emitter_format>.*)'
+re_variable = 'variable/(?P<variable>.*)'
+re_format = '\.(?P<emitter_format>.*)'
 re_urlslug = '(?P<urlslug>[\.\(\)A-Za-z0-9_-]+)'
 re_id = '(?P<id>\d+)'
 
@@ -64,7 +66,7 @@ urlpatterns = patterns('',
 ##       grid.<format>
 
 ((r'^{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
-   '{re_aggregate}/{re_variable}'.format(
+   '{re_aggregate}/{re_variable}{re_format}'.format(
     re_archive=re_archive,
     re_model=re_model,
     re_scenario=re_scenario,
@@ -72,7 +74,9 @@ urlpatterns = patterns('',
     re_spatial=re_spatial,
     re_aggregate=re_aggregate,
     re_variable=re_variable,
-    re_run=re_run)),
+    re_run=re_run,
+    re_format=re_format,
+    )),
    spatial_handler
  ),
 
@@ -283,6 +287,28 @@ urlpatterns = patterns('',
     url(
         r'^query/',
         'api.views.display_spatial_query'
+    ),
+    url(( # example: archive/usgs-cida-maurer/model/ccsm3/scenario/sres-a1b/variable/tas/run/2/query.html
+        r'^{re_archive}' + \
+         '/{re_model}' + \
+         '/{re_scenario}' + \
+         '/{re_variable}' + \
+         '/{re_run}' + \
+         '/query{re_format}'
+         ).format(
+            re_archive=re_archive,
+            re_model=re_model,
+            re_scenario=re_scenario,
+            re_variable=re_variable,
+            re_run=re_run,
+            re_format=re_format,
+        ),
+        query_handler,
+        {
+            'emitter_format':'html',
+            'template_name':'query2.html',
+        },
+        name='query_form',
     ),
 )
 #

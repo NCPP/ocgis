@@ -43,39 +43,24 @@ class HTMLEmitter(Emitter):
         
         c = RequestContext(request)
         
-        if isinstance(self.handler, ApiHandler):
-            # return the API HTML page (not based on a data model)
-
-            response = render_to_response(
-                template_name='api.html', 
-                context_instance=c,
-            )
-        else:
-            if request.url_args.has_key('is_collection'):
-                is_collection = request.url_args['is_collection']
-            else:
-                None
-            try:
-                # use the HTML template that matches the data model name
-                template_name = self.data.model._meta.object_name + '.html'
-                response = render_to_response(
-                    template_name=template_name, 
-                    dictionary={
-                        'data': self.construct(), 
-                        'is_collection': is_collection,
-                    },
-                    context_instance=c,
-                )
-            except TemplateDoesNotExist:
-                # render the default HTML response
-                response = render_to_response(
-                    template_name='default_html_emitter.html',
-                    dictionary={
-                        'data': self.construct(), 
-                        'is_collection': is_collection,
-                    },
-                    context_instance=c,
-                )
+        template_name = request.url_args.get('template_name')
+        is_collection = request.url_args.get('is_collection')
+        
+#        if isinstance(self.handler, ApiHandler):
+#            data = []
+#        else:
+        try:
+            data = self.construct()
+        except:
+            data = []
+        response = render_to_response(
+            template_name=template_name, 
+            dictionary={
+                'data': data, 
+                'is_collection': is_collection,
+            },
+            context_instance=c,
+        )
         return response
 Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 

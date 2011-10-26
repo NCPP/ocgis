@@ -39,8 +39,6 @@ CHOICES_EXT = [('shz','Zipped Shapefile'),
 #
 #class OcgChoiceField(forms.ChoiceField):
 #    default_validators = [validate_choice]
-#    
-#    
 
 
 def get_SpatialQueryForm(simulation_output):

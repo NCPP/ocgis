@@ -11,16 +11,16 @@ import pdb
 #def disabled(f):
 #    warn('{0} TEST DISABLED!'.format(f.__name__))
 
-class TestViews(TestCase):
-    
-    fixtures = ['test_usgs-cida-maurer.json']
-    
-    def test_get_choices(self):
-        choices = get_choices(Archive)
-        self.assertEqual(len(choices),2)
-        
-        choices = get_choices(SimulationOutput,'pk','run',True)
-        self.assertEqual(len(choices),3)
+#class TestViews(TestCase):
+#    
+#    fixtures = ['test_usgs-cida-maurer.json']
+#    
+#    def test_get_choices(self):
+#        choices = get_choices(Archive)
+#        self.assertEqual(len(choices),2)
+#        
+#        choices = get_choices(SimulationOutput,'pk','run',True)
+#        self.assertEqual(len(choices),3)
     
 
 class TestUrls(TestCase):

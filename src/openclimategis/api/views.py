@@ -127,7 +127,7 @@ def display_spatial_query(request):
                    '/spatial/{spatial_op}+{wkt_extent}'
                    '/aggregate/{aggregate}'
                    '/variable/{variable}.{extension}').format(**form.cleaned_data)
-            pdb.set_trace()
+#            pdb.set_trace()
             return HttpResponseRedirect(url) # Redirect after POST
     else:
         form = SpatialQueryForm() # An unbound form

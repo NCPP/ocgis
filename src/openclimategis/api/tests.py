@@ -43,56 +43,35 @@ class TestUrls(TestCase):
                 print response.content
         self.assertEqual(response.status_code, 200)
 
-    def test_resource_archives_html(self):
-        '''Creates an HTML representation of climate model archives'''
-        response = self.client.get('/api/archives.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
+    def test_api_urls(self):
+        '''tests a combination of resources and formats'''
+        resources = [
+            '/api/archives',
+            '/api/archives/usgs-cida-maurer',
+            '/api/scenarios',
+            '/api/scenarios/sres-a1b',
+            '/api/models',
+            '/api/models/echam5-mpi-om',
+            '/api/variables',
+            '/api/variables/pr',
+            '/api/simulations',
+            '/api/simulations/1',
+        ]
+        suffixes = [
+            '',
+            '/',
+            '.html',
+            '.json',
+        ]
+        for resource in resources:
+            for suffix in suffixes:
+                #print 'testing: {0}{1}'.format(resource,suffix)
+                response = self.client.get('{0}{1}'.format(resource,suffix))
+                if response.status_code != 200:
+                    print response.content
+                self.assertEqual(response.status_code, 200)
     
-    def test_resource_single_archive_html(self):
-        '''Creates an HTML representation of a single climate model archive'''
-        response = self.client.get('/api/archives/usgs-cida-maurer.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_models_html(self):
-        '''Creates an HTML representation of climate models'''
-        response = self.client.get('/api/models.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_single_model_html(self):
-        '''Creates an HTML representation of a single climate model'''
-        response = self.client.get('/api/models/echam5-mpi-om.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_variables_html(self):
-        '''Creates an HTML representation of output variables'''
-        response = self.client.get('/api/variables.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_simulations_html(self):
-        '''Creates an HTML representation of output simulations'''
-        response = self.client.get('/api/simulations.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_resource_single_simulation_html(self):
-        '''Creates an HTML representation of a single simulation'''
-        response = self.client.get('/api/simulations/1.html')
-        if response.status_code != 200:
-                print response.content
-        self.assertEqual(response.status_code, 200)
-    
-    def test_urls(self):
+    def test_data_request_urls(self):
         '''tests that data request URLs work
         
         This tests many different combinations of:

@@ -93,9 +93,24 @@ urlpatterns = patterns('',
     ),
 
 ### ARCHIVES --------------------------------------------------------------------
-    # collection of climate model archives
+    # collection of climate model archive resources
+    #Note: the following combines url configurations, but defaults to json 
+    # as the emitter format.
+    #r'^archives(?:\.(?P<emitter_format>.*))?$'.format(re_format=re_format),
     url(
-        r'^archives/?$|^archives\.html$',
+        (r'^archives{re_format}$').format(
+            re_format=re_format,
+        ),
+        archive_handler, 
+        {
+            'template_name':'Archive.html',
+            'is_collection':True,
+        },
+        name='archive_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^archives/?$',
         archive_handler, 
         {
             'emitter_format':'html',
@@ -106,9 +121,9 @@ urlpatterns = patterns('',
     ),
     # a single climate model archive resource
     url(
-        r'^archives/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
-            formats=nonspatial_formats,
+        (r'^archives/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
+            re_format=re_format,
         ),
         archive_handler,
         {
@@ -117,8 +132,9 @@ urlpatterns = patterns('',
         },
         name='archive_single',
     ),
+    # use HTML for when the output format is not specified
     url(
-        r'^archives/{re_urlslug}$'.format(
+        r'^archives/{re_urlslug}/?$'.format(
             re_urlslug=re_urlslug,
         ),
         archive_handler,
@@ -127,13 +143,25 @@ urlpatterns = patterns('',
             'template_name':'Archive.html',
             'is_collection':False,
         },
-        name='archive_single_default',
+        name='archive_single',
     ),
 
 ### CLIMATE MODELS --------------------------------------------------------------
-    # collection of climate models
+    # collection of climate model resources
     url(
-        r'^models/?$|^models\.html$',
+        (r'^models{re_format}$').format(
+            re_format=re_format,
+        ),
+        climatemodel_handler, 
+        {
+            'template_name':'ClimateModel.html',
+            'is_collection':True,
+        },
+        name='climatemodel_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^models/?$',
         climatemodel_handler, 
         {
             'emitter_format':'html',
@@ -144,9 +172,9 @@ urlpatterns = patterns('',
     ),
     # a single climate model resource
     url(
-        r'^models/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
-            formats=nonspatial_formats,
+        (r'^models/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
+            re_format=re_format,
         ),
         climatemodel_handler,
         {
@@ -155,8 +183,9 @@ urlpatterns = patterns('',
         },
         name='climatemodel_single',
     ),
+    # use HTML for when the output format is not specified
     url(
-        r'^models/{re_urlslug}$'.format(
+        r'^models/{re_urlslug}/?$'.format(
             re_urlslug=re_urlslug,
         ),
         climatemodel_handler,
@@ -165,13 +194,26 @@ urlpatterns = patterns('',
             'template_name':'ClimateModel.html',
             'is_collection':False,
         },
-        name='climatemodel_single_default',
+        name='climatemodel_single',
     ),
 
 ### EMISSIONS SCENARIOS -------------------------------------------------------
-    # collection of emissions scenarios
+
+    # collection of emissions scenario resources
     url(
-        r'^scenarios/?$|^scenarios\.html$',
+        (r'^scenarios{re_format}$').format(
+            re_format=re_format,
+        ),
+        scenario_handler, 
+        {
+            'template_name':'Scenario.html',
+            'is_collection':True,
+        },
+        name='scenario_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^scenarios/?$',
         scenario_handler, 
         {
             'emitter_format':'html',
@@ -180,11 +222,11 @@ urlpatterns = patterns('',
         },
         name='scenario_list',
     ),
-    # a single emissions scenario resource
+    # a single emissions resource
     url(
-        r'^scenarios/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
-            formats=nonspatial_formats,
+        (r'^scenarios/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
+            re_format=re_format,
         ),
         scenario_handler,
         {
@@ -193,8 +235,9 @@ urlpatterns = patterns('',
         },
         name='scenario_single',
     ),
+    # use HTML for when the output format is not specified
     url(
-        r'^scenarios/{re_urlslug}$'.format(
+        r'^scenarios/{re_urlslug}/?$'.format(
             re_urlslug=re_urlslug,
         ),
         scenario_handler,
@@ -203,13 +246,25 @@ urlpatterns = patterns('',
             'template_name':'Scenario.html',
             'is_collection':False,
         },
-        name='scenario_single_default',
+        name='scenario_single',
     ),
 
 ### VARIABLES -----------------------------------------------------------------
-    # collection of output variables
+    # collection of output variable resources
     url(
-        r'^variables/?$|^variables\.html$',
+        (r'^variables{re_format}$').format(
+            re_format=re_format,
+        ),
+        variable_handler, 
+        {
+            'template_name':'Variable.html',
+            'is_collection':True,
+        },
+        name='variable_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^variables/?$',
         variable_handler, 
         {
             'emitter_format':'html',
@@ -218,11 +273,11 @@ urlpatterns = patterns('',
         },
         name='variable_list',
     ),
-    # a single emissions scenario resource
+    # a single output variable resource
     url(
-        r'^variables/{re_urlslug}.(?P<emitter_format>{formats})$'.format(
-            formats=nonspatial_formats,
+        (r'^variables/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
+            re_format=re_format,
         ),
         variable_handler,
         {
@@ -231,8 +286,9 @@ urlpatterns = patterns('',
         },
         name='variable_single',
     ),
+    # use HTML for when the output format is not specified
     url(
-        r'^variables/{re_urlslug}$'.format(
+        r'^variables/{re_urlslug}/?$'.format(
             re_urlslug=re_urlslug,
         ),
         variable_handler,
@@ -241,13 +297,26 @@ urlpatterns = patterns('',
             'template_name':'Variable.html',
             'is_collection':False,
         },
-        name='variable_single_default',
+        name='variable_single',
     ),
     
 ### SIMULATION OUTPUT ---------------------------------------------------------
-    # collection of simulation outputs
+
+    # collection of simulation output resources
     url(
-        r'^simulations/?$|^simulations\.html$',
+        (r'^simulations{re_format}$').format(
+            re_format=re_format,
+        ),
+        simulationoutput_handler, 
+        {
+            'template_name':'SimulationOutput.html',
+            'is_collection':True,
+        },
+        name='simulation_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^simulations/?$',
         simulationoutput_handler, 
         {
             'emitter_format':'html',
@@ -258,9 +327,21 @@ urlpatterns = patterns('',
     ),
     # a single simulation output resource
     url(
-        r'^simulations/{re_id}.(?P<emitter_format>{formats})$'.format(
+        (r'^simulations/{re_id}{re_format}$').format(
             re_id=re_id,
-            formats=nonspatial_formats,
+            re_format=re_format,
+        ),
+        simulationoutput_handler,
+        {
+            'template_name':'SimulationOutput.html',
+            'is_collection':False,
+        },
+        name='simulation_single',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^simulations/{re_id}/?$'.format(
+            re_id=re_id,
         ),
         simulationoutput_handler,
         {
@@ -269,18 +350,6 @@ urlpatterns = patterns('',
             'is_collection':False,
         },
         name='simulation_single',
-    ),
-    url(
-        r'^simulations/{re_id}$'.format(
-            re_id=re_id,
-        ),
-        simulationoutput_handler,
-        {
-            'emitter_format':'html',
-            'template_name':'SimulationOutput.html',
-            'is_collection':False,
-        },
-        name='simulation_single_default',
     ),
     
 ## QUERY BUILDER ---------------------------------------------------------------

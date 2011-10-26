@@ -3,8 +3,7 @@
 <body>
 <h1>OpenClimateGIS API</h1>
 
-
-<form action="/api/query/" method="post">{% csrf_token %}
+<form action="./query.html" method="post">{% csrf_token %}
 {{ form.as_p }}
 <input type="submit" value="Submit" />
 </form>

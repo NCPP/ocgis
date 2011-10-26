@@ -284,10 +284,10 @@ urlpatterns = patterns('',
     ),
     
 ## QUERY BUILDER ---------------------------------------------------------------
-    url(
-        r'^query/',
-        'api.views.display_spatial_query'
-    ),
+#    url(
+#        r'^query/',
+#        'api.views.display_spatial_query'
+#    ),
     url(( # example: archive/usgs-cida-maurer/model/ccsm3/scenario/sres-a1b/variable/tas/run/2/query.html
         r'^{re_archive}' + \
          '/{re_model}' + \
@@ -306,7 +306,7 @@ urlpatterns = patterns('',
         query_handler,
         {
             'emitter_format':'html',
-            'template_name':'query2.html',
+            'template_name':'query.html',
         },
         name='query_form',
     ),

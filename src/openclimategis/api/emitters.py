@@ -1,13 +1,15 @@
 from django.template.context import RequestContext
 from django.template.base import TemplateDoesNotExist
 from django.shortcuts import render_to_response
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from piston.emitters import Emitter
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
-
 from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
     as_keyTabular
+import pdb
+from api.views import display_spatial_query
+
 
 class OpenClimateEmitter(Emitter):
     """
@@ -38,30 +40,33 @@ class HelloWorldEmitter(OpenClimateEmitter):
 class HTMLEmitter(Emitter):
     """Emits an HTML representation 
     """
-    def render(self, request):
-        from handlers import ApiHandler
+    def render(self,request):
         
         c = RequestContext(request)
         
         template_name = request.url_args.get('template_name')
         is_collection = request.url_args.get('is_collection')
         
-#        if isinstance(self.handler, ApiHandler):
-#            data = []
-#        else:
+        ## return data from the construct method of the resource's handler
         try:
             data = self.construct()
         except:
             data = []
-        response = render_to_response(
-            template_name=template_name, 
-            dictionary={
-                'data': data, 
-                'is_collection': is_collection,
-            },
-            context_instance=c,
-        )
-        return response
+        ## form the basis dictionary for the template data
+        dictionary = {'data': data, 'is_collection': is_collection}
+        
+        ## if we need the query form generate and pass accordingly
+        if template_name == 'query.html':
+            response = display_spatial_query(request)
+        else:
+            response = render_to_response(
+                template_name=template_name, 
+                dictionary=dictionary,
+                context_instance=c,
+            )
+        
+        return(response)
+        
 Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
 

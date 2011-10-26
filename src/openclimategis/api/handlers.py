@@ -11,9 +11,10 @@ from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
 from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
-
 import netCDF4
 from experimental.in_memory_oo import multipolygon_operation
+import pdb
+from django.http import HttpResponseRedirect
 
 
 class ocg(object):
@@ -38,6 +39,17 @@ class OpenClimateHandler(BaseHandler):
         self.ocg = ocg()
         
         super(OpenClimateHandler,self).__init__(*args,**kwds)
+        
+    def create(self,request,**kwds):
+        ## save the URL argument keywords
+        request.url_args = kwds
+        ## parse URL arguments
+        self._parse_slugs_(kwds)
+        ## add OCG object to request object for use by emitters
+        request.ocg = self.ocg
+        ## call the subclass read methods
+#        return self.check(self._read_(request))
+        return(self._create_(request))
     
     def read(self,request,**kwds):
         """
@@ -61,6 +73,9 @@ class OpenClimateHandler(BaseHandler):
             return rc.NOT_FOUND
         else:
             return payload
+        
+    def _create_(self,request,**kwds):
+        raise NotImplementedError
         
     def _read_(self,request,**kwds):
         """Overload in subclasses."""
@@ -100,7 +115,7 @@ class OpenClimateHandler(BaseHandler):
 
 
 class NonSpatialHandler(OpenClimateHandler):
-    __data_kwds__ = {}
+#    __data_kwds__ = {}
      
     def _read_(self,request):
         try:
@@ -179,14 +194,19 @@ class SimulationOutputHandler(NonSpatialHandler):
 
 class QueryHandler(NonSpatialHandler):
     model = None
+    allowed_methods = ('GET','POST')
     
     def _read_(self,request):
-        return None
+        return(request.ocg.simulation_output)
+    
+    def _create_(self,request):
+        return(request.ocg.simulation_output)
 
 
 class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
+#        pdb.set_trace()
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
         ## arguments for the dataset object

@@ -10,7 +10,7 @@ paths = [
     '/home/ubuntu/.virtualenvs/openclimategis/lib/python2.6/site-packages',
     '/home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src',
     '/home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/openclimategis',
-    '/home/ubuntu/.virtualenvs/openclimategis/src/openclimategis/src/piston',
+    '/home/ubuntu/.virtualenvs/openclimategis/src/piston',
 ]
 for path in paths:
     if path not in sys.path:

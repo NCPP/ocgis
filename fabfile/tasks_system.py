@@ -58,7 +58,8 @@ def install_build_dependencies():
     sudo('apt-get -y install python-setuptools')
     sudo('apt-get -y install python-pip')
     sudo('apt-get -y install swig')
-    sudo('apt-get install -y git-core')
+    sudo('apt-get -y install git-core')
+    sudo('apt-get -y install mercurial')
 
 @task
 def create_source_code_folder():
@@ -189,6 +190,7 @@ def install_python_dependencies():
         run('pip install yolk')
         run('pip install Django==1.3')
         run('pip install django-piston')
+        run('pip install -e hg+https://bitbucket.org/tylere/django-piston#egg=piston')
         run('pip install numpy==1.5.1')
         run('pip install Shapely')
         run('pip install geojson')

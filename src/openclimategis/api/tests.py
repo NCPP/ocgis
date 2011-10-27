@@ -4,8 +4,6 @@ from django.test.client import Client
 from climatedata.models import NetcdfDataset, Archive, SimulationOutput
 import unittest
 import itertools
-from api.views import get_choices
-import pdb
 
 
 #def disabled(f):
@@ -65,7 +63,7 @@ class TestUrls(TestCase):
         ]
         for resource in resources:
             for suffix in suffixes:
-                #print 'testing: {0}{1}'.format(resource,suffix)
+                print 'testing: {0}{1}'.format(resource,suffix)
                 response = self.client.get('{0}{1}'.format(resource,suffix))
                 if response.status_code != 200:
                     print response.content

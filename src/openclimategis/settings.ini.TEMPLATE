@@ -16,6 +16,9 @@ DATABASE_HOST: localhost
 DATABASE_PORT:
 DATABASE_NAME: openclimategis_sql
 
+[logging]
+LOG_FILENAME: /var/log/openclimategis/django.log
+
 [secrets]
 SECRET_KEY: random-string-of-ascii
 

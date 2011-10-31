@@ -132,7 +132,8 @@ LOGGING = {
         'file':{
             'level':'DEBUG',
             'class':'logging.FileHandler',
-            'filename':os.path.join(PARENT_DIR, 'django.log'),
+            #'filename':os.path.join(PARENT_DIR, 'django.log'),
+            'filename':config.get('logging', 'LOG_FILENAME'),
             'formatter': 'default',
         },
         'console':{

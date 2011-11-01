@@ -141,5 +141,5 @@ class CsvKeyEmitter(IdentityEmitter):
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
 Emitter.register('geojson',GeoJsonEmitter,'application/geojson; charset=utf-8')
-Emitter.register('csv',CsvEmitter,'text/html; charset=utf-8')
+Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',CsvKeyEmitter,'text/html; charset=utf-8')

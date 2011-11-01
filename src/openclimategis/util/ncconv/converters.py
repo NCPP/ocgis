@@ -2,6 +2,9 @@ import geojson
 from util.helpers import get_temp_path
 from util.toshp import OpenClimateShp
 from osgeo import osr, ogr
+import io
+import pdb
+import csv
 
 
 def as_geojson(elements):
@@ -31,64 +34,104 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
     path=None -- specify an output file name. under the default, no file is
         written.
     '''
+    
+    def _get_sr(srid):
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(srid)
+        return(sr)
+
+    ## define spatial references
+    sr = _get_sr(4326)
+    sr2 = _get_sr(area_srid)
+    
+    ## this will hold the data to write
+    data = []
+
+#    with open(path,'w') as f:
+        
+    ## prepare column header
+    header = ['id','timestamp',var]
+    if 'level' in elements[0]['properties'].keys():
+            header += ['level']
+    header += ['area_m2']
+    if wkb:
+        header += ['wkb']
+
+    if wkt:
+        header += ['wkt']
+    data.append(header)
+                
+#        f.write(','.join(header))
+#        f.write('\n')
+    
+    for ii,element in enumerate(elements):
+        
+        ## will hold data to append to global list
+        subdata = []
+        
+        #convert area from degrees to m^2
+        geo = ogr.CreateGeometryFromWkb(element['geometry'].wkb)
+        geo.AssignSpatialReference(sr)
+        geo.TransformTo(sr2)
+        area = geo.GetArea()
+        
+        ## retrieve additional elements ----------------------------------------
+        
+        props = element['properties']
+        geom = element['geometry']
+        
+        subdata.append(ii+1)
+        subdata.append(props['timestamp'])
+        subdata.append(props[var])
+        subdata.append(area)
+        if 'level' in props.keys(): subdata.append(props['level'])
+        if wkb: subdata.append(geom.wkb)
+        if wkt: subdata.append(geom.wkt)
+        
+        ## append to global data
+        data.append(subdata)
+        
+    ## write to the buffer
+    buffer = io.BytesIO()
+    writer = csv.writer(buffer)
+    writer.writerows(data)
+    
     ## set-up disk writing
     if todisk:
         if path is None:
             path = get_temp_path(suffix='.txt')
-
-    #define spatial references for the projection
-    sr = osr.SpatialReference()
-    sr.ImportFromEPSG(4326)
-    sr2 = osr.SpatialReference()
-    sr2.ImportFromEPSG(area_srid) #Albers Equal Area is used to ensure legitimate area values
-
-    with open(path,'w') as f:
+        with open(path,'w') as f:
+            f.write(buffer.getvalue())
+            
+    try:
+        return(buffer.getvalue())
+    finally:
+        buffer.close()
         
-        #prepare column header
-        header = ['id','timestamp',var]
-        if 'level' in elements[0]['properties'].keys():
-                header += ['level']
-        header += ['area_m2']
-        if wkb:
-            header += ['wkb']
+#    pdb.set_trace()
 
-        if wkt:
-            header += ['wkt']
-        
-                
-        f.write(','.join(header))
-        f.write('\n')
-        
-        for ii,element in enumerate(elements):
+#        #write id, timestamp, variable
+#        f.write(','.join([repr(ii+1),element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S"),repr(element['properties'][var])]))
+#
+#        #write level if the dataset has levels
+#        if 'level' in element['properties'].keys():
+#            f.write(','+repr(element['properties']['level']))
+#
+#        #write the area
+#        f.write(','+repr(area))
+#
+#        #write wkb if requested
+#        if wkb:
+#            f.write(','+repr(element['geometry'].wkb))
+#
+#        #write wkt if requested
+#        if wkt:
+#            f.write(','+repr(element['geometry'].wkt))
+#
+#        f.write('\n')
+#    f.close()
 
-            #convert area from degrees to m^2
-            geo = ogr.CreateGeometryFromWkb(element['geometry'].wkb)
-            geo.AssignSpatialReference(sr)
-            geo.TransformTo(sr2)
-            area = geo.GetArea()
-
-            #write id, timestamp, variable
-            f.write(','.join([repr(ii+1),element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S"),repr(element['properties'][var])]))
-
-            #write level if the dataset has levels
-            if 'level' in element['properties'].keys():
-                f.write(','+repr(element['properties']['level']))
-
-            #write the area
-            f.write(','+repr(area))
-
-            #write wkb if requested
-            if wkb:
-                f.write(','+repr(element['geometry'].wkb))
-
-            #write wkt if requested
-            if wkt:
-                f.write(','+repr(element['geometry'].wkt))
-
-            f.write('\n')
-        f.close()
-
-    return path
+#    return path
 
 def as_keyTabular(elements,var,wkt=False,wkb=False,path = None):
     '''writes output as tabular csv files, but uses foreign keys

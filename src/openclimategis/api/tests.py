@@ -122,7 +122,7 @@ class TestUrls(TestCase):
                                   archive=archive,
                                   variable=var,
                                   run=run)
-            pdb.set_trace()
+
             response = self.client.get(url)
 #            if response.status_code != 200:
 #                print response.content

@@ -5,6 +5,8 @@
 # References:
 # http://code.djangoproject.com/wiki/SplitSettings#ini-stylefilefordeployment
 # http://docs.python.org/library/configparser.html
+import os
+
 from ConfigParser import RawConfigParser
 config = RawConfigParser()
 config.read('/etc/openclimategis/settings.ini')
@@ -114,3 +116,42 @@ INSTALLED_APPS = (
     'climatedata',
     'api',
 )
+
+# configure logging
+PROJECT_DIR = os.path.dirname(__file__)
+PARENT_DIR = os.path.dirname(PROJECT_DIR)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'default': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        },
+    },
+    'handlers': {
+        'file':{
+            'level':'DEBUG',
+            'class':'logging.FileHandler',
+            #'filename':os.path.join(PARENT_DIR, 'django.log'),
+            'filename':config.get('logging', 'LOG_FILENAME'),
+            'formatter': 'default',
+        },
+        'console':{
+            'level':'DEBUG',
+            'class':'logging.StreamHandler',
+            'formatter': 'default',
+        },
+    },
+    'loggers': {
+        '': { # default logger
+            'handlers':['file',],
+            'propagate': True,
+            'level':'DEBUG',
+        },
+        'django.request': {
+            'handlers':['console',],
+            'propagate': False,
+            'level': 'DEBUG',
+        },
+    }
+}

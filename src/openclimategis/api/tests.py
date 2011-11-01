@@ -63,7 +63,7 @@ class TestUrls(TestCase):
         ]
         for resource in resources:
             for suffix in suffixes:
-                #print 'testing: {0}{1}'.format(resource,suffix)
+                print 'testing: {0}{1}'.format(resource,suffix)
                 response = self.client.get('{0}{1}'.format(resource,suffix))
                 if response.status_code != 200:
                     print response.content

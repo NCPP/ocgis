@@ -6,7 +6,7 @@ import tasks_system as system
 import database
 import apache2
 import virtualenv
-import django
+import django_tasks
 
 # Fabric environment parameters
 #env.user = 'ubuntu'

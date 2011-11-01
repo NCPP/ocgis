@@ -221,5 +221,5 @@ class SimulationOutput(AbstractGeoManager):
             archive=self.archive,
             scenario=self.scenario,
             model=self.climate_model,
-            variable=self.netcdf_variable,
+            variable=self.netcdf_variable.code,
         )

@@ -1,23 +1,15 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from shapely.geometry.polygon import Polygon
-import datetime
 import netCDF4 as nc
 import itertools
-import geojson
 from shapely.ops import cascaded_union
-#from openclimategis.util.helpers import get_temp_path
-#from openclimategis.util.toshp import OpenClimateShp
-from shapely.geometry.multipolygon import MultiPolygon, MultiPolygonAdapter
-from shapely import prepared, wkt
-from shapely.geometry.geo import asShape
-import time, sys
+from shapely import prepared
+import time
 from multiprocessing import Process, Queue, Lock
 from math import sqrt
-import os
-from osgeo import osr, ogr
-from util.helpers import get_temp_path
-from util.toshp import OpenClimateShp
+from util.ncconv.helpers import make_shapely_grid
+
 
 dtime = 0
 
@@ -36,16 +28,18 @@ class OcgDataset(object):
     """
     
     def __init__(self,dataset,**kwds):
-        self.url = dataset
-
-        self.dataset = nc.Dataset(dataset,'r')
-        self.multiReset = kwds.get('multiReset') or False
+        
+        ## the dataset can be passed as an open object or a uri.
+        if isinstance(dataset,nc.Dataset):
+            self.dataset = dataset
+            self.uri = None
+        else:
+            self.uri = dataset
+            self.dataset = nc.Dataset(self.uri,'r')
+            
+        ## extract other keyword arguments -------------------------------------
+        
         self.verbose = kwds.get('verbose')
-#        self.polygon = kwds.get('polygon')
-#        self.temporal = kwds.get('temporal')
-#        self.row_name = kwds.get('row_name') or 'latitude'
-#        self.col_name = kwds.get('col_name') or 'longitude'
-
         ## extract the names of the spatiotemporal variables/dimensions from
         ## the keyword arguments.
         self.rowbnds_name = kwds.get('rowbnds_name') or 'bounds_latitude'
@@ -56,6 +50,10 @@ class OcgDataset(object):
         self.level_name = kwds.get('level_name') or 'levels'
 #        self.clip = kwds.get('clip') or False
 #        self.dissolve = kwds.get('dissolve') or False
+#        self.polygon = kwds.get('polygon')
+#        self.temporal = kwds.get('temporal')
+#        self.row_name = kwds.get('row_name') or 'latitude'
+#        self.col_name = kwds.get('col_name') or 'longitude'
 
         #print self.dataset.variables[self.time_name].units
         #sys.exit()
@@ -70,7 +68,7 @@ class OcgDataset(object):
                                               self.time_units,
                                               self.calendar)
         
-        ## these are base numpy arrays used by spatial operations.
+        ## these are base numpy arrays used by spatial operations. -------------
 
         ## four numpy arrays one for each bounding coordinate of a polygon
         self.min_col,self.min_row = np.meshgrid(self.col_bnds[:,0],self.row_bnds[:,0])
@@ -80,10 +78,11 @@ class OcgDataset(object):
         self.real_col,self.real_row = np.meshgrid(np.arange(0,len(self.col_bnds)),
                                                   np.arange(0,len(self.row_bnds)))
 
-        #data file must be closed and reopened to work properly with multiple threads
-        if self.multiReset:
-            if self.verbose>1: print 'closed'
+    def __del__(self):
+        try:
             self.dataset.close()
+        except:
+            pass
 
     def _itr_array_(self,a):
         "a -- 2-d ndarray"
@@ -133,6 +132,7 @@ class OcgDataset(object):
             #print self.max_col
             #print self.min_row
             #print self.max_row
+#            ipdb.set_trace()
             smin_col = self._contains_(self.min_col,emin_col,emax_col)
             smax_col = self._contains_(self.max_col,emin_col,emax_col)
             smin_row = self._contains_(self.min_row,emin_row,emax_row)
@@ -277,7 +277,6 @@ class OcgDataset(object):
                 ret = ppp
         return(ret)
         
-        
     def _get_numpy_data_(self,var_name,polygon=None,time_range=None,clip=False,levels = [0],lock=Lock()):
         """
         var_name -- NC variable to extract from
@@ -342,10 +341,6 @@ class OcgDataset(object):
         while not(lock.acquire(False)):
             time.sleep(.1)
 
-        #reopen the data file
-        if self.multiReset:
-            self.dataset = nc.Dataset(self.url,'r')
-
         ##check if data is 3 or 4 dimensions
         dimShape = len(self.dataset.variables[var_name].dimensions)
 
@@ -371,10 +366,6 @@ class OcgDataset(object):
                 npd = npd.reshape(len(self._idxtime),len(levels),len(self._idxrow),len(self._idxcol))
 
             #print self._weights
-
-        #close the dataset
-        if self.multiReset:
-            self.dataset.close()
     
         #release the file lock
         lock.release()
@@ -412,6 +403,7 @@ class OcgDataset(object):
         polygon=None -- shapely polygon object
         time_range=None -- [lower datetime, upper datetime]
         clip=False -- set to True to perform a full intersection
+        parentPoly -- int polygon ID used for feature recombination
         """
         if self.verbose>1: print('extracting elements...')
         ## dissolve argument is unique to extract_elements
@@ -637,190 +629,20 @@ class OcgDataset(object):
             finally:
                 start += 1
                 
-def as_geojson(elements):
-    features = []
-    for e in elements:
-        e['properties']['timestamp'] = str(e['properties']['timestamp'])
-        features.append(geojson.Feature(**e))
-    fc = geojson.FeatureCollection(features)
-    return(geojson.dumps(fc))
-    
-def as_shp(elements,path=None):
-    if path is None:
-        path = get_temp_path(suffix='.shp')
-    ocs = OpenClimateShp(path,elements)
-    ocs.write()
-    return(path)
-
-def as_tabular(elements,var,wkt=False,wkb=False,path = None):
-    '''writes output in a tabular, CSV format
-geometry output is optional'''
-    import osgeo.ogr as ogr
-
-    if path is None:
-        path = get_temp_path(suffix='.txt')
-
-    #define spatial references for the projection
-    sr = ogr.osr.SpatialReference()
-    sr.ImportFromEPSG(4326)
-    sr2 = ogr.osr.SpatialReference()
-    sr2.ImportFromEPSG(3005) #Albers Equal Area is used to ensure legitimate area values
-
-    with open(path,'w') as f:
-
-        for ii,element in enumerate(elements):
-
-            #convert area from degrees to m^2
-            geo = ogr.CreateGeometryFromWkb(element['geometry'].wkb)
-            geo.AssignSpatialReference(sr)
-            geo.TransformTo(sr2)
-            area = geo.GetArea()
-
-            #write id, timestamp, variable
-            f.write(','.join([repr(ii+1),element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S"),repr(element['properties'][var])]))
-
-            #write level if the dataset has levels
-            if 'level' in element['properties'].keys():
-                f.write(','+repr(element['properties']['level']))
-
-            #write the area
-            f.write(','+repr(area))
-
-            #write wkb if requested
-            if wkb:
-                f.write(','+repr(element['geometry'].wkb))
-
-            #write wkt if requested
-            if wkt:
-                f.write(','+repr(element['geometry'].wkt))
-
-            f.write('\n')
-        f.close()
-
-    return path
-
-def as_keyTabular(elements,var,wkt=False,wkb=False,path = None):
-    '''writes output as tabular csv files, but uses foreign keys
-on time and geometry to reduce file size'''
-    import osgeo.ogr as ogr
-
-    if path is None:
-        path = get_temp_path(suffix='')
-
-    if len(path)>4 and path[-4] == '.':
-        path = path[:-4]
-
-    patht = path+"_time.txt"
-    pathg = path+"_geometry.txt"
-    pathd = path+"_data.txt"
-
-    #define spatial references for the projection
-    sr = ogr.osr.SpatialReference()
-    sr.ImportFromEPSG(4326)
-    sr2 = ogr.osr.SpatialReference()
-    sr2.ImportFromEPSG(3005)
-    data = {}
-
-    #sort the data into dictionaries so common times and geometries can be identified
-    for ii,element in enumerate(elements):
-
-        #record new element ids (otherwise threads will produce copies of ids)
-        element['id']=ii
-
-        #get the time and geometry
-        time = element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
-        ewkt = element['geometry'].wkt
-
-        if not (time in data):
-            data[time] = {}
-
-        #put the data into the dictionary
-        if not (ewkt in data[time]):
-            data[time][ewkt] = [element]
-        else:
-            data[time][ewkt].append(element)
-
-
-    #get a unique set of geometry keys
-    locs = []
-
-    for key in data:
-        locs.extend(data[key].keys())
-
-    locs = set(locs)
-
-    ft = open(patht,'w')
-    fg = open(pathg,'w')
-    fd = open(pathd,'w')
-
-    #write the features to file
-    for ii,time in enumerate(data.keys()):
-
-        #write out id's and time values to the time file
-        tdat = data[time]
-        ft.write(repr(ii+1)+','+time+'\n')
-
-        for jj,loc in enumerate(locs):
-            if ii==0:
-
-                #find the geometry area
-                geo = ogr.CreateGeometryFromWkt(loc)
-                geo.AssignSpatialReference(sr)
-                geo.TransformTo(sr2)
-
-                #write the id and area
-                fg.write(repr(jj+1))
-                fg.write(','+repr(geo.GetArea()))
-
-                #write out optional geometry
-                if wkt:
-                    fg.write(','+loc)
-                if wkb:
-                    fg.write(','+repr(ogr.CreateGeometryFromWkt(loc).ExportToWkb()))
-                fg.write('\n')
-
-            if loc in tdat:
-                for element in tdat[loc]:
-                    #write out id, foreign keys (time then geometry) and the variable value
-                    fd.write(','.join([repr(element['id']),repr(ii+1),repr(jj+1),repr(element['properties'][var])]))
-                    #write out level if appropriate
-                    if 'level' in element['properties']:
-                        fd.write(','+repr(element['properties']['level']))
-                    fd.write('\n')
-
-    ft.close()
-    fg.close()
-    fd.close()
-
-            
-
-#['AddGeometry', 'AddGeometryDirectly', 'AddPoint', 'AddPoint_2D', 'AssignSpatialReference', 'Buffer', 
-#'Centroid', 'Clone', 'CloseRings', 'Contains', 'ConvexHull', 'Crosses', 'Destroy', 'Difference', 
-#'Disjoint', 'Distance', 'Empty', 'Equal', 'ExportToGML', 'ExportToJson', 'ExportToKML', 'ExportToWkb', 
-#'ExportToWkt', 'FlattenTo2D', 'GetArea', 'GetBoundary', 'GetCoordinateDimension', 'GetDimension', 
-#'GetEnvelope', 'GetGeometryCount', 'GetGeometryName', 'GetGeometryRef', 'GetGeometryType', 'GetPoint', 
-#'GetPointCount', 'GetPoint_2D', 'GetSpatialReference', 'GetX', 'GetY', 'GetZ', 'Intersect', 'Intersection', 
-#'IsEmpty', 'IsRing', 'IsSimple', 'IsValid', 'Overlaps', 'Segmentize', 'SetCoordinateDimension', 'SetPoint', 
-#'SetPoint_2D', 'SymmetricDifference', 'Touches', 'Transform', 'TransformTo', 'Union', 'Within', 'WkbSize', 
-#'__class__', '__del__', '__delattr__', '__dict__', '__doc__', '__format__', '__getattr__', '__getattribute__', 
-#'__hash__', '__init__', '__iter__', '__module__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', 
-#'__setattr__', '__setstate__', '__sizeof__', '__str__', '__subclasshook__', '__swig_destroy__', 
-#'__swig_getmethods__', '__swig_setmethods__', '__weakref__', 'next', 'this']
-
-
-def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None,subdivide=False,subres='detect',verbose=1):
+def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None,subdivide=False,subres='detect',verbose=1,maxProc=0):
 
     elements = []
     ret = []
     q = Queue()
     l = Lock()
     pl = []
+    pcount = 0
+    pcur = 0
 
     #set the file reset option if the file is local
     if not('http:' in dataset or 'www.' in dataset):
         if ocgOpts == None:
             ocgOpts = {}
-        ocgOpts['multiReset'] = True
     ocgOpts['verbose'] = verbose
     ncp = OcgDataset(dataset,**ocgOpts)
 
@@ -862,10 +684,11 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                     if poly2 is None: continue
                 
                 ## tdk #####################
+#                ipdb.set_trace()
 #                ncp.extract_elements(q,var,lock=l,polygon=poly,time_range=time_range,clip=clip,dissolve=dissolve,levels=levels,parentPoly=11)
                 ############################
-                
-                p = Process(target = ncp.extract_elements,
+                ncpp = OcgDataset(dataset,**ocgOpts)
+                p = Process(target = ncpp.extract_elements,
                                 args =       (q,
                                                 var,),
                                 kwargs= {
@@ -876,12 +699,12 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                                                 'dissolve':dissolve,
                                                 'levels' : levels,
                                                 'parentPoly':ii})
-                p.start()
                 pl.append(p)
 
         #if no polygons are specified only 1 thread will be created per polygon
         else:
-            p = Process(target = ncp.extract_elements,
+            ncpp = OcgDataset(dataset,**ocgOpts)
+            p = Process(target = ncpp.extract_elements,
                             args =       (
                                             q,
                                             var,),
@@ -893,7 +716,6 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                                             'dissolve':dissolve,
                                             'levels' : levels,
                                             'parentPoly':ii})
-            p.start()
             pl.append(p)
 
     #for p in pl:
@@ -904,10 +726,25 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
     #without this the processing threads will NOT terminate
     a=True
     while a:
-        a=False
-        #check if any threads are still active
+        #count active processes
+        pcount = 0
         for p in pl:
-            a = a or p.is_alive()
+            if p.is_alive():
+                pcount +=1
+                
+        #if unstarted processes remain and we are under the limit, start more
+        if pcur < len(pl) and (pcount<maxProc or maxProc == 0):
+            while(pcount<maxProc or (maxProc==0 and pcur<len(pl))):
+                pl[pcur].start()
+                pcur += 1
+                pcount += 1
+            
+        #once all the processes have been started start checking if we have finished.
+        if pcur == len(pl):
+            a=False
+            #check if any threads are still active
+            for p in pl:
+                a = a or p.is_alive()
 
         #remove anything from the queue if present
         while not q.empty():
@@ -960,7 +797,7 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
                     elements.append(    dict(
                                         id=subgroup[0]['id'],
                                         geometry=total,
-                                        properties=dict({VAR: avg,
+                                        properties=dict({var: avg,
                                                         'timestamp':subgroup[0]['properties']['timestamp'],
                                                         'level': subgroup[0]['properties']['levels']})))
                     #print total.area
@@ -1031,176 +868,120 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
     if verbose>1: print "points: ",repr(len(elements2))
     return(elements2)
 
-
-def make_shapely_grid(poly,res,as_numpy=False,clip=True):
-    """
-    Return a list or NumPy matrix of shapely Polygon objects.
+def multipolygon_singlecore_operation(uri,var,polygons,time_range=None,
+                                                       clip=False,
+                                                       dissolve=False,
+                                                       levels=None,
+                                                       ocgOpts={}):
+    ## open the connection to the dataset object
+    dataset = nc.Dataset(uri,'r')
+    ## the ocgdataset object
+    ocg_dataset = OcgDataset(dataset,**ocgOpts)
+    ## this holds the extracted elements
+    elements = []
+    ## the base method keyword arugments
+    kwds = dict(time_range=time_range,
+                clip=clip,
+                dissolve=dissolve,
+                levels=levels)
+    ## loop for each polygon
+    for polygon in polygons:
+        ## update keyword arguments to include current polygon
+        kwds.update(dict(polygon=polygon))
+        ## append the extracted elements
+        elements.append(ocg_dataset.extract_elements(var,**kwds))
+    return(elements)
     
-    poly -- shapely Polygon to discretize
-    res -- target grid resolution in the same units as |poly|
-    """
-    
-    ## ensure we have a floating point resolution
-    res = float(res)
-    ## check that the target polygon is a valid geometry
-    assert(poly.is_valid)
-    ## vectorize the polygon creation
-    vfunc_poly = np.vectorize(make_poly_array)#,otypes=[np.object])
-    ## prepare the geometry for faster spatial relationship checking. throws a
-    ## a warning so leaving out for now.
-#    prepped = prep(poly)
-    
-    ## extract bounding coordinates of the polygon
-    min_x,min_y,max_x,max_y = poly.envelope.bounds
-    ## convert to matrices
-    X,Y = np.meshgrid(np.arange(min_x,max_x,res),
-                      np.arange(min_y,max_y,res))
-    #print X,Y
 
-    ## shift by the resolution
-    pmin_x = X
-    pmax_x = X + res
-    pmin_y = Y
-    pmax_y = Y + res
-    ## make the 2-d array
-#    print pmin_y,pmin_x,pmax_y,pmax_x,poly.wkt
-    if clip:
-        poly_array = vfunc_poly(pmin_y,pmin_x,pmax_y,pmax_x,poly)
-    else:
-        poly_array = vfunc_poly(pmin_y,pmin_x,pmax_y,pmax_x)
-    #print poly_array
-    #sys.exit()
-    ## format according to configuration arguments
-    if as_numpy:
-        ret = poly_array
-    else:
-        ret = list(poly_array.reshape(-1))
-    
-    return(ret)
-
-    
-def make_poly_array(min_row,min_col,max_row,max_col,polyint=None):
-    ret = Polygon(((min_col,min_row),
-                    (max_col,min_row),
-                    (max_col,max_row),
-                    (min_col,max_row),
-                    (min_col,min_row)))
-    if polyint is not None:
-        if polyint.intersects(ret) == False:
-            ret = None
-        else:
-            ret = polyint.intersection(ret)
-    return(ret)
-        
-def shapely_to_shp(obj,outname):
-    path = os.path.join('/tmp',outname+'.shp')
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    ogr_geom = 3
-    
-    dr = ogr.GetDriverByName('ESRI Shapefile')
-    ds = dr.CreateDataSource(path)
-    try:
-        if ds is None:
-            raise IOError('Could not create file on disk. Does it already exist?')
-            
-        layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
-        feature_def = layer.GetLayerDefn()
-        feat = ogr.Feature(feature_def)
-        feat.SetGeometry(ogr.CreateGeometryFromWkt(obj.wkt))
-        layer.CreateFeature(feat)
-    finally:
-        ds.Destroy()
-
-       
-if __name__ == '__main__':
-    narg = time.time()
-    ## all
-#    POLYINT = Polygon(((-99,39),(-94,38),(-94,40),(-100,39)))
-    ## great lakes
-    #POLYINT = Polygon(((-90.35,40.55),(-83,43),(-80.80,49.87),(-90.35,49.87)))
-    #POLYINT = Polygon(((-90,30),(-70,30),(-70,50),(-90,50)))
-    #POLYINT = Polygon(((-90,40),(-80,40),(-80,50),(-90,50)))
-    #POLYINT = Polygon(((-130,18),(-60,18),(-60,98),(-130,98)))
-    #POLYINT = Polygon(((0,0),(0,10),(10,10),(10,0)))
-    ## return all data
-    POLYINT = None
-    ## two areas
-    #POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
-              #wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
-    ## watersheds
-#    path = '/home/bkoziol/git/OpenClimateGIS/bin/geojson/watersheds_4326.geojson'
-##    select = ['HURON']
-#    select = []
-#    with open(path,'r') as f:
-#        data = ''.join(f.readlines())
-##        data2 = f.read()
-##        tr()
-##    tr()
-#    gj = geojson.loads(data)
-#    POLYINT = []
-#    for feature in gj['features']:
-#        if select:
-#            prop = feature['properties']
-#            if prop['HUCNAME'] in select:
-#                pass
-#            else:
-#                continue
-#        geom = asShape(feature['geometry'])
-#        if not isinstance(geom,MultiPolygonAdapter):
-#            geom = [geom]
-#        for polygon in geom:
-#            POLYINT.append(polygon)
-    
-    #NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
-    #NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
-    #NC = '/home/reid/Desktop/ncconv/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
-    #NC = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
-    NC = 'test.nc'
-
-#    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,4,30)]
-    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,5,1)]
-    #TEMPORAL = [datetime.datetime(1960,3,16),datetime.datetime(1961,3,16)] #time range for multi-level file
-    DISSOLVE = False
-    CLIP = False
-    #VAR = 'cl'
-    VAR = 'Prcp'
-    #kwds={}
-    kwds = {
-        #'rowbnds_name': 'lat_bnds', 
-        #'colbnds_name': 'lon_bnds',
-        #'time_units': 'days since 1800-1-1 00:00:0.0',
-        'time_units': 'days since 1950-1-1 0:0:0.0',
-        #'level_name': 'lev'
-    }
-    LEVELS = None
-    #LEVELS = [x for x in range(0,1)]
-    #LEVELS = [x for x in range(0,10)]
-    ## open the dataset for reading
-    dataset = NC#nc.Dataset(NC,'r')
-    ## make iterable if only a single polygon requested
-    if type(POLYINT) not in (list,tuple): POLYINT = [POLYINT]
-    ## convenience function for multiple polygons
-    elements = multipolygon_multicore_operation(dataset,
-                                      VAR,
-                                      POLYINT,
-                                      time_range=TEMPORAL,
-                                      clip=CLIP,
-                                      dissolve=DISSOLVE,
-                                      levels = LEVELS,
-                                      ocgOpts=kwds,
-                                      subdivide=True,
-                                      #subres = 90
-                                      )
-
-
-#    out = as_shp(elements)
-    dtime = time.time()
-    #out = as_geojson(elements)
-    #with open('./out_M3.json','w') as f:
-        #f.write(out)
-    as_keyTabular(elements,VAR,path='./out_tabular.txt',wkt=True)
-    dtime = time.time()-dtime
-
-    blarg = time.time()
-    print blarg-narg,dtime,blarg-narg-dtime
+#if __name__ == '__main__':
+#    narg = time.time()
+#    ## all
+##    POLYINT = Polygon(((-99,39),(-94,38),(-94,40),(-100,39)))
+#    ## great lakes
+#    #POLYINT = Polygon(((-90.35,40.55),(-83,43),(-80.80,49.87),(-90.35,49.87)))
+#    #POLYINT = Polygon(((-90,30),(-70,30),(-70,50),(-90,50)))
+#    #POLYINT = Polygon(((-90,40),(-80,40),(-80,50),(-90,50)))
+#    #POLYINT = Polygon(((-130,18),(-60,18),(-60,98),(-130,98)))
+#    #POLYINT = Polygon(((0,0),(0,10),(10,10),(10,0)))
+#    ## return all data
+#    POLYINT = None
+#    ## two areas
+#    #POLYINT = [wkt.loads('POLYGON ((-85.324076923076916 44.028020242914977,-84.280765182186229 44.16008502024291,-84.003429149797569 43.301663967611333,-83.607234817813762 42.91867611336032,-84.227939271255053 42.060255060728736,-84.941089068825903 41.307485829959511,-85.931574898785414 41.624441295546553,-85.588206477732783 43.011121457489871,-85.324076923076916 44.028020242914977))'),
+#              #wkt.loads('POLYGON ((-89.24640080971659 46.061817813765174,-88.942651821862341 46.378773279352224,-88.454012145748976 46.431599190283393,-87.952165991902831 46.11464372469635,-88.163469635627521 45.190190283400803,-88.889825910931165 44.503453441295541,-88.770967611336033 43.552587044534405,-88.942651821862341 42.786611336032379,-89.774659919028338 42.760198380566798,-90.038789473684204 43.777097165991897,-89.735040485829956 45.097744939271251,-89.24640080971659 46.061817813765174))')]
+#    ## watersheds
+##    path = '/home/bkoziol/git/OpenClimateGIS/bin/geojson/watersheds_4326.geojson'
+###    select = ['HURON']
+##    select = []
+##    with open(path,'r') as f:
+##        data = ''.join(f.readlines())
+###        data2 = f.read()
+###        tr()
+###    tr()
+##    gj = geojson.loads(data)
+##    POLYINT = []
+##    for feature in gj['features']:
+##        if select:
+##            prop = feature['properties']
+##            if prop['HUCNAME'] in select:
+##                pass
+##            else:
+##                continue
+##        geom = asShape(feature['geometry'])
+##        if not isinstance(geom,MultiPolygonAdapter):
+##            geom = [geom]
+##        for polygon in geom:
+##            POLYINT.append(polygon)
+#    
+#    #NC = '/home/reid/Desktop/ncconv/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
+#    #NC = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
+#    NC = '/home/reid/Desktop/ncconv/ncconv/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc'
+#    #NC = 'http://hydra.fsl.noaa.gov/thredds/dodsC/oc_gis_downscaling.bccr_bcm2.sresa1b.Prcp.Prcp.1.aggregation.1'
+#    #NC = 'test.nc'
+#
+##    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,4,30)]
+#    TEMPORAL = [datetime.datetime(1950,2,1),datetime.datetime(1950,5,1)]
+#    #TEMPORAL = [datetime.datetime(1960,3,16),datetime.datetime(1961,3,16)] #time range for multi-level file
+#    DISSOLVE = False
+#    CLIP = False
+#    #VAR = 'cl'
+#    VAR = 'Prcp'
+#    #kwds={}
+#    kwds = {
+#        #'rowbnds_name': 'lat_bnds', 
+#        #'colbnds_name': 'lon_bnds',
+#        #'time_units': 'days since 1800-1-1 00:00:0.0',
+#        'time_units': 'days since 1950-1-1 0:0:0.0',
+#        #'level_name': 'lev'
+#    }
+#    LEVELS = None
+#    #LEVELS = [x for x in range(0,1)]
+#    #LEVELS = [x for x in range(0,10)]
+#    ## open the dataset for reading
+#    dataset = NC#nc.Dataset(NC,'r')
+#    ## make iterable if only a single polygon requested
+#    if type(POLYINT) not in (list,tuple): POLYINT = [POLYINT]
+#    ## convenience function for multiple polygons
+#    elements = multipolygon_multicore_operation(dataset,
+#                                      VAR,
+#                                      POLYINT,
+#                                      time_range=TEMPORAL,
+#                                      clip=CLIP,
+#                                      dissolve=DISSOLVE,
+#                                      levels = LEVELS,
+#                                      ocgOpts=kwds,
+#                                      subdivide=True,
+#                                      #subres = 90
+#                                      )
+#
+#
+##    out = as_shp(elements)
+#    dtime = time.time()
+#    #out = as_geojson(elements)
+#    #with open('./out_M3.json','w') as f:
+#        #f.write(out)
+##    as_keyTabular(elements,VAR,path='./out_tabular.txt',wkt=True)
+#    as_tabular(elements,VAR, wkt=True, path='out_tabluar2.txt')
+#    dtime = time.time()-dtime
+#
+#    blarg = time.time()
+#    print blarg-narg,dtime,blarg-narg-dtime

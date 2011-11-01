@@ -9,6 +9,7 @@ import time
 from multiprocessing import Process, Queue, Lock
 from math import sqrt
 from util.ncconv.helpers import make_shapely_grid
+import pdb
 
 
 dtime = 0
@@ -422,12 +423,17 @@ class OcgDataset(object):
             parent = None
 
         clip = kwds.get('clip')
-            
-        ## extract numpy data from the nc file
-        q=args[0]
-        var = args[1]
-        npd = self._get_numpy_data_(*args[1:],**kwds)
 
+        ## extract numpy data from the nc file. if is it is being called within
+        ## a multicore operation, there are two arguments; the first being the
+        ## process queue.
+        if len(args) == 2:
+            q = args[0]
+            var = args[1]
+        else:
+            q = None
+            var = args[0]
+        npd = self._get_numpy_data_(var,**kwds)
 
         #if hasattr(npd,'mask'):
             #print self.url," has a mask layer"
@@ -614,13 +620,14 @@ class OcgDataset(object):
                                 features.append(feature)
         if self.verbose>1: print('extraction complete.')
 
-        if not(parent == None) and dissolve:
-            q.put((parent,features,recombine))
+        ## possible for no queue in the case of a single core operation.
+        if q is not None:
+            if not(parent == None) and dissolve:
+                q.put((parent,features,recombine))
+            else:
+                q.put((features,recombine))
         else:
-            q.put((features,recombine))
-        return
-        #sys.exit(0)
-        #return(features)
+            return(features)
     
     def _itr_id_(self,start=1):
         while True:
@@ -889,7 +896,7 @@ def multipolygon_singlecore_operation(uri,var,polygons,time_range=None,
         ## update keyword arguments to include current polygon
         kwds.update(dict(polygon=polygon))
         ## append the extracted elements
-        elements.append(ocg_dataset.extract_elements(var,**kwds))
+        elements += ocg_dataset.extract_elements(var,**kwds)
     return(elements)
     
 

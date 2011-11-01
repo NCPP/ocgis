@@ -1,6 +1,7 @@
 from generic import *
 from util.helpers import parse_polygon_wkt
 from shapely import wkt
+import pdb
 
 
 class PolygonSlug(OcgSlug):

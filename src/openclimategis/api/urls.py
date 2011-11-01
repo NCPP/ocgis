@@ -84,13 +84,12 @@ urlpatterns = patterns('',
 # spatial_handler,
 # {'emitter_format':'shz'}),
 
-#tdk
-#    url(
-#        r'^$|^.html$', 
-#        api_handler, 
-#        {'emitter_format':'html', 'template_name':'api.html'},
-#        name='api_list',
-#    ),
+    url(
+        r'^$|^.html$', 
+        api_handler, 
+        {'emitter_format':'html', 'template_name':'api.html'},
+        name='api_list',
+    ),
 
 ### ARCHIVES --------------------------------------------------------------------
     # collection of climate model archive resources

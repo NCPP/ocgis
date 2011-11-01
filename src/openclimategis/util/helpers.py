@@ -26,6 +26,7 @@ def parse_polygon_wkt(txt):
     ## MULTIPOLYGON (((30 10, 10 20, 20 40, 40 40, 30 10),(30 10, 10 20, 20 40, 40 40, 30 10)))
     
     txt = txt.upper().replace('+',' ')
+    txt = txt.replace('POLYGON((','POLYGON ((')
     try:
         poly = wkt.loads(txt)
     except:

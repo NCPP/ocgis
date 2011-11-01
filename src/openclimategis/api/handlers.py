@@ -39,14 +39,7 @@ class OpenClimateHandler(BaseHandler):
         super(OpenClimateHandler,self).__init__(*args,**kwds)
         
     def create(self,request,**kwds):
-        ## save the URL argument keywords
-        request.url_args = kwds
-        ## parse URL arguments
-        self._parse_slugs_(kwds)
-        ## add OCG object to request object for use by emitters
-        request.ocg = self.ocg
-        ## call the subclass read methods
-#        return self.check(self._read_(request))
+        self._prepare_(request,kwds)
         return(self._create_(request))
     
     def read(self,request,**kwds):
@@ -54,14 +47,7 @@ class OpenClimateHandler(BaseHandler):
         Subclasses should not overload this method. Each return will be checked
         for basic validity.
         """
-        ## save the URL argument keywords
-        request.url_args = kwds
-        ## parse URL arguments
-        self._parse_slugs_(kwds)
-        ## add OCG object to request object for use by emitters
-        request.ocg = self.ocg
-        ## call the subclass read methods
-#        return self.check(self._read_(request))
+        self._prepare_(request,kwds)
         return(self._read_(request))
     
     def check(self,payload):
@@ -71,6 +57,16 @@ class OpenClimateHandler(BaseHandler):
             return rc.NOT_FOUND
         else:
             return payload
+        
+    def _prepare_(self,request,kwds):
+        """Called by all response method to look for common URL arguments."""
+        ## save the URL argument keywords
+        request.url_args = kwds
+        ## parse URL arguments
+        self._parse_slugs_(kwds)
+        ## add OCG object to request object for use by emitters
+        request.ocg = self.ocg
+        
         
     def _create_(self,request,**kwds):
         raise NotImplementedError
@@ -113,7 +109,6 @@ class OpenClimateHandler(BaseHandler):
 
 
 class NonSpatialHandler(OpenClimateHandler):
-#    __data_kwds__ = {}
      
     def _read_(self,request):
         try:
@@ -205,7 +200,6 @@ class SpatialHandler(OpenClimateHandler):
     __mode__ = 'single' # or 'multi'
     
     def _read_(self,request):
-        pdb.set_trace()
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
         ## arguments for the dataset object
@@ -274,5 +268,5 @@ class SpatialHandler(OpenClimateHandler):
 #            dataset.close()
 
         ########################################################################
-            
+
         return(elements)

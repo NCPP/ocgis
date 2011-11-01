@@ -93,6 +93,8 @@ class OpenClimateShp(object):
         
         ds.Destroy()
         
+        return([self.path.replace('shp',item) for item in ['shp','shx','prj','dbf']])
+        
     def zip_response(self):
         buffer = BytesIO()
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
@@ -100,7 +102,7 @@ class OpenClimateShp(object):
         for item in files:
             filepath = self.path.replace('shp',item)
 #            filename = '%s.%s' % (self.path.replace('.shp',''), item)
-            zip.write(filepath)#, arcname='%s.%s' % (file_name.replace('.shp',''), item))
+            zip.write(filepath,arcname=os.path.split(filepath)[1])#, arcname='%s.%s' % (file_name.replace('.shp',''), item))
 #        if readme:
 #            zip.writestr('README.txt',readme)
         zip.close()
@@ -110,7 +112,7 @@ class OpenClimateShp(object):
         
         # Stick it all in a django HttpResponse
         response = HttpResponse()
-        response['Content-Disposition'] = 'attachment; filename={0}.shz'.format(self.filename)# % file_name.replace('.shp','')
+        response['Content-Disposition'] = 'attachment; filename={0}.shz'.format(os.path.splitext(self.filename)[0])# % file_name.replace('.shp','')
         response['Content-length'] = str(len(zip_stream))
         response['Content-Type'] = 'application/zip'
         response.write(zip_stream)

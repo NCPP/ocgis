@@ -78,8 +78,8 @@ class TestUrls(TestCase):
         * aggregation
         '''
         exts = [
-            'csv',
-#            'kcsv',
+#            'csv',
+            'kcsv',
 #            'shz',
 #            'geojson',
         ]

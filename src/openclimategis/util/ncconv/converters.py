@@ -5,7 +5,13 @@ from osgeo import osr, ogr
 import io
 import pdb
 import csv
+import os
 
+
+def get_sr(srid):
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(srid)
+    return(sr)
 
 def as_geojson(elements):
     features = []
@@ -34,15 +40,10 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
     path=None -- specify an output file name. under the default, no file is
         written.
     '''
-    
-    def _get_sr(srid):
-        sr = osr.SpatialReference()
-        sr.ImportFromEPSG(srid)
-        return(sr)
 
     ## define spatial references
-    sr = _get_sr(4326)
-    sr2 = _get_sr(area_srid)
+    sr = get_sr(4326)
+    sr2 = get_sr(area_srid)
     
     ## this will hold the data to write
     data = []
@@ -103,33 +104,33 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
     finally:
         buffer.close()
 
-def as_keyTabular(elements,var,wkt=False,wkb=False,path = None):
+def as_keyTabular(elements,var,wkt=False,wkb=False,path=None,area_srid=3005):
     '''writes output as tabular csv files, but uses foreign keys
 on time and geometry to reduce file size'''
-    import osgeo.ogr as ogr
 
     if path is None:
         path = get_temp_path(suffix='')
+#    prefix = os.path.splitext(path)[0]
+#
+#    if len(path)>4 and path[-4] == '.':
+#        path = path[:-4]
 
-    if len(path)>4 and path[-4] == '.':
-        path = path[:-4]
-
-    patht = path+"_time.txt"
-    pathg = path+"_geometry.txt"
-    pathd = path+"_data.txt"
+    patht = path+"_time.csv"
+    pathg = path+"_geometry.csv"
+    pathd = path+"_data.csv"
+    
+    paths = [patht,pathg,pathd]
 
     #define spatial references for the projection
-    sr = ogr.osr.SpatialReference()
-    sr.ImportFromEPSG(4326)
-    sr2 = ogr.osr.SpatialReference()
-    sr2.ImportFromEPSG(3005)
+    sr = get_sr(4326)
+    sr2 = get_sr(area_srid)
     data = {}
 
     #sort the data into dictionaries so common times and geometries can be identified
     for ii,element in enumerate(elements):
 
         #record new element ids (otherwise threads will produce copies of ids)
-        element['id']=ii
+        element['id'] = ii + 1
 
         #get the time and geometry
         time = element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S")
@@ -160,7 +161,7 @@ on time and geometry to reduce file size'''
     ft.write(','.join(['tid','timestamp']))
     ft.write('\n')
     
-    fgheader = ['gid','area']
+    fgheader = ['gid','area_m2']
     
     if wkt:
         fgheader += ['wkt']
@@ -215,3 +216,5 @@ on time and geometry to reduce file size'''
     ft.close()
     fg.close()
     fd.close()
+    
+    return(paths)

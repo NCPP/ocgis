@@ -7,6 +7,10 @@ from util.helpers import get_temp_path
 import pdb
 from api.views import display_spatial_query
 from util.ncconv.converters import as_geojson, as_tabular, as_keyTabular
+import zipfile
+import io
+import os
+import tempfile
 
 
 class OpenClimateEmitter(Emitter):
@@ -76,10 +80,13 @@ class ShapefileEmitter(IdentityEmitter):
     
     def render(self,request):
         elements = self.construct()
-        path = get_temp_path(suffix='.shp')
+        cfvar = request.ocg.simulation_output.variable.code
+        path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))
         shp = OpenClimateShp(path,elements)
-        shp.write()
-        return shp.zip_response()
+        paths = shp.write()
+        response = shp.zip_response()
+        for path in paths: os.remove(path)
+        return(response)
 
 
 class KmlEmitter(IdentityEmitter):
@@ -133,13 +140,35 @@ class CsvKeyEmitter(IdentityEmitter):
     def render(self,request):
         elements = self.construct()
         var = request.ocg.simulation_output.netcdf_variable.code
-        conv = as_keyTabular(elements,var)
-        return(conv)
+        cfvar = request.ocg.simulation_output.variable.code
+        path = os.path.join(tempfile.gettempdir(),cfvar)
+        paths = as_keyTabular(elements,var,path=path)
+        buffer = io.BytesIO()
+        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
+        for path in paths:
+            zip.write(path,arcname=os.path.split(path)[1])
+        zip.close()
+        buffer.flush()
+        zip_stream = buffer.getvalue()
+        buffer.close()
+        
+        ## remove the files from disk
+        for path in paths: os.remove(path)
+        
+        # Stick it all in a django HttpResponse
+        response = HttpResponse()
+        response['Content-Disposition'] = 'attachment; filename={0}.kcsv.zip'.\
+          format(cfvar)
+        response['Content-length'] = str(len(zip_stream))
+        response['Content-Type'] = 'application/zip'
+        response.write(zip_stream)
+        
+        return(response)
 
 
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
-Emitter.register('geojson',GeoJsonEmitter,'application/geojson; charset=utf-8')
+Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
-Emitter.register('kcsv',CsvKeyEmitter,'text/html; charset=utf-8')
+Emitter.register('kcsv',CsvKeyEmitter,'application/zip; charset=utf-8')

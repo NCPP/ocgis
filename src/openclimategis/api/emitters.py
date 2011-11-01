@@ -13,6 +13,7 @@ class OpenClimateEmitter(Emitter):
     """
     Superclass for all OpenClimateGIS emitters.
     """
+    
     def render(self,request):
         raise NotImplementedError
 

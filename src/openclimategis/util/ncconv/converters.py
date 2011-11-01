@@ -1,6 +1,7 @@
 import geojson
 from util.helpers import get_temp_path
 from util.toshp import OpenClimateShp
+from osgeo import osr, ogr
 
 
 def as_geojson(elements):
@@ -18,18 +19,28 @@ def as_shp(elements,path=None):
     ocs.write()
     return(path)
 
-def as_tabular(elements,var,wkt=False,wkb=False,path = None):
-    '''writes output in a tabular, CSV format geometry output is optional'''
-    import osgeo.ogr as ogr
-
-    if path is None:
-        path = get_temp_path(suffix='.txt')
+def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path=None):
+    '''writes output in a tabular, CSV format geometry output is optional
+    
+    elements -- standard geojson-like data representation
+    var -- name of the output variable
+    wkt=False -- set to True to write wkt to text file
+    wkb=False -- set to True to write wkb to text file
+    todisk=False -- set to True to write output to disk as well. if no path
+        name is specified in the |path| argument, then one is generated.
+    path=None -- specify an output file name. under the default, no file is
+        written.
+    '''
+    ## set-up disk writing
+    if todisk:
+        if path is None:
+            path = get_temp_path(suffix='.txt')
 
     #define spatial references for the projection
-    sr = ogr.osr.SpatialReference()
+    sr = osr.SpatialReference()
     sr.ImportFromEPSG(4326)
-    sr2 = ogr.osr.SpatialReference()
-    sr2.ImportFromEPSG(3005) #Albers Equal Area is used to ensure legitimate area values
+    sr2 = osr.SpatialReference()
+    sr2.ImportFromEPSG(area_srid) #Albers Equal Area is used to ensure legitimate area values
 
     with open(path,'w') as f:
         
@@ -37,7 +48,7 @@ def as_tabular(elements,var,wkt=False,wkb=False,path = None):
         header = ['id','timestamp',var]
         if 'level' in elements[0]['properties'].keys():
                 header += ['level']
-        header += ['area']
+        header += ['area_m2']
         if wkb:
             header += ['wkb']
 

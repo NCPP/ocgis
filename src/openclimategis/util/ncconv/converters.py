@@ -46,8 +46,6 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
     
     ## this will hold the data to write
     data = []
-
-#    with open(path,'w') as f:
         
     ## prepare column header
     header = ['id','timestamp',var]
@@ -60,9 +58,6 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
     if wkt:
         header += ['wkt']
     data.append(header)
-                
-#        f.write(','.join(header))
-#        f.write('\n')
     
     for ii,element in enumerate(elements):
         
@@ -107,31 +102,6 @@ def as_tabular(elements,var,wkt=False,wkb=False,todisk=False,area_srid=3005,path
         return(buffer.getvalue())
     finally:
         buffer.close()
-        
-#    pdb.set_trace()
-
-#        #write id, timestamp, variable
-#        f.write(','.join([repr(ii+1),element['properties']['timestamp'].strftime("%Y-%m-%d %H:%M:%S"),repr(element['properties'][var])]))
-#
-#        #write level if the dataset has levels
-#        if 'level' in element['properties'].keys():
-#            f.write(','+repr(element['properties']['level']))
-#
-#        #write the area
-#        f.write(','+repr(area))
-#
-#        #write wkb if requested
-#        if wkb:
-#            f.write(','+repr(element['geometry'].wkb))
-#
-#        #write wkt if requested
-#        if wkt:
-#            f.write(','+repr(element['geometry'].wkt))
-#
-#        f.write('\n')
-#    f.close()
-
-#    return path
 
 def as_keyTabular(elements,var,wkt=False,wkb=False,path = None):
     '''writes output as tabular csv files, but uses foreign keys

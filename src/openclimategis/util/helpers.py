@@ -2,6 +2,7 @@ import tempfile
 import re
 import copy
 import pdb
+from shapely import wkt
 
 
 def get_temp_path(suffix=''):
@@ -11,24 +12,25 @@ def get_temp_path(suffix=''):
     return f.name
 
 def parse_polygon_wkt(txt):
-    """Parse URL polygon text into WKT"""
+    """Parse URL polygon text into WKT. Text must be well-formed in that fully
+    qualified WKT test must be returned by replacing '+' with ' '.
+    
+    >>> poly = 'polygon((30+10,10+20,20+40,40+40,30+10))'
+    >>> wkt = parse_polygon_wkt(poly)
+    >>> m = 'multipolygon(((30+10,10+20,20+40,40+40,30+10)),((30+10,10+20,20+40,40+40,30+10)))'
+    >>> wkt = parse_polygon_wkt(m)
+    """
     
     ## POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))
     ## POLYGON((30+10,10+20,20+40,40+40))
+    ## MULTIPOLYGON (((30 10, 10 20, 20 40, 40 40, 30 10),(30 10, 10 20, 20 40, 40 40, 30 10)))
     
-    txt = txt.lower()
-    txt = txt.replace('+',' ')
-    
-    coords = re.match('.*\(\((.*)\)\)',txt).group(1)
-    coords = coords.split(',')
-    ## replicate last coordinate if it is not passed
-    if coords[0] != coords[-1]:
-        coords.append(coords[0])
-    coords = ', '.join(coords)
-    
-    wkt = 'POLYGON (({0}))'.format(str(coords))
-        
-    return(wkt)
+    txt = txt.upper().replace('+',' ')
+    try:
+        poly = wkt.loads(txt)
+    except:
+        raise(ValueError('Unable to parse WKT text.'))  
+    return(poly.to_wkt())
 
 def reverse_wkt(txt):
     """Turn Polygon WKT into URL text

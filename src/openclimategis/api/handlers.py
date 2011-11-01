@@ -10,11 +10,9 @@ from climatedata.models import ClimateModel
 from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
-from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation
-import netCDF4
-from experimental.in_memory_oo import multipolygon_operation
+from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation,\
+    multipolygon_singlecore_operation
 import pdb
-from django.http import HttpResponseRedirect
 
 
 class ocg(object):
@@ -83,7 +81,7 @@ class OpenClimateHandler(BaseHandler):
         raise NotImplementedError
     
     def _parse_slugs_(self,kwds):
-        
+
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
         self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value
@@ -204,9 +202,10 @@ class QueryHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
+    __mode__ = 'single' # or 'multi'
     
     def _read_(self,request):
-#        pdb.set_trace()
+        pdb.set_trace()
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
         ## arguments for the dataset object
@@ -222,20 +221,33 @@ class SpatialHandler(OpenClimateHandler):
             clip = True
         else:
             clip = False
-        
-        ## MULTI-CORE OPERATION ################################################
-        
-        elements = multipolygon_multicore_operation(dataset.uri,
-                                      self.ocg.simulation_output.netcdf_variable.code,
-                                      [self.ocg.aoi],
-                                      time_range=self.ocg.temporal,
-                                      clip=clip,
-                                      dissolve=self.ocg.aggregate,
-                                      levels=None,
-                                      ocgOpts=kwds,
-                                      subdivide=True,
-                                      #subres = 90
-                                      )
+            
+        ## choose extraction mode and pull data appropriately.
+        if self.__mode__ == 'single':
+            if type(self.ocg.aoi) not in (list,tuple):
+                polygons = [self.ocg.aoi]
+            else:
+                polygons = self.ocg.aoi
+            elements = multipolygon_singlecore_operation(dataset.uri, 
+                         self.ocg.simulation_output.netcdf_variable.code, 
+                         polygons, 
+                         time_range=self.ocg.temporal, 
+                         clip=clip, 
+                         dissolve=self.ocg.aggregate, 
+                         levels=None,
+                         ocgOpts=kwds)
+        elif self.__mode__ == 'multi':
+            elements = multipolygon_multicore_operation(dataset.uri,
+                                          self.ocg.simulation_output.netcdf_variable.code,
+                                          [self.ocg.aoi],
+                                          time_range=self.ocg.temporal,
+                                          clip=clip,
+                                          dissolve=self.ocg.aggregate,
+                                          levels=None,
+                                          ocgOpts=kwds,
+                                          subdivide=True,
+                                          #subres = 90
+                                          )
         
         ########################################################################
         

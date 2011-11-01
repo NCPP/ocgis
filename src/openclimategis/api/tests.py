@@ -1,10 +1,8 @@
 from django.test import TestCase
-from django.test import TransactionTestCase
 from django.test.client import Client
-from climatedata.models import NetcdfDataset, Archive, SimulationOutput
+from climatedata.models import NetcdfDataset
 import unittest
 import itertools
-from api.views import get_choices
 import pdb
 
 
@@ -80,10 +78,10 @@ class TestUrls(TestCase):
         * aggregation
         '''
         exts = [
-            'csv',
-            'kcsv',
+#            'csv',
+#            'kcsv',
             'shz',
-            'geojson',
+#            'geojson',
         ]
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8'
@@ -124,9 +122,10 @@ class TestUrls(TestCase):
                                   archive=archive,
                                   variable=var,
                                   run=run)
+#            pdb.set_trace()
             response = self.client.get(url)
-            if response.status_code != 200:
-                print response.content
+#            if response.status_code != 200:
+#                print response.content
             self.assertEqual(response.status_code, 200)
     
     

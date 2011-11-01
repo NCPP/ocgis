@@ -1,14 +1,12 @@
 from django.template.context import RequestContext
-from django.template.base import TemplateDoesNotExist
 from django.shortcuts import render_to_response
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse
 from piston.emitters import Emitter
 from util.toshp import OpenClimateShp
 from util.helpers import get_temp_path
-from util.ncconv.in_memory_oo_multi_core import as_geojson, as_tabular,\
-    as_keyTabular
 import pdb
 from api.views import display_spatial_query
+from util.ncconv.converters import as_geojson, as_tabular, as_keyTabular
 
 
 class OpenClimateEmitter(Emitter):
@@ -135,7 +133,6 @@ class CsvKeyEmitter(IdentityEmitter):
         elements = self.construct()
         var = request.ocg.simulation_output.netcdf_variable.code
         conv = as_keyTabular(elements,var)
-        print(conv)
         return(conv)
 
 

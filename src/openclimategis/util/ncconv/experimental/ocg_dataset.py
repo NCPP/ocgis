@@ -3,6 +3,7 @@ import numpy as np
 from shapely import prepared
 from helpers import *
 import ipdb
+from shapely.ops import cascaded_union
 
 
 class OcgDataset(object):
@@ -158,49 +159,38 @@ class OcgDataset(object):
             npd = var[timeidx,rowidx,colidx]
         if ndim == 4:
             npd = var[timeidx,levelidx,rowidx,colidx]
-        
+            
+        ## test for masked data
+        if hasattr(npd,'mask'):
+            raise NotImplementedError
+
         ## ensure we have four-dimensional data.
         len_sh = len(npd.shape)
+        ipdb.set_trace()
         if ndim == 3:
-            raise NotImplementedError
+            if len_sh == 3 and len(timeidx) == 1 and level_range is None:
+                npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
+            else:
+                raise NotImplementedError
         if ndim == 4:
             if len_sh == 3:
                 npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
         
         ## we need to remove the unwanted data and reshape in the process. first,
         ## construct the relative indices.
-        if ndim == 3:
-            sh = (npd.shape[1],npd.shape[2])
-        if ndim == 4:
-            sh = (npd.shape[2],npd.shape[3])
-        rel_mask = np.repeat(False,sh[0]*sh[1]).reshape(sh)
+        rel_mask = np.repeat(False,npd.shape[2]*npd.shape[3]).reshape((npd.shape[2],npd.shape[3]))
         ## now iterate and remove the data
         min_row = min(row)
         min_col = min(col)
         for ii in idx:
             rel_mask[ii[0]-min_row,ii[1]-min_col] = True
-        ipdb.set_trace()
+
         ## reshape the data
-        if ndim == 3:
-            raise NotImplementedError
-            npd = npd.reshape(npd.shape[0],1,-1)
-        if ndim == 4:
-            npd = npd.reshape(npd.shape[0],npd.shape[1],-1)
-        
-#        import matplotlib.pyplot as plt
-#        from descartes.patch import PolygonPatch
-#        ax = plt.axes()
-#        for geom in geometry:
-#                ax.add_patch(PolygonPatch(geom,alpha=0.5))
-#        patch1 = PolygonPatch(polygon,alpha=0.5,fc='#999999')
-#        ax.add_patch(patch1)
-#        ax.scatter(self.min_col,self.min_row)
-#        ax.scatter(self.max_col,self.max_row)
-#        plt.show()
+        npd = npd[:,:,rel_mask]
         
 #        ipdb.set_trace()
 
-        return(SubOcgDataset(geometry,npd,cell_ids))
+        return(SubOcgDataset(geometry,npd,cell_ids,self.timevec))
     
     def mapped_subset(self,geom,cell_dimension=None,max_proc=None):
         """
@@ -212,13 +202,15 @@ class OcgDataset(object):
 
 class SubOcgDataset(object):
     
-    def __init__(self,geometry,value,cell_id,id=None):
+    def __init__(self,geometry,value,cell_id,timevec,id=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
-        value -- numpy array with dimension (level,datetime,n)
+        value -- numpy array with dimension (time,level,n)
         cell_id -- numpy array containing integer unique ids for the grid cells.
             has dimension (n)
+        timevec -- numpy array with indices corresponding to time dimension of
+            value
         """
         
         self.id = id
@@ -226,18 +218,49 @@ class SubOcgDataset(object):
         self.value = np.array(value)
         self.cell_id = np.array(cell_id)
         ## calculate nominal weights
-        self.weight = np.zeros(self.geometry.shape,dtype=float)
+        self.weight = np.ones(self.geometry.shape,dtype=float)
+        self.weight = self.weight/self.weight.sum()
         
     def clip(self,igeom):
         prep_igeom = prepared.prep(igeom)
-        for i,j in itr_array(self.geometry):
-            geom = self.geometry[i,j]
-            if geom is not None:
-                if self.keep(prep_igeom,igeom,geom):
-                    area_prev = geom.area()
-                    geom = igeom.intersection(geom)
-                    area_new = geom.area()
-                    weight = area_new/area_prev
-                    assert(weight != 0.0) #tdk
-                    self.weight[i,j] = weight
-            self.geometry[i,j] = geom
+        for ii,geom in enumerate(self.geometry):
+            if keep(prep_igeom,igeom,geom):
+                new_geom = igeom.intersection(geom)
+                weight = geom.area/new_geom.area
+                assert(weight != 0.0) #tdk
+                self.weight[ii] = weight
+                self.geometry[ii] = new_geom
+        ## renormalize the weights
+        self.weight = self.weight/self.weight.sum()
+            
+    def display(self,grid=None,show=True,overlays=None):
+        import matplotlib.pyplot as plt
+        from descartes.patch import PolygonPatch
+        
+        ax = plt.axes()
+        for geom in self.geometry:
+            ax.add_patch(PolygonPatch(geom,alpha=0.5))
+        if overlays is not None:
+            for geom in overlays:
+                ax.add_patch(PolygonPatch(geom,alpha=0.5,fc='#999999'))
+        if grid is None:
+            pts = [geom.centroid for geom in self.geometry]
+            x = [geom.x for geom in pts]
+            y = [geom.y for geom in pts]
+            ax.scatter(x,y,alpha=1.0)
+        else:
+            raise NotImplementedError
+#        ax.scatter(self.min_col,self.min_row)
+#        ax.scatter(self.max_col,self.max_row)
+        if show: plt.show()
+        
+    def union(self):
+        ## first union the geometries
+        self.geometry = [cascaded_union(self.geometry)]
+        ## this will hold the weighted data
+        weighted = np.empty((self.value.shape[0],self.value.shape[1],1))
+        ## next, weight and sum the data accordingly
+        for dim_time in range(self.value.shape[0]):
+            for dim_level in range(self.value.shape[1]):
+                weighted[dim_time,dim_level,0] = np.sum(self.weight*self.value[dim_time,dim_level,:])
+        self.value = weighted

@@ -31,36 +31,69 @@ class TestOcgDataset(unittest.TestCase):
         polygon = self.get_igeom()
         
         ## three time periods. two levels.
-#        sub = self.od.subset('cl',
-#                             polygon=polygon,
-#                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
-#                             level_range=[1,2])
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
+                             level_range=[1,2])
         
         ## one time periods. one level.
-#        sub = self.od.subset('cl',
-#                             polygon=polygon,
-#                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
-#                             level_range=[1,1])
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
+                             level_range=[1,1])
 
         ## one time periods. two levels.
-#        sub = self.od.subset('cl',
-#                             polygon=polygon,
-#                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
-#                             level_range=[1,2])
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
+                             level_range=[1,2])
         
         ## one time period. no levels.
-#        sub = self.od.subset('cl',
-#                             polygon=polygon,
-#                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)])
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)])
 
         ## three time periods. no levels.
         sub = self.od.subset('cl',
                              polygon=polygon,
                              time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)])
 
+#        sub.display(overlays=[polygon])
+
+    def test_subset_clip(self):
+        polygon = self.get_igeom()
+        
+        ## three time periods. two levels.
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
+                             level_range=[1,2])
+        sub.clip(polygon)
+        self.assertTrue((sub.weight < 1.0).any())
+#        ipdb.set_trace()
+#        sub.display(overlays=[polygon])
+
+    def test_subset_union(self):
+        polygon = self.get_igeom()
+        
+        ## three time periods. two levels.
+        sub = self.od.subset('cl',
+                             polygon=polygon,
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
+                             level_range=[1,2])
+        sub.clip(polygon)
+        sub.union()
+#        ipdb.set_trace()
+        sub.display(overlays=[polygon])
+        
+    def test_motherlode(self):
+        sub = self.od.subset('ps',
+                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)])
+        sub.display()
         ipdb.set_trace()
+        
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    import sys;sys.argv = ['', 'TestOcgDataset.test_motherlode']
     unittest.main()

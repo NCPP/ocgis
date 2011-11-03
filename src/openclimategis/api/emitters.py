@@ -117,7 +117,7 @@ class KmlEmitter(IdentityEmitter):
         ## return the elements
         elements = self.construct()
         ## conversion
-        kml_doc = as_kml(elements, meta=request.ocg)
+        kml_doc = as_kml(elements, request=request)
         # return a string representation of the KML document
         return(etree.tostring(kml_doc, pretty_print=True))
         

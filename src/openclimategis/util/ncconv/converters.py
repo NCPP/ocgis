@@ -219,26 +219,54 @@ on time and geometry to reduce file size'''
     
     return(paths)
 
-def as_kml(elements, meta=None):
+def as_kml(elements, request):
     '''writes output as a KML document'''
     from pykml.parser import fromstring
+    from util.helpers import reverse_wkt
     
     def wkt2coordinates(wkt):
         '''converts WKT coordinates to a KML-formatted coordinate string'''
         from django.contrib.gis.gdal import OGRGeometry
         return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
     
-    if meta:
+    if request.ocg:
+        meta = request.ocg
+        if request.environ['SERVER_PORT']=='80':
+            portstr = ''
+        else:
+            portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
         description = (
             '<table border="1">'
               '<tbody>'
                 '<tr><th>Archive</th><td>{archive}</td></tr>'
-                '<tr><th>Scenario</th><td>{scenario}</td></tr>'
+                '<tr><th>Emissions Scenario</th><td>{scenario}</td></tr>'
+                '<tr><th>Climate Model</th><td>{model}</td></tr>'
+                '<tr><th>Run</th><td>{run}</td></tr>'
+                '<tr><th>Output Variable</th><td>{variable}</td></tr>'
+                '<tr><th>Units</th><td>{units}</td></tr>'
+                '<tr><th>Start Time</th><td>{start}</td></tr>'
+                '<tr><th>End Time</th><td>{end}</td></tr>'
+                '<tr>'
+                  '<th>Request URL</th>'
+                  '<td><a href="{protocol}://{server}{port}{path}">{protocol}://{server}{port}{path}</a></td>'
+                '</tr>'
               '</tbody>'
             '</table>'
         ).format(
             archive=meta.archive.name,
             scenario=meta.scenario,
+            model=meta.climate_model,
+            run=meta.run,
+            variable=meta.variable,
+            units=meta.variable.units,
+            #simout=meta.simulation_output.netcdf_variable,
+            start=meta.temporal[0],
+            end=meta.temporal[-1],
+            operation=meta.operation,
+            protocol='http',
+            port=portstr,
+            server=request.environ['SERVER_NAME'],
+            path=request.environ['PATH_INFO'],
         )
     else:
         description = None
@@ -246,7 +274,7 @@ def as_kml(elements, meta=None):
     doc = KML.kml(
       KML.Document(
         KML.name('test-placemark.kml'),
-        KML.open(1),
+        KML.open(0),
         KML.description(description),
         KML.StyleMap(
           KML.Pair(
@@ -265,17 +293,17 @@ def as_kml(elements, meta=None):
             KML.width('2'),
           ),
           KML.PolyStyle(
-            KML.color('7f8484ff'),
+            KML.color('400000ff'),
           ),
           id="style-normal",
         ),
         KML.Style(
           KML.LineStyle(
             KML.color('ff00ff00'),
-            KML.width('2'),
+            KML.width('4'),
           ),
           KML.PolyStyle(
-            KML.color('7f8484ff'),
+            KML.color('400000ff'),
           ),
           id="style-highlight",
         ),
@@ -287,12 +315,15 @@ def as_kml(elements, meta=None):
             '<table border="1">'
               '<tbody>'
                 '<tr><th>Variable</th><td>{variable}</td></tr>'
-                '<tr><th>Value</th><td>{value} {units}</td></tr>'
+                '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
+                '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
               '</tbody>'
             '</table>'
         ).format(
             variable=meta.variable.name,
+            time=element['properties']['timestamp'],
             value=element['properties'][meta.simulation_output.netcdf_variable.code],
+            digits=3,
             units=meta.variable.units,
         )
         

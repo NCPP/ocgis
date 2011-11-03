@@ -319,19 +319,31 @@ class SubOcgDataset(object):
         self.weight = np.ones(self.geometry.shape,dtype=float)
         
     def __iter__(self):
-        dim_time = range(self.value.shape[0])
-        dim_level = range(self.value.shape[1])
-        dim_data = range(self.value.shape[2])
-        
-        for dt,dl,dd in itertools.product(dim_time,dim_level,dim_data):
+        for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
             atime = self.timevec[dt]
             geometry = self.geometry[dd]
             d = dict(geometry=geometry,
                      value=self.value[dt,dl,dd],
                      datetime=atime)
             yield(d)
-                     
+            
+    def iter_nested(self):
+        for dt,dl in itertools.product(self.dim_time,self.dim_level):
+            d = dict(datetime=self.timevec[dt],level=dl+1)
+            
         
+    @property
+    def dim_time(self):
+        return(range(self.value.shape[0]))
+    
+    @property
+    def dim_level(self):
+        return(range(self.value.shape[1]))
+    
+    @property
+    def dim_data(self):
+        return(range(self.value.shape[2]))
+                     
     @property
     def area(self):
         area = 0.0

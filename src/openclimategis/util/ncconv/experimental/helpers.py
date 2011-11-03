@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 from shapely.geometry.polygon import Polygon
+import pdb
 
 
 def itr_array(a):
@@ -65,7 +66,17 @@ def keep(prep_igeom,igeom,target):
         else:
             ret = False
         return(ret)
-           
+
+def union_sum(weight,value,normalize=True):
+    ## renormalize the weights
+    if normalize: weight = weight/weight.sum()
+    ## this will hold the weighted data
+    weighted = np.empty((value.shape[0],value.shape[1],1))
+    ## next, weight and sum the data accordingly
+    for dim_time in range(value.shape[0]):
+        for dim_level in range(value.shape[1]):
+            weighted[dim_time,dim_level,0] = np.sum(weight*value[dim_time,dim_level,:])
+    return(weighted)
            
 if __name__ == '__main__':
     import doctest

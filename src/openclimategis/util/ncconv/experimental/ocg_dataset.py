@@ -1,9 +1,11 @@
 import netCDF4 as nc
 import numpy as np
-from shapely import prepared
+from shapely import prepared, wkt
 from helpers import *
 import ipdb
 from shapely.ops import cascaded_union
+from shapely.geometry.multipolygon import MultiPolygon
+from warnings import warn
 
 
 class OcgDataset(object):
@@ -32,7 +34,6 @@ class OcgDataset(object):
             self.dataset = nc.Dataset(self.uri,'r')
             
         ## extract other keyword arguments -------------------------------------
-        
         self.verbose = kwds.get('verbose')
         self.rowbnds_name = kwds.get('rowbnds_name') or 'bounds_latitude'
         self.colbnds_name = kwds.get('colbnds_name') or 'bounds_longitude'
@@ -77,13 +78,18 @@ class OcgDataset(object):
             curr_id += 1
         ## set the array shape.
         self.shape = self.real_col.shape
-            
-    def broadcast_geom(self):
-        """
-        returns -- matrix of same geographic dimension with shapely Polygon
-            objects as value
-        """
-        pass
+        
+    def display(self,show=True,overlays=None):
+        import matplotlib.pyplot as plt
+        from descartes.patch import PolygonPatch
+        
+        ax = plt.axes()
+        if overlays is not None:
+            for geom in overlays:
+                ax.add_patch(PolygonPatch(geom,alpha=0.5,fc='#999999'))
+        ax.scatter(self.min_col,self.min_row)
+        ax.scatter(self.max_col,self.max_row)
+        if show: plt.show()
         
     def subset(self,var_name,polygon=None,time_range=None,level_range=None): ## intersects + touches
         """
@@ -155,21 +161,20 @@ class OcgDataset(object):
         var = self.dataset.variables[var_name]
         rowidx = sub_range(row)
         colidx = sub_range(col)
+
         if ndim == 3:
             npd = var[timeidx,rowidx,colidx]
         if ndim == 4:
             npd = var[timeidx,levelidx,rowidx,colidx]
-            
-        ## test for masked data
-        if hasattr(npd,'mask'):
-            raise NotImplementedError
 
         ## ensure we have four-dimensional data.
         len_sh = len(npd.shape)
-        ipdb.set_trace()
+
         if ndim == 3:
             if len_sh == 3 and len(timeidx) == 1 and level_range is None:
                 npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
+            elif len_sh == 3 and len(timeidx) > 1 and level_range is None:
+                npd = npd.reshape(npd.shape[0],1,npd.shape[1],npd.shape[2])
             else:
                 raise NotImplementedError
         if ndim == 4:
@@ -188,21 +193,105 @@ class OcgDataset(object):
         ## reshape the data
         npd = npd[:,:,rel_mask]
         
+        ## test for masked data
+        if hasattr(npd,'mask'):
+            mask = npd.mask
+        else:
+            mask = None
+#            raise NotImplementedError
 #        ipdb.set_trace()
 
-        return(SubOcgDataset(geometry,npd,cell_ids,self.timevec))
+        return(SubOcgDataset(geometry,npd,cell_ids,self.timevec[timeidx],mask=mask))
     
-    def mapped_subset(self,geom,cell_dimension=None,max_proc=None):
+    def mapped_subset(self,var_name,
+                           max_proc=1,
+                           subset_opts={}):
         """
-        returns -- dictionary containing ids and SubOcgDataset objects for
-            sending to parallel
+        returns -- list of SubOcgDatasets
         """
-        pass
+
+        ## the initial subset
+        ref = self.subset(var_name,**subset_opts)
+        ## make base process map
+        ref_idx_array = np.arange(0,len(ref.geometry))
+        if max_proc == 1:
+            splits = [ref_idx_array]
+        elif max_proc > 1:
+            splits = np.array_split(ref_idx_array,max_proc)
+        else:
+            raise ValueError("max_proc must be one or greater.")
+        ## will hold the subsets
+        subs = []
+        ## create the subsets
+        for ii,split in enumerate(splits):
+            geometry = ref.geometry[split]
+            value = ref.value[:,:,split]
+            cell_id = ref.cell_id[split]
+            sub = SubOcgDataset(geometry,value,cell_id,timevec=ref.timevec,id=ii)
+            subs.append(sub)
+                
+        return(subs)
+    
+    def parallel_process_subsets(self,subs,polygon=None,clip=False,union=False):
+        
+        def f(out,sub,polygon,clip,union):
+            if clip:
+                sub.clip(polygon)
+            if union:
+                sub.union_nosum()
+            out.append(sub)
+        
+        parallel = True
+        if parallel:
+            import multiprocessing as mp
+            import time
+            
+            out = mp.Manager().list()
+            pps = [mp.Process(target=f,args=(out,sub,polygon,clip,union)) for sub in subs]
+            for pp in pps: pp.start()
+            while True:
+                alive = [pp.is_alive() for pp in pps]
+                if any(alive):
+                    time.sleep(0.5)
+                else:
+                    break
+        else:
+            out = []
+            for sub in subs:
+                f(out,sub,polygon,clip,union)
+        
+        return([sub for sub in out])
+                
+    def combine_subsets(self,subs,union=False):
+        ## collect data from subsets
+        for ii,sub in enumerate(subs): 
+            if ii == 0:
+                all_geometry = sub.geometry
+                all_weights = sub.weight
+                all_value = sub.value
+                all_cell_id = sub.cell_id
+            else:
+                all_cell_id = np.hstack((all_cell_id,sub.cell_id))
+                all_geometry = np.hstack((all_geometry,sub.geometry))
+                all_weights = np.hstack((all_weights,sub.weight))
+                all_value = np.dstack((all_value,sub.value))
+        
+        ## if union is true, sum the values, add new cell_id, and union the 
+        ## geometries.
+        if union:
+            all_geometry = np.array([cascaded_union(all_geometry)],dtype=object)
+            all_value = union_sum(all_weights,all_value,normalize=True)
+            all_cell_id = np.array([1])
+        
+        return(SubOcgDataset(all_geometry,
+                             all_value,
+                             all_cell_id,
+                             sub.timevec))
         
 
 class SubOcgDataset(object):
     
-    def __init__(self,geometry,value,cell_id,timevec,id=None):
+    def __init__(self,geometry,value,cell_id,timevec,mask=None,id=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
@@ -211,56 +300,99 @@ class SubOcgDataset(object):
             has dimension (n)
         timevec -- numpy array with indices corresponding to time dimension of
             value
+        mask -- boolean mask array with same dimension as value. will subset other
+            inputs if passed. a value to be masked is indicated by True.
         """
         
         self.id = id
         self.geometry = np.array(geometry)
         self.value = np.array(value)
         self.cell_id = np.array(cell_id)
+        self.timevec = timevec
+        
+        ## if the mask is passed, subset the data
+        if mask is not None:
+            mask = np.invert(mask)[0,0,:]
+            self.geometry = self.geometry[mask]
+            self.cell_id = self.cell_id[mask]
+            self.value = self.value[:,:,mask]
+        
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
-        self.weight = self.weight/self.weight.sum()
+        
+    @property
+    def area(self):
+        area = 0.0
+        for geom in self.geometry:
+            area += geom.area
+        return(area)
         
     def clip(self,igeom):
         prep_igeom = prepared.prep(igeom)
         for ii,geom in enumerate(self.geometry):
             if keep(prep_igeom,igeom,geom):
                 new_geom = igeom.intersection(geom)
-                weight = geom.area/new_geom.area
-                assert(weight != 0.0) #tdk
+                weight = new_geom.area/geom.area
+                try:
+#                    assert(isinstance(new_geom,Polygon)) #tdk
+                    assert(weight != 0.0) #tdk
+                except:
+                    ipdb.set_trace()
                 self.weight[ii] = weight
                 self.geometry[ii] = new_geom
-        ## renormalize the weights
-        self.weight = self.weight/self.weight.sum()
+#        ## renormalize the weights
+#        self.weight = self.weight/self.weight.sum()
             
-    def display(self,grid=None,show=True,overlays=None):
+    def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt
         from descartes.patch import PolygonPatch
         
         ax = plt.axes()
+        x = []
+        y = []
         for geom in self.geometry:
-            ax.add_patch(PolygonPatch(geom,alpha=0.5))
+            if isinstance(geom,MultiPolygon):
+                for geom2 in geom:
+                    try:
+                        ax.add_patch(PolygonPatch(geom2,alpha=0.5))
+                    except:
+                        geom2 = wkt.loads(geom2.wkt)
+                        ax.add_patch(PolygonPatch(geom2,alpha=0.5))
+                    ct = geom2.centroid
+                    x.append(ct.x)
+                    y.append(ct.y)
+            else:
+                ax.add_patch(PolygonPatch(geom,alpha=0.5))
+                ct = geom.centroid
+                x.append(ct.x)
+                y.append(ct.y)
         if overlays is not None:
             for geom in overlays:
                 ax.add_patch(PolygonPatch(geom,alpha=0.5,fc='#999999'))
-        if grid is None:
-            pts = [geom.centroid for geom in self.geometry]
-            x = [geom.x for geom in pts]
-            y = [geom.y for geom in pts]
-            ax.scatter(x,y,alpha=1.0)
-        else:
-            raise NotImplementedError
-#        ax.scatter(self.min_col,self.min_row)
-#        ax.scatter(self.max_col,self.max_row)
+        ax.scatter(x,y,alpha=1.0)
         if show: plt.show()
         
+    def report_shape(self):
+        attrs = ['geometry','value','cell_id','weight','timevec']
+        for attr in attrs:
+            rattr = getattr(self,attr)
+            msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
+            print(msg)
+        
     def union(self):
-        ## first union the geometries
-        self.geometry = [cascaded_union(self.geometry)]
-        ## this will hold the weighted data
-        weighted = np.empty((self.value.shape[0],self.value.shape[1],1))
-        ## next, weight and sum the data accordingly
-        for dim_time in range(self.value.shape[0]):
-            for dim_level in range(self.value.shape[1]):
-                weighted[dim_time,dim_level,0] = np.sum(self.weight*self.value[dim_time,dim_level,:])
-        self.value = weighted
+        self._union_geom_()
+        self._union_sum_()
+        
+    def union_nosum(self):
+        self._union_geom_()
+        
+    def _union_geom_(self):
+        ## union the geometry. just using np.array() on a multipolgon object
+        ## results in a (1,n) array of polygons.
+        new_geometry = np.array([None],dtype=object)
+        new_geometry[0] = cascaded_union(self.geometry)
+        self.geometry = new_geometry
+        
+    def _union_sum_(self):
+        self.value = union_sum(self.weight,self.value,normalize=True)
+        self.cell_id = np.array([1])

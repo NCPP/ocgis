@@ -2,10 +2,9 @@ import netCDF4 as nc
 import numpy as np
 from shapely import prepared, wkt
 from helpers import *
-import ipdb
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
-from warnings import warn
+import time
 
 
 class OcgDataset(object):
@@ -244,7 +243,6 @@ class OcgDataset(object):
         parallel = True
         if parallel:
             import multiprocessing as mp
-            import time
             
             out = mp.Manager().list()
             pps = [mp.Process(target=f,args=(out,sub,polygon,clip,union)) for sub in subs]
@@ -320,6 +318,20 @@ class SubOcgDataset(object):
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
         
+    def __iter__(self):
+        dim_time = range(self.value.shape[0])
+        dim_level = range(self.value.shape[1])
+        dim_data = range(self.value.shape[2])
+        
+        for dt,dl,dd in itertools.product(dim_time,dim_level,dim_data):
+            atime = self.timevec[dt]
+            geometry = self.geometry[dd]
+            d = dict(geometry=geometry,
+                     value=self.value[dt,dl,dd],
+                     datetime=atime)
+            yield(d)
+                     
+        
     @property
     def area(self):
         area = 0.0
@@ -333,16 +345,35 @@ class SubOcgDataset(object):
             if keep(prep_igeom,igeom,geom):
                 new_geom = igeom.intersection(geom)
                 weight = new_geom.area/geom.area
-                try:
-#                    assert(isinstance(new_geom,Polygon)) #tdk
-                    assert(weight != 0.0) #tdk
-                except:
-                    ipdb.set_trace()
+                assert(weight != 0.0) #tdk
                 self.weight[ii] = weight
                 self.geometry[ii] = new_geom
-#        ## renormalize the weights
-#        self.weight = self.weight/self.weight.sum()
-            
+        
+    def report_shape(self):
+        attrs = ['geometry','value','cell_id','weight','timevec']
+        for attr in attrs:
+            rattr = getattr(self,attr)
+            msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
+            print(msg)
+        
+    def union(self):
+        self._union_geom_()
+        self._union_sum_()
+        
+    def union_nosum(self):
+        self._union_geom_()
+        
+    def _union_geom_(self):
+        ## union the geometry. just using np.array() on a multipolgon object
+        ## results in a (1,n) array of polygons.
+        new_geometry = np.array([None],dtype=object)
+        new_geometry[0] = cascaded_union(self.geometry)
+        self.geometry = new_geometry
+        
+    def _union_sum_(self):
+        self.value = union_sum(self.weight,self.value,normalize=True)
+        self.cell_id = np.array([1])
+        
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt
         from descartes.patch import PolygonPatch
@@ -371,28 +402,3 @@ class SubOcgDataset(object):
                 ax.add_patch(PolygonPatch(geom,alpha=0.5,fc='#999999'))
         ax.scatter(x,y,alpha=1.0)
         if show: plt.show()
-        
-    def report_shape(self):
-        attrs = ['geometry','value','cell_id','weight','timevec']
-        for attr in attrs:
-            rattr = getattr(self,attr)
-            msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
-            print(msg)
-        
-    def union(self):
-        self._union_geom_()
-        self._union_sum_()
-        
-    def union_nosum(self):
-        self._union_geom_()
-        
-    def _union_geom_(self):
-        ## union the geometry. just using np.array() on a multipolgon object
-        ## results in a (1,n) array of polygons.
-        new_geometry = np.array([None],dtype=object)
-        new_geometry[0] = cascaded_union(self.geometry)
-        self.geometry = new_geometry
-        
-    def _union_sum_(self):
-        self.value = union_sum(self.weight,self.value,normalize=True)
-        self.cell_id = np.array([1])

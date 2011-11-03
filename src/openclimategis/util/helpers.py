@@ -44,18 +44,11 @@ def reverse_wkt(txt):
     ## POLYGON ((30 10, 10 20, 20 40, 40 40, 30 10))
     ## POLYGON((30+10,10+20,20+40,40+40))
     
-    def _coord(matchobj):
-        x = matchobj.group(1)
-        y = matchobj.group(2)
-        return('{0}+{1}'.format(x,y))
-    
-    txt = txt.lower()
-    txt = re.sub('([0-9\.]+) ([0-9\.]+) *,*',_coord,txt)
-    txt = re.sub('polygon ','polygon',txt)
-    txt = re.sub(' ',',',txt)
+    txt = txt.replace('POLYGON ((','POLYGON((')
+    txt = txt.lower().replace(' ','+')
     
     return(txt)
-    
+
 
 def merge_dict(*args):
     """

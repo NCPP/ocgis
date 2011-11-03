@@ -1,23 +1,30 @@
 from django import forms
-from climatedata import models
+#from climatedata import models
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.core.exceptions import ValidationError
-from django.core.context_processors import csrf
+#from django.core.context_processors import csrf
 from django.template.context import RequestContext
 from shapely import wkt
-import pdb
 from util.helpers import reverse_wkt
 
 
-CHOICES_AGGREGATE = [('true','TRUE'),
-                     ('false','FALSE')]
-CHOICES_SOP = [('intersects','Intersects'),
-               ('clip','Clip')]
-CHOICES_EXT = [('shz','Zipped Shapefile'),
-               ('csv','Comma Separated Value'),
-               ('kcsv','Linked Comma Separated Value'),
-               ('geojson','GeoJSON Text File')]
+CHOICES_AGGREGATE = [
+    ('true','TRUE'),
+    ('false','FALSE'),
+]
+CHOICES_SOP = [
+    ('intersects','Intersects'),
+    ('clip','Clip'),
+]
+CHOICES_EXT = [
+    ('geojson','GeoJSON Text File'),
+    ('csv','Comma Separated Value'),
+    ('kcsv','Linked Comma Separated Value (zipped)'),
+    ('shz','ESRI Shapefile (zipped)'),
+    ('kml','Keyhole Markup Language'),
+    ('kmz','Keyhole Markup Language (zipped)'),
+]
 
 
 #def get_choices(model,code_field='urlslug',desc_field='name',distinct=False,select=True):
@@ -74,23 +81,37 @@ def get_SpatialQueryForm(simulation_output):
     
     class SpatialQueryForm(forms.Form):
         
-        drange_lower = forms.DateField(required=True,
-                                       initial='1/1/2000',
-                                       label='Lower Date Range',
-                                       validators=[_validate_drange_lower])
-        drange_upper = forms.DateField(required=True,
-                                       initial='3/1/2000',
-                                       label='Upper Date Range',
-                                       validators=[_validate_drange_upper])
-        wkt_extent = OcgWktField(required=True,
-                                 label='WKT Extent',
-                                 initial='POLYGON ((-104 39, -95 39, -95 44, -104 44, -104 39))')
-        aggregate = forms.ChoiceField(choices=CHOICES_AGGREGATE,
-                                      initial='true')
-        spatial_op = forms.ChoiceField(choices=CHOICES_SOP,
-                                       initial='intersects',
-                                       label='Spatial Operation')
-        extension = forms.ChoiceField(choices=CHOICES_EXT)
+        drange_lower = forms.DateField(
+            required=True,
+            initial='1/1/2000',
+            label='Lower Date Range',
+            validators=[_validate_drange_lower],
+        )
+        drange_upper = forms.DateField(
+            required=True,
+            initial='3/1/2000',
+            label='Upper Date Range',
+            validators=[_validate_drange_upper],
+        )
+        wkt_extent = OcgWktField(
+            required=True,
+            label='WKT Extent',
+            widget=forms.Textarea(attrs={'cols': 80, 'rows': 10}),
+            initial='POLYGON ((-104 39, -95 39, -95 44, -104 44, -104 39))',
+        )
+        aggregate = forms.ChoiceField(
+            choices=CHOICES_AGGREGATE,
+            initial='true',
+        )
+        spatial_op = forms.ChoiceField(
+            choices=CHOICES_SOP,
+            initial='intersects',
+            label='Spatial Operation',
+        )
+        extension = forms.ChoiceField(
+            choices=CHOICES_EXT,
+            label='Format'
+        )
         
         def clean(self):
             if self.is_valid():
@@ -131,5 +152,5 @@ def display_spatial_query(request):
         form = SpatialQueryForm() # An unbound form
         
     return render_to_response('query.html',
-                              {'form': form,},
+                              {'form': form, 'request': request},
                               context_instance=RequestContext(request))

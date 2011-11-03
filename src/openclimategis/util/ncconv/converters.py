@@ -1,12 +1,12 @@
 import geojson
 from util.helpers import get_temp_path
 from util.toshp import OpenClimateShp
+from pykml.factory import KML_ElementMaker as KML
 from osgeo import osr, ogr
 import io
 import pdb
 import csv
 import os
-
 
 def get_sr(srid):
     sr = osr.SpatialReference()
@@ -20,7 +20,7 @@ def as_geojson(elements):
         features.append(geojson.Feature(**e))
     fc = geojson.FeatureCollection(features)
     return(geojson.dumps(fc))
-    
+
 def as_shp(elements,path=None):
     if path is None:
         path = get_temp_path(suffix='.shp')
@@ -218,3 +218,101 @@ on time and geometry to reduce file size'''
     fd.close()
     
     return(paths)
+
+def as_kml(elements, meta=None):
+    '''writes output as a KML document'''
+    from pykml.parser import fromstring
+    
+    def wkt2coordinates(wkt):
+        '''converts WKT coordinates to a KML-formatted coordinate string'''
+        from django.contrib.gis.gdal import OGRGeometry
+        return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
+    
+    if meta:
+        description = (
+            '<table border="1">'
+              '<tbody>'
+                '<tr><th>Archive</th><td>{archive}</td></tr>'
+                '<tr><th>Scenario</th><td>{scenario}</td></tr>'
+              '</tbody>'
+            '</table>'
+        ).format(
+            archive=meta.archive.name,
+            scenario=meta.scenario,
+        )
+    else:
+        description = None
+    
+    doc = KML.kml(
+      KML.Document(
+        KML.name('test-placemark.kml'),
+        KML.open(1),
+        KML.description(description),
+        KML.StyleMap(
+          KML.Pair(
+            KML.key('normal'),
+            KML.styleUrl('#style-normal'),
+          ),
+          KML.Pair(
+            KML.key('highlight'),
+            KML.styleUrl('#style-highlight'),
+          ),
+          id="smap",
+        ),
+        KML.Style(
+          KML.LineStyle(
+            KML.color('ff0000ff'),
+            KML.width('2'),
+          ),
+          KML.PolyStyle(
+            KML.color('7f8484ff'),
+          ),
+          id="style-normal",
+        ),
+        KML.Style(
+          KML.LineStyle(
+            KML.color('ff00ff00'),
+            KML.width('2'),
+          ),
+          KML.PolyStyle(
+            KML.color('7f8484ff'),
+          ),
+          id="style-highlight",
+        ),
+        # placemarks will be appended here
+      ),
+    )
+    for element in elements:
+        poly_desc = (
+            '<table border="1">'
+              '<tbody>'
+                '<tr><th>Variable</th><td>{variable}</td></tr>'
+                '<tr><th>Value</th><td>{value} {units}</td></tr>'
+              '</tbody>'
+            '</table>'
+        ).format(
+            variable=meta.variable.name,
+            value=element['properties'][meta.simulation_output.netcdf_variable.code],
+            units=meta.variable.units,
+        )
+        
+        coords = wkt2coordinates(element['geometry'].wkt)
+        doc.Document.append(
+          KML.Placemark(
+            KML.name('Sample name'),
+            KML.description(poly_desc),
+            KML.styleUrl('#smap'),
+            KML.Polygon(
+              KML.tessellate('1'),
+              KML.outerBoundaryIs(
+                KML.LinearRing(
+                  KML.coordinates(coords),
+                ),
+              ),
+            ),
+          )
+        )
+        
+    return doc
+    
+    

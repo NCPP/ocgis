@@ -12,8 +12,9 @@ from climatedata.models import Variable
 from climatedata.models import SimulationOutput
 from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation,\
     multipolygon_singlecore_operation
-import pdb
 
+import logging
+logger = logging.getLogger(__name__)
 
 class ocg(object):
     """Structure class to hold keyword arguments."""
@@ -200,6 +201,7 @@ class SpatialHandler(OpenClimateHandler):
     __mode__ = 'single' # or 'multi'
     
     def _read_(self,request):
+        logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
         ## arguments for the dataset object
@@ -268,5 +270,5 @@ class SpatialHandler(OpenClimateHandler):
 #            dataset.close()
 
         ########################################################################
-
+        logger.debug("...ending SpatialHandler._read_()")
         return(elements)

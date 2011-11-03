@@ -12,6 +12,9 @@ from util.ncconv.helpers import make_shapely_grid
 import pdb
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 dtime = 0
 
 class OcgDataset(object):
@@ -638,6 +641,8 @@ class OcgDataset(object):
                 
 def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=None,dissolve=None,levels = None,ocgOpts=None,subdivide=False,subres='detect',verbose=1,maxProc=0):
 
+    logger.debug("starting multipolygon_multicore_operation()...")
+
     elements = []
     ret = []
     q = Queue()
@@ -873,6 +878,7 @@ def multipolygon_multicore_operation(dataset,var,polygons,time_range=None,clip=N
         elements2 = elements
     if verbose>1: print "expansion time: ",time.time()-dtime
     if verbose>1: print "points: ",repr(len(elements2))
+    logger.debug("...ending multipolygon_multicore_operation()")
     return(elements2)
 
 def multipolygon_singlecore_operation(uri,var,polygons,time_range=None,
@@ -880,6 +886,8 @@ def multipolygon_singlecore_operation(uri,var,polygons,time_range=None,
                                                        dissolve=False,
                                                        levels=None,
                                                        ocgOpts={}):
+    
+    logger.debug("starting multipolygon_singlecore_operation()...")
     ## open the connection to the dataset object
     dataset = nc.Dataset(uri,'r')
     ## the ocgdataset object
@@ -897,6 +905,7 @@ def multipolygon_singlecore_operation(uri,var,polygons,time_range=None,
         kwds.update(dict(polygon=polygon))
         ## append the extracted elements
         elements += ocg_dataset.extract_elements(var,**kwds)
+    logger.debug("...ending multipolygon_singlecore_operation()")
     return(elements)
     
 

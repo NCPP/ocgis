@@ -11,6 +11,10 @@ import zipfile
 import io
 import os
 import tempfile
+from util.ncconv.converters import as_kml
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class OpenClimateEmitter(Emitter):
@@ -45,6 +49,8 @@ class HTMLEmitter(Emitter):
     """
     def render(self,request):
         
+        logger.info("starting HTMLEmitter.render()...")
+        
         c = RequestContext(request)
         
         template_name = request.url_args.get('template_name')
@@ -53,8 +59,11 @@ class HTMLEmitter(Emitter):
         ## return data from the construct method of the resource's handler
         try:
             data = self.construct()
+            logger.debug("len(data) = {0}".format(len(data)))
         except:
             data = []
+            logger.debug("data is None!")
+        
         ## form the basis dictionary for the template data
         dictionary = {'data': data, 'is_collection': is_collection}
         
@@ -68,8 +77,9 @@ class HTMLEmitter(Emitter):
                 context_instance=c,
             )
         
-        return(response)
+        logger.info("...ending HTMLEmitter.render()")
         
+        return(response)
 Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
 
@@ -79,7 +89,11 @@ class ShapefileEmitter(IdentityEmitter):
     """
     
     def render(self,request):
+        
+        logger.info("starting ShapefileEmitter.render()...")
+        
         elements = self.construct()
+        logger.debug("elements = {0}".format(elements))
         cfvar = request.ocg.simulation_output.variable.code
         path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))
         shp = OpenClimateShp(path,elements)
@@ -87,15 +101,28 @@ class ShapefileEmitter(IdentityEmitter):
         response = shp.zip_response()
         for path in paths: os.remove(path)
         return(response)
+        
+        logger.info("...ending ShapefileEmitter.render()")
 
 
 class KmlEmitter(IdentityEmitter):
     """
     Emits raw KML (.kml)
     """
-
     def render(self,request):
-        pass
+        from lxml import etree
+        
+        logger.info("starting KmlEmitter.render()...")
+        
+        ## return the elements
+        elements = self.construct()
+        ## conversion
+        kml_doc = as_kml(elements, request=request)
+        # return a string representation of the KML document
+        return(etree.tostring(kml_doc, pretty_print=True))
+        
+        logger.info("...ending KmlEmitter.render()")
+Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
 
 
 class KmzEmitter(KmlEmitter):
@@ -104,7 +131,24 @@ class KmzEmitter(KmlEmitter):
     """
     
     def render(self,request):
-        kml = super(KmzEmitter,self).render()
+        logger.info("starting KmzEmitter.render()...")
+        kml = super(KmzEmitter,self).render(request)
+        iobuffer = io.BytesIO()
+        zf = zipfile.ZipFile(
+            iobuffer, 
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED, 
+        )
+        try:
+            zf.writestr('doc.kml',kml)
+        finally:
+            zf.close()
+        iobuffer.flush()
+        zip_stream = iobuffer.getvalue()
+        iobuffer.close()
+        logger.info("...ending KmzEmitter.render()")
+        return(zip_stream)
+Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
 
 
 class GeoJsonEmitter(IdentityEmitter):

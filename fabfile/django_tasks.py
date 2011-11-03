@@ -1,7 +1,8 @@
+import os, grp
 from fabric.api import task, settings
 from fabric.api import cd, run, sudo, put
 from fabric.api import warn
-from __init__ import env
+from __init__ import env, get_settings_value
 from virtualenv import VIRTUALENVDIR
 from virtualenv import VIRTUALENVNAME
 from virtualenv import virtualenv
@@ -24,7 +25,7 @@ def update_openclimategis_django():
 def copy_django_settings_config(localfile):
     '''Copy over a django settings configuration file
     
-    Example: fab -H ubuntu@IPADDRESS copy_django_settings_config:localfile=/etc/openclimategis/settings.ini
+    Example: fab -H ubuntu@IPADDRESS django_tasks.copy_django_settings_config:localfile=/etc/openclimategis/settings.ini
     '''
     if env.host=='localhost':
         warn('settings file not recopied to localhost')
@@ -43,6 +44,35 @@ def copy_django_settings_config(localfile):
         # make accessible to only the owner and group 
         sudo('chmod u+rw,g+r-w,o-rwx {0}'.format(remote_path))
 
+
+#@task
+#def create_log_file_directory():
+#    '''Create log file directory for OpenClimateGIS'''
+#    
+#    settings_file='/etc/openclimategis/settings.ini'
+#    
+#    with virtualenv():
+#        # get the log filename and path
+#        logfile = get_settings_value(settings_file, 'logging', 'LOG_FILENAME')
+#        # extract the directory
+#        logfile_path,logfile_filename = os.path.split(logfile)
+#        print(logfile_path)
+#        logfile_path = '/home/terickson/temp/test-logging'
+#        
+#        # check if the directory exists
+#        if not os.path.exists(logfile_path):
+#            print('log file path does not exist!')
+#            # if not, create it and assign group permissions to www-data
+#            os.makedirs(logfile_path)
+#            # change the group owner to www-data (used by apache)
+#            gid = grp.getgrnam('www-data')
+#            print gid
+#            sudo os.chown(logfile_path, -1, gid.gr_gid)
+#            #os.chmod()
+#        else:
+#            print('log file path exists!')
+        
+    
 
 @task
 def syncdb():

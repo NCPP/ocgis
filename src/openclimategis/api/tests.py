@@ -128,6 +128,91 @@ class TestUrls(TestCase):
 #                print response.content
             self.assertEqual(response.status_code, 200)
     
+    def test_simple_json_data_request(self):
+        '''tests that a simple data request URLs works'''
+    
+        url = ('/api'
+               '/archive/{archive}'
+               '/model/{cm}'
+               '/scenario/{scenario}'
+               '/run/{run}'
+               '/temporal/{drange}'
+               '/spatial/{sop}+polygon(({polygon}))'
+               '/aggregate/{agg}'
+               '/variable/{variable}.{ext}'
+               ).format(ext='json',
+                        drange='2000-01-01+2000-02-01',
+                        polygon='-104+39.75,-103.75+39.75,-103.75+40,-104+39.75',
+                        sop='intersects',
+                        agg='false',
+                        cm='miroc3.2(medres)',
+                        scenario='sres-a1b',
+                        archive='usgs-cida-maurer',
+                        variable='pr',
+                        run=2,
+                )
+        response = self.client.get(url)
+        if response.status_code != 200:
+            print response.content
+        self.assertEqual(response.status_code, 200)
+    
+    def test_simple_kml_data_request(self):
+        '''tests that a simple KML data request works'''
+    
+        url = ('/api'
+               '/archive/{archive}'
+               '/model/{cm}'
+               '/scenario/{scenario}'
+               '/run/{run}'
+               '/temporal/{drange}'
+               '/spatial/{sop}+polygon(({polygon}))'
+               '/aggregate/{agg}'
+               '/variable/{variable}.{ext}'
+               ).format(
+                    ext='kml',
+                    drange='2000-01-01+2000-02-01',
+                    polygon='-104+39.75,-103.75+39.75,-103.75+40,-104+39.75',
+                    sop='intersects',
+                    agg='false',
+                    cm='miroc3.2(medres)',
+                    scenario='sres-a1b',
+                    archive='usgs-cida-maurer',
+                    variable='pr',
+                    run=2,
+                )
+        response = self.client.get(url)
+        if response.status_code != 200:
+            print response.content
+        self.assertEqual(response.status_code, 200)
+
+    def test_simple_kmz_data_request(self):
+        '''tests that a simple KMZ data request works'''
+        
+        url = ('/api'
+               '/archive/{archive}'
+               '/model/{cm}'
+               '/scenario/{scenario}'
+               '/run/{run}'
+               '/temporal/{drange}'
+               '/spatial/{sop}+polygon(({polygon}))'
+               '/aggregate/{agg}'
+               '/variable/{variable}.{ext}'
+               ).format(
+                    ext='kmz',
+                    drange='2000-01-01+2000-02-01',
+                    polygon='-104+39.75,-103.75+39.75,-103.75+40,-104+39.75',
+                    sop='intersects',
+                    agg='false',
+                    cm='miroc3.2(medres)',
+                    scenario='sres-a1b',
+                    archive='usgs-cida-maurer',
+                    variable='pr',
+                    run=2,
+                )
+        response = self.client.get(url)
+        if response.status_code != 200:
+            print response.content
+        self.assertEqual(response.status_code, 200)
     
 #    def OLD_test_urls(self):
 #

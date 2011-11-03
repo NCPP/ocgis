@@ -205,3 +205,13 @@ def install_python_dependencies():
                 ' --gdal-config=' + GDAL_DIR + '/bin/gdal-config' + \
                 ' --library-dirs=' + GDAL_DIR + '/include')
         run('pip install --no-download GDAL')
+
+@task
+def install_pykml():
+    '''Install pyKML and dependencies'''
+    from virtualenv import virtualenv
+    
+    sudo('apt-get -y install libxml2')
+    sudo('apt-get -y install libxslt1.1 libxslt-dev')    
+    with virtualenv():
+        run('pip install pykml')

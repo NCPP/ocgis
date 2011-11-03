@@ -10,6 +10,7 @@ import os
 from ConfigParser import RawConfigParser
 config = RawConfigParser()
 config.read('/etc/openclimategis/settings.ini')
+logfile = config.get('logging', 'LOG_FILENAME')
 
 DEBUG = config.getboolean('debug','DEBUG')
 TEMPLATE_DEBUG = config.getboolean('debug','TEMPLATE_DEBUG')

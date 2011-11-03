@@ -1,13 +1,23 @@
-<html>
+{% extends "base.html" %}
 
-<body>
-<h1>OpenClimateGIS API</h1>
+{% block title %}
+    {{ block.super }}
+    > <a href="{% url simulation_list %}">Simulation Outputs</a>
+    > Query
+{% endblock title %}
+
+{% block content %}
+<h2>Simulation Output Query</h2>
 
 <form action="./query.html" method="post">{% csrf_token %}
-{{ form.as_p }}
+<table border="1">
+<tr><th>Archive:</th><td>{{ request.ocg.archive }}</td></tr>
+<tr><th>Climate Model:</th><td>{{ request.ocg.climate_model }}</td></tr>
+<tr><th>Emissions Scenario:</th><td>{{ request.ocg.scenario }}</td></tr>
+<tr><th>Run:</th><td>{{ request.ocg.run }}</td></tr>
+<tr><th>Output Variable:</th><td>{{ request.ocg.variable }}</td></tr>
+{{ form.as_table }}
+</table>
 <input type="submit" value="Submit" />
 </form>
-
-</body>
-
-</html>
+{% endblock content %}

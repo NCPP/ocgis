@@ -273,9 +273,20 @@ def as_kml(elements, request):
     
     doc = KML.kml(
       KML.Document(
-        KML.name('test-placemark.kml'),
+        KML.name('Climate Simulation Output'),
         KML.open(0),
         KML.description(description),
+        KML.snippet(
+            '<i>Click for metadata!</i>',
+            maxLines="2",
+        ),
+        KML.Style(
+          KML.ListStyle(
+            KML.listItemType('checkHideChildren'),
+            KML.bgColor('00ffffff'),
+            KML.maxSnippetLines('2'),
+          ),
+        ),
         KML.StyleMap(
           KML.Pair(
             KML.key('normal'),

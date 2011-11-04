@@ -2,10 +2,9 @@ import netCDF4 as nc
 import numpy as np
 from shapely import prepared, wkt
 from helpers import *
-import ipdb
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
-from warnings import warn
+import time
 
 
 class OcgDataset(object):
@@ -54,10 +53,10 @@ class OcgDataset(object):
         
         ## pull levels if possible
         try:
-            self.levelvec = self.dataset.variables[self.level_name][:]
+            self.levelvec = np.arange(1,len(self.dataset.variables[self.level_name][:])+1)
             self.levelidx = np.arange(0,len(self.levelvec))
         except:
-            pass
+            self.levelvec = np.array([1])
         
         ## these are base numpy arrays used by spatial operations. -------------
 
@@ -201,7 +200,12 @@ class OcgDataset(object):
 #            raise NotImplementedError
 #        ipdb.set_trace()
 
-        return(SubOcgDataset(geometry,npd,cell_ids,self.timevec[timeidx],mask=mask))
+        return(SubOcgDataset(geometry,
+                             npd,
+                             cell_ids,
+                             self.timevec[timeidx],
+                             levelvec=self.levelvec,
+                             mask=mask))
     
     def mapped_subset(self,var_name,
                            max_proc=1,
@@ -227,7 +231,12 @@ class OcgDataset(object):
             geometry = ref.geometry[split]
             value = ref.value[:,:,split]
             cell_id = ref.cell_id[split]
-            sub = SubOcgDataset(geometry,value,cell_id,timevec=ref.timevec,id=ii)
+            sub = SubOcgDataset(geometry,
+                                value,
+                                cell_id,
+                                timevec=ref.timevec,
+                                levelvec=ref.levelvec,
+                                id=ii)
             subs.append(sub)
                 
         return(subs)
@@ -244,7 +253,6 @@ class OcgDataset(object):
         parallel = True
         if parallel:
             import multiprocessing as mp
-            import time
             
             out = mp.Manager().list()
             pps = [mp.Process(target=f,args=(out,sub,polygon,clip,union)) for sub in subs]
@@ -291,7 +299,7 @@ class OcgDataset(object):
 
 class SubOcgDataset(object):
     
-    def __init__(self,geometry,value,cell_id,timevec,mask=None,id=None):
+    def __init__(self,geometry,value,cell_id,timevec,levelvec=None,mask=None,id=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
@@ -309,6 +317,10 @@ class SubOcgDataset(object):
         self.value = np.array(value)
         self.cell_id = np.array(cell_id)
         self.timevec = timevec
+        if levelvec is not None:
+            self.levelvec = levelvec
+        else:
+            self.levelvec = np.array([1])
         
         ## if the mask is passed, subset the data
         if mask is not None:
@@ -320,6 +332,43 @@ class SubOcgDataset(object):
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
         
+    def __iter__(self):
+        for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
+            atime = self.timevec[dt]
+            geometry = self.geometry[dd]
+            d = dict(geometry=geometry,
+                     value=self.value[dt,dl,dd],
+                     datetime=atime,
+                     level=self.levelvec[dl])
+            yield(d)
+            
+    def iter_nested(self):
+        for dd in self.dim_data:
+            d = dict(geometry=self.geometry[dd])
+            data = []
+            for dt,dl in itertools.product(self.dim_time,self.dim_level):
+                dsub = dict(datetime=self.timevec[dt],level=self.levelvec[dl])
+                value = []
+                id = []
+                for dd in self.dim_data:
+                    value.append(self.value[dt,dl,dd])
+                dsub.update(dict(value=value))
+                data.append(dsub)
+            d.update(dict(data=data))
+            yield(d)
+        
+    @property
+    def dim_time(self):
+        return(range(self.value.shape[0]))
+    
+    @property
+    def dim_level(self):
+        return(range(self.value.shape[1]))
+    
+    @property
+    def dim_data(self):
+        return(range(self.value.shape[2]))
+                     
     @property
     def area(self):
         area = 0.0
@@ -333,16 +382,57 @@ class SubOcgDataset(object):
             if keep(prep_igeom,igeom,geom):
                 new_geom = igeom.intersection(geom)
                 weight = new_geom.area/geom.area
-                try:
-#                    assert(isinstance(new_geom,Polygon)) #tdk
-                    assert(weight != 0.0) #tdk
-                except:
-                    ipdb.set_trace()
+                assert(weight != 0.0) #tdk
                 self.weight[ii] = weight
                 self.geometry[ii] = new_geom
-#        ## renormalize the weights
-#        self.weight = self.weight/self.weight.sum()
-            
+        
+    def report_shape(self):
+        attrs = ['geometry','value','cell_id','weight','timevec']
+        for attr in attrs:
+            rattr = getattr(self,attr)
+            msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
+            print(msg)
+        
+    def union(self):
+        self._union_geom_()
+        self._union_sum_()
+        
+    def union_nosum(self):
+        self._union_geom_()
+        
+    def _union_geom_(self):
+        ## union the geometry. just using np.array() on a multipolgon object
+        ## results in a (1,n) array of polygons.
+        new_geometry = np.array([None],dtype=object)
+        new_geometry[0] = cascaded_union(self.geometry)
+        self.geometry = new_geometry
+        
+    def _union_sum_(self):
+        self.value = union_sum(self.weight,self.value,normalize=True)
+        self.cell_id = np.array([1])
+    
+    def as_sqlite(self):
+        from todb import db
+        
+        db.metadata.create_all()
+        
+        try:
+            s = db.Session()
+            for element in self.iter_nested():
+                geometry = db.Geometry(wkt=element['geometry'].wkt)
+                for data in element['data']:
+                    dtime = db.Time(datetime=data['datetime'])
+                    for value in data['value']:
+                        val = db.Value(geometry=geometry,
+                                       level=int(data['level']),
+                                       time=dtime,
+                                       value=float(value))
+                        s.add(val)
+            s.commit()
+            return(db)
+        finally:
+            s.close()
+    
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt
         from descartes.patch import PolygonPatch
@@ -371,28 +461,3 @@ class SubOcgDataset(object):
                 ax.add_patch(PolygonPatch(geom,alpha=0.5,fc='#999999'))
         ax.scatter(x,y,alpha=1.0)
         if show: plt.show()
-        
-    def report_shape(self):
-        attrs = ['geometry','value','cell_id','weight','timevec']
-        for attr in attrs:
-            rattr = getattr(self,attr)
-            msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
-            print(msg)
-        
-    def union(self):
-        self._union_geom_()
-        self._union_sum_()
-        
-    def union_nosum(self):
-        self._union_geom_()
-        
-    def _union_geom_(self):
-        ## union the geometry. just using np.array() on a multipolgon object
-        ## results in a (1,n) array of polygons.
-        new_geometry = np.array([None],dtype=object)
-        new_geometry[0] = cascaded_union(self.geometry)
-        self.geometry = new_geometry
-        
-    def _union_sum_(self):
-        self.value = union_sum(self.weight,self.value,normalize=True)
-        self.cell_id = np.array([1])

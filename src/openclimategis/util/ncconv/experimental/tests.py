@@ -135,39 +135,42 @@ class TestOcgDataset(unittest.TestCase):
         sub = self.od.subset('Prcp',
                              polygon=ne,
                              time_range=[datetime.datetime(1951,1,1),datetime.datetime(1951,12,31)])
-        sub.display(overlays=[ne])
+#        sub.display(overlays=[ne])
         sub.clip(ne)
-        sub.display(overlays=[ne])
+#        sub.display(overlays=[ne])
         sub.union()
-        sub.display(overlays=[ne])
+#        sub.display(overlays=[ne])
         ipdb.set_trace()
         
     def test_nebraska_multiprocess(self):
         import time
         
         union = True
-        clip = False
+        clip = True
         polygon = self._geoms.nebraska()
+#        polygon = None
         time_range = [datetime.datetime(1951,1,1),
                       datetime.datetime(1951,12,31)]
         var_name = 'Prcp'
         
+#        t1 = time.time()
+#        subset_opts = dict(time_range=time_range,polygon=polygon)
+#        subs = self.od.mapped_subset(var_name,max_proc=4,subset_opts=subset_opts)
+#        subs = self.od.parallel_process_subsets(subs,clip=clip,union=union,polygon=polygon)
+#        psub = self.od.combine_subsets(subs,union=union)
+#        t2 = time.time()
+#        print(t2-t1)
+        
         t1 = time.time()
-        subset_opts = dict(time_range=time_range)
-        subs = self.od.mapped_subset(var_name,max_proc=8,subset_opts=subset_opts)
-        subs = self.od.parallel_process_subsets(subs,clip=clip,union=union)
-        psub = self.od.combine_subsets(subs,union=union)
+        asub = self.od.subset(var_name,time_range=time_range,polygon=polygon)
+        if clip:
+            asub.clip(polygon)
+        if union:
+            asub.union()
         t2 = time.time()
         print(t2-t1)
         
-#        t1 = time.time()
-#        asub = self.od.subset(var_name,time_range=time_range)
-#        if clip:
-#            asub.clip(polygon)
-#        if union:
-#            asub.union()
-#        t2 = time.time()
-#        print(t2-t1)
+        db = asub.as_sqlite()
         
         ipdb.set_trace()
 

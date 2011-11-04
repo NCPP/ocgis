@@ -318,7 +318,9 @@ def as_kml(elements, request):
           ),
           id="style-highlight",
         ),
-        # placemarks will be appended here
+        KML.Folder(
+            # placemarks will be appended here
+        ),
       ),
     )
     for element in elements:
@@ -339,9 +341,9 @@ def as_kml(elements, request):
         )
         
         coords = wkt2coordinates(element['geometry'].wkt)
-        doc.Document.append(
+        doc.Document.Folder.append(
           KML.Placemark(
-            KML.name('Sample name'),
+            KML.name('Geometry'),
             KML.description(poly_desc),
             KML.styleUrl('#smap'),
             KML.Polygon(

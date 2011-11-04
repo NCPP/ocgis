@@ -148,6 +148,7 @@ class TestOcgDataset(unittest.TestCase):
         union = True
         clip = True
         polygon = self._geoms.nebraska()
+#        polygon = None
         time_range = [datetime.datetime(1951,1,1),
                       datetime.datetime(1951,12,31)]
         var_name = 'Prcp'
@@ -168,6 +169,8 @@ class TestOcgDataset(unittest.TestCase):
             asub.union()
         t2 = time.time()
         print(t2-t1)
+        
+        db = asub.as_sqlite()
         
         ipdb.set_trace()
 

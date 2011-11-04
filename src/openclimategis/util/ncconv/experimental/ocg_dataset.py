@@ -53,10 +53,10 @@ class OcgDataset(object):
         
         ## pull levels if possible
         try:
-            self.levelvec = self.dataset.variables[self.level_name][:]
+            self.levelvec = np.arange(1,len(self.dataset.variables[self.level_name][:])+1)
             self.levelidx = np.arange(0,len(self.levelvec))
         except:
-            pass
+            self.levelvec = np.array([1])
         
         ## these are base numpy arrays used by spatial operations. -------------
 
@@ -200,7 +200,12 @@ class OcgDataset(object):
 #            raise NotImplementedError
 #        ipdb.set_trace()
 
-        return(SubOcgDataset(geometry,npd,cell_ids,self.timevec[timeidx],mask=mask))
+        return(SubOcgDataset(geometry,
+                             npd,
+                             cell_ids,
+                             self.timevec[timeidx],
+                             levelvec=self.levelvec,
+                             mask=mask))
     
     def mapped_subset(self,var_name,
                            max_proc=1,
@@ -226,7 +231,12 @@ class OcgDataset(object):
             geometry = ref.geometry[split]
             value = ref.value[:,:,split]
             cell_id = ref.cell_id[split]
-            sub = SubOcgDataset(geometry,value,cell_id,timevec=ref.timevec,id=ii)
+            sub = SubOcgDataset(geometry,
+                                value,
+                                cell_id,
+                                timevec=ref.timevec,
+                                levelvec=ref.levelvec,
+                                id=ii)
             subs.append(sub)
                 
         return(subs)
@@ -289,7 +299,7 @@ class OcgDataset(object):
 
 class SubOcgDataset(object):
     
-    def __init__(self,geometry,value,cell_id,timevec,mask=None,id=None):
+    def __init__(self,geometry,value,cell_id,timevec,levelvec=None,mask=None,id=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
@@ -307,6 +317,10 @@ class SubOcgDataset(object):
         self.value = np.array(value)
         self.cell_id = np.array(cell_id)
         self.timevec = timevec
+        if levelvec is not None:
+            self.levelvec = levelvec
+        else:
+            self.levelvec = np.array([1])
         
         ## if the mask is passed, subset the data
         if mask is not None:
@@ -324,13 +338,24 @@ class SubOcgDataset(object):
             geometry = self.geometry[dd]
             d = dict(geometry=geometry,
                      value=self.value[dt,dl,dd],
-                     datetime=atime)
+                     datetime=atime,
+                     level=self.levelvec[dl])
             yield(d)
             
     def iter_nested(self):
-        for dt,dl in itertools.product(self.dim_time,self.dim_level):
-            d = dict(datetime=self.timevec[dt],level=dl+1)
-            
+        for dd in self.dim_data:
+            d = dict(geometry=self.geometry[dd])
+            data = []
+            for dt,dl in itertools.product(self.dim_time,self.dim_level):
+                dsub = dict(datetime=self.timevec[dt],level=self.levelvec[dl])
+                value = []
+                id = []
+                for dd in self.dim_data:
+                    value.append(self.value[dt,dl,dd])
+                dsub.update(dict(value=value))
+                data.append(dsub)
+            d.update(dict(data=data))
+            yield(d)
         
     @property
     def dim_time(self):
@@ -385,7 +410,29 @@ class SubOcgDataset(object):
     def _union_sum_(self):
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.cell_id = np.array([1])
+    
+    def as_sqlite(self):
+        from todb import db
         
+        db.metadata.create_all()
+        
+        try:
+            s = db.Session()
+            for element in self.iter_nested():
+                geometry = db.Geometry(wkt=element['geometry'].wkt)
+                for data in element['data']:
+                    dtime = db.Time(datetime=data['datetime'])
+                    for value in data['value']:
+                        val = db.Value(geometry=geometry,
+                                       level=int(data['level']),
+                                       time=dtime,
+                                       value=float(value))
+                        s.add(val)
+            s.commit()
+            return(db)
+        finally:
+            s.close()
+    
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt
         from descartes.patch import PolygonPatch

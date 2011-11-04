@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.template.context import RequestContext
 from shapely import wkt
 from util.helpers import reverse_wkt
+import pdb
 
 
 CHOICES_AGGREGATE = [

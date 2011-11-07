@@ -89,10 +89,10 @@ class ShapefileEmitter(IdentityEmitter):
     """
     
     def render(self,request):
-        
         logger.info("starting ShapefileEmitter.render()...")
         
         elements = self.construct()
+        pdb.set_trace()
         logger.debug("elements = {0}".format(elements))
         cfvar = request.ocg.simulation_output.variable.code
         path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))

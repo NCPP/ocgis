@@ -78,7 +78,7 @@ class OpenClimateHandler(BaseHandler):
         raise NotImplementedError
     
     def _parse_slugs_(self,kwds):
-        pdb.set_trace()
+        
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
         self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value
@@ -107,6 +107,8 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None
+            
+#        pdb.set_trace()
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -201,6 +203,7 @@ class SpatialHandler(OpenClimateHandler):
     __mode__ = 'single' # or 'multi'
     
     def _read_(self,request):
+        
         logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
@@ -217,7 +220,7 @@ class SpatialHandler(OpenClimateHandler):
             clip = True
         else:
             clip = False
-            
+        
         ## choose extraction mode and pull data appropriately.
         if self.__mode__ == 'single':
             if type(self.ocg.aoi) not in (list,tuple):
@@ -244,7 +247,7 @@ class SpatialHandler(OpenClimateHandler):
                                           subdivide=True,
                                           #subres = 90
                                           )
-        
+        pdb.set_trace()
         ########################################################################
         
         ## OLD APPROACH WITH SINGLE CORE #######################################

@@ -77,6 +77,13 @@ def union_sum(weight,value,normalize=True):
         for dim_level in range(value.shape[1]):
             weighted[dim_time,dim_level,0] = np.sum(weight*value[dim_time,dim_level,:])
     return(weighted)
+
+def merge_subsets(subsets):
+    for ii,sub in enumerate(subsets):
+        if ii == 0:
+            base = sub.copy()
+        else:
+            pass
            
 if __name__ == '__main__':
     import doctest

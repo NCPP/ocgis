@@ -342,6 +342,18 @@ class SubOcgDataset(object):
                 setattr(new_ds,kwd,val) 
         for attr in self.__attrs__:  _find_set(attr)  
         return(new_ds)
+    
+    def merge(self,sub,id=None):
+        """Assumes same time and level vectors."""
+        geometry = np.hstack((self.geometry,sub.geometry))
+        value = np.dstack((self.value,sub.value))
+        cell_id = np.hstack((self.cell_id,sub.cell_id))
+        return(SubOcgDataset(geometry,
+                             value,
+                             cell_id,
+                             self.timevec,
+                             self.levelvec,
+                             id=id))
         
     def __iter__(self):
         for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
@@ -349,24 +361,9 @@ class SubOcgDataset(object):
             geometry = self.geometry[dd]
             d = dict(geometry=geometry,
                      value=self.value[dt,dl,dd],
-                     datetime=atime,
+                     time=atime,
                      level=self.levelvec[dl])
             yield(d)
-            
-#    def iter_nested(self):
-#        for dd in self.dim_data:
-#            d = dict(geometry=self.geometry[dd])
-#            data = []
-#            for dt in self.dim_time:
-#                dsub = dict(datetime=self.timevec[dt])
-#                d.update(dsub)
-#                for dl in self.dim_level:
-#                    for dd in self.dim_data:
-#                        value.append(self.value[dt,dl,dd])
-#                dsub.update(dict(value=value))
-#                data.append(dsub)
-#            d.update(dict(data=data))
-#            yield(d)
         
     @property
     def dim_time(self):

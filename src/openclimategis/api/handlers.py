@@ -247,7 +247,7 @@ class SpatialHandler(OpenClimateHandler):
                                           subdivide=True,
                                           #subres = 90
                                           )
-        pdb.set_trace()
+#        pdb.set_trace()
         ########################################################################
         
         ## OLD APPROACH WITH SINGLE CORE #######################################

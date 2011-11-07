@@ -5,6 +5,7 @@ from helpers import *
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 import time
+import copy
 
 
 class OcgDataset(object):
@@ -298,6 +299,7 @@ class OcgDataset(object):
         
 
 class SubOcgDataset(object):
+    __attrs__ = ['geometry','value','cell_id','weight','timevec','levelvec']
     
     def __init__(self,geometry,value,cell_id,timevec,levelvec=None,mask=None,id=None):
         """
@@ -332,6 +334,15 @@ class SubOcgDataset(object):
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
         
+    def copy(self,**kwds):
+        new_ds = copy.copy(self)
+        def _find_set(kwd):
+            val = kwds.get(kwd)
+            if val is not None:
+                setattr(new_ds,kwd,val) 
+        for attr in self.__attrs__:  _find_set(attr)  
+        return(new_ds)
+        
     def __iter__(self):
         for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
             atime = self.timevec[dt]
@@ -342,20 +353,20 @@ class SubOcgDataset(object):
                      level=self.levelvec[dl])
             yield(d)
             
-    def iter_nested(self):
-        for dd in self.dim_data:
-            d = dict(geometry=self.geometry[dd])
-            data = []
-            for dt,dl in itertools.product(self.dim_time,self.dim_level):
-                dsub = dict(datetime=self.timevec[dt],level=self.levelvec[dl])
-                value = []
-                id = []
-                for dd in self.dim_data:
-                    value.append(self.value[dt,dl,dd])
-                dsub.update(dict(value=value))
-                data.append(dsub)
-            d.update(dict(data=data))
-            yield(d)
+#    def iter_nested(self):
+#        for dd in self.dim_data:
+#            d = dict(geometry=self.geometry[dd])
+#            data = []
+#            for dt in self.dim_time:
+#                dsub = dict(datetime=self.timevec[dt])
+#                d.update(dsub)
+#                for dl in self.dim_level:
+#                    for dd in self.dim_data:
+#                        value.append(self.value[dt,dl,dd])
+#                dsub.update(dict(value=value))
+#                data.append(dsub)
+#            d.update(dict(data=data))
+#            yield(d)
         
     @property
     def dim_time(self):
@@ -387,8 +398,7 @@ class SubOcgDataset(object):
                 self.geometry[ii] = new_geom
         
     def report_shape(self):
-        attrs = ['geometry','value','cell_id','weight','timevec']
-        for attr in attrs:
+        for attr in self.__attrs__:
             rattr = getattr(self,attr)
             msg = '{0}={1}'.format(attr,getattr(rattr,'shape'))
             print(msg)
@@ -415,18 +425,18 @@ class SubOcgDataset(object):
         from todb import db
         
         db.metadata.create_all()
-        
+        s = db.Session()
         try:
-            s = db.Session()
-            for element in self.iter_nested():
-                geometry = db.Geometry(wkt=element['geometry'].wkt)
-                for data in element['data']:
-                    dtime = db.Time(datetime=data['datetime'])
-                    for value in data['value']:
+            for dd in self.dim_data:
+                geometry = db.Geometry(gid=int(self.cell_id[dd]),
+                                       wkt=str(self.geometry[dd].wkt))
+                for dt in self.dim_time:
+                    dtime = db.Time(datetime=self.timevec[dt])
+                    for dl in self.dim_level:
                         val = db.Value(geometry=geometry,
-                                       level=int(data['level']),
+                                       level=int(self.levelvec[dl]),
                                        time=dtime,
-                                       value=float(value))
+                                       value=float(self.value[dt,dl,dd]))
                         s.add(val)
             s.commit()
             return(db)

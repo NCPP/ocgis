@@ -1,15 +1,26 @@
 import tempfile
-import re
 import copy
 import pdb
 from shapely import wkt
+import os
 
 
-def get_temp_path(suffix=''):
+def get_temp_path(suffix='',name=None,nest=False):
     """Return absolute path to a temporary file."""
-    f = tempfile.NamedTemporaryFile(suffix=suffix)
-    f.close()
-    return f.name
+    if nest:
+        f = tempfile.NamedTemporaryFile()
+        f.close()
+        dir = os.path.join(tempfile.gettempdir(),f.name)
+        os.mkdir(dir)
+    else:
+        dir = tempfile.gettempdir()
+    if name is not None:
+        ret = os.path.join(dir,name)
+    else:
+        f = tempfile.NamedTemporaryFile(suffix=suffix,dir=dir)
+        f.close()
+        ret = f.name
+    return(ret)
 
 def parse_polygon_wkt(txt):
     """Parse URL polygon text into WKT. Text must be well-formed in that fully

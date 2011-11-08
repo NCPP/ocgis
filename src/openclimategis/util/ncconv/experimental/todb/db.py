@@ -24,16 +24,16 @@ class Geometry(Base):
 class Time(Base):
     __tablename__ = 'time'
     tid = Column(Integer,primary_key=True)
-    datetime = Column(DateTime,unique=True,nullable=False,index=True) 
+    time = Column(DateTime,unique=True,nullable=False,index=True)
 
 
 class Value(Base):
     __tablename__ = 'value'
-    id = Column(Integer,primary_key=True)
+    ocgid = Column(Integer,primary_key=True)
     gid = Column(ForeignKey(Geometry.gid))
     tid = Column(ForeignKey(Time.tid))
-    value = Column(Float,nullable=False)
     level = Column(Integer,nullable=False)
+    value = Column(Float,nullable=False)
     
     geometry = relationship(Geometry)
     time = relationship(Time)

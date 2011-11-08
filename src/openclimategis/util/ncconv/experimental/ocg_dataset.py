@@ -360,9 +360,9 @@ class SubOcgDataset(object):
             atime = self.timevec[dt]
             geometry = self.geometry[dd]
             d = dict(geometry=geometry,
-                     value=self.value[dt,dl,dd],
+                     value=float(self.value[dt,dl,dd]),
                      time=atime,
-                     level=self.levelvec[dl])
+                     level=int(self.levelvec[dl]))
             yield(d)
         
     @property
@@ -428,7 +428,7 @@ class SubOcgDataset(object):
                 geometry = db.Geometry(gid=int(self.cell_id[dd]),
                                        wkt=str(self.geometry[dd].wkt))
                 for dt in self.dim_time:
-                    dtime = db.Time(datetime=self.timevec[dt])
+                    dtime = db.Time(time=self.timevec[dt])
                     for dl in self.dim_level:
                         val = db.Value(geometry=geometry,
                                        level=int(self.levelvec[dl]),

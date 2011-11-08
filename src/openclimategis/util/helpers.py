@@ -5,7 +5,7 @@ from shapely import wkt
 import os
 
 
-def get_temp_path(suffix='',name=None,nest=False):
+def get_temp_path(suffix='',name=None,nest=False,only_dir=False):
     """Return absolute path to a temporary file."""
     if nest:
         f = tempfile.NamedTemporaryFile()
@@ -14,12 +14,15 @@ def get_temp_path(suffix='',name=None,nest=False):
         os.mkdir(dir)
     else:
         dir = tempfile.gettempdir()
-    if name is not None:
-        ret = os.path.join(dir,name)
+    if only_dir:
+        ret = dir
     else:
-        f = tempfile.NamedTemporaryFile(suffix=suffix,dir=dir)
-        f.close()
-        ret = f.name
+        if name is not None:
+            ret = os.path.join(dir,name)
+        else:
+            f = tempfile.NamedTemporaryFile(suffix=suffix,dir=dir)
+            f.close()
+            ret = f.name
     return(ret)
 
 def parse_polygon_wkt(txt):

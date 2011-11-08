@@ -11,6 +11,7 @@ import io
 import os
 import copy
 import csv
+import geojson
 
 
 class OcgConverter(object):
@@ -55,6 +56,21 @@ class OcgConverter(object):
     
     def cleanup(self):
         pass
+    
+    
+class GeojsonConverter(OcgConverter):
+    
+    def _convert_(self):
+        features = []
+        for attrs in self.sub_ocg_dataset:
+            attrs['time'] = str(attrs['time'])
+            attrs['geometry'] = attrs['geometry'].wkt
+            features.append(attrs)
+        fc = geojson.FeatureCollection(features)
+        return(geojson.dumps(fc))
+    
+    def _response_(self,payload):
+        return(payload)
     
 
 class CsvConverter(OcgConverter):
@@ -125,6 +141,55 @@ class CsvConverter(OcgConverter):
 
     def _response_(self,payload):
         return(payload)
+    
+    
+class LinkedCsvConverter(CsvConverter):
+    
+    def _convert_(self):
+        ## create the database
+        db = self.sub_ocg_dataset.as_sqlite()
+        ## database tables to write
+        tables = [db.Geometry,db.Time,db.Value]
+        ## generate the info for writing
+        info = []
+        for table in tables:
+            headers = [h.upper() for h in table.__mapper__.columns.keys()]
+            arcname = '{0}_{1}.csv'.format(self.base_name,table.__tablename__)
+            buffer = io.BytesIO()
+            writer = self.get_DictWriter(buffer,
+                                         headers=headers)
+            info.append(dict(headers=headers,
+                             writer=writer,
+                             arcname=arcname,
+                             table=table,
+                             buffer=buffer))
+        ## write the tables
+        s = db.Session()
+        try:
+            for i in info:
+                ## loop through each database record
+                q = s.query(i['table'])
+                for obj in q:
+                    row = dict()
+                    for h in i['headers']:
+                        row.update({h:getattr(obj,h.lower())})
+                    i['writer'].writerow(row)
+                i['buffer'].flush()
+        finally:
+            s.close()
+
+        return(info)
+    
+    def _response_(self,payload):
+        buffer = io.BytesIO()
+        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
+        for info in payload:
+            zip.writestr(info['arcname'],info['buffer'].getvalue())
+        zip.close()
+        buffer.flush()
+        zip_stream = buffer.getvalue()
+        buffer.close()
+        return(zip_stream)
         
 
 class ShpConverter(OcgConverter):

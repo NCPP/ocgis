@@ -4,7 +4,8 @@ from shapely.geometry.point import Point
 import ipdb
 import datetime
 from shapely import wkt
-from util.ncconv.experimental.ocg_converter import ShpConverter, CsvConverter
+from util.ncconv.experimental.ocg_converter import ShpConverter, CsvConverter, GeojsonConverter,\
+    LinkedCsvConverter
 from util.ncconv.experimental.wrappers import multipolygon_operation
 
 
@@ -212,8 +213,17 @@ class TestOcgConverter(TestData,unittest.TestCase):
         csv = CsvConverter(self.sub_ocg_dataset,'foo.csv')
         response = csv.response()
         self.assertTrue(len(response) > 0)
-        ipdb.set_trace()
 
+    def test_GeojsonConverter(self):
+        gjson = GeojsonConverter(self.sub_ocg_dataset,'foo.json')
+        response = gjson.response()
+        self.assertTrue(len(response) > 0)
+    
+    def test_LinkedCsvConverter(self):
+        lcsv = LinkedCsvConverter(self.sub_ocg_dataset,'foo')
+        response = lcsv.response()
+        self.assertTrue(len(response) > 0)
+        ipdb.set_trace()
 
 class TestWrappers(TestData,unittest.TestCase):
     
@@ -251,5 +261,5 @@ class TestWrappers(TestData,unittest.TestCase):
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestWrappers.test_multipolygon']
+    import sys;sys.argv = ['', 'TestOcgConverter']
     unittest.main()

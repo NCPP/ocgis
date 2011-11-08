@@ -6,6 +6,13 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 import time
 import copy
+import ipdb
+
+
+class MaskedDataError(Exception):
+    
+    def __str__(self):
+        return('Geometric intersection returns all masked values.')
 
 
 class OcgDataset(object):
@@ -79,6 +86,28 @@ class OcgDataset(object):
         ## set the array shape.
         self.shape = self.real_col.shape
         
+    def extent(self):
+        minx = self.min_col.min()
+        maxx = self.max_col.max()
+        miny = self.min_row.min()
+        maxy = self.max_row.max()
+        poly = Polygon(((minx,miny),(maxx,miny),(maxx,maxy),(minx,maxy)))
+        return(poly)
+    
+    def check_extent(self,target):
+        extent = self.extent()
+        return(keep(prepared.prep(extent),extent,target))
+    
+    def check_masked(self,var_name,polygon):
+        try:
+            self.subset(var_name,
+                        polygon=polygon,
+                        time_range=[self.timevec[0],self.timevec[1]])
+            ret = True
+        except MaskedDataError:
+            ret = False
+        return(ret)
+        
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt
         from descartes.patch import PolygonPatch
@@ -96,6 +125,11 @@ class OcgDataset(object):
         polygon -- shapely Polygon object
         return -- SubOcgDataset
         """
+
+        ## do a quick extent check if a polygon is passed
+        if polygon is not None:
+            if not self.check_extent(polygon):
+                raise(ValueError("Polygon boundary & domain extent return an empty intersection."))
 
         ## the base cell selection. does basic find operation to identify
         ## cells to keep.
@@ -196,10 +230,11 @@ class OcgDataset(object):
         ## test for masked data
         if hasattr(npd,'mask'):
             mask = npd.mask
+            ## if all the data values are masked, raise an error.
+            if mask.all():
+                raise(MaskedDataError)
         else:
             mask = None
-#            raise NotImplementedError
-#        ipdb.set_trace()
 
         return(SubOcgDataset(geometry,
                              npd,

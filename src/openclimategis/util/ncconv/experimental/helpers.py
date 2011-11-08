@@ -61,11 +61,11 @@ def sub_range(a):
     return(np.arange(a.min(),a.max()+1))
 
 def keep(prep_igeom,igeom,target):
-        if prep_igeom.intersects(target) and not target.touches(igeom):
-            ret = True
-        else:
-            ret = False
-        return(ret)
+    if prep_igeom.intersects(target) and not target.touches(igeom):
+        ret = True
+    else:
+        ret = False
+    return(ret)
 
 def union_sum(weight,value,normalize=True):
     ## renormalize the weights

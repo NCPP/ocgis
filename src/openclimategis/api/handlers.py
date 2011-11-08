@@ -198,7 +198,8 @@ class QueryHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-    __mode__ = 'single' # or 'multi'
+    #__mode__ = 'single' # or 'multi'
+    __mode__ = 'multi'
     
     def _read_(self,request):
         
@@ -257,7 +258,7 @@ class SpatialHandler(OpenClimateHandler):
                                          union=self.ocg.aggregate,
                                          in_parallel=True, 
                                          max_proc=8,
-                                         max_proc_per_poly=1)
+                                         max_proc_per_poly=4)
 #            elements = multipolygon_multicore_operation(dataset.uri,
 #                                          self.ocg.simulation_output.netcdf_variable.code,
 #                                          [self.ocg.aoi],

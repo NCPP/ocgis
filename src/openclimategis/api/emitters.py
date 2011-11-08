@@ -2,12 +2,9 @@ from django.template.context import RequestContext
 from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
-import pdb
 from api.views import display_spatial_query
 import zipfile
 import io
-import os
-import tempfile
 from util.ncconv.experimental import ocg_converter
 
 import logging
@@ -173,40 +170,6 @@ class CsvEmitter(SubOcgDataEmitter):
 class LinkedCsvEmitter(SubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedCsvConverter
     __ext__ = ''
-
-
-#class CsvKeyEmitter(IdentityEmitter):
-#    """
-#    Tabular CSV format reduced to relational tables. (.csv)
-#    """
-#    
-#    def render(self,request):
-#        elements = self.construct()
-#        var = request.ocg.simulation_output.netcdf_variable.code
-#        cfvar = request.ocg.simulation_output.variable.code
-#        path = os.path.join(tempfile.gettempdir(),cfvar)
-#        paths = as_keyTabular(elements,var,path=path)
-#        buffer = io.BytesIO()
-#        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
-#        for path in paths:
-#            zip.write(path,arcname=os.path.split(path)[1])
-#        zip.close()
-#        buffer.flush()
-#        zip_stream = buffer.getvalue()
-#        buffer.close()
-#        
-#        ## remove the files from disk
-#        for path in paths: os.remove(path)
-#        
-#        # Stick it all in a django HttpResponse
-#        response = HttpResponse()
-#        response['Content-Disposition'] = 'attachment; filename={0}.kcsv.zip'.\
-#          format(cfvar)
-#        response['Content-length'] = str(len(zip_stream))
-#        response['Content-Type'] = 'application/zip'
-#        response.write(zip_stream)
-#        
-#        return(response)
 
 
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')

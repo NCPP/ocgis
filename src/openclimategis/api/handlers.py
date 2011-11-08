@@ -105,8 +105,6 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None
-            
-#        pdb.set_trace()
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -125,6 +123,7 @@ class ApiHandler(NonSpatialHandler):
     
     def _read_(self,request):
         return None
+
 
 class ArchiveHandler(NonSpatialHandler):
     model = Archive
@@ -198,7 +197,7 @@ class QueryHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-    __mode__ = 'single' # or 'multi'
+    __mode__ = 'multi' # or 'single'
     
     def _read_(self,request):
         
@@ -238,14 +237,6 @@ class SpatialHandler(OpenClimateHandler):
                                          in_parallel=False, 
                                          max_proc=8,
                                          max_proc_per_poly=1)
-#            elements = multipolygon_singlecore_operation(dataset.uri, 
-#                         self.ocg.simulation_output.netcdf_variable.code, 
-#                         polygons, 
-#                         time_range=self.ocg.temporal, 
-#                         clip=clip, 
-#                         dissolve=self.ocg.aggregate, 
-#                         levels=None,
-#                         ocgOpts=kwds)
         elif self.__mode__ == 'multi':
             sub = multipolygon_operation(dataset.uri,
                                          self.ocg.simulation_output.netcdf_variable.code,
@@ -257,43 +248,7 @@ class SpatialHandler(OpenClimateHandler):
                                          union=self.ocg.aggregate,
                                          in_parallel=True, 
                                          max_proc=8,
-                                         max_proc_per_poly=1)
-#            elements = multipolygon_multicore_operation(dataset.uri,
-#                                          self.ocg.simulation_output.netcdf_variable.code,
-#                                          [self.ocg.aoi],
-#                                          time_range=self.ocg.temporal,
-#                                          clip=clip,
-#                                          dissolve=self.ocg.aggregate,
-#                                          levels=None,
-#                                          ocgOpts=kwds,
-#                                          subdivide=True,
-#                                          #subres = 90
-#                                          )
-#        pdb.set_trace()
-        ########################################################################
-        
-        ## OLD APPROACH WITH SINGLE CORE #######################################
-            
-#        try:
-#            dataset = netCDF4.Dataset(dataset.uri,'r')
-#            elements = multipolygon_operation(dataset,
-#                                              self.ocg.simulation_output.netcdf_variable.code,
-#                                              [self.ocg.aoi],
-#                                              time_range=self.ocg.temporal,
-#                                              clip=clip,
-#                                              dissolve=self.ocg.aggregate,
-#                                              ocg_kwds=kwds
-#                                              )
-##            ## pull the elements
-##            elements = d.extract_elements(self.ocg.variable.title(), # TODO: variable formatting
-##                                          dissolve=self.ocg.aggregate,
-##                                          polygon=self.ocg.aoi,
-##                                          time_range=self.ocg.temporal,
-##                                          clip=self.ocg.operation)
-#        ## close the connection...
-#        finally:
-#            dataset.close()
+                                         max_proc_per_poly=4)
 
-        ########################################################################
         logger.debug("...ending SpatialHandler._read_()")
         return(sub)

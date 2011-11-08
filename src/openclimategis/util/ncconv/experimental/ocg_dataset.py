@@ -452,16 +452,22 @@ class SubOcgDataset(object):
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.cell_id = np.array([1])
     
-    def as_sqlite(self):
+    def as_sqlite(self,add_area=True,area_srid=3005):
         import db
         
         if not db.LOADED: ##tdk: fix module hack eventually
+            
+            ## spatial reference for area calculation
+            sr = get_sr(4326)
+            sr2 = get_sr(area_srid)
+            
             db.metadata.create_all()
             s = db.Session()
             try:
                 for dd in self.dim_data:
                     geometry = db.Geometry(gid=int(self.cell_id[dd]),
-                                           wkt=str(self.geometry[dd].wkt))
+                                           wkt=str(self.geometry[dd].wkt),
+                                           area_m2 = get_area(self.geometry[dd],sr,sr2))
                     for dt in self.dim_time:
                         dtime = db.Time(time=self.timevec[dt])
                         for dl in self.dim_level:

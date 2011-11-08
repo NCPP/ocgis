@@ -2,6 +2,8 @@ import itertools
 import numpy as np
 from shapely.geometry.polygon import Polygon
 import pdb
+import osr
+import ogr
 
 
 def itr_array(a):
@@ -84,6 +86,22 @@ def merge_subsets(subsets):
             base = sub.copy()
         else:
             pass
+        
+def get_sr(srid):
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(srid)
+    return(sr)
+
+def get_area(geom,sr_orig,sr_dest):
+    geom = ogr.CreateGeometryFromWkb(geom.wkb)
+    geom.AssignSpatialReference(sr_orig)
+    geom.TransformTo(sr_dest)
+    return(geom.GetArea())
+
+def get_area_srid(geom,srid_orig,srid_dest):
+    sr = get_sr(srid_orig)
+    sr2 = get_sr(srid_dest)
+    return(get_area(geom,sr,sr2))
            
 if __name__ == '__main__':
     import doctest

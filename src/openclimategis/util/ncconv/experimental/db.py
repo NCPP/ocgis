@@ -19,6 +19,7 @@ Session = sessionmaker(bind=engine)
 class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
+    area_m2 = Column(String,nullable=False)
     wkt = Column(String,unique=True,nullable=False)
     
     

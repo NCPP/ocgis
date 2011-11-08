@@ -11,6 +11,7 @@ import os
 import copy
 import csv
 import geojson
+from util.ncconv.experimental.helpers import get_sr, get_area
 
 
 class OcgConverter(object):
@@ -85,19 +86,6 @@ class CsvConverter(OcgConverter):
         
         ## call the superclass
         super(CsvConverter,self).__init__(*args,**kwds)
-
-    @staticmethod
-    def get_sr(srid):
-        sr = osr.SpatialReference()
-        sr.ImportFromEPSG(srid)
-        return(sr)
-    
-    @staticmethod
-    def get_area(geom,sr_orig,sr_dest):
-        geom = ogr.CreateGeometryFromWkb(geom.wkb)
-        geom.AssignSpatialReference(sr_orig)
-        geom.TransformTo(sr_dest)
-        return(geom.GetArea())
     
     def get_DictWriter(self,buffer,headers=None):
         writer = csv.writer(buffer)
@@ -118,8 +106,8 @@ class CsvConverter(OcgConverter):
     
     def _convert_(self):
         if self.add_area:
-            sr_orig = self.get_sr(4326)
-            sr_dest = self.get_sr(self.area_srid)
+            sr_orig = get_sr(4326)
+            sr_dest = get_sr(self.area_srid)
         buffer = io.BytesIO()
         writer = self.get_DictWriter(buffer)
         for ii,attrs in enumerate(self.sub_ocg_dataset,start=1):
@@ -129,7 +117,7 @@ class CsvConverter(OcgConverter):
                        LEVEL=attrs['level'],
                        TIME=attrs['time'])
             if self.add_area:
-                row.update(AREA_M2=self.get_area(geom,sr_orig,sr_dest))
+                row.update(AREA_M2=get_area(geom,sr_orig,sr_dest))
             if self.as_wkt:
                 row.update(WKT=geom.wkt)
             if self.as_wkb:

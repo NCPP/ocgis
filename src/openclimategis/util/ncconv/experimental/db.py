@@ -5,6 +5,7 @@ from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.types import Integer, Float, String, DateTime, Date
 from sqlalchemy.orm import relationship
 
+LOADED = False
 
 connstr = 'sqlite://'
 #connstr = 'postgresql://bkoziol:<password>@localhost/<database>'
@@ -44,6 +45,3 @@ class Value(Base):
         msg.append('level={0}'.format(self.level))
         msg.append('value={0}'.format(self.value))
         return(','.join(msg))
-    
-
-metadata.create_all()

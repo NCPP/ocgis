@@ -49,155 +49,53 @@ class TestData(object):
         return(OcgDataset(self.nc_path,**self.nc_opts))
     
     @property
+    def ocg_opts(self):
+        return(dict(union=True,
+                    clip=True,
+                    polygon=self.nebraska(),
+                    time_range=[datetime.datetime(1951,1,1),
+                                datetime.datetime(1951,12,31)]))
+    
+    @property
     def sub_ocg_dataset(self):
-        union = True
-        clip = True
-        polygon = self.nebraska()
-        time_range = [datetime.datetime(1951,1,1),
-                      datetime.datetime(1951,12,31)]
         asub = self.ocg_dataset.subset(self.nc_var_name,
-                                       time_range=time_range,
-                                       polygon=polygon)
-        if clip:
-            asub.clip(polygon)
-        if union:
+                                       time_range=self.ocg_opts['time_range'],
+                                       polygon=self.ocg_opts['polygon'])
+        if self.ocg_opts['clip']:
+            asub.clip(self.ocg_opts['polygon'])
+        if self.ocg_opts['union']:
             asub.union()
         return(asub)
 
+
 class TestOcgDataset(TestData,unittest.TestCase):
-
-    def test_constructor(self):
-        self.assertEqual(self.od.res,2.8125)
-        
-    def test_subset(self):
-        polygon = self._geoms.simple_polygon()
-        
-        ## three time periods. two levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
-                             level_range=[1,2])
-        
-        ## one time periods. one level.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
-                             level_range=[1,1])
-
-        ## one time periods. two levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)],
-                             level_range=[1,2])
-        
-        ## one time period. no levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)])
-
-        ## three time periods. no levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)])
-
-#        sub.display(overlays=[polygon])
-
-    def test_subset_clip(self):
-        polygon = self._geoms.simple_polygon()
-        
-        ## three time periods. two levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
-                             level_range=[1,2])
-        sub.clip(polygon)
-        self.assertTrue((sub.weight < 1.0).any())
-#        ipdb.set_trace()
-#        sub.display(overlays=[polygon])
-
-    def test_subset_union(self):
-        polygon = self._geoms.simple_polygon()
-        
-        ## three time periods. two levels.
-        sub = self.od.subset('cl',
-                             polygon=polygon,
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,12,31)],
-                             level_range=[1,2])
-        sub.clip(polygon)
-        sub.union()
-#        ipdb.set_trace()
-        sub.display(overlays=[polygon])
-        
-    def test_motherlode(self):
-        sub = self.od.subset('ps',
-                             time_range=[datetime.datetime(2000,10,1),datetime.datetime(2000,10,31)])
-#        sub.display()
-#        ipdb.set_trace()
-
-    def test_mapped_subset(self):
-        polygon = self._geoms.simple_polygon()
-        max_proc = 2
-        union = True
-        
-        subset_opts = dict(polygon=polygon,
-                           time_range=[datetime.datetime(2000,10,1),
-                                       datetime.datetime(2000,10,31)])
-        subs = self.od.mapped_subset('cl',max_proc=max_proc,subset_opts=subset_opts)
-        self.od.parallel_process_subsets(subs,
-                                         max_proc=max_proc,
-                                         polygon=polygon,
-                                         clip=True,
-                                         union=union)
-        psub = self.od.combine_subsets(subs,union=union)
         
     def test_nebraska(self):
-        ne = self._geoms.nebraska()
-#        self.od.display(overlays=[ne])
-        sub = self.od.subset('Prcp',
-                             polygon=ne,
-                             time_range=[datetime.datetime(1951,1,1),datetime.datetime(1951,12,31)])
-#        sub.display(overlays=[ne])
-        sub.clip(ne)
-#        sub.display(overlays=[ne])
+        sub = self.ocg_dataset.subset('Prcp',
+                             polygon=self.nebraska(),
+                             time_range=[datetime.datetime(1951,1,1),
+                                         datetime.datetime(1951,12,31)])
+        sub.clip(self.nebraska())
         sub.union()
-#        sub.display(overlays=[ne])
-        ipdb.set_trace()
+        self.assertEqual(sub.value.shape[0],12)
         
     def test_nebraska_multiprocess(self):
-        import time
+        subset_opts = dict(time_range=self.ocg_opts['time_range'],
+                           polygon=self.ocg_opts['polygon'])
+        subs = self.ocg_dataset.mapped_subset(self.nc_var_name,
+                                     max_proc=4,
+                                     subset_opts=subset_opts)
+        subs = self.ocg_dataset.parallel_process_subsets(subs,
+                                                clip=self.ocg_opts['clip'],
+                                                union=self.ocg_opts['union'],
+                                                polygon=self.ocg_opts['polygon'])
+        psub = self.ocg_dataset.combine_subsets(subs,union=self.ocg_opts['union'])
         
-        union = True
-        clip = True
-        polygon = self._geoms.nebraska()
-#        polygon = None
-        time_range = [datetime.datetime(1951,1,1),
-                      datetime.datetime(1951,12,31)]
-        var_name = 'Prcp'
-        
-#        t1 = time.time()
-#        subset_opts = dict(time_range=time_range,polygon=polygon)
-#        subs = self.od.mapped_subset(var_name,max_proc=4,subset_opts=subset_opts)
-#        subs = self.od.parallel_process_subsets(subs,clip=clip,union=union,polygon=polygon)
-#        psub = self.od.combine_subsets(subs,union=union)
-#        t2 = time.time()
-#        print(t2-t1)
-        
-        t1 = time.time()
-        asub = self.od.subset(var_name,time_range=time_range,polygon=polygon)
-        if clip:
-            asub.clip(polygon)
-        if union:
-            asub.union()
-        t2 = time.time()
-        print(t2-t1)
-        
-        db = asub.as_sqlite()
-        
+    def test_as_sqlite(self):
+        db = self.sub_ocg_dataset.as_sqlite()
         s = db.Session()
         self.assertTrue(s.query(db.Value).count() > 0)
         s.close()
-        
-        ipdb.set_trace()
         
         
 class TestOcgConverter(TestData,unittest.TestCase):
@@ -255,11 +153,9 @@ class TestWrappers(TestData,unittest.TestCase):
                                      time_range=None,
                                      level_range=None,
                                      clip=True,
-                                     union=True,
-                                     in_parallel=True)
-        ipdb.set_trace()
+                                     union=True)
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestOcgConverter']
+#    import sys;sys.argv = ['', 'TestOcgDataset']
     unittest.main()

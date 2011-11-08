@@ -419,26 +419,28 @@ class SubOcgDataset(object):
         self.cell_id = np.array([1])
     
     def as_sqlite(self):
-        from todb import db
+        import db
         
-        db.metadata.create_all()
-        s = db.Session()
-        try:
-            for dd in self.dim_data:
-                geometry = db.Geometry(gid=int(self.cell_id[dd]),
-                                       wkt=str(self.geometry[dd].wkt))
-                for dt in self.dim_time:
-                    dtime = db.Time(time=self.timevec[dt])
-                    for dl in self.dim_level:
-                        val = db.Value(geometry=geometry,
-                                       level=int(self.levelvec[dl]),
-                                       time=dtime,
-                                       value=float(self.value[dt,dl,dd]))
-                        s.add(val)
-            s.commit()
-            return(db)
-        finally:
-            s.close()
+        if not db.LOADED: ##tdk: fix module hack eventually
+            db.metadata.create_all()
+            s = db.Session()
+            try:
+                for dd in self.dim_data:
+                    geometry = db.Geometry(gid=int(self.cell_id[dd]),
+                                           wkt=str(self.geometry[dd].wkt))
+                    for dt in self.dim_time:
+                        dtime = db.Time(time=self.timevec[dt])
+                        for dl in self.dim_level:
+                            val = db.Value(geometry=geometry,
+                                           level=int(self.levelvec[dl]),
+                                           time=dtime,
+                                           value=float(self.value[dt,dl,dd]))
+                            s.add(val)
+                s.commit()
+                db.LOADED = True
+            finally:
+                s.close()
+        return(db)
     
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt

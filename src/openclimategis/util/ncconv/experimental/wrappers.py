@@ -1,4 +1,4 @@
-from util.ncconv.experimental.ocg_dataset import OcgDataset, SubOcgDataset
+from util.ncconv.experimental.ocg_dataset import OcgDataset
 
 
 ## this is the function to map
@@ -31,8 +31,7 @@ def multipolygon_operation(uri,
                            clip=False,
                            union=False,
                            in_parallel=False,
-                           max_proc_for_polys=4,
-                           max_proc_per_poly=4):
+                           max_proc=4):
     
     ## make the sure the polygon object is iterable
     if polygons is None:
@@ -54,7 +53,7 @@ def multipolygon_operation(uri,
             arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union]
             args.append(arg)
         ## construct the pool
-        pool = mp.Pool(max_proc_for_polys)
+        pool = mp.Pool(max_proc)
         subs = pool.map(f,args)
         
     else:

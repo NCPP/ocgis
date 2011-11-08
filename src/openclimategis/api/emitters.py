@@ -4,15 +4,13 @@ from django.http import HttpResponse
 from piston.emitters import Emitter
 import pdb
 from api.views import display_spatial_query
-from util.ncconv.converters import as_geojson, as_tabular, as_keyTabular
 import zipfile
 import io
 import os
 import tempfile
-from util.ncconv.converters import as_kml
+from util.ncconv.experimental import ocg_converter
 
 import logging
-from util.ncconv.experimental.ocg_converter import ShpConverter
 logger = logging.getLogger(__name__)
 
 
@@ -82,26 +80,27 @@ class HTMLEmitter(Emitter):
 Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
 
-class ShapefileEmitter(IdentityEmitter):
+class SubOcgDataEmitter(IdentityEmitter):
+    __converter__ = None
+    __ext__ = ''
+    __kwds__ = {}
+    
+    def render(self,request):
+        logger.info("starting {0}.render()...".format(self.__converter__.__name__))
+        sub = self.construct()
+        logger.debug("n geometries = {0}".format(len(sub.geometry)))
+        cfvar = request.ocg.simulation_output.variable.code
+        shp = self.__converter__(sub,cfvar+self.__ext__,**self.__kwds__)
+        logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
+        return(shp.response())
+
+
+class ShapefileEmitter(SubOcgDataEmitter):
     """
     Emits zipped shapefile (.shz)
     """
-    
-    def render(self,request):
-        logger.info("starting ShapefileEmitter.render()...")
-        
-        sub = self.construct()
-        logger.debug("n = {0}".format(len(sub.geometry)))
-        cfvar = request.ocg.simulation_output.variable.code
-        shp = ShpConverter(sub,cfvar+'.shp')
-#        path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))
-#        shp = OpenClimateShp(path,elements)
-#        paths = shp.write()
-#        response = shp.zip_response()
-#        for path in paths: os.remove(path)
-        return(shp.response())
-        
-        logger.info("...ending ShapefileEmitter.render()")
+    __converter__ = ocg_converter.ShpConverter
+    __ext__ = '.shp'
 
 
 class KmlEmitter(IdentityEmitter):
@@ -150,63 +149,64 @@ class KmzEmitter(KmlEmitter):
 Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
 
 
-class GeoJsonEmitter(IdentityEmitter):
+class GeoJsonEmitter(SubOcgDataEmitter):
     """
     JSON format for geospatial data (.json)
     """
-    
-    def render(self,request):
-        ## return the elements
-        elements = self.construct()
-        ## conversion
-        conv = as_geojson(elements)
-        return(conv)
+    __converter__ = ocg_converter.GeojsonConverter
+    __ext__ = '.json'
 
 
-class CsvEmitter(IdentityEmitter):
+class CsvEmitter(SubOcgDataEmitter):
     """
     Tabular CSV format. (.csv)
     """
+    __converter__ = ocg_converter.CsvConverter
+    __ext__ = '.csv'
+    __kwds__ = dict(as_wkt=False,
+                    as_wkb=False,
+                    add_area=True,
+                    area_srid=3005,
+                    to_disk=False)
     
-    def render(self,request):
-        elements = self.construct()
-        var = request.ocg.simulation_output.netcdf_variable.code
-        conv = as_tabular(elements,var)
-        return(conv)
+    
+class LinkedCsvEmitter(SubOcgDataEmitter):
+    __converter__ = ocg_converter.LinkedCsvConverter
+    __ext__ = ''
 
 
-class CsvKeyEmitter(IdentityEmitter):
-    """
-    Tabular CSV format reduced to relational tables. (.csv)
-    """
-    
-    def render(self,request):
-        elements = self.construct()
-        var = request.ocg.simulation_output.netcdf_variable.code
-        cfvar = request.ocg.simulation_output.variable.code
-        path = os.path.join(tempfile.gettempdir(),cfvar)
-        paths = as_keyTabular(elements,var,path=path)
-        buffer = io.BytesIO()
-        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
-        for path in paths:
-            zip.write(path,arcname=os.path.split(path)[1])
-        zip.close()
-        buffer.flush()
-        zip_stream = buffer.getvalue()
-        buffer.close()
-        
-        ## remove the files from disk
-        for path in paths: os.remove(path)
-        
-        # Stick it all in a django HttpResponse
-        response = HttpResponse()
-        response['Content-Disposition'] = 'attachment; filename={0}.kcsv.zip'.\
-          format(cfvar)
-        response['Content-length'] = str(len(zip_stream))
-        response['Content-Type'] = 'application/zip'
-        response.write(zip_stream)
-        
-        return(response)
+#class CsvKeyEmitter(IdentityEmitter):
+#    """
+#    Tabular CSV format reduced to relational tables. (.csv)
+#    """
+#    
+#    def render(self,request):
+#        elements = self.construct()
+#        var = request.ocg.simulation_output.netcdf_variable.code
+#        cfvar = request.ocg.simulation_output.variable.code
+#        path = os.path.join(tempfile.gettempdir(),cfvar)
+#        paths = as_keyTabular(elements,var,path=path)
+#        buffer = io.BytesIO()
+#        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
+#        for path in paths:
+#            zip.write(path,arcname=os.path.split(path)[1])
+#        zip.close()
+#        buffer.flush()
+#        zip_stream = buffer.getvalue()
+#        buffer.close()
+#        
+#        ## remove the files from disk
+#        for path in paths: os.remove(path)
+#        
+#        # Stick it all in a django HttpResponse
+#        response = HttpResponse()
+#        response['Content-Disposition'] = 'attachment; filename={0}.kcsv.zip'.\
+#          format(cfvar)
+#        response['Content-length'] = str(len(zip_stream))
+#        response['Content-Type'] = 'application/zip'
+#        response.write(zip_stream)
+#        
+#        return(response)
 
 
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
@@ -214,4 +214,4 @@ Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
 Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
-Emitter.register('kcsv',CsvKeyEmitter,'application/zip; charset=utf-8')
+Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')

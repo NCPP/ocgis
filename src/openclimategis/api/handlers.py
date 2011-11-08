@@ -197,7 +197,8 @@ class QueryHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-    __mode__ = 'multi' # or 'single'
+    __mode__ = 'single'
+#    __mode__ = 'multi'
     
     def _read_(self,request):
         

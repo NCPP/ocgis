@@ -76,7 +76,7 @@ Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 
 class SubOcgDataEmitter(IdentityEmitter):
     __converter__ = None
-    __ext__ = ''
+    __file_ext__ = ''
     __kwds__ = {}
     
     def render(self,request):
@@ -84,7 +84,7 @@ class SubOcgDataEmitter(IdentityEmitter):
         sub = self.construct()
         logger.debug("n geometries = {0}".format(len(sub.geometry)))
         cfvar = request.ocg.simulation_output.variable.code
-        shp = self.__converter__(sub,cfvar+self.__ext__,**self.__kwds__)
+        shp = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(shp.response())
 
@@ -94,7 +94,7 @@ class ShapefileEmitter(SubOcgDataEmitter):
     Emits zipped shapefile (.shz)
     """
     __converter__ = ocg_converter.ShpConverter
-    __ext__ = '.shp'
+    __file_ext__ = '.shp'
 
 
 class KmlEmitter(IdentityEmitter):
@@ -148,7 +148,7 @@ class GeoJsonEmitter(SubOcgDataEmitter):
     JSON format for geospatial data (.json)
     """
     __converter__ = ocg_converter.GeojsonConverter
-    __ext__ = '.json'
+    __file_ext__ = '.json'
 
 
 class CsvEmitter(SubOcgDataEmitter):
@@ -156,7 +156,7 @@ class CsvEmitter(SubOcgDataEmitter):
     Tabular CSV format. (.csv)
     """
     __converter__ = ocg_converter.CsvConverter
-    __ext__ = '.csv'
+    __file_ext__ = '.csv'
     __kwds__ = dict(as_wkt=False,
                     as_wkb=False,
                     add_area=True,
@@ -166,7 +166,7 @@ class CsvEmitter(SubOcgDataEmitter):
     
 class LinkedCsvEmitter(SubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedCsvConverter
-    __ext__ = ''
+    __file_ext__ = ''
 
 
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')

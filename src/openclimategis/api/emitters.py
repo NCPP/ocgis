@@ -2,7 +2,6 @@ from django.template.context import RequestContext
 from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
-import pdb
 from api.views import display_spatial_query
 from util.ncconv.converters import as_geojson, as_tabular, as_keyTabular
 import zipfile
@@ -63,16 +62,13 @@ class HTMLEmitter(Emitter):
             data = []
             logger.debug("data is None!")
         
-        ## form the basis dictionary for the template data
-        dictionary = {'data': data, 'is_collection': is_collection}
-        
         ## if we need the query form generate and pass accordingly
         if template_name == 'query.html':
             response = display_spatial_query(request)
         else:
             response = render_to_response(
                 template_name=template_name, 
-                dictionary=dictionary,
+                dictionary={'data':data, 'is_collection':is_collection},
                 context_instance=c,
             )
         

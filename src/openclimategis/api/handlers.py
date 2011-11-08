@@ -197,8 +197,8 @@ class QueryHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-    __mode__ = 'single'
-#    __mode__ = 'multi'
+#    __mode__ = 'single'
+    __mode__ = 'multi'
     
     def _read_(self,request):
         
@@ -249,7 +249,7 @@ class SpatialHandler(OpenClimateHandler):
                                          union=self.ocg.aggregate,
                                          in_parallel=True, 
                                          max_proc=8,
-                                         max_proc_per_poly=4)
+                                         max_proc_per_poly=2)
 
         logger.debug("...ending SpatialHandler._read_()")
         return(sub)

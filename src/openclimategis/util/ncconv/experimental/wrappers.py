@@ -1,14 +1,12 @@
 from util.ncconv.experimental.ocg_dataset import OcgDataset
+import time
 
+def f_put(out,arg):
+    out.append(f(arg))
 
 ## this is the function to map
 def f(arg):
     from util.ncconv.experimental.ocg_dataset import OcgDataset
-    import multiprocessing as mp
-    
-    ## see http://mail.python.org/pipermail/python-list/2011-March/1268178.html
-    ## tdk: will have to evaluate if any problems arise with this code.
-    mp.current_process().daemon = False
     
     uri = arg[0]
     ocg_opts = arg[1]
@@ -79,12 +77,24 @@ def multipolygon_operation(uri,
         if subpoly_proc > max_proc_per_poly:
             subpoly_proc = max_proc_per_poly
         ## assemble the argument list
+        out = mp.Manager().list()
         args = []
         for polygon in polygons:
             arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union,subpoly_proc]
             args.append(arg)
-        pool = mp.Pool(poly_proc)
-        subs = pool.map(f,args)
+        ## process list
+        processes = [mp.Process(target=f_put,args=(out,arg)) for arg in args]
+        ## execute and manage processes
+        for ii,process in enumerate(processes,start=1):
+            process.start()
+#            print('started')
+            if ii >= poly_proc:
+                while sum([p.is_alive() for p in processes]) >= poly_proc:
+                    time.sleep(0.1)
+        for p in processes:
+            p.join() 
+        ## extract data
+        subs = [sub for sub in out]
     else:
         subs = []
         ## loop through each polygon

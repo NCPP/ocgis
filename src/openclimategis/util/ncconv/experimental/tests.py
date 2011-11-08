@@ -230,7 +230,7 @@ class TestWrappers(TestData,unittest.TestCase):
                                      union=True,
                                      in_parallel=True,
                                      max_proc=8,
-                                     max_proc_per_poly=1)
+                                     max_proc_per_poly=4)
         self.assertTrue(sub.value.shape[2] > 0)
         
     def test_multipolygon_parallel_usa(self):
@@ -245,9 +245,8 @@ class TestWrappers(TestData,unittest.TestCase):
                                      union=True,
                                      in_parallel=True,
                                      max_proc=8,
-                                     max_proc_per_poly=1)
+                                     max_proc_per_poly=2)
         self.assertTrue(sub.value.shape[2] > 0)
-        sub.display()
         
 
 if __name__ == "__main__":

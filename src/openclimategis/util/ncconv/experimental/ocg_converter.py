@@ -168,7 +168,7 @@ class LinkedCsvConverter(CsvConverter):
         try:
             for i in info:
                 ## loop through each database record
-                q = s.query(i['table'])
+                q = s.query(i['table']).all()
                 for obj in q:
                     row = dict()
                     for h in i['headers']:

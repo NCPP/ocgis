@@ -235,6 +235,12 @@ def as_kml(elements, request):
             portstr = ''
         else:
             portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
+        url='{protocol}://{server}{port}{path}'.format(
+            protocol='http',
+            port=portstr,
+            server=request.environ['SERVER_NAME'],
+            path=request.environ['PATH_INFO'],
+        )
         description = (
             '<table border="1">'
               '<tbody>'
@@ -248,7 +254,17 @@ def as_kml(elements, request):
                 '<tr><th>End Time</th><td>{end}</td></tr>'
                 '<tr>'
                   '<th>Request URL</th>'
-                  '<td><a href="{protocol}://{server}{port}{path}">{protocol}://{server}{port}{path}</a></td>'
+                  '<td><a href="{url}">{url}</a></td>'
+                '</tr>'
+                '<tr>'
+                  '<th>Other Available Formats</th>'
+                  '<td>'
+                    '<a href="{url}">KML</a> - Keyhole Markup Language<br/>'
+                    '<a href="{url_kmz}">KMZ</a> - Keyhole Markup Language (zipped)<br/>'
+                    '<a href="{url_shz}">Shapefile</a> - ESRI Shapefile<br/>'
+                    '<a href="{url_csv}">CSV</a> - Comma Separated Values (text file)<br/>'
+                    '<a href="{url_json}">JSON</a> - Javascript Object Notation'
+                  '</td>'
                 '</tr>'
               '</tbody>'
             '</table>'
@@ -263,10 +279,11 @@ def as_kml(elements, request):
             start=meta.temporal[0],
             end=meta.temporal[-1],
             operation=meta.operation,
-            protocol='http',
-            port=portstr,
-            server=request.environ['SERVER_NAME'],
-            path=request.environ['PATH_INFO'],
+            url=url,
+            url_kmz=url.replace('.kml', '.kmz'),
+            url_shz=url.replace('.kml', '.shz'),
+            url_csv=url.replace('.kml', '.csv'),
+            url_json=url.replace('.kml', '.json'),
         )
     else:
         description = None
@@ -318,7 +335,10 @@ def as_kml(elements, request):
           ),
           id="style-highlight",
         ),
-        # placemarks will be appended here
+        #TODO: create folders for each time period, and add KML Time Elements
+        KML.Folder(
+            # placemarks will be appended here
+        ),
       ),
     )
     for element in elements:
@@ -339,9 +359,9 @@ def as_kml(elements, request):
         )
         
         coords = wkt2coordinates(element['geometry'].wkt)
-        doc.Document.append(
+        doc.Document.Folder.append(
           KML.Placemark(
-            KML.name('Sample name'),
+            KML.name('Geometry'),
             KML.description(poly_desc),
             KML.styleUrl('#smap'),
             KML.Polygon(

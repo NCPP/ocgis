@@ -11,58 +11,50 @@
 {% endblock title %}
 
 {% block content %}
-    <table border="1">
-    <tbody>
     {% if is_collection %}
-        {% comment %}Create table for a list of simulation outputs{% endcomment %}
-        <tr>
-            <th>ID</th>
-            <th>Archive</th>
-            <th>Scenario</th>
-            <th>Climate Model</th>
-            <th>Output Variable</th>
-            <th>Run</th>
-            <th>Query Page</th>
-        </tr>
-        {% for listitem in data %}
-        <tr>
-            <td>
-                <a href="{% url simulation_single id=listitem.id emitter_format='html' %}">
-                    {{ listitem.id }}
-                </a>
-            </td>
-            <td>
-                <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
-                    {{ listitem.archive.code }}
-                </a>
-            </td>
-            <td>
-                <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
-                    {{ listitem.scenario.code }}
-                </a>
-            </td>
-            <td>
-                <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
-                    {{ listitem.climate_model.code }}
-                </a>
-            </td>
-            <td>
-                <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
-                    {{ listitem.variable.code }}
-                </a>
-            </td>
-            <td>
-                {{ listitem.run }}
-            </td>
-            <td>
-                <a href="{% url query_form archive=listitem.archive.urlslug model=listitem.climate_model.urlslug scenario=listitem.scenario.urlslug variable=listitem.variable.urlslug run=listitem.run emitter_format='html' %}">
-                    construct query
-                </a>
-            </td>
-        </td></tr>
-        {% endfor %}
+        <table border="1">
+          <tbody>
+            {% comment %}Create table for a list of simulation outputs{% endcomment %}
+            <tr>
+                <th>ID</th>
+                <th>Archive</th>
+                <th>Scenario</th>
+                <th>Climate Model</th>
+                <th>Output Variable</th>
+                <th>Run</th>
+                <th>Query Page</th>
+            </tr>
+            {% for listitem in data %}
+            <tr>
+                <td>
+                    <a href="{% url simulation_single id=listitem.id emitter_format='html' %}">
+                        {{ listitem.id }}
+                    </a>
+                </td>
+                <td>{{ listitem.archive.code }}</td>
+                <td>{{ listitem.scenario.code }}</td>
+                <td>{{ listitem.climate_model.code }}</td>
+                <td>{{ listitem.variable.code }}</td>
+                <td>{{ listitem.run }}</td>
+                <td>
+                    <a href="{% url query_form archive=listitem.archive.urlslug model=listitem.climate_model.urlslug scenario=listitem.scenario.urlslug variable=listitem.variable.urlslug run=listitem.run emitter_format='html' %}">
+                        construct query
+                    </a>
+                </td>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
     {% else %}
         {% comment %}Create table for a single simulation output{% endcomment %}
+        
+        {% comment %}
+        TODO: Incorporate query form on this page
+        <form action="./query.html" method="post">{% csrf_token %}
+        {% endcomment %}
+        
+        <table border="1">
+        <tbody>
         {% for listitem in data %}
             <tr>
                 <th>ID</th>
@@ -109,7 +101,20 @@
                 <td>{{ listitem.netcdf_variable.code }}</td>
             </tr>
         {% endfor %}
+        
+        {% comment %}
+        {{ form.as_table }}
+        {% endcomment %}
+        
+        </tbody>
+        </table>
+        
+        {% comment %}
+        <input type="submit" value="Submit" />
+        </form>
+        {% endcomment %}
+        
     {% endif %}
-    </tbody>
-    </table>
+
+    
 {% endblock content %}

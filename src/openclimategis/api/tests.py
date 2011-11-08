@@ -241,14 +241,46 @@ class TestUrls(TestCase):
                     variable='pr',
                     run=2,
                 )
-        # TEMP DEBUG
-        #url=reverse_wkt('/api/archive/usgs-cida-maurer/model/miroc3.2(medres)/scenario/sres-a1b/run/2/temporal/2000-01-01+2000-03-01/spatial/intersects+polygon((-83.142128872393371+42.22762950293189-83.142128872393371+42.22762950293189-83.142128872393371+42.22762950293189-83.17525346549246+42.146264960288335-83.183237474281555+42.10817942968923-83.206207648435296+42.098877671876693-83.298992682615363+42.090066840170934-83.311834276039889+42.127997341473161-83.311679246743012+42.178976141929098-83.537324388345468+42.207346503257341-83.781598883789158+42.217061672528203-83.811958787760631+42.256542466799203-83.819684414388263+42.31865753841403-83.721783413411316+42.330181382815113-83.629179246744286+42.280572007814925-83.565022956053923+42.279900214195123-83.514896816730811+42.293258571942573-83.536626756509534+42.417592068036825-83.578381313801373+42.521849270185683-83.510788540363592+42.634555569014253-83.48949785025934+42.76317820898872-83.414722052732998+42.774960435551279-83.349790615558263+42.750465806644925-83.301369798500787+42.784572251957556-83.273593716143893+42.839349270186943-83.25641130240686+42.837488918624445-83.24819474967245+42.826662706059295-83.221271328448381+42.790075791996642-83.210083380857185+42.737753404301131-83.056139289059701+42.732947496097978-82.943381313798824+42.686955471358218-82.887648281572041+42.689048366866032-82.828091193355661+42.698866889001494-82.808299119787875+42.684009914717578-82.790083177404995+42.665148016931042-82.787835252600289+42.663830267907599-82.804423387365972+42.63892222754292-82.783804490881522+42.612722276370931-82.796000128902406+42.589131985029695-82.840958624996333+42.568099677086906-82.870104132808947+42.519007066409628-82.883384975907973+42.441854152997863-82.902014329749193+42.394001776695589-82.925992194332622+42.375501613935086-83.016503465491837+42.347131252606857-83.063373989580555+42.32266246191665-83.104818488278639+42.286437282880044-83.142128872393371+42.22762950293189))/aggregate/true/variable/pr.geojson')
-#        print url
         response = self.client.get(url)
         if response.status_code != 200:
             print response.content
         self.assertEqual(response.status_code, 200)
     
+    
+    def test_clip_of_nonaggregated_geometries(self):
+        '''tests that clipped geometries differ from intersected geometries
+        for non-aggregated geometries
+        '''
+        from lxml import etree
+        
+        url_template = (
+            '/api'
+            '/archive/usgs-cida-maurer'
+            '/model/miroc3.2(medres)'
+            '/scenario/sres-a1b'
+            '/run/2'
+            '/temporal/2000-01-01+2000-02-01'
+            '/spatial/{operation}+polygon((-104+39,+-103+39,+-103+40,+-104+39))'
+            '/aggregate/false'
+            '/variable/pr.kml'
+        )
+        url_clip = url_template.format(operation='clip')
+        response_clip = self.client.get(url_clip)
+        doc_clip = etree.fromstring(response_clip.content)
+        folder_kml_string_clip = etree.tostring(
+            doc_clip.find('.//{http://www.opengis.net/kml/2.2}Folder')
+        )
+        
+        url_intersects = url_template.format(operation='intersects')
+        response_intersects = self.client.get(url_intersects)
+        doc_intersects = etree.fromstring(response_intersects.content)
+        folder_kml_string_intersects = etree.tostring(
+            doc_intersects.find('.//{http://www.opengis.net/kml/2.2}Folder')
+        )
+        self.assertNotEqual(
+            folder_kml_string_clip,
+            folder_kml_string_intersects
+        )
     
     def test_query_form(self):
         '''Creates a query form'''

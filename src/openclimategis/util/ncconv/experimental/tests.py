@@ -223,7 +223,7 @@ class TestOcgConverter(TestData,unittest.TestCase):
         lcsv = LinkedCsvConverter(self.sub_ocg_dataset,'foo')
         response = lcsv.response()
         self.assertTrue(len(response) > 0)
-        ipdb.set_trace()
+
 
 class TestWrappers(TestData,unittest.TestCase):
     

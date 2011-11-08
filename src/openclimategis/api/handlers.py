@@ -78,7 +78,6 @@ class OpenClimateHandler(BaseHandler):
         raise NotImplementedError
     
     def _parse_slugs_(self,kwds):
-        
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
         self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value

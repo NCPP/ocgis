@@ -1,7 +1,6 @@
 import unittest
 from ocg_dataset import OcgDataset
 from shapely.geometry.point import Point
-import ipdb
 import datetime
 from shapely import wkt
 from util.ncconv.experimental.ocg_converter import *

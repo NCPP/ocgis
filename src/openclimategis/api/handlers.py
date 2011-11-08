@@ -10,10 +10,9 @@ from climatedata.models import ClimateModel
 from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
-from util.ncconv.in_memory_oo_multi_core import multipolygon_multicore_operation,\
-    multipolygon_singlecore_operation
 
 import logging
+from util.ncconv.experimental.wrappers import multipolygon_operation
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -220,32 +219,56 @@ class SpatialHandler(OpenClimateHandler):
         else:
             clip = False
         
+        ## check polygon sequence   
+        if type(self.ocg.aoi) not in (list,tuple):
+                polygons = [self.ocg.aoi]
+        else:
+            polygons = self.ocg.aoi
+        
         ## choose extraction mode and pull data appropriately.
         if self.__mode__ == 'single':
-            if type(self.ocg.aoi) not in (list,tuple):
-                polygons = [self.ocg.aoi]
-            else:
-                polygons = self.ocg.aoi
-            elements = multipolygon_singlecore_operation(dataset.uri, 
-                         self.ocg.simulation_output.netcdf_variable.code, 
-                         polygons, 
-                         time_range=self.ocg.temporal, 
-                         clip=clip, 
-                         dissolve=self.ocg.aggregate, 
-                         levels=None,
-                         ocgOpts=kwds)
+            sub = multipolygon_operation(dataset.uri,
+                                         self.ocg.simulation_output.netcdf_variable.code,
+                                         ocg_opts=kwds,
+                                         polygons=polygons,
+                                         time_range=self.ocg.temporal,
+                                         level_range=None, 
+                                         clip=clip,
+                                         union=self.ocg.aggregate,
+                                         in_parallel=False, 
+                                         max_proc=8,
+                                         max_proc_per_poly=1)
+#            elements = multipolygon_singlecore_operation(dataset.uri, 
+#                         self.ocg.simulation_output.netcdf_variable.code, 
+#                         polygons, 
+#                         time_range=self.ocg.temporal, 
+#                         clip=clip, 
+#                         dissolve=self.ocg.aggregate, 
+#                         levels=None,
+#                         ocgOpts=kwds)
         elif self.__mode__ == 'multi':
-            elements = multipolygon_multicore_operation(dataset.uri,
-                                          self.ocg.simulation_output.netcdf_variable.code,
-                                          [self.ocg.aoi],
-                                          time_range=self.ocg.temporal,
-                                          clip=clip,
-                                          dissolve=self.ocg.aggregate,
-                                          levels=None,
-                                          ocgOpts=kwds,
-                                          subdivide=True,
-                                          #subres = 90
-                                          )
+            sub = multipolygon_operation(dataset.uri,
+                                         self.ocg.simulation_output.netcdf_variable.code,
+                                         ocg_opts=kwds,
+                                         polygons=polygons,
+                                         time_range=self.ocg.temporal,
+                                         level_range=None, 
+                                         clip=clip,
+                                         union=self.ocg.aggregate,
+                                         in_parallel=True, 
+                                         max_proc=8,
+                                         max_proc_per_poly=1)
+#            elements = multipolygon_multicore_operation(dataset.uri,
+#                                          self.ocg.simulation_output.netcdf_variable.code,
+#                                          [self.ocg.aoi],
+#                                          time_range=self.ocg.temporal,
+#                                          clip=clip,
+#                                          dissolve=self.ocg.aggregate,
+#                                          levels=None,
+#                                          ocgOpts=kwds,
+#                                          subdivide=True,
+#                                          #subres = 90
+#                                          )
 #        pdb.set_trace()
         ########################################################################
         
@@ -273,4 +296,4 @@ class SpatialHandler(OpenClimateHandler):
 
         ########################################################################
         logger.debug("...ending SpatialHandler._read_()")
-        return(elements)
+        return(sub)

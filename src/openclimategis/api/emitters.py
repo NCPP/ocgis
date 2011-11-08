@@ -2,8 +2,6 @@ from django.template.context import RequestContext
 from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
-from util.toshp import OpenClimateShp
-from util.helpers import get_temp_path
 import pdb
 from api.views import display_spatial_query
 from util.ncconv.converters import as_geojson, as_tabular, as_keyTabular
@@ -14,6 +12,7 @@ import tempfile
 from util.ncconv.converters import as_kml
 
 import logging
+from util.ncconv.experimental.ocg_converter import ShpConverter
 logger = logging.getLogger(__name__)
 
 
@@ -91,15 +90,16 @@ class ShapefileEmitter(IdentityEmitter):
     def render(self,request):
         logger.info("starting ShapefileEmitter.render()...")
         
-        elements = self.construct()
-        logger.debug("elements = {0}".format(elements))
+        sub = self.construct()
+        logger.debug("n = {0}".format(len(sub.geometry)))
         cfvar = request.ocg.simulation_output.variable.code
-        path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))
-        shp = OpenClimateShp(path,elements)
-        paths = shp.write()
-        response = shp.zip_response()
-        for path in paths: os.remove(path)
-        return(response)
+        shp = ShpConverter(sub,cfvar+'.shp')
+#        path = str(os.path.join(tempfile.gettempdir(),cfvar+'.shp'))
+#        shp = OpenClimateShp(path,elements)
+#        paths = shp.write()
+#        response = shp.zip_response()
+#        for path in paths: os.remove(path)
+        return(shp.response())
         
         logger.info("...ending ShapefileEmitter.render()")
 

@@ -23,7 +23,7 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False):
             f = tempfile.NamedTemporaryFile(suffix=suffix,dir=dir)
             f.close()
             ret = f.name
-    return(ret)
+    return(str(ret))
 
 def parse_polygon_wkt(txt):
     """Parse URL polygon text into WKT. Text must be well-formed in that fully

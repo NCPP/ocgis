@@ -4,7 +4,6 @@ from shapely.geometry.multipolygon import asMultiPolygon
 from django.contrib.gis.gdal.geomtype import OGRGeomType
 from util.helpers import get_temp_path
 from django.contrib.gis.gdal.error import check_err
-import ipdb
 from shapely.geometry.polygon import Polygon
 import zipfile
 import io

@@ -6,7 +6,6 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 import time
 import copy
-import ipdb
 
 
 class MaskedDataError(Exception):

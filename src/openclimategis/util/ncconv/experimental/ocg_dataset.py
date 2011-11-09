@@ -298,6 +298,7 @@ class OcgDataset(object):
                     time.sleep(0.1)
                 else:
                     break
+            for pp in pps: pp.join()
         else:
             out = []
             for sub in subs:

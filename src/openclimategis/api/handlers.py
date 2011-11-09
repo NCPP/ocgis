@@ -13,6 +13,8 @@ from climatedata.models import SimulationOutput
 
 import logging
 from util.ncconv.experimental.wrappers import multipolygon_operation
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.multipolygon import MultiPolygon
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -207,13 +209,12 @@ class ShpUploadHandler(NonSpatialHandler):
         return(request)
 
 
-
 class SpatialHandler(OpenClimateHandler):
 #    __mode__ = 'single'
     __mode__ = 'multi'
     
     def _read_(self,request):
-        
+
         logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
@@ -232,10 +233,12 @@ class SpatialHandler(OpenClimateHandler):
             clip = False
         
         ## check polygon sequence   
-        if type(self.ocg.aoi) not in (list,tuple):
-                polygons = [self.ocg.aoi]
+        if isinstance(self.ocg.aoi,Polygon):
+            polygons = [self.ocg.aoi]
+        elif isinstance(self.ocg.aoi,MultiPolygon):
+            polygons = [poly for poly in self.ocg.aoi]
         else:
-            polygons = self.ocg.aoi
+            polygons = None
         
         ## choose extraction mode and pull data appropriately.
         if self.__mode__ == 'single':

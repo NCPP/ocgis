@@ -54,10 +54,10 @@ def multipolygon_operation(uri,
         if clip:
             raise(ValueError('If clip is requested, polygon boundaries must be passed.'))
         polygons = [None]
-    else:
-        ## ensure polygon list is iterable
-        if type(polygons) not in [list,tuple]:
-            polygons = [polygons]
+#    else:
+#        ## ensure polygon list is iterable and the correct format
+#        if type(polygons) not in [list,tuple]:
+#            polygons = [polygons]
     
     ## switch depending on parallel request
     if in_parallel:

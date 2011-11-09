@@ -14,6 +14,7 @@ from util.ncconv.experimental.helpers import get_wkt_from_shp
 from climatedata.models import UserGeometryData
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.contrib.gis.geos.collections import MultiPolygon
+from django.contrib.gis.geos.polygon import Polygon
 
 
 CHOICES_AGGREGATE = [
@@ -157,6 +158,8 @@ def display_shpupload(request):
             wkt = handle_uploaded_shapefile(request.FILES['file'],
                                             form.cleaned_data['objectid'])
             geom = GEOSGeometry(wkt,srid=4326)
+            if isinstance(geom,Polygon):
+                geom = MultiPolygon([geom])
             obj = UserGeometryData(geom=geom)
             obj.save()
             return(HttpResponse('Your geometry ID is: {0}'.format(obj.pk)))

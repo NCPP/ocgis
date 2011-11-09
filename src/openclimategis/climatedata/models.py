@@ -8,6 +8,11 @@ class AbstractGeoManager(models.Model):
         abstract = True
 
 
+class UserGeometryData(AbstractGeoManager):
+    """holds user uploaded geometries"""
+    geom = models.MultiPolygonField(srid=4326)
+
+
 class NetcdfDataset(AbstractGeoManager):
     '''Models a netCDF4 Dataset object. Also a NC file anywhere.'''
     uri = models.TextField(unique=True)

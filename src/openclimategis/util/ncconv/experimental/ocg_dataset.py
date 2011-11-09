@@ -455,7 +455,7 @@ class SubOcgDataset(object):
     
     def as_sqlite(self,add_area=True,area_srid=3005):
         import db
-        
+
         if not db.LOADED: ##tdk: fix module hack eventually
             
             ## spatial reference for area calculation
@@ -465,13 +465,18 @@ class SubOcgDataset(object):
             db.metadata.create_all()
             s = db.Session()
             try:
+                ## create the geometries
                 for dd in self.dim_data:
-                    geometry = db.Geometry(gid=int(self.cell_id[dd]),
-                                           wkt=str(self.geometry[dd].wkt),
-                                           area_m2 = get_area(self.geometry[dd],sr,sr2))
-                    for dt in self.dim_time:
-                        dtime = db.Time(time=self.timevec[dt])
-                        for dl in self.dim_level:
+                    s.add(db.Geometry(gid=int(self.cell_id[dd]),
+                                      wkt=str(self.geometry[dd].wkt),
+                                      area_m2=get_area(self.geometry[dd],sr,sr2)))
+                    s.commit()
+                ## fill in the rest of the data
+                for dt in self.dim_time:
+                    dtime = db.Time(time=self.timevec[dt])
+                    for dl in self.dim_level:
+                        for dd in self.dim_data:
+                            geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
                             val = db.Value(geometry=geometry,
                                            level=int(self.levelvec[dl]),
                                            time=dtime,

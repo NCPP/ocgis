@@ -11,6 +11,9 @@ import pdb
 import os
 import zipfile
 from util.ncconv.experimental.helpers import get_wkt_from_shp
+from climatedata.models import UserGeometryData
+from django.contrib.gis.geos.geometry import GEOSGeometry
+from django.contrib.gis.geos.collections import MultiPolygon
 
 
 CHOICES_AGGREGATE = [
@@ -153,10 +156,13 @@ def display_shpupload(request):
         if form.is_valid():
             wkt = handle_uploaded_shapefile(request.FILES['file'],
                                             form.cleaned_data['objectid'])
-            return(HttpResponse(wkt))
+            geom = GEOSGeometry(wkt,srid=4326)
+            obj = UserGeometryData(geom=geom)
+            obj.save()
+            return(HttpResponse('Your geometry ID is: {0}'.format(obj.pk)))
     else:
         form = UploadShapefileForm()
-    return render_to_response('shpupload.html', {'form': form})
+    return(render_to_response('shpupload.html', {'form': form}))
 
 def handle_uploaded_shapefile(file,objectid):
     path = get_temp_path(nest=True,suffix='.zip')

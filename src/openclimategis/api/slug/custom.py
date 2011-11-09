@@ -2,12 +2,19 @@ from generic import *
 from util.helpers import parse_polygon_wkt
 from shapely import wkt
 import pdb
+from climatedata.models import UserGeometryData
 
 
 class PolygonSlug(OcgSlug):
     
     def _get_(self):
-        return(wkt.loads(parse_polygon_wkt(self.url_arg)))
+        try:
+            ret = wkt.loads(parse_polygon_wkt(self.url_arg))
+        except:
+            pk = int(self.url_arg)
+            obj = UserGeometryData.objects.filter(pk=pk)
+            ret = wkt.loads(obj.wkt)
+        return(ret)
     
     
 class OperationSlug(OcgSlug):

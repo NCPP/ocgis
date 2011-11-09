@@ -16,6 +16,7 @@ from util.ncconv.experimental.helpers import get_sr, get_area
 import logging
 logger = logging.getLogger(__name__)
 
+
 class OcgConverter(object):
     
     def __init__(self,sub_ocg_dataset,base_name,to_multi=True):
@@ -40,21 +41,21 @@ class OcgConverter(object):
                 new_geom[ii] = asMultiPolygon([test_geom])
         self.sub_ocg_dataset = self.sub_ocg_dataset.copy(geometry=new_geom)
         
-    def convert(self):
-        return(self._convert_())
+    def convert(self,request):
+        return(self._convert_(request))
     
-    def _convert_(self):
+    def _convert_(self,request):
         raise(NotImplementedError)
     
-    def response(self):
-        payload = self.convert()
+    def response(self,request):
+        payload = self.convert(request)
         try:
             return(self._response_(payload))
         finally:
             self.cleanup()
     
     def _response_(self,payload):
-        raise(NotImplementedError)
+        return(payload)
     
     def cleanup(self):
         pass
@@ -62,7 +63,7 @@ class OcgConverter(object):
     
 class GeojsonConverter(OcgConverter):
     
-    def _convert_(self):
+    def _convert_(self,request):
         features = []
         for attrs in self.sub_ocg_dataset:
             attrs['time'] = str(attrs['time'])
@@ -70,9 +71,6 @@ class GeojsonConverter(OcgConverter):
             features.append(attrs)
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
-    
-    def _response_(self,payload):
-        return(payload)
     
 
 class CsvConverter(OcgConverter):
@@ -106,7 +104,7 @@ class CsvConverter(OcgConverter):
                 headers.remove(m[1])
         return(headers)
     
-    def _convert_(self):
+    def _convert_(self,request):
         if self.add_area:
             sr_orig = get_sr(4326)
             sr_dest = get_sr(self.area_srid)
@@ -127,14 +125,11 @@ class CsvConverter(OcgConverter):
             writer.writerow(row)
         buffer.flush()
         return(buffer.getvalue())
-
-    def _response_(self,payload):
-        return(payload)
     
     
 class LinkedCsvConverter(CsvConverter):
     
-    def _convert_(self):
+    def _convert_(self,request):
         ## create the database
         db = self.sub_ocg_dataset.as_sqlite()
         ## database tables to write
@@ -169,7 +164,7 @@ class LinkedCsvConverter(CsvConverter):
 
         return(info)
     
-    def _response_(self,payload):
+    def _response_(self,payload,request):
         buffer = io.BytesIO()
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
         for info in payload:
@@ -189,14 +184,7 @@ class KmlConverter(OcgConverter):
         ## call the superclass
         super(KmlConverter,self).__init__(*args,**kwds)
     
-    def get_DictWriter(self,buffer,headers=None):
-        writer = csv.writer(buffer)
-        if headers is None: headers = self.headers
-        writer.writerow(headers)
-        writer = csv.DictWriter(buffer,headers)
-        return(writer)
-    
-    def _convert_(self):
+    def _convert_(self,request):
         from pykml.factory import KML_ElementMaker as KML
         from lxml import etree
         
@@ -383,9 +371,6 @@ class KmlConverter(OcgConverter):
         
         # return the pretty print sting
         return(etree.tostring(doc, pretty_print=True))
-    
-    def _response_(self,payload):
-        return(payload)
 
 
 class KmzConverter(KmlConverter):
@@ -438,7 +423,7 @@ class ShpConverter(OcgConverter):
         self.srs = osr.SpatialReference()
         self.srs.ImportFromEPSG(self.srid)
         
-    def _convert_(self):
+    def _convert_(self,request):
         dr = ogr.GetDriverByName('ESRI Shapefile')
         ds = dr.CreateDataSource(self.path)
         if ds is None:

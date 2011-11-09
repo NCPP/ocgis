@@ -3,8 +3,6 @@ from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
 from api.views import display_spatial_query, display_shpupload
-import zipfile
-import io
 from util.ncconv.experimental import ocg_converter
 
 import logging
@@ -86,9 +84,9 @@ class SubOcgDataEmitter(IdentityEmitter):
         sub = self.construct()
         #logger.debug("n geometries = {0}".format(len(sub.geometry)))
         cfvar = request.ocg.simulation_output.variable.code
-        shp = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
+        converter = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
-        return(shp.response())
+        return(converter.response(request))
 
 
 class ShapefileEmitter(SubOcgDataEmitter):
@@ -106,11 +104,9 @@ class KmlEmitter(SubOcgDataEmitter):
     
     __converter__ = ocg_converter.KmlConverter
     __file_ext__ = '.kml'
-#    __kwds__ = dict(as_wkt=False,
-#                    as_wkb=False,
-#                    add_area=True,
-#                    area_srid=3005,
-#                    to_disk=False)
+
+    def _response_(self):
+        return(self.converter())
 
 
 class KmzEmitter(KmlEmitter):

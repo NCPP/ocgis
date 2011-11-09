@@ -4,7 +4,6 @@ from util.toshp import OpenClimateShp
 from pykml.factory import KML_ElementMaker as KML
 from osgeo import osr, ogr
 import io
-import pdb
 import csv
 import os
 
@@ -219,162 +218,162 @@ on time and geometry to reduce file size'''
     
     return(paths)
 
-def as_kml(elements, request):
-    '''writes output as a KML document'''
-    from pykml.parser import fromstring
-    from util.helpers import reverse_wkt
-    
-    def wkt2coordinates(wkt):
-        '''converts WKT coordinates to a KML-formatted coordinate string'''
-        from django.contrib.gis.gdal import OGRGeometry
-        return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
-    
-    if request.ocg:
-        meta = request.ocg
-        if request.environ['SERVER_PORT']=='80':
-            portstr = ''
-        else:
-            portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
-        url='{protocol}://{server}{port}{path}'.format(
-            protocol='http',
-            port=portstr,
-            server=request.environ['SERVER_NAME'],
-            path=request.environ['PATH_INFO'],
-        )
-        description = (
-            '<table border="1">'
-              '<tbody>'
-                '<tr><th>Archive</th><td>{archive}</td></tr>'
-                '<tr><th>Emissions Scenario</th><td>{scenario}</td></tr>'
-                '<tr><th>Climate Model</th><td>{model}</td></tr>'
-                '<tr><th>Run</th><td>{run}</td></tr>'
-                '<tr><th>Output Variable</th><td>{variable}</td></tr>'
-                '<tr><th>Units</th><td>{units}</td></tr>'
-                '<tr><th>Start Time</th><td>{start}</td></tr>'
-                '<tr><th>End Time</th><td>{end}</td></tr>'
-                '<tr>'
-                  '<th>Request URL</th>'
-                  '<td><a href="{url}">{url}</a></td>'
-                '</tr>'
-                '<tr>'
-                  '<th>Other Available Formats</th>'
-                  '<td>'
-                    '<a href="{url}">KML</a> - Keyhole Markup Language<br/>'
-                    '<a href="{url_kmz}">KMZ</a> - Keyhole Markup Language (zipped)<br/>'
-                    '<a href="{url_shz}">Shapefile</a> - ESRI Shapefile<br/>'
-                    '<a href="{url_csv}">CSV</a> - Comma Separated Values (text file)<br/>'
-                    '<a href="{url_json}">JSON</a> - Javascript Object Notation'
-                  '</td>'
-                '</tr>'
-              '</tbody>'
-            '</table>'
-        ).format(
-            archive=meta.archive.name,
-            scenario=meta.scenario,
-            model=meta.climate_model,
-            run=meta.run,
-            variable=meta.variable,
-            units=meta.variable.units,
-            #simout=meta.simulation_output.netcdf_variable,
-            start=meta.temporal[0],
-            end=meta.temporal[-1],
-            operation=meta.operation,
-            url=url,
-            url_kmz=url.replace('.kml', '.kmz'),
-            url_shz=url.replace('.kml', '.shz'),
-            url_csv=url.replace('.kml', '.csv'),
-            url_json=url.replace('.kml', '.json'),
-        )
-    else:
-        description = None
-    
-    doc = KML.kml(
-      KML.Document(
-        KML.name('Climate Simulation Output'),
-        KML.open(0),
-        KML.description(description),
-        KML.snippet(
-            '<i>Click for metadata!</i>',
-            maxLines="2",
-        ),
-        KML.Style(
-          KML.ListStyle(
-            KML.listItemType('checkHideChildren'),
-            KML.bgColor('00ffffff'),
-            KML.maxSnippetLines('2'),
-          ),
-        ),
-        KML.StyleMap(
-          KML.Pair(
-            KML.key('normal'),
-            KML.styleUrl('#style-normal'),
-          ),
-          KML.Pair(
-            KML.key('highlight'),
-            KML.styleUrl('#style-highlight'),
-          ),
-          id="smap",
-        ),
-        KML.Style(
-          KML.LineStyle(
-            KML.color('ff0000ff'),
-            KML.width('2'),
-          ),
-          KML.PolyStyle(
-            KML.color('400000ff'),
-          ),
-          id="style-normal",
-        ),
-        KML.Style(
-          KML.LineStyle(
-            KML.color('ff00ff00'),
-            KML.width('4'),
-          ),
-          KML.PolyStyle(
-            KML.color('400000ff'),
-          ),
-          id="style-highlight",
-        ),
-        #TODO: create folders for each time period, and add KML Time Elements
-        KML.Folder(
-            # placemarks will be appended here
-        ),
-      ),
-    )
-    for element in elements:
-        poly_desc = (
-            '<table border="1">'
-              '<tbody>'
-                '<tr><th>Variable</th><td>{variable}</td></tr>'
-                '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
-                '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
-              '</tbody>'
-            '</table>'
-        ).format(
-            variable=meta.variable.name,
-            time=element['properties']['timestamp'],
-            value=element['properties'][meta.simulation_output.netcdf_variable.code],
-            digits=3,
-            units=meta.variable.units,
-        )
-        
-        coords = wkt2coordinates(element['geometry'].wkt)
-        doc.Document.Folder.append(
-          KML.Placemark(
-            KML.name('Geometry'),
-            KML.description(poly_desc),
-            KML.styleUrl('#smap'),
-            KML.Polygon(
-              KML.tessellate('1'),
-              KML.outerBoundaryIs(
-                KML.LinearRing(
-                  KML.coordinates(coords),
-                ),
-              ),
-            ),
-          )
-        )
-        
-    return doc
+#def as_kml(elements, request):
+#    '''writes output as a KML document'''
+#    from pykml.parser import fromstring
+#    from util.helpers import reverse_wkt
+#    
+#    def wkt2coordinates(wkt):
+#        '''converts WKT coordinates to a KML-formatted coordinate string'''
+#        from django.contrib.gis.gdal import OGRGeometry
+#        return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
+#    
+#    if request.ocg:
+#        meta = request.ocg
+#        if request.environ['SERVER_PORT']=='80':
+#            portstr = ''
+#        else:
+#            portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
+#        url='{protocol}://{server}{port}{path}'.format(
+#            protocol='http',
+#            port=portstr,
+#            server=request.environ['SERVER_NAME'],
+#            path=request.environ['PATH_INFO'],
+#        )
+#        description = (
+#            '<table border="1">'
+#              '<tbody>'
+#                '<tr><th>Archive</th><td>{archive}</td></tr>'
+#                '<tr><th>Emissions Scenario</th><td>{scenario}</td></tr>'
+#                '<tr><th>Climate Model</th><td>{model}</td></tr>'
+#                '<tr><th>Run</th><td>{run}</td></tr>'
+#                '<tr><th>Output Variable</th><td>{variable}</td></tr>'
+#                '<tr><th>Units</th><td>{units}</td></tr>'
+#                '<tr><th>Start Time</th><td>{start}</td></tr>'
+#                '<tr><th>End Time</th><td>{end}</td></tr>'
+#                '<tr>'
+#                  '<th>Request URL</th>'
+#                  '<td><a href="{url}">{url}</a></td>'
+#                '</tr>'
+#                '<tr>'
+#                  '<th>Other Available Formats</th>'
+#                  '<td>'
+#                    '<a href="{url}">KML</a> - Keyhole Markup Language<br/>'
+#                    '<a href="{url_kmz}">KMZ</a> - Keyhole Markup Language (zipped)<br/>'
+#                    '<a href="{url_shz}">Shapefile</a> - ESRI Shapefile<br/>'
+#                    '<a href="{url_csv}">CSV</a> - Comma Separated Values (text file)<br/>'
+#                    '<a href="{url_json}">JSON</a> - Javascript Object Notation'
+#                  '</td>'
+#                '</tr>'
+#              '</tbody>'
+#            '</table>'
+#        ).format(
+#            archive=meta.archive.name,
+#            scenario=meta.scenario,
+#            model=meta.climate_model,
+#            run=meta.run,
+#            variable=meta.variable,
+#            units=meta.variable.units,
+#            #simout=meta.simulation_output.netcdf_variable,
+#            start=meta.temporal[0],
+#            end=meta.temporal[-1],
+#            operation=meta.operation,
+#            url=url,
+#            url_kmz=url.replace('.kml', '.kmz'),
+#            url_shz=url.replace('.kml', '.shz'),
+#            url_csv=url.replace('.kml', '.csv'),
+#            url_json=url.replace('.kml', '.json'),
+#        )
+#    else:
+#        description = None
+#    
+#    doc = KML.kml(
+#      KML.Document(
+#        KML.name('Climate Simulation Output'),
+#        KML.open(0),
+#        KML.description(description),
+#        KML.snippet(
+#            '<i>Click for metadata!</i>',
+#            maxLines="2",
+#        ),
+#        KML.Style(
+#          KML.ListStyle(
+#            KML.listItemType('checkHideChildren'),
+#            KML.bgColor('00ffffff'),
+#            KML.maxSnippetLines('2'),
+#          ),
+#        ),
+#        KML.StyleMap(
+#          KML.Pair(
+#            KML.key('normal'),
+#            KML.styleUrl('#style-normal'),
+#          ),
+#          KML.Pair(
+#            KML.key('highlight'),
+#            KML.styleUrl('#style-highlight'),
+#          ),
+#          id="smap",
+#        ),
+#        KML.Style(
+#          KML.LineStyle(
+#            KML.color('ff0000ff'),
+#            KML.width('2'),
+#          ),
+#          KML.PolyStyle(
+#            KML.color('400000ff'),
+#          ),
+#          id="style-normal",
+#        ),
+#        KML.Style(
+#          KML.LineStyle(
+#            KML.color('ff00ff00'),
+#            KML.width('4'),
+#          ),
+#          KML.PolyStyle(
+#            KML.color('400000ff'),
+#          ),
+#          id="style-highlight",
+#        ),
+#        #TODO: create folders for each time period, and add KML Time Elements
+#        KML.Folder(
+#            # placemarks will be appended here
+#        ),
+#      ),
+#    )
+#    for element in elements:
+#        poly_desc = (
+#            '<table border="1">'
+#              '<tbody>'
+#                '<tr><th>Variable</th><td>{variable}</td></tr>'
+#                '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
+#                '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
+#              '</tbody>'
+#            '</table>'
+#        ).format(
+#            variable=meta.variable.name,
+#            time=element['properties']['timestamp'],
+#            value=element['properties'][meta.simulation_output.netcdf_variable.code],
+#            digits=3,
+#            units=meta.variable.units,
+#        )
+#        
+#        coords = wkt2coordinates(element['geometry'].wkt)
+#        doc.Document.Folder.append(
+#          KML.Placemark(
+#            KML.name('Geometry'),
+#            KML.description(poly_desc),
+#            KML.styleUrl('#smap'),
+#            KML.Polygon(
+#              KML.tessellate('1'),
+#              KML.outerBoundaryIs(
+#                KML.LinearRing(
+#                  KML.coordinates(coords),
+#                ),
+#              ),
+#            ),
+#          )
+#        )
+#        
+#    return doc
     
     

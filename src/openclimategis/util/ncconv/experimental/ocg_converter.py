@@ -177,7 +177,221 @@ class LinkedCsvConverter(CsvConverter):
         zip_stream = buffer.getvalue()
         buffer.close()
         return(zip_stream)
+
+
+class KmlConverter(OcgConverter):
+    '''Converts data to a KML string'''
+    
+    def __init__(self,*args,**kwds):
+        self.to_disk = self._pop_(kwds,'to_disk',False)
+        ## call the superclass
+        super(KmlConverter,self).__init__(*args,**kwds)
+    
+    def get_DictWriter(self,buffer,headers=None):
+        writer = csv.writer(buffer)
+        if headers is None: headers = self.headers
+        writer.writerow(headers)
+        writer = csv.DictWriter(buffer,headers)
+        return(writer)
+    
+    def _convert_(self):
+        from pykml.factory import KML_ElementMaker as KML
+        from lxml import etree
         
+        def wkt2coordinates(wkt):
+            '''converts WKT coordinates to a KML-formatted coordinate string'''
+            from django.contrib.gis.gdal import OGRGeometry
+            from pykml.parser import fromstring
+            return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
+        
+        ## create the database
+        db = self.sub_ocg_dataset.as_sqlite()
+        
+        #meta = request.ocg
+        #if request.environ['SERVER_PORT']=='80':
+        if False:
+            portstr = ''
+        else:
+            #portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
+            portstr = ':{port}'.format(port='8080')
+        
+        url='{protocol}://{server}{port}{path}'.format(
+            protocol='http',
+            port=portstr,
+            #server=request.environ['SERVER_NAME'],
+            server='localhost',
+            #path=request.environ['PATH_INFO'],
+            path='TESTPATH',
+        )
+        description = (
+            '<table border="1">'
+              '<tbody>'
+                '<tr><th>Archive</th><td>{archive}</td></tr>'
+                '<tr><th>Emissions Scenario</th><td>{scenario}</td></tr>'
+                '<tr><th>Climate Model</th><td>{model}</td></tr>'
+                '<tr><th>Run</th><td>{run}</td></tr>'
+                '<tr><th>Output Variable</th><td>{variable}</td></tr>'
+                '<tr><th>Units</th><td>{units}</td></tr>'
+                '<tr><th>Start Time</th><td>{start}</td></tr>'
+                '<tr><th>End Time</th><td>{end}</td></tr>'
+                '<tr>'
+                  '<th>Request URL</th>'
+                  '<td><a href="{url}">{url}</a></td>'
+                '</tr>'
+                '<tr>'
+                  '<th>Other Available Formats</th>'
+                  '<td>'
+                    '<a href="{url}">KML</a> - Keyhole Markup Language<br/>'
+                    '<a href="{url_kmz}">KMZ</a> - Keyhole Markup Language (zipped)<br/>'
+                    '<a href="{url_shz}">Shapefile</a> - ESRI Shapefile<br/>'
+                    '<a href="{url_csv}">CSV</a> - Comma Separated Values (text file)<br/>'
+                    '<a href="{url_json}">JSON</a> - Javascript Object Notation'
+                  '</td>'
+                '</tr>'
+              '</tbody>'
+            '</table>'
+        ).format(
+            #archive=meta.archive.name,
+            archive='TEST ARCHIVE NAME',
+            #scenario=meta.scenario,
+            scenario='TEST SCENARIO NAME',
+            #model=meta.climate_model,
+            model='TEST CLIMATE MODEL NAME',
+            #run=meta.run,
+            run='TEST MODEL RUN',
+            #variable=meta.variable,
+            variable='TEST VARIABLE',
+            #units=meta.variable.units,
+            units='TEST UNITS',
+            #simout=meta.simulation_output.netcdf_variable,
+            #start=meta.temporal[0],
+            start='TEST START',
+            #end=meta.temporal[-1],
+            end='TEST END',
+            #operation=meta.operation,
+            operation='TEST OPERATION',
+            url=url,
+            url_kmz=url.replace('.kml', '.kmz'),
+            url_shz=url.replace('.kml', '.shz'),
+            url_csv=url.replace('.kml', '.csv'),
+            url_json=url.replace('.kml', '.json'),
+        )
+        
+        doc = KML.kml(
+          KML.Document(
+            KML.name('Climate Simulation Output'),
+            KML.open(1),
+            KML.description(description),
+            KML.snippet(
+                '<i>Click for metadata!</i>',
+                maxLines="2",
+            ),
+            KML.StyleMap(
+              KML.Pair(
+                KML.key('normal'),
+                KML.styleUrl('#style-normal'),
+              ),
+              KML.Pair(
+                KML.key('highlight'),
+                KML.styleUrl('#style-highlight'),
+              ),
+              id="smap",
+            ),
+            KML.Style(
+              KML.LineStyle(
+                KML.color('ff0000ff'),
+                KML.width('2'),
+              ),
+              KML.PolyStyle(
+                KML.color('400000ff'),
+              ),
+              id="style-normal",
+            ),
+            KML.Style(
+              KML.LineStyle(
+                KML.color('ff00ff00'),
+                KML.width('4'),
+              ),
+              KML.PolyStyle(
+                KML.color('400000ff'),
+              ),
+              id="style-highlight",
+            ),
+            #Time Folders will be appended here
+          ),
+        )
+        
+        try:
+            s = db.Session()
+            for time in s.query(db.Time).all():
+                # create a folder for the time
+                timefld = KML.Folder(
+                    KML.Style(
+                      KML.ListStyle(
+                        KML.listItemType('checkHideChildren'),
+                        KML.bgColor('00ffffff'),
+                        KML.maxSnippetLines('2'),
+                      ),
+                    ),
+                    KML.name(time.as_xml_date()),
+                    # placemarks will be appended here
+                )
+                for val in time.value:
+                    poly_desc = (
+                        '<table border="1">'
+                          '<tbody>'
+                            '<tr><th>Variable</th><td>{variable}</td></tr>'
+                            '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
+                            '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
+                          '</tbody>'
+                        '</table>'
+                    ).format(
+                        #variable=meta.variable.name,
+                        variable='VARIABLE PLACEHOLDER',
+                        #time=element['properties']['timestamp'],
+                        time='TIMESTAMP PLACEHOLDER',
+                        #value=element['properties'][meta.simulation_output.netcdf_variable.code],
+                        value=0.12345,
+                        digits=3,
+                        #units=meta.variable.units,
+                        units='UNITS PLACEHOLDER',
+                    )
+                    
+                    #coords = wkt2coordinates(element['geometry'].wkt)
+                    coords = '-104,39 -95,39 -95,44 -104,44 -104,39'
+                    timefld.append(
+                      KML.Placemark(
+                        KML.name('Geometry'),
+                        KML.description(poly_desc),
+                        KML.styleUrl('#smap'),
+                        KML.Polygon(
+                          KML.tessellate('1'),
+                          KML.outerBoundaryIs(
+                            KML.LinearRing(
+                              KML.coordinates(coords),
+                            ),
+                          ),
+                        ),
+                      )
+                    )
+                doc.Document.append(timefld)
+            pass
+        finally:
+            s.close()
+        
+        # return the pretty print sting
+        return(etree.tostring(doc, pretty_print=True))
+    
+    def _response_(self,payload):
+        return(payload)
+
+
+class KmzConverter(OcgConverter):
+    
+    def _response_(self,payload):
+        # TODO: zip up the payload
+        return(payload)
+
 
 class ShpConverter(OcgConverter):
     __exts__ = ['shp','shx','prj','dbf']

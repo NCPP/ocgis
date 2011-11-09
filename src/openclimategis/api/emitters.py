@@ -99,24 +99,18 @@ class ShapefileEmitter(SubOcgDataEmitter):
     __file_ext__ = '.shp'
 
 
-class KmlEmitter(IdentityEmitter):
+class KmlEmitter(SubOcgDataEmitter):
     """
     Emits raw KML (.kml)
     """
-    def render(self,request):
-        from lxml import etree
-        
-        logger.info("starting KmlEmitter.render()...")
-        
-        ## return the elements
-        elements = self.construct()
-        ## conversion
-        kml_doc = as_kml(elements, request=request)
-        # return a string representation of the KML document
-        return(etree.tostring(kml_doc, pretty_print=True))
-        
-        logger.info("...ending KmlEmitter.render()")
-Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
+    
+    __converter__ = ocg_converter.KmlConverter
+    __file_ext__ = '.kml'
+#    __kwds__ = dict(as_wkt=False,
+#                    as_wkb=False,
+#                    add_area=True,
+#                    area_srid=3005,
+#                    to_disk=False)
 
 
 class KmzEmitter(KmlEmitter):
@@ -142,7 +136,6 @@ class KmzEmitter(KmlEmitter):
         iobuffer.close()
         logger.info("...ending KmzEmitter.render()")
         return(zip_stream)
-Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
 
 
 class GeoJsonEmitter(SubOcgDataEmitter):
@@ -174,6 +167,9 @@ class LinkedCsvEmitter(SubOcgDataEmitter):
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
+Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
+Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
 Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
+

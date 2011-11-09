@@ -12,6 +12,7 @@ variable_handler = Resource(handlers.VariableHandler)
 simulationoutput_handler = Resource(handlers.SimulationOutputHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 query_handler = Resource(handlers.QueryHandler)
+shpupload_handler = Resource(handlers.ShpUploadHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
 
@@ -378,6 +379,19 @@ urlpatterns = patterns('',
         },
         name='query_form',
     ),
+    
+## SHAPEFILE UPLOAD ------------------------------------------------------------
+
+    url(( # example: shpupload.html
+        r'^shpupload.html'),
+        shpupload_handler,
+        {
+            'emitter_format':'html',
+            'template_name':'shpupload.html',
+        },
+        name='shpupload_form',
+    ),
+    
 )
 #
 ##print archive_regex + '.json'

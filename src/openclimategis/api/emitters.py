@@ -2,7 +2,7 @@ from django.template.context import RequestContext
 from django.shortcuts import render_to_response
 from django.http import HttpResponse
 from piston.emitters import Emitter
-from api.views import display_spatial_query
+from api.views import display_spatial_query, display_shpupload
 import zipfile
 import io
 from util.ncconv.experimental import ocg_converter
@@ -61,6 +61,8 @@ class HTMLEmitter(Emitter):
         ## if we need the query form generate and pass accordingly
         if template_name == 'query.html':
             response = display_spatial_query(request)
+        elif template_name == 'shpupload.html':
+            response = display_shpupload(request)
         else:
             response = render_to_response(
                 template_name=template_name, 

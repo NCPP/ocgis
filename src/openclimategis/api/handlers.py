@@ -194,6 +194,18 @@ class QueryHandler(NonSpatialHandler):
     
     def _create_(self,request):
         return(request.ocg.simulation_output)
+    
+    
+class ShpUploadHandler(NonSpatialHandler):
+    model = None
+    allowed_methods = ('GET','POST')
+    
+    def _read_(self,request):
+        return(request)
+    
+    def _create_(self,request):
+        return(request)
+
 
 
 class SpatialHandler(OpenClimateHandler):

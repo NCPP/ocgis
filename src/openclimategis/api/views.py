@@ -1,13 +1,16 @@
 from django import forms
 #from climatedata import models
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
 from django.core.exceptions import ValidationError
 #from django.core.context_processors import csrf
 from django.template.context import RequestContext
 from shapely import wkt
-from util.helpers import reverse_wkt
+from util.helpers import reverse_wkt, get_temp_path
 import pdb
+import os
+import zipfile
+from util.ncconv.experimental.helpers import get_wkt_from_shp
 
 
 CHOICES_AGGREGATE = [
@@ -101,7 +104,6 @@ def get_SpatialQueryForm(simulation_output):
         
     return(SpatialQueryForm)
 
-
 def display_spatial_query(request):
     ## get the dynamically generated form class
     SpatialQueryForm = get_SpatialQueryForm(request.ocg.simulation_output)
@@ -131,3 +133,48 @@ def display_spatial_query(request):
     return render_to_response('query.html',
                               {'form': form, 'request': request},
                               context_instance=RequestContext(request))
+
+## SHAPEFILE UPLOAD ------------------------------------------------------------
+
+def validate_zipfile(value):
+    if not os.path.splitext(value.name)[1] == '.zip':
+        raise(ValidationError("File extension not '.zip'"))
+
+class UploadShapefileForm(forms.Form):
+#    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
+    objectid = forms.IntegerField(label='ObjectID',initial=1)
+    file = forms.FileField(label='Zipped Shapefile',
+                           validators=[validate_zipfile])
+    
+    
+def display_shpupload(request):
+    if request.method == 'POST':
+        form = UploadShapefileForm(request.POST,request.FILES)
+        if form.is_valid():
+            wkt = handle_uploaded_shapefile(request.FILES['file'],
+                                            form.cleaned_data['objectid'])
+            return(HttpResponse(wkt))
+    else:
+        form = UploadShapefileForm()
+    return render_to_response('shpupload.html', {'form': form})
+
+def handle_uploaded_shapefile(file,objectid):
+    path = get_temp_path(nest=True,suffix='.zip')
+    dir = os.path.split(path)[0]
+    ## write the data to file
+    with open(path,'wb+') as dest:
+        for chunk in file.chunks():
+            dest.write(chunk)
+    ## unzip the file
+    zip = zipfile.ZipFile(path,'r')
+    try:
+        zip.extractall(os.path.split(path)[0])
+    finally:
+        zip.close()
+    ## get the shapefile path
+    for f in os.listdir(dir):
+        if f.endswith('.shp'):
+            break
+    ## extract the wkt
+    wkt = get_wkt_from_shp(os.path.join(dir,f),objectid)
+    return(wkt)

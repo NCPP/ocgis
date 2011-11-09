@@ -144,6 +144,7 @@ def validate_zipfile(value):
     if not os.path.splitext(value.name)[1] == '.zip':
         raise(ValidationError("File extension not '.zip'"))
 
+
 class UploadShapefileForm(forms.Form):
 #    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
     objectid = forms.IntegerField(label='ObjectID',initial=1)
@@ -155,13 +156,16 @@ def display_shpupload(request):
     if request.method == 'POST':
         form = UploadShapefileForm(request.POST,request.FILES)
         if form.is_valid():
+            ## write the file to disk and extract WKT
             wkt = handle_uploaded_shapefile(request.FILES['file'],
                                             form.cleaned_data['objectid'])
+            ## convert from wkt to multipolygon and save to database
             geom = GEOSGeometry(wkt,srid=4326)
             if isinstance(geom,Polygon):
                 geom = MultiPolygon([geom])
             obj = UserGeometryData(geom=geom)
             obj.save()
+            ## return the object id to the user
             return(HttpResponse('Your geometry ID is: {0}'.format(obj.pk)))
     else:
         form = UploadShapefileForm()

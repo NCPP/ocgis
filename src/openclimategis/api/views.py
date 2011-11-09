@@ -27,28 +27,6 @@ CHOICES_EXT = [
     ('kmz','Keyhole Markup Language (zipped)'),
 ]
 
-
-#def get_choices(model,code_field='urlslug',desc_field='name',distinct=False,select=True):
-#    qs = model.objects.order_by(desc_field).values(code_field,desc_field).all()
-#    if distinct:
-#        qs = qs.distinct()
-#    if select:
-#        choices = [('_select_','Please Make a Selection...')]
-#    else:
-#        choices = []
-#    for row in qs:
-#        ctup = (row[code_field],row[desc_field])
-#        choices.append(ctup)
-#    return(choices)
-#
-#def validate_choice(value):
-#    if value == '_select_':
-#        raise ValidationError('Please make a selection.')
-#
-#class OcgChoiceField(forms.ChoiceField):
-#    default_validators = [validate_choice]
-
-
 def get_SpatialQueryForm(simulation_output):
     ## the dataset object contains the test values
     dataset = simulation_output.netcdf_variable.netcdf_dataset

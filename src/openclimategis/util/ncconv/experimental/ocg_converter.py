@@ -164,7 +164,7 @@ class LinkedCsvConverter(CsvConverter):
 
         return(info)
     
-    def _response_(self,payload,request):
+    def _response_(self,payload):
         buffer = io.BytesIO()
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
         for info in payload:

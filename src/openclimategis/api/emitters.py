@@ -84,7 +84,7 @@ class SubOcgDataEmitter(IdentityEmitter):
     def render(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
         sub = self.construct()
-        logger.debug("n geometries = {0}".format(len(sub.geometry)))
+        #logger.debug("n geometries = {0}".format(len(sub.geometry)))
         cfvar = request.ocg.simulation_output.variable.code
         shp = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))

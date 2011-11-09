@@ -13,6 +13,8 @@ import csv
 import geojson
 from util.ncconv.experimental.helpers import get_sr, get_area
 
+import logging
+logger = logging.getLogger(__name__)
 
 class OcgConverter(object):
     
@@ -386,11 +388,28 @@ class KmlConverter(OcgConverter):
         return(payload)
 
 
-class KmzConverter(OcgConverter):
+class KmzConverter(KmlConverter):
     
     def _response_(self,payload):
-        # TODO: zip up the payload
-        return(payload)
+        '''Get the KML response and zip it up'''
+        logger.info("starting KmzConverter._response_()...")
+        #kml = super(KmzConverter,self)._response_(payload)
+        
+        iobuffer = io.BytesIO()
+        zf = zipfile.ZipFile(
+            iobuffer, 
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED, 
+        )
+        try:
+            zf.writestr('doc.kml',payload)
+        finally:
+            zf.close()
+        iobuffer.flush()
+        zip_stream = iobuffer.getvalue()
+        iobuffer.close()
+        logger.info("...ending KmzConverter._response_()")
+        return(zip_stream)
 
 
 class ShpConverter(OcgConverter):

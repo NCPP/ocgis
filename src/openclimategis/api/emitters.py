@@ -118,24 +118,27 @@ class KmzEmitter(KmlEmitter):
     Subclass of KmlEmitter. Emits KML in a zipped format (.kmz)
     """
     
-    def render(self,request):
-        logger.info("starting KmzEmitter.render()...")
-        kml = super(KmzEmitter,self).render(request)
-        iobuffer = io.BytesIO()
-        zf = zipfile.ZipFile(
-            iobuffer, 
-            mode='w',
-            compression=zipfile.ZIP_DEFLATED, 
-        )
-        try:
-            zf.writestr('doc.kml',kml)
-        finally:
-            zf.close()
-        iobuffer.flush()
-        zip_stream = iobuffer.getvalue()
-        iobuffer.close()
-        logger.info("...ending KmzEmitter.render()")
-        return(zip_stream)
+    __converter__ = ocg_converter.KmzConverter
+    __file_ext__ = '.kmz'
+    
+#    def render(self,request):
+#        logger.info("starting KmzEmitter.render()...")
+#        kml = super(KmzEmitter,self).render(request)
+#        iobuffer = io.BytesIO()
+#        zf = zipfile.ZipFile(
+#            iobuffer, 
+#            mode='w',
+#            compression=zipfile.ZIP_DEFLATED, 
+#        )
+#        try:
+#            zf.writestr('doc.kml',kml)
+#        finally:
+#            zf.close()
+#        iobuffer.flush()
+#        zip_stream = iobuffer.getvalue()
+#        iobuffer.close()
+#        logger.info("...ending KmzEmitter.render()")
+#        return(zip_stream)
 
 
 class GeoJsonEmitter(SubOcgDataEmitter):

@@ -102,7 +102,29 @@ def get_area_srid(geom,srid_orig,srid_dest):
     sr = get_sr(srid_orig)
     sr2 = get_sr(srid_dest)
     return(get_area(geom,sr,sr2))
-           
+
+def get_wkt_from_shp(path,objectid,layer_idx=0):
+    """
+    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
+    >>> objectid = 10
+    >>> wkt = get_wkt_from_shp(path,objectid)
+    >>> assert(wkt.startswith('POLYGON ((-91.730366281818348 43.499571367976877,'))
+    """
+    
+    ds = ogr.Open(path)
+    try:
+        lyr = ds.GetLayerByIndex(layer_idx)
+        lyr_name = lyr.GetName()
+        sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
+        data = ds.ExecuteSQL(sql)
+        feat = data.GetNextFeature()
+        geom = feat.GetGeometryRef()
+        wkt = geom.ExportToWkt()
+        return(wkt)
+    finally:
+        ds.Destroy()
+
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

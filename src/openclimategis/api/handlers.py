@@ -66,6 +66,9 @@ class OpenClimateHandler(BaseHandler):
         request.url_args = kwds
         ## parse URL arguments
         self._parse_slugs_(kwds)
+        
+        #TODO: extract querystring arguments and append them to self.ocg
+        
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
         

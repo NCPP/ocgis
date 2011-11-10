@@ -76,6 +76,7 @@ class TestUrls(TestCase):
             '/',
             '.html',
             '.json',
+            #'.kml',
         ]
         for resource in resources:
             for suffix in suffixes:
@@ -186,8 +187,8 @@ class TestUrls(TestCase):
                '/variable/{variable}.{ext}'
                ).format(
                     ext='kml',
-                    drange='2000-01-01+2000-02-01',
-                    polygon='-104+39.75,-103.75+39.75,-103.75+40,-104+39.75',
+                    drange='2000-01-01+2000-03-01',
+                    polygon='-94+39.75,-93.75+39.75,-93.75+40,-94+39.75',
                     sop='intersects',
                     agg='false',
                     cm='miroc3.2(medres)',

@@ -188,30 +188,20 @@ class KmlConverter(OcgConverter):
         from pykml.factory import KML_ElementMaker as KML
         from lxml import etree
         
-        def wkt2coordinates(wkt):
-            '''converts WKT coordinates to a KML-formatted coordinate string'''
-            from django.contrib.gis.gdal import OGRGeometry
-            from pykml.parser import fromstring
-            return fromstring(OGRGeometry(wkt).kml).find('.//coordinates').text
-        
         ## create the database
         db = self.sub_ocg_dataset.as_sqlite()
         
-        #meta = request.ocg
-        #if request.environ['SERVER_PORT']=='80':
-        if False:
+        meta = request.ocg
+        if request.environ['SERVER_PORT']=='80':
             portstr = ''
         else:
-            #portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
-            portstr = ':{port}'.format(port='8080')
+            portstr = ':{port}'.format(port=request.environ['SERVER_PORT'])
         
         url='{protocol}://{server}{port}{path}'.format(
             protocol='http',
             port=portstr,
-            #server=request.environ['SERVER_NAME'],
-            server='localhost',
-            #path=request.environ['PATH_INFO'],
-            path='TESTPATH',
+            server=request.environ['SERVER_NAME'],
+            path=request.environ['PATH_INFO'],
         )
         description = (
             '<table border="1">'
@@ -241,25 +231,16 @@ class KmlConverter(OcgConverter):
               '</tbody>'
             '</table>'
         ).format(
-            #archive=meta.archive.name,
-            archive='TEST ARCHIVE NAME',
-            #scenario=meta.scenario,
-            scenario='TEST SCENARIO NAME',
-            #model=meta.climate_model,
-            model='TEST CLIMATE MODEL NAME',
-            #run=meta.run,
-            run='TEST MODEL RUN',
-            #variable=meta.variable,
-            variable='TEST VARIABLE',
-            #units=meta.variable.units,
-            units='TEST UNITS',
-            #simout=meta.simulation_output.netcdf_variable,
-            #start=meta.temporal[0],
-            start='TEST START',
-            #end=meta.temporal[-1],
-            end='TEST END',
-            #operation=meta.operation,
-            operation='TEST OPERATION',
+            archive=meta.archive.name,
+            scenario=meta.scenario,
+            model=meta.climate_model,
+            run=meta.run,
+            variable=meta.variable,
+            units=meta.variable.units,
+            simout=meta.simulation_output.netcdf_variable,
+            start=meta.temporal[0],
+            end=meta.temporal[-1],
+            operation=meta.operation,
             url=url,
             url_kmz=url.replace('.kml', '.kmz'),
             url_shz=url.replace('.kml', '.shz'),
@@ -316,13 +297,13 @@ class KmlConverter(OcgConverter):
             for time in s.query(db.Time).all():
                 # create a folder for the time
                 timefld = KML.Folder(
-                    KML.Style(
-                      KML.ListStyle(
-                        KML.listItemType('checkHideChildren'),
-                        KML.bgColor('00ffffff'),
-                        KML.maxSnippetLines('2'),
-                      ),
-                    ),
+#                    KML.Style(
+#                      KML.ListStyle(
+#                        KML.listItemType('checkHideChildren'),
+#                        KML.bgColor('00ffffff'),
+#                        KML.maxSnippetLines('2'),
+#                      ),
+#                    ),
                     KML.name(time.as_xml_date()),
                     # placemarks will be appended here
                 )
@@ -336,20 +317,14 @@ class KmlConverter(OcgConverter):
                           '</tbody>'
                         '</table>'
                     ).format(
-                        #variable=meta.variable.name,
-                        variable='VARIABLE PLACEHOLDER',
-                        #time=element['properties']['timestamp'],
-                        time='TIMESTAMP PLACEHOLDER',
-                        #value=element['properties'][meta.simulation_output.netcdf_variable.code],
-                        value=0.12345,
+                        variable=meta.variable.name,
+                        time=val.time.as_xml_date(),
+                        value=val.value,
                         digits=3,
-                        #units=meta.variable.units,
-                        units='UNITS PLACEHOLDER',
+                        units=meta.variable.units,
                     )
                     
-                    #coords = wkt2coordinates(element['geometry'].wkt)
-#                    coords = '-104,39 -95,39 -95,44 -104,44 -104,39'
-                    coords = wkt2coordinates(val.geometry.wkt)
+                    coords = val.geometry.as_kml_coords()
                     timefld.append(
                       KML.Placemark(
                         KML.name('Geometry'),

@@ -2,8 +2,8 @@ import itertools
 import numpy as np
 from shapely.geometry.polygon import Polygon
 import pdb
-import osr
-import ogr
+from osgeo import osr
+from osgeo import ogr
 
 
 def itr_array(a):

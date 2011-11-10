@@ -21,6 +21,12 @@ class Geometry(Base):
 #        from pykml.factory import KML_ElementMaker as KML
 #        pass
     
+    def as_kml_coords(self):
+        '''converts to a KML-formatted coordinate string'''
+        from django.contrib.gis.gdal import OGRGeometry
+        from pykml.parser import fromstring
+        return fromstring(OGRGeometry(self.wkt).kml).find('.//coordinates').text
+    
     
 class Time(Base):
     __tablename__ = 'time'

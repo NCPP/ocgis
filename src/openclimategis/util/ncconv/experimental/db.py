@@ -5,15 +5,10 @@ from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.types import Integer, Float, String, DateTime, Date
 from sqlalchemy.orm import relationship
 
-LOADED = False
 
-connstr = 'sqlite://'
-#connstr = 'postgresql://bkoziol:<password>@localhost/<database>'
-#connstr = 'postgresql://{user}:{password}@{host}/{database}'
-engine = create_engine(connstr)
-metadata = MetaData(bind=engine)
+## metadata will be bound to an engine when the database is created
+metadata = MetaData()
 Base = declarative_base(metadata=metadata)
-Session = sessionmaker(bind=engine)
 
 
 class Geometry(Base):

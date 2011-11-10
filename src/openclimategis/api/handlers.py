@@ -241,6 +241,7 @@ class SpatialHandler(OpenClimateHandler):
             polygons = None
         
         ## choose extraction mode and pull data appropriately.
+
         if self.__mode__ == 'single':
             sub = multipolygon_operation(dataset.uri,
                                          self.ocg.simulation_output.netcdf_variable.code,

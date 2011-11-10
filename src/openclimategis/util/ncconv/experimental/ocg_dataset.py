@@ -6,6 +6,7 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 import time
 import copy
+from sqlalchemy.engine import create_engine
 
 
 class MaskedDataError(Exception):
@@ -454,38 +455,41 @@ class SubOcgDataset(object):
         self.cell_id = np.array([1])
     
     def as_sqlite(self,add_area=True,area_srid=3005):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm.session import sessionmaker
         import db
-
-        if not db.LOADED: ##tdk: fix module hack eventually
             
-            ## spatial reference for area calculation
-            sr = get_sr(4326)
-            sr2 = get_sr(area_srid)
-            
-            db.metadata.create_all()
-            s = db.Session()
-            try:
-                ## create the geometries
-                for dd in self.dim_data:
-                    s.add(db.Geometry(gid=int(self.cell_id[dd]),
-                                      wkt=str(self.geometry[dd].wkt),
-                                      area_m2=get_area(self.geometry[dd],sr,sr2)))
-                    s.commit()
-                ## fill in the rest of the data
-                for dt in self.dim_time:
-                    dtime = db.Time(time=self.timevec[dt])
-                    for dl in self.dim_level:
-                        for dd in self.dim_data:
-                            geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
-                            val = db.Value(geometry=geometry,
-                                           level=int(self.levelvec[dl]),
-                                           time=dtime,
-                                           value=float(self.value[dt,dl,dd]))
-                            s.add(val)
+        engine = create_engine('sqlite://')
+        db.metadata.bind = engine
+        db.Session = sessionmaker(bind=engine)
+        
+        ## spatial reference for area calculation
+        sr = get_sr(4326)
+        sr2 = get_sr(area_srid)
+        
+        db.metadata.create_all()
+        s = db.Session()
+        try:
+            ## create the geometries
+            for dd in self.dim_data:
+                s.add(db.Geometry(gid=int(self.cell_id[dd]),
+                                  wkt=str(self.geometry[dd].wkt),
+                                  area_m2=get_area(self.geometry[dd],sr,sr2)))
                 s.commit()
-                db.LOADED = True
-            finally:
-                s.close()
+            ## fill in the rest of the data
+            for dt in self.dim_time:
+                dtime = db.Time(time=self.timevec[dt])
+                for dl in self.dim_level:
+                    for dd in self.dim_data:
+                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
+                        val = db.Value(geometry=geometry,
+                                       level=int(self.levelvec[dl]),
+                                       time=dtime,
+                                       value=float(self.value[dt,dl,dd]))
+                        s.add(val)
+            s.commit()
+        finally:
+            s.close()
         return(db)
     
     def display(self,show=True,overlays=None):

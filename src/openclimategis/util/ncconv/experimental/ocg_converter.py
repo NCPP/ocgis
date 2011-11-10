@@ -348,7 +348,8 @@ class KmlConverter(OcgConverter):
                     )
                     
                     #coords = wkt2coordinates(element['geometry'].wkt)
-                    coords = '-104,39 -95,39 -95,44 -104,44 -104,39'
+#                    coords = '-104,39 -95,39 -95,44 -104,44 -104,39'
+                    coords = wkt2coordinates(val.geometry.wkt)
                     timefld.append(
                       KML.Placemark(
                         KML.name('Geometry'),

@@ -49,7 +49,7 @@ class TestUrls(TestCase):
         
     def test_triangle_url(self):
         ext = 'kml'
-        sop = 'clip'
+        sop = 'intersects'
         agg = 'false'
         url = '/api/archive/usgs-cida-maurer/model/miroc3.2(medres)/scenario/sres-a1b/run/2/temporal/2000-01-01+2000-03-01/spatial/{1}+polygon((-94+39.75,-93.75+39.75,-93.75+40,-94+39.75))/aggregate/{2}/variable/pr.{0}'.format(ext,sop,agg)
         response = self.client.get(url)

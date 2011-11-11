@@ -148,9 +148,41 @@ def validate_zipfile(value):
 
 class UploadShapefileForm(forms.Form):
 #    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
-    objectid = forms.IntegerField(label='ObjectID',initial=1)
-    file = forms.FileField(label='Zipped Shapefile',
-                           validators=[validate_zipfile])
+
+    filefld = forms.FileField(
+        label='Zipped Shapefile',
+        validators=[validate_zipfile],
+    )
+    code = forms.CharField(
+        label='AOI Code',
+        help_text='Code by which a user refers to an AOI.'
+    )
+    objectid = forms.IntegerField(
+        label='ObjectID',
+        required=False,
+        help_text='This is used to select a particular feature from a Shapefile.'
+    )
+    
+    def clean_code(self):
+        import re
+        
+        data = self.cleaned_data['code']
+        if re.match('^[A-Za-z0-9]+$', data) is None:
+            raise forms.ValidationError(
+                'The AOI code provided is invalid. '
+                'Use only letters, numbers, and the underscore character.'
+            )
+        
+        # check if the code has already been used
+        if len(UserGeometryData.objects.filter(code=data)) > 0:
+            raise forms.ValidationError(
+                'The AOI code provided is already being used. '
+                'Please provide a different code.'
+            )
+        
+        # Always return the cleaned data, whether you have changed it or
+        # not.
+        return data
     
     
 def display_shpupload(request):
@@ -158,26 +190,35 @@ def display_shpupload(request):
         form = UploadShapefileForm(request.POST,request.FILES)
         if form.is_valid():
             ## write the file to disk and extract WKT
-            wkt = handle_uploaded_shapefile(request.FILES['file'],
-                                            form.cleaned_data['objectid'])
+            wkt = handle_uploaded_shapefile(
+                request.FILES['filefld'],
+                form.cleaned_data['objectid'],
+            )
             ## convert from wkt to multipolygon and save to database
             geom = GEOSGeometry(wkt,srid=4326)
             if isinstance(geom,Polygon):
                 geom = MultiPolygon([geom])
-            obj = UserGeometryData(geom=geom)
+            obj = UserGeometryData(
+                code=form.cleaned_data['code'],
+                geom=geom,
+            )
             obj.save()
-            ## return the object id to the user
-            return(HttpResponse('Your geometry ID is: {0}'.format(obj.pk)))
+            ## return a success message to the user
+            # TODO: redirect to a page listing the AOIs
+            return(HttpResponse((
+                'Upload successful. '
+                'Your geometry code is: <b>{0}</b>').format(obj.code)
+            ))
     else:
         form = UploadShapefileForm()
     return(render_to_response('shpupload.html', {'form': form}))
 
-def handle_uploaded_shapefile(file,objectid):
+def handle_uploaded_shapefile(filename,objectid):
     path = get_temp_path(nest=True,suffix='.zip')
     dir = os.path.split(path)[0]
     ## write the data to file
     with open(path,'wb+') as dest:
-        for chunk in file.chunks():
+        for chunk in filename.chunks():
             dest.write(chunk)
     ## unzip the file
     zip = zipfile.ZipFile(path,'r')

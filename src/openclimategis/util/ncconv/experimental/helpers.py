@@ -110,12 +110,14 @@ def get_wkt_from_shp(path,objectid,layer_idx=0):
     >>> wkt = get_wkt_from_shp(path,objectid)
     >>> assert(wkt.startswith('POLYGON ((-91.730366281818348 43.499571367976877,'))
     """
-    
     ds = ogr.Open(path)
     try:
         lyr = ds.GetLayerByIndex(layer_idx)
         lyr_name = lyr.GetName()
-        sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
+        if objectid is None:
+            sql = 'SELECT * FROM {0}'.format(lyr_name)
+        else:
+            sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
         data = ds.ExecuteSQL(sql)
         feat = data.GetNextFeature()
         geom = feat.GetGeometryRef()

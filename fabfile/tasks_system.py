@@ -194,6 +194,7 @@ def install_python_dependencies():
         run('pip install numpy==1.5.1')
         run('pip install Shapely')
         run('pip install geojson')
+        run('pip install geoalchemy')
         with prefix('export HDF5_DIR=' + HDF5_DIR):
             with prefix('export NETCDF4_DIR=' + NETCDF4_DIR):
                 run('pip install netCDF4==0.9.4')

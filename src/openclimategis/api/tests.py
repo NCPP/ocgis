@@ -85,6 +85,29 @@ class TestUrls(TestCase):
                 if response.status_code != 200:
                     print response.content
                 self.assertEqual(response.status_code, 200)
+
+
+    def test_simulations_with_query_string_filter(self):
+        '''Test that a query string filter reduces # of records returned.'''
+        resource = '/api/simulations'
+        filter1 = '?variable=pr&variable=tas'
+        filter2 = '?variable=tas'
+        filter3 = '?variable=pr&variable=tas&model=ccsm3'
+        filter4 = '?variable=pr&model=ccsm3'
+        content_filter1 = self.client.get(resource + filter1).content
+        content_filter2 = self.client.get(resource + filter2).content
+        content_filter3 = self.client.get(resource + filter3).content
+        content_filter4 = self.client.get(resource + filter4).content
+        content_unfiltered = self.client.get(resource).content
+        
+        # filter 1 should not affect the results
+        self.assertTrue(len(content_unfiltered) == len(content_filter1))
+        # filter 2 should return one record
+        self.assertTrue(len(content_unfiltered) > len(content_filter2))
+        # filter 3 should return the same records as filter 2
+        self.assertTrue(len(content_filter2) == len(content_filter3))
+        # filter 4 should not return any records
+        self.assertTrue(len(content_filter3) > len(content_filter4))
     
     def test_data_request_urls(self):
         '''tests that data request URLs work

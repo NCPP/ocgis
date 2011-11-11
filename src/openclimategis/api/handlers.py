@@ -67,7 +67,8 @@ class OpenClimateHandler(BaseHandler):
         ## parse URL arguments
         self._parse_slugs_(kwds)
         
-        #TODO: extract querystring arguments and append them to self.ocg
+        ## parse the query string for filters
+        self._parse_query_dict_(request.GET)
         
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
@@ -80,6 +81,49 @@ class OpenClimateHandler(BaseHandler):
         """Overload in subclasses."""
         
         raise NotImplementedError
+    
+    def _parse_query_dict_(self, qdict):
+        '''extracts filters from the query dict'''
+        
+        possible_filters = [
+            {
+                'param':'archive', 
+                'field': 'archive',
+                'data model': climatedata.models.Archive,
+            },
+            {
+                'param':'model',
+                'field':'climate_model',
+                'data model': climatedata.models.ClimateModel,
+            },
+            {
+                'param':'scenario',
+                'field':'scenario',
+                'data model': climatedata.models.Scenario,
+            },
+            {
+                'param':'variable',
+                'field':'variable',
+                'data model': climatedata.models.Variable,
+            },
+        ]
+        
+        # construct a list of filter strings
+        filter_list = []
+        for filt in possible_filters:
+            if len(qdict.getlist(filt['param'])) > 0:
+                filter_list.append(
+                    '{field}__in={inlist}'.format(
+                        field=filt['field'],
+                        inlist=[
+                            filt['data model'].objects.get(
+                                urlslug=item
+                            ).pk for item in qdict.getlist(filt['param'])
+                        ],
+                    )
+                )
+        self.ocg.filter_list = filter_list
+    
     
     def _parse_slugs_(self,kwds):
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
@@ -186,7 +230,12 @@ class SimulationOutputHandler(NonSpatialHandler):
             id = request.url_args['id']
             query = self.model.objects.filter(id__exact=int(id))
         except:
-            query = self.model.objects.all()
+#            query = self.model.objects.all()
+            query = self.model.objects
+            if len(request.ocg.filter_list)>0:
+                for item in request.ocg.filter_list:
+                    query = eval('query.filter({item})'.format(item=item))
+            query = query.all()
         return query
 
 

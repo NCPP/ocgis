@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_api.html" %}
 
 {% block title %}
     {{ block.super }}
@@ -51,6 +51,14 @@
             <tr>
                 <th>Description</th>
                 <td>{{ listitem.description }}</td>
+            </tr>
+            <tr>
+                <th>Simulations</th>
+                <td>
+                    <a href="{% url simulation_list %}?variable={{ listitem.urlslug }}">
+                    Simulations for climate variable: {{ listitem.code}}
+                    </a>
+                </td>
             </tr>
         {% endfor %}
     {% endif %}

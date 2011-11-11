@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_api.html" %}
 
 {% block title %}
     {{ block.super }}
@@ -43,6 +43,14 @@
             <tr>
                 <th>Description</th>
                 <td>{{ listitem.description }}</td>
+            </tr>
+            <tr>
+                <th>Simulations</th>
+                <td>
+                    <a href="{% url simulation_list %}?scenario={{ listitem.urlslug }}">
+                    Simulations for emissions scenario: {{ listitem.code}}
+                    </a>
+                </td>
             </tr>
         {% endfor %}
     {% endif %}

@@ -1,4 +1,5 @@
 import datetime
+from django.http import QueryDict
 
 
 class SlugError(Exception):
@@ -17,11 +18,14 @@ class OcgSlug(object):
         self.code = code
         
         if url_arg is None and possible is not None:
-            self.url_arg = possible.get(self.code)
+            if isinstance(possible,QueryDict):
+                self.url_arg = possible.getlist(self.code)
+            else:
+                self.url_arg = possible.get(self.code)
         else:
             self.url_arg = url_arg
         
-        if str_lower is True and self.url_arg is not None:
+        if str_lower is True and self.url_arg is not None and not isinstance(self.url_arg,list):
             self.url_arg = str(self.url_arg).lower()
         
         self.value = self.get()
@@ -67,7 +71,7 @@ class IntegerSlug(OcgSlug):
 
 class DjangoQuerySlug(OcgSlug):
     """
-    DjangoQuerySlug(model,code,filter_kwds={},code_field='code',**kwds)
+    DjangoQuerySlug(model,code,filter_kwds={},code_field='code',one=False,**kwds)
     """
     
     def __init__(self,*args,**kwds):
@@ -102,14 +106,17 @@ class IExactQuerySlug(DjangoQuerySlug):
     IExactQuerySlug(model,code,filter_kwds={},code_field='code',**kwds)
     """
     
-#    def __init__(self,*args,**kwds):
-#        args = list(args)
-#        self.iexact_target = args.pop(0)
-#        super(IExactQuerySlug,self).__init__(*args,**kwds)
-    
     def _get_(self):
         self.filter_kwds.update({self.code_field+'__iexact':self.url_arg})
         ret = super(IExactQuerySlug,self)._get_()
+        return(ret)
+    
+    
+class InQuerySlug(DjangoQuerySlug):
+    
+    def _get_(self):
+        self.filter_kwds.update({self.code_field+"__in":self.url_arg})
+        ret = super(InQuerySlug,self)._get_()
         return(ret)
         
 

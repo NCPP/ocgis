@@ -37,6 +37,7 @@ class OpenClimateHandler(BaseHandler):
     def __init__(self,*args,**kwds):
         ## set some default parameters for the handlers
         self.ocg = ocg()
+        self.ocg.query = ocg()
         
         super(OpenClimateHandler,self).__init__(*args,**kwds)
         
@@ -85,44 +86,49 @@ class OpenClimateHandler(BaseHandler):
     def _parse_query_dict_(self, qdict):
         '''extracts filters from the query dict'''
         
-        possible_filters = [
-            {
-                'param':'archive', 
-                'field': 'archive',
-                'data model': climatedata.models.Archive,
-            },
-            {
-                'param':'model',
-                'field':'climate_model',
-                'data model': climatedata.models.ClimateModel,
-            },
-            {
-                'param':'scenario',
-                'field':'scenario',
-                'data model': climatedata.models.Scenario,
-            },
-            {
-                'param':'variable',
-                'field':'variable',
-                'data model': climatedata.models.Variable,
-            },
-        ]
-        
-        # construct a list of filter strings
-        filter_list = []
-        for filt in possible_filters:
-            if len(qdict.getlist(filt['param'])) > 0:
-                filter_list.append(
-                    '{field}__in={inlist}'.format(
-                        field=filt['field'],
-                        inlist=[
-                            filt['data model'].objects.get(
-                                urlslug=item
-                            ).pk for item in qdict.getlist(filt['param'])
-                        ],
-                    )
-                )
-        self.ocg.filter_list = filter_list
+        self.ocg.query.archive = InQuerySlug(climatedata.models.Archive,'archive',possible=qdict,code_field='urlslug').value
+        self.ocg.query.climate_model = InQuerySlug(climatedata.models.ClimateModel,'model',possible=qdict,code_field='urlslug').value
+        self.ocg.query.scenario = InQuerySlug(climatedata.models.Scenario,'scenario',possible=qdict,code_field='urlslug').value
+        self.ocg.query.variable = InQuerySlug(climatedata.models.Variable,'variable',possible=qdict,code_field='urlslug').value
+#        print(self.ocg.query)
+#        possible_filters = [
+#            {
+#                'param':'archive', 
+#                'field': 'archive',
+#                'data model': climatedata.models.Archive,
+#            },
+#            {
+#                'param':'model',
+#                'field':'climate_model',
+#                'data model': climatedata.models.ClimateModel,
+#            },
+#            {
+#                'param':'scenario',
+#                'field':'scenario',
+#                'data model': climatedata.models.Scenario,
+#            },
+#            {
+#                'param':'variable',
+#                'field':'variable',
+#                'data model': climatedata.models.Variable,
+#            },
+#        ]
+#        
+#        # construct a list of filter strings
+#        filter_list = []
+#        for filt in possible_filters:
+#            if len(qdict.getlist(filt['param'])) > 0:
+#                filter_list.append(
+#                    '{field}__in={inlist}'.format(
+#                        field=filt['field'],
+#                        inlist=[
+#                            filt['data model'].objects.get(
+#                                urlslug=item
+#                            ).pk for item in qdict.getlist(filt['param'])
+#                        ],
+#                    )
+#                )
+#        self.ocg.filter_list = filter_list
     
     
     def _parse_slugs_(self,kwds):
@@ -225,18 +231,28 @@ class VariableHandler(NonSpatialHandler):
 class SimulationOutputHandler(NonSpatialHandler):
     model = SimulationOutput
     exclude = ()
+    
     def _read_(self,request):
-        try:
+        if 'id' in request.url_args:
             id = request.url_args['id']
-            query = self.model.objects.filter(id__exact=int(id))
-        except:
-#            query = self.model.objects.all()
-            query = self.model.objects
-            if len(request.ocg.filter_list)>0:
-                for item in request.ocg.filter_list:
-                    query = eval('query.filter({item})'.format(item=item))
-            query = query.all()
-        return query
+            ret = self.model.objects.filter(id__exact=int(id))
+        else:
+            filter_kwds = {}
+            for key,value in request.ocg.query.__dict__.items():
+                if len(value) > 0:
+                    filter_kwds.update({key+'__in':value})
+            if len(filter_kwds) == 0:
+                ret = self.model.objects.all()
+            else:
+                ret = self.model.objects.filter(**filter_kwds)
+#            import ipdb;ipdb.set_trace()
+##            query = self.model.objects.all()
+#            query = self.model.objects
+#            if len(request.ocg.filter_list)>0:
+#                for item in request.ocg.filter_list:
+#                    query = eval('query.filter({item})'.format(item=item))
+#            query = query.all()
+        return(ret)
 
 
 class QueryHandler(NonSpatialHandler):

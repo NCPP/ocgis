@@ -167,7 +167,7 @@ class UploadShapefileForm(forms.Form):
         import re
         
         data = self.cleaned_data['code']
-        if re.match('^[A-Za-z0-9]+$', data) is None:
+        if re.match('^[A-Za-z0-9_]+$', data) is None:
             raise forms.ValidationError(
                 'The AOI code provided is invalid. '
                 'Use only letters, numbers, and the underscore character.'

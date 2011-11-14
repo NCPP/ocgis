@@ -190,7 +190,7 @@ def display_shpupload(request):
         form = UploadShapefileForm(request.POST,request.FILES)
         if form.is_valid():
             ## write the file to disk and extract WKT
-            wkt = handle_uploaded_shapefile(
+            wkt = handle_uploaded_file(
                 request.FILES['filefld'],
                 form.cleaned_data['objectid'],
             )
@@ -213,7 +213,16 @@ def display_shpupload(request):
         form = UploadShapefileForm()
     return(render_to_response('shpupload.html', {'form': form}))
 
+def handle_uploaded_file(filename,objectid):
+    
+    if filename.content_type == 'application/zip':
+        return handle_uploaded_shapefile(filename,objectid)
+    else:
+        dummy=1
+        pass
+    
 def handle_uploaded_shapefile(filename,objectid):
+    
     path = get_temp_path(nest=True,suffix='.zip')
     dir = os.path.split(path)[0]
     ## write the data to file

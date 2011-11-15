@@ -421,11 +421,11 @@ class ShpConverter(OcgConverter):
                 else:
                     val = attr[o.orig_name]
                 args = [o.ogr_name,val]
-            try:
-                feat.SetField(*args)
-            except NotImplementedError:
-                args[1] = str(args[1])
-                feat.SetField(*args)
+                try:
+                    feat.SetField(*args)
+                except NotImplementedError:
+                    args[1] = str(args[1])
+                    feat.SetField(*args)
             check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['geometry'].wkt)))
             check_err(layer.CreateFeature(feat))
             

@@ -6,7 +6,6 @@ from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 import time
 import copy
-from sqlalchemy.engine import create_engine
 
 
 class MaskedDataError(Exception):
@@ -20,7 +19,7 @@ class OcgDataset(object):
     Wraps and netCDF4-python Dataset object providing extraction methods by 
     spatial and temporal queries.
     
-    dataset -- netCDF4-python Dataset object
+    uri -- location of the dataset object.
     **kwds -- arguments for the names of multiple configuration parameters:
         rowbnds_name
         colbnds_name
@@ -31,14 +30,9 @@ class OcgDataset(object):
         verbose
     """
     
-    def __init__(self,dataset_or_uri,**kwds):
-        ## the dataset can be passed as an open object or a uri.
-        if isinstance(dataset_or_uri,nc.Dataset):
-            self.uri = None
-            self.dataset = dataset_or_uri
-        else:
-            self.uri = dataset_or_uri
-            self.dataset = nc.Dataset(self.uri,'r')
+    def __init__(self,uri,**kwds):
+        self.uri = uri
+        self.dataset = self.connect(uri)
             
         ## extract other keyword arguments -------------------------------------
         self.verbose = kwds.get('verbose')
@@ -86,6 +80,15 @@ class OcgDataset(object):
         ## set the array shape.
         self.shape = self.real_col.shape
         
+    def __del__(self):
+        try:
+            self.dataset.close()
+        finally:
+            pass
+        
+    def connect(self,uri):
+        return(nc.Dataset(uri,'r'))
+        
     def extent(self):
         minx = self.min_col.min()
         maxx = self.max_col.max()
@@ -119,6 +122,13 @@ class OcgDataset(object):
         ax.scatter(self.min_col,self.min_row)
         ax.scatter(self.max_col,self.max_row)
         if show: plt.show()
+        
+    def get_numpy_data(self,var,args):
+        if len(args) == 3:
+            npd = var[args[0],args[1],args[2]]
+        if len(args) == 4:
+            npd = var[args[0],args[1],args[2],args[3]]
+        return(npd)
         
     def subset(self,var_name,polygon=None,time_range=None,level_range=None): ## intersects + touches
         """
@@ -197,10 +207,11 @@ class OcgDataset(object):
         colidx = sub_range(col)
 
         if ndim == 3:
-            npd = var[timeidx,rowidx,colidx]
+            args = [timeidx,rowidx,colidx]
         if ndim == 4:
-            npd = var[timeidx,levelidx,rowidx,colidx]
-
+            args = [timeidx,levelidx,rowidx,colidx]
+        npd = self.get_numpy_data(var,args)
+        
         ## ensure we have four-dimensional data.
         len_sh = len(npd.shape)
 

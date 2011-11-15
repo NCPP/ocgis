@@ -98,8 +98,8 @@ def multipolygon_operation(uri,
     else:
         subs = []
         ## loop through each polygon
+        ocg_dataset = OcgDataset(uri,**ocg_opts)
         for polygon in polygons:
-            ocg_dataset = OcgDataset(uri,**ocg_opts)
             sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
             if clip: sub.clip(polygon)
             if union: sub.union()

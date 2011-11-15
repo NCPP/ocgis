@@ -1,13 +1,13 @@
-import unittest
-from ocg_dataset import OcgDataset
-from shapely.geometry.point import Point
-import datetime
-from shapely import wkt
-from util.ncconv.experimental.ocg_converter import *
 from util.ncconv.experimental.wrappers import multipolygon_operation
+import datetime
+from shapely.geometry.point import Point
+from shapely import wkt
 import os
 from osgeo import ogr
 import warnings
+from util.ncconv.experimental.ocg_converter import ShpConverter,\
+    LinkedCsvConverter
+
 
 verbose = False
 
@@ -50,7 +50,7 @@ class ShpIterator(object):
                 yield attrs
         finally:
             ds.Destroy()
-
+            
 
 class TestData(object):
 #    nc_path = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc'
@@ -138,141 +138,29 @@ class TestData(object):
             asub.union()
         return(asub)
 
-
-class TestOcgDataset(TestData,unittest.TestCase):
-        
-    def test_nebraska(self):
-        sub = self.ocg_dataset.subset('Prcp',
-                             polygon=self.nebraska(),
-                             time_range=[datetime.datetime(1951,1,1),
-                                         datetime.datetime(1951,12,31)])
-        sub.clip(self.nebraska())
-        sub.union()
-        self.assertEqual(sub.value.shape[0],12)
-        
-    def test_nebraska_multiprocess(self):
-        subset_opts = dict(time_range=self.ocg_opts['time_range'],
-                           polygon=self.ocg_opts['polygon'])
-        subs = self.ocg_dataset.mapped_subset(self.nc_var_name,
-                                     max_proc=4,
-                                     subset_opts=subset_opts)
-        subs = self.ocg_dataset.parallel_process_subsets(subs,
-                                                clip=self.ocg_opts['clip'],
-                                                union=self.ocg_opts['union'],
-                                                polygon=self.ocg_opts['polygon'])
-        psub = self.ocg_dataset.combine_subsets(subs,union=self.ocg_opts['union'])
-        
-    def test_as_sqlite(self):
-        db = self.sub_ocg_dataset.as_sqlite()
-        s = db.Session()
-        self.assertTrue(s.query(db.Value).count() > 0)
-        s.close()
-        
-        
-class TestOcgConverter(TestData,unittest.TestCase):
-    
-    def test_ShpConverter(self):
-        sub_ocg_dataset = self.sub_ocg_dataset
-        base_name = 'foo.shp'
-        shp = ShpConverter(sub_ocg_dataset,base_name)
-        response = shp.response()
-        self.assertTrue(len(response) > 0)
-        
-    def test_CsvConverter(self):
-        csv = CsvConverter(self.sub_ocg_dataset,'foo.csv')
-        response = csv.response()
-        self.assertTrue(len(response) > 0)
-
-    def test_GeojsonConverter(self):
-        gjson = GeojsonConverter(self.sub_ocg_dataset,'foo.json')
-        response = gjson.response()
-        self.assertTrue(len(response) > 0)
-    
-    def test_LinkedCsvConverter(self):
-        lcsv = LinkedCsvConverter(self.sub_ocg_dataset,'foo')
-        response = lcsv.response()
-        self.assertTrue(len(response) > 0)
-
-
-class TestWrappers(TestData,unittest.TestCase):
-    
-    def test_no_polygon(self):
-        sub = multipolygon_operation(self.nc_path,
-                                     self.nc_var_name,
-                                     ocg_opts=self.nc_opts,
-                                     polygons=None,
-                                     time_range=None,
-                                     level_range=None,
-                                     clip=False,
-                                     union=True)
-    
-    def test_single_polygon(self):
-        sub = multipolygon_operation(self.nc_path,
-                                     self.nc_var_name,
-                                     ocg_opts=self.nc_opts,
-                                     polygons=self.nebraska(),
-                                     time_range=None,
-                                     level_range=None,
-                                     clip=True,
-                                     union=True)
-        
-    def test_multipolygon(self):
-        sub = multipolygon_operation(self.nc_path,
-                                     self.nc_var_name,
-                                     ocg_opts=self.nc_opts,
-                                     polygons=[self.nebraska(),self.iowa()],
-                                     time_range=None,
-                                     level_range=None,
-                                     clip=True,
-                                     union=True)
-        
-    def test_multipolygon_parallel(self):
-        sub = multipolygon_operation(self.nc_path,
-                                     self.nc_var_name,
-                                     ocg_opts=self.nc_opts,
-                                     polygons=[self.nebraska(),self.iowa()],
-                                     time_range=None,
+def f():
+    td = TestData()
+    times = 1
+    polygons = [td.nebraska(),td.iowa()]
+    for ii in range(0,times):
+        print(ii+1)
+        sub = multipolygon_operation(td.nc_path,
+                                     td.nc_var_name,
+                                     ocg_opts=td.nc_opts,
+                                     polygons=polygons,
+                                     time_range=[datetime.datetime(2011,11,1),datetime.datetime(2021,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=True,
-                                     in_parallel=True,
-                                     max_proc=8,
-                                     max_proc_per_poly=4)
-        self.assertTrue(sub.value.shape[2] > 0)
-        
-    def test_multipolygon_parallel_usa(self):
-        sub = multipolygon_operation(self.nc_path,
-                                     self.nc_var_name,
-                                     ocg_opts=self.nc_opts,
-                                     polygons=self.usa(check_extent=True,
-                                                       check_masked=True),
-                                     time_range=None,
-                                     level_range=None,
-                                     clip=True,
-                                     union=True,
-                                     in_parallel=True,
+                                     in_parallel=False,
                                      max_proc=8,
                                      max_proc_per_poly=2)
-        self.assertTrue(sub.value.shape[2] > 0)
+        assert(sub.value.shape[2] > 0)
+        shp = ShpConverter(sub,td.nc_var_name)
+        shp.convert(None)
+#        import ipdb;ipdb.set_trace()
+#        lcsv = LinkedCsvConverter(sub,td.nc_var_name)
+#        lcsv.convert(None)
         
-    def test_multipolygon_timing(self):
-        times = 5
-        polygons = [self.nebraska(),self.iowa()]
-        for ii in range(0,times):
-            sub = multipolygon_operation(self.nc_path,
-                                         self.nc_var_name,
-                                         ocg_opts=self.nc_opts,
-                                         polygons=polygons,
-                                         time_range=[datetime.datetime(2011,11,1),datetime.datetime(2021,12,31)],
-                                         level_range=None,
-                                         clip=True,
-                                         union=True,
-                                         in_parallel=False,
-                                         max_proc=8,
-                                         max_proc_per_poly=2)
-            self.assertTrue(sub.value.shape[2] > 0)
-        
-
-if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestWrappers.test_multipolygon_timing']
-    unittest.main()
+import cProfile
+cProfile.run('f()')

@@ -140,7 +140,7 @@ class TestData(object):
 
 def f():
     td = TestData()
-    times = 5
+    times = 1
     polygons = [td.nebraska(),td.iowa()]
     for ii in range(0,times):
         print(ii+1)
@@ -163,4 +163,8 @@ def f():
         lcsv.convert(None)
         
 import cProfile
-cProfile.run('f()')
+cProfile.run('f()','/tmp/foo')
+import pstats
+stats = pstats.Stats('/tmp/foo')
+stats.sort_stats('time')
+stats.print_stats(10)

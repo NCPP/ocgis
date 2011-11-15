@@ -90,7 +90,7 @@ def multipolygon_operation(uri,
 #            print('started')
             if ii >= poly_proc:
                 while sum([p.is_alive() for p in processes]) >= poly_proc:
-                    time.sleep(0.1)
+                    pass
         for p in processes:
             p.join() 
         ## extract data

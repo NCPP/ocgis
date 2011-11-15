@@ -307,7 +307,7 @@ class OcgDataset(object):
             while True:
                 alive = [pp.is_alive() for pp in pps]
                 if any(alive):
-                    time.sleep(0.1)
+                    pass
                 else:
                     break
             for pp in pps: pp.join()

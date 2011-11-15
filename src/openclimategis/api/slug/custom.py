@@ -11,8 +11,7 @@ class PolygonSlug(OcgSlug):
         try:
             ret = wkt.loads(parse_polygon_wkt(self.url_arg))
         except ValueError:
-            pk = int(self.url_arg)
-            obj = UserGeometryData.objects.filter(pk=pk)
+            obj = UserGeometryData.objects.filter(code=self.url_arg)
             ret = wkt.loads(obj[0].geom.wkt)
         return(ret)
     

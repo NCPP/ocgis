@@ -4,6 +4,10 @@ from shapely.geometry.polygon import Polygon
 import pdb
 from osgeo import osr
 from osgeo import ogr
+import warnings
+import os
+from shapely import wkt
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 def itr_array(a):
@@ -125,7 +129,55 @@ def get_wkt_from_shp(path,objectid,layer_idx=0):
         return(wkt)
     finally:
         ds.Destroy()
-
+        
+class ShpIterator(object):
+    
+    def __init__(self,path):
+        assert(os.path.exists(path))
+        self.path = path
+        
+    def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False):
+        ds = ogr.Open(self.path)
+        try:
+            lyr = ds.GetLayerByIndex(lyridx)
+            lyr.ResetReading()
+            for feat in lyr:
+                ## get the values
+                values = []
+                for field in fields:
+                    try:
+                        values.append(feat.GetField(field))
+                    except:
+                        try:
+                            if skiperrors is True:
+                                warnings.warn('Error in GetField("{0}")'.format(field))
+                            else:
+                                raise
+                        except ValueError:
+                            msg = 'Illegal field requested in GetField("{0}")'.format(field)
+                            raise ValueError(msg)
+#                values = [feat.GetField(field) for field in fields]
+                attrs = dict(zip(fields,values))
+                ## get the geometry
+                attrs.update({geom:feat.GetGeometryRef().ExportToWkt()})
+                yield attrs
+        finally:
+            ds.Destroy()
+            
+def get_shp_as_multi(path):
+    shpitr = ShpIterator(path)
+    polygons = []
+    for feat in shpitr.iter_features([]):
+        geom = wkt.loads(feat['geom'])
+        if isinstance(geom,MultiPolygon):
+            polygons += [poly for poly in geom]
+        else:
+            polygons.append(geom)
+    multi = MultiPolygon(polygons)
+#    import ipdb;ipdb.set_trace()
+#    assert(multi.is_valid)
+    return(multi.wkt)
+        
 
 if __name__ == '__main__':
     import doctest

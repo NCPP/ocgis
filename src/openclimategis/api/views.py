@@ -10,7 +10,7 @@ from util.helpers import reverse_wkt, get_temp_path
 import pdb
 import os
 import zipfile
-from util.ncconv.experimental.helpers import get_wkt_from_shp
+from util.ncconv.experimental.helpers import get_wkt_from_shp, get_shp_as_multi
 from climatedata.models import UserGeometryData
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.contrib.gis.geos.collections import MultiPolygon
@@ -216,12 +216,12 @@ def display_shpupload(request):
 def handle_uploaded_file(filename,objectid):
     
     if filename.content_type == 'application/zip':
-        return handle_uploaded_shapefile(filename,objectid)
+        return handle_uploaded_shapefile(filename)
     else:
         dummy=1
         pass
     
-def handle_uploaded_shapefile(filename,objectid):
+def handle_uploaded_shapefile(filename):
     
     path = get_temp_path(nest=True,suffix='.zip')
     dir = os.path.split(path)[0]
@@ -240,5 +240,5 @@ def handle_uploaded_shapefile(filename,objectid):
         if f.endswith('.shp'):
             break
     ## extract the wkt
-    wkt = get_wkt_from_shp(os.path.join(dir,f),objectid)
+    wkt = get_shp_as_multi(os.path.join(dir,f))
     return(wkt)

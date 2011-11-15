@@ -140,7 +140,7 @@ class TestData(object):
 
 def f():
     td = TestData()
-    times = 1
+    times = 5
     polygons = [td.nebraska(),td.iowa()]
     for ii in range(0,times):
         print(ii+1)
@@ -159,8 +159,8 @@ def f():
         shp = ShpConverter(sub,td.nc_var_name)
         shp.convert(None)
 #        import ipdb;ipdb.set_trace()
-#        lcsv = LinkedCsvConverter(sub,td.nc_var_name)
-#        lcsv.convert(None)
+        lcsv = LinkedCsvConverter(sub,td.nc_var_name)
+        lcsv.convert(None)
         
 import cProfile
 cProfile.run('f()')

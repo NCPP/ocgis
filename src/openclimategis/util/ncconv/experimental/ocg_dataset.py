@@ -1,10 +1,8 @@
 import netCDF4 as nc
 import numpy as np
-from shapely import prepared, wkt
+from shapely import prepared
 from helpers import *
 from shapely.ops import cascaded_union
-from shapely.geometry.multipolygon import MultiPolygon
-import time
 import copy
 
 

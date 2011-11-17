@@ -395,7 +395,8 @@ class ShpConverter(OcgConverter):
         self.ogr_fields.append(OgrField(self.fcache,'value',float))
         
         ## get the geometry in order
-        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
+#        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
+        self.ogr_geom = 6 ## assumes multipolygon
         self.srs = osr.SpatialReference()
         self.srs.ImportFromEPSG(self.srid)
         

@@ -8,6 +8,7 @@ from util.ncconv.experimental.wrappers import multipolygon_operation
 import os
 from osgeo import ogr
 import warnings
+from util.ncconv.experimental.ocg_dataset import SubOcgDataset
 
 verbose = False
 
@@ -192,6 +193,13 @@ class TestOcgConverter(TestData,unittest.TestCase):
         lcsv = LinkedCsvConverter(self.sub_ocg_dataset,'foo')
         response = lcsv.response()
         self.assertTrue(len(response) > 0)
+        
+    def test_empty(self):
+        converters = [ShpConverter,CsvConverter,GeojsonConverter,LinkedCsvConverter]
+        sub = SubOcgDataset([],[],[],[])
+        for converter in converters:
+            c = converter(sub,'foo')
+            c.convert(None)
 
 
 class TestWrappers(TestData,unittest.TestCase):
@@ -274,5 +282,5 @@ class TestWrappers(TestData,unittest.TestCase):
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestWrappers.test_multipolygon_timing']
+    import sys;sys.argv = ['', 'TestOcgConverter.test_empty']
     unittest.main()

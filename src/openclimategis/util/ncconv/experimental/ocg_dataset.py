@@ -415,18 +415,24 @@ class SubOcgDataset(object):
                      time=atime,
                      level=int(self.levelvec[dl]))
             yield(d)
-        
+    
+    def _range_(self,idx):
+        try:
+            return(range(self.value.shape[idx]))
+        except IndexError:
+            return([])
+    
     @property
     def dim_time(self):
-        return(range(self.value.shape[0]))
-    
+        return(self._range_(0))
+
     @property
     def dim_level(self):
-        return(range(self.value.shape[1]))
-    
+        return(self._range_(1))
+
     @property
     def dim_data(self):
-        return(range(self.value.shape[2]))
+        return(self._range_(2))
                      
     @property
     def area(self):

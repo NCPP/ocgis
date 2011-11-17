@@ -393,6 +393,7 @@ class ShpConverter(OcgConverter):
         self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
         self.ogr_fields.append(OgrField(self.fcache,'level',int))
         self.ogr_fields.append(OgrField(self.fcache,'value',float))
+        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
         
         ## get the geometry in order
 #        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
@@ -413,7 +414,7 @@ class ShpConverter(OcgConverter):
                 
         feature_def = layer.GetLayerDefn()
         
-        for ii,attr in enumerate(self.sub_ocg_dataset,start=1):
+        for ii,attr in enumerate(self.sub_ocg_dataset.iter_with_area(),start=1):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:

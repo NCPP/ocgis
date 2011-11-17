@@ -417,6 +417,13 @@ class SubOcgDataset(object):
                      time=atime,
                      level=int(self.levelvec[dl]))
             yield(d)
+            
+    def iter_with_area(self,area_srid=3005):
+        sr_orig = get_sr(4326)
+        sr_dest = get_sr(area_srid)
+        for attrs in self:
+            attrs.update(dict(area_m2=get_area(attrs['geometry'],sr_orig,sr_dest)))
+            yield(attrs)
     
     def _range_(self,idx):
         try:

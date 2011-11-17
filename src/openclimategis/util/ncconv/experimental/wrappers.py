@@ -1,5 +1,5 @@
-from util.ncconv.experimental.ocg_dataset import OcgDataset
-import time
+from ocg_dataset import OcgDataset
+
 
 def f_put(out,arg):
     out.append(f(arg))

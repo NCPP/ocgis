@@ -7,9 +7,13 @@ import copy
 
 
 class MaskedDataError(Exception):
-    
     def __str__(self):
         return('Geometric intersection returns all masked values.')
+    
+    
+class ExtentError(Exception):
+    def __str__(self):
+        return('Geometric intersection returns NoData.')
 
 
 class OcgDataset(object):
@@ -137,7 +141,7 @@ class OcgDataset(object):
         ## do a quick extent check if a polygon is passed
         if polygon is not None:
             if not self.check_extent(polygon):
-                raise(ValueError("Polygon boundary & domain extent return an empty intersection."))
+                raise(ExtentError)
 
         ## the base cell selection. does basic find operation to identify
         ## cells to keep.

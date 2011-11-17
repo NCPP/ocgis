@@ -52,7 +52,7 @@ def multipolygon_operation(uri,
                            max_proc=4,
                            max_proc_per_poly=4,
                            allow_empty=True):
-    
+
     if in_parallel is True and allow_empty is True:
         raise(NotImplementedError('in parallel empty intersections not ready.'))
     

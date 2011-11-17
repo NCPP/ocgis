@@ -278,8 +278,8 @@ class ShpUploadHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-#    __mode__ = 'single'
-    __mode__ = 'multi'
+    __mode__ = 'single'
+#    __mode__ = 'multi'
     
     def _read_(self,request):
 

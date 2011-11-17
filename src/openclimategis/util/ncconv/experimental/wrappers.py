@@ -1,4 +1,7 @@
 from ocg_dataset import OcgDataset
+from util.ncconv.experimental.ocg_dataset import MaskedDataError, ExtentError,\
+    SubOcgDataset
+from warnings import warn
 
 
 def f_put(out,arg):
@@ -47,7 +50,11 @@ def multipolygon_operation(uri,
                            union=False,
                            in_parallel=False,
                            max_proc=4,
-                           max_proc_per_poly=4):
+                           max_proc_per_poly=4,
+                           allow_empty=True):
+    
+    if in_parallel is True and allow_empty is True:
+        raise(NotImplementedError('in parallel empty intersections not ready.'))
     
     ## make the sure the polygon object is iterable
     if polygons is None:
@@ -100,10 +107,24 @@ def multipolygon_operation(uri,
         ## loop through each polygon
         ocg_dataset = OcgDataset(uri,**ocg_opts)
         for polygon in polygons:
-            sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
-            if clip: sub.clip(polygon)
-            if union: sub.union()
-            subs.append(sub)
+            try:
+                sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
+                if clip: sub.clip(polygon)
+                if union: sub.union()
+                subs.append(sub)
+            except (MaskedDataError,ExtentError):
+                if allow_empty:
+                    warn('empty overlay encountered.')
+                    continue
+                else:
+                    raise
+    ## it is possible to to have no subdatasets if empty intersections are
+    ## permitted.
+    if allow_empty and len(subs) == 0:
+        warn('all attempted geometric operations returned empty.')
+        subs = [SubOcgDataset([],[],[],[])]
+    elif not allow_empty and len(subs) == 0:
+        raise(ValueError('empty overlays are not allowed but no SubOcgDataset objects captured.'))
     ## merge subsets
     for ii,sub in enumerate(subs):
         ## keep the first one separate to merge against

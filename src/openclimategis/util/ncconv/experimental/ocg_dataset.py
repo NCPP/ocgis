@@ -13,7 +13,7 @@ class MaskedDataError(Exception):
     
 class ExtentError(Exception):
     def __str__(self):
-        return('Geometric intersection returns NoData.')
+        return('Geometric intersection is empty.')
 
 
 class OcgDataset(object):
@@ -399,7 +399,7 @@ class SubOcgDataset(object):
         cell_id = np.hstack((self.cell_id,sub.cell_id))
         ## if there are non-unique cell ids (which may happen with union
         ## operations, regenerate the unique values.
-        if len(cell_id) > np.unique(cell_id):
+        if len(cell_id) > len(np.unique(cell_id)):
             cell_id = np.arange(1,len(cell_id)+1)
         return(SubOcgDataset(geometry,
                              value,

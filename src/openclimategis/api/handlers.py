@@ -278,8 +278,8 @@ class ShpUploadHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-    __mode__ = 'single'
-#    __mode__ = 'multi'
+#    __mode__ = 'single'
+    __mode__ = 'multi'
     
     def _read_(self,request):
 
@@ -319,9 +319,8 @@ class SpatialHandler(OpenClimateHandler):
                                          level_range=None, 
                                          clip=clip,
                                          union=self.ocg.aggregate,
-                                         in_parallel=False, 
-                                         max_proc=8,
-                                         max_proc_per_poly=1)
+                                         in_parallel=False,
+                                         allow_empty=True)
         elif self.__mode__ == 'multi':
             sub = multipolygon_operation(dataset.uri,
                                          self.ocg.simulation_output.netcdf_variable.code,
@@ -333,7 +332,8 @@ class SpatialHandler(OpenClimateHandler):
                                          union=self.ocg.aggregate,
                                          in_parallel=True, 
                                          max_proc=8,
-                                         max_proc_per_poly=2)
+                                         max_proc_per_poly=2,
+                                         allow_empty=True)
 
         logger.debug("...ending SpatialHandler._read_()")
         return(sub)

@@ -5,11 +5,14 @@ from warnings import warn
 
 
 def f_put(out,arg):
-    out.append(f(arg))
+    ret = f(arg)
+    ## accounting for the empty intersection...
+    if ret is not None:
+        out.append(f(arg))
 
 ## this is the function to map
 def f(arg):
-    from util.ncconv.experimental.ocg_dataset import OcgDataset
+#    from util.ncconv.experimental.ocg_dataset import OcgDataset
     
     uri = arg[0]
     ocg_opts = arg[1]
@@ -20,23 +23,34 @@ def f(arg):
     clip = arg[6]
     union = arg[7]
     subpoly_proc = arg[8]
+    allow_empty = arg[9]
     
+    ## there is potential to return empty data
+    sub = None
     ocg_dataset = OcgDataset(uri,**ocg_opts)
     if subpoly_proc <= 1:
-        sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
-        if clip: sub.clip(polygon)
-        if union: sub.union()
+        try:
+            sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
+            if clip: sub.clip(polygon)
+            if union: sub.union()
+        except (MaskedDataError,ExtentError):
+            if not allow_empty:
+                raise
     else:
         subset_opts = dict(time_range=time_range,
                            polygon=polygon)
-        subs = ocg_dataset.mapped_subset(var_name,
-                                         max_proc=subpoly_proc,
-                                         subset_opts=subset_opts)
-        subs = ocg_dataset.parallel_process_subsets(subs,
-                                                    clip=clip,
-                                                    union=union,
-                                                    polygon=polygon)
-        sub = ocg_dataset.combine_subsets(subs,union=union)
+        try:
+            subs = ocg_dataset.mapped_subset(var_name,
+                                             max_proc=subpoly_proc,
+                                             subset_opts=subset_opts)
+            subs = ocg_dataset.parallel_process_subsets(subs,
+                                                        clip=clip,
+                                                        union=union,
+                                                        polygon=polygon)
+            sub = ocg_dataset.combine_subsets(subs,union=union)
+        except (MaskedDataError,ExtentError):
+            if not allow_empty:
+                raise
     return(sub)
 
 
@@ -53,8 +67,8 @@ def multipolygon_operation(uri,
                            max_proc_per_poly=4,
                            allow_empty=True):
 
-    if in_parallel is True and allow_empty is True:
-        raise(NotImplementedError('in parallel empty intersections not ready.'))
+#    if in_parallel is True and allow_empty is True:
+#        raise(NotImplementedError('in parallel empty intersections not ready.'))
     
     ## make the sure the polygon object is iterable
     if polygons is None:
@@ -87,7 +101,7 @@ def multipolygon_operation(uri,
         out = mp.Manager().list()
         args = []
         for polygon in polygons:
-            arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union,subpoly_proc]
+            arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union,subpoly_proc,allow_empty]
             args.append(arg)
         ## process list
         processes = [mp.Process(target=f_put,args=(out,arg)) for arg in args]

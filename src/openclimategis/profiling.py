@@ -17,6 +17,8 @@ from sqlalchemy.orm import relationship
 import re
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.expression import func
+import time
 sys.path.append('/home/bkoziol/Dropbox/UsefulScripts/python')
 import shpitr
 
@@ -60,7 +62,7 @@ def f(polygons):
                                                    calendar='proleptic_gregorian',
                                                    time_units='days since 1950-01-01 00:00:0.0'),
                                      polygons=polygons,
-                                     time_range=[datetime.datetime(2011,11,1),datetime.datetime(2012,12,31)],
+                                     time_range=[datetime.datetime(2011,11,1),datetime.datetime(2031,11,30)],
                                      level_range=None,
                                      clip=True,
                                      union=True,
@@ -71,7 +73,7 @@ def f(polygons):
         csv = LinkedCsvConverter(sub,'foo')
         out = csv.convert(None)
 
-def analyze(drop=False):
+def analyze(data,drop=False,load=False):
     
     engine = create_engine('sqlite:////home/bkoziol/tmp/profiling.sqlite')
     metadata = MetaData(bind=engine)
@@ -122,46 +124,80 @@ def analyze(drop=False):
         scenario = relationship(Scenario)
         function = relationship(Function)
         
-    if drop: metadata.drop_all(checkfirst=True)
-    metadata.create_all(checkfirst=True)
+        def report(self,total):
+            msg = [self.scenario.name]
+            try:
+                msg.append(self.filename.name)
+            except AttributeError:
+                msg.append('')
+            msg.append(self.function.name)
+            msg.append(str(self.tottime))
+            msg.append(str(self.tottime/float(total)))
+            msg.append(str(total))
+            return(','.join(msg))
+        
+        @staticmethod
+        def report_headers():
+            return('scenario,filename,function,tottime,perctime,exetime')
     
-    s = Session()
-    for kwds in data:
-        with open(kwds['name'],'r') as out:
-            data = out.read()
-        profiles = re.split('finished ::.*',data)
-        profiles = profiles[0:-1]
-        for profile in profiles:
-            profile = profile.strip()
-            scenario_name = re.match('starting :: (.*)',profile).group(1)
-            scenario = Scenario.get_or_create(s,dict(name=scenario_name))
-            table = re.match('.*lineno\(function\)(.*)',profile,flags=re.DOTALL).group(1).strip()
-            lines = re.split('\n',table)
-            for line in lines:
-                line = line.strip()
-    #            print line
-                elements = re.split('  {2,}',line)
-                if '{' in line and '}' in line:
-                    filename = None
-                else:
-                    filename_name = re.match('.* (.*):.*',elements[4]).group(1)
-                    filename = FileName.get_or_create(s,dict(name=filename_name))
-                rm = re.match('.*\((.*)\)|.*{(.*)}',elements[4])
-                if rm.group(1) is None:
-                    function_name = rm.group(2)
-                else:
-                    function_name = rm.group(1)
-                function = Function.get_or_create(s,dict(name=function_name))
-                obj = Profile()
-                obj.ncalls = elements[0]
-                obj.tottime = elements[1]
-                obj.percall = elements[2]
-                obj.cumtime = elements[3]
-                obj.filename = filename
-                obj.scenario = scenario
-                obj.function = function
-                s.add(obj)
-    s.commit()
+    if load:
+        if drop: metadata.drop_all(checkfirst=True)
+        metadata.create_all(checkfirst=True)
+        
+        s = Session()
+        for kwds in data:
+            with open(os.path.join('/home/bkoziol/tmp',kwds['name']+'.txt'),'r') as out:
+                txt = out.read()
+            profiles = re.split('finished ::.*',txt)
+            profiles = profiles[0:-1]
+            for profile in profiles:
+                profile = profile.strip()
+                scenario_name = re.match('starting :: (.*)',profile).group(1)
+                scenario = Scenario.get_or_create(s,dict(name=scenario_name))
+                table = re.match('.*lineno\(function\)(.*)',profile,flags=re.DOTALL).group(1).strip()
+                lines = re.split('\n',table)
+                for line in lines:
+                    line = line.strip()
+        #            print line
+                    elements = re.split(' {2,}',line)
+                    if '{' in line and '}' in line:
+                        filename = None
+                    else:
+                        try:
+                            filename_name = re.match('.* (.*):.*',elements[4]).group(1)
+                        except:
+                            import ipdb;ipdb.set_trace()
+                        filename = FileName.get_or_create(s,dict(name=filename_name))
+                    rm = re.match('.*\((.*)\)|.*{(.*)}',elements[4])
+                    if rm.group(1) is None:
+                        function_name = rm.group(2)
+                    else:
+                        function_name = rm.group(1)
+                    function = Function.get_or_create(s,dict(name=function_name))
+                    obj = Profile()
+                    obj.ncalls = elements[0]
+                    obj.tottime = elements[1]
+                    obj.percall = elements[2]
+                    obj.cumtime = elements[3]
+                    obj.filename = filename
+                    obj.scenario = scenario
+                    obj.function = function
+                    s.add(obj)
+        s.commit()
+    else:
+        s = Session()
+        print(Profile.report_headers())
+        for scenario in s.query(Scenario):
+            ## get the total time
+            total = s.query(func.sum(Profile.tottime)).filter_by(scenario=scenario)
+            total = total.one()[0]
+            ## get the top ten time things
+            top = s.query(Profile).filter_by(scenario=scenario)
+            top = top.order_by(Profile.tottime.desc())
+            top = top.limit(10)
+            for obj in top:
+                print obj.report(total)
+        import ipdb;ipdb.set_trace()
 
 if __name__ == '__main__':
     for data_kwds in data:
@@ -169,9 +205,12 @@ if __name__ == '__main__':
         polygons = get_polygons(data_kwds['path'],
                                 data_kwds['fields'],
                                 data_kwds['filter'])
-        cProfile.run('f(polygons)','/tmp/foo')
-        stats = pstats.Stats('/tmp/foo')
-        stats.sort_stats('time')
-        stats.strip_dirs()
-        stats.print_stats()
+        t1 = time.time()
+        f(polygons)
+#        cProfile.run('f(polygons)','/tmp/foo')
+#        stats = pstats.Stats('/tmp/foo')
+#        stats.sort_stats('time')
+#        stats.strip_dirs()
+#        stats.print_stats()
+        print(time.time()-t1)
         print('finished :: '+data_kwds['name'])

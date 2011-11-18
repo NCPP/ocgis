@@ -4,7 +4,7 @@ import os
 from osgeo import ogr
 import warnings
 from util.ncconv.experimental.ocg_converter import ShpConverter, KmlConverter,\
-    CsvConverter, LinkedCsvConverter
+    CsvConverter, LinkedCsvConverter, LinkedShpConverter
 import cProfile
 import pstats
 import sys
@@ -34,14 +34,14 @@ data = [
              path='/home/bkoziol/Dropbox/OpenClimateGIS/watersheds_4326.shp',
              filter=filter_huron,
              fields=['HUCNAME']),
-        dict(name='mi_huc8_watershed',
-             path='/home/bkoziol/Dropbox/OpenClimateGIS/watersheds_4326.shp',
-             filter=None,
-             fields=[]),
-        dict(name='state_boundaries',
-             path='/home/bkoziol/Dropbox/OpenClimateGIS/state_boundaries.shp',
-             filter=None,
-             fields=[])
+#        dict(name='mi_huc8_watershed',
+#             path='/home/bkoziol/Dropbox/OpenClimateGIS/watersheds_4326.shp',
+#             filter=None,
+#             fields=[]),
+#        dict(name='state_boundaries',
+#             path='/home/bkoziol/Dropbox/OpenClimateGIS/state_boundaries.shp',
+#             filter=None,
+#             fields=[])
         ]
 
 def get_polygons(path,fields,filter):
@@ -68,10 +68,11 @@ def f(polygons):
                                      union=True,
                                      in_parallel=False,
                                      max_proc=8,
-                                     max_proc_per_poly=2)
+                                     max_proc_per_poly=1)
         assert(sub.value.shape[2] > 0)
-        csv = LinkedCsvConverter(sub,'foo')
-        out = csv.convert(None)
+        lshp = LinkedShpConverter(sub,'foo')
+        out = lshp.convert(None)
+        print(out)
 
 def analyze(data,drop=False,load=False):
     

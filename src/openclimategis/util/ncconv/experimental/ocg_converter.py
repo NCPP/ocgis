@@ -255,7 +255,7 @@ class KmlConverter(OcgConverter):
             url_kmz=url.replace('.kml', '.kmz'),
             url_shz=url.replace('.kml', '.shz'),
             url_csv=url.replace('.kml', '.csv'),
-            url_json=url.replace('.kml', '.json'),
+            url_json=url.replace('.kml', '.geojson'),
         )
         
         doc = KML.kml(

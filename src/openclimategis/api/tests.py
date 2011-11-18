@@ -70,6 +70,7 @@ class TestUrls(TestCase):
             '/api/variables/pr',
             '/api/simulations',
             '/api/simulations/1',
+            '/api/aois',
         ]
         suffixes = [
             '',
@@ -491,6 +492,19 @@ class TestFileUpload(TestCase):
             )
         self.assertTrue('The AOI code provided is invalid' in response.content)
 
+    def test_upload_kml(self):
+        '''Tests uploading a KML file'''
+        with open('src/openclimategis/api/testdata/testfile.kml') as f:
+            response = self.client.post(
+                '/api/shpupload.html',
+                {'code': 'TESTCODE', 
+                 #'objectid': None,
+                 'filefld': f},
+            )
+        self.assertEqual(
+            response.content,
+            'Upload successful. Your geometry code is: <b>TESTCODE</b>'
+        )
 
 if __name__ == '__main__':
     unittest.main()

@@ -1203,5 +1203,13 @@
       "variable": 2,
       "archive": 1
     }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "code": "test_aoi",
+      "geom": "MULTIPOLYGON (((-116.0 33.0, -116.1 33.0, -116.1 33.1, -116.0 33.0)))"
+    }
   }
 ]

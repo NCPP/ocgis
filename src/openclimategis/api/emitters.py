@@ -95,6 +95,11 @@ class ShapefileEmitter(SubOcgDataEmitter):
     """
     __converter__ = ocg_converter.ShpConverter
     __file_ext__ = '.shp'
+    
+    
+class LinkedShapefileEmitter(SubOcgDataEmitter):
+    __converter__ = ocg_converter.LinkedShpConverter
+    __file_ext__ = '.lshz'
 
 
 class KmlEmitter(SubOcgDataEmitter):
@@ -165,6 +170,7 @@ class LinkedCsvEmitter(SubOcgDataEmitter):
 
 #Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
+Emitter.register('lshz',LinkedShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')
 Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
 Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')

@@ -30,6 +30,7 @@ CHOICES_EXT = [
     ('csv','Comma Separated Value'),
     ('kcsv','Linked Comma Separated Value (zipped)'),
     ('shz','ESRI Shapefile (zipped)'),
+    ('lshz','CSV-Linked ESRI Shapefile (zipped)'),
     ('kml','Keyhole Markup Language'),
     ('kmz','Keyhole Markup Language (zipped)'),
 ]

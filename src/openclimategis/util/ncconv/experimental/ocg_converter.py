@@ -129,15 +129,25 @@ class CsvConverter(OcgConverter):
     
 class LinkedCsvConverter(CsvConverter):
     
-    def _convert_(self,request):
-        ## create the database
-        db = self.sub_ocg_dataset.as_sqlite()
+    def __init__(self,*args,**kwds):
+        self._db = None
+        super(LinkedCsvConverter,self).__init__(*args,**kwds)
+        
+    @property
+    def db(self):
+        if self._db is None:
+            self._db = self.sub_ocg_dataset.as_sqlite()
+        return(self._db)
+    
+    def _convert_(self,request,tables=['Geometry','Time','Value'],include_wkt=True):
         ## database tables to write
-        tables = [db.Geometry,db.Time,db.Value]
+        tables = [getattr(self.db,tbl) for tbl in tables]
         ## generate the info for writing
         info = []
         for table in tables:
             headers = [h.upper() for h in table.__mapper__.columns.keys()]
+            if table == self.db.Geometry and not include_wkt:
+                headers.remove('WKT')
             arcname = '{0}_{1}.csv'.format(self.base_name,table.__tablename__)
             buffer = io.BytesIO()
             writer = self.get_DictWriter(buffer,
@@ -148,7 +158,7 @@ class LinkedCsvConverter(CsvConverter):
                              table=table,
                              buffer=buffer))
         ## write the tables
-        s = db.Session()
+        s = self.db.Session()
         try:
             for i in info:
                 ## loop through each database record
@@ -389,19 +399,29 @@ class ShpConverter(OcgConverter):
         ## create shapefile base attributes
         self.fcache = FieldCache()
         self.ogr_fields = []
-        self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
-        self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
-        self.ogr_fields.append(OgrField(self.fcache,'level',int))
-        self.ogr_fields.append(OgrField(self.fcache,'value',float))
-        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
+        self._set_ogr_fields_()
         
         ## get the geometry in order
 #        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
         self.ogr_geom = 6 ## assumes multipolygon
         self.srs = osr.SpatialReference()
         self.srs.ImportFromEPSG(self.srid)
+    
+    def _set_ogr_fields_(self):
+        ## create shapefile base attributes
+        self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
+        self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
+        self.ogr_fields.append(OgrField(self.fcache,'level',int))
+        self.ogr_fields.append(OgrField(self.fcache,'value',float))
+        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
         
-    def _convert_(self,request):
+    def _get_iter_(self):
+        ## returns an iterator instance that generates a dict to match
+        ## the ogr field mapping. must also return a geometry wkt attribute.
+        return(self.sub_ocg_dataset.iter_with_area())
+        
+    def _convert_(self,request,geom_is_shapely=True):
+        """is "geom_is_shapely" is False, then it must be WKT."""
         dr = ogr.GetDriverByName('ESRI Shapefile')
         ds = dr.CreateDataSource(self.path)
         if ds is None:
@@ -414,7 +434,7 @@ class ShpConverter(OcgConverter):
                 
         feature_def = layer.GetLayerDefn()
         
-        for ii,attr in enumerate(self.sub_ocg_dataset.iter_with_area(),start=1):
+        for ii,attr in enumerate(self._get_iter_(),start=1):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
@@ -428,7 +448,11 @@ class ShpConverter(OcgConverter):
                 except NotImplementedError:
                     args[1] = str(args[1])
                     feat.SetField(*args)
-            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['geometry'].wkt)))
+            if geom_is_shapely:
+                wkt = attr['geometry'].wkt
+            else:
+                wkt = attr['geometry']
+            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(wkt)))
             check_err(layer.CreateFeature(feat))
             
         return(self.path)
@@ -445,6 +469,56 @@ class ShpConverter(OcgConverter):
         buffer.close()
         return(zip_stream)
     
+    
+class LinkedShpConverter(ShpConverter):
+    
+    def __init__(self,*args,**kwds):
+        args = list(args)
+        args[1] = os.path.splitext(args[1])[0]+'.shp'
+        super(LinkedShpConverter,self).__init__(*args,**kwds)
+    
+    def _convert_(self,request):
+        ## get the payload dictionary from the linked csv converter. we also
+        ## want to store the database module.
+        lcsv = LinkedCsvConverter(self.sub_ocg_dataset,os.path.splitext(self.base_name)[0])
+        self.db = lcsv.db
+        info = lcsv._convert_(request,include_wkt=False)
+        ## get the shapefile path (and write in the process)
+        path = super(LinkedShpConverter,self)._convert_(request,geom_is_shapely=False)
+        return(info,path)
+        
+    def _response_(self,payload):
+        info,path = payload
+        buffer = io.BytesIO()
+        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
+        for item in self.__exts__:
+            filepath = path.replace('shp',item)
+            zip.write(filepath,arcname='shp/'+os.path.split(filepath)[1])
+        for ii in info:
+            zip.writestr('csv/'+ii['arcname'],ii['buffer'].getvalue())
+        zip.close()
+        buffer.flush()
+        zip_stream = buffer.getvalue()
+        buffer.close()
+        return(zip_stream)
+
+        
+    def _get_iter_(self):
+        def lcsv_iter():
+            s = self.db.Session()
+            try:
+                for obj in s.query(self.db.Geometry).all():
+                    yield(dict(gid=obj.gid,
+                               geometry=obj.wkt,
+                               area_m2=obj.area_m2))
+            finally:
+                s.close()
+        return(lcsv_iter())
+
+    def _set_ogr_fields_(self):
+        ## create shapefile base attributes
+        self.ogr_fields.append(OgrField(self.fcache,'gid',int))
+        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
 
 class OgrField(object):
     """

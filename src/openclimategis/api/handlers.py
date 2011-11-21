@@ -90,51 +90,11 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.query.climate_model = InQuerySlug(climatedata.models.ClimateModel,'model',possible=qdict,code_field='urlslug').value
         self.ocg.query.scenario = InQuerySlug(climatedata.models.Scenario,'scenario',possible=qdict,code_field='urlslug').value
         self.ocg.query.variable = InQuerySlug(climatedata.models.Variable,'variable',possible=qdict,code_field='urlslug').value
-#        print(self.ocg.query)
-#        possible_filters = [
-#            {
-#                'param':'archive', 
-#                'field': 'archive',
-#                'data model': climatedata.models.Archive,
-#            },
-#            {
-#                'param':'model',
-#                'field':'climate_model',
-#                'data model': climatedata.models.ClimateModel,
-#            },
-#            {
-#                'param':'scenario',
-#                'field':'scenario',
-#                'data model': climatedata.models.Scenario,
-#            },
-#            {
-#                'param':'variable',
-#                'field':'variable',
-#                'data model': climatedata.models.Variable,
-#            },
-#        ]
-#        
-#        # construct a list of filter strings
-#        filter_list = []
-#        for filt in possible_filters:
-#            if len(qdict.getlist(filt['param'])) > 0:
-#                filter_list.append(
-#                    '{field}__in={inlist}'.format(
-#                        field=filt['field'],
-#                        inlist=[
-#                            filt['data model'].objects.get(
-#                                urlslug=item
-#                            ).pk for item in qdict.getlist(filt['param'])
-#                        ],
-#                    )
-#                )
-#        self.ocg.filter_list = filter_list
-    
     
     def _parse_slugs_(self,kwds):
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value
-        self.ocg.aggregate = AggregateSlug('aggregate',possible=kwds).value
+        self.ocg.aggregate = BooleanSlug('aggregate',possible=kwds).value
         self.ocg.operation = OperationSlug('operation',possible=kwds).value
         self.ocg.html_template = OcgSlug('html_template',possible=kwds).value
         self.ocg.run = IntegerSlug('run',possible=kwds).value
@@ -300,21 +260,13 @@ class SpatialHandler(OpenClimateHandler):
         else:
             clip = False
         
-        ## check polygon sequence   
-        if isinstance(self.ocg.aoi,Polygon):
-            polygons = [self.ocg.aoi]
-        elif isinstance(self.ocg.aoi,MultiPolygon):
-            polygons = [poly for poly in self.ocg.aoi]
-        else:
-            polygons = None
-        
         ## choose extraction mode and pull data appropriately.
 
         if self.__mode__ == 'single':
             sub = multipolygon_operation(dataset.uri,
                                          self.ocg.simulation_output.netcdf_variable.code,
                                          ocg_opts=kwds,
-                                         polygons=polygons,
+                                         polygons=self.ocg.aoi,
                                          time_range=self.ocg.temporal,
                                          level_range=None, 
                                          clip=clip,
@@ -325,7 +277,7 @@ class SpatialHandler(OpenClimateHandler):
             sub = multipolygon_operation(dataset.uri,
                                          self.ocg.simulation_output.netcdf_variable.code,
                                          ocg_opts=kwds,
-                                         polygons=polygons,
+                                         polygons=self.ocg.aoi,
                                          time_range=self.ocg.temporal,
                                          level_range=None, 
                                          clip=clip,

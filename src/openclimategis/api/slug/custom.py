@@ -13,7 +13,7 @@ class PolygonSlug(OcgSlug):
         except ValueError:
             obj = UserGeometryData.objects.filter(code=self.url_arg)
             ret = wkt.loads(obj[0].geom.wkt)
-        return(ret)
+        return([ret])
     
     
 class OperationSlug(OcgSlug):
@@ -26,12 +26,3 @@ class OperationSlug(OcgSlug):
         else:
             self.exception_()
         return(ret)
-
-
-class AggregateSlug(BooleanSlug):
-    """
-    >>> agg = AggregateSlug('aggregate',url_arg='T')
-    >>> print(agg)
-    aggregate=True
-    """
-    pass

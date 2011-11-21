@@ -165,19 +165,27 @@ class ShpIterator(object):
         finally:
             ds.Destroy()
             
-def get_shp_as_multi(path):
+def get_shp_as_multi(path,uid_field=None):
+    """
+    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
+    >>> uid_field = 'objectid'
+    >>> ret = get_shp_as_multi(path,uid_field)
+    """
+    if uid_field is None or uid_field == '':
+        uid_field = []
+    else:
+        uid_field = [str(uid_field)]
     shpitr = ShpIterator(path)
-    polygons = []
-    for feat in shpitr.iter_features([]):
-        geom = wkt.loads(feat['geom'])
-        if isinstance(geom,MultiPolygon):
-            polygons += [poly for poly in geom]
-        else:
-            polygons.append(geom)
-    multi = MultiPolygon(polygons)
-#    import ipdb;ipdb.set_trace()
-#    assert(multi.is_valid)
-    return(multi.wkt)
+    data = [feat for feat in shpitr.iter_features(uid_field)]
+    ## check the WKT is a polygon and the unique identifier is a unique integer
+    uids = []
+    for feat in data:
+        assert('POLYGON' in feat['geom'])
+        if len(uid_field) > 0:
+            assert(isinstance(feat[uid_field[0]],int))
+            uids.append(feat[uid_field[0]])
+    assert(len(uids) == len(set(uids)))
+    return(data)
         
 
 if __name__ == '__main__':

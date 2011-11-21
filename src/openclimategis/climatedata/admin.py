@@ -49,8 +49,8 @@ class ArchiveAdmin(admin.ModelAdmin):
     list_display = ('code','url','name',)
 
 
-class UserGeometryDataAdmin(admin.ModelAdmin):
-    list_display = ('code','desc',)
+#class UserGeometryDataAdmin(admin.ModelAdmin):
+#    list_display = ('code','desc',)
 
 
 class SimulationOutputAdmin(admin.ModelAdmin):
@@ -72,5 +72,5 @@ admin.site.register(Scenario, ScenarioAdmin)
 admin.site.register(ClimateModel, ClimateModelAdmin)
 admin.site.register(Variable, VariableAdmin)
 admin.site.register(Archive, ArchiveAdmin)
-admin.site.register(UserGeometryData, UserGeometryDataAdmin)
+#admin.site.register(UserGeometryData, UserGeometryDataAdmin)
 admin.site.register(SimulationOutput, SimulationOutputAdmin)

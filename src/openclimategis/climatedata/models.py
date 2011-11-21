@@ -8,10 +8,17 @@ class AbstractGeoManager(models.Model):
         abstract = True
 
 
-class UserGeometryData(AbstractGeoManager):
-    """holds user uploaded geometries"""
+class UserGeometryMetadata(AbstractGeoManager):
+    """holds metdata for user-uploaded geometries"""
     code = models.CharField(max_length=50,unique=True,null=False,blank=False)
     desc = models.TextField()
+    uid_field = models.CharField(max_length=50)
+
+
+class UserGeometryData(AbstractGeoManager):
+    """holds user uploaded geometries"""
+    gid = models.IntegerField(null=True)
+    user_meta = models.ForeignKey(UserGeometryMetadata)
     geom = models.MultiPolygonField(srid=4326)
 
 

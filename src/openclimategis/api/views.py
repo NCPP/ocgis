@@ -12,10 +12,12 @@ import pdb
 import os
 import zipfile
 from util.ncconv.experimental.helpers import get_wkt_from_shp, get_shp_as_multi
-from climatedata.models import UserGeometryData
+from climatedata.models import UserGeometryData, UserGeometryMetadata
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
+from climatedata import models
+from django.db import transaction
 
 
 CHOICES_AGGREGATE = [
@@ -159,10 +161,10 @@ class UploadShapefileForm(forms.Form):
         label='AOI Code',
         help_text='Code by which a user refers to an AOI.'
     )
-    objectid = forms.IntegerField(
-        label='ObjectID',
+    uid_field = forms.CharField(
+        label='UID Field',
         required=False,
-        help_text='This is used to select a particular feature from a Shapefile.'
+        help_text='This is used to extract a unique identifier from your uploaded data.'
     )
     
     def clean_code(self):
@@ -176,7 +178,7 @@ class UploadShapefileForm(forms.Form):
             )
         
         # check if the code has already been used
-        if len(UserGeometryData.objects.filter(code=data)) > 0:
+        if len(UserGeometryMetadata.objects.filter(code=data)) > 0:
             raise forms.ValidationError(
                 'The AOI code provided is already being used. '
                 'Please provide a different code.'
@@ -186,7 +188,8 @@ class UploadShapefileForm(forms.Form):
         # not.
         return data
     
-    
+
+@transaction.commit_on_success
 def display_shpupload(request):
     if request.method == 'POST':
         form = UploadShapefileForm(request.POST,request.FILES)
@@ -194,47 +197,47 @@ def display_shpupload(request):
             ## write the file to disk and extract WKT
             wkt = handle_uploaded_file(
                 request.FILES['filefld'],
-                form.cleaned_data['objectid'],
+                form.cleaned_data['uid_field'],
             )
             
-            # if WKT is a list, just use the first item
-            if isinstance(wkt, list):
-                wkt = wkt[0]
-                #wkt = wkt.replace(' 0,',',')
-                poly = shapely_wkt.loads(wkt)
-                wkt = poly.wkt
-                
-            ## convert from wkt to multipolygon and save to database
-            geom = GEOSGeometry(wkt,srid=4326)
-            if isinstance(geom,Polygon):
-                geom = MultiPolygon([geom])
-            obj = UserGeometryData(
-                code=form.cleaned_data['code'],
-                geom=geom,
-            )
-            obj.save()
+            ## loop through the dictionary list and store the data. first, create
+            ## the metadata object.
+            meta = models.UserGeometryMetadata(code=form.cleaned_data['code'],
+                                               uid_field=form.cleaned_data['uid_field'])
+            meta.save()
+            ## next insert the geometries
+            for feat in wkt:
+                geom = GEOSGeometry(feat['geom'],srid=4326)
+                if isinstance(geom,Polygon):
+                    geom = MultiPolygon([geom])
+                ## extract the user-provided unique identifier if passed
+                obj = models.UserGeometryData(user_meta=meta,
+                                              gid=feat.get(form.cleaned_data['uid_field']),
+                                              geom=geom)
+                obj.save()
+            
             ## return a success message to the user
             # TODO: redirect to a page listing the AOIs
 #            return(HttpResponse((
 #                'Upload successful. '
 #                'Your geometry code is: <b>{0}</b>').format(obj.code)
 #            ))
-            return redirect('/api/aois/{0}.html'.format(obj.code))
+            return redirect('/api/aois/{0}.html'.format(meta.code))
     else:
         form = UploadShapefileForm()
     return(render_to_response('shpupload.html', {'form': form}))
 
-def handle_uploaded_file(filename,objectid):
+def handle_uploaded_file(filename,uid_field=None):
     
     if filename.content_type == 'application/zip':
-        return handle_uploaded_shapefile(filename)
+        return handle_uploaded_shapefile(filename,uid_field)
     elif filename.content_type == 'application/vnd.google-earth.kml+xml':
-        return handle_uploaded_kmlfile(filename,objectid)
+        return handle_uploaded_kmlfile(filename,uid_field)
     else:
         # TODO: handle bad file types
         pass
     
-def handle_uploaded_shapefile(filename):
+def handle_uploaded_shapefile(filename,uid_field=None):
     
     path = get_temp_path(nest=True,suffix='.zip')
     dir = os.path.split(path)[0]
@@ -253,8 +256,8 @@ def handle_uploaded_shapefile(filename):
         if f.endswith('.shp'):
             break
     ## extract the wkt
-    wkt = get_shp_as_multi(os.path.join(dir,f))
-    return(wkt)
+    wkt_data = get_shp_as_multi(os.path.join(dir,f),uid_field=uid_field)
+    return(wkt_data)
 
 
 def handle_uploaded_kmlfile(filename,objectid):

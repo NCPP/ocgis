@@ -40,4 +40,8 @@
     {% endif %}
     </tbody>
     </table>
+    
+    {% if is_collection %}
+        <p><a href="{% url shpupload_form %}">Upload Custom AOI</a></p>
+    {% endif %}
 {% endblock content %}

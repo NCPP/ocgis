@@ -2,6 +2,7 @@ from django import forms
 #from climatedata import models
 from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
+from django.shortcuts import redirect
 from django.core.exceptions import ValidationError
 #from django.core.context_processors import csrf
 from django.template.context import RequestContext
@@ -151,7 +152,7 @@ class UploadShapefileForm(forms.Form):
 #    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
 
     filefld = forms.FileField(
-        label='Zipped Shapefile',
+        label='Zipped Shapefile or KML File',
         validators=[validate_zipfile],
     )
     code = forms.CharField(
@@ -214,10 +215,11 @@ def display_shpupload(request):
             obj.save()
             ## return a success message to the user
             # TODO: redirect to a page listing the AOIs
-            return(HttpResponse((
-                'Upload successful. '
-                'Your geometry code is: <b>{0}</b>').format(obj.code)
-            ))
+#            return(HttpResponse((
+#                'Upload successful. '
+#                'Your geometry code is: <b>{0}</b>').format(obj.code)
+#            ))
+            return redirect('/api/aois/{0}.html'.format(obj.code))
     else:
         form = UploadShapefileForm()
     return(render_to_response('shpupload.html', {'form': form}))

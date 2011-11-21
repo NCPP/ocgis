@@ -5,7 +5,7 @@
     {% if is_collection %}
     > Area-of-Interest (AOI)
     {% else %}
-    > <a href="{% url scenario_list %}">Area-of-Interest (AOI)</a> 
+    > <a href="{% url aoi_list %}">Area-of-Interest (AOI)</a> 
     > {% for listitem in data %}{{ listitem.code }}{% endfor %}
     {% endif %}
 {% endblock title %}
@@ -34,7 +34,7 @@
             </tr>
             <tr>
                 <th>Geometry (WKT)</th>
-                <td>{{ listitem.geom.wkt }}</td>
+                <td>{{ listitem.geom }}</td>
             </tr>
         {% endfor %}
     {% endif %}

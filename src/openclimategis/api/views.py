@@ -2,10 +2,11 @@ from django import forms
 #from climatedata import models
 from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
+from django.shortcuts import redirect
 from django.core.exceptions import ValidationError
 #from django.core.context_processors import csrf
 from django.template.context import RequestContext
-from shapely import wkt
+from shapely import wkt as shapely_wkt
 from util.helpers import reverse_wkt, get_temp_path
 import pdb
 import os
@@ -54,11 +55,11 @@ def get_SpatialQueryForm(simulation_output):
         def clean(self,value):
             ## check the geometry is valid
             try:
-                geom = wkt.loads(value)
+                geom = shapely_wkt.loads(value)
             except:
                 raise(ValidationError('Unable to parse WKT.'))
             ## check that spatial operations will return data
-            ogeom = wkt.loads(dataset.spatial_extent.wkt)
+            ogeom = shapely_wkt.loads(dataset.spatial_extent.wkt)
             if not geom.intersects(ogeom):
                 raise(ValidationError('Input geometry will return an empty intersection.'))
             ## convert WKT to a format acceptable for the URL
@@ -143,15 +144,15 @@ def display_spatial_query(request):
 ## SHAPEFILE UPLOAD ------------------------------------------------------------
 
 def validate_zipfile(value):
-    if not os.path.splitext(value.name)[1] == '.zip':
-        raise(ValidationError("File extension not '.zip'"))
+    if not os.path.splitext(value.name)[1] in ['.zip','.kml','.kmz']:
+        raise(ValidationError("File extension not '.zip or .kml or .kmz'"))
 
 
 class UploadShapefileForm(forms.Form):
 #    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
 
     filefld = forms.FileField(
-        label='Zipped Shapefile',
+        label='Zipped Shapefile or KML File',
         validators=[validate_zipfile],
     )
     code = forms.CharField(
@@ -195,6 +196,14 @@ def display_shpupload(request):
                 request.FILES['filefld'],
                 form.cleaned_data['objectid'],
             )
+            
+            # if WKT is a list, just use the first item
+            if isinstance(wkt, list):
+                wkt = wkt[0]
+                #wkt = wkt.replace(' 0,',',')
+                poly = shapely_wkt.loads(wkt)
+                wkt = poly.wkt
+                
             ## convert from wkt to multipolygon and save to database
             geom = GEOSGeometry(wkt,srid=4326)
             if isinstance(geom,Polygon):
@@ -206,10 +215,11 @@ def display_shpupload(request):
             obj.save()
             ## return a success message to the user
             # TODO: redirect to a page listing the AOIs
-            return(HttpResponse((
-                'Upload successful. '
-                'Your geometry code is: <b>{0}</b>').format(obj.code)
-            ))
+#            return(HttpResponse((
+#                'Upload successful. '
+#                'Your geometry code is: <b>{0}</b>').format(obj.code)
+#            ))
+            return redirect('/api/aois/{0}.html'.format(obj.code))
     else:
         form = UploadShapefileForm()
     return(render_to_response('shpupload.html', {'form': form}))
@@ -218,8 +228,10 @@ def handle_uploaded_file(filename,objectid):
     
     if filename.content_type == 'application/zip':
         return handle_uploaded_shapefile(filename)
+    elif filename.content_type == 'application/vnd.google-earth.kml+xml':
+        return handle_uploaded_kmlfile(filename,objectid)
     else:
-        dummy=1
+        # TODO: handle bad file types
         pass
     
 def handle_uploaded_shapefile(filename):
@@ -243,3 +255,18 @@ def handle_uploaded_shapefile(filename):
     ## extract the wkt
     wkt = get_shp_as_multi(os.path.join(dir,f))
     return(wkt)
+
+
+def handle_uploaded_kmlfile(filename,objectid):
+    from pykml import parser
+    from pykml.util import to_wkt_list
+    
+    # check if the file is too large
+    if filename.size >= filename.DEFAULT_CHUNK_SIZE:
+        raise IOError
+    # parse the incoming file
+    doc = parser.fromstring(filename.read())
+    # look for geometries
+    wkt_list = to_wkt_list(doc)
+    
+    return(wkt_list)

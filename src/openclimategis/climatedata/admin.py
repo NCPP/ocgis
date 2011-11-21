@@ -13,6 +13,7 @@ from climatedata.models import Scenario
 from climatedata.models import ClimateModel
 from climatedata.models import Variable
 from climatedata.models import Archive
+from climatedata.models import UserGeometryData
 from climatedata.models import SimulationOutput
 
 class NetcdfDatasetAdmin(admin.ModelAdmin):
@@ -48,6 +49,10 @@ class ArchiveAdmin(admin.ModelAdmin):
     list_display = ('code','url','name',)
 
 
+class UserGeometryDataAdmin(admin.ModelAdmin):
+    list_display = ('code','desc',)
+
+
 class SimulationOutputAdmin(admin.ModelAdmin):
     list_display = ('id','scenario','climate_model','variable','run','archive',)
     list_filter = ['archive','scenario','climate_model','variable',]
@@ -67,4 +72,5 @@ admin.site.register(Scenario, ScenarioAdmin)
 admin.site.register(ClimateModel, ClimateModelAdmin)
 admin.site.register(Variable, VariableAdmin)
 admin.site.register(Archive, ArchiveAdmin)
+admin.site.register(UserGeometryData, UserGeometryDataAdmin)
 admin.site.register(SimulationOutput, SimulationOutputAdmin)

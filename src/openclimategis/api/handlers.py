@@ -101,6 +101,7 @@ class OpenClimateHandler(BaseHandler):
         
         self.ocg.variable = IExactQuerySlug(models.Variable,'variable',possible=kwds,one=True).value
         self.ocg.scenario = IExactQuerySlug(models.Scenario,'scenario',possible=kwds,one=True,code_field='urlslug').value
+        #self.ocg.useraoi = IExactQuerySlug(models.UserGeometryData,'aoi',possible=kwds,one=False).value
         self.ocg.archive = IExactQuerySlug(models.Archive,'archive',possible=kwds,one=True,code_field='urlslug').value
         self.ocg.climate_model = IExactQuerySlug(models.ClimateModel,'model',possible=kwds,one=True,code_field='urlslug').value
         
@@ -123,7 +124,7 @@ class OpenClimateHandler(BaseHandler):
 
 
 class NonSpatialHandler(OpenClimateHandler):
-     
+    
     def _read_(self,request):
         try:
             urlslug = request.url_args['urlslug']
@@ -213,6 +214,19 @@ class SimulationOutputHandler(NonSpatialHandler):
 #                    query = eval('query.filter({item})'.format(item=item))
 #            query = query.all()
         return(ret)
+
+
+class AoiHandler(NonSpatialHandler):
+    model = UserGeometryData
+    exclude = ()
+    
+    def _read_(self,request):
+        try:
+            code = request.url_args['code']
+            query = self.model.objects.filter(code__iexact=str(code))
+        except:
+            query = self.model.objects.all()
+        return query
 
 
 class QueryHandler(NonSpatialHandler):

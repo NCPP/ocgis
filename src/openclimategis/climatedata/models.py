@@ -10,7 +10,8 @@ class AbstractGeoManager(models.Model):
 
 class UserGeometryData(AbstractGeoManager):
     """holds user uploaded geometries"""
-    code = models.CharField(max_length=50,unique=True)
+    code = models.CharField(max_length=50,unique=True,null=False,blank=False)
+    desc = models.TextField()
     geom = models.MultiPolygonField(srid=4326)
 
 

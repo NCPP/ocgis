@@ -123,6 +123,7 @@ def get_wkt_from_shp(path,objectid,layer_idx=0):
         else:
             sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
         data = ds.ExecuteSQL(sql)
+        #import pdb; pdb.set_trace()
         feat = data.GetNextFeature()
         geom = feat.GetGeometryRef()
         wkt = geom.ExportToWkt()

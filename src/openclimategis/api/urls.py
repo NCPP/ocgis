@@ -10,6 +10,7 @@ climatemodel_handler = Resource(handlers.ClimateModelHandler)
 scenario_handler = Resource(handlers.ScenarioHandler)
 variable_handler = Resource(handlers.VariableHandler)
 simulationoutput_handler = Resource(handlers.SimulationOutputHandler)
+usergeometrydata_handler = Resource(handlers.AoiHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 query_handler = Resource(handlers.QueryHandler)
 shpupload_handler = Resource(handlers.ShpUploadHandler)
@@ -40,6 +41,7 @@ re_aggregate = 'aggregate/(?P<aggregate>true|false)'
 re_variable = 'variable/(?P<variable>.*)'
 re_format = '\.(?P<emitter_format>.*)'
 re_urlslug = '(?P<urlslug>[\.\(\)A-Za-z0-9_-]+)'
+re_code = '(?P<code>[\.\(\)A-Za-z0-9_-]+)'
 re_id = '(?P<id>\d+)'
 
 urlpatterns = patterns('',
@@ -350,6 +352,58 @@ urlpatterns = patterns('',
             'is_collection':False,
         },
         name='simulation_single',
+    ),
+
+### AREA OF INTEREST (USER GEOMETRY DATA) ------------------------------------
+
+    # collection of AOI resources
+    url(
+        (r'^aois{re_format}$').format(
+            re_format=re_format,
+        ),
+        usergeometrydata_handler, 
+        {
+            'template_name':'aoi.html',
+            'is_collection':True,
+        },
+        name='aoi_list',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^aois/?$',
+        usergeometrydata_handler, 
+        {
+            'emitter_format':'html',
+            'template_name':'aoi.html',
+            'is_collection':True,
+        },
+        name='aoi_list',
+    ),
+    # a single area-of-interest resource
+    url(
+        (r'^aois/{re_code}{re_format}$').format(
+            re_code=re_code,
+            re_format=re_format,
+        ),
+        usergeometrydata_handler,
+        {
+            'template_name':'aoi.html',
+            'is_collection':False,
+        },
+        name='aoi_single',
+    ),
+    # use HTML for when the output format is not specified
+    url(
+        r'^aois/{re_code}/?$'.format(
+            re_code=re_code,
+        ),
+        usergeometrydata_handler,
+        {
+            'emitter_format':'html',
+            'template_name':'aoi.html',
+            'is_collection':False,
+        },
+        name='aoi_single',
     ),
     
 ## QUERY BUILDER ---------------------------------------------------------------

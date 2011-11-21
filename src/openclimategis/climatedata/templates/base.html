@@ -1,17 +1,53 @@
 <html>
-
 <head>
 {% block header %}
 {% endblock header %}
 </head>
+<!-- Conditional commenting for non-IE and IE 7+ browsers -->
+<!--[if !IE]><!-->
+<link rel="stylesheet" type="text/css" href="/media/css/base.css" />
+<!--<![endif]-->
 
+<!-- Conditional commenting for IE 6.x browsers -->
+<!--[if IE]>
+<link rel="stylesheet" type="text/css" href="/media/css/base.ie.css" />
+<![endif]-->
 <body>
-<h1>OpenClimateGIS</h1>
-
-<hr/>
-
-{% block content %}
-{% endblock content %}
+    <div id="canvas">
+        <div id="wrapper">
+            <div id="banner-base"></div>
+            <div id="banner">
+                <span class="header">OpenClimate<span class="dark-blue">GIS</span></span>
+                <div id="breadcrumbs">
+                    {% block title %}
+                    <a href="{% url api_list %}">API</a>
+                    {% endblock title %}
+                </div>
+            </div>
+            <div id="container">
+                {% block content %}
+                {% endblock content %}
+            </div>
+            <div id="footer">
+                <div class="attribution">
+                    <span class="header">Links</span>
+                    <div class="attribute">
+                        <ul class="flush">
+                            <li><a href="https://github.com/tylere/OpenClimateGIS" target="_blank">OpenClimateGIS on GitHub</a></li>
+                            <li><a href="https://github.com/tylere/OpenClimateGIS/wiki" target="_blank">OpenClimateGIS Wiki</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="attribution">
+                    <span class="header">Tools</span>
+                    <div class="attribute">
+                        <ul class="flush">
+                            <li><a href="{% url shpupload_form %}">Shapefile Uploader</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
-
 </html>

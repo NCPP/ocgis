@@ -5,7 +5,8 @@
 {% endblock title %}
 
 {% block content %}
-<h2>Resources</h2>
+<div id="content">
+    <span class="header">Resources</span>
     <ul>
         <li>
             <a href="{% url archive_list %}">Archives</a>
@@ -20,10 +21,8 @@
             <a href="{% url variable_list %}">Output Variables</a>
         </li>
         <li>
-            <a href="{% url aoi_list %}">Areas-of-Interest</a>
-        </li>
-        <li>
             <a href="{% url simulation_list %}">Simulation Outputs </a>
         </li>
     </ul>
+</div>
 {% endblock content %}

@@ -1,16 +1,11 @@
 {% extends "base_api.html" %}
 
-{% block title %}
-    {{ block.super }}
-    > <a href="{% url aoi_list %}">Area-of-Interest (AOI)</a> 
-    > Custom AOI Uploader
-{% endblock title %}
-
 {% block content %}
-<h2>Create an AOI from an ESRI Shapefile or KML file</h2>
-
-<form enctype="multipart/form-data" action="./shpupload.html" method="post">{% csrf_token %}
-{{ form.as_p}}
-<input type="submit" value="Submit" />
-</form>
+<div id="content">
+    <span class="header">Get WKT from Shapefile</span>
+    <form enctype="multipart/form-data" action="./shpupload.html" method="post">{% csrf_token %}
+        {{ form.as_p}}
+        <input type="submit" value="Submit" />
+    </form>
+</div>
 {% endblock content %}

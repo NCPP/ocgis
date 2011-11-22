@@ -11,7 +11,7 @@
 {% endblock title %}
 
 {% block content %}
-    <table border="1">
+    <table frame=void rules=all>
     <tbody>
     {% if is_collection %}
         {% comment %}Create table for a list of Area-of-Interest resources{% endcomment %}
@@ -42,6 +42,6 @@
     </table>
     
     {% if is_collection %}
-        <p><a href="{% url shpupload_form %}">Upload Custom AOI</a></p>
+        <div class="box"><br /><a href="{% url shpupload_form %}">Upload Custom AOI</a></div>
     {% endif %}
 {% endblock content %}

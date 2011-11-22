@@ -140,7 +140,13 @@ td {vertical-align:top;height:40px;}
 .attribute {margin:10px 0 0;}
 .flush {margin:0;padding:0;}
 .helptext {display:block;font-size:12px;}
+.box {float:right;}
+.box,
 .graph {margin:0 0 20px;text-align:justify;}
+.box a:link,
+.box a:visited,
+.graph a:link,
+.graph a:visited {border:none;text-decoration:underline;}
 .special {font-size:20px;font-family:CabinSemiBoldItalic,sans-serif;}
 .form {width:720px;}
 .form th {width:150px;text-align:right;}

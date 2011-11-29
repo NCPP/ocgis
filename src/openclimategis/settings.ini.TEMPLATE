@@ -19,6 +19,9 @@ DATABASE_NAME: openclimategis_sql
 [logging]
 LOG_FILENAME: /var/log/openclimategis/django.log
 
+[media]
+MEDIA_ROOT: /path/to/static/media/directory/used/for/development
+
 [secrets]
 SECRET_KEY: random-string-of-ascii
 

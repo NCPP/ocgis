@@ -2,6 +2,7 @@ from ocg_dataset import OcgDataset
 from util.ncconv.experimental.ocg_dataset import MaskedDataError, ExtentError,\
     SubOcgDataset
 from warnings import warn
+import numpy as np
 
 
 def f_put(out,arg):
@@ -25,20 +26,23 @@ def f(arg):
     subpoly_proc = arg[8]
     allow_empty = arg[9]
     
+    ## split out the polygon arguments
+    gid = polygon['gid']
+    poly = polygon['geom']
     ## there is potential to return empty data
     sub = None
     ocg_dataset = OcgDataset(uri,**ocg_opts)
     if subpoly_proc <= 1:
         try:
-            sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
-            if clip: sub.clip(polygon)
+            sub = ocg_dataset.subset(var_name,poly,time_range,level_range)
+            if clip: sub.clip(poly)
             if union: sub.union()
         except (MaskedDataError,ExtentError):
             if not allow_empty:
                 raise
     else:
         subset_opts = dict(time_range=time_range,
-                           polygon=polygon)
+                           polygon=poly)
         try:
             subs = ocg_dataset.mapped_subset(var_name,
                                              max_proc=subpoly_proc,
@@ -46,11 +50,13 @@ def f(arg):
             subs = ocg_dataset.parallel_process_subsets(subs,
                                                         clip=clip,
                                                         union=union,
-                                                        polygon=polygon)
+                                                        polygon=poly)
             sub = ocg_dataset.combine_subsets(subs,union=union)
         except (MaskedDataError,ExtentError):
             if not allow_empty:
                 raise
+    if gid is not None:
+        sub.cell_id = np.array([gid])
     return(sub)
 
 
@@ -122,9 +128,16 @@ def multipolygon_operation(uri,
         ocg_dataset = OcgDataset(uri,**ocg_opts)
         for polygon in polygons:
             try:
-                sub = ocg_dataset.subset(var_name,polygon,time_range,level_range)
-                if clip: sub.clip(polygon)
-                if union: sub.union()
+                sub = ocg_dataset.subset(var_name,polygon['geom'],time_range,level_range)
+                if clip: sub.clip(polygon['geom'])
+                if union:
+                    sub.union()
+                    ## apply the gid if passed. only when the geometries are
+                    ## unioned is the user gid relevant.
+                    gid = polygon.get('gid')
+                    if gid is not None:
+                        sub.cell_id = np.array([gid])
+                ## hold for later merging
                 subs.append(sub)
             except (MaskedDataError,ExtentError):
                 if allow_empty:

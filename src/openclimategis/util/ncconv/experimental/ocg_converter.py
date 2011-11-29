@@ -410,6 +410,7 @@ class ShpConverter(OcgConverter):
     def _set_ogr_fields_(self):
         ## create shapefile base attributes
         self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
+        self.ogr_fields.append(OgrField(self.fcache,'gid',int))
         self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
         self.ogr_fields.append(OgrField(self.fcache,'level',int))
         self.ogr_fields.append(OgrField(self.fcache,'value',float))
@@ -438,9 +439,15 @@ class ShpConverter(OcgConverter):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
+                val = None
                 if o.orig_name == 'ocgid':
                     val = ii
-                else:
+                elif o.orig_name == 'gid':
+                    ## the iterator may not generate a cell_id entry. in this
+                    ## case, pass and let the subclass fill in the gid
+                    if 'cell_id' in attr:
+                        val = attr['cell_id']
+                if val is None:
                     val = attr[o.orig_name]
                 args = [o.ogr_name,val]
                 try:

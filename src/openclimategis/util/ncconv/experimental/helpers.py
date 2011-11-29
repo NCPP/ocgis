@@ -66,12 +66,24 @@ def sub_range(a):
     a = np.array(a)
     return(np.arange(a.min(),a.max()+1))
 
-def keep(prep_igeom,igeom,target):
-    if prep_igeom.intersects(target) and not target.touches(igeom):
+def keep(prep_igeom=None,igeom=None,target=None):
+    test_geom = prep_igeom or igeom
+    if test_geom.intersects(target) and not target.touches(igeom):
         ret = True
     else:
         ret = False
     return(ret)
+
+def reduce_to_multipolygon(geoms):
+    if type(geoms) not in (list,tuple): geoms = [geoms]
+    polys = []
+    for geom in geoms:
+        if isinstance(geom,MultiPolygon):
+            for poly in geom:
+                polys.append(poly)
+        else:
+            polys.append(geom)
+    return(MultiPolygon(polys))
 
 def union_sum(weight,value,normalize=True):
     ## renormalize the weights

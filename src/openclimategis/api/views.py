@@ -11,13 +11,15 @@ from util.helpers import reverse_wkt, get_temp_path
 import pdb
 import os
 import zipfile
-from util.ncconv.experimental.helpers import get_wkt_from_shp, get_shp_as_multi
+from util.ncconv.experimental.helpers import get_wkt_from_shp, get_shp_as_multi,\
+    reduce_to_multipolygon, keep
 from climatedata.models import UserGeometryData, UserGeometryMetadata
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
 from climatedata import models
 from django.db import transaction
+from shapely.geos import ReadingError
 
 
 CHOICES_AGGREGATE = [
@@ -57,15 +59,32 @@ def get_SpatialQueryForm(simulation_output):
         def clean(self,value):
             ## check the geometry is valid
             try:
+                ## try to load the form input from WKT
                 geom = shapely_wkt.loads(value)
-            except:
-                raise(ValidationError('Unable to parse WKT.'))
+                ## convert to the url format
+                ret = reverse_wkt(value)
+            ## try to find the AOI code
+            except ReadingError:
+                try:
+                    ## return the meta code
+                    user_meta = models.UserGeometryMetadata.objects.filter(code=value)
+                    ## confirm it exists in the database
+                    if len(user_meta) == 0: raise(ValidationError)
+                    ## convert to shapely geometries. first, return the actual
+                    ## geometries
+                    geom = models.UserGeometryData.objects.filter(user_meta=user_meta)
+                    geom = [shapely_wkt.loads(geom.geom.wkt) for geom in geom]
+                    ## convert to format acceptable for the url
+                    ret = value
+                except ValidationError:
+                    raise(ValidationError('Unable to parse WKT or locate unique geometry code.'))
             ## check that spatial operations will return data
             ogeom = shapely_wkt.loads(dataset.spatial_extent.wkt)
-            if not geom.intersects(ogeom):
+            igeom = reduce_to_multipolygon(geom)
+            if not keep(igeom=ogeom,target=igeom):
                 raise(ValidationError('Input geometry will return an empty intersection.'))
-            ## convert WKT to a format acceptable for the URL
-            return(reverse_wkt(value))
+            
+            return(ret)
         
     ## -------------------------------------------------------------------------
     

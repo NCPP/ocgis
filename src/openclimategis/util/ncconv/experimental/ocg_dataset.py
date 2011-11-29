@@ -415,7 +415,8 @@ class SubOcgDataset(object):
             d = dict(geometry=geometry,
                      value=float(self.value[dt,dl,dd]),
                      time=atime,
-                     level=int(self.levelvec[dl]))
+                     level=int(self.levelvec[dl]),
+                     cell_id=int(self.cell_id[dd]))
             yield(d)
             
     def iter_with_area(self,area_srid=3005):

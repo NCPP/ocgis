@@ -5,7 +5,8 @@
 {% endblock title %}
 
 {% block content %}
-<h2>Resources</h2>
+<div id="content">
+    <span class="header">Resources</span>
     <ul>
         <li>
             <a href="{% url archive_list %}">Archives</a>
@@ -26,4 +27,5 @@
             <a href="{% url simulation_list %}">Simulation Outputs </a>
         </li>
     </ul>
+</div>
 {% endblock content %}

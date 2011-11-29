@@ -9,7 +9,7 @@ def f_put(out,arg):
     ret = f(arg)
     ## accounting for the empty intersection...
     if ret is not None:
-        out.append(f(arg))
+        out.append(ret)
 
 ## this is the function to map
 def f(arg):

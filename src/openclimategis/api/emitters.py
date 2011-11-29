@@ -87,9 +87,22 @@ class SubOcgDataEmitter(IdentityEmitter):
         converter = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(converter.response(request))
+    
+    
+class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
+    
+    def render(self,request):
+        base_response = super(ZippedSubOcgDataEmitter,self).render(request)
+        response = HttpResponse()
+        response['Content-Disposition'] = 'attachment; filename={0}.zip'.\
+            format(request.ocg.simulation_output.variable.code)
+        response['Content-length'] = str(len(base_response))
+        response['Content-Type'] = 'application/zip'
+        response.write(base_response)
+        return(response)
 
 
-class ShapefileEmitter(SubOcgDataEmitter):
+class ShapefileEmitter(ZippedSubOcgDataEmitter):
     """
     Emits zipped shapefile (.shz)
     """
@@ -97,7 +110,7 @@ class ShapefileEmitter(SubOcgDataEmitter):
     __file_ext__ = '.shp'
     
     
-class LinkedShapefileEmitter(SubOcgDataEmitter):
+class LinkedShapefileEmitter(ZippedSubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedShpConverter
     __file_ext__ = '.lshz'
 
@@ -163,7 +176,7 @@ class CsvEmitter(SubOcgDataEmitter):
                     to_disk=False)
     
     
-class LinkedCsvEmitter(SubOcgDataEmitter):
+class LinkedCsvEmitter(ZippedSubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedCsvConverter
     __file_ext__ = ''
 

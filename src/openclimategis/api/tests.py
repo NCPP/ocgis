@@ -119,20 +119,21 @@ class TestUrls(TestCase):
         * aggregation
         '''
         exts = [
-#            'csv',
+            'csv',
             'kcsv',
-#            'shz',
-#            'geojson',
+            'shz',
+            'lshz',
+            'geojson',
         ]
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8,-96.25+38.7'
         sops = [
             'intersects',
-#            'clip',
+            'clip',
         ]
         aggs = [
             'true',
-#            'false',
+            'false',
         ]
         cm = 'miroc3.2(medres)'
         scenario = 'sres-a1b'

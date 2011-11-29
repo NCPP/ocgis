@@ -9,7 +9,7 @@ class PolygonSlug(OcgSlug):
     
     def _get_(self):
         try:
-            ret = [wkt.loads(parse_polygon_wkt(self.url_arg))]
+            ret = [dict(geom=(wkt.loads(parse_polygon_wkt(self.url_arg))),gid=None)]
         except ValueError:
             meta = UserGeometryMetadata.objects.filter(code=self.url_arg)
             assert(len(meta) == 1)

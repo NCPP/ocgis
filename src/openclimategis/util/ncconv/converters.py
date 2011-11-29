@@ -1,7 +1,7 @@
 import geojson
 from util.helpers import get_temp_path
 from util.toshp import OpenClimateShp
-from pykml.factory import KML_ElementMaker as KML
+#from pykml.factory import KML_ElementMaker as KML
 from osgeo import osr, ogr
 import io
 import csv

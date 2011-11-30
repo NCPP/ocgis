@@ -12,6 +12,7 @@ import geojson
 from util.ncconv.experimental.helpers import get_sr, get_area
 
 import logging
+from django.contrib.gis.gdal.error import check_err
 logger = logging.getLogger(__name__)
 
 
@@ -358,8 +359,8 @@ class ShpConverter(OcgConverter):
     __exts__ = ['shp','shx','prj','dbf']
     
     def __init__(self,*args,**kwds):
-        self.layer = self._pop_(kwds,'layer','lyr')
-        self.srid = self._pop_(kwds,'srid',4326)
+        self.layer = kwds.pop('layer','lyr')
+        self.srid = kwds.pop('srid',4326)
         
         ## call the superclass
         super(ShpConverter,self).__init__(*args,**kwds)
@@ -390,10 +391,9 @@ class ShpConverter(OcgConverter):
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        return(self.sub_ocg_dataset.iter_with_area())
+        return(self.get_iter(self.db.Value,['ocgid','gid','time','level','value','area_m2','wkt']))
         
-    def _convert_(self,request,geom_is_shapely=True):
-        """is "geom_is_shapely" is False, then it must be WKT."""
+    def _convert_(self):
         dr = ogr.GetDriverByName('ESRI Shapefile')
         ds = dr.CreateDataSource(self.path)
         if ds is None:
@@ -406,31 +406,31 @@ class ShpConverter(OcgConverter):
                 
         feature_def = layer.GetLayerDefn()
         
-        for ii,attr in enumerate(self._get_iter_(),start=1):
+        for attr in (self._get_iter_()):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
-                val = None
-                if o.orig_name == 'ocgid':
-                    val = ii
-                elif o.orig_name == 'gid':
-                    ## the iterator may not generate a cell_id entry. in this
-                    ## case, pass and let the subclass fill in the gid
-                    if 'cell_id' in attr:
-                        val = attr['cell_id']
-                if val is None:
-                    val = attr[o.orig_name]
+#                val = None
+#                if o.orig_name == 'ocgid':
+#                    val = ii
+#                elif o.orig_name == 'gid':
+#                    ## the iterator may not generate a cell_id entry. in this
+#                    ## case, pass and let the subclass fill in the gid
+#                    if 'cell_id' in attr:
+#                        val = attr['cell_id']
+#                if val is None:
+                val = attr[o.orig_name]
                 args = [o.ogr_name,val]
                 try:
                     feat.SetField(*args)
                 except NotImplementedError:
                     args[1] = str(args[1])
                     feat.SetField(*args)
-            if geom_is_shapely:
-                wkt = attr['geometry'].wkt
-            else:
-                wkt = attr['geometry']
-            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(wkt)))
+#            if geom_is_shapely:
+#                wkt = attr['geometry'].wkt
+#            else:
+#            wkt = attr['geometry']
+            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['wkt'])))
             check_err(layer.CreateFeature(feat))
             
         return(self.path)

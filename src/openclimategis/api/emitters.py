@@ -77,17 +77,22 @@ Emitter.register('html', HTMLEmitter, 'text/html; charset=utf-8')
 class SubOcgDataEmitter(IdentityEmitter):
     __converter__ = None
     __file_ext__ = ''
-    __kwds__ = {}
     
     def render(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
-        sub = self.construct()
+        self.db = self.construct().as_sqlite()
+        self.request = request
         #logger.debug("n geometries = {0}".format(len(sub.geometry)))
-        cfvar = request.ocg.simulation_output.variable.code
-        converter = self.__converter__(sub,cfvar+self.__file_ext__,**self.__kwds__)
+        self.cfvar = request.ocg.simulation_output.variable.code
+        self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
-        return(converter.response(request))
+        return(self.get_response())
     
+    def get_converter(self):
+        return(self.__converter__(self.db,self.cfvar+self.__file_ext__))
+        
+    def get_response(self):
+        return(self.converter.response())
     
 class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
     

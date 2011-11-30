@@ -1,9 +1,7 @@
 from osgeo import ogr, osr
 import datetime
 from shapely.geometry.multipolygon import asMultiPolygon
-from django.contrib.gis.gdal.geomtype import OGRGeomType
 from util.helpers import get_temp_path
-from django.contrib.gis.gdal.error import check_err
 from shapely.geometry.polygon import Polygon
 import zipfile
 import io
@@ -19,36 +17,18 @@ logger = logging.getLogger(__name__)
 
 class OcgConverter(object):
     
-    def __init__(self,sub_ocg_dataset,base_name,to_multi=True):
-        self.sub_ocg_dataset = sub_ocg_dataset
+    def __init__(self,db,base_name):
+        self.db = db
         self.base_name = base_name
-        self.to_multi = to_multi
         
-        if to_multi: self.convert_geometry()
-        
-    def _pop_(self,kwds,key,default=None):
-        if key in kwds:
-            val = kwds.pop(key)
-        else:
-            val = default
-        return(val)
-        
-    def convert_geometry(self):
-        new_geom = self.sub_ocg_dataset.geometry
-        for ii in range(len(new_geom)):
-            test_geom = self.sub_ocg_dataset.geometry[ii]
-            if isinstance(test_geom,Polygon):
-                new_geom[ii] = asMultiPolygon([test_geom])
-        self.sub_ocg_dataset = self.sub_ocg_dataset.copy(geometry=new_geom)
-        
-    def convert(self,request):
-        return(self._convert_(request))
+    def convert(self,*args,**kwds):
+        return(self._convert_(*args,**kwds))
     
-    def _convert_(self,request):
+    def _convert_(self,*args,**kwds):
         raise(NotImplementedError)
     
-    def response(self,request):
-        payload = self.convert(request)
+    def response(self,*args,**kwds):
+        payload = self.convert(*args,**kwds)
         try:
             return(self._response_(payload))
         finally:
@@ -63,14 +43,20 @@ class OcgConverter(object):
     
 class GeojsonConverter(OcgConverter):
     
-    def _convert_(self,request):
+    def _convert_(self):
         features = []
-        for attrs in self.sub_ocg_dataset:
-            attrs['time'] = str(attrs['time'])
-            attrs['geometry'] = attrs['geometry'].wkt
-            features.append(attrs)
-        fc = geojson.FeatureCollection(features)
-        return(geojson.dumps(fc))
+        s = self.db.Session()
+        try:
+            for obj in s.query(self.db.Value):
+                attrs = dict(time=str(obj.time.time),
+                             geometry=obj.geometry.wkt,
+                             level=obj.level,
+                             value=obj.value)
+                features.append(attrs)
+            fc = geojson.FeatureCollection(features)
+            return(geojson.dumps(fc))
+        finally:
+            s.close()
     
 
 class CsvConverter(OcgConverter):

@@ -21,6 +21,9 @@ class OcgConverter(object):
         self.db = db
         self.base_name = base_name
         
+    def __iter__(self):
+        raise(NotImplementedError)
+        
     def convert(self,*args,**kwds):
         return(self._convert_(*args,**kwds))
     
@@ -43,20 +46,22 @@ class OcgConverter(object):
     
 class GeojsonConverter(OcgConverter):
     
-    def _convert_(self):
-        features = []
+    def __iter__(self):
         s = self.db.Session()
         try:
-            for obj in s.query(self.db.Value):
+            for obj in s.query(self.db.Value).all():
                 attrs = dict(time=str(obj.time.time),
                              geometry=obj.geometry.wkt,
                              level=obj.level,
                              value=obj.value)
-                features.append(attrs)
-            fc = geojson.FeatureCollection(features)
-            return(geojson.dumps(fc))
+                yield(attrs)
         finally:
             s.close()
+    
+    def _convert_(self):
+        features = [attrs for attrs in self]
+        fc = geojson.FeatureCollection(features)
+        return(geojson.dumps(fc))
     
 
 class CsvConverter(OcgConverter):

@@ -21,8 +21,24 @@ class OcgConverter(object):
         self.db = db
         self.base_name = base_name
         
-    def get_iter(self):
-        raise(NotImplementedError)
+    def get_iter(self,table,headers=None):
+        if headers is None: headers = self.get_headers(table)
+        s = self.db.Session()
+        try:
+            for obj in s.query(table).all():
+                yield(self._todict_(obj,headers))
+        finally:
+            s.close()
+            
+    def get_headers(self,table,adds=[]):
+        headers = [h.upper() for h in table.__mapper__.columns.keys()]
+        headers += [a.upper() for a in adds]
+        return(headers)
+            
+    @staticmethod
+    def _todict_(obj,headers):
+        return(dict(zip(headers,
+                        [getattr(obj,h.lower()) for h in headers])))
         
     def convert(self,*args,**kwds):
         return(self._convert_(*args,**kwds))
@@ -46,20 +62,12 @@ class OcgConverter(object):
     
 class GeojsonConverter(OcgConverter):
     
-    def get_iter(self):
-        s = self.db.Session()
-        try:
-            for obj in s.query(self.db.Value).all():
-                attrs = dict(time=str(obj.time),
-                             geometry=obj.wkt,
-                             level=obj.level,
-                             value=obj.value)
-                yield(attrs)
-        finally:
-            s.close()
-    
     def _convert_(self):
-        features = [attrs for attrs in self.get_iter()]
+        headers = self.get_headers(self.db.Value,adds=['WKT','TIME'])
+        features = [attrs for attrs in self.get_iter(self.db.Value,headers)]
+        for feat in features:
+            feat['TIME'] = str(feat['TIME'])
+            feat['geometry'] = feat.pop('WKT')
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
     
@@ -75,14 +83,6 @@ class CsvConverter(OcgConverter):
         
         ## call the superclass
         super(CsvConverter,self).__init__(*args,**kwds)
-        
-    def get_iter(self,table,headers):
-        s = self.db.Session()
-        try:
-            for obj in s.query(table).all():
-                yield(self._todict_(obj,headers))
-        finally:
-            s.close()
     
     def get_writer(self,buffer,headers=None):
         writer = csv.writer(buffer)
@@ -90,11 +90,6 @@ class CsvConverter(OcgConverter):
         writer.writerow(headers)
         writer = csv.DictWriter(buffer,headers)
         return(writer)
-    
-    @staticmethod
-    def _todict_(obj,headers):
-        return(dict(zip(headers,
-                        [getattr(obj,h.lower()) for h in headers])))
     
     def _clean_headers_(self,headers=None):
         map = [[self.as_wkt,'WKT'],

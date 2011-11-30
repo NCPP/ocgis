@@ -485,7 +485,7 @@ class SubOcgDataset(object):
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.cell_id = np.array([1])
     
-    def as_sqlite(self,add_area=True,area_srid=3005):
+    def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker
         import db
@@ -503,10 +503,21 @@ class SubOcgDataset(object):
         try:
             ## create the geometries
             for dd in self.dim_data:
+                geom = self.geometry[dd]
+                if isinstance(geom,Polygon):
+                    geom = MultiPolygon([geom])
+                if wkt:
+                    wkt = str(geom.wkt)
+                else:
+                    wkt = None
+                if wkb:
+                    wkb = str(geom.wkb)
+                else:
+                    wkb = None
                 s.add(db.Geometry(gid=int(self.cell_id[dd]),
-                                  wkt=str(self.geometry[dd].wkt),
+                                  wkt=wkt,
+                                  wkb=wkb,
                                   area_m2=get_area(self.geometry[dd],sr,sr2)))
-                s.commit()
             ## fill in the rest of the data
             for dt in self.dim_time:
                 dtime = db.Time(time=self.timevec[dt])

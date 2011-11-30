@@ -1,6 +1,8 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Simulation Outputs{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
     {% if is_collection %}
     > Simulation Outputs
@@ -8,7 +10,7 @@
     > <a href="{% url simulation_list %}">Simulation Outputs</a> 
     > {% for listitem in data %}{{ listitem.id }}{% endfor %}
     {% endif %}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
     {% if is_collection %}

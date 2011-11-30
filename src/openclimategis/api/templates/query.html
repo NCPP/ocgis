@@ -1,10 +1,12 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Simulation Output Query{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
     > <a href="{% url simulation_list %}">Simulation Outputs</a>
     > Query
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
 <div id="content">

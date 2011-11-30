@@ -1,5 +1,9 @@
 {% extends "base_api.html" %}
 
+{% block breadcrumbs %}
+    {{ block.super }} > Shapefile/KML Uploader
+{% endblock breadcrumbs %}
+
 {% block content %}
 <div id="content">
     <span class="header">Get WKT from Shapefile</span>

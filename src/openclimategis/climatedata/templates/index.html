@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}
+{% block breadcrumbs %}
     {{ block.super }}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
 <div id="content">
@@ -15,7 +15,7 @@
         and virtual globes.
     </div>
     <div class="graph">
-                <span class="special">OpenClimateGIS</span> implements a REST-like API for requesting data resources, 
+        <span class="special">OpenClimateGIS</span> implements a REST-like API for requesting data resources, 
         with relevant parameters encoded into the URL path.  The OpenClimateGIS system
         does not store climate data archives locally, 
         but rather works in conjunction with external climate archives that 

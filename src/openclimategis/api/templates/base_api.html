@@ -3,15 +3,16 @@
 {% block header %}
 {% endblock header %}
 </head>
-<!-- Conditional commenting for non-IE and IE 7+ browsers -->
+<!-- Conditional commenting for non-IE browsers -->
 <!--[if !IE]><!-->
 <link rel="stylesheet" type="text/css" href="/media/css/base.css" />
 <!--<![endif]-->
 
-<!-- Conditional commenting for IE 6.x browsers -->
+<!-- Conditional commenting for IE browsers -->
 <!--[if IE]>
 <link rel="stylesheet" type="text/css" href="/media/css/base.ie.css" />
 <![endif]-->
+<title>{% block title %}OpenClimate GIS{% block subtitle %}{% endblock subtitle %}{% endblock title %}</title>
 <body>
     <div id="canvas">
         <div id="wrapper">
@@ -19,9 +20,9 @@
             <div id="banner">
                 <span class="header">OpenClimate<span class="dark-blue">GIS</span></span>
                 <div id="breadcrumbs">
-                    {% block title %}
+                    {% block breadcrumbs %}
                     <a href="{% url api_list %}">API</a>
-                    {% endblock title %}
+                    {% endblock breadcrumbs %}
                 </div>
             </div>
             <div id="container">

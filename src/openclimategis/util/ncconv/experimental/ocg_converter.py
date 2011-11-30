@@ -21,7 +21,7 @@ class OcgConverter(object):
         self.db = db
         self.base_name = base_name
         
-    def __iter__(self):
+    def get_iter(self):
         raise(NotImplementedError)
         
     def convert(self,*args,**kwds):
@@ -46,7 +46,7 @@ class OcgConverter(object):
     
 class GeojsonConverter(OcgConverter):
     
-    def __iter__(self):
+    def get_iter(self):
         s = self.db.Session()
         try:
             for obj in s.query(self.db.Value).all():
@@ -59,7 +59,7 @@ class GeojsonConverter(OcgConverter):
             s.close()
     
     def _convert_(self):
-        features = [attrs for attrs in self]
+        features = [attrs for attrs in self.get_iter()]
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
     
@@ -76,12 +76,11 @@ class CsvConverter(OcgConverter):
         ## call the superclass
         super(CsvConverter,self).__init__(*args,**kwds)
         
-    def __iter__(self):
+    def get_iter(self,table,headers):
         s = self.db.Session()
         try:
-            for obj in s.query(self.db.Value).all():
-                yield(dict(zip(self.headers,
-                               [getattr(obj,h.lower()) for h in self.headers])))
+            for obj in s.query(table).all():
+                yield(self._todict_(obj,headers))
         finally:
             s.close()
     
@@ -92,20 +91,29 @@ class CsvConverter(OcgConverter):
         writer = csv.DictWriter(buffer,headers)
         return(writer)
     
-    def _clean_headers_(self):
+    @staticmethod
+    def _todict_(obj,headers):
+        return(dict(zip(headers,
+                        [getattr(obj,h.lower()) for h in headers])))
+    
+    def _clean_headers_(self,headers=None):
         map = [[self.as_wkt,'WKT'],
                [self.as_wkb,'WKB'],
                [self.add_area,'AREA_M2']]
-        headers = copy.copy(self.__headers__)
+        if headers is None:
+            cheaders = self.__headers__
+        else:
+            cheaders = headers
+        headers = copy.copy(cheaders)
         for m in map:
-            if not m[0]:
+            if not m[0] and m[1] in headers:
                 headers.remove(m[1])
         return(headers)
     
     def _convert_(self):
         buffer = io.BytesIO()
         writer = self.get_writer(buffer)
-        for attrs in self:
+        for attrs in self.get_iter(self.db.Value,self.headers):
             writer.writerow(attrs)
         buffer.flush()
         return(buffer.getvalue())
@@ -114,47 +122,31 @@ class CsvConverter(OcgConverter):
 class LinkedCsvConverter(CsvConverter):
     
     def __init__(self,*args,**kwds):
-        self._db = None
+        tables = kwds.pop('tables',['Geometry','Time','Value'])
+        
         super(LinkedCsvConverter,self).__init__(*args,**kwds)
         
-    @property
-    def db(self):
-        if self._db is None:
-            self._db = self.sub_ocg_dataset.as_sqlite()
-        return(self._db)
+        self.tables = [getattr(self.db,tbl) for tbl in tables]
     
-    def _convert_(self,request,tables=['Geometry','Time','Value'],include_wkt=True):
-        ## database tables to write
-        tables = [getattr(self.db,tbl) for tbl in tables]
+    def _convert_(self):
         ## generate the info for writing
         info = []
-        for table in tables:
-            headers = [h.upper() for h in table.__mapper__.columns.keys()]
-            if table == self.db.Geometry and not include_wkt:
-                headers.remove('WKT')
+        for table in self.tables:
+            headers = self._clean_headers_([h.upper() for h in table.__mapper__.columns.keys()])
             arcname = '{0}_{1}.csv'.format(self.base_name,table.__tablename__)
             buffer = io.BytesIO()
-            writer = self.get_DictWriter(buffer,
-                                         headers=headers)
+            writer = self.get_writer(buffer,headers=headers)
             info.append(dict(headers=headers,
                              writer=writer,
                              arcname=arcname,
                              table=table,
                              buffer=buffer))
         ## write the tables
-        s = self.db.Session()
-        try:
-            for i in info:
-                ## loop through each database record
-                q = s.query(i['table']).all()
-                for obj in q:
-                    row = dict()
-                    for h in i['headers']:
-                        row.update({h:getattr(obj,h.lower())})
-                    i['writer'].writerow(row)
-                i['buffer'].flush()
-        finally:
-            s.close()
+        for i in info:
+            ## loop through each database record
+            for attrs in self.get_iter(i['table'],i['headers']):
+                i['writer'].writerow(attrs)
+            i['buffer'].flush()
 
         return(info)
     

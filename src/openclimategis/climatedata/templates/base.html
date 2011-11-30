@@ -19,6 +19,10 @@
             <div id="banner-base"></div>
             <div id="banner">
                 <span class="header">OpenClimate<span class="dark-blue">GIS</span></span>
+                <div id="breadcrumbs">
+                    {% block breadcrumbs %}
+                    {% endblock breadcrumbs %}
+                </div>
             </div>
             <div id="container">
                 {% block content %}

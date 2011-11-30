@@ -144,6 +144,9 @@ td {vertical-align:top;height:40px;}
 .graph a:link,
 .graph a:visited {border:none;text-decoration:underline;}
 .special {font-size:20px;font-family:CabinSemiBoldItalic,sans-serif;}
+.quote {float:left;width:500px;font-family:CabinSemiBoldItalic,sans-serif;font-size:42px;padding-left:48px;text-indent:-48px;line-height:32px;text-shadow:0 0 9px rgba(100,100,100,0.4);color:#003366;}
+.quote .author {color:#666;font-size:28px;}
+.quotemark {}
 
 /*
 #sidebar {float:left;width:260px;height:100%;position:fixed;margin-top:270px;border-right:20px solid #730D00;}

@@ -50,8 +50,8 @@ class GeojsonConverter(OcgConverter):
         s = self.db.Session()
         try:
             for obj in s.query(self.db.Value).all():
-                attrs = dict(time=str(obj.time.time),
-                             geometry=obj.geometry.wkt,
+                attrs = dict(time=str(obj.time),
+                             geometry=obj.wkt,
                              level=obj.level,
                              value=obj.value)
                 yield(attrs)
@@ -65,20 +65,27 @@ class GeojsonConverter(OcgConverter):
     
 
 class CsvConverter(OcgConverter):
-    __headers__ = ['OCGID','TIME','LEVEL','VALUE','AREA_M2','WKT','WKB']
+    __headers__ = ['OCGID','GID','TIME','LEVEL','VALUE','AREA_M2','WKT','WKB']
     
     def __init__(self,*args,**kwds):
-        self.as_wkt = self._pop_(kwds,'as_wkt',False)
-        self.as_wkb = self._pop_(kwds,'as_wkb',False)
-        self.add_area = self._pop_(kwds,'add_area',True)
-        self.area_srid = self._pop_(kwds,'area_srid',3005)
+        self.as_wkt = kwds.pop('as_wkt',False)
+        self.as_wkb = kwds.pop('as_wkb',False)
+        self.add_area = kwds.pop('add_area',True)
         self.headers = self._clean_headers_()
-        self.to_disk = self._pop_(kwds,'to_disk',False)
         
         ## call the superclass
         super(CsvConverter,self).__init__(*args,**kwds)
+        
+    def __iter__(self):
+        s = self.db.Session()
+        try:
+            for obj in s.query(self.db.Value).all():
+                yield(dict(zip(self.headers,
+                               [getattr(obj,h.lower()) for h in self.headers])))
+        finally:
+            s.close()
     
-    def get_DictWriter(self,buffer,headers=None):
+    def get_writer(self,buffer,headers=None):
         writer = csv.writer(buffer)
         if headers is None: headers = self.headers
         writer.writerow(headers)
@@ -95,25 +102,11 @@ class CsvConverter(OcgConverter):
                 headers.remove(m[1])
         return(headers)
     
-    def _convert_(self,request):
-        if self.add_area:
-            sr_orig = get_sr(4326)
-            sr_dest = get_sr(self.area_srid)
+    def _convert_(self):
         buffer = io.BytesIO()
-        writer = self.get_DictWriter(buffer)
-        for ii,attrs in enumerate(self.sub_ocg_dataset,start=1):
-            geom = attrs['geometry']
-            row = dict(OCGID=ii,
-                       VALUE=attrs['value'],
-                       LEVEL=attrs['level'],
-                       TIME=attrs['time'])
-            if self.add_area:
-                row.update(AREA_M2=get_area(geom,sr_orig,sr_dest))
-            if self.as_wkt:
-                row.update(WKT=geom.wkt)
-            if self.as_wkb:
-                row.update(WKB=geom.wkb)
-            writer.writerow(row)
+        writer = self.get_writer(buffer)
+        for attrs in self:
+            writer.writerow(attrs)
         buffer.flush()
         return(buffer.getvalue())
     

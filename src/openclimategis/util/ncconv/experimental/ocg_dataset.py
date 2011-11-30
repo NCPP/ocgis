@@ -526,7 +526,7 @@ class SubOcgDataset(object):
                         geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
                         val = db.Value(geometry=geometry,
                                        level=int(self.levelvec[dl]),
-                                       time=dtime,
+                                       time_ref=dtime,
                                        value=float(self.value[dt,dl,dd]))
                         s.add(val)
             s.commit()

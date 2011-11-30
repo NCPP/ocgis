@@ -51,7 +51,7 @@ class Value(Base):
     value = Column(Float,nullable=False)
     
     geometry = relationship(Geometry)
-    time = relationship(Time,backref="value")
+    time_ref = relationship(Time,backref="value")
     
     def __repr__(self):
         msg = ['geometry={0}'.format(self.geometry.wkt[0:7])]
@@ -59,3 +59,16 @@ class Value(Base):
         msg.append('level={0}'.format(self.level))
         msg.append('value={0}'.format(self.value))
         return(','.join(msg))
+    
+    @property
+    def wkt(self):
+        return(self.geometry.wkt)
+    @property
+    def wkb(self):
+        return(self.geometry.wkb)
+    @property
+    def area_m2(self):
+        return(self.geometry.area_m2)
+    @property
+    def time(self):
+        return(self.time_ref.time)

@@ -174,11 +174,11 @@ class CsvEmitter(SubOcgDataEmitter):
     """
     __converter__ = ocg_converter.CsvConverter
     __file_ext__ = '.csv'
-    __kwds__ = dict(as_wkt=False,
-                    as_wkb=False,
-                    add_area=True,
-                    area_srid=3005,
-                    to_disk=False)
+#    __kwds__ = dict(as_wkt=False,
+#                    as_wkb=False,
+#                    add_area=True,
+#                    area_srid=3005,
+#                    to_disk=False)
     
     
 class LinkedCsvEmitter(ZippedSubOcgDataEmitter):

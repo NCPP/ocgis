@@ -410,15 +410,6 @@ class ShpConverter(OcgConverter):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
-#                val = None
-#                if o.orig_name == 'ocgid':
-#                    val = ii
-#                elif o.orig_name == 'gid':
-#                    ## the iterator may not generate a cell_id entry. in this
-#                    ## case, pass and let the subclass fill in the gid
-#                    if 'cell_id' in attr:
-#                        val = attr['cell_id']
-#                if val is None:
                 val = attr[o.orig_name]
                 args = [o.ogr_name,val]
                 try:
@@ -426,10 +417,6 @@ class ShpConverter(OcgConverter):
                 except NotImplementedError:
                     args[1] = str(args[1])
                     feat.SetField(*args)
-#            if geom_is_shapely:
-#                wkt = attr['geometry'].wkt
-#            else:
-#            wkt = attr['geometry']
             check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['wkt'])))
             check_err(layer.CreateFeature(feat))
             
@@ -455,14 +442,13 @@ class LinkedShpConverter(ShpConverter):
         args[1] = os.path.splitext(args[1])[0]+'.shp'
         super(LinkedShpConverter,self).__init__(*args,**kwds)
     
-    def _convert_(self,request):
+    def _convert_(self):
         ## get the payload dictionary from the linked csv converter. we also
         ## want to store the database module.
-        lcsv = LinkedCsvConverter(self.sub_ocg_dataset,os.path.splitext(self.base_name)[0])
-        self.db = lcsv.db
-        info = lcsv._convert_(request,include_wkt=False)
+        lcsv = LinkedCsvConverter(self.db,os.path.splitext(self.base_name)[0])
+        info = lcsv._convert_()
         ## get the shapefile path (and write in the process)
-        path = super(LinkedShpConverter,self)._convert_(request,geom_is_shapely=False)
+        path = super(LinkedShpConverter,self)._convert_()
         return(info,path)
         
     def _response_(self,payload):
@@ -480,18 +466,8 @@ class LinkedShpConverter(ShpConverter):
         buffer.close()
         return(zip_stream)
 
-        
     def _get_iter_(self):
-        def lcsv_iter():
-            s = self.db.Session()
-            try:
-                for obj in s.query(self.db.Geometry).all():
-                    yield(dict(gid=obj.gid,
-                               geometry=obj.wkt,
-                               area_m2=obj.area_m2))
-            finally:
-                s.close()
-        return(lcsv_iter())
+        return(self.get_iter(self.db.Geometry,['gid','area_m2','wkt']))
 
     def _set_ogr_fields_(self):
         ## create shapefile base attributes

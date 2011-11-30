@@ -9,6 +9,7 @@ import os
 from osgeo import ogr
 import warnings
 from util.ncconv.experimental.ocg_dataset import SubOcgDataset
+from util.ncconv.experimental import stats
 
 verbose = False
 
@@ -61,19 +62,19 @@ class TestData(object):
 #                   time_units='days since 1800-1-1 00:00:0.0',
 #                   level_name='lev')
     
-#    nc_path = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa2.monthly.Prcp.1951.nc'
-#    nc_var_name = 'Prcp'
-#    nc_opts = dict(rowbnds_name='bounds_latitude',
-#                   colbnds_name='bounds_longitude',
-#                   calendar='proleptic_gregorian',
-#                   time_units='days since 1950-01-01 00:00:0.0')
-    
-    nc_path = 'http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly'
+    nc_path = '/home/bkoziol/git/OpenClimateGIS/bin/climate_data/maurer/bccr_bcm2_0.1.sresa2.monthly.Prcp.1951.nc'
+    nc_var_name = 'Prcp'
     nc_opts = dict(rowbnds_name='bounds_latitude',
                    colbnds_name='bounds_longitude',
                    calendar='proleptic_gregorian',
                    time_units='days since 1950-01-01 00:00:0.0')
-    nc_var_name = 'sresa1b_miroc3-2-medres_2_Prcp'
+    
+#    nc_path = 'http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly'
+#    nc_opts = dict(rowbnds_name='bounds_latitude',
+#                   colbnds_name='bounds_longitude',
+#                   calendar='proleptic_gregorian',
+#                   time_units='days since 1950-01-01 00:00:0.0')
+#    nc_var_name = 'sresa1b_miroc3-2-medres_2_Prcp'
     
     shp_path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
     
@@ -279,8 +280,18 @@ class TestWrappers(TestData,unittest.TestCase):
                                          max_proc=8,
                                          max_proc_per_poly=2)
             self.assertTrue(sub.value.shape[2] > 0)
+            
+            
+class TestStats(TestData,unittest.TestCase):
+    
+    def test_summary(self):
+        sub = self.sub_ocg_dataset
+        db = sub.as_sqlite()
+        st = stats.OcgStats(db)
+        data = st.get_summary_query('mean','month')
+        import ipdb;ipdb.set_trace()
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestOcgConverter.test_empty']
+    import sys;sys.argv = ['', 'TestStats']
     unittest.main()

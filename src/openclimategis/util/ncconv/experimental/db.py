@@ -15,7 +15,8 @@ class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
     area_m2 = Column(String,nullable=False)
-    wkt = Column(String,unique=True,nullable=False)
+    wkt = Column(String,unique=True,nullable=True)
+    wkb = Column(String,unique=True,nullable=True)
     
 #    def as_kml(self):
 #        from pykml.factory import KML_ElementMaker as KML

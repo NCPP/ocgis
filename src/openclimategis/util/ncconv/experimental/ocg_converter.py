@@ -10,14 +10,21 @@ import geojson
 
 import logging
 from django.contrib.gis.gdal.error import check_err
+from sqlalchemy.orm.util import class_mapper
 logger = logging.getLogger(__name__)
 
 
 class OcgConverter(object):
     
-    def __init__(self,db,base_name):
+    def __init__(self,db,base_name,use_stat=False):
         self.db = db
         self.base_name = base_name
+        self.use_stat = use_stat
+        
+        if self.use_stat:
+            self.value_table = self.db.Stat
+        else:
+            self.value_table = self.db.Value
         
     def get_iter(self,table,headers=None):
         if headers is None: headers = self.get_headers(table)
@@ -29,8 +36,12 @@ class OcgConverter(object):
             s.close()
             
     def get_headers(self,table,adds=[]):
-        headers = [h.upper() for h in table.__mapper__.columns.keys()]
-        headers += [a.upper() for a in adds]
+        try:
+            keys = table.__mapper__.columns.keys()
+        except AttributeError:
+            keys = class_mapper(table).columns.keys()
+        keys += adds
+        headers = [h.upper() for h in keys]
         return(headers)
             
     @staticmethod
@@ -71,16 +82,26 @@ class GeojsonConverter(OcgConverter):
     
 
 class CsvConverter(OcgConverter):
-    __headers__ = ['OCGID','GID','TIME','LEVEL','VALUE','AREA_M2','WKT','WKB']
+#    __headers__ = ['OCGID','GID','TIME','LEVEL','VALUE','AREA_M2','WKT','WKB']
     
     def __init__(self,*args,**kwds):
         self.as_wkt = kwds.pop('as_wkt',False)
         self.as_wkb = kwds.pop('as_wkb',False)
         self.add_area = kwds.pop('add_area',True)
-        self.headers = self._clean_headers_()
-        
+
         ## call the superclass
         super(CsvConverter,self).__init__(*args,**kwds)
+        
+        self.headers = self.get_headers(self.value_table)
+        ## need to extract the time instead of TID for the value table case
+        if 'TID' in self.headers:
+            self.headers[self.headers.index('TID')] = 'TIME'
+        
+        codes = [['add_area','AREA_M2'],['as_wkt','WKT'],['as_wkb','WKB']]
+        for code in codes:
+            if getattr(self,code[0]):
+                self.headers.append(code[1])
+        
     
     def get_writer(self,buffer,headers=None):
         writer = csv.writer(buffer)
@@ -89,24 +110,10 @@ class CsvConverter(OcgConverter):
         writer = csv.DictWriter(buffer,headers)
         return(writer)
     
-    def _clean_headers_(self,headers=None):
-        map = [[self.as_wkt,'WKT'],
-               [self.as_wkb,'WKB'],
-               [self.add_area,'AREA_M2']]
-        if headers is None:
-            cheaders = self.__headers__
-        else:
-            cheaders = headers
-        headers = copy.copy(cheaders)
-        for m in map:
-            if not m[0] and m[1] in headers:
-                headers.remove(m[1])
-        return(headers)
-    
     def _convert_(self):
         buffer = io.BytesIO()
         writer = self.get_writer(buffer)
-        for attrs in self.get_iter(self.db.Value,self.headers):
+        for attrs in self.get_iter(self.value_table,self.headers):
             writer.writerow(attrs)
         buffer.flush()
         return(buffer.getvalue())

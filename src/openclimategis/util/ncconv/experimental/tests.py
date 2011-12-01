@@ -307,16 +307,20 @@ class TestStats(TestData,unittest.TestCase):
     def test_summary(self):
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite()
-        st = OcgStat(db,('year',))
-        funcs = [{'function':np.mean,'name':'mean'},
-                 {'function':np.std,'name':'std'},
-                 {'function':self.change_from_mean,'kwds':{'mean':2.0}},
-                 {'function':self.threshold_values,'kwds':{'threshold':2.0}}]
+        st = OcgStat(db,('month',))
+        funcs = [{'function':np.mean},
+                 {'function':np.std},
+                 {'function':self.change_from_mean,'name':'meanchg','kwds':{'mean':2.0}},
+                 {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
-        s = db.Session()
-        for obj in s.query(db.Stat):
-            import ipdb;ipdb.set_trace()
-            print obj.__dict__
+        csv = CsvConverter(db,'foo',use_stat=False)
+        payload = csv.convert()
+        print(payload)
+        import ipdb;ipdb.set_trace()
+#        s = db.Session()
+#        for obj in s.query(db.Stat):
+#            import ipdb;ipdb.set_trace()
+#            print obj.__dict__
         
 
 if __name__ == "__main__":

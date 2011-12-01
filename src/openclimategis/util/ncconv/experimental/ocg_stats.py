@@ -5,6 +5,7 @@ import copy
 from sqlalchemy.schema import Table, Column, ForeignKey
 from sqlalchemy.orm import mapper, relationship
 import numpy as np
+from util.ncconv.experimental.ordered_dict import OrderedDict
 
 
 class OcgStat(object):
@@ -13,7 +14,7 @@ class OcgStat(object):
     
     def __init__(self,db,grouping):
         self.db = db
-        self.grouping = list(grouping) + ['level','gid']
+        self.grouping = ['gid','level'] + list(grouping)
         self._groups = None
         
     @property
@@ -45,7 +46,7 @@ class OcgStat(object):
                 data = s.query(sq.c.value)
                 for filter in filters:
                     data = data.filter(filter)
-                attrs = obj.__dict__;attrs.pop('_labels')
+                attrs = OrderedDict(zip(obj.keys(),[getattr(obj,key) for key in obj.keys()]))
                 attrs['value'] = [d[0] for d in data]
                 yield(attrs)
         finally:

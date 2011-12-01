@@ -72,10 +72,13 @@ class OcgConverter(object):
 class GeojsonConverter(OcgConverter):
     
     def _convert_(self):
-        headers = self.get_headers(self.db.Value,adds=['WKT','TIME'])
-        features = [attrs for attrs in self.get_iter(self.db.Value,headers)]
+        if self.use_stat:
+            adds = ['WKT']
+        else:
+            adds = ['WKT','TIME']
+        headers = self.get_headers(self.value_table,adds=adds)
+        features = [attrs for attrs in self.get_iter(self.value_table,headers)]
         for feat in features:
-            feat['TIME'] = str(feat['TIME'])
             feat['geometry'] = feat.pop('WKT')
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
@@ -93,9 +96,9 @@ class CsvConverter(OcgConverter):
         super(CsvConverter,self).__init__(*args,**kwds)
         
         self.headers = self.get_headers(self.value_table)
-        ## need to extract the time instead of TID for the value table case
+        ## need to extract the time as well
         if 'TID' in self.headers:
-            self.headers[self.headers.index('TID')] = 'TIME'
+            self.headers.insert(self.headers.index('TID')+1,'TIME')
         
         codes = [['add_area','AREA_M2'],['as_wkt','WKT'],['as_wkb','WKB']]
         for code in codes:

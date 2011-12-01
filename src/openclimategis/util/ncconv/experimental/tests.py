@@ -313,8 +313,9 @@ class TestStats(TestData,unittest.TestCase):
                  {'function':self.change_from_mean,'name':'meanchg','kwds':{'mean':2.0}},
                  {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
-        csv = CsvConverter(db,'foo',use_stat=False)
-        payload = csv.convert()
+#        conv = CsvConverter(db,'foo',use_stat=False)
+        conv = GeojsonConverter(db,'foo',use_stat=True)
+        payload = conv.convert()
         print(payload)
         import ipdb;ipdb.set_trace()
 #        s = db.Session()

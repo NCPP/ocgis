@@ -54,6 +54,10 @@ class OcgConverter(object):
         except AttributeError:
             table_mapper = class_mapper(table)
         return(table_mapper)
+    
+    def get_tablename(self,table):
+        m = self.get_mapper(table)
+        return(m.mapped_table.name)
             
     @staticmethod
     def _todict_(obj,headers):
@@ -136,18 +140,33 @@ class CsvConverter(OcgConverter):
 class LinkedCsvConverter(CsvConverter):
     
     def __init__(self,*args,**kwds):
-        tables = kwds.pop('tables',['Geometry','Time','Value'])
+        self.tables = kwds.pop('tables',None)
         
         super(LinkedCsvConverter,self).__init__(*args,**kwds)
         
+        if self.tables is None and self.use_stat:
+            tables = kwds.pop('tables',['Geometry','Stat'])
+        elif self.tables is None and not self.use_stat:
+            tables = kwds.pop('tables',['Geometry','Time','Value'])
         self.tables = [getattr(self.db,tbl) for tbl in tables]
+        
+    def _clean_headers_(self,table):
+        headers = self.get_headers(table)
+        mapper = self.get_mapper(table)
+        if mapper.mapped_table.name == 'geometry':
+            codes = [['add_area','AREA_M2'],['as_wkt','WKT'],['as_wkb','WKB']]
+            for code in codes:
+                if not getattr(self,code[0]):
+                    headers.remove(code[1])
+        return(headers)
     
     def _convert_(self):
         ## generate the info for writing
         info = []
         for table in self.tables:
-            headers = self._clean_headers_([h.upper() for h in table.__mapper__.columns.keys()])
-            arcname = '{0}_{1}.csv'.format(self.base_name,table.__tablename__)
+            headers = self._clean_headers_(table)
+#            headers = self._clean_headers_([h.upper() for h in table.__mapper__.columns.keys()])
+            arcname = '{0}_{1}.csv'.format(self.base_name,self.get_tablename(table))
             buffer = io.BytesIO()
             writer = self.get_writer(buffer,headers=headers)
             info.append(dict(headers=headers,
@@ -470,7 +489,7 @@ class LinkedShpConverter(ShpConverter):
     def _convert_(self):
         ## get the payload dictionary from the linked csv converter. we also
         ## want to store the database module.
-        lcsv = LinkedCsvConverter(self.db,os.path.splitext(self.base_name)[0])
+        lcsv = LinkedCsvConverter(self.db,os.path.splitext(self.base_name)[0],use_stat=self.use_stat)
         info = lcsv._convert_()
         ## get the shapefile path (and write in the process)
         path = super(LinkedShpConverter,self)._convert_()
@@ -498,6 +517,7 @@ class LinkedShpConverter(ShpConverter):
         ## create shapefile base attributes
         self.ogr_fields.append(OgrField(self.fcache,'gid',int))
         self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
+
 
 class OgrField(object):
     """

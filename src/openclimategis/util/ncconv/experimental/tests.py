@@ -315,9 +315,20 @@ class TestStats(TestData,unittest.TestCase):
         st.calculate_load(funcs)
 #        conv = CsvConverter(db,'foo',use_stat=False)
 #        conv = GeojsonConverter(db,'foo',use_stat=True)
-        conv = ShpConverter(db,'foo',use_stat=False)
+#        conv = ShpConverter(db,'foo',use_stat=False)
+#        conv = LinkedCsvConverter(db,'foo',use_stat=False)
+        conv = LinkedShpConverter(db,'foo',use_stat=False)
         payload = conv.convert()
-        print(payload)
+        if type(payload) not in [list,tuple]:
+            print(payload)
+        else:
+            try:
+                for ii in payload:
+                    print ii['buffer'].getvalue()
+            except TypeError:
+                for ii in payload[0]:
+                    print ii['buffer'].getvalue()
+                print(payload[1])
         import ipdb;ipdb.set_trace()
 #        s = db.Session()
 #        for obj in s.query(db.Stat):

@@ -38,6 +38,7 @@ CHOICES_EXT = [
     ('lshz','CSV-Linked ESRI Shapefile (zipped)'),
     ('kml','Keyhole Markup Language'),
     ('kmz','Keyhole Markup Language (zipped)'),
+    ('sqlite','SQLite3 Database (zipped)')
 ]
 
 def get_SpatialQueryForm(simulation_output):

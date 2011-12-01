@@ -80,13 +80,16 @@ class SubOcgDataEmitter(IdentityEmitter):
     
     def render(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
-        self.db = self.construct().as_sqlite()
+        self.db = self.get_db()
         self.request = request
         #logger.debug("n geometries = {0}".format(len(sub.geometry)))
         self.cfvar = request.ocg.simulation_output.variable.code
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(self.get_response())
+    
+    def get_db(self):
+        return(self.construct().as_sqlite())
     
     def get_converter(self):
         return(self.__converter__(self.db,self.cfvar+self.__file_ext__))
@@ -105,6 +108,14 @@ class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
         response['Content-Type'] = 'application/zip'
         response.write(base_response)
         return(response)
+
+
+class SqliteEmitter(ZippedSubOcgDataEmitter):
+    __converter__ = ocg_converter.SqliteConverter
+    __file_ext__ = ''
+    
+    def get_db(self):
+        return(self.construct().as_sqlite(to_disk=True))
 
 
 class ShapefileEmitter(ZippedSubOcgDataEmitter):
@@ -195,4 +206,4 @@ Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
 Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
-
+Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')

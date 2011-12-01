@@ -13,6 +13,7 @@ from django.contrib.gis.gdal.error import check_err
 from sqlalchemy.orm.util import class_mapper
 from sqlalchemy.types import Float, Integer, Date, DateTime, FLOAT, INTEGER,\
     DATE, DATETIME
+import re
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +83,23 @@ class OcgConverter(object):
     
     def cleanup(self):
         pass
+    
+
+class SqliteConverter(OcgConverter):
+    
+    def _convert_(self):
+        url = self.db.metadata.bind.url.database
+        return(url)
+        
+    def _response_(self,payload):
+        buffer = io.BytesIO()
+        zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
+        zip.write(payload,arcname=self.base_name+'.sqlite')
+        zip.close()
+        buffer.flush()
+        zip_stream = buffer.getvalue()
+        buffer.close()
+        return(zip_stream)
     
     
 class GeojsonConverter(OcgConverter):

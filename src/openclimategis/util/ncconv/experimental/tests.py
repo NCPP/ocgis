@@ -317,7 +317,8 @@ class TestStats(TestData,unittest.TestCase):
 #        conv = GeojsonConverter(db,'foo',use_stat=True)
 #        conv = ShpConverter(db,'foo',use_stat=False)
 #        conv = LinkedCsvConverter(db,'foo',use_stat=False)
-        conv = LinkedShpConverter(db,'foo',use_stat=False)
+#        conv = LinkedShpConverter(db,'foo',use_stat=False)
+        conv = SqliteConverter(db,'foo')
         payload = conv.convert()
         if type(payload) not in [list,tuple]:
             print(payload)

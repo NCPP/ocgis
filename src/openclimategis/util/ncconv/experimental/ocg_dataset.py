@@ -493,7 +493,7 @@ class SubOcgDataset(object):
         
         path = 'sqlite://'
         if to_disk:
-            path = path + '/' + get_temp_path('.sqlite')
+            path = path + '/' + get_temp_path('.sqlite',nest=True)
         engine = create_engine(path)
         db.metadata.bind = engine
         db.Session = sessionmaker(bind=engine)

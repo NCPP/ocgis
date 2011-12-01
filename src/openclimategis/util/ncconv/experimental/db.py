@@ -72,3 +72,7 @@ class Value(Base):
     @property
     def time(self):
         return(self.time_ref.time)
+
+
+class Stat(object):
+    pass

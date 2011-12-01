@@ -314,7 +314,8 @@ class TestStats(TestData,unittest.TestCase):
                  {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
 #        conv = CsvConverter(db,'foo',use_stat=False)
-        conv = GeojsonConverter(db,'foo',use_stat=True)
+#        conv = GeojsonConverter(db,'foo',use_stat=True)
+        conv = ShpConverter(db,'foo',use_stat=False)
         payload = conv.convert()
         print(payload)
         import ipdb;ipdb.set_trace()

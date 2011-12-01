@@ -11,6 +11,8 @@ import geojson
 import logging
 from django.contrib.gis.gdal.error import check_err
 from sqlalchemy.orm.util import class_mapper
+from sqlalchemy.types import Float, Integer, Date, DateTime, FLOAT, INTEGER,\
+    DATE, DATETIME
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +27,11 @@ class OcgConverter(object):
             self.value_table = self.db.Stat
         else:
             self.value_table = self.db.Value
-        
+    
+    @property
+    def mapper(self):
+        return(self.get_mapper(self.value_table))
+    
     def get_iter(self,table,headers=None):
         if headers is None: headers = self.get_headers(table)
         s = self.db.Session()
@@ -36,13 +42,18 @@ class OcgConverter(object):
             s.close()
             
     def get_headers(self,table,adds=[]):
-        try:
-            keys = table.__mapper__.columns.keys()
-        except AttributeError:
-            keys = class_mapper(table).columns.keys()
+        keys = self.get_mapper(table).columns.keys()
         keys += adds
         headers = [h.upper() for h in keys]
         return(headers)
+    
+    @staticmethod
+    def get_mapper(table):
+        try:
+            table_mapper = table.__mapper__
+        except AttributeError:
+            table_mapper = class_mapper(table)
+        return(table_mapper)
             
     @staticmethod
     def _todict_(obj,headers):
@@ -388,17 +399,24 @@ class ShpConverter(OcgConverter):
     
     def _set_ogr_fields_(self):
         ## create shapefile base attributes
-        self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
-        self.ogr_fields.append(OgrField(self.fcache,'gid',int))
-        self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
-        self.ogr_fields.append(OgrField(self.fcache,'level',int))
-        self.ogr_fields.append(OgrField(self.fcache,'value',float))
-        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
+        for c in self.mapper.columns:
+            self.ogr_fields.append(OgrField(self.fcache,c.name,c.type))
+            if c.name == 'tid' and not self.use_stat:
+                self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
+#        self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
+#        self.ogr_fields.append(OgrField(self.fcache,'gid',int))
+#        self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
+#        self.ogr_fields.append(OgrField(self.fcache,'level',int))
+#        self.ogr_fields.append(OgrField(self.fcache,'value',float))
+#        self.ogr_fields.append(OgrField(self.fcache,'area_m2',float))
         
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        return(self.get_iter(self.db.Value,['ocgid','gid','time','level','value','area_m2','wkt']))
+        headers = self.mapper.columns.keys() + ['wkt']
+        if 'tid' in headers:
+            headers.insert(headers.index('tid')+1,'time')
+        return(self.get_iter(self.value_table,headers))
         
     def _convert_(self):
         dr = ogr.GetDriverByName('ESRI Shapefile')
@@ -491,7 +509,11 @@ class OgrField(object):
                 datetime.date:ogr.OFTDate,
                 datetime.datetime:ogr.OFTDateTime,
                 float:ogr.OFTReal,
-                str:ogr.OFTString}
+                str:ogr.OFTString,
+                Float:ogr.OFTReal,
+                Integer:ogr.OFTInteger,
+                Date:ogr.OFTDate,
+                DateTime:ogr.OFTDateTime}
     
     def __init__(self,fcache,name,data_type,precision=6,width=255):
         self.orig_name = name

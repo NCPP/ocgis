@@ -306,19 +306,19 @@ class TestStats(TestData,unittest.TestCase):
     
     def test_summary(self):
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite(to_disk=True)
+        db = sub.as_sqlite(to_disk=False)
         st = OcgStat(db,('month',))
         funcs = [{'function':np.mean},
                  {'function':np.std},
-                 {'function':self.change_from_mean,'name':'meanchg','kwds':{'mean':2.0}},
+                 {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
                  {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
 #        conv = CsvConverter(db,'foo',use_stat=False)
 #        conv = GeojsonConverter(db,'foo',use_stat=True)
 #        conv = ShpConverter(db,'foo',use_stat=False)
 #        conv = LinkedCsvConverter(db,'foo',use_stat=False)
-#        conv = LinkedShpConverter(db,'foo',use_stat=False)
-        conv = SqliteConverter(db,'foo')
+        conv = LinkedShpConverter(db,'foo',use_stat=True)
+#        conv = SqliteConverter(db,'foo')
         payload = conv.convert()
         if type(payload) not in [list,tuple]:
             print(payload)

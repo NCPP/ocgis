@@ -6,6 +6,7 @@ from sqlalchemy.schema import Table, Column, ForeignKey
 from sqlalchemy.orm import mapper, relationship
 import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
+import re
 
 
 class OcgStat(object):
@@ -61,8 +62,9 @@ class OcgStat(object):
             value = grpcpy.pop('value')
             for f in funcs:
                 kwds = f.get('kwds',{})
+                args = [value] + f.get('args',[])
                 name = f.get('name',f['function'].__name__)
-                ivalue = f['function'](value,**kwds)
+                ivalue = f['function'](*args,**kwds)
                 if type(ivalue) == np.float_:
                     ivalue = float(ivalue)
                 elif type(ivalue) == np.int_:
@@ -93,3 +95,65 @@ class OcgStat(object):
                properties={'geometry':relationship(self.db.Geometry)})
         table.create()
         return(table)
+
+
+class OcgStatFunction(object):
+    """
+    >>> functions = 'mean+median+max+min+gt2+between1,2'
+    >>> stat = OcgStatFunction()
+    >>> stat.get_function_list(functions)
+    """
+    
+    def get_function_list(self,functions):
+        funcs = []
+        for f in functions.split('+'):
+            fname = re.search('([A-Za-z]+)',f).group(1)
+            try:
+                args = re.search('([\d,]+)',f).group(1)
+            except AttributeError:
+                args = None
+            attrs = {'function':getattr(self,fname)}
+            if args is not None:
+                args = [float(a) for a in args.split(',')]
+                attrs.update({'args':args})
+            funcs.append(attrs)
+        return(funcs)
+    
+    @staticmethod
+    def mean(values):
+        return(np.mean(values))
+    
+    @staticmethod
+    def median(values):
+        return(np.median(values))
+    
+    @staticmethod
+    def std(values):
+        return(np.std(values))
+    
+    @staticmethod
+    def max(values):
+        return(max(values))
+    
+    @staticmethod
+    def min(values):
+        return(min(values))
+    
+    @staticmethod
+    def gt(values,threshold=None):
+        if threshold is None:
+            raise(ValueError('a threshold must be passed'))
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
+    
+    @staticmethod
+    def between(values,lower=None,upper=None):
+        if lower is None or upper is None:
+            raise(ValueError('a lower and upper limit are required'))
+        days = filter(lambda x: x >= lower and x <= upper, values)
+        return(len(days))
+    
+    
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

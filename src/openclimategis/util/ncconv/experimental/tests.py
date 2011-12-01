@@ -315,6 +315,7 @@ class TestStats(TestData,unittest.TestCase):
         st.calculate_load(funcs)
         s = db.Session()
         for obj in s.query(db.Stat):
+            import ipdb;ipdb.set_trace()
             print obj.__dict__
         
 

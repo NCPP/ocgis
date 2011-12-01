@@ -14,7 +14,7 @@ Base = declarative_base(metadata=metadata)
 class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
-    area_m2 = Column(String,nullable=False)
+    area_m2 = Column(Float,nullable=False)
     wkt = Column(String,unique=True,nullable=True)
     wkb = Column(String,unique=True,nullable=True)
     
@@ -42,7 +42,21 @@ class Time(Base):
         '''Return the time as a XML time formatted string (UTC time)'''
         return self.time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-class Value(Base):
+
+class AbstractValue(object):
+    
+    @property
+    def wkt(self):
+        return(self.geometry.wkt)
+    @property
+    def wkb(self):
+        return(self.geometry.wkb)
+    @property
+    def area_m2(self):
+        return(self.geometry.area_m2)
+
+
+class Value(AbstractValue,Base):
     __tablename__ = 'value'
     ocgid = Column(Integer,primary_key=True)
     gid = Column(ForeignKey(Geometry.gid))
@@ -59,20 +73,11 @@ class Value(Base):
         msg.append('level={0}'.format(self.level))
         msg.append('value={0}'.format(self.value))
         return(','.join(msg))
-    
-    @property
-    def wkt(self):
-        return(self.geometry.wkt)
-    @property
-    def wkb(self):
-        return(self.geometry.wkb)
-    @property
-    def area_m2(self):
-        return(self.geometry.area_m2)
+
     @property
     def time(self):
         return(self.time_ref.time)
 
 
-class Stat(object):
+class Stat(AbstractValue):
     pass

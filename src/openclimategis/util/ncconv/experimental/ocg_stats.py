@@ -3,7 +3,7 @@ from sqlalchemy.sql.expression import func, cast
 from sqlalchemy.types import INTEGER, Integer, Float
 import copy
 from sqlalchemy.schema import Table, Column, ForeignKey
-from sqlalchemy.orm import mapper
+from sqlalchemy.orm import mapper, relationship
 import numpy as np
 
 
@@ -87,6 +87,8 @@ class OcgStat(object):
             if key == 'gid': continue
             args.append(Column(key,self.__types[type(value)]))
         table = Table(*args)
-        mapper(self.db.Stat,table)
+        mapper(self.db.Stat,
+               table,
+               properties={'geometry':relationship(self.db.Geometry)})
         table.create()
         return(table)

@@ -1,15 +1,12 @@
 from osgeo import ogr, osr
 import datetime
-from shapely.geometry.multipolygon import asMultiPolygon
 from util.helpers import get_temp_path
-from shapely.geometry.polygon import Polygon
 import zipfile
 import io
 import os
 import copy
 import csv
 import geojson
-from util.ncconv.experimental.helpers import get_sr, get_area
 
 import logging
 from django.contrib.gis.gdal.error import check_err

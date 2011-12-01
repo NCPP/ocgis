@@ -9,7 +9,7 @@ import os
 from osgeo import ogr
 import warnings
 from util.ncconv.experimental.ocg_dataset import SubOcgDataset
-from util.ncconv.experimental.ocg_stats import OcgStat
+from util.ncconv.experimental.ocg_stat import OcgStat
 from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
 

@@ -2,14 +2,14 @@ import os
 from sqlalchemy.sql.expression import func, cast
 from sqlalchemy.types import INTEGER, Integer, Float
 import copy
-from sqlalchemy.schema import Table, Column
+from sqlalchemy.schema import Table, Column, ForeignKey
 from sqlalchemy.orm import mapper
+import numpy as np
 
 
 class OcgStat(object):
     __types = {int:Integer,
                float:Float}
-    __reserved = ['gid','day','month','year','level']
     
     def __init__(self,db,grouping):
         self.db = db
@@ -60,26 +60,31 @@ class OcgStat(object):
             value = grpcpy.pop('value')
             for f in funcs:
                 kwds = f.get('kwds',{})
-                grpcpy[f['name']] = float(f['function'](value,**kwds))
+                name = f.get('name',f['function'].__name__)
+                ivalue = f['function'](value,**kwds)
+                if type(ivalue) == np.float_:
+                    ivalue = float(ivalue)
+                elif type(ivalue) == np.int_:
+                    ivalue = int(ivalue)
+                grpcpy[name] = ivalue
             yield(grpcpy)
             
     def calculate_load(self,funcs):
-#        s = self.db.Session()
-#        try:
         coll = []
         for ii,attrs in enumerate(self.calculate(funcs)):
             if ii == 0:
                 table = self.get_table(attrs)
                 i = table.insert()
             coll.append(attrs)
-            i.execute(*coll)
-#            s.commit()
-#        finally:
-#            s.close()    
+        i.execute(*coll)  
             
     def get_table(self,arch):
-        args = ['stats',self.db.metadata,Column('ocgid',Integer,primary_key=True)]
+        args = ['stats',
+                self.db.metadata,
+                Column('ocgid',Integer,primary_key=True),
+                Column('gid',Integer,ForeignKey(self.db.Geometry.gid))]
         for key,value in arch.iteritems():
+            if key == 'gid': continue
             args.append(Column(key,self.__types[type(value)]))
         table = Table(*args)
         mapper(self.db.Stat,table)

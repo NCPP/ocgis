@@ -299,13 +299,19 @@ class TestStats(TestData,unittest.TestCase):
     def change_from_mean(values,mean=2.0):
         return(np.mean(values) - mean)
     
+    @staticmethod
+    def threshold_values(values,threshold=2.0):
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
+    
     def test_summary(self):
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite()
         st = OcgStat(db,('year',))
         funcs = [{'function':np.mean,'name':'mean'},
                  {'function':np.std,'name':'std'},
-                 {'function':self.change_from_mean,'name':'mean_change','kwds':{'mean':2.0}}]
+                 {'function':self.change_from_mean,'kwds':{'mean':2.0}},
+                 {'function':self.threshold_values,'kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
         s = db.Session()
         for obj in s.query(db.Stat):

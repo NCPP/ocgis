@@ -306,7 +306,7 @@ class TestStats(TestData,unittest.TestCase):
     
     def test_summary(self):
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite()
+        db = sub.as_sqlite(to_disk=True)
         st = OcgStat(db,('month',))
         funcs = [{'function':np.mean},
                  {'function':np.std},

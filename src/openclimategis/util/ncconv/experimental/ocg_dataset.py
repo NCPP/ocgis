@@ -4,6 +4,7 @@ from shapely import prepared
 from helpers import *
 from shapely.ops import cascaded_union
 import copy
+from util.helpers import get_temp_path
 
 
 class MaskedDataError(Exception):
@@ -485,12 +486,15 @@ class SubOcgDataset(object):
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.cell_id = np.array([1])
     
-    def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True):
+    def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True,to_disk=False):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker
         import db
         
-        engine = create_engine('sqlite://')
+        path = 'sqlite://'
+        if to_disk:
+            path = path + '/' + get_temp_path('.sqlite')
+        engine = create_engine(path)
         db.metadata.bind = engine
         db.Session = sessionmaker(bind=engine)
         

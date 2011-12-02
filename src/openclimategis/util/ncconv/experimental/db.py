@@ -32,7 +32,7 @@ class Geometry(Base):
 class Time(Base):
     __tablename__ = 'time'
     tid = Column(Integer,primary_key=True)
-    time = Column(DateTime,unique=True,nullable=False,index=True)
+    time = Column(DateTime,unique=True,nullable=False)
     
     def as_xml_date(self):
         '''Return the time as a XML time formatted string (UTC time)'''

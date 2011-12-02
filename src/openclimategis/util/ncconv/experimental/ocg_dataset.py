@@ -5,6 +5,7 @@ from helpers import *
 from shapely.ops import cascaded_union
 import copy
 from util.helpers import get_temp_path
+from util.ncconv.experimental.helpers import timing
 
 
 class MaskedDataError(Exception):
@@ -33,6 +34,7 @@ class OcgDataset(object):
         verbose
     """
     
+    @timing
     def __init__(self,uri,**kwds):
         self.uri = uri
         self.dataset = self.connect(uri)
@@ -88,7 +90,8 @@ class OcgDataset(object):
             self.dataset.close()
         finally:
             pass
-        
+    
+    @timing
     def connect(self,uri):
         return(nc.Dataset(uri,'r'))
         
@@ -125,14 +128,16 @@ class OcgDataset(object):
         ax.scatter(self.min_col,self.min_row)
         ax.scatter(self.max_col,self.max_row)
         if show: plt.show()
-        
+    
+    @timing
     def get_numpy_data(self,var,args):
         if len(args) == 3:
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
         return(npd)
-        
+    
+    @timing
     def subset(self,var_name,polygon=None,time_range=None,level_range=None): ## intersects + touches
         """
         polygon -- shapely Polygon object
@@ -486,6 +491,7 @@ class SubOcgDataset(object):
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.cell_id = np.array([1])
     
+    @timing
     def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True,to_disk=False):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker

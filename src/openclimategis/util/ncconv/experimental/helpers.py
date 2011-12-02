@@ -8,8 +8,19 @@ import warnings
 import os
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
+import time
 
-        
+
+def timing(f):
+    def wrapf(*args,**kwds):
+        t1 = time.time()
+        try:
+            return(f(*args,**kwds))
+        finally:
+            t = time.time() - t1
+            print('{0} - {1} secs'.format(f.__name__,t))
+    return(wrapf)
+  
 def itr_array(a):
     "a -- 2-d ndarray"
     ix = a.shape[0]

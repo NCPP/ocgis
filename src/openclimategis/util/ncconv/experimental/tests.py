@@ -12,6 +12,7 @@ from util.ncconv.experimental.ocg_dataset import SubOcgDataset
 from util.ncconv.experimental.ocg_stat import OcgStat
 from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
+from util.ncconv.experimental.helpers import timing
 
 verbose = False
 
@@ -135,19 +136,21 @@ class TestData(object):
                                 datetime.datetime(1952,12,31)]))
     
     @property
+    @timing
     def sub_ocg_dataset(self):
         sub = multipolygon_operation(self.nc_path,
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[{'gid':None,'geom':self.nebraska()},
                                                {'gid':None,'geom':self.iowa()}],
-                                     time_range=[datetime.datetime(1951,1,1),datetime.datetime(1952,12,31)],
+                                     time_range=[datetime.datetime(1951,1,1),
+                                                 datetime.datetime(2099,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=True,
                                      in_parallel=True,
                                      max_proc=8,
-                                     max_proc_per_poly=4)
+                                     max_proc_per_poly=2)
         return(sub)
 
 
@@ -307,7 +310,7 @@ class TestStats(TestData,unittest.TestCase):
     def test_summary(self):
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite(to_disk=False)
-        st = OcgStat(db,('month',))
+        st = OcgStat(db,('year',))
         funcs = [{'function':np.mean},
                  {'function':np.std},
                  {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
@@ -320,6 +323,8 @@ class TestStats(TestData,unittest.TestCase):
         conv = LinkedShpConverter(db,'foo',use_stat=True)
 #        conv = SqliteConverter(db,'foo')
         payload = conv.convert()
+        
+        print('')
         if type(payload) not in [list,tuple]:
             print(payload)
         else:

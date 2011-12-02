@@ -9,6 +9,7 @@ from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
 from sqlalchemy.exc import InvalidRequestError, ArgumentError, OperationalError
+from util.ncconv.experimental.helpers import timing
 
 
 class OcgStat(object):
@@ -74,7 +75,8 @@ class OcgStat(object):
                     ivalue = int(ivalue)
                 grpcpy[name] = ivalue
             yield(grpcpy)
-            
+    
+    @timing   
     def calculate_load(self,funcs):
         coll = []
         for ii,attrs in enumerate(self.calculate(funcs)):

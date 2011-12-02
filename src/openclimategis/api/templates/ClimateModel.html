@@ -1,6 +1,8 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Climate Models{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
     {% if is_collection %}
     > Climate Models
@@ -8,7 +10,7 @@
     > <a href="{% url climatemodel_list %}">Climate Models</a> 
     > {% for listitem in data %}{{ listitem.code }}{% endfor %}
     {% endif %}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
     <table frame=void rules=all>

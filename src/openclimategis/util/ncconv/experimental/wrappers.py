@@ -55,7 +55,7 @@ def f(arg):
         except (MaskedDataError,ExtentError):
             if not allow_empty:
                 raise
-    if gid is not None and clip is True:
+    if gid is not None and union is True:
         sub.cell_id = np.array([gid])
     return(sub)
 
@@ -135,7 +135,7 @@ def multipolygon_operation(uri,
                     ## apply the gid if passed. only when the geometries are
                     ## unioned is the user gid relevant.
                     gid = polygon.get('gid')
-                    if gid is not None and clip is True:
+                    if gid is not None and union is True:
                         sub.cell_id = np.array([gid])
                 ## hold for later merging
                 subs.append(sub)

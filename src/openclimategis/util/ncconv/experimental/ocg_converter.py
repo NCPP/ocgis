@@ -452,9 +452,9 @@ class ShpConverter(OcgConverter):
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        headers = self.get_headers(self.value_table,adds=['wkt'])
-        if 'tid' in headers:
-            headers.insert(headers.index('tid')+1,'time')
+        headers = self.get_headers(self.value_table,adds=['WKT'])
+        if 'TID' in headers:
+            headers.insert(headers.index('TID')+1,'TIME')
         return(self.get_iter(self.value_table,headers))
         
     def _convert_(self):

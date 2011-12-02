@@ -512,6 +512,7 @@ class SubOcgDataset(object):
         s = db.Session()
         try:
             ## create the geometries
+            print('loading geometry...')
             for dd in self.dim_data:
                 geom = self.geometry[dd]
                 if isinstance(geom,Polygon):
@@ -528,15 +529,17 @@ class SubOcgDataset(object):
                                   wkt=wkt,
                                   wkb=wkb,
                                   area_m2=get_area(self.geometry[dd],sr,sr2)))
+            s.commit()
+            print('loading time & value...')
             ## fill in the rest of the data
-            for dt in self.dim_time:
-                dtime = db.Time(time=self.timevec[dt])
+            for ii,dt in enumerate(self.dim_time,start=1):
+                s.add(db.Time(tid=ii,time=self.timevec[dt]))
                 for dl in self.dim_level:
                     for dd in self.dim_data:
-                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
-                        val = db.Value(geometry=geometry,
+#                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
+                        val = db.Value(gid=int(self.cell_id[dd]),
                                        level=int(self.levelvec[dl]),
-                                       time_ref=dtime,
+                                       tid=ii,
                                        value=float(self.value[dt,dl,dd]))
                         s.add(val)
             s.commit()

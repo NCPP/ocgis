@@ -36,6 +36,7 @@ class OperationSlug(OcgSlug):
 class FunctionSlug(OcgSlug):
     
     def _get_(self):
+#        import ipdb;ipdb.set_trace()
         stat = OcgStatFunction()
         function_list = stat.get_function_list(self.url_arg[0].split(' '))
         return(function_list)

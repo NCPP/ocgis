@@ -168,19 +168,19 @@ class OcgStatFunction(object):
     def min(values):
         return(min(values))
     
-#    @staticmethod
-#    def gt(values,threshold=None):
-#        if threshold is None:
-#            raise(ValueError('a threshold must be passed'))
-#        days = filter(lambda x: x > threshold, values)
-#        return(len(days))
+    @staticmethod
+    def gt(values,threshold=None):
+        if threshold is None:
+            raise(ValueError('a threshold must be passed'))
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
     
-#    @staticmethod
-#    def between(values,lower=None,upper=None):
-#        if lower is None or upper is None:
-#            raise(ValueError('a lower and upper limit are required'))
-#        days = filter(lambda x: x >= lower and x <= upper, values)
-#        return(len(days))
+    @staticmethod
+    def between(values,lower=None,upper=None):
+        if lower is None or upper is None:
+            raise(ValueError('a lower and upper limit are required'))
+        days = filter(lambda x: x >= lower and x <= upper, values)
+        return(len(days))
     
     
 if __name__ == '__main__':

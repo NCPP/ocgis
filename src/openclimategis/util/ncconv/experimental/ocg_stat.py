@@ -59,6 +59,7 @@ class OcgStat(object):
         """
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """
+        funcs = [{'function':len,'name':'count'}] + funcs
         for group in self.groups:
             grpcpy = group.copy()
             value = grpcpy.pop('value')

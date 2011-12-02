@@ -470,25 +470,22 @@ class TestFileUpload(TestCase):
 
     def test_upload_shapefile(self):
         '''Tests uploading a shapefile'''
-        with open('src/openclimategis/api/testdata/test_zipped_shapefile.zip') as f:
+        with open('src/openclimategis/api/testdata/ne_ia_mi.zip') as f:
             response = self.client.post(
                 '/api/shpupload.html',
                 {'code': 'TESTCODE', 
-                 #'objectid': None,
+                 'uid_field': "objectid",
                  'filefld': f},
             )
-        self.assertEqual(
-            response.content,
-            'Upload successful. Your geometry code is: <b>TESTCODE</b>'
-        )
+        self.assertEqual(response.status_code, 302)
     
     def test_upload_shapefile_bad_code(self):
         '''Tests uploading a shapefile'''
-        with open('src/openclimategis/api/testdata/test_zipped_shapefile.zip') as f:
+        with open('src/openclimategis/api/testdata/ne_ia_mi.zip') as f:
             response = self.client.post(
                 '/api/shpupload.html',
                 {'code': 'argh!^^#$', 
-                 #'objectid': None,
+                 'uid_field': "objectid",
                  'filefld': f},
             )
         self.assertTrue('The AOI code provided is invalid' in response.content)
@@ -502,10 +499,8 @@ class TestFileUpload(TestCase):
                  #'objectid': None,
                  'filefld': f},
             )
-        self.assertEqual(
-            response.content,
-            'Upload successful. Your geometry code is: <b>TESTCODE</b>'
-        )
+        self.assertEqual(response.status_code, 302)
+
 
 if __name__ == '__main__':
     unittest.main()

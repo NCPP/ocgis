@@ -1206,9 +1206,19 @@
   },
   {
     "pk": 1,
-    "model": "climatedata.usergeometrydata",
+    "model": "climatedata.usergeometrymetadata",
     "fields": {
       "code": "test_aoi",
+      "desc": "Test Description",
+      "uid_field": "objectid"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "gid": 1,
+      "user_meta": 1,
       "geom": "MULTIPOLYGON (((-116.0 33.0, -116.1 33.0, -116.1 33.1, -116.0 33.0)))"
     }
   }

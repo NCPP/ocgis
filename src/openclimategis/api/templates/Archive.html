@@ -1,6 +1,8 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Archives{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
     {% if is_collection %}
     > Archives
@@ -8,10 +10,10 @@
     > <a href="{% url archive_list %}">Archives</a> 
     > {% for listitem in data %}{{ listitem.code }}{% endfor %}
     {% endif %}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
-    <table border="1">
+    <table frame=void rules=all>
     <tbody>
     {% if is_collection %}
         {% comment %}Create table for a list of archives{% endcomment %}

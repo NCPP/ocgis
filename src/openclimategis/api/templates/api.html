@@ -1,11 +1,14 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block breadcrumbs %}
     {{ block.super }}
-{% endblock title %}
+{% endblock breadcrumbs %}
+
+{% block subtitle %} - API{% endblock subtitle %}
 
 {% block content %}
-<h2>Resources</h2>
+<div id="content">
+    <span class="header">Resources</span>
     <ul>
         <li>
             <a href="{% url archive_list %}">Archives</a>
@@ -26,4 +29,5 @@
             <a href="{% url simulation_list %}">Simulation Outputs </a>
         </li>
     </ul>
+</div>
 {% endblock content %}

@@ -1,6 +1,8 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Areas of Interest{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
     {% if is_collection %}
     > Area-of-Interest (AOI)
@@ -8,10 +10,10 @@
     > <a href="{% url aoi_list %}">Area-of-Interest (AOI)</a> 
     > {% for listitem in data %}{{ listitem.code }}{% endfor %}
     {% endif %}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
-    <table border="1">
+    <table frame=void rules=all>
     <tbody>
     {% if is_collection %}
         {% comment %}Create table for a list of Area-of-Interest resources{% endcomment %}
@@ -42,6 +44,6 @@
     </table>
     
     {% if is_collection %}
-        <p><a href="{% url shpupload_form %}">Upload Custom AOI</a></p>
+        <div class="box"><br /><a href="{% url shpupload_form %}">Upload Custom AOI</a></div>
     {% endif %}
 {% endblock content %}

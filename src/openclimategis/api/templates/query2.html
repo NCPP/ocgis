@@ -1,10 +1,13 @@
 {% extends "base_api.html" %}
 
-{% block title %}
+{% block subtitle %} - Query{% endblock subtitle %}
+
+{% block breadcrumbs %}
     {{ block.super }}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
-<h2>Query Placeholder</h2>
-
+<div id="content">
+    <span class="header">Query Placeholder</span>
+</div>
 {% endblock content %}

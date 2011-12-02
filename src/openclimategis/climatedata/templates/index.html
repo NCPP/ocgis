@@ -1,27 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}
+{% block breadcrumbs %}
     {{ block.super }}
-{% endblock title %}
+{% endblock breadcrumbs %}
 
 {% block content %}
-<p>
-Welcome to OpenClimateGIS, a geospatial web service that provides access to 
-climate model forecasts in geospatial formats.
-The goal of OpenClimateGIS 
-is to make climate model datasets readily available in commonly used, 
-modern geospatial formats used by GIS software, browser-based mapping tools, 
-and virtual globes.
-</p>
-<p>
-OpenClimateGIS implements a REST-like API for requesting data resources, 
-with relevant parameters encoded into the URL path.  The OpenClimateGIS system
-does not store climate data archives locally, 
-but rather works in conjunction with external climate archives that 
-expose climate data via the OPeNDAP protocol.
-</p>
-<p>
-<a href="{% url api_list %}">Click here to access the OpenClimateGIS API.</a>
-</p>
-
+<div id="content">
+    <div class="graph">
+        <span class="special">Welcome to OpenClimateGIS,</span> a geospatial web service that provides access to 
+        climate model forecasts in geospatial formats.
+        The goal of OpenClimateGIS 
+        is to make climate model datasets readily available in commonly used, 
+        modern geospatial formats used by GIS software, browser-based mapping tools, 
+        and virtual globes.
+    </div>
+    <div class="graph">
+        <span class="special">OpenClimateGIS</span> implements a REST-like API for requesting data resources, 
+        with relevant parameters encoded into the URL path.  The OpenClimateGIS system
+        does not store climate data archives locally, 
+        but rather works in conjunction with external climate archives that 
+        expose climate data via the OPeNDAP protocol.
+    </div>
+    <div class="graph">
+        <a href="{% url api_list %}">Click here to access the OpenClimateGIS API.</a>
+    </div>
+</div>
 {% endblock content %}

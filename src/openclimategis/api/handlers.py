@@ -67,9 +67,11 @@ class OpenClimateHandler(BaseHandler):
         request.url_args = kwds
         ## parse URL arguments
         self._parse_slugs_(kwds)
-        
+
         ## parse the query string for filters
+#        import ipdb;ipdb.set_trace()
         self._parse_query_dict_(request.GET)
+#        self._parse_query_dict_(request.POST)
         
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
@@ -85,12 +87,21 @@ class OpenClimateHandler(BaseHandler):
     
     def _parse_query_dict_(self, qdict):
         '''extracts filters from the query dict'''
-        
         self.ocg.query.archive = InQuerySlug(climatedata.models.Archive,'archive',possible=qdict,code_field='urlslug').value
         self.ocg.query.climate_model = InQuerySlug(climatedata.models.ClimateModel,'model',possible=qdict,code_field='urlslug').value
         self.ocg.query.scenario = InQuerySlug(climatedata.models.Scenario,'scenario',possible=qdict,code_field='urlslug').value
         self.ocg.query.variable = InQuerySlug(climatedata.models.Variable,'variable',possible=qdict,code_field='urlslug').value
-    
+        self.ocg.query.functions = FunctionSlug('stat',possible=qdict).value
+        self.ocg.query.grouping = GroupingSlug('grouping',possible=qdict).value
+        
+        ## if functions are passed, then so must an interval and vice versa
+#        if self.ocg.query.functions is None and self.ocg.query.interval is None:
+#            raise(ValueError('both a "stat" and "grouping" query are required'))
+        if self.ocg.query.functions is not None and self.ocg.query.grouping is not None:
+            self.ocg.query.use_stat = True
+        else:
+            self.ocg.query.use_stat = False
+        
     def _parse_slugs_(self,kwds):
         self.ocg.temporal = TemporalSlug('temporal',possible=kwds).value
         self.ocg.aoi = PolygonSlug('aoi',possible=kwds).value

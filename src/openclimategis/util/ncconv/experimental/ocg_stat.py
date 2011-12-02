@@ -7,6 +7,8 @@ from sqlalchemy.orm import mapper, relationship
 import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
+import inspect
+from sqlalchemy.exc import InvalidRequestError, ArgumentError, OperationalError
 
 
 class OcgStat(object):
@@ -89,24 +91,40 @@ class OcgStat(object):
         for key,value in arch.iteritems():
             if key == 'gid': continue
             args.append(Column(key,self.__types[type(value)]))
-        table = Table(*args)
-        mapper(self.db.Stat,
-               table,
-               properties={'geometry':relationship(self.db.Geometry)})
-        table.create()
+#        table = Table(*args)
+#        mapper(self.db.Stat,
+#               table,
+#               properties={'geometry':relationship(self.db.Geometry)})
+        try:
+            table = Table(*args)
+        except InvalidRequestError:
+            table = Table(*args,useexisting=True)
+        try:
+            mapper(self.db.Stat,
+                   table,
+                   properties={'geometry':relationship(self.db.Geometry)})
+        except ArgumentError:
+            pass
+        try:
+            table.create()
+        except OperationalError:
+            table.drop();table.create()
         return(table)
 
 
 class OcgStatFunction(object):
     """
-    >>> functions = 'mean+median+max+min+gt2+between1,2'
+    >>> functions = ['mean','median','max','min','gt2','between1,2']
     >>> stat = OcgStatFunction()
-    >>> stat.get_function_list(functions)
+    >>> function_list = stat.get_function_list(functions)
+    >>> potentials = stat.get_potentials()
     """
+    
+    __descs = {'mean':'Calculate mean for standard normal distribution.'}
     
     def get_function_list(self,functions):
         funcs = []
-        for f in functions.split('+'):
+        for f in functions:
             fname = re.search('([A-Za-z]+)',f).group(1)
             try:
                 args = re.search('([\d,]+)',f).group(1)
@@ -118,6 +136,17 @@ class OcgStatFunction(object):
                 attrs.update({'args':args})
             funcs.append(attrs)
         return(funcs)
+    
+    @classmethod
+    def get_potentials(cls):
+        filters = ['_','get_']
+        ret = []
+        for member in inspect.getmembers(cls):
+            if inspect.isfunction(member[1]):
+                test = [member[0].startswith(filter) for filter in filters]
+                if not any(test):
+                    ret.append([member[0],member[0]+' ('+cls.__descs.get(member[0],member[0])+')'])
+        return(ret)
     
     @staticmethod
     def mean(values):
@@ -139,19 +168,19 @@ class OcgStatFunction(object):
     def min(values):
         return(min(values))
     
-    @staticmethod
-    def gt(values,threshold=None):
-        if threshold is None:
-            raise(ValueError('a threshold must be passed'))
-        days = filter(lambda x: x > threshold, values)
-        return(len(days))
+#    @staticmethod
+#    def gt(values,threshold=None):
+#        if threshold is None:
+#            raise(ValueError('a threshold must be passed'))
+#        days = filter(lambda x: x > threshold, values)
+#        return(len(days))
     
-    @staticmethod
-    def between(values,lower=None,upper=None):
-        if lower is None or upper is None:
-            raise(ValueError('a lower and upper limit are required'))
-        days = filter(lambda x: x >= lower and x <= upper, values)
-        return(len(days))
+#    @staticmethod
+#    def between(values,lower=None,upper=None):
+#        if lower is None or upper is None:
+#            raise(ValueError('a lower and upper limit are required'))
+#        days = filter(lambda x: x >= lower and x <= upper, values)
+#        return(len(days))
     
     
 if __name__ == '__main__':

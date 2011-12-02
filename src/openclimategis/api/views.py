@@ -20,6 +20,8 @@ from django.contrib.gis.geos.polygon import Polygon
 from climatedata import models
 from django.db import transaction
 from shapely.geos import ReadingError
+from util.ncconv.experimental.ocg_stat import OcgStat, OcgStatFunction
+import urllib
 
 
 CHOICES_AGGREGATE = [
@@ -121,7 +123,19 @@ def get_SpatialQueryForm(simulation_output):
         )
         extension = forms.ChoiceField(
             choices=CHOICES_EXT,
-            label='Format'
+            label='Format',
+        )
+        stat = forms.MultipleChoiceField(
+            choices=OcgStatFunction.get_potentials(),
+            widget=forms.CheckboxSelectMultiple,
+            label='Aggregate Statistic(s)',
+            required=False
+        )
+        grouping = forms.MultipleChoiceField(
+            choices=[('day','Day'),('month','Month'),('year','Year')],
+            widget=forms.CheckboxSelectMultiple,
+            label='Grouping Interval(s)',
+            required=False
         )
         
         def clean(self):
@@ -155,6 +169,17 @@ def display_spatial_query(request):
                    '/spatial/{spatial_op}+{wkt_extent}'
                    '/aggregate/{aggregate}'
                    '/variable/{variable}.{extension}').format(**form.cleaned_data)
+            ## add query string parms
+            query = {}
+            for parm in ['stat','grouping']:
+                if form.cleaned_data.get(parm):
+                    query.update({parm:'+'.join(form.cleaned_data[parm])})
+            if query:
+                base = []
+                for key,value in query.iteritems():
+                    base.append(key+'='+value)
+                url = url + '?' + '&'.join(base)
+            print(url)
             return HttpResponseRedirect(url) # Redirect after POST
     else:
         form = SpatialQueryForm() # An unbound form

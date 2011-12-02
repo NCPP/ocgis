@@ -494,9 +494,9 @@ class SubOcgDataset(object):
         path = 'sqlite://'
         if to_disk:
             path = path + '/' + get_temp_path('.sqlite',nest=True)
-        engine = create_engine(path)
-        db.metadata.bind = engine
-        db.Session = sessionmaker(bind=engine)
+        db.engine = create_engine(path)
+        db.metadata.bind = db.engine
+        db.Session = sessionmaker(bind=db.engine)
         
         ## spatial reference for area calculation
         sr = get_sr(4326)

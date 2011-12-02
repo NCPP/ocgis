@@ -113,6 +113,8 @@ class GeojsonConverter(OcgConverter):
         features = [attrs for attrs in self.get_iter(self.value_table,headers)]
         for feat in features:
             feat['geometry'] = feat.pop('WKT')
+            if 'TIME' in feat:
+                feat['TIME'] = str(feat['TIME'])
         fc = geojson.FeatureCollection(features)
         return(geojson.dumps(fc))
     

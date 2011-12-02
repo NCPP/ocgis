@@ -35,7 +35,7 @@ class OcgSlug(object):
         return(msg)
     
     def get(self):
-        if self.url_arg is None:
+        if self.url_arg is None or len(self.url_arg) == 0:
             ret = None
         else:
             ret = self._get_()

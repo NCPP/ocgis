@@ -3,6 +3,7 @@ from util.helpers import parse_polygon_wkt
 from shapely import wkt
 import pdb
 from climatedata.models import UserGeometryData, UserGeometryMetadata
+from util.ncconv.experimental.ocg_stat import OcgStatFunction
 
 
 class PolygonSlug(OcgSlug):
@@ -30,3 +31,22 @@ class OperationSlug(OcgSlug):
         else:
             self.exception_()
         return(ret)
+
+
+class FunctionSlug(OcgSlug):
+    
+    def _get_(self):
+        stat = OcgStatFunction()
+        function_list = stat.get_function_list(self.url_arg[0].split(' '))
+        return(function_list)
+    
+    
+class GroupingSlug(OcgSlug):
+    
+    def _get_(self):
+        allowed = ['day','month','year']
+        groups = self.url_arg[0].split(' ')
+        for group in groups:
+            if group not in allowed:
+                raise(ValueError('"{0}" not allowed as grouping attribute'))
+        return(groups)

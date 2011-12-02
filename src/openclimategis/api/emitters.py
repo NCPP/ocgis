@@ -6,6 +6,7 @@ from api.views import display_spatial_query, display_shpupload
 from util.ncconv.experimental import ocg_converter
 
 import logging
+from util.ncconv.experimental.ocg_stat import OcgStat
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +83,9 @@ class SubOcgDataEmitter(IdentityEmitter):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
         self.db = self.get_db()
         self.request = request
+        if request.ocg.query.use_stat:
+            st = OcgStat(self.db,request.ocg.query.grouping)
+            st.calculate_load(self.request.ocg.query.functions)
         #logger.debug("n geometries = {0}".format(len(sub.geometry)))
         self.cfvar = request.ocg.simulation_output.variable.code
         self.converter = self.get_converter()
@@ -92,7 +96,9 @@ class SubOcgDataEmitter(IdentityEmitter):
         return(self.construct().as_sqlite())
     
     def get_converter(self):
-        return(self.__converter__(self.db,self.cfvar+self.__file_ext__))
+        return(self.__converter__(self.db,
+                                  self.cfvar+self.__file_ext__,
+                                  use_stat=self.request.ocg.query.use_stat))
         
     def get_response(self):
         return(self.converter.response())

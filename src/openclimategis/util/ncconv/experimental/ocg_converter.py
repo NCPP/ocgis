@@ -29,9 +29,9 @@ class OcgConverter(object):
         else:
             self.value_table = self.db.Value
     
-    @property
-    def mapper(self):
-        return(self.get_mapper(self.value_table))
+#    @property
+#    def mapper(self):
+#        return(self.get_mapper(self.value_table))
     
     def get_iter(self,table,headers=None):
         if headers is None: headers = self.get_headers(table)
@@ -43,22 +43,23 @@ class OcgConverter(object):
             s.close()
             
     def get_headers(self,table,adds=[]):
-        keys = self.get_mapper(table).columns.keys()
+        keys = table.__mapper__.columns.keys()
         keys += adds
         headers = [h.upper() for h in keys]
         return(headers)
     
-    @staticmethod
-    def get_mapper(table):
-        try:
-            table_mapper = table.__mapper__
-        except AttributeError:
-            table_mapper = class_mapper(table)
-        return(table_mapper)
+#    @staticmethod
+#    def get_mapper(table):
+#        try:
+#            table_mapper = table.__mapper__
+#        except AttributeError:
+#            table_mapper = class_mapper(table)
+#        return(table_mapper)
     
     def get_tablename(self,table):
-        m = self.get_mapper(table)
-        return(m.mapped_table.name)
+        return(table.__tablename__)
+#        m = self.get_mapper(table)
+#        return(m.mapped_table.name)
             
     @staticmethod
     def _todict_(obj,headers):
@@ -172,8 +173,7 @@ class LinkedCsvConverter(CsvConverter):
         
     def _clean_headers_(self,table):
         headers = self.get_headers(table)
-        mapper = self.get_mapper(table)
-        if mapper.mapped_table.name == 'geometry':
+        if self.get_tablename(table) == 'geometry':
             codes = [['add_area','AREA_M2'],['as_wkt','WKT'],['as_wkb','WKB']]
             for code in codes:
                 if not getattr(self,code[0]):
@@ -438,7 +438,7 @@ class ShpConverter(OcgConverter):
     
     def _set_ogr_fields_(self):
         ## create shapefile base attributes
-        for c in self.mapper.columns:
+        for c in self.value_table.__mapper__.columns:
             self.ogr_fields.append(OgrField(self.fcache,c.name,c.type))
             if c.name == 'tid' and not self.use_stat:
                 self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
@@ -452,7 +452,7 @@ class ShpConverter(OcgConverter):
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        headers = self.mapper.columns.keys() + ['wkt']
+        headers = self.get_headers(self.value_table,adds=['wkt'])
         if 'tid' in headers:
             headers.insert(headers.index('tid')+1,'time')
         return(self.get_iter(self.value_table,headers))
@@ -474,14 +474,15 @@ class ShpConverter(OcgConverter):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
-                val = attr[o.orig_name]
+#                import ipdb;ipdb.set_trace()
+                val = attr[o.orig_name.upper()]
                 args = [o.ogr_name,val]
                 try:
                     feat.SetField(*args)
                 except NotImplementedError:
                     args[1] = str(args[1])
                     feat.SetField(*args)
-            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['wkt'])))
+            check_err(feat.SetGeometry(ogr.CreateGeometryFromWkt(attr['WKT'])))
             check_err(layer.CreateFeature(feat))
             
         return(self.path)
@@ -531,7 +532,7 @@ class LinkedShpConverter(ShpConverter):
         return(zip_stream)
 
     def _get_iter_(self):
-        return(self.get_iter(self.db.Geometry,['gid','area_m2','wkt']))
+        return(self.get_iter(self.db.Geometry,['GID','AREA_M2','WKT']))
 
     def _set_ogr_fields_(self):
         ## create shapefile base attributes

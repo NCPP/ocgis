@@ -144,7 +144,7 @@ class TestData(object):
                                      polygons=[{'gid':None,'geom':self.nebraska()},
                                                {'gid':None,'geom':self.iowa()}],
                                      time_range=[datetime.datetime(1951,1,1),
-                                                 datetime.datetime(2099,12,31)],
+                                                 datetime.datetime(1952,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=True,
@@ -308,38 +308,41 @@ class TestStats(TestData,unittest.TestCase):
         return(len(days))
     
     def test_summary(self):
+        to_disk = True
+        use_stat = True
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite(to_disk=False)
-        st = OcgStat(db,('year',))
+        db = sub.as_sqlite(to_disk=to_disk)
+        st = OcgStat(db,('month',))
         funcs = [{'function':np.mean},
                  {'function':np.std},
                  {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
                  {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
         st.calculate_load(funcs)
-#        conv = CsvConverter(db,'foo',use_stat=False)
-#        conv = GeojsonConverter(db,'foo',use_stat=True)
-#        conv = ShpConverter(db,'foo',use_stat=False)
-#        conv = LinkedCsvConverter(db,'foo',use_stat=False)
-        conv = LinkedShpConverter(db,'foo',use_stat=True)
-#        conv = SqliteConverter(db,'foo')
-        payload = conv.convert()
-        
-        print('')
-        if type(payload) not in [list,tuple]:
-            print(payload)
-        else:
-            try:
-                for ii in payload:
-                    print ii['buffer'].getvalue()
-            except TypeError:
-                for ii in payload[0]:
-                    print ii['buffer'].getvalue()
-                print(payload[1])
+        conv = [
+                CsvConverter(db,'foo',use_stat=use_stat),
+                GeojsonConverter(db,'foo',use_stat=use_stat),
+                ShpConverter(db,'foo',use_stat=use_stat),
+                LinkedCsvConverter(db,'foo',use_stat=use_stat),
+                LinkedShpConverter(db,'foo',use_stat=use_stat),
+                SqliteConverter(db,'foo')
+                ]
+
+        for c in conv:
+            print(c)
+            payload = c.convert()
+            
+            print('')
+            if type(payload) not in [list,tuple]:
+                print(payload)
+            else:
+                try:
+                    for ii in payload:
+                        print ii['buffer'].getvalue()
+                except TypeError:
+                    for ii in payload[0]:
+                        print ii['buffer'].getvalue()
+                    print(payload[1])
         import ipdb;ipdb.set_trace()
-#        s = db.Session()
-#        for obj in s.query(db.Stat):
-#            import ipdb;ipdb.set_trace()
-#            print obj.__dict__
         
 
 if __name__ == "__main__":

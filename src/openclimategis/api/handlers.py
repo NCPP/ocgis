@@ -69,13 +69,11 @@ class OpenClimateHandler(BaseHandler):
         self._parse_slugs_(kwds)
 
         ## parse the query string for filters
-#        import ipdb;ipdb.set_trace()
         self._parse_query_dict_(request.GET)
 #        self._parse_query_dict_(request.POST)
         
         ## add OCG object to request object for use by emitters
         request.ocg = self.ocg
-        
         
     def _create_(self,request,**kwds):
         raise NotImplementedError
@@ -210,20 +208,14 @@ class SimulationOutputHandler(NonSpatialHandler):
             ret = self.model.objects.filter(id__exact=int(id))
         else:
             filter_kwds = {}
-            for key,value in request.ocg.query.__dict__.items():
-                if len(value) > 0:
-                    filter_kwds.update({key+'__in':value})
+            for key,value in request.ocg.query.__dict__.iteritems():
+                if key not in ['functions','grouping','use_stat']:
+                    if value is not None:
+                        filter_kwds.update({key+'__in':value})
             if len(filter_kwds) == 0:
                 ret = self.model.objects.all()
             else:
                 ret = self.model.objects.filter(**filter_kwds)
-#            import ipdb;ipdb.set_trace()
-##            query = self.model.objects.all()
-#            query = self.model.objects
-#            if len(request.ocg.filter_list)>0:
-#                for item in request.ocg.filter_list:
-#                    query = eval('query.filter({item})'.format(item=item))
-#            query = query.all()
         return(ret)
 
 

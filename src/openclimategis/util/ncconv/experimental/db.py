@@ -44,6 +44,17 @@ class Time(Base):
 
 
 class AbstractValue(object):
+#    ocgid = Column(Integer,primary_key=True)
+#    
+#    @declared_attr
+#    def gid(self):
+#        return(Column(Integer,ForeignKey(Geometry.gid)))
+#    
+#    level = Column(Integer,nullable=False)
+    
+    @declared_attr
+    def geometry(self):
+        return(relationship(Geometry))
     
     @property
     def wkt(self):
@@ -64,7 +75,6 @@ class Value(AbstractValue,Base):
     level = Column(Integer,nullable=False)
     value = Column(Float,nullable=False)
     
-    geometry = relationship(Geometry)
     time_ref = relationship(Time,backref="value")
     
     def __repr__(self):
@@ -79,5 +89,8 @@ class Value(AbstractValue,Base):
         return(self.time_ref.time)
 
 
-class Stat(AbstractValue):
-    pass
+#class AbstractStat(AbstractValue):
+#    __tablename__ = 'stat'
+#    ocgid = Column(Integer,primary_key=True)
+#    gid = Column(Integer,ForeignKey(Geometry.gid))
+#    level = Column(Integer,nullable=False)

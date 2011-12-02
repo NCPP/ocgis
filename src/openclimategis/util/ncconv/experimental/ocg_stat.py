@@ -10,6 +10,7 @@ import re
 import inspect
 from sqlalchemy.exc import InvalidRequestError, ArgumentError, OperationalError
 from util.ncconv.experimental.helpers import timing
+import types
 
 
 class OcgStat(object):
@@ -81,38 +82,23 @@ class OcgStat(object):
         coll = []
         for ii,attrs in enumerate(self.calculate(funcs)):
             if ii == 0:
-                table = self.get_table(attrs)
-                i = table.insert()
+                self.set_table(attrs)
+                i = self.db.Stat.__table__.insert()
             coll.append(attrs)
-        i.execute(*coll)  
+        i.execute(*coll)
             
-    def get_table(self,arch):
-        args = ['stats',
-                self.db.metadata,
-                Column('ocgid',Integer,primary_key=True),
-                Column('gid',Integer,ForeignKey(self.db.Geometry.gid))]
+    def set_table(self,arch):
+        attrs = OrderedDict({'__tablename__':'stats',
+                             'ocgid':Column(Integer,primary_key=True),
+                             'gid':Column(Integer,ForeignKey(self.db.Geometry.gid)),
+                             'level':Column(Integer,nullable=False)})
         for key,value in arch.iteritems():
-            if key == 'gid': continue
-            args.append(Column(key,self.__types[type(value)]))
-#        table = Table(*args)
-#        mapper(self.db.Stat,
-#               table,
-#               properties={'geometry':relationship(self.db.Geometry)})
-        try:
-            table = Table(*args)
-        except InvalidRequestError:
-            table = Table(*args,useexisting=True)
-        try:
-            mapper(self.db.Stat,
-                   table,
-                   properties={'geometry':relationship(self.db.Geometry)})
-        except ArgumentError:
-            pass
-        try:
-            table.create()
-        except OperationalError:
-            table.drop();table.create()
-        return(table)
+            if key in ['gid','level']: continue
+            attrs.update({key:Column(self.__types[type(value)],nullable=False)})
+        self.db.Stat = type('Stat',
+                            (self.db.AbstractValue,self.db.Base),
+                            attrs)
+        self.db.Stat.__table__.create()
 
 
 class OcgStatFunction(object):

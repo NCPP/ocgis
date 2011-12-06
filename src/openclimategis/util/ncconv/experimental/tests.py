@@ -310,12 +310,11 @@ class TestStats(TestData,unittest.TestCase):
         return(len(days))
     
     def test_summary(self):
-        to_disk = True
+        to_disk = False
         use_stat = False
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite(to_disk=to_disk)
         if use_stat:
-#            db = sub.as_sqlite(to_disk=to_disk)
             st = OcgStat(db,('month',))
             funcs = [{'function':np.mean},
                      {'function':np.std},
@@ -325,15 +324,17 @@ class TestStats(TestData,unittest.TestCase):
         conv = [
 #                CsvConverter(db,'foo',use_stat=use_stat),
 #                GeojsonConverter(db,'foo',use_stat=use_stat),
-                ShpConverter(db,'foo',use_stat=use_stat),
+#                ShpConverter(db,'foo',use_stat=use_stat),
 #                LinkedCsvConverter(db,'foo',use_stat=use_stat),
-#                LinkedShpConverter(db,'foo',use_stat=use_stat),
+                LinkedShpConverter(db,'foo',use_stat=use_stat),
 #                SqliteConverter(db,'foo')
                 ]
 
         for c in conv:
             print(c)
             payload = c.convert()
+            print(payload[0][2]['buffer'].getvalue())
+#            print(c.write())
             
 #            print('')
 #            if type(payload) not in [list,tuple]:

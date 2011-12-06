@@ -87,6 +87,9 @@ class OcgConverter(object):
     def cleanup(self):
         pass
     
+    def write(self):
+        raise(NotImplementedError)
+    
 
 class SqliteConverter(OcgConverter):
     
@@ -508,6 +511,13 @@ class LinkedShpConverter(ShpConverter):
         args = list(args)
         args[1] = os.path.splitext(args[1])[0]+'.shp'
         super(LinkedShpConverter,self).__init__(*args,**kwds)
+        
+    def write(self):
+        zip_stream = self.response()
+        path = get_temp_path(suffix='.zip')
+        with open(path,'wb') as f:
+            f.write(zip_stream)
+        return(path)
     
     def _convert_(self):
         ## get the payload dictionary from the linked csv converter. we also

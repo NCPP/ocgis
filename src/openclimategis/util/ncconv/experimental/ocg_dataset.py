@@ -6,6 +6,8 @@ from shapely.ops import cascaded_union
 import copy
 from util.helpers import get_temp_path
 from util.ncconv.experimental.helpers import timing
+from sqlalchemy.pool import NullPool, StaticPool
+import ploader as pl
 
 
 class MaskedDataError(Exception):
@@ -492,15 +494,26 @@ class SubOcgDataset(object):
         self.cell_id = np.array([1])
     
     @timing
-    def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True,to_disk=False):
+    def as_sqlite(self,add_area=True,
+                       area_srid=3005,
+                       wkt=True,
+                       wkb=False,
+                       as_multi=True,
+                       to_disk=False,
+                       procs=8):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker
         import db
         
         path = 'sqlite://'
-        if to_disk:
+        if to_disk or procs > 1:
             path = path + '/' + get_temp_path('.sqlite',nest=True)
-        db.engine = create_engine(path)
+            db.engine = create_engine(path,
+                                      poolclass=NullPool)
+        else:
+            db.engine = create_engine(path,
+                                      connect_args={'check_same_thread':False},
+                                      poolclass=StaticPool)
         db.metadata.bind = db.engine
         db.Session = sessionmaker(bind=db.engine)
         
@@ -535,20 +548,31 @@ class SubOcgDataset(object):
             for ii,dt in enumerate(self.dim_time,start=1):
                 s.add(db.Time(tid=ii,time=self.timevec[dt]))
             s.commit()
-            print('loading value')
-            ## fill in the rest of the data
-            for ii,dt in enumerate(self.dim_time,start=1):
-                for dl in self.dim_level:
-                    for dd in self.dim_data:
-#                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
-                        val = db.Value(gid=int(self.cell_id[dd]),
-                                       level=int(self.levelvec[dl]),
-                                       tid=ii,
-                                       value=float(self.value[dt,dl,dd]))
-                        s.add(val)
-            s.commit()
         finally:
             s.close()
+            
+        print('loading value...')
+        ## set up parallel loading data
+        gid = pl.ParallelVariable('gid',np.tile(self.cell_id,self.value.shape[0]*self.value.shape[1]).tolist())
+        level = pl.ParallelVariable('level',np.tile(self.levelvec,self.value.shape[0]*self.value.shape[1]*self.value.shape[2]).tolist())
+        tid = pl.ParallelVariable('tid',range(1,self.value.shape[0]*self.value.shape[1]*self.value.shape[2] + 1))
+        value = pl.ParallelVariable('value',self.value.reshape(-1).tolist())
+        pmodel = pl.ParallelModel(db.Value,[gid,level,tid,value])
+        ploader = pl.ParallelLoader(db.Session,procs=procs)
+        ploader.load_model(pmodel)
+            
+#            ## fill in the rest of the data
+#            for ii,dt in enumerate(self.dim_time,start=1):
+#                for dl in self.dim_level:
+#                    for dd in self.dim_data:
+##                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
+#                        val = db.Value(gid=int(self.cell_id[dd]),
+#                                       level=int(self.levelvec[dl]),
+#                                       tid=ii,
+#                                       value=float(self.value[dt,dl,dd]))
+#                        s.add(val)
+#            s.commit()
+
         return(db)
     
     def display(self,show=True,overlays=None):

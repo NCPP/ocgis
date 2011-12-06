@@ -14,6 +14,7 @@ from sqlalchemy.orm.util import class_mapper
 from sqlalchemy.types import Float, Integer, Date, DateTime, FLOAT, INTEGER,\
     DATE, DATETIME
 import re
+from util.ncconv.experimental.helpers import timing
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +66,8 @@ class OcgConverter(object):
     def _todict_(obj,headers):
         return(dict(zip(headers,
                         [getattr(obj,h.lower()) for h in headers])))
-        
+    
+    @timing
     def convert(self,*args,**kwds):
         return(self._convert_(*args,**kwds))
     

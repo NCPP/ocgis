@@ -530,10 +530,14 @@ class SubOcgDataset(object):
                                   wkb=wkb,
                                   area_m2=get_area(self.geometry[dd],sr,sr2)))
             s.commit()
-            print('loading time & value...')
-            ## fill in the rest of the data
+            print('loading time...')
+            ## load the time data
             for ii,dt in enumerate(self.dim_time,start=1):
                 s.add(db.Time(tid=ii,time=self.timevec[dt]))
+            s.commit()
+            print('loading value')
+            ## fill in the rest of the data
+            for ii,dt in enumerate(self.dim_time,start=1):
                 for dl in self.dim_level:
                     for dd in self.dim_data:
 #                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()

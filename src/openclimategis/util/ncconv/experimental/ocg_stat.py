@@ -95,9 +95,15 @@ class OcgStat(object):
         for key,value in arch.iteritems():
             if key in ['gid','level']: continue
             attrs.update({key:Column(self.__types[type(value)],nullable=False)})
-        self.db.Stat = type('Stat',
-                            (self.db.AbstractValue,self.db.Base),
-                            attrs)
+        try:
+            self.db.Stat = type('Stat',
+                                (self.db.AbstractValue,self.db.Base),
+                                attrs)
+        except InvalidRequestError:
+            self.db.metadata.remove(self.db.Stat.__table__)
+            self.db.Stat = type('Stat',
+                                (self.db.AbstractValue,self.db.Base),
+                                attrs)
         self.db.Stat.__table__.create()
 
 

@@ -17,15 +17,18 @@ class OcgStat(object):
     __types = {int:Integer,
                float:Float}
     
-    def __init__(self,db,grouping):
+    def __init__(self,db,grouping,cache=True):
         self.db = db
         self.grouping = ['gid','level'] + list(grouping)
+        self.cache = cache
         self._groups = None
         
     @property
     def groups(self):
-        if self._groups is None:
+        if self._groups is None and self.cache:
             self._groups = [attrs for attrs in self.iter_grouping()]
+        elif not self.cache:
+            self._groups = self.iter_grouping()
         return(self._groups)
         
     def get_date_query(self,session):
@@ -52,7 +55,7 @@ class OcgStat(object):
                 for filter in filters:
                     data = data.filter(filter)
                 attrs = OrderedDict(zip(obj.keys(),[getattr(obj,key) for key in obj.keys()]))
-                attrs['value'] = [d[0] for d in data]
+                attrs['value'] = [d[0] for d in data.all()]
                 yield(attrs)
         finally:
             s.close()
@@ -62,7 +65,8 @@ class OcgStat(object):
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """
         funcs = [{'function':len,'name':'count'}] + funcs
-        for group in self.groups:
+        for ii,group in enumerate(self.groups):
+            print(ii)
             grpcpy = group.copy()
             value = grpcpy.pop('value')
             for f in funcs:
@@ -91,10 +95,16 @@ class OcgStat(object):
         attrs = OrderedDict({'__tablename__':'stats',
                              'ocgid':Column(Integer,primary_key=True),
                              'gid':Column(Integer,ForeignKey(self.db.Geometry.gid)),
-                             'level':Column(Integer,nullable=False)})
+                             'level':Column(Integer,nullable=False,index=True)})
         for key,value in arch.iteritems():
             if key in ['gid','level']: continue
-            attrs.update({key:Column(self.__types[type(value)],nullable=False)})
+            if key in ['day','month','year']:
+                index = True
+            else:
+                index = False
+            attrs.update({key:Column(self.__types[type(value)],
+                                     nullable=False,
+                                     index=index)})
         try:
             self.db.Stat = type('Stat',
                                 (self.db.AbstractValue,self.db.Base),

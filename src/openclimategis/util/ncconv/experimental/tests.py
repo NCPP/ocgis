@@ -146,7 +146,7 @@ class TestData(object):
 #                                               {'gid':None,'geom':self.iowa()}
                                                ],
                                      time_range=[datetime.datetime(1951,1,1),
-                                                 datetime.datetime(1952,12,31)],
+                                                 datetime.datetime(1961,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=False,
@@ -311,15 +311,17 @@ class TestStats(TestData,unittest.TestCase):
     
     def test_summary(self):
         to_disk = False
-        use_stat = False
+        use_stat = True
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite(to_disk=to_disk)
         if use_stat:
-            st = OcgStat(db,('month',))
-            funcs = [{'function':np.mean},
-                     {'function':np.std},
-                     {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
-                     {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}]
+            st = OcgStat(db,('year',),cache=False)
+            funcs = [
+#                     {'function':np.mean},
+#                     {'function':np.std},
+#                     {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
+                     {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}
+                     ]
             st.calculate_load(funcs)
         conv = [
 #                CsvConverter(db,'foo',use_stat=use_stat),
@@ -332,9 +334,9 @@ class TestStats(TestData,unittest.TestCase):
 
         for c in conv:
             print(c)
-            payload = c.convert()
-            print(payload[0][2]['buffer'].getvalue())
-#            print(c.write())
+#            payload = c.convert()
+#            print(payload[0][2]['buffer'].getvalue())
+            print(c.write())
             
 #            print('')
 #            if type(payload) not in [list,tuple]:

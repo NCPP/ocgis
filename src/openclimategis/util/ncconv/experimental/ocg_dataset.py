@@ -512,8 +512,9 @@ class SubOcgDataset(object):
                                       poolclass=NullPool)
         else:
             db.engine = create_engine(path,
-                                      connect_args={'check_same_thread':False},
-                                      poolclass=StaticPool)
+#                                      connect_args={'check_same_thread':False},
+#                                      poolclass=StaticPool
+                                      )
         db.metadata.bind = db.engine
         db.Session = sessionmaker(bind=db.engine)
         
@@ -548,20 +549,9 @@ class SubOcgDataset(object):
             for ii,dt in enumerate(self.dim_time,start=1):
                 s.add(db.Time(tid=ii,time=self.timevec[dt]))
             s.commit()
-        finally:
-            s.close()
-            
-        print('loading value...')
-        ## set up parallel loading data
-        gid = pl.ParallelVariable('gid',np.tile(self.cell_id,self.value.shape[0]*self.value.shape[1]).tolist())
-        level = pl.ParallelVariable('level',np.tile(self.levelvec,self.value.shape[0]*self.value.shape[1]*self.value.shape[2]).tolist())
-        tid = pl.ParallelVariable('tid',range(1,self.value.shape[0]*self.value.shape[1]*self.value.shape[2] + 1))
-        value = pl.ParallelVariable('value',self.value.reshape(-1).tolist())
-        pmodel = pl.ParallelModel(db.Value,[gid,level,tid,value])
-        ploader = pl.ParallelLoader(db.Session,procs=procs)
-        ploader.load_model(pmodel)
             
 #            ## fill in the rest of the data
+#            print('loading value...')
 #            for ii,dt in enumerate(self.dim_time,start=1):
 #                for dl in self.dim_level:
 #                    for dd in self.dim_data:
@@ -572,6 +562,34 @@ class SubOcgDataset(object):
 #                                       value=float(self.value[dt,dl,dd]))
 #                        s.add(val)
 #            s.commit()
+        finally:
+            s.close()
+            
+        print('loading value...')
+        ## set up parallel loading data
+        gid = []
+        level = []
+        tid = []
+        value = []
+        for ii,dt in enumerate(self.dim_time,start=1):
+            for dl in self.dim_level:
+                for dd in self.dim_data:
+                    gid.append(int(self.cell_id[dd]))
+                    level.append(int(self.levelvec[dl]))
+                    tid.append(ii)
+                    value.append(float(self.value[dt,dl,dd]))
+#                    val = db.Value(gid=int(self.cell_id[dd]),
+#                                   level=int(self.levelvec[dl]),
+#                                   tid=ii,
+#                                   value=float(self.value[dt,dl,dd]))
+        
+        gid = pl.ParallelVariable('gid',gid)
+        level = pl.ParallelVariable('level',level)
+        tid = pl.ParallelVariable('tid',tid)
+        value = pl.ParallelVariable('value',value)
+        pmodel = pl.ParallelModel(db.Value,[gid,level,tid,value])
+        ploader = pl.ParallelLoader(db.engine,procs=procs)
+        ploader.load_model(pmodel)
 
         return(db)
     

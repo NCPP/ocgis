@@ -11,18 +11,26 @@ class ParallelLoader(object):
         
     @staticmethod
     def loader(Session,pmodel):
-        s = Session()
-        try:
-            for obj in pmodel.iter_data():
-                s.add(obj)
-            while True:
-                try:
-                    s.commit()
-                    break
-                except OperationalError:
-                    continue
-        finally:
-            s.close()
+#        import ipdb;ipdb.set_trace()
+        coll = []
+        for ii,attrs in enumerate(pmodel.iter_data(as_dict=True)):
+            if ii == 0:
+                i = pmodel.Model.__table__.insert()
+            coll.append(attrs)
+        i.execute(*coll)
+#        import ipdb;ipdb.set_trace()
+#        s = Session()
+#        try:
+#            for obj in pmodel.iter_data():
+#                s.add(obj)
+#            while True:
+#                try:
+#                    s.commit()
+#                    break
+#                except OperationalError:
+#                    continue
+#        finally:
+#            s.close()
         
     def load_model(self,pmodel):
         if self.procs == 1:

@@ -9,35 +9,81 @@ from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
 from sqlalchemy.exc import InvalidRequestError, ArgumentError, OperationalError
-from util.ncconv.experimental.helpers import timing
+from util.ncconv.experimental.helpers import timing, chunks, array_split
 import types
+from multiprocessing import Pool, Manager
+from multiprocessing.process import Process
 
 
 class OcgStat(object):
     __types = {int:Integer,
                float:Float}
     
-    def __init__(self,db,grouping,cache=True):
+    def __init__(self,db,grouping,procs=1):
         self.db = db
         self.grouping = ['gid','level'] + list(grouping)
-        self.cache = cache
+        self.procs = procs
         self._groups = None
         
     @property
     def groups(self):
-        if self._groups is None and self.cache:
-            self._groups = [attrs for attrs in self.iter_grouping()]
-        elif not self.cache:
+        if self.procs == 1:
             self._groups = self.iter_grouping()
+        elif self.procs > 1:
+            self._groups = self.get_groups()
         return(self._groups)
-        
+    
     def get_date_query(self,session):
-        q = session.query(cast(func.strftime('%m',self.db.Time.time),INTEGER).label('month'),
-                        cast(func.strftime('%d',self.db.Time.time),INTEGER).label('day'),
-                        cast(func.strftime('%Y',self.db.Time.time),INTEGER).label('year'),
-                        self.db.Value)
-        q = q.filter(self.db.Time.tid == self.db.Value.tid)
-        return(q.subquery())
+        qdate = session.query(self.db.Value,
+                              self.db.Time.day,
+                              self.db.Time.month,
+                              self.db.Time.year)
+        qdate = qdate.join(self.db.Time)
+        return(qdate.subquery())
+    
+    @staticmethod
+    def get_group(all_attrs,db,group_objs,grouping):
+        s = db.Session()
+        try:
+            for group_obj in group_objs:
+                qtids = s.query(db.Time.tid)
+                for grp in grouping:
+                    if grp in ['year','day','month']:
+                        qtids = qtids.filter(getattr(db.Time,grp) == getattr(group_obj,grp))
+#                tids = [dd[0] for dd in qtids.all()]
+                data = s.query(db.Value.value).filter(db.Value.tid.in_(qtids))
+                for grp in grouping:
+                    if grp in ['gid','level']:
+                        data = data.filter(getattr(db.Value,grp) == getattr(group_obj,grp))
+                print(data);import ipdb;ipdb.set_trace()
+                attrs = OrderedDict(zip(group_obj.keys(),[getattr(group_obj,key) for key in group_obj.keys()]))
+                attrs['value'] = [d[0] for d in data.all()]
+                all_attrs.append(attrs)
+        finally:
+            s.close()
+    
+    @timing     
+    def get_groups(self):
+        s = self.db.Session()
+        try:
+            ## return the date subquery
+            sq = self.get_date_query(s)
+            ## retrieve the unique groups over which to iterate
+            columns = [getattr(sq.c,grp) for grp in self.grouping]
+            qdistinct = s.query(*columns).distinct()
+            distinct_groups = array_split(qdistinct.all(),self.procs)
+            ## process in parallel
+            all_attrs = Manager().list()
+            processes = [Process(target=self.get_group,
+                                 args=(all_attrs,self.db,group_objs,self.grouping))
+                         for group_objs in distinct_groups]
+            for process in processes:
+                process.start()
+            for p in processes:
+                p.join()
+            return(all_attrs)
+        finally:
+            s.close()
             
     def iter_grouping(self):
         s = self.db.Session()
@@ -46,14 +92,16 @@ class OcgStat(object):
             sq = self.get_date_query(s)
             ## retrieve the unique groups over which to iterate
             columns = [getattr(sq.c,grp) for grp in self.grouping]
-            q = s.query(*columns).distinct()
+            qdistinct = s.query(*columns).distinct()
             ## iterate over the grouping returning a list of values for that
             ## group.
-            for obj in q.all():
-                filters = [getattr(sq.c,grp) == getattr(obj,grp) for grp in self.grouping]
-                data = s.query(sq.c.value)
-                for filter in filters:
-                    data = data.filter(filter)
+            for obj in qdistinct.all():
+                data = s.query(self.db.Value.value).join(self.db.Time)
+                for grp in self.grouping:
+                    if grp in ['gid','level']:
+                        data = data.filter(getattr(self.db.Value,grp) == getattr(obj,grp))
+                    else:
+                        data = data.filter(getattr(self.db.Time,grp) == getattr(obj,grp))
                 attrs = OrderedDict(zip(obj.keys(),[getattr(obj,key) for key in obj.keys()]))
                 attrs['value'] = [d[0] for d in data.all()]
                 yield(attrs)
@@ -66,7 +114,6 @@ class OcgStat(object):
         """
         funcs = [{'function':len,'name':'count'}] + funcs
         for ii,group in enumerate(self.groups):
-            print(ii)
             grpcpy = group.copy()
             value = grpcpy.pop('value')
             for f in funcs:

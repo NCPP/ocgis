@@ -13,6 +13,7 @@ from util.ncconv.experimental.ocg_stat import OcgStat
 from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
 from util.ncconv.experimental.helpers import timing
+from shapely.geometry.polygon import Polygon
 
 verbose = False
 
@@ -146,7 +147,7 @@ class TestData(object):
 #                                               {'gid':None,'geom':self.iowa()}
                                                ],
                                      time_range=[datetime.datetime(1951,1,1),
-                                                 datetime.datetime(1961,12,31)],
+                                                 datetime.datetime(1956,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=False,
@@ -313,9 +314,9 @@ class TestStats(TestData,unittest.TestCase):
         to_disk = False
         use_stat = True
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite(to_disk=to_disk)
+        db = sub.as_sqlite(to_disk=to_disk,procs=8)
         if use_stat:
-            st = OcgStat(db,('year',),cache=False)
+            st = OcgStat(db,('year',),procs=8)
             funcs = [
 #                     {'function':np.mean},
 #                     {'function':np.std},

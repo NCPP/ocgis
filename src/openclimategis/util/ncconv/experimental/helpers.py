@@ -9,7 +9,26 @@ import os
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 import time
+import math
 
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+        
+def array_split(ary,n):
+    l = len(ary)
+    step = int(math.floor(l/n))
+    ret = []
+    idx = 0
+    for ii in range(0,n):
+        try:
+            ret.append(ary[idx:idx+step+1])
+        except IndexError:
+            ret.append(ary[idx:-1])
+        idx = idx + step + 1
+    return(ret)
 
 def timing(f):
     def wrapf(*args,**kwds):

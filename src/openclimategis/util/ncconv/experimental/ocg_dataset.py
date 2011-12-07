@@ -500,7 +500,7 @@ class SubOcgDataset(object):
                        wkb=False,
                        as_multi=True,
                        to_disk=False,
-                       procs=8):
+                       procs=1):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker
         import db
@@ -547,7 +547,11 @@ class SubOcgDataset(object):
             print('loading time...')
             ## load the time data
             for ii,dt in enumerate(self.dim_time,start=1):
-                s.add(db.Time(tid=ii,time=self.timevec[dt]))
+                s.add(db.Time(tid=ii,
+                              time=self.timevec[dt],
+                              day=self.timevec[dt].day,
+                              month=self.timevec[dt].month,
+                              year=self.timevec[dt].year))
             s.commit()
             
 #            ## fill in the rest of the data
@@ -578,10 +582,6 @@ class SubOcgDataset(object):
                     level.append(int(self.levelvec[dl]))
                     tid.append(ii)
                     value.append(float(self.value[dt,dl,dd]))
-#                    val = db.Value(gid=int(self.cell_id[dd]),
-#                                   level=int(self.levelvec[dl]),
-#                                   tid=ii,
-#                                   value=float(self.value[dt,dl,dd]))
         
         gid = pl.ParallelVariable('gid',gid)
         level = pl.ParallelVariable('level',level)

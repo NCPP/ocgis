@@ -15,8 +15,9 @@ class OcgStat(object):
     __types = {int:Integer,
                float:Float}
     
-    def __init__(self,db,grouping,procs=1):
+    def __init__(self,db,sub,grouping,procs=1):
         self.db = db
+        self.sub = sub
         self.grouping = ['gid','level'] + list(grouping)
         self.time_grouping = grouping
         self.procs = procs
@@ -25,7 +26,7 @@ class OcgStat(object):
     @property
     def groups(self):
         if self._groups is None:
-            self._groups = self.get_groups()
+            self._groups = array_split(self.get_distinct_groups(),self.procs)
         return(self._groups)
     
     def run_parallel(self,processes):
@@ -42,52 +43,6 @@ class OcgStat(object):
         qdate = qdate.join(self.db.Time)
         return(qdate.subquery())
     
-    @staticmethod
-    def get_group(all_attrs,db,group_objs,grouping):
-        s = db.Session()
-        try:
-            ## create the query statements with bind parameters
-            qtids = s.query(db.Time.tid)
-            qdata = s.query(db.Value.value)#.filter(db.Value.tid.in_(qtids))
-            for grp in grouping:
-                if grp in ['year','day','month']:
-                    qtids = qtids.filter("{0} = :{0}".format(grp))
-                else:
-                    qdata = qdata.filter("{0} = :{0}".format(grp))
-            ## pull the keys out for later use
-            keys = group_objs[0].keys()
-            
-            for group_obj in group_objs:
-                qtids_dict = {}
-                qdata_dict = {}
-                for grp in grouping:
-                    if grp in ['year','day','month']:
-                        qtids_dict.update({grp:getattr(group_obj,grp)})
-                    else:
-                        qdata_dict.update({grp:getattr(group_obj,grp)})
-                iqdata = qdata.filter(db.Value.tid.in_(qtids.params(**qtids_dict)))
-                iqdata = iqdata.params(**qdata_dict)
-                attrs = OrderedDict(zip(keys,[getattr(group_obj,key) for key in keys]))
-                attrs['value'] = [d[0] for d in iqdata.all()]
-                all_attrs.append(attrs)
-        finally:
-            s.close()
-    
-    @timing     
-    def get_groups(self):
-        s = self.db.Session()
-        try:
-            distinct_groups = array_split(self.get_distinct_groups(),self.procs)
-            ## process in parallel
-            all_attrs = Manager().list()
-            processes = [Process(target=self.get_group,
-                                 args=(all_attrs,self.db,group_objs,self.grouping))
-                         for group_objs in distinct_groups]
-            self.run_parallel(processes)
-            return(all_attrs)
-        finally:
-            s.close()
-    
     @timing
     def get_distinct_groups(self):
         s = self.db.Session()
@@ -100,86 +55,70 @@ class OcgStat(object):
             return(qdistinct.all())
         finally:
             s.close()
-        
-            
-    def iter_grouping(self):
-        s = self.db.Session()
-        try:
-            ## return the date subquery
-            sq = self.get_date_query(s)
-            ## retrieve the unique groups over which to iterate
-            columns = [getattr(sq.c,grp) for grp in self.grouping]
-            qdistinct = s.query(*columns).distinct()
-            ## iterate over the grouping returning a list of values for that
-            ## group.
-            for obj in qdistinct.all():
-                data = s.query(self.db.Value.value).join(self.db.Time)
-                for grp in self.grouping:
-                    if grp in ['gid','level']:
-                        data = data.filter(getattr(self.db.Value,grp) == getattr(obj,grp))
-                    else:
-                        data = data.filter(getattr(self.db.Time,grp) == getattr(obj,grp))
-                attrs = OrderedDict(zip(obj.keys(),[getattr(obj,key) for key in obj.keys()]))
-                attrs['value'] = [d[0] for d in data.all()]
-                yield(attrs)
-        finally:
-            s.close()
-        
     
     @staticmethod
-    def f_calculate(all_attrs,groups,funcs):
+    def f_calculate(all_attrs,sub,groups,funcs,time_conv,time_grouping):
         """
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """ 
-        
-        ## always count the data
-        funcs = [{'function':len,'name':'count'}] + funcs
         ## construct the base variable dictionary
         pvars = []
-        keys = groups[0].keys() + [f.get('name',f['function'].__name__) for f in funcs]
+        keys = list(groups[0]._labels) + [f.get('name') for f in funcs]
         for key in keys:
-            if key != 'value':
-                pvars.append(pl.ParallelVariable(key))
+            pvars.append(pl.ParallelVariable(key))
         ## get indices for fast inserting?
         idx = dict([pvar.name,ii] for ii,pvar in enumerate(pvars))
 
         ## loop through the groups adding the data
         for group in groups:
-            for key,value in group.iteritems():
-                if key != 'value':
-                    pvars[idx[key]].append(value)
+            ## append the grouping information
+            for label in group._labels:
+                pvars[idx[label]].append(getattr(group,label))
+            ## extract the time indices of the values
+            cmp = [getattr(group,grp) for grp in time_grouping]
+            ## loop through time vector selecting the time indices
+            tids = [ii for ii,time in enumerate(time_conv) if cmp == time]
+            ## get the index for the particular geometry
+            cell_idx = sub.cell_id == group.gid
+            ## extract the values
+            values = sub.value[tids,group.level-1,cell_idx].tolist()
+            ## calculate function value and update variables
             for f in funcs:
                 kwds = f.get('kwds',{})
-                args = [group['value']] + f.get('args',[])
-                name = f.get('name',f['function'].__name__)
+                args = [values] + f.get('args',[])
                 ivalue = f['function'](*args,**kwds)
                 if type(ivalue) == np.float_:
                     ivalue = float(ivalue)
                 elif type(ivalue) == np.int_:
                     ivalue = int(ivalue)
-                pvars[idx[name]].append(ivalue)
+                pvars[idx[f.get('name')]].append(ivalue)
 
         all_attrs.append(pvars)
             
     @timing
     def calculate(self,funcs):
+        ## always count the data
+        funcs = [{'function':len,'name':'count'}] + funcs
+        ## precalc the function name
+        for f in funcs: f.update({'name':f.get('name',f['function'].__name__)})
+        ## convert the time vector for faster referencing
+        time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
+                     for time in self.sub.timevec]
         ## the shared list
         all_attrs = Manager().list()
         if self.procs > 1:
-            ## split groups into distinct groupings
-#            print('  splitting into distinct groups...')
-            distinct_groups = array_split(self.groups,self.procs)
-#            print('  init processes...')
             processes = [Process(target=self.f_calculate,
                                  args=(all_attrs,
+                                       self.sub,
                                        groups,
-                                       funcs))
-                         for groups in distinct_groups]
-#            print('  exec processes...')
+                                       funcs,
+                                       time_conv,
+                                       self.time_grouping))
+                         for groups in self.groups]
             self.run_parallel(processes)
         else:
-            self.f_calculate(all_attrs,self.groups,funcs)
-#        print('    done.')
+            self.f_calculate(all_attrs,self.sub,self.groups[0],funcs,time_conv,self.time_grouping)
+            
         return(all_attrs)
     
     @timing   
@@ -218,48 +157,6 @@ class OcgStat(object):
                                 (self.db.AbstractValue,self.db.Base),
                                 attrs)
         self.db.Stat.__table__.create()
-        
-        
-class SubOcgStat(OcgStat):
-    
-    def __init__(self,db,grouping,sub,**kwds):
-        self.sub = sub
-        
-        super(SubOcgStat,self).__init__(db,grouping,**kwds)
-    
-    @staticmethod
-    def get_group(all_attrs,distinct_groups,sub,time_grouping,grouping,time_conv):
-        ## get the time indices for each group
-        for dgrp in distinct_groups:
-            dgrp = OrderedDict(zip(grouping,[getattr(dgrp,grp) for grp in grouping]))
-            ## get comparator
-            cmp = [dgrp.get(grp) for grp in time_grouping]
-            ## loop through time vector selecting the time indices
-            tids = [ii for ii,time in enumerate(time_conv) if cmp == time]
-            ## create the output
-            cell_id = sub.cell_id == dgrp['gid']
-            dgrp['value'] = sub.value[tids,dgrp['level']-1,cell_id].tolist()
-            all_attrs.append(dgrp)
-    
-    @timing
-    def get_groups(self):
-        ## convert the time vector for grouping comparison
-        time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
-                     for time in self.sub.timevec]
-        ## set up parallel processing
-        distinct_groups = array_split(self.get_distinct_groups(),self.procs)
-        ## process in parallel
-        all_attrs = Manager().list()
-        processes = [Process(target=self.get_group,
-                             args=(all_attrs,
-                                   distinct_group,
-                                   self.sub,
-                                   self.time_grouping,
-                                   self.grouping,
-                                   time_conv))
-                     for distinct_group in distinct_groups]
-        self.run_parallel(processes)
-        return(all_attrs)
 
 
 class OcgStatFunction(object):

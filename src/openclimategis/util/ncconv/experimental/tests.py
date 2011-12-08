@@ -9,7 +9,7 @@ import os
 from osgeo import ogr
 import warnings
 from util.ncconv.experimental.ocg_dataset import SubOcgDataset
-from util.ncconv.experimental.ocg_stat import OcgStat, SubOcgStat
+from util.ncconv.experimental.ocg_stat import OcgStat
 from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
 from util.ncconv.experimental.helpers import timing
@@ -322,8 +322,7 @@ class TestStats(TestData,unittest.TestCase):
         sub = self.sub_ocg_dataset
         db = sub.as_sqlite(to_disk=to_disk,procs=8)
         if use_stat:
-#            st = OcgStat(db,('year',),procs=8)
-            st = SubOcgStat(db,('year',),sub,procs=8)
+            st = OcgStat(db,sub,('year',),procs=8)
             funcs = [
                      {'function':np.mean},
                      {'function':np.std},
@@ -357,7 +356,7 @@ class TestStats(TestData,unittest.TestCase):
 #                    for ii in payload[0]:
 #                        print ii['buffer'].getvalue()
 #                    print(payload[1])
-        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
         
 
 if __name__ == "__main__":

@@ -1,27 +1,23 @@
 from django import forms
-#from climatedata import models
-from django.http import HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.shortcuts import redirect
 from django.core.exceptions import ValidationError
-#from django.core.context_processors import csrf
 from django.template.context import RequestContext
 from shapely import wkt as shapely_wkt
 from util.helpers import reverse_wkt, get_temp_path
-import pdb
 import os
 import zipfile
-from util.ncconv.experimental.helpers import get_wkt_from_shp, get_shp_as_multi,\
+from util.ncconv.experimental.helpers import get_shp_as_multi,\
     reduce_to_multipolygon, keep
-from climatedata.models import UserGeometryData, UserGeometryMetadata
+from climatedata.models import UserGeometryMetadata
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.contrib.gis.geos.collections import MultiPolygon
 from django.contrib.gis.geos.polygon import Polygon
 from climatedata import models
 from django.db import transaction
 from shapely.geos import ReadingError
-from util.ncconv.experimental.ocg_stat import OcgStat, OcgStatFunction
-import urllib
+from util.ncconv.experimental.ocg_stat import OcgStatFunction
 
 
 CHOICES_AGGREGATE = [
@@ -118,7 +114,7 @@ def get_SpatialQueryForm(simulation_output):
         )
         spatial_op = forms.ChoiceField(
             choices=CHOICES_SOP,
-            initial='intersects',
+            initial='clip',
             label='Spatial Operation',
         )
         extension = forms.ChoiceField(

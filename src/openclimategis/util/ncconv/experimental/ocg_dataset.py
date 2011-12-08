@@ -5,8 +5,7 @@ from helpers import *
 from shapely.ops import cascaded_union
 import copy
 from util.helpers import get_temp_path
-from util.ncconv.experimental.helpers import timing
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import NullPool
 import ploader as pl
 
 
@@ -553,19 +552,6 @@ class SubOcgDataset(object):
                               month=self.timevec[dt].month,
                               year=self.timevec[dt].year))
             s.commit()
-            
-#            ## fill in the rest of the data
-#            print('loading value...')
-#            for ii,dt in enumerate(self.dim_time,start=1):
-#                for dl in self.dim_level:
-#                    for dd in self.dim_data:
-##                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
-#                        val = db.Value(gid=int(self.cell_id[dd]),
-#                                       level=int(self.levelvec[dl]),
-#                                       tid=ii,
-#                                       value=float(self.value[dt,dl,dd]))
-#                        s.add(val)
-#            s.commit()
         finally:
             s.close()
             

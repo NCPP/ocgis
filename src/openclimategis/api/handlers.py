@@ -10,6 +10,7 @@ from climatedata.models import ClimateModel
 from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
+from django.conf import settings
 
 import logging
 from util.ncconv.experimental.wrappers import multipolygon_operation
@@ -255,8 +256,6 @@ class ShpUploadHandler(NonSpatialHandler):
 
 
 class SpatialHandler(OpenClimateHandler):
-#    __mode__ = 'single'
-    __mode__ = 'multi'
     
     def _read_(self,request):
         logger.debug("starting SpatialHandler._read_()...")
@@ -277,30 +276,23 @@ class SpatialHandler(OpenClimateHandler):
             clip = False
         
         ## choose extraction mode and pull data appropriately.
-        if self.__mode__ == 'single':
-            sub = multipolygon_operation(dataset.uri,
-                                         self.ocg.simulation_output.netcdf_variable.code,
-                                         ocg_opts=kwds,
-                                         polygons=self.ocg.aoi,
-                                         time_range=self.ocg.temporal,
-                                         level_range=None, 
-                                         clip=clip,
-                                         union=self.ocg.aggregate,
-                                         in_parallel=False,
-                                         allow_empty=True)
-        elif self.__mode__ == 'multi':
-            sub = multipolygon_operation(dataset.uri,
-                                         self.ocg.simulation_output.netcdf_variable.code,
-                                         ocg_opts=kwds,
-                                         polygons=self.ocg.aoi,
-                                         time_range=self.ocg.temporal,
-                                         level_range=None, 
-                                         clip=clip,
-                                         union=self.ocg.aggregate,
-                                         in_parallel=True, 
-                                         max_proc=8,
-                                         max_proc_per_poly=1,
-                                         allow_empty=True)
+        if settings.MAXPROCESSES == 1:
+            in_parallel = False
+        else:
+            in_parallel = True
+            
+        sub = multipolygon_operation(dataset.uri,
+                                     self.ocg.simulation_output.netcdf_variable.code,
+                                     ocg_opts=kwds,
+                                     polygons=self.ocg.aoi,
+                                     time_range=self.ocg.temporal,
+                                     level_range=None, 
+                                     clip=clip,
+                                     union=self.ocg.aggregate,
+                                     in_parallel=in_parallel, 
+                                     max_proc=settings.MAXPROCESSES,
+                                     max_proc_per_poly=settings.MAXPROCESSES_PER_POLY,
+                                     allow_empty=True)
 
         logger.debug("...ending SpatialHandler._read_()")
         return(sub)

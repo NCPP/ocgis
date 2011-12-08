@@ -156,7 +156,7 @@ class TestData(object):
                                                  datetime.datetime(2061,12,31)],
                                      level_range=None,
                                      clip=True,
-                                     union=False,
+                                     union=True,
                                      in_parallel=True,
                                      max_proc=8,
                                      max_proc_per_poly=2)
@@ -331,19 +331,19 @@ class TestStats(TestData,unittest.TestCase):
                      ]
             st.calculate_load(funcs)
         conv = [
-#                CsvConverter(db,'foo',use_stat=use_stat),
-#                GeojsonConverter(db,'foo',use_stat=use_stat),
-#                ShpConverter(db,'foo',use_stat=use_stat),
-#                LinkedCsvConverter(db,'foo',use_stat=use_stat),
+                CsvConverter(db,'foo',use_stat=use_stat),
+                GeojsonConverter(db,'foo',use_stat=use_stat),
+                ShpConverter(db,'foo',use_stat=use_stat),
+                LinkedCsvConverter(db,'foo',use_stat=use_stat),
                 LinkedShpConverter(db,'foo',use_stat=use_stat),
-#                SqliteConverter(db,'foo')
+                SqliteConverter(db,'foo')
                 ]
 
         for c in conv:
             print(c)
-#            payload = c.convert()
+            payload = c.convert()
 #            print(payload[0][2]['buffer'].getvalue())
-            print(c.write())
+#            print(c.write())
             
 #            print('')
 #            if type(payload) not in [list,tuple]:

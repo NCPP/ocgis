@@ -1,17 +1,12 @@
-import os
-from sqlalchemy.sql.expression import func, cast
-from sqlalchemy.types import INTEGER, Integer, Float
-import copy
-from sqlalchemy.schema import Table, Column, ForeignKey
-from sqlalchemy.orm import mapper, relationship
+from sqlalchemy.types import Integer, Float
+from sqlalchemy.schema import Column, ForeignKey
 import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
-from sqlalchemy.exc import InvalidRequestError, ArgumentError, OperationalError
-from util.ncconv.experimental.helpers import timing, chunks, array_split
-import types
-from multiprocessing import Pool, Manager
+from sqlalchemy.exc import InvalidRequestError
+from util.ncconv.experimental.helpers import timing, array_split
+from multiprocessing import Manager
 from multiprocessing.process import Process
 
 
@@ -22,6 +17,7 @@ class OcgStat(object):
     def __init__(self,db,grouping,procs=1):
         self.db = db
         self.grouping = ['gid','level'] + list(grouping)
+        self.time_grouping = grouping
         self.procs = procs
         self._groups = None
         
@@ -45,19 +41,29 @@ class OcgStat(object):
     def get_group(all_attrs,db,group_objs,grouping):
         s = db.Session()
         try:
+            ## create the query statements with bind parameters
+            qtids = s.query(db.Time.tid)
+            qdata = s.query(db.Value.value)#.filter(db.Value.tid.in_(qtids))
+            for grp in grouping:
+                if grp in ['year','day','month']:
+                    qtids = qtids.filter("{0} = :{0}".format(grp))
+                else:
+                    qdata = qdata.filter("{0} = :{0}".format(grp))
+            ## pull the keys out for later use
+            keys = group_objs[0].keys()
+            
             for group_obj in group_objs:
-                qtids = s.query(db.Time.tid)
+                qtids_dict = {}
+                qdata_dict = {}
                 for grp in grouping:
                     if grp in ['year','day','month']:
-                        qtids = qtids.filter(getattr(db.Time,grp) == getattr(group_obj,grp))
-#                tids = [dd[0] for dd in qtids.all()]
-                data = s.query(db.Value.value).filter(db.Value.tid.in_(qtids))
-                for grp in grouping:
-                    if grp in ['gid','level']:
-                        data = data.filter(getattr(db.Value,grp) == getattr(group_obj,grp))
-                print(data);import ipdb;ipdb.set_trace()
-                attrs = OrderedDict(zip(group_obj.keys(),[getattr(group_obj,key) for key in group_obj.keys()]))
-                attrs['value'] = [d[0] for d in data.all()]
+                        qtids_dict.update({grp:getattr(group_obj,grp)})
+                    else:
+                        qdata_dict.update({grp:getattr(group_obj,grp)})
+                iqdata = qdata.filter(db.Value.tid.in_(qtids.params(**qtids_dict)))
+                iqdata = iqdata.params(**qdata_dict)
+                attrs = OrderedDict(zip(keys,[getattr(group_obj,key) for key in keys]))
+                attrs['value'] = [d[0] for d in iqdata.all()]
                 all_attrs.append(attrs)
         finally:
             s.close()
@@ -66,12 +72,7 @@ class OcgStat(object):
     def get_groups(self):
         s = self.db.Session()
         try:
-            ## return the date subquery
-            sq = self.get_date_query(s)
-            ## retrieve the unique groups over which to iterate
-            columns = [getattr(sq.c,grp) for grp in self.grouping]
-            qdistinct = s.query(*columns).distinct()
-            distinct_groups = array_split(qdistinct.all(),self.procs)
+            distinct_groups = array_split(self.get_distinct_groups(),self.procs)
             ## process in parallel
             all_attrs = Manager().list()
             processes = [Process(target=self.get_group,
@@ -84,6 +85,20 @@ class OcgStat(object):
             return(all_attrs)
         finally:
             s.close()
+    
+    @timing
+    def get_distinct_groups(self):
+        s = self.db.Session()
+        try:
+            ## return the date subquery
+            sq = self.get_date_query(s)
+            ## retrieve the unique groups over which to iterate
+            columns = [getattr(sq.c,grp) for grp in self.grouping]
+            qdistinct = s.query(*columns).distinct()
+            return(qdistinct.all())
+        finally:
+            s.close()
+        
             
     def iter_grouping(self):
         s = self.db.Session()
@@ -162,6 +177,51 @@ class OcgStat(object):
                                 (self.db.AbstractValue,self.db.Base),
                                 attrs)
         self.db.Stat.__table__.create()
+        
+        
+class SubOcgStat(OcgStat):
+    
+    def __init__(self,db,grouping,sub,**kwds):
+        self.sub = sub
+        
+        super(SubOcgStat,self).__init__(db,grouping,**kwds)
+    
+    @staticmethod
+    def get_group(all_attrs,distinct_groups,sub,time_grouping,grouping,time_conv):
+        ## get the time indices for each group
+        for dgrp in distinct_groups:
+            dgrp = OrderedDict(zip(grouping,[getattr(dgrp,grp) for grp in grouping]))
+            ## get comparator
+            cmp = [dgrp.get(grp) for grp in time_grouping]
+            ## loop through time vector selecting the time indices
+            tids = [ii for ii,time in enumerate(time_conv) if cmp == time]
+            ## create the output
+            cell_id = sub.cell_id == dgrp['gid']
+            dgrp['value'] = sub.value[tids,dgrp['level']-1,cell_id].tolist()
+        all_attrs.append(dgrp)
+    
+    @timing
+    def get_groups(self):
+        ## convert the time vector for grouping comparison
+        time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
+                     for time in self.sub.timevec]
+        ## set up parallel processing
+        distinct_groups = array_split(self.get_distinct_groups(),self.procs)
+        ## process in parallel
+        all_attrs = Manager().list()
+        processes = [Process(target=self.get_group,
+                             args=(all_attrs,
+                                   distinct_group,
+                                   self.sub,
+                                   self.time_grouping,
+                                   self.grouping,
+                                   time_conv))
+                     for distinct_group in distinct_groups]
+        for process in processes:
+            process.start()
+        for p in processes:
+            p.join()
+        return(all_attrs)
 
 
 class OcgStatFunction(object):

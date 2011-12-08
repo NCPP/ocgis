@@ -24,7 +24,9 @@ def array_split(ary,n):
     idx = 0
     for ii in range(0,n):
         try:
-            ret.append(ary[idx:idx+step+1])
+            app = ary[idx:idx+step+1]
+            if len(app) > 0:
+                ret.append(app)
         except IndexError:
             ret.append(ary[idx:-1])
         idx = idx + step + 1

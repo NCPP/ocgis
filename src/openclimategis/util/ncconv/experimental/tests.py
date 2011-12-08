@@ -148,12 +148,12 @@ class TestData(object):
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[
-                                               {'gid':99,'geom':self.nebraska()},
-                                               {'gid':100,'geom':self.iowa()},
-#                                                {'gid':None,'geom':self.vermont()}
+#                                               {'gid':99,'geom':self.nebraska()},
+#                                               {'gid':100,'geom':self.iowa()},
+                                               {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
-                                                 datetime.datetime(2099,12,31)],
+                                                 datetime.datetime(2061,12,31)],
                                      level_range=None,
                                      clip=True,
                                      union=False,
@@ -325,9 +325,9 @@ class TestStats(TestData,unittest.TestCase):
 #            st = OcgStat(db,('year',),procs=8)
             st = SubOcgStat(db,('year',),sub,procs=8)
             funcs = [
-#                     {'function':np.mean},
-#                     {'function':np.std},
-#                     {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
+                     {'function':np.mean},
+                     {'function':np.std},
+                     {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
                      {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}
                      ]
             st.calculate_load(funcs)

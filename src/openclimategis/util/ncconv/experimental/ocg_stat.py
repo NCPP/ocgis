@@ -8,6 +8,7 @@ from sqlalchemy.exc import InvalidRequestError
 from util.ncconv.experimental.helpers import timing, array_split
 from multiprocessing import Manager
 from multiprocessing.process import Process
+import ploader as pl
 
 
 class OcgStat(object):
@@ -23,11 +24,15 @@ class OcgStat(object):
         
     @property
     def groups(self):
-        if self.procs == 1:
-            self._groups = self.iter_grouping()
-        elif self.procs > 1:
+        if self._groups is None:
             self._groups = self.get_groups()
         return(self._groups)
+    
+    def run_parallel(self,processes):
+        for process in processes:
+            process.start()
+        for p in processes:
+            p.join()
     
     def get_date_query(self,session):
         qdate = session.query(self.db.Value,
@@ -78,10 +83,7 @@ class OcgStat(object):
             processes = [Process(target=self.get_group,
                                  args=(all_attrs,self.db,group_objs,self.grouping))
                          for group_objs in distinct_groups]
-            for process in processes:
-                process.start()
-            for p in processes:
-                p.join()
+            self.run_parallel(processes)
             return(all_attrs)
         finally:
             s.close()
@@ -122,13 +124,15 @@ class OcgStat(object):
                 yield(attrs)
         finally:
             s.close()
-            
-    def calculate(self,funcs):
+        
+    
+    @staticmethod
+    def f_calculate(all_attrs,groups,funcs):
         """
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """
         funcs = [{'function':len,'name':'count'}] + funcs
-        for ii,group in enumerate(self.groups):
+        for group in groups:
             grpcpy = group.copy()
             value = grpcpy.pop('value')
             for f in funcs:
@@ -141,17 +145,50 @@ class OcgStat(object):
                 elif type(ivalue) == np.int_:
                     ivalue = int(ivalue)
                 grpcpy[name] = ivalue
-            yield(grpcpy)
+            all_attrs.append(grpcpy)
+            
+    @timing
+    def calculate(self,funcs):
+        ## split groups into distinct groupings
+        distinct_groups = array_split(self.groups,self.procs)
+        ## construct the processes
+        all_attrs = Manager().list()
+        processes = [Process(target=self.f_calculate,
+                             args=(all_attrs,
+                                   groups,
+                                   funcs))
+                     for groups in distinct_groups]
+        self.run_parallel(processes)
+        return(all_attrs)
     
     @timing   
     def calculate_load(self,funcs):
-        coll = []
-        for ii,attrs in enumerate(self.calculate(funcs)):
-            if ii == 0:
-                self.set_table(attrs)
-                i = self.db.Stat.__table__.insert()
-            coll.append(attrs)
-        i.execute(*coll)
+        all_attrs = self.calculate(funcs)
+        self.load(all_attrs)
+    
+    @timing
+    def load(self,all_attrs):
+        print('making table...')
+        self.set_table(all_attrs[0])
+        ## set up parallel loading
+        pvars = OrderedDict.fromkeys(all_attrs[0],[])
+        print('filling variable dictionary...')
+        for attrs in all_attrs:
+            for key,value in attrs.iteritems():
+                pvars[key] = pvars[key] + [value]
+        print('constructing parallel model...')
+        pmodel = pl.ParallelModel(self.db.Stat,
+                                  [pl.ParallelVariable(key,value) 
+                                   for key,value in pvars.iteritems()])
+        print('starting loader...')
+        ploader = pl.ParallelLoader(procs=self.procs)
+        ploader.load_model(pmodel)
+        print('success.')
+#        import ipdb;ipdb.set_trace()
+        ## load into database
+#        self.set_table(all_attrs[0])
+#        i = self.db.Stat.__table__.insert()
+#        i.execute(*all_attrs)
             
     def set_table(self,arch):
         attrs = OrderedDict({'__tablename__':'stats',
@@ -207,7 +244,6 @@ class SubOcgStat(OcgStat):
                      for time in self.sub.timevec]
         ## set up parallel processing
         distinct_groups = array_split(self.get_distinct_groups(),self.procs)
-        import ipdb;ipdb.set_trace()
         ## process in parallel
         all_attrs = Manager().list()
         processes = [Process(target=self.get_group,
@@ -218,10 +254,7 @@ class SubOcgStat(OcgStat):
                                    self.grouping,
                                    time_conv))
                      for distinct_group in distinct_groups]
-        for process in processes:
-            process.start()
-        for p in processes:
-            p.join()
+        self.run_parallel(processes)
         return(all_attrs)
 
 

@@ -1,43 +1,50 @@
 from multiprocessing.process import Process
 import numpy as np
 from sqlalchemy.exc import OperationalError
+from multiprocessing import Lock
 
 
 class ParallelLoader(object):
     
-    def __init__(self,Session,procs=1):
-        self.Session = Session
+    def __init__(self,procs=1):
         self.procs = procs
         
     @staticmethod
-    def loader(Session,pmodel):
+    def loader(pmodel,lock=None):
 #        import ipdb;ipdb.set_trace()
         coll = []
         for ii,attrs in enumerate(pmodel.iter_data(as_dict=True)):
             if ii == 0:
                 i = pmodel.Model.__table__.insert()
             coll.append(attrs)
+        if lock is None:
+            i.execute(*coll)
+        else:
+            lock.acquire()
+            i.execute(*coll)
+            lock.release()
 #        import ipdb;ipdb.set_trace()
 #        s = Session()
 #        try:
 #            for obj in pmodel.iter_data():
 #                s.add(obj)
-        while True:
-            try:
-                i.execute(*coll)
-                break
-            except OperationalError:
-                continue
+#        while True:
+#            try:
+#                i.execute(*coll)
+#                break
+#            except OperationalError:
+#                continue
 #        finally:
 #            s.close()
         
     def load_model(self,pmodel):
         if self.procs == 1:
-            self.loader(self.Session,pmodel)
+            self.loader(pmodel)
         elif self.procs > 1:
+            lock = Lock()
             pmodels = pmodel.split(self.procs)
-            args = [[self.Session,pmodel] for pmodel in pmodels]
-            processes = [Process(target=self.loader,args=arg) for arg in args]
+#            args = [[self.Session,pmodel] for pmodel in pmodels]
+            processes = [Process(target=self.loader,args=(pm,lock)) for pm in pmodels]
             self.run(processes)
         else:
             raise(ValueError('"procs" must be one or greater.'))

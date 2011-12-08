@@ -588,7 +588,7 @@ class SubOcgDataset(object):
         tid = pl.ParallelVariable('tid',tid)
         value = pl.ParallelVariable('value',value)
         pmodel = pl.ParallelModel(db.Value,[gid,level,tid,value])
-        ploader = pl.ParallelLoader(db.engine,procs=procs)
+        ploader = pl.ParallelLoader(procs=procs)
         ploader.load_model(pmodel)
 
         return(db)

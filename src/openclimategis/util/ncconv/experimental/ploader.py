@@ -11,7 +11,6 @@ class ParallelLoader(object):
         
     @staticmethod
     def loader(pmodel,lock=None):
-#        import ipdb;ipdb.set_trace()
         coll = []
         for ii,attrs in enumerate(pmodel.iter_data(as_dict=True)):
             if ii == 0:
@@ -23,31 +22,21 @@ class ParallelLoader(object):
             lock.acquire()
             i.execute(*coll)
             lock.release()
-#        import ipdb;ipdb.set_trace()
-#        s = Session()
-#        try:
-#            for obj in pmodel.iter_data():
-#                s.add(obj)
-#        while True:
-#            try:
-#                i.execute(*coll)
-#                break
-#            except OperationalError:
-#                continue
-#        finally:
-#            s.close()
         
     def load_model(self,pmodel):
         if self.procs == 1:
             self.loader(pmodel)
         elif self.procs > 1:
-            lock = Lock()
             pmodels = pmodel.split(self.procs)
-#            args = [[self.Session,pmodel] for pmodel in pmodels]
-            processes = [Process(target=self.loader,args=(pm,lock)) for pm in pmodels]
-            self.run(processes)
+            self.load_models(pmodels)
         else:
             raise(ValueError('"procs" must be one or greater.'))
+        
+    def load_models(self,pmodels):
+        """assumes the pmodels length is equivalent to the number of desired processes."""
+        lock = Lock()
+        processes = [Process(target=self.loader,args=(pm,lock)) for pm in pmodels]
+        self.run(processes)
         
     def run(self,processes):
         for ii,process in enumerate(processes,start=1):
@@ -90,7 +79,7 @@ class ParallelModel(object):
         
 class ParallelVariable(object):
     
-    def __init__(self,name,data,op=None):
+    def __init__(self,name,data=[],op=None):
         self.name = name
         self.data = data
         self.op = op
@@ -103,6 +92,9 @@ class ParallelVariable(object):
             if self.op is not None:
                 d = self.op(d)
             yield({self.name:d})
+            
+    def append(self,val):
+        self.data = self.data + [val]
             
     def get_data(self,idx):
         if self.op is not None:

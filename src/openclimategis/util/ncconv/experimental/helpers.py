@@ -19,7 +19,7 @@ def chunks(l, n):
         
 def array_split(ary,n):
     l = len(ary)
-    step = int(math.floor(l/n))
+    step = int(math.ceil(l/float(n)))
     ret = []
     idx = 0
     for ii in range(0,n):

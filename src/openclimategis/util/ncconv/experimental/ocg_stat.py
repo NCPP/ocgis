@@ -130,35 +130,56 @@ class OcgStat(object):
     def f_calculate(all_attrs,groups,funcs):
         """
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
-        """
+        """ 
+        
+        ## always count the data
         funcs = [{'function':len,'name':'count'}] + funcs
+        ## construct the base variable dictionary
+        pvars = []
+        keys = groups[0].keys() + [f.get('name',f['function'].__name__) for f in funcs]
+        for key in keys:
+            if key != 'value':
+                pvars.append(pl.ParallelVariable(key))
+        ## get indices for fast inserting?
+        idx = dict([pvar.name,ii] for ii,pvar in enumerate(pvars))
+
+        ## loop through the groups adding the data
         for group in groups:
-            grpcpy = group.copy()
-            value = grpcpy.pop('value')
+            for key,value in group.iteritems():
+                if key != 'value':
+                    pvars[idx[key]].append(value)
             for f in funcs:
                 kwds = f.get('kwds',{})
-                args = [value] + f.get('args',[])
+                args = [group['value']] + f.get('args',[])
                 name = f.get('name',f['function'].__name__)
                 ivalue = f['function'](*args,**kwds)
                 if type(ivalue) == np.float_:
                     ivalue = float(ivalue)
                 elif type(ivalue) == np.int_:
                     ivalue = int(ivalue)
-                grpcpy[name] = ivalue
-            all_attrs.append(grpcpy)
+                pvars[idx[name]].append(ivalue)
+
+        all_attrs.append(pvars)
             
     @timing
     def calculate(self,funcs):
-        ## split groups into distinct groupings
-        distinct_groups = array_split(self.groups,self.procs)
-        ## construct the processes
+        ## the shared list
         all_attrs = Manager().list()
-        processes = [Process(target=self.f_calculate,
-                             args=(all_attrs,
-                                   groups,
-                                   funcs))
-                     for groups in distinct_groups]
-        self.run_parallel(processes)
+        if self.procs > 1:
+            ## split groups into distinct groupings
+#            print('  splitting into distinct groups...')
+            distinct_groups = array_split(self.groups,self.procs)
+#            print('  init processes...')
+            processes = [Process(target=self.f_calculate,
+                                 args=(all_attrs,
+                                       groups,
+                                       funcs))
+                         for groups in distinct_groups]
+#            print('  exec processes...')
+            self.run_parallel(processes)
+        else:
+            self.f_calculate(all_attrs,self.groups,funcs)
+#        print('    done.')
         return(all_attrs)
     
     @timing   
@@ -168,42 +189,25 @@ class OcgStat(object):
     
     @timing
     def load(self,all_attrs):
-        print('making table...')
         self.set_table(all_attrs[0])
-        ## set up parallel loading
-        pvars = OrderedDict.fromkeys(all_attrs[0],[])
-        print('filling variable dictionary...')
-        for attrs in all_attrs:
-            for key,value in attrs.iteritems():
-                pvars[key] = pvars[key] + [value]
-        print('constructing parallel model...')
-        pmodel = pl.ParallelModel(self.db.Stat,
-                                  [pl.ParallelVariable(key,value) 
-                                   for key,value in pvars.iteritems()])
-        print('starting loader...')
+        pmodels = [pl.ParallelModel(self.db.Stat,pvars) for pvars in all_attrs]
         ploader = pl.ParallelLoader(procs=self.procs)
-        ploader.load_model(pmodel)
-        print('success.')
-#        import ipdb;ipdb.set_trace()
-        ## load into database
-#        self.set_table(all_attrs[0])
-#        i = self.db.Stat.__table__.insert()
-#        i.execute(*all_attrs)
+        ploader.load_models(pmodels)
             
-    def set_table(self,arch):
+    def set_table(self,pvars):
         attrs = OrderedDict({'__tablename__':'stats',
                              'ocgid':Column(Integer,primary_key=True),
                              'gid':Column(Integer,ForeignKey(self.db.Geometry.gid)),
                              'level':Column(Integer,nullable=False,index=True)})
-        for key,value in arch.iteritems():
-            if key in ['gid','level']: continue
-            if key in ['day','month','year']:
+        for pvar in pvars:
+            if pvar.name in ['gid','level']: continue
+            if pvar.name in ['day','month','year']:
                 index = True
             else:
                 index = False
-            attrs.update({key:Column(self.__types[type(value)],
-                                     nullable=False,
-                                     index=index)})
+            attrs.update({pvar.name:Column(self.__types[type(pvar.data[0])],
+                                           nullable=False,
+                                           index=index)})
         try:
             self.db.Stat = type('Stat',
                                 (self.db.AbstractValue,self.db.Base),

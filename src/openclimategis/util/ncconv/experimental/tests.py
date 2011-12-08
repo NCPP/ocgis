@@ -148,8 +148,8 @@ class TestData(object):
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[
-#                                               {'gid':99,'geom':self.nebraska()},
-#                                               {'gid':100,'geom':self.iowa()},
+                                               {'gid':99,'geom':self.nebraska()},
+                                               {'gid':100,'geom':self.iowa()},
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),

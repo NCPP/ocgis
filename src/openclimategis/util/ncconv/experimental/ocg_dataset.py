@@ -526,7 +526,7 @@ class SubOcgDataset(object):
         s = db.Session()
         try:
             ## create the geometries
-            print('loading geometry...')
+            print('  loading geometry...')
             for dd in self.dim_data:
                 geom = self.geometry[dd]
                 if isinstance(geom,Polygon):
@@ -544,7 +544,7 @@ class SubOcgDataset(object):
                                   wkb=wkb,
                                   area_m2=get_area(self.geometry[dd],sr,sr2)))
             s.commit()
-            print('loading time...')
+            print('  loading time...')
             ## load the time data
             for ii,dt in enumerate(self.dim_time,start=1):
                 s.add(db.Time(tid=ii,
@@ -569,7 +569,7 @@ class SubOcgDataset(object):
         finally:
             s.close()
             
-        print('loading value...')
+        print('  loading value...')
         ## set up parallel loading data
         gid = []
         level = []

@@ -223,17 +223,12 @@ class LinkedCsvConverter(CsvConverter):
 class KmlConverter(OcgConverter):
     '''Converts data to a KML string'''
     
-    def __init__(self,*args,**kwds):
-        self.to_disk = self._pop_(kwds,'to_disk',False)
-        ## call the superclass
-        super(KmlConverter,self).__init__(*args,**kwds)
-    
     def _convert_(self,request):
         from pykml.factory import KML_ElementMaker as KML
         from lxml import etree
         
         ## create the database
-        db = self.sub_ocg_dataset.as_sqlite()
+        db = self.db
         
         meta = request.ocg
         if request.environ['SERVER_PORT']=='80':
@@ -362,7 +357,7 @@ class KmlConverter(OcgConverter):
                         '</table>'
                     ).format(
                         variable=meta.variable.name,
-                        time=val.time.as_xml_date(),
+                        time=val.time_ref.as_xml_date(),
                         value=val.value,
                         digits=3,
                         units=meta.variable.units,

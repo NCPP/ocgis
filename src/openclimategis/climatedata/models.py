@@ -9,7 +9,7 @@ class AbstractGeoManager(models.Model):
 
 
 class UserGeometryMetadata(AbstractGeoManager):
-    """holds metdata for user-uploaded geometries"""
+    """holds metadata for user-uploaded geometries"""
     code = models.CharField(max_length=50,unique=True,null=False,blank=False)
     desc = models.TextField()
     uid_field = models.CharField(max_length=50)

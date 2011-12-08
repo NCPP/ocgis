@@ -106,7 +106,8 @@ class SubOcgDataEmitter(IdentityEmitter):
         
     def get_response(self):
         return(self.converter.response())
-    
+
+
 class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
     
     def render(self,request):
@@ -151,6 +152,9 @@ class KmlEmitter(SubOcgDataEmitter):
 
     def _response_(self):
         return(self.converter())
+    
+    def get_response(self):
+        return(self.converter.response(self.request))
 
 
 class KmzEmitter(KmlEmitter):

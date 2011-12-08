@@ -198,7 +198,7 @@ class SubOcgStat(OcgStat):
             ## create the output
             cell_id = sub.cell_id == dgrp['gid']
             dgrp['value'] = sub.value[tids,dgrp['level']-1,cell_id].tolist()
-        all_attrs.append(dgrp)
+            all_attrs.append(dgrp)
     
     @timing
     def get_groups(self):
@@ -207,6 +207,7 @@ class SubOcgStat(OcgStat):
                      for time in self.sub.timevec]
         ## set up parallel processing
         distinct_groups = array_split(self.get_distinct_groups(),self.procs)
+        import ipdb;ipdb.set_trace()
         ## process in parallel
         all_attrs = Manager().list()
         processes = [Process(target=self.get_group,

@@ -148,15 +148,15 @@ class TestData(object):
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[
-                                               {'gid':99,'geom':self.nebraska()},
-                                               {'gid':100,'geom':self.iowa()},
+#                                               {'gid':99,'geom':self.nebraska()},
+#                                               {'gid':100,'geom':self.iowa()},
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
-                                                 datetime.datetime(2061,12,31)],
+                                                 datetime.datetime(2012,12,31)],
                                      level_range=None,
-                                     clip=True,
-                                     union=True,
+                                     clip=False,
+                                     union=False,
                                      in_parallel=True,
                                      max_proc=8,
                                      max_proc_per_poly=2)
@@ -316,13 +316,15 @@ class TestStats(TestData,unittest.TestCase):
         days = filter(lambda x: x > threshold, values)
         return(len(days))
     
+    @timing
     def test_summary(self):
         to_disk = False
         use_stat = True
+        procs = 8
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite(to_disk=to_disk,procs=8)
+        db = sub.as_sqlite(to_disk=to_disk,procs=procs)
         if use_stat:
-            st = OcgStat(db,sub,('year',),procs=8)
+            st = OcgStat(db,sub,('year',),procs=procs)
             funcs = [
                      {'function':np.mean},
                      {'function':np.std},
@@ -331,19 +333,19 @@ class TestStats(TestData,unittest.TestCase):
                      ]
             st.calculate_load(funcs)
         conv = [
-                CsvConverter(db,'foo',use_stat=use_stat),
-                GeojsonConverter(db,'foo',use_stat=use_stat),
-                ShpConverter(db,'foo',use_stat=use_stat),
-                LinkedCsvConverter(db,'foo',use_stat=use_stat),
+#                CsvConverter(db,'foo',use_stat=use_stat),
+#                GeojsonConverter(db,'foo',use_stat=use_stat),
+#                ShpConverter(db,'foo',use_stat=use_stat),
+#                LinkedCsvConverter(db,'foo',use_stat=use_stat),
                 LinkedShpConverter(db,'foo',use_stat=use_stat),
-                SqliteConverter(db,'foo')
+#                SqliteConverter(db,'foo')
                 ]
 
         for c in conv:
             print(c)
-            payload = c.convert()
+#            payload = c.convert()
 #            print(payload[0][2]['buffer'].getvalue())
-#            print(c.write())
+            print(c.write())
             
 #            print('')
 #            if type(payload) not in [list,tuple]:

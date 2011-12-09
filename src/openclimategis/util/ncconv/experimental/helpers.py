@@ -9,7 +9,6 @@ import os
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 import time
-import math
 
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
@@ -18,18 +17,24 @@ def chunks(l, n):
         yield l[i:i+n]
         
 def array_split(ary,n):
-    l = len(ary)
-    step = int(math.ceil(l/float(n)))
+    """
+    >>> data = [1,2,3,4,5]
+    >>> array_split(data,3)
+    [[1, 2], [3, 4], [5]]
+    """
+    step = int(round(len(ary)/float(n)))
+    if step == 0:
+        step = 1
     ret = []
     idx = 0
     for ii in range(0,n):
         try:
-            app = ary[idx:idx+step+1]
+            app = ary[idx:idx+step]
             if len(app) > 0:
                 ret.append(app)
         except IndexError:
             ret.append(ary[idx:-1])
-        idx = idx + step + 1
+        idx = idx + step
     return(ret)
 
 def timing(f):

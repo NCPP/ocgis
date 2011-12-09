@@ -4,17 +4,13 @@ from util.helpers import get_temp_path
 import zipfile
 import io
 import os
-import copy
 import csv
 import geojson
-
 import logging
-from django.contrib.gis.gdal.error import check_err
-from sqlalchemy.orm.util import class_mapper
-from sqlalchemy.types import Float, Integer, Date, DateTime, FLOAT, INTEGER,\
-    DATE, DATETIME
-import re
+from sqlalchemy.types import Float, Integer, Date, DateTime
 from util.ncconv.experimental.helpers import timing
+
+from django.contrib.gis.gdal.error import check_err
 logger = logging.getLogger(__name__)
 
 

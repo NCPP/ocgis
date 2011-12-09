@@ -62,26 +62,21 @@ class OcgStat(object):
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """ 
         ## construct the base variable dictionary
-        pvars = []
         keys = list(groups[0]._labels) + [f.get('name') for f in funcs]
-        for key in keys:
-            pvars.append(pl.ParallelVariable(key))
-        ## get indices for fast inserting?
-        idx = dict([pvar.name,ii] for ii,pvar in enumerate(pvars))
-
+        pvars = OrderedDict([[key,list()] for key in keys])
         ## loop through the groups adding the data
         for group in groups:
             ## append the grouping information
             for label in group._labels:
-                pvars[idx[label]].append(getattr(group,label))
+                pvars[label].append(getattr(group,label))
             ## extract the time indices of the values
             cmp = [getattr(group,grp) for grp in time_grouping]
             ## loop through time vector selecting the time indices
             tids = [ii for ii,time in enumerate(time_conv) if cmp == time]
             ## get the index for the particular geometry
-            cell_idx = sub.cell_id == group.gid
+            gid_idx = sub.gid == group.gid
             ## extract the values
-            values = sub.value[tids,group.level-1,cell_idx].tolist()
+            values = sub.value[tids,group.level-1,gid_idx].tolist()
             ## calculate function value and update variables
             for f in funcs:
                 kwds = f.get('kwds',{})
@@ -91,7 +86,7 @@ class OcgStat(object):
                     ivalue = float(ivalue)
                 elif type(ivalue) == np.int_:
                     ivalue = int(ivalue)
-                pvars[idx[f.get('name')]].append(ivalue)
+                pvars[f.get('name')].append(ivalue)
 
         all_attrs.append(pvars)
             
@@ -129,22 +124,22 @@ class OcgStat(object):
     @timing
     def load(self,all_attrs):
         self.set_table(all_attrs[0])
-        pmodels = [pl.ParallelModel(self.db.Stat,pvars) for pvars in all_attrs]
+        pmodels = [pl.ParallelModel(self.db.Stat,data) for data in all_attrs]
         ploader = pl.ParallelLoader(procs=self.procs)
         ploader.load_models(pmodels)
             
-    def set_table(self,pvars):
+    def set_table(self,arch):
         attrs = OrderedDict({'__tablename__':'stats',
                              'ocgid':Column(Integer,primary_key=True),
                              'gid':Column(Integer,ForeignKey(self.db.Geometry.gid)),
                              'level':Column(Integer,nullable=False,index=True)})
-        for pvar in pvars:
-            if pvar.name in ['gid','level']: continue
-            if pvar.name in ['day','month','year']:
+        for key,value in arch.iteritems():
+            if key in ['gid','level']: continue
+            if key in ['day','month','year']:
                 index = True
             else:
                 index = False
-            attrs.update({pvar.name:Column(self.__types[type(pvar.data[0])],
+            attrs.update({key:Column(self.__types[type(value[0])],
                                            nullable=False,
                                            index=index)})
         try:

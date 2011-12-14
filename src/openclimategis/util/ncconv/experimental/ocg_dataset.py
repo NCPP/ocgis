@@ -200,12 +200,11 @@ class OcgDataset(object):
             timeidx = self.timeidx
         
         ## convert the level indices
+        levelidx = np.array([0]) ## base level vector with a single level
         if ndim == 4:
             if level_range is not None:
                 level_range = np.array([ii-1 for ii in level_range])
                 levelidx = sub_range(level_range)
-            else:
-                levelidx = np.array([0])
         else:
             if level_range is not None:
                 raise ValueError('Target variable has no levels.')
@@ -260,7 +259,7 @@ class OcgDataset(object):
                              npd,
                              self.timevec[timeidx],
                              gid=gids,
-                             levelvec=self.levelvec,
+                             levelvec=self.levelvec[levelidx],
                              mask=mask))
     
     def split_subset(self,var_name,

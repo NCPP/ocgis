@@ -465,7 +465,7 @@ class ShpConverter(OcgConverter):
             check_err(layer.CreateField(ogr_field.ogr_field))
                 
         feature_def = layer.GetLayerDefn()
-        
+
         for attr in (self._get_iter_()):
             feat = ogr.Feature(feature_def)
             ## pull values 

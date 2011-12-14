@@ -5,8 +5,17 @@ from warnings import warn
 import numpy as np
 
 
-def f_put(out,arg):
-    ret = f(arg)
+def f_put(out,exc,arg):
+    try:
+        ret = f(arg)
+    except RuntimeError:
+        ## try again if a runtime error is received
+        try:
+            ret = f(arg)
+        except RuntimeError:
+            exc.append('RuntimeError')
+    except:
+        exc.append('unhandled fatal error')
     ## accounting for the empty intersection...
     if ret is not None:
         out.append(ret)
@@ -44,7 +53,7 @@ def f(arg):
         subset_opts = dict(time_range=time_range,
                            polygon=poly)
         try:
-            subs = ocg_dataset.mapped_subset(var_name,
+            subs = ocg_dataset.split_subset(var_name,
                                              max_proc=subpoly_proc,
                                              subset_opts=subset_opts)
             subs = ocg_dataset.parallel_process_subsets(subs,
@@ -73,18 +82,16 @@ def multipolygon_operation(uri,
                            max_proc_per_poly=4,
                            allow_empty=True):
 
-#    if in_parallel is True and allow_empty is True:
-#        raise(NotImplementedError('in parallel empty intersections not ready.'))
+    ## we do not allow a union operation coupled with an intersects operation.
+    ## it may return overlapping geometries.
+    if not clip and union:
+        raise(ValueError('Intersects + Union is not an allowed operation.'))
     
     ## make the sure the polygon object is iterable
-    if polygons is None:
+    if not polygons:
         if clip:
             raise(ValueError('If clip is requested, polygon boundaries must be passed.'))
-        polygons = [None]
-#    else:
-#        ## ensure polygon list is iterable and the correct format
-#        if type(polygons) not in [list,tuple]:
-#            polygons = [polygons]
+        polygons = [{'gid':None,'geom':None}]
     
     ## switch depending on parallel request
     if in_parallel:
@@ -105,12 +112,13 @@ def multipolygon_operation(uri,
             subpoly_proc = max_proc_per_poly
         ## assemble the argument list
         out = mp.Manager().list()
+        exc = mp.Manager().list()
         args = []
         for polygon in polygons:
             arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union,subpoly_proc,allow_empty]
             args.append(arg)
         ## process list
-        processes = [mp.Process(target=f_put,args=(out,arg)) for arg in args]
+        processes = [mp.Process(target=f_put,args=(out,exc,arg)) for arg in args]
         ## execute and manage processes
         for ii,process in enumerate(processes,start=1):
             process.start()
@@ -119,7 +127,10 @@ def multipolygon_operation(uri,
                 while sum([p.is_alive() for p in processes]) >= poly_proc:
                     pass
         for p in processes:
-            p.join() 
+            p.join()
+        ## check for exceptions
+        if len(exc) > 0:
+            raise(RuntimeError('Child processes raised unhandled exceptions: {0}'.format(exc)))
         ## extract data
         subs = [sub for sub in out]
     else:
@@ -149,7 +160,7 @@ def multipolygon_operation(uri,
     ## permitted.
     if allow_empty and len(subs) == 0:
         warn('all attempted geometric operations returned empty.')
-        subs = [SubOcgDataset([],[],[],[])]
+        subs = [SubOcgDataset([],[],[])]
     elif not allow_empty and len(subs) == 0:
         raise(ValueError('empty overlays are not allowed but no SubOcgDataset objects captured.'))
     ## merge subsets
@@ -159,5 +170,8 @@ def multipolygon_operation(uri,
             base = sub
         else:
             base = base.merge(sub)
-    
+    ## if the operation is intersects, there may be duplicate geometries. purge
+    ## the dataset for those duplicate geometries and values.
+    if clip == False:
+        base.purge()
     return(base)

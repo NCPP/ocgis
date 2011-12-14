@@ -5,7 +5,8 @@ from helpers import *
 from shapely.ops import cascaded_union
 import copy
 from util.helpers import get_temp_path
-from util.ncconv.experimental.helpers import timing
+from sqlalchemy.pool import NullPool
+import ploader as pl
 
 
 class MaskedDataError(Exception):
@@ -77,10 +78,10 @@ class OcgDataset(object):
         ## calculate approximate data resolution
         self.res = approx_resolution(self.min_col[0,:])
         ## generate unique id for each grid cell
-        self.cell_ids = np.empty(self.real_col.shape,dtype=int)
+        self.gids = np.empty(self.real_col.shape,dtype=int)
         curr_id = 1
-        for i,j in itr_array(self.cell_ids):
-            self.cell_ids[i,j] = curr_id
+        for i,j in itr_array(self.gids):
+            self.gids[i,j] = curr_id
             curr_id += 1
         ## set the array shape.
         self.shape = self.real_col.shape
@@ -167,7 +168,7 @@ class OcgDataset(object):
         geometry = []
         row = []
         col = []
-        cell_ids = []
+        gids = []
         idx = []
         
         ## fill the matrices if value is included
@@ -175,7 +176,7 @@ class OcgDataset(object):
             geometry.append(geom)
             row.append(self.real_row[ii,jj])
             col.append(self.real_col[ii,jj])
-            cell_ids.append(self.cell_ids[ii,jj])
+            gids.append(self.gids[ii,jj])
             idx.append([self.real_row[ii,jj],self.real_col[ii,jj]])
         
         for ii,jj in itr_array(include):
@@ -254,15 +255,15 @@ class OcgDataset(object):
                 raise(MaskedDataError)
         else:
             mask = None
-
+        
         return(SubOcgDataset(geometry,
                              npd,
-                             cell_ids,
                              self.timevec[timeidx],
+                             gid=gids,
                              levelvec=self.levelvec,
                              mask=mask))
     
-    def mapped_subset(self,var_name,
+    def split_subset(self,var_name,
                            max_proc=1,
                            subset_opts={}):
         """
@@ -273,23 +274,18 @@ class OcgDataset(object):
         ref = self.subset(var_name,**subset_opts)
         ## make base process map
         ref_idx_array = np.arange(0,len(ref.geometry))
-        if max_proc == 1:
-            splits = [ref_idx_array]
-        elif max_proc > 1:
-            splits = np.array_split(ref_idx_array,max_proc)
-        else:
-            raise ValueError("max_proc must be one or greater.")
+        splits = np.array_split(ref_idx_array,max_proc)
         ## will hold the subsets
         subs = []
         ## create the subsets
         for ii,split in enumerate(splits):
             geometry = ref.geometry[split]
             value = ref.value[:,:,split]
-            cell_id = ref.cell_id[split]
+            gid = ref.gid[split]
             sub = SubOcgDataset(geometry,
                                 value,
-                                cell_id,
-                                timevec=ref.timevec,
+                                ref.timevec,
+                                gid=gid,
                                 levelvec=ref.levelvec,
                                 id=ii)
             subs.append(sub)
@@ -312,12 +308,6 @@ class OcgDataset(object):
             out = mp.Manager().list()
             pps = [mp.Process(target=f,args=(out,sub,polygon,clip,union)) for sub in subs]
             for pp in pps: pp.start()
-            while True:
-                alive = [pp.is_alive() for pp in pps]
-                if any(alive):
-                    pass
-                else:
-                    break
             for pp in pps: pp.join()
         else:
             out = []
@@ -333,35 +323,35 @@ class OcgDataset(object):
                 all_geometry = sub.geometry
                 all_weights = sub.weight
                 all_value = sub.value
-                all_cell_id = sub.cell_id
+                all_gid = sub.gid
             else:
-                all_cell_id = np.hstack((all_cell_id,sub.cell_id))
+                all_gid = np.hstack((all_gid,sub.gid))
                 all_geometry = np.hstack((all_geometry,sub.geometry))
                 all_weights = np.hstack((all_weights,sub.weight))
                 all_value = np.dstack((all_value,sub.value))
         
-        ## if union is true, sum the values, add new cell_id, and union the 
+        ## if union is true, sum the values, add new gid, and union the 
         ## geometries.
         if union:
             all_geometry = np.array([cascaded_union(all_geometry)],dtype=object)
             all_value = union_sum(all_weights,all_value,normalize=True)
-            all_cell_id = np.array([1])
         
         return(SubOcgDataset(all_geometry,
                              all_value,
-                             all_cell_id,
-                             sub.timevec))
+                             sub.timevec,
+                             gid=all_gid,
+                             levelvec=sub.levelvec))
         
 
 class SubOcgDataset(object):
-    __attrs__ = ['geometry','value','cell_id','weight','timevec','levelvec']
+    __attrs__ = ['geometry','value','gid','weight','timevec','levelvec']
     
-    def __init__(self,geometry,value,cell_id,timevec,levelvec=None,mask=None,id=None):
+    def __init__(self,geometry,value,timevec,gid=None,levelvec=None,mask=None,id=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
         value -- numpy array with dimension (time,level,n)
-        cell_id -- numpy array containing integer unique ids for the grid cells.
+        gid -- numpy array containing integer unique ids for the grid cells.
             has dimension (n)
         timevec -- numpy array with indices corresponding to time dimension of
             value
@@ -372,18 +362,25 @@ class SubOcgDataset(object):
         self.id = id
         self.geometry = np.array(geometry)
         self.value = np.array(value)
-        self.cell_id = np.array(cell_id)
-        self.timevec = timevec
-        if levelvec is not None:
-            self.levelvec = levelvec
+        self.timevec = np.array(timevec)
+        
+        if gid is not None:
+            self.gid = np.array(gid)
         else:
-            self.levelvec = np.array([1])
+            self.gid = np.arange(1,len(self.geometry) + 1)
+        if levelvec is not None:
+            self.levelvec = np.array(levelvec)
+        else:
+            if len(self.value) == 0:
+                self.levelvec = np.array()
+            else:
+                self.levelvec = np.arange(1,self.value.shape[1]+1)
         
         ## if the mask is passed, subset the data
         if mask is not None:
             mask = np.invert(mask)[0,0,:]
             self.geometry = self.geometry[mask]
-            self.cell_id = self.cell_id[mask]
+            self.gid = self.gid[mask]
             self.value = self.value[:,:,mask]
         
         ## calculate nominal weights
@@ -402,27 +399,32 @@ class SubOcgDataset(object):
         """Assumes same time and level vectors."""
         geometry = np.hstack((self.geometry,sub.geometry))
         value = np.dstack((self.value,sub.value))
-        cell_id = np.hstack((self.cell_id,sub.cell_id))
+        gid = np.hstack((self.gid,sub.gid))
         ## if there are non-unique cell ids (which may happen with union
         ## operations, regenerate the unique values.
-        if len(cell_id) > len(np.unique(cell_id)):
-            cell_id = np.arange(1,len(cell_id)+1)
-        return(SubOcgDataset(geometry,
-                             value,
-                             cell_id,
-                             self.timevec,
-                             self.levelvec,
-                             id=id))
+        if len(gid) > len(np.unique(gid)):
+            gid = np.arange(1,len(gid)+1)
+        return(self.copy(geometry=geometry,
+                         value=value,
+                         gid=gid,
+                         id=id))
+    
+    @timing 
+    def purge(self):
+        """looks for duplicate geometries"""
+        unique,uidx = np.unique([geom.wkb for geom in self.geometry],return_index=True)
+        self.geometry = self.geometry[uidx]
+        self.gid = self.gid[uidx]
+        self.value = self.value[:,:,uidx]
+        
         
     def __iter__(self):
         for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
-            atime = self.timevec[dt]
-            geometry = self.geometry[dd]
-            d = dict(geometry=geometry,
+            d = dict(geometry=self.geometry[dd],
                      value=float(self.value[dt,dl,dd]),
-                     time=atime,
+                     time=self.timevec[dt],
                      level=int(self.levelvec[dl]),
-                     cell_id=int(self.cell_id[dd]))
+                     gid=int(self.gid[dd]))
             yield(d)
             
     def iter_with_area(self,area_srid=3005):
@@ -489,63 +491,107 @@ class SubOcgDataset(object):
         
     def _union_sum_(self):
         self.value = union_sum(self.weight,self.value,normalize=True)
-        self.cell_id = np.array([1])
+        self.gid = np.array([1])
     
     @timing
-    def as_sqlite(self,add_area=True,area_srid=3005,wkt=True,wkb=False,as_multi=True,to_disk=False):
+    def as_sqlite(self,add_area=True,
+                       area_srid=3005,
+                       wkt=True,
+                       wkb=False,
+                       as_multi=True,
+                       to_disk=False,
+                       procs=1):
         from sqlalchemy import create_engine
         from sqlalchemy.orm.session import sessionmaker
         import db
         
         path = 'sqlite://'
-        if to_disk:
+        if to_disk or procs > 1:
             path = path + '/' + get_temp_path('.sqlite',nest=True)
-        db.engine = create_engine(path)
+            db.engine = create_engine(path,
+                                      poolclass=NullPool)
+        else:
+            db.engine = create_engine(path,
+#                                      connect_args={'check_same_thread':False},
+#                                      poolclass=StaticPool
+                                      )
         db.metadata.bind = db.engine
         db.Session = sessionmaker(bind=db.engine)
-        
+        db.metadata.create_all()
+
+        print('  loading geometry...')
         ## spatial reference for area calculation
         sr = get_sr(4326)
         sr2 = get_sr(area_srid)
-        
-        db.metadata.create_all()
-        s = db.Session()
-        try:
-            ## create the geometries
-            print('loading geometry...')
-            for dd in self.dim_data:
-                geom = self.geometry[dd]
-                if isinstance(geom,Polygon):
-                    geom = MultiPolygon([geom])
-                if wkt:
-                    wkt = str(geom.wkt)
-                else:
-                    wkt = None
-                if wkb:
-                    wkb = str(geom.wkb)
-                else:
-                    wkb = None
-                s.add(db.Geometry(gid=int(self.cell_id[dd]),
-                                  wkt=wkt,
-                                  wkb=wkb,
-                                  area_m2=get_area(self.geometry[dd],sr,sr2)))
-            s.commit()
-            print('loading time & value...')
-            ## fill in the rest of the data
-            for ii,dt in enumerate(self.dim_time,start=1):
-                s.add(db.Time(tid=ii,time=self.timevec[dt]))
-                for dl in self.dim_level:
-                    for dd in self.dim_data:
-#                        geometry = s.query(db.Geometry).filter(db.Geometry.gid == int(self.cell_id[dd])).one()
-                        val = db.Value(gid=int(self.cell_id[dd]),
-                                       level=int(self.levelvec[dl]),
-                                       tid=ii,
-                                       value=float(self.value[dt,dl,dd]))
-                        s.add(val)
-            s.commit()
-        finally:
-            s.close()
+
+#        data = dict([[key,list()] for key in ['gid','wkt','wkb','area_m2']])
+#        for dd in self.dim_data:
+#            data['gid'].append(int(self.gid[dd]))
+#            geom = self.geometry[dd]
+#            if isinstance(geom,Polygon):
+#                geom = MultiPolygon([geom])
+#            if wkt:
+#                wkt = str(geom.wkt)
+#            else:
+#                wkt = None
+#            data['wkt'].append(wkt)
+#            if wkb:
+#                wkb = str(geom.wkb)
+#            else:
+#                wkb = None
+#            data['wkb'].append(wkb)
+#            data['area_m2'].append(get_area(geom,sr,sr2))
+#        self.load_parallel(db.Geometry,data,procs)
+
+        def f(idx,geometry=self.geometry,gid=self.gid,wkt=wkt,wkb=wkb,sr=sr,sr2=sr2,get_area=get_area):
+            geom = geometry[idx]
+            if isinstance(geom,Polygon):
+                geom = MultiPolygon([geom])
+            if wkt:
+                wkt = str(geom.wkt)
+            else:
+                wkt = None
+            if wkb:
+                wkb = str(geom.wkb)
+            else:
+                wkb = None
+            return(dict(gid=int(gid[idx]),
+                        wkt=wkt,
+                        wkb=wkb,
+                        area_m2=get_area(geom,sr,sr2)))
+        fkwds = dict(geometry=self.geometry,gid=self.gid,wkt=wkt,wkb=wkb,sr=sr,sr2=sr2,get_area=get_area)
+        gen = pl.ParallelGenerator(db.Geometry,self.dim_data,f,fkwds=fkwds,procs=procs)
+        gen.load()
+
+        print('  loading time...')
+        ## load the time data
+        data = dict([[key,list()] for key in ['tid','time','day','month','year']])
+        for ii,dt in enumerate(self.dim_time,start=1):
+            data['tid'].append(ii)
+            data['time'].append(self.timevec[dt])
+            data['day'].append(self.timevec[dt].day)
+            data['month'].append(self.timevec[dt].month)
+            data['year'].append(self.timevec[dt].year)
+        self.load_parallel(db.Time,data,procs)
+            
+        print('  loading value...')
+        ## set up parallel loading data
+        data = dict([key,list()] for key in ['gid','level','tid','value'])
+        for ii,dt in enumerate(self.dim_time,start=1):
+            for dl in self.dim_level:
+                for dd in self.dim_data:
+                    data['gid'].append(int(self.gid[dd]))
+                    data['level'].append(int(self.levelvec[dl]))
+                    data['tid'].append(ii)
+                    data['value'].append(float(self.value[dt,dl,dd]))
+        self.load_parallel(db.Value,data,procs)
+
         return(db)
+    
+    def load_parallel(self,Model,data,procs):
+        pmodel = pl.ParallelModel(Model,data)
+        ploader = pl.ParallelLoader(procs=procs)
+        ploader.load_model(pmodel)
     
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt

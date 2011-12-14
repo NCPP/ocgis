@@ -4,16 +4,13 @@ from util.helpers import get_temp_path
 import zipfile
 import io
 import os
-import copy
 import csv
 import geojson
-
 import logging
+from sqlalchemy.types import Float, Integer, Date, DateTime
+from util.ncconv.experimental.helpers import timing
+
 from django.contrib.gis.gdal.error import check_err
-from sqlalchemy.orm.util import class_mapper
-from sqlalchemy.types import Float, Integer, Date, DateTime, FLOAT, INTEGER,\
-    DATE, DATETIME
-import re
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +62,8 @@ class OcgConverter(object):
     def _todict_(obj,headers):
         return(dict(zip(headers,
                         [getattr(obj,h.lower()) for h in headers])))
-        
+    
+    @timing
     def convert(self,*args,**kwds):
         return(self._convert_(*args,**kwds))
     
@@ -84,6 +82,9 @@ class OcgConverter(object):
     
     def cleanup(self):
         pass
+    
+    def write(self):
+        raise(NotImplementedError)
     
 
 class SqliteConverter(OcgConverter):
@@ -501,6 +502,13 @@ class LinkedShpConverter(ShpConverter):
         args = list(args)
         args[1] = os.path.splitext(args[1])[0]+'.shp'
         super(LinkedShpConverter,self).__init__(*args,**kwds)
+        
+    def write(self):
+        zip_stream = self.response()
+        path = get_temp_path(suffix='.zip')
+        with open(path,'wb') as f:
+            f.write(zip_stream)
+        return(path)
     
     def _convert_(self):
         ## get the payload dictionary from the linked csv converter. we also

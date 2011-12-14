@@ -15,8 +15,8 @@ class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
     area_m2 = Column(Float,nullable=False)
-    wkt = Column(String,unique=True,nullable=True)
-    wkb = Column(String,unique=True,nullable=True)
+    wkt = Column(String,nullable=True)
+    wkb = Column(String,nullable=True)
     
 #    def as_kml(self):
 #        from pykml.factory import KML_ElementMaker as KML
@@ -33,6 +33,9 @@ class Time(Base):
     __tablename__ = 'time'
     tid = Column(Integer,primary_key=True)
     time = Column(DateTime,unique=True,nullable=False)
+    day = Column(Integer,index=True)
+    month = Column(Integer,index=True)
+    year = Column(Integer,index=True)
     
     def as_xml_date(self):
         '''Return the time as a XML time formatted string (UTC time)'''
@@ -76,13 +79,6 @@ class Value(AbstractValue,Base):
     value = Column(Float,nullable=False)
     
     time_ref = relationship(Time,backref="value")
-    
-    def __repr__(self):
-        msg = ['geometry={0}'.format(self.geometry.wkt[0:7])]
-        msg.append('time={0}'.format(self.time.time))
-        msg.append('level={0}'.format(self.level))
-        msg.append('value={0}'.format(self.value))
-        return(','.join(msg))
 
     @property
     def time(self):

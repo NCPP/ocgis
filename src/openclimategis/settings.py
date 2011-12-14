@@ -12,6 +12,11 @@ config = RawConfigParser()
 config.read('/etc/openclimategis/settings.ini')
 logfile = config.get('logging', 'LOG_FILENAME')
 
+## settings for parallel execution. set to greater than one for in-parallel
+## execution.
+MAXPROCESSES = 8
+MAXPROCESSES_PER_POLY = 2
+
 DEBUG = config.getboolean('debug','DEBUG')
 TEMPLATE_DEBUG = config.getboolean('debug','TEMPLATE_DEBUG')
 

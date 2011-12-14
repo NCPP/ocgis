@@ -7,6 +7,7 @@ from util.ncconv.experimental import ocg_converter
 
 import logging
 from util.ncconv.experimental.ocg_stat import OcgStat
+from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
@@ -81,19 +82,22 @@ class SubOcgDataEmitter(IdentityEmitter):
     
     def render(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
+        self.sub = self.construct()
         self.db = self.get_db()
         self.request = request
         if request.ocg.query.use_stat:
-            st = OcgStat(self.db,request.ocg.query.grouping)
+            st = OcgStat(self.db,
+                         self.sub,
+                         request.ocg.query.grouping,
+                         procs=settings.MAXPROCESSES)
             st.calculate_load(self.request.ocg.query.functions)
-        #logger.debug("n geometries = {0}".format(len(sub.geometry)))
         self.cfvar = request.ocg.simulation_output.variable.code
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(self.get_response())
     
     def get_db(self):
-        return(self.construct().as_sqlite())
+        return(self.sub.as_sqlite(procs=settings.MAXPROCESSES))
     
     def get_converter(self):
         return(self.__converter__(self.db,
@@ -122,7 +126,7 @@ class SqliteEmitter(ZippedSubOcgDataEmitter):
     __file_ext__ = ''
     
     def get_db(self):
-        return(self.construct().as_sqlite(to_disk=True))
+        return(self.sub.as_sqlite(to_disk=True))
 
 
 class ShapefileEmitter(ZippedSubOcgDataEmitter):
@@ -195,11 +199,6 @@ class CsvEmitter(SubOcgDataEmitter):
     """
     __converter__ = ocg_converter.CsvConverter
     __file_ext__ = '.csv'
-#    __kwds__ = dict(as_wkt=False,
-#                    as_wkb=False,
-#                    add_area=True,
-#                    area_srid=3005,
-#                    to_disk=False)
     
     
 class LinkedCsvEmitter(ZippedSubOcgDataEmitter):
@@ -207,7 +206,6 @@ class LinkedCsvEmitter(ZippedSubOcgDataEmitter):
     __file_ext__ = ''
 
 
-#Emitter.register('helloworld',HelloWorldEmitter,'text/html; charset=utf-8')
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 Emitter.register('lshz',LinkedShapefileEmitter,'application/zip; charset=utf-8')
 #Emitter.unregister('json')

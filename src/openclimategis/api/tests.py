@@ -144,34 +144,35 @@ class TestUrls(TestCase):
         var = 'pr'
         run = 2
         
+        base_url = ('/api'
+                    '/archive/{archive}/model'
+                    '/{cm}/scenario/{scenario}'
+                    '/run/{run}'
+                    '/temporal/{drange}'
+                    '/spatial/{sop}+polygon(({polygon}))'
+                    '/aggregate/{agg}'
+                    '/variable/{variable}.{ext}')
+                    
         for ext,sop,agg in itertools.product(exts,sops,aggs):
             
             print(ext,sop,agg)
-        
-            base_url = ('/api'
-                        '/archive/{archive}/model'
-                        '/{cm}/scenario/{scenario}'
-                        '/run/{run}'
-                        '/temporal/{drange}'
-                        '/spatial/{sop}+polygon(({polygon}))'
-                        '/aggregate/{agg}'
-                        '/variable/{variable}.{ext}')
             
-            url = base_url.format(ext=ext,
-                                  drange=drange,
-                                  polygon=polygon,
-                                  sop=sop,
-                                  agg=agg,
-                                  cm=cm,
-                                  scenario=scenario,
-                                  archive=archive,
-                                  variable=var,
-                                  run=run)
-
-            response = self.client.get(url)
-#            if response.status_code != 200:
-#                print response.content
-            self.assertEqual(response.status_code, 200)
+            if not (sop=='intersects' and agg=='true'):
+                url = base_url.format(ext=ext,
+                                      drange=drange,
+                                      polygon=polygon,
+                                      sop=sop,
+                                      agg=agg,
+                                      cm=cm,
+                                      scenario=scenario,
+                                      archive=archive,
+                                      variable=var,
+                                      run=run)
+    
+                response = self.client.get(url)
+    #            if response.status_code != 200:
+    #                print response.content
+                self.assertEqual(response.status_code, 200)
     
     def test_simple_json_data_request(self):
         '''tests that a simple data request URLs works'''
@@ -473,7 +474,7 @@ class TestFileUpload(TestCase):
 
     def test_upload_shapefile(self):
         '''Tests uploading a shapefile'''
-        with open('src/openclimategis/api/testdata/ne_ia_mi.zip') as f:
+        with open('api/testdata/ne_ia_mi.zip') as f:
             response = self.client.post(
                 '/api/shpupload.html',
                 {'code': 'TESTCODE', 
@@ -484,7 +485,7 @@ class TestFileUpload(TestCase):
     
     def test_upload_shapefile_bad_code(self):
         '''Tests uploading a shapefile'''
-        with open('src/openclimategis/api/testdata/ne_ia_mi.zip') as f:
+        with open('api/testdata/ne_ia_mi.zip') as f:
             response = self.client.post(
                 '/api/shpupload.html',
                 {'code': 'argh!^^#$', 
@@ -495,7 +496,7 @@ class TestFileUpload(TestCase):
 
     def test_upload_kml(self):
         '''Tests uploading a KML file'''
-        with open('src/openclimategis/api/testdata/testfile.kml') as f:
+        with open('api/testdata/testfile.kml') as f:
             response = self.client.post(
                 '/api/shpupload.html',
                 {'code': 'TESTCODE', 

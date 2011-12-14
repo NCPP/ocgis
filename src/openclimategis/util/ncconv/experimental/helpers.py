@@ -21,6 +21,10 @@ def array_split(ary,n):
     >>> data = [1,2,3,4,5]
     >>> array_split(data,3)
     [[1, 2], [3, 4], [5]]
+    >>> grps = array_split(range(0,1121),8)
+    >>> total_len = 0
+    >>> for grp in grps: total_len += len(grp)
+    >>> assert(total_len == len(range(0,1121)))
     """
     step = int(round(len(ary)/float(n)))
     if step == 0:
@@ -28,12 +32,12 @@ def array_split(ary,n):
     ret = []
     idx = 0
     for ii in range(0,n):
-        try:
+        if ii == n-1:
+            app = ary[idx:]
+        else:
             app = ary[idx:idx+step]
-            if len(app) > 0:
-                ret.append(app)
-        except IndexError:
-            ret.append(ary[idx:-1])
+        if len(app) > 0:
+            ret.append(app)
         idx = idx + step
     return(ret)
 

@@ -37,7 +37,7 @@ class ParallelLoader(object):
         
     def run(self,processes):
         for process in processes: process.start()
-        for p in processes: p.join() 
+        for process in processes: process.join()
         
 
 class ParallelModel(object):

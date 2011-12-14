@@ -15,6 +15,7 @@ def f_put(out,exc,arg):
         except RuntimeError:
             exc.append('RuntimeError')
     except:
+        raise
         exc.append('unhandled fatal error')
     ## accounting for the empty intersection...
     if ret is not None:

@@ -168,18 +168,18 @@ class OcgStatFunction(object):
         'mean': 'Mean value for the series',
         'median': 'Median value for the series',
         'std': 'Standard deviation for the series',
-        'gt32_2': 'Count of values greater than 32.2',
-        'gt35': 'Count of values greater than 35',
-        'gt37_8': 'Count of values greater than 37.8',
-        'lt0': 'Count of values less than 0',
-        'lt_neg12_2': 'Count of values less than -12.2',
-        'lt_neg17_7': 'Count of values less than -17.7',
+        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
+        'gt_thirty_five': 'Count of values greater than 35',
+        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
+        'lt_zero': 'Count of values less than 0',
+        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
+        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
     }
     
     def get_function_list(self,functions):
         funcs = []
         for f in functions:
-            fname = re.search('([A-Za-z]+)',f).group(1)
+            fname = re.search('([A-Za-z_]+)',f).group(1)
             try:
                 args = re.search('([\d,]+)',f).group(1)
             except AttributeError:
@@ -223,32 +223,32 @@ class OcgStatFunction(object):
         return(min(values))
     
     @staticmethod
-    def gt32_2(values):
+    def gt_thirty_two_point_two(values):
         days = filter(lambda x: x > 32.2, values)
         return(len(days))
     
     @staticmethod
-    def gt35(values):
+    def gt_thirty_five(values):
         days = filter(lambda x: x > 35, values)
         return(len(days))
     
     @staticmethod
-    def gt37_8(values):
+    def gt_thirty_seven_point_eight(values):
         days = filter(lambda x: x > 37.8, values)
         return(len(days))
     
     @staticmethod
-    def lt0(values):
+    def lt_zero(values):
         days = filter(lambda x: x < 0, values)
         return(len(days))
     
     @staticmethod
-    def lt_neg12_2(values):
+    def lt_negative_twelve_point_two(values):
         days = filter(lambda x: x < -12.2, values)
         return(len(days))
     
     @staticmethod
-    def lt_neg17_7(values):
+    def lt_negative_seventeen_point_seven(values):
         days = filter(lambda x: x < -17.7, values)
         return(len(days))
     

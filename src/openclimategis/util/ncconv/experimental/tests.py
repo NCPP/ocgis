@@ -153,11 +153,11 @@ class TestData(object):
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
-                                                 datetime.datetime(2012,12,31)],
+                                                 datetime.datetime(2016,12,31)],
                                      level_range=None,
                                      clip=False,
                                      union=False,
-                                     in_parallel=True,
+                                     in_parallel=False,
                                      max_proc=8,
                                      max_proc_per_poly=2)
         return(sub)

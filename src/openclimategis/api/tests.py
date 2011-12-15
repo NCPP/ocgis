@@ -3,7 +3,6 @@ from django.test.client import Client
 from climatedata.models import NetcdfDataset
 import unittest
 import itertools
-import pdb
 from util.helpers import reverse_wkt, get_temp_path
 
 

@@ -38,7 +38,7 @@ class HelloWorldEmitter(OpenClimateEmitter):
         return HttpResponse(msg)
 
 
-class HTMLEmitter(Emitter):
+class HTMLEmitter(IdentityEmitter):
     """Emits an HTML representation 
     """
     def render(self,request):

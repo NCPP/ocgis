@@ -13,7 +13,6 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
-    {{data}}
     <table frame=void rules=all>
     <tbody>
     {% if is_collection %}
@@ -21,25 +20,36 @@
         <tr>
             <th>Code</th>
             <th>Description</th>
-            <th>Geometry (WKT)</th>
+            <th># of Subareas</th>
         </tr>
         {% for listitem in data %}
         <tr>
-            <td>{{ listitem.code }}</td>
+            <td><a href="{% url aoi_single code=listitem.code emitter_format='html' %}">{{ listitem.code }}</a></td>
             <td>{{ listitem.desc }}</td>
-            <td>{{ listitem.geom }}</td>
+            <td>{{ listitem.geom_count }}</td>
         </tr>
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single Area of Interest{% endcomment %}
+        
         {% for listitem in data %}
+            {% if forloop.counter == 1 %}
             <tr>
                 <th>Code</th>
                 <td>{{ listitem.code}}</td>
             </tr>
             <tr>
-                <th>Geometry (WKT)</th>
-                <td>{{ listitem.geom }}</td>
+                <th>Description</th>
+                <td>{{ listitem.desc }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Geometries (WKT)</th>
+                <td>
+                {% for subarea in listitem.geoms %}
+                    <p>{{ subarea.geom }}</p>
+                {% endfor %}
+                </td>
             </tr>
         {% endfor %}
     {% endif %}

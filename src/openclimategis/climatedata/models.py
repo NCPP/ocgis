@@ -12,8 +12,15 @@ class UserGeometryMetadata(AbstractGeoManager):
     """holds metadata for user-uploaded geometries"""
     code = models.CharField(max_length=50,unique=True,null=False,blank=False)
     desc = models.TextField()
-    uid_field = models.CharField(max_length=50)
+    uid_field = models.CharField(max_length=50,null=False, blank=True)
 
+    @property
+    def geoms(self):
+        return(self.usergeometrydata_set.model.objects.all())
+
+    @property
+    def geom_count(self):
+        return(len(self.usergeometrydata_set.model.objects.all()))
 
 class UserGeometryData(AbstractGeoManager):
     """holds user uploaded geometries"""

@@ -230,6 +230,7 @@ class AoiHandler(NonSpatialHandler):
             query = self.model.objects.filter(code__iexact=str(code))
         except:
             query = self.model.objects.all()
+        #temp = query[0]
         return query
 
 

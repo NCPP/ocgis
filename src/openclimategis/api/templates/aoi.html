@@ -13,19 +13,22 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
+    {{data}}
     <table frame=void rules=all>
     <tbody>
     {% if is_collection %}
         {% comment %}Create table for a list of Area-of-Interest resources{% endcomment %}
         <tr>
             <th>Code</th>
+            <th>Description</th>
             <th>Geometry (WKT)</th>
         </tr>
-        {% for listitem in data|dictsort:"code" %}
+        {% for listitem in data %}
         <tr>
-            <td><a href="{% url aoi_single code=listitem.code emitter_format='html' %}">{{ listitem.code }}</a></td>
-            <td>{{ listitem.geom.wkt }}</td>
-        </td></tr>
+            <td>{{ listitem.code }}</td>
+            <td>{{ listitem.desc }}</td>
+            <td>{{ listitem.geom }}</td>
+        </tr>
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single Area of Interest{% endcomment %}

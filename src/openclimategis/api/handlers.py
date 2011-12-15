@@ -221,7 +221,7 @@ class SimulationOutputHandler(NonSpatialHandler):
 
 
 class AoiHandler(NonSpatialHandler):
-    model = UserGeometryData
+    model = UserGeometryMetadata
     exclude = ()
     
     def _read_(self,request):

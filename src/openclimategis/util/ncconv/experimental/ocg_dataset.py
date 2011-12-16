@@ -7,6 +7,10 @@ import copy
 from util.helpers import get_temp_path
 from sqlalchemy.pool import NullPool
 import ploader as pl
+from util.ncconv.experimental.ocg_meta.interface import SpatialInterface,\
+    TemporalInterface, LevelInterface
+from util.ncconv.experimental.ocg_meta.element import PolyElementNotFound
+from warnings import warn
 
 
 class MaskedDataError(Exception):
@@ -39,38 +43,45 @@ class OcgDataset(object):
     def __init__(self,uri,**kwds):
         self.uri = uri
         self.dataset = self.connect(uri)
-            
+
+        ## construct interfaces
+        self.spatial = SpatialInterface(self.dataset,**kwds)
+        self.temporal = TemporalInterface(self.dataset,**kwds)
+        try:
+            self.level = LevelInterface(self.dataset,**kwds)
+        except PolyElementNotFound:
+            warn('No "level" variable found. Assuming NoneType.')
+            self.level = None
+        
         ## extract other keyword arguments -------------------------------------
         self.verbose = kwds.get('verbose')
-        self.rowbnds_name = kwds.get('rowbnds_name') or 'bounds_latitude'
-        self.colbnds_name = kwds.get('colbnds_name') or 'bounds_longitude'
-        self.time_name = kwds.get('time_name') or 'time'
         self.time_units = kwds.get('time_units') or 'days since 1950-01-01 00:00:00'
         self.calendar = kwds.get('calendar') or 'proleptic_gregorian'
         self.level_name = kwds.get('level_name') or 'levels'
 
         ## extract the row and column bounds from the dataset
-        self.row_bnds = self.dataset.variables[self.rowbnds_name][:]
-        self.col_bnds = self.dataset.variables[self.colbnds_name][:]
+        self.row_bnds = self.spatial.rowbnds.value[:]
+        self.col_bnds = self.spatial.colbnds.value[:]
         
         ## convert the time vector to datetime objects
-        self.timevec = nc.netcdftime.num2date(self.dataset.variables[self.time_name][:],
+        self.timevec = nc.netcdftime.num2date(self.temporal.time.value[:],
                                               self.time_units,
                                               self.calendar)
         self.timeidx = np.arange(0,len(self.timevec))
         
         ## pull levels if possible
-        try:
-            self.levelvec = np.arange(1,len(self.dataset.variables[self.level_name][:])+1)
+        if self.level is not None:
+            self.levelvec = np.arange(1,len(self.level.level.value[:])+1)
             self.levelidx = np.arange(0,len(self.levelvec))
-        except:
+        else:
             self.levelvec = np.array([1])
+            self.levelidx = np.array([0])
         
         ## these are base numpy arrays used by spatial operations. -------------
 
         ## four numpy arrays one for each bounding coordinate of a polygon
-        self.min_col,self.min_row = np.meshgrid(self.col_bnds[:,0],self.row_bnds[:,0])
-        self.max_col,self.max_row = np.meshgrid(self.col_bnds[:,1],self.row_bnds[:,1])
+        self.min_col,self.min_row = self.spatial.get_min_bounds()
+        self.max_col,self.max_row = self.spatial.get_max_bounds()
         ## these are the original indices of the row and columns. they are
         ## referenced after the spatial subset to retrieve data from the dataset
         self.real_col,self.real_row = np.meshgrid(np.arange(0,len(self.col_bnds)),
@@ -200,7 +211,7 @@ class OcgDataset(object):
             timeidx = self.timeidx
         
         ## convert the level indices
-        levelidx = np.array([0]) ## base level vector with a single level
+        levelidx = self.levelidx
         if ndim == 4:
             if level_range is not None:
                 level_range = np.array([ii-1 for ii in level_range])
@@ -384,6 +395,50 @@ class SubOcgDataset(object):
         
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
+        
+    def to_grid_dict(self,ocg_dataset):
+        """assumes an intersects-like operation with no union"""
+        ## make the bounding polygon
+        envelope = MultiPolygon(self.geometry.tolist()).envelope
+        ## get the x,y vectors
+        x,y = ocg_dataset.spatial.subset_centroids(envelope)
+        ## make the grids
+        gx,gy = np.meshgrid(x,y)
+        ## make the empty boolean array
+        mask = np.empty((self.value.shape[0],
+                        self.value.shape[1],
+                        gx.shape[0],
+                        gx.shape[1]),dtype=bool)
+        mask[:,:,:,:] = True
+        ## make the empty geometry id
+        gidx = np.empty(gx.shape,dtype=int)
+        gidx = np.ma.array(gidx,mask=mask[0,0,:,:])
+        ## make the empty value array
+#        value = np.empty(mask.shape,dtype=float)
+        ## loop for each centroid
+        for ii,geom in enumerate(self.geometry):
+            diffx = abs(gx - geom.centroid.x)
+            diffy = abs(gy - geom.centroid.y)
+            diff = diffx + diffy
+            idx = diff == diff.min()
+            mask[:,:,idx] = False
+            gidx[idx] = ii
+#            for dt in self.dim_time:
+#                for dl in self.dim_level:
+#                    value[dt,dl,idx] = self.value[dt,dl,ii]
+        # construct the masked array
+#        value = np.ma.array(value,mask=mask,fill_value=fill_value)
+        ## if level is not included, squeeze out the dimension
+#        if not include_level:
+#            value = value.squeeze()
+#        ## construct row and column bounds
+#        xbnds = np.empty((len(self.geometry),2),dtype=float)
+#        ybnds = xbnds.copy()
+        ## subset the bounds
+        xbnds,ybnds = ocg_dataset.spatial.subset_bounds(envelope)
+        ## put the data together
+        ret = dict(xbnds=xbnds,ybnds=ybnds,x=x,y=y,mask=mask,gidx=gidx)
+        return(ret)
         
     def copy(self,**kwds):
         new_ds = copy.copy(self)

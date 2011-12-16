@@ -4,7 +4,7 @@ import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
-from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.exc import InvalidRequestError, OperationalError
 from util.ncconv.experimental.helpers import timing, array_split
 from multiprocessing import Manager
 from multiprocessing.process import Process
@@ -151,7 +151,11 @@ class OcgStat(object):
             self.db.Stat = type('Stat',
                                 (self.db.AbstractValue,self.db.Base),
                                 attrs)
-        self.db.Stat.__table__.create()
+        try:
+            self.db.Stat.__table__.create()
+        except OperationalError:
+            self.db.Stat.__table__.drop()
+            self.db.Stat.__table__.create()
 
 
 class OcgStatFunction(object):

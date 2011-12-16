@@ -9,6 +9,15 @@ import os
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 import time
+from collections import namedtuple
+
+def bounding_coords(polygon):
+    min_x,min_y,max_x,max_y = polygon.bounds
+    Bounds = namedtuple('Bounds',['min_x','min_y','max_x','max_y'])
+    return(Bounds(min_x=min_x,
+                  max_x=max_x,
+                  min_y=min_y,
+                  max_y=max_y))
 
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
@@ -53,6 +62,7 @@ def timing(f):
   
 def itr_array(a):
     "a -- 2-d ndarray"
+    assert(len(a.shape) == 2)
     ix = a.shape[0]
     jx = a.shape[1]
     for ii,jj in itertools.product(range(ix),range(jx)):

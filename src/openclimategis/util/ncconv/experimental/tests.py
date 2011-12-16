@@ -134,6 +134,7 @@ class TestData(object):
         return(OcgDataset(self.nc_path,**self.nc_opts))
     
     @property
+    @timing
     def ocg_opts(self):
         return(dict(union=True,
                     clip=True,
@@ -148,8 +149,8 @@ class TestData(object):
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[
-#                                               {'gid':99,'geom':self.nebraska()},
-#                                               {'gid':100,'geom':self.iowa()},
+                                               {'gid':99,'geom':self.nebraska()},
+                                               {'gid':100,'geom':self.iowa()},
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
@@ -346,6 +347,22 @@ class TestStats(TestData,unittest.TestCase):
 #            payload = c.convert()
 #            print(payload[0][2]['buffer'].getvalue())
             print(c.write())
+
+
+class TestNcConversion(TestData,unittest.TestCase):
+    
+    def test_convert(self):
+        ocg_dataset = self.ocg_dataset
+        sub = self.sub_ocg_dataset
+        db = sub.as_sqlite()
+#        grid = sub.to_grid_dict(ocg_dataset)
+#        for key,val in grid.iteritems(): print key,val.shape
+        conv = NcConverter(db,'foo')
+        path = conv.write(sub,ocg_dataset)
+        dd = nc.Dataset(path,'r')
+        value = dd.variables['value']
+#        conv.convert(sub,ocg_dataset)
+        import ipdb;ipdb.set_trace()
             
 #            print('')
 #            if type(payload) not in [list,tuple]:
@@ -362,5 +379,5 @@ class TestStats(TestData,unittest.TestCase):
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestStats']
+    import sys;sys.argv = ['', 'TestNcConversion']
     unittest.main()

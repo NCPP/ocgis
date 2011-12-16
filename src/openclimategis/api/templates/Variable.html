@@ -13,9 +13,9 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
+  {% if is_collection %}
     <table frame=void rules=all>
     <tbody>
-    {% if is_collection %}
         {% comment %}Create table for a list of climate variables{% endcomment %}
         <tr>
             <th>Code</th>
@@ -29,10 +29,14 @@
             <td>{{ listitem.name }}</td>
             <td>{{ listitem.units }}</td>
             <td>{{ listitem.ndim }}</td>
-        </td></tr>
+        </tr>
         {% endfor %}
-    {% else %}
-        {% comment %}Create table for a single output variable{% endcomment %}
+      </tbody>
+    </table>
+  {% else %}
+    {% comment %}Create table for a single output variable{% endcomment %}
+    <table frame=void rules=all>
+      <tbody>
         <tr>
             <th>Code</th>
             <td>{{ data.0.code}}</td>
@@ -61,8 +65,7 @@
             {% endfor %}
             </td>
         </tr>
-    {% endif %}
-    </tbody>
+      </tbody>
     </table>
     
     <p>
@@ -70,5 +73,6 @@
         Show simulation outputs for climate variable: {{ data.0.code }}
         </a>
     </p>
-    
+  {% endif %}
+  
 {% endblock content %}

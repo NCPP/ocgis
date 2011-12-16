@@ -13,10 +13,10 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
-    <table frame=void rules=all>
-    <tbody>
     {% if is_collection %}
-        {% comment %}Create table for a list of Climate Models{% endcomment %}
+      {% comment %}Create table for a list of Climate Models{% endcomment %}
+      <table frame=void rules=all>
+      <tbody>
         <tr>
             <th>Code</th>
             <th>Model Name</th>
@@ -29,8 +29,12 @@
             <td>{{ listitem.organization.name }}</td>
         </td></tr>
         {% endfor %}
+      </tbody>
+      </table>
     {% else %}
         {% comment %}Create table for a single Climate Model{% endcomment %}
+      <table frame=void rules=all>
+      <tbody>
         <tr>
             <th>Code</th>
             <td>{{ data.0.code}}</td>
@@ -55,7 +59,6 @@
             {% endfor %}
             </td>
         </tr>
-    {% endif %}
     </tbody>
     </table>
     
@@ -64,5 +67,6 @@
         Show simulation outputs for emissions scenario: {{ data.0.code }}
         </a>
     </p>
+    {% endif %}
     
 {% endblock content %}

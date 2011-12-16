@@ -13,10 +13,11 @@
 {% endblock breadcrumbs %}
 
 {% block content %}
-    <table frame=void rules=all>
-    <tbody>
+
     {% if is_collection %}
         {% comment %}Create table for a list of emissions scenarios{% endcomment %}
+      <table frame=void rules=all>
+      <tbody>
         <tr>
             <th>Code</th>
             <th>Model Name</th>
@@ -27,7 +28,11 @@
             <td>{{ listitem.name }}</td>
         </td></tr>
         {% endfor %}
+      </tbody>
+      </table>
     {% else %}
+      <table frame=void rules=all>
+      <tbody>
         {% comment %}Create table for a single emissions scenario{% endcomment %}
         <tr>
             <th>Code</th>
@@ -53,14 +58,14 @@
             {% endfor %}
             </td>
         </tr>
-    {% endif %}
     </tbody>
     </table>
     
-    <p>
+      <p>
         <a href="{% url simulation_list %}?scenario={{ data.0.urlslug }}">
         Show simulation outputs for emissions scenario: {{ data.0.code }}
         </a>
-    </p>
+      </p>
+    {% endif %}
     
 {% endblock content %}

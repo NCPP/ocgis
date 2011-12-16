@@ -1,0 +1,17 @@
+{% extends "base_api.html" %}
+
+{% block breadcrumbs %}
+    {{ block.super }} > Area-of-Interest Uploader
+{% endblock breadcrumbs %}
+
+{% block content %}
+<div id="content">
+    <span class="header">Upload a custom Area-of-Interest</span>
+    <p>Fill out the information below to upload a custom Area-of-Interest
+    from your own geospatial datafile.</p>
+    <form enctype="multipart/form-data" action="./aoi_upload.html" method="post">{% csrf_token %}
+        {{ form.as_p}}
+        <input type="submit" value="Submit" />
+    </form>
+</div>
+{% endblock content %}

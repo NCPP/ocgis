@@ -245,7 +245,7 @@ class QueryHandler(NonSpatialHandler):
         return(request.ocg.simulation_output)
     
     
-class ShpUploadHandler(NonSpatialHandler):
+class AoiUploadHandler(NonSpatialHandler):
     model = None
     allowed_methods = ('GET','POST')
     

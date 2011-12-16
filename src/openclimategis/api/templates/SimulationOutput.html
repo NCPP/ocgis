@@ -24,7 +24,6 @@
                 <th>Climate Model</th>
                 <th>Output Variable</th>
                 <th>Run</th>
-                <th>Query Page</th>
             </tr>
             {% for listitem in data %}
             <tr>
@@ -38,11 +37,6 @@
                 <td>{{ listitem.climate_model.code }}</td>
                 <td>{{ listitem.variable.code }}</td>
                 <td>{{ listitem.run }}</td>
-                <td>
-                    <a href="{% url query_form archive=listitem.archive.urlslug model=listitem.climate_model.urlslug scenario=listitem.scenario.urlslug variable=listitem.variable.urlslug run=listitem.run emitter_format='html' %}">
-                        construct query
-                    </a>
-                </td>
             </td></tr>
             {% endfor %}
           </tbody>
@@ -57,52 +51,50 @@
         
         <table border="1">
         <tbody>
-        {% for listitem in data %}
             <tr>
                 <th>ID</th>
-                <td>{{ listitem.id}}</td>
+                <td>{{ data.0.id}}</td>
             </tr>
             <tr>
                 <th>Archive</th>
                 <td>
-                    <a href="{% url archive_single urlslug=listitem.archive.urlslug emitter_format='html' %}">
-                        {{ listitem.archive.code }}
+                    <a href="{% url archive_single urlslug=data.0.archive.urlslug emitter_format='html' %}">
+                        {{ data.0.archive.code }}
                     </a>
                 </td>
             </tr>
             <tr>
                 <th>Scenario</th>
                 <td>
-                    <a href="{% url scenario_single urlslug=listitem.scenario.urlslug emitter_format='html' %}">
-                        {{ listitem.scenario.code }}
+                    <a href="{% url scenario_single urlslug=data.0.scenario.urlslug emitter_format='html' %}">
+                        {{ data.0.scenario.code }}
                     </a>
                 </td>
             </tr>
             <tr>
                 <th>Climate Model</th>
                 <td>
-                    <a href="{% url climatemodel_single urlslug=listitem.climate_model.urlslug emitter_format='html' %}">
-                        {{ listitem.climate_model.code }}
+                    <a href="{% url climatemodel_single urlslug=data.0.climate_model.urlslug emitter_format='html' %}">
+                        {{ data.0.climate_model.code }}
                     </a>
                 </td>
             </tr>
             <tr>
                 <th>Output Variable</th>
                 <td>
-                    <a href="{% url variable_single urlslug=listitem.variable.urlslug emitter_format='html' %}">
-                        {{ listitem.variable.code }}
+                    <a href="{% url variable_single urlslug=data.0.variable.urlslug emitter_format='html' %}">
+                        {{ data.0.variable.code }}
                     </a>
                 </td>
             </tr>
             <tr>
                 <th>Run</th>
-                <td>{{ listitem.run }}</td>
+                <td>{{ data.0.run }}</td>
             </tr>
             <tr>
                 <th>NetCDF Variable</th>
-                <td>{{ listitem.netcdf_variable.code }}</td>
+                <td>{{ data.0.netcdf_variable.code }}</td>
             </tr>
-        {% endfor %}
         
         {% comment %}
         {{ form.as_table }}
@@ -110,6 +102,12 @@
         
         </tbody>
         </table>
+        
+        <p>
+            <a href="{% url query_form archive=data.0.archive.urlslug model=data.0.climate_model.urlslug scenario=data.0.scenario.urlslug variable=data.0.variable.urlslug run=data.0.run emitter_format='html' %}">
+                Construct query for this simulation output
+            </a>
+        </p>
         
         {% comment %}
         <input type="submit" value="Submit" />

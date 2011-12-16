@@ -16,16 +16,19 @@ class UserGeometryMetadata(AbstractGeoManager):
 
     @property
     def geoms(self):
-        return(self.usergeometrydata_set.model.objects.all())
+        '''Return a list of UserGeometryData objects'''
+        return(self.usergeometrydata_set.model.objects.filter(user_meta=self.id))
 
     @property
     def geom_count(self):
-        return(len(self.usergeometrydata_set.model.objects.all()))
+        return(len(self.geoms))
+
 
 class UserGeometryData(AbstractGeoManager):
     """holds user uploaded geometries"""
     gid = models.IntegerField(null=True)
     user_meta = models.ForeignKey(UserGeometryMetadata)
+    desc = models.TextField(blank=True)
     geom = models.MultiPolygonField(srid=4326)
 
 

@@ -1214,12 +1214,57 @@
     }
   },
   {
+    "pk": 2,
+    "model": "climatedata.usergeometrymetadata",
+    "fields": {
+      "code": "test_aoi_2",
+      "desc": "Test Description #2",
+      "uid_field": "objectid"
+    }
+  },
+  {
     "pk": 1,
     "model": "climatedata.usergeometrydata",
     "fields": {
       "gid": 1,
       "user_meta": 1,
       "geom": "MULTIPOLYGON (((-116.0 33.0, -116.1 33.0, -116.1 33.1, -116.0 33.0)))"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "gid": 2,
+      "user_meta": 1,
+      "geom": "MULTIPOLYGON (((-115.0 33.0, -115.1 33.0, -115.1 33.1, -115.0 33.0)))"
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "gid": 1,
+      "user_meta": 2,
+      "geom": "MULTIPOLYGON (((-116.0 32.0, -116.1 32.0, -116.1 32.1, -116.0 32.0)))"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "gid": 2,
+      "user_meta": 2,
+      "geom": "MULTIPOLYGON (((-115.0 32.0, -115.1 32.0, -115.1 32.1, -115.0 32.0)))"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.usergeometrydata",
+    "fields": {
+      "gid": 3,
+      "user_meta": 2,
+      "geom": "MULTIPOLYGON (((-114.0 32.0, -114.1 32.0, -114.1 32.1, -114.0 32.0)))"
     }
   }
 ]

@@ -127,13 +127,14 @@ class Organization(AbstractGeoManager):
     
     Example: National Center for Atmospheric Research (ncar) 
     '''
-    name         = models.CharField(max_length=255)
-    code         = models.CharField(max_length=25, unique=True)
-    country      = models.CharField(max_length=255)
-    url          = models.URLField(
+    name          = models.CharField(max_length=255)
+    code          = models.CharField(max_length=25, unique=True)
+    country       = models.CharField(max_length=255)
+    url           = models.URLField(
         verify_exists=False, 
         max_length=200,
         null=True,
+        unique=True,
     )
     
     def __unicode__(self):
@@ -146,10 +147,10 @@ class Scenario(AbstractGeoManager):
     Example: 2xCO2 equilibrium experiment (2xCO2)
     Reference: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments
     '''
-    name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=10, unique=True)
-    urlslug      = models.CharField(max_length=10, unique=True)
-    description  = models.TextField(null=True)
+    name          = models.CharField(max_length=50)
+    code          = models.CharField(max_length=10, unique=True)
+    urlslug       = models.CharField(max_length=10, unique=True)
+    description   = models.TextField(null=True)
     
     class Meta():
         verbose_name = "climate emissions scenario"
@@ -158,15 +159,28 @@ class Scenario(AbstractGeoManager):
         return "{code}".format(code=self.code)
 
 
+class ScenarioMetadataUrl(AbstractGeoManager):
+    '''Models the URL of a Emissions Scenario metadata webpage'''
+    scenario = models.ForeignKey(Scenario)
+    url      = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+    )
+    desc     = models.TextField()
+    
+    def __unicode__(self):
+        return(self.url)
+
+
 class Archive(AbstractGeoManager):
     '''Models an climate model data archive
     
     Example: Coupled Model Intercomparison Project (CMIP3) 
     '''
-    name         = models.CharField(max_length=255, unique=True)
-    code         = models.CharField(max_length=25, unique=True)
-    urlslug      = models.CharField(max_length=25, unique=True)
-    url          = models.URLField(
+    name          = models.CharField(max_length=255, unique=True)
+    code          = models.CharField(max_length=25, unique=True)
+    urlslug       = models.CharField(max_length=25, unique=True)
+    url           = models.URLField(
         verify_exists=False, 
         max_length=200,
         null=True,
@@ -180,28 +194,49 @@ class Archive(AbstractGeoManager):
         return "{code}".format(code=self.code)
 
 
+class ArchiveMetadataUrl(AbstractGeoManager):
+    '''Models the URL of a Archive metadata webpage'''
+    archive = models.ForeignKey(Archive)
+    url      = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+    )
+    desc     = models.TextField()
+    
+    def __unicode__(self):
+        return(self.url)
+
+
 class ClimateModel(AbstractGeoManager):
     '''A climate model
     
     Example: Community Climate System Model, version 3.0 (CCSM3)
     Reference: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php
     '''
-    name         = models.CharField(max_length=50)
-    code         = models.CharField(max_length=25, unique=True)
-    urlslug      = models.CharField(max_length=25, unique=True)
-    organization = models.ForeignKey(Organization)
-    url          = models.URLField(
-        verify_exists=False,
-        max_length=200,
-        null=True,
-    )
-    comments     = models.TextField(null=False, blank=True)
+    name          = models.CharField(max_length=50)
+    code          = models.CharField(max_length=25, unique=True)
+    urlslug       = models.CharField(max_length=25, unique=True)
+    organization  = models.ForeignKey(Organization)
+    comments      = models.TextField(null=False, blank=True)
     
     class Meta():
         verbose_name = "climate model"
     
     def __unicode__(self):
         return "{code}".format(code=self.code)
+
+
+class ClimateModelMetadataUrl(AbstractGeoManager):
+    '''Models the URL of a Climate Model metadata webpage'''
+    model    = models.ForeignKey(ClimateModel)
+    url      = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+    )
+    desc     = models.TextField()
+    
+    def __unicode__(self):
+        return(self.url)
 
 
 class Variable(AbstractGeoManager):
@@ -225,6 +260,19 @@ class Variable(AbstractGeoManager):
         return "{name} ({code})".format(name=self.name, code=self.code)
 
 
+class VariableMetadataUrl(AbstractGeoManager):
+    '''Models the URL of a Climate Model metadata webpage'''
+    variable = models.ForeignKey(Variable)
+    url      = models.URLField(
+        verify_exists=False, 
+        max_length=200,
+    )
+    desc     = models.TextField()
+    
+    def __unicode__(self):
+        return(self.url)
+
+
 class SimulationOutput(AbstractGeoManager):
     '''Models climate model output datasets'''
     
@@ -238,7 +286,6 @@ class SimulationOutput(AbstractGeoManager):
     class Meta():
         unique_together = ('archive','scenario','climate_model','variable','run')
         verbose_name = "climate simulation output"
-    
     
     def __unicode__(self):
         return '{archive}:{scenario}:{model}:{variable}'.format(

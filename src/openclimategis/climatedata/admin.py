@@ -10,8 +10,11 @@ from climatedata.models import NetcdfVariableDimension
 
 from climatedata.models import Organization
 from climatedata.models import Scenario
+from climatedata.models import ScenarioMetadataUrl
 from climatedata.models import ClimateModel
+from climatedata.models import ClimateModelMetadataUrl
 from climatedata.models import Variable
+from climatedata.models import VariableMetadataUrl
 from climatedata.models import Archive
 from climatedata.models import UserGeometryMetadata, UserGeometryData
 from climatedata.models import SimulationOutput
@@ -32,17 +35,34 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ('name','code','country',)
 
 
+class ScenarioMetadataUrlInline(admin.StackedInline):
+    model = ScenarioMetadataUrl
+    extra = 0
+
+
 class ScenarioAdmin(admin.ModelAdmin):
-    #fields = ['code','name','description']
     list_display = ('name','code','urlslug',)
+    inlines = [ScenarioMetadataUrlInline]
+
+
+class ClimateModelMetadataUrlInline(admin.StackedInline):
+    model = ClimateModelMetadataUrl
+    extra = 0
 
 
 class ClimateModelAdmin(admin.ModelAdmin):
     list_display = ('name','code','urlslug',)
+    inlines = [ClimateModelMetadataUrlInline]
+
+
+class VariableMetadataUrlInline(admin.StackedInline):
+    model = VariableMetadataUrl
+    extra = 0
 
 
 class VariableAdmin(admin.ModelAdmin):
     list_display = ('code','name','units','ndim',)
+    inlines = [VariableMetadataUrlInline]
 
 
 class ArchiveAdmin(admin.ModelAdmin):
@@ -52,8 +72,10 @@ class ArchiveAdmin(admin.ModelAdmin):
 class UserGeometryMetaDataAdmin(admin.ModelAdmin):
     list_display = ('code','desc','uid_field')
 
+
 class UserGeometryDataAdmin(admin.ModelAdmin):
     list_display = ('user_meta','geom',)
+
 
 class SimulationOutputAdmin(admin.ModelAdmin):
     list_display = ('id','scenario','climate_model','variable','run','archive',)

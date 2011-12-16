@@ -33,37 +33,42 @@
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single output variable{% endcomment %}
-        {% for listitem in data %}
-            <tr>
-                <th>Code</th>
-                <td>{{ listitem.code}}</td>
-            </tr>
-            <tr>
-                <th>Name</th>
-                <td>{{ listitem.name }}</td>
-            </tr>
-            <tr>
-                <th>Units</th>
-                <td>{{ listitem.units }}</td>
-            </tr>
-            <tr>
-                <th>Dimensions</th>
-                <td>{{ listitem.ndim }}</td>
-            </tr>
-            <tr>
-                <th>Description</th>
-                <td>{{ listitem.description }}</td>
-            </tr>
-            <tr>
-                <th>Simulations</th>
-                <td>
-                    <a href="{% url simulation_list %}?variable={{ listitem.urlslug }}">
-                    Simulations for climate variable: {{ listitem.code}}
-                    </a>
-                </td>
-            </tr>
-        {% endfor %}
+        <tr>
+            <th>Code</th>
+            <td>{{ data.0.code}}</td>
+        </tr>
+        <tr>
+            <th>Name</th>
+            <td>{{ data.0.name }}</td>
+        </tr>
+        <tr>
+            <th>Units</th>
+            <td>{{ data.0.units }}</td>
+        </tr>
+        <tr>
+            <th>Dimensions</th>
+            <td>{{ data.0.ndim }}</td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>{{ data.0.description }}</td>
+        </tr>
+        <tr>
+            <th>Metadata URLs</th>
+            <td>
+            {% for metadata_url in data.0.variablemetadataurl_set.all %}
+                <p><a href="{{ metadata_url.url }}" target="_blank">{{ metadata_url.desc }}</a></p>
+            {% endfor %}
+            </td>
+        </tr>
     {% endif %}
     </tbody>
     </table>
+    
+    <p>
+        <a href="{% url simulation_list %}?variable={{ data.0.urlslug }}">
+        Show simulation outputs for climate variable: {{ data.0.code }}
+        </a>
+    </p>
+    
 {% endblock content %}

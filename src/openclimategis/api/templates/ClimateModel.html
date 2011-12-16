@@ -31,37 +31,38 @@
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single Climate Model{% endcomment %}
-        {% for listitem in data %}
-            <tr>
-                <th>Code</th>
-                <td>{{ listitem.code}}</td>
-            </tr>
-            <tr>
-                <th>Model Name</th>
-                <td>{{ listitem.name }}</td>
-            </tr>
-            <tr>
-                <th>URL Slug</th>
-                <td>{{ listitem.urlslug }}</td>
-            </tr>
-            <tr>
-                <th>Organization</th>
-                <td>{{ listitem.organization.name }}</td>
-            </tr>
-            <tr>
-                <th>URL</th>
-                <td>{{ listitem.url }}</td>
-            </tr>
-            <tr>
-                <th>Simulations</th>
-                <td>
-                    <a href="{% url simulation_list %}?model={{ listitem.urlslug }}">
-                    Simulations for model: {{ listitem.code}}
-                    </a>
-                </td>
-            </tr>
-        {% endfor %}
+        <tr>
+            <th>Code</th>
+            <td>{{ data.0.code}}</td>
+        </tr>
+        <tr>
+            <th>Model Name</th>
+            <td>{{ data.0.name }}</td>
+        </tr>
+        <tr>
+            <th>URL Slug</th>
+            <td>{{ data.0.urlslug }}</td>
+        </tr>
+        <tr>
+            <th>Organization</th>
+            <td>{{ data.0.organization.name }}</td>
+        </tr>
+        <tr>
+            <th>Metadata URLs</th>
+            <td>
+            {% for metadata_url in data.0.climatemodelmetadataurl_set.all %}
+                <p><a href="{{ metadata_url.url }}" target="_blank">{{ metadata_url.desc }}</a></p>
+            {% endfor %}
+            </td>
+        </tr>
     {% endif %}
     </tbody>
     </table>
+    
+    <p>
+        <a href="{% url simulation_list %}?model={{ data.0.urlslug }}">
+        Show simulation outputs for emissions scenario: {{ data.0.code }}
+        </a>
+    </p>
+    
 {% endblock content %}

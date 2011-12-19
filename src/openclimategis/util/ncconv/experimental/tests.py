@@ -362,7 +362,7 @@ class TestNcConversion(TestData,unittest.TestCase):
         dd = nc.Dataset(path,'r')
         value = dd.variables['value']
 #        conv.convert(sub,ocg_dataset)
-        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
             
 #            print('')
 #            if type(payload) not in [list,tuple]:

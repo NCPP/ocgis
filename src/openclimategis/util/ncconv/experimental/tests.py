@@ -2,6 +2,7 @@ import unittest
 from ocg_dataset import OcgDataset
 from shapely.geometry.point import Point
 import datetime
+from datetime import date
 from shapely import wkt
 from util.ncconv.experimental.ocg_converter import *
 from util.ncconv.experimental.wrappers import multipolygon_operation
@@ -14,6 +15,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
 from util.ncconv.experimental.helpers import timing
 from shapely.geometry.polygon import Polygon
+import itertools
 
 verbose = False
 
@@ -149,15 +151,15 @@ class TestData(object):
                                      self.nc_var_name,
                                      ocg_opts=self.nc_opts,
                                      polygons=[
-                                               {'gid':99,'geom':self.nebraska()},
-                                               {'gid':100,'geom':self.iowa()},
+#                                               {'gid':99,'geom':self.nebraska()},
+#                                               {'gid':100,'geom':self.iowa()},
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
                                                  datetime.datetime(2016,12,31)],
                                      level_range=None,
-                                     clip=False,
-                                     union=False,
+                                     clip=True,
+                                     union=True,
                                      in_parallel=False,
                                      max_proc=8,
                                      max_proc_per_poly=2)
@@ -323,7 +325,7 @@ class TestStats(TestData,unittest.TestCase):
         use_stat = True
         procs = 8
         sub = self.sub_ocg_dataset
-        db = sub.as_sqlite(to_disk=to_disk,procs=procs)
+        db = sub.to_db(to_disk=to_disk,procs=procs)
         if use_stat:
             st = OcgStat(db,sub,('year',),procs=procs)
             funcs = [
@@ -334,19 +336,19 @@ class TestStats(TestData,unittest.TestCase):
                      ]
             st.calculate_load(funcs)
         conv = [
-#                CsvConverter(db,'foo',use_stat=use_stat),
-#                GeojsonConverter(db,'foo',use_stat=use_stat),
-#                ShpConverter(db,'foo',use_stat=use_stat),
-#                LinkedCsvConverter(db,'foo',use_stat=use_stat),
+                CsvConverter(db,'foo',use_stat=use_stat),
+                GeojsonConverter(db,'foo',use_stat=use_stat),
+                ShpConverter(db,'foo',use_stat=use_stat),
+                LinkedCsvConverter(db,'foo',use_stat=use_stat),
                 LinkedShpConverter(db,'foo',use_stat=use_stat),
-#                SqliteConverter(db,'foo')
+                SqliteConverter(db,'foo')
                 ]
 
         for c in conv:
             print(c)
-#            payload = c.convert()
+            payload = c.convert()
 #            print(payload[0][2]['buffer'].getvalue())
-            print(c.write())
+#            print(c.write())
 
 
 class TestNcConversion(TestData,unittest.TestCase):
@@ -376,8 +378,28 @@ class TestNcConversion(TestData,unittest.TestCase):
 #                        print ii['buffer'].getvalue()
 #                    print(payload[1])
 #        import ipdb;ipdb.set_trace()
+
+class TestOcgDimension(unittest.TestCase):
+    
+    _variables = np.array(['pr','temp'],dtype=str)
+    _gid = np.array([0,1])
+    _geometry = np.array([Point(0,0),Point(1,1)],dtype=object)
+    _times = np.array([date(2007,1,1),date(2007,2,1),date(2007,3,1)],dtype=object)
+    _levels = np.array([1,2,3])
+
+    _parms = [_variables,_gid,_geometry,_times,_levels]
+    
+    def get_ndarray(self):
+        shape = [len(parm) for parm in self._parms] + [len(self._geometry)]
+        ary = np.random.rand(*shape)
+        return(ary)
+    
+    def test_constructor(self):
+        ary = self.get_ndarray()
+        od = OcgDimension('variable',0,self._variables,ary)
+        import ipdb;ipdb.set_trace()
         
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestNcConversion']
+    import sys;sys.argv = ['', 'TestStats']
     unittest.main()

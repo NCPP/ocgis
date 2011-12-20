@@ -2,14 +2,13 @@ import util.ncconv.experimental.ploader as pl
 import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 import copy
-from util.ncconv.experimental.helpers import timing, get_sr, get_area, keep,\
-    union_sum
-import itertools
+from util.ncconv.experimental.helpers import *
 from shapely import prepared
 from shapely.ops import cascaded_union
 from util.helpers import get_temp_path
 from sqlalchemy.pool import NullPool
 from shapely.geometry.polygon import Polygon
+from util.ncconv.experimental.ocg_dataset.todb import sub_to_db
 
 
 class SubOcgDataset(object):
@@ -55,8 +54,21 @@ class SubOcgDataset(object):
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
         
+    def to_db(self,**kwds):
+        """
+        Convert the object to a database. See documentation for |sub_to_db| for
+            guidance on |kwds|.
+        """
+        return(sub_to_db(self,**kwds))
+        
     def to_grid_dict(self,ocg_dataset):
-        """assumes an intersects-like operation with no union"""
+        """
+        Generate spatial grid information for NetCDF output. Assumes an 
+            intersects-like operation with no union
+        
+        ocg_dataset -- OcgDataset object. This is needed to establish the
+            reference grid.
+        """
         ## make the bounding polygon
         envelope = MultiPolygon(self.geometry.tolist()).envelope
         ## get the x,y vectors
@@ -100,6 +112,11 @@ class SubOcgDataset(object):
         return(ret)
         
     def copy(self,**kwds):
+        """
+        Copy a SubOcgDataset object. The optional |kwds| may be new data values
+            to overwrite the original values. Useful when wanting to only
+            replace a subset of attributes while creating copies of the object.
+        """
         new_ds = copy.copy(self)
         def _find_set(kwd):
             val = kwds.get(kwd)
@@ -109,7 +126,13 @@ class SubOcgDataset(object):
         return(new_ds)
     
     def merge(self,sub,id=None):
-        """Assumes same time and level vectors."""
+        """
+        Merges another SubOcgDataset object with this instance. Assumes same 
+        time and level vectors.
+        
+        id=None (int) -- Unique identifier for the newly merged dataset. If the
+            default is used, the new dataset has no ID.
+        """
         geometry = np.hstack((self.geometry,sub.geometry))
         value = np.dstack((self.value,sub.value))
         gid = np.hstack((self.gid,sub.gid))
@@ -124,7 +147,9 @@ class SubOcgDataset(object):
     
     @timing 
     def purge(self):
-        """looks for duplicate geometries"""
+        """
+        Removes duplicate geometries from this object instance.
+        """
         unique,uidx = np.unique([geom.wkb for geom in self.geometry],return_index=True)
         self.geometry = self.geometry[uidx]
         self.gid = self.gid[uidx]
@@ -132,6 +157,10 @@ class SubOcgDataset(object):
         
         
     def __iter__(self):
+        """
+        Default object iterator returning a dictionary representation of each
+            object "record".
+        """
         for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
             d = dict(geometry=self.geometry[dd],
                      value=float(self.value[dt,dl,dd]),
@@ -141,6 +170,12 @@ class SubOcgDataset(object):
             yield(d)
             
     def iter_with_area(self,area_srid=3005):
+        """
+        Wraps the default object iterator appending the geometric area of a
+            geometry.
+            
+        area_srid=3005 (int) -- The SRID to use for the area transform.
+        """
         sr_orig = get_sr(4326)
         sr_dest = get_sr(area_srid)
         for attrs in self:
@@ -167,12 +202,21 @@ class SubOcgDataset(object):
                      
     @property
     def area(self):
+        """
+        Return the object's untransformed geometric area.
+        """
         area = 0.0
         for geom in self.geometry:
             area += geom.area
         return(area)
         
     def clip(self,igeom):
+        """
+        Clip the object to the extent of a geometry.
+        
+        igeom (shapely.Polygon or shapely.MultiPolygon) -- The geometric extent
+            to clip the object to.
+        """
         prep_igeom = prepared.prep(igeom)
         for ii,geom in enumerate(self.geometry):
             if keep(prep_igeom,igeom,geom):
@@ -189,122 +233,35 @@ class SubOcgDataset(object):
             print(msg)
         
     def union(self):
+        """
+        Union the object's geometries and return an area-weighted sum of its
+            values.
+        """
         self._union_geom_()
         self._union_sum_()
         
     def union_nosum(self):
+        """
+        Union the geometries WITHOUT area-weighting its values.
+        """
         self._union_geom_()
         
     def _union_geom_(self):
-        ## union the geometry. just using np.array() on a multipolgon object
+        """
+        Union the object's geometries.
+        """
+        ## just using np.array() on a multipolgon object
         ## results in a (1,n) array of polygons.
         new_geometry = np.array([None],dtype=object)
         new_geometry[0] = cascaded_union(self.geometry)
         self.geometry = new_geometry
         
     def _union_sum_(self):
+        """
+        Area-weight the object's values. No geometric transformation.
+        """
         self.value = union_sum(self.weight,self.value,normalize=True)
         self.gid = np.array([1])
-    
-    @timing
-    def as_sqlite(self,add_area=True,
-                       area_srid=3005,
-                       wkt=True,
-                       wkb=False,
-                       as_multi=True,
-                       to_disk=False,
-                       procs=1):
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm.session import sessionmaker
-        import db
-        
-        path = 'sqlite://'
-        if to_disk or procs > 1:
-            path = path + '/' + get_temp_path('.sqlite',nest=True)
-            db.engine = create_engine(path,
-                                      poolclass=NullPool)
-        else:
-            db.engine = create_engine(path,
-#                                      connect_args={'check_same_thread':False},
-#                                      poolclass=StaticPool
-                                      )
-        db.metadata.bind = db.engine
-        db.Session = sessionmaker(bind=db.engine)
-        db.metadata.create_all()
-
-        print('  loading geometry...')
-        ## spatial reference for area calculation
-        sr = get_sr(4326)
-        sr2 = get_sr(area_srid)
-
-#        data = dict([[key,list()] for key in ['gid','wkt','wkb','area_m2']])
-#        for dd in self.dim_data:
-#            data['gid'].append(int(self.gid[dd]))
-#            geom = self.geometry[dd]
-#            if isinstance(geom,Polygon):
-#                geom = MultiPolygon([geom])
-#            if wkt:
-#                wkt = str(geom.wkt)
-#            else:
-#                wkt = None
-#            data['wkt'].append(wkt)
-#            if wkb:
-#                wkb = str(geom.wkb)
-#            else:
-#                wkb = None
-#            data['wkb'].append(wkb)
-#            data['area_m2'].append(get_area(geom,sr,sr2))
-#        self.load_parallel(db.Geometry,data,procs)
-
-        def f(idx,geometry=self.geometry,gid=self.gid,wkt=wkt,wkb=wkb,sr=sr,sr2=sr2,get_area=get_area):
-            geom = geometry[idx]
-            if isinstance(geom,Polygon):
-                geom = MultiPolygon([geom])
-            if wkt:
-                wkt = str(geom.wkt)
-            else:
-                wkt = None
-            if wkb:
-                wkb = str(geom.wkb)
-            else:
-                wkb = None
-            return(dict(gid=int(gid[idx]),
-                        wkt=wkt,
-                        wkb=wkb,
-                        area_m2=get_area(geom,sr,sr2)))
-        fkwds = dict(geometry=self.geometry,gid=self.gid,wkt=wkt,wkb=wkb,sr=sr,sr2=sr2,get_area=get_area)
-        gen = pl.ParallelGenerator(db.Geometry,self.dim_data,f,fkwds=fkwds,procs=procs)
-        gen.load()
-
-        print('  loading time...')
-        ## load the time data
-        data = dict([[key,list()] for key in ['tid','time','day','month','year']])
-        for ii,dt in enumerate(self.dim_time,start=1):
-            data['tid'].append(ii)
-            data['time'].append(self.timevec[dt])
-            data['day'].append(self.timevec[dt].day)
-            data['month'].append(self.timevec[dt].month)
-            data['year'].append(self.timevec[dt].year)
-        self.load_parallel(db.Time,data,procs)
-            
-        print('  loading value...')
-        ## set up parallel loading data
-        data = dict([key,list()] for key in ['gid','level','tid','value'])
-        for ii,dt in enumerate(self.dim_time,start=1):
-            for dl in self.dim_level:
-                for dd in self.dim_data:
-                    data['gid'].append(int(self.gid[dd]))
-                    data['level'].append(int(self.levelvec[dl]))
-                    data['tid'].append(ii)
-                    data['value'].append(float(self.value[dt,dl,dd]))
-        self.load_parallel(db.Value,data,procs)
-
-        return(db)
-    
-    def load_parallel(self,Model,data,procs):
-        pmodel = pl.ParallelModel(Model,data)
-        ploader = pl.ParallelLoader(procs=procs)
-        ploader.load_model(pmodel)
     
     def display(self,show=True,overlays=None):
         import matplotlib.pyplot as plt

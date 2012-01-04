@@ -5,7 +5,8 @@ from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
 from sqlalchemy.exc import InvalidRequestError, OperationalError
-from util.ncconv.experimental.helpers import timing, array_split
+from util.ncconv.experimental.helpers import timing, array_split,\
+    check_function_dictionary
 from multiprocessing import Manager
 from multiprocessing.process import Process
 import ploader as pl
@@ -94,8 +95,14 @@ class OcgStat(object):
     def calculate(self,funcs):
         ## always count the data
         funcs = [{'function':len,'name':'count'}] + funcs
-        ## precalc the function name
-        for f in funcs: f.update({'name':f.get('name',f['function'].__name__)})
+        ## check the function definition dictionary for common problems
+        check_function_dictionary(funcs)
+        ## precalc the function name if none is provided
+        for f in funcs:
+            if 'name' not in f:
+                ## just the function name if the argument test exception was not
+                ## triggered.
+                f.update({'name':f.get('name',f['function'].__name__)})
         ## convert the time vector for faster referencing
         time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
                      for time in self.sub.timevec]

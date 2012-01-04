@@ -157,7 +157,7 @@ class TestData(object):
                                                {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
-                                                 datetime.datetime(2061,12,31)],
+                                                 datetime.datetime(2013,12,31)],
                                      level_range=None,
                                      clip=False,
                                      union=False,
@@ -182,38 +182,33 @@ class TestStats(TestData,unittest.TestCase):
     def test_summary(self):
         to_disk = False
         use_stat = True
-        procs = 8
+        procs = 4
         sub = self.sub_ocg_dataset
-        pg = PgBackend('foo_new')
-        pg.create()
-        try:
-            engine = pg.get_engine()
-            db = sub.to_db(to_disk=to_disk,procs=procs,engine=engine)
-            if use_stat:
-                st = OcgStat(db,sub,('year',),procs=procs)
-                funcs = [
-                         {'function':np.mean},
-                         {'function':np.std},
-                         {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
-                         {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}
-                         ]
-                st.calculate_load(funcs)
-            conv = [
+        db = sub.to_db(to_disk=to_disk,procs=procs)
+            
+        if use_stat:
+            st = OcgStat(db,sub,('year',),procs=procs)
+            funcs = [
+                     {'function':np.mean},
+                     {'function':np.std},
+                     {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
+                     {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}
+                     ]
+            st.calculate_load(funcs)
+        conv = [
 #                    CsvConverter(db,'foo',use_stat=use_stat),
 #                    GeojsonConverter(db,'foo',use_stat=use_stat),
 #                    ShpConverter(db,'foo',use_stat=use_stat),
 #                    LinkedCsvConverter(db,'foo',use_stat=use_stat),
-                    LinkedShpConverter(db,'foo',use_stat=use_stat),
+                LinkedShpConverter(db,'foo',use_stat=use_stat),
 #                    SqliteConverter(db,'foo')
-                    ]
-    
-            for c in conv:
-                print(c)
+                ]
+
+        for c in conv:
+            print(c)
 #                payload = c.convert()
-    #            print(payload[0][2]['buffer'].getvalue())
-                print(c.write())
-        finally:
-            pg.drop()
+#            print(payload[0][2]['buffer'].getvalue())
+            print(c.write())
 
 
 class TestNcConversion(TestData,unittest.TestCase):

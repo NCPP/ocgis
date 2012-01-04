@@ -10,6 +10,37 @@ from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 import time
 from collections import namedtuple
+from util.ncconv.experimental.exc import FunctionNameError,\
+    FunctionNotNamedError
+import re
+
+def check_function_dictionary(funcs):
+    """
+    Perform common checks on a list of function definition dictionaries.
+    """
+    
+    for f in funcs:
+        if 'name' in f:
+            if len(f['name']) >= 14:
+                raise(FunctionNameError(f))
+            if f['name'][0] in '0123456789':
+                raise(FunctionNameError(f))
+            if re.search('\W',f['name']) is not None:
+                raise(FunctionNameError(f))
+        else:
+            ## function with parameters must have a name
+            keys = ['args','kwds']
+            lens = []
+            for key in keys:
+                val = f.get(key)
+                if val is not None:
+                    if len(val) > 0:
+                        lens.append(True)
+                else:
+                    lens.append(False)
+            if any(lens):
+                raise(FunctionNotNamedError(f))
+
 
 def bounding_coords(polygon):
     min_x,min_y,max_x,max_y = polygon.bounds

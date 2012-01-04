@@ -1,11 +1,39 @@
 from util.ncconv.experimental import ploader as pl
 from util.helpers import get_temp_path
 from sqlalchemy.pool import NullPool
-from util.ncconv.experimental.helpers import get_sr, get_area
+from util.ncconv.experimental.helpers import get_sr, get_area, timing
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+import subprocess
+from sqlalchemy.engine import create_engine
 
 
+class PgBackend(object):
+    
+    def __init__(self,dbname):
+        self.dbname = dbname
+        
+    def create(self):
+        subprocess.check_call(['createdb',self.dbname])
+        
+    def drop(self):
+        self.engine.dispose()
+        subprocess.check_call(['dropdb',self.dbname])
+        
+    def get_engine(self):
+        user = 'bkoziol'
+        password = 'BenK_84368636'
+        host = 'localhost'
+        database = self.dbname
+        connstr = 'postgresql://{user}:{password}@{host}/{database}'.format(user=user,
+                                                                            password=password,
+                                                                            host=host,
+                                                                            database=database)
+        self.engine = create_engine(connstr,
+                                    poolclass=NullPool)
+        return(self.engine)
+
+@timing
 def sub_to_db(sub,
               add_area=True,
               area_srid=3005,
@@ -13,7 +41,8 @@ def sub_to_db(sub,
               wkb=False,
               as_multi=True,
               to_disk=False,
-              procs=1):
+              procs=1,
+              engine=None):
     """
     Convert the object to a SQLite database. Returns the |db| module exposing
         the database ORM and additional SQLAlchemy objects. Note that |procs|
@@ -28,21 +57,30 @@ def sub_to_db(sub,
     as_multi=True -- Convert geometries to shapely.MultiPolygon.
     to_disk=False -- Write the database to disk.
     procs=1 -- Number of processes to use when loading data.
+    engine=None (sqlalchemy.Engine) -- An optional engine to pass overloading
+        the creation of other backends. Useful to use PostGRES instead of
+        SQLite for example.
     """
     from sqlalchemy import create_engine
     from sqlalchemy.orm.session import sessionmaker
     from util.ncconv.experimental import db
     
-    path = 'sqlite://'
-    if to_disk or procs > 1:
-        path = path + '/' + get_temp_path('.sqlite',nest=True)
-        db.engine = create_engine(path,
-                                  poolclass=NullPool)
+    if engine is None:
+        use_lock = True
+        path = 'sqlite://'
+        if to_disk or procs > 1:
+            path = path + '/' + get_temp_path('.sqlite',nest=True)
+            db.engine = create_engine(path,
+                                      poolclass=NullPool)
+        else:
+            db.engine = create_engine(path,
+    #                                      connect_args={'check_same_thread':False},
+    #                                      poolclass=StaticPool
+                                      )
     else:
-        db.engine = create_engine(path,
-#                                      connect_args={'check_same_thread':False},
-#                                      poolclass=StaticPool
-                                  )
+        use_lock = False
+        db.engine = engine
+    
     db.metadata.bind = db.engine
     db.Session = sessionmaker(bind=db.engine)
     db.metadata.create_all()
@@ -88,7 +126,12 @@ def sub_to_db(sub,
                     wkb=wkb,
                     area_m2=get_area(geom,sr,sr2)))
     fkwds = dict(geometry=sub.geometry,gid=sub.gid,wkt=wkt,wkb=wkb,sr=sr,sr2=sr2,get_area=get_area)
-    gen = pl.ParallelGenerator(db.Geometry,sub.dim_data,f,fkwds=fkwds,procs=procs)
+    gen = pl.ParallelGenerator(db.Geometry,
+                               sub.dim_data,
+                               f,
+                               fkwds=fkwds,
+                               procs=procs,
+                               use_lock=use_lock)
     gen.load()
 
     print('  loading time...')
@@ -100,7 +143,7 @@ def sub_to_db(sub,
         data['day'].append(sub.timevec[dt].day)
         data['month'].append(sub.timevec[dt].month)
         data['year'].append(sub.timevec[dt].year)
-    load_parallel(db.Time,data,procs)
+    load_parallel(db.Time,data,procs,use_lock=use_lock)
         
     print('  loading value...')
     ## set up parallel loading data
@@ -112,11 +155,11 @@ def sub_to_db(sub,
                 data['level'].append(int(sub.levelvec[dl]))
                 data['tid'].append(ii)
                 data['value'].append(float(sub.value[dt,dl,dd]))
-    load_parallel(db.Value,data,procs)
+    load_parallel(db.Value,data,procs,use_lock=use_lock)
 
     return(db)
 
-def load_parallel(Model,data,procs):
+def load_parallel(Model,data,procs,use_lock=True):
     pmodel = pl.ParallelModel(Model,data)
-    ploader = pl.ParallelLoader(procs=procs)
+    ploader = pl.ParallelLoader(procs=procs,use_lock=use_lock)
     ploader.load_model(pmodel)

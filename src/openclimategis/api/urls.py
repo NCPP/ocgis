@@ -13,7 +13,7 @@ simulationoutput_handler = Resource(handlers.SimulationOutputHandler)
 usergeometrydata_handler = Resource(handlers.AoiHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 query_handler = Resource(handlers.QueryHandler)
-shpupload_handler = Resource(handlers.ShpUploadHandler)
+aoiupload_handler = Resource(handlers.AoiUploadHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
 
@@ -436,14 +436,14 @@ urlpatterns = patterns('',
     
 ## SHAPEFILE UPLOAD ------------------------------------------------------------
 
-    url(( # example: shpupload.html
-        r'^shpupload.html'),
-        shpupload_handler,
+    url(( # example: aoi_upload.html
+        r'^aoi_upload.html'),
+        aoiupload_handler,
         {
             'emitter_format':'html',
-            'template_name':'shpupload.html',
+            'template_name':'aoi_upload.html',
         },
-        name='shpupload_form',
+        name='aoi_upload_form',
     ),
     
 )

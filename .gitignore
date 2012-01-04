@@ -7,3 +7,5 @@ dist/*
 README.pdf
 src/OpenClimateGIS.egg-info/*
 *.pyc
+*.orig
+*.log

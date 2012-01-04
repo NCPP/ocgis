@@ -150,261 +150,631 @@
     }
   },
   {
-    "pk": 1,
+    "pk": 3,
     "model": "climatedata.scenario",
     "fields": {
-      "code": "SRES A1B",
-      "urlslug": "sres-a1b",
-      "name": "720 ppm stabilization experiment",
-      "description": "From http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments\r\n#############################################\r\nImpose SRES A1B conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+      "urlslug": "sres-b1",
+      "code": "SRES B1",
+      "name": "SRES B1 Scenario",
+      "description": "B1 storyline and scenario family: a convergent world with the same global population as in the A1 storyline but with rapid changes in economic structures toward a service and information economy, with reductions in material intensity, and the introduction of clean and resource-efficient technologies.\r\n\r\n550 ppm stabilization"
     }
   },
   {
     "pk": 2,
     "model": "climatedata.scenario",
     "fields": {
-      "code": "SRES A2",
       "urlslug": "sres-a2",
-      "name": "SRES A2 experiment",
-      "description": "Notes: should take the end of the 20C3M run as its initial condition."
+      "code": "SRES A2",
+      "name": "SRES A2 Scenario",
+      "description": "A2 storyline and scenario family: a very heterogeneous world with continuously increasing global population and regionally oriented economic growth that is more fragmented and slower than in other storylines."
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.scenario",
+    "fields": {
+      "urlslug": "sres-a1b",
+      "code": "SRES A1B",
+      "name": "SRES A1B Scenario",
+      "description": "A1 storyline and scenario family: a future world of very rapid economic growth, global population that peaks in mid-century and declines thereafter, and rapid introduction of new and more efficient technologies.\r\n\r\n720 ppm stabilization experiment"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.scenariometadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments",
+      "scenario": 3,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website description of experiments"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.scenariometadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments",
+      "scenario": 2,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website description of experiments"
     }
   },
   {
     "pk": 3,
-    "model": "climatedata.scenario",
+    "model": "climatedata.scenariometadataurl",
     "fields": {
-      "code": "SRES B1",
-      "urlslug": "sres-b1",
-      "name": "550 ppm stabilization experiment",
-      "description": "Notes: Impose SRES B1 conditions and initialize with conditions from the end of the 20C3M simulation and run to 2100, after which hold concentrations fixed and continue run to 2200.  One member of the ensemble should be extended for an additional 100 years (to 2300), continuing to hold concentrations fixed."
+      "url": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments",
+      "scenario": 1,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website description of experiments"
     }
   },
   {
     "pk": 2,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html",
-      "organization": 2,
-      "code": "BCC-CM1",
       "urlslug": "bcc-cm1",
+      "code": "BCC-CM1",
       "name": "Beijing Climate Center CM1",
-      "comments": "More information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm"
+      "comments": "More information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm",
+      "organization": 2
     }
   },
   {
     "pk": 1,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-BCCR-BCM2-change.html",
-      "organization": 1,
-      "code": "BCCR-BCM2.0",
       "urlslug": "bccr-bcm2.0",
+      "code": "BCCR-BCM2.0",
       "name": "Bergen Climate Model Version 2",
-      "comments": "More Information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php"
+      "comments": "More Information: http://www-pcmdi.llnl.gov/ipcc/model_documentation/ipcc_model_documentation.php",
+      "organization": 1
     }
   },
   {
     "pk": 4,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-CNRM-CM3-change.html",
-      "organization": 5,
-      "code": "CNRM-CM3",
       "urlslug": "cnrm-cm3",
+      "code": "CNRM-CM3",
       "name": "CNRM-CM3",
-      "comments": ""
+      "comments": "",
+      "organization": 5
     }
   },
   {
     "pk": 5,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-CSIRO-MK3-change.html",
-      "organization": 6,
-      "code": "CSIRO-Mk3.0",
       "urlslug": "csiro-mk3.0",
+      "code": "CSIRO-Mk3.0",
       "name": "CSIRO Mark 3.0",
-      "comments": ""
-    }
-  },
-  {
-    "pk": 6,
-    "model": "climatedata.climatemodel",
-    "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2-change.html",
-      "organization": 7,
-      "code": "GFDL-CM2.0",
-      "urlslug": "gfdl-cm2.0",
-      "name": "CM2.0 - AOGCM",
-      "comments": ""
+      "comments": "",
+      "organization": 6
     }
   },
   {
     "pk": 7,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2_1-change.html",
-      "organization": 7,
-      "code": "GFDL-CM2.1",
       "urlslug": "gfdl-cm2.1",
+      "code": "GFDL-CM2.1",
       "name": "CM2.1 - AOGCM",
-      "comments": ""
+      "comments": "",
+      "organization": 7
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.climatemodel",
+    "fields": {
+      "urlslug": "gfdl-cm2.0",
+      "code": "GFDL-CM2.0",
+      "name": "CM2.0 - AOGCM",
+      "comments": "",
+      "organization": 7
     }
   },
   {
     "pk": 8,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-NASA-GISS-ER-change.html",
-      "organization": 8,
-      "code": "GISS-ER",
       "urlslug": "giss-er",
+      "code": "GISS-ER",
       "name": "GISS ModelE-R",
-      "comments": ""
+      "comments": "",
+      "organization": 8
     }
   },
   {
     "pk": 9,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-INM-CM3-change.html",
-      "organization": 9,
-      "code": "INM-CM3.0",
       "urlslug": "inm-cm3.0",
+      "code": "INM-CM3.0",
       "name": "INMCM3.0",
-      "comments": ""
+      "comments": "",
+      "organization": 9
     }
   },
   {
     "pk": 10,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-IPSL-CM4-change.html",
-      "organization": 10,
-      "code": "IPSL-CM4",
       "urlslug": "ipsl-cm4",
+      "code": "IPSL-CM4",
       "name": "IPSL-CM4",
-      "comments": ""
+      "comments": "",
+      "organization": 10
     }
   },
   {
     "pk": 11,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-NIES-MIROC3_2-MED-change.html",
-      "organization": 11,
-      "code": "MIROC3.2(medres)",
       "urlslug": "miroc3.2(medres)",
+      "code": "MIROC3.2(medres)",
       "name": "MIROC3.2 (Model for Interdisciplinary Research on ",
-      "comments": ""
+      "comments": "",
+      "organization": 11
     }
   },
   {
     "pk": 12,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-CONS-ECHO-G-change.html",
-      "organization": 12,
-      "code": "ECHO-G",
       "urlslug": "echo-g",
+      "code": "ECHO-G",
       "name": "ECHO-G = ECHAM4 + HOPE-G",
-      "comments": "Additional organization: Institute of KMA, and Model and Data group, Korea"
+      "comments": "Additional organization: Institute of KMA, and Model and Data group, Korea",
+      "organization": 12
     }
   },
   {
     "pk": 13,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-MPIM-ECHAM5-change.html",
-      "organization": 13,
-      "code": "ECHAM5/MPI-OM",
       "urlslug": "echam5-mpi-om",
+      "code": "ECHAM5/MPI-OM",
       "name": "ECHAM5/MPI-OM",
-      "comments": ""
+      "comments": "",
+      "organization": 13
     }
   },
   {
     "pk": 14,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-MRI-CGCM2_3_2-change.html",
-      "organization": 14,
-      "code": "MRI-CGCM2.3.2",
       "urlslug": "mri-cgcm2.3.2",
+      "code": "MRI-CGCM2.3.2",
       "name": "MRI-CGCM2.3.2",
-      "comments": ""
+      "comments": "",
+      "organization": 14
     }
   },
   {
     "pk": 15,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-NCAR-CCSM3-change.html",
-      "organization": 15,
-      "code": "CCSM3",
       "urlslug": "ccsm3",
+      "code": "CCSM3",
       "name": "Community Climate System Model, version 3.0",
-      "comments": ""
+      "comments": "",
+      "organization": 15
     }
   },
   {
     "pk": 16,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-NCAR-PCM-change.html",
-      "organization": 15,
-      "code": "PCM",
       "urlslug": "pcm",
+      "code": "PCM",
       "name": "Parallel Climate Model",
-      "comments": ""
+      "comments": "",
+      "organization": 15
     }
   },
   {
     "pk": 17,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-UKMO-HADCM3-change.html",
-      "organization": 16,
-      "code": "UKMO-HadCM3",
       "urlslug": "ukmo-hadcm3",
+      "code": "UKMO-HadCM3",
       "name": "HadCM3",
-      "comments": ""
+      "comments": "",
+      "organization": 16
     }
   },
   {
     "pk": 3,
     "model": "climatedata.climatemodel",
     "fields": {
-      "url": "http://www.ipcc-data.org/ar4/model-CCCMA-CGCM3_1-T47-change.html",
-      "organization": 3,
-      "code": "CGCM3.1(T47)",
       "urlslug": "cgcm3.1-T47",
+      "code": "CGCM3.1(T47)",
       "name": "Coupled Global Climate Model (T47)",
-      "comments": ""
+      "comments": "",
+      "organization": 3
+    }
+  },
+  {
+    "pk": 3,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://bcc.cma.gov.cn/CSMD/en/",
+      "model": 2,
+      "desc": "Beijing Climate Center Climate System Modeling Division website"
+    }
+  },
+  {
+    "pk": 4,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-BCCR-BCM2-change.html",
+      "model": 1,
+      "desc": "IPCC Data Distribution Website website - Bergen Climate Model (BCM) Version 2"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html",
+      "model": 2,
+      "desc": "IPCC Data Distribution Centre website - BCC-CM1"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm",
+      "model": 2,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - BCC-CM1"
+    }
+  },
+  {
+    "pk": 5,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCCR_BCM2.0.htm",
+      "model": 1,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - Bergen Climate Model (BCM) Version 2"
+    }
+  },
+  {
+    "pk": 6,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CNRM-CM3-change.html",
+      "model": 4,
+      "desc": "IPCC Data Distribution Centre website - CNRM-CM3"
+    }
+  },
+  {
+    "pk": 7,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/CNRM-CM3.htm",
+      "model": 4,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - CNRM-CM3"
+    }
+  },
+  {
+    "pk": 8,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.cnrm.meteo.fr/scenario2004/references_eng.html",
+      "model": 4,
+      "desc": "CNRM-CM3: Model References and Publications "
+    }
+  },
+  {
+    "pk": 9,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CSIRO-MK3-change.html",
+      "model": 5,
+      "desc": "IPCC Data Distribution Centre website - CSIRO Mark 3.0"
+    }
+  },
+  {
+    "pk": 10,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/CSIRO-Mk3.0.htm",
+      "model": 5,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - CSIRO Mark 3.0"
+    }
+  },
+  {
+    "pk": 13,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/GFDL_model_evolution.pdf",
+      "model": 6,
+      "desc": "GFDL IPCC Climate Models: Changes in Model Physics between TAR and AR 4"
+    }
+  },
+  {
+    "pk": 14,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2_1-change.html",
+      "model": 7,
+      "desc": "IPCC Data Distribution Centre website - CM2.1 - AOGCM"
+    }
+  },
+  {
+    "pk": 15,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/GFDL-cm2.htm",
+      "model": 7,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - GFDL-CM2.0 and GFDL-CM2.1"
+    }
+  },
+  {
+    "pk": 11,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-GFDL-CM2-change.html",
+      "model": 6,
+      "desc": "IPCC Data Distribution Centre website - CM2.0 - AOGCM"
+    }
+  },
+  {
+    "pk": 12,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/GFDL-cm2.htm",
+      "model": 6,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - GFDL-CM2.0 and GFDL-CM2.1"
+    }
+  },
+  {
+    "pk": 16,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NASA-GISS-ER-change.html",
+      "model": 8,
+      "desc": "IPCC Data Distribution Centre website - "
+    }
+  },
+  {
+    "pk": 17,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/GISS-E.htm",
+      "model": 8,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - "
+    }
+  },
+  {
+    "pk": 18,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-INM-CM3-change.html",
+      "model": 9,
+      "desc": "IPCC Data Distribution Centre website - INMCM3.0"
+    }
+  },
+  {
+    "pk": 19,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/INM_CM3.0.htm",
+      "model": 9,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - INM-CM3.0"
+    }
+  },
+  {
+    "pk": 20,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-IPSL-CM4-change.html",
+      "model": 10,
+      "desc": "IPCC Data Distribution Centre website - IPSL-CM4"
+    }
+  },
+  {
+    "pk": 21,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/IPSL-CM4.htm",
+      "model": 10,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - IPSL-CM4"
+    }
+  },
+  {
+    "pk": 22,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NIES-MIROC3_2-MED-change.html",
+      "model": 11,
+      "desc": "IPCC Data Distribution Centre website - MIROC3.2"
+    }
+  },
+  {
+    "pk": 23,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/MIROC3.2_medres.htm",
+      "model": 11,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - MIROC3.2(medres)"
+    }
+  },
+  {
+    "pk": 24,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/miroc3.2_info.htm",
+      "model": 11,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - Known limitations of MIROC3.2 and speculated causes"
+    }
+  },
+  {
+    "pk": 25,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CONS-ECHO-G-change.html",
+      "model": 12,
+      "desc": "IPCC Data Distribution Centre website - ECHO-G"
+    }
+  },
+  {
+    "pk": 26,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/ECHO-G.htm",
+      "model": 12,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - ECHO-G"
+    }
+  },
+  {
+    "pk": 27,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-MPIM-ECHAM5-change.html",
+      "model": 13,
+      "desc": "IPCC Data Distribution Centre website - ECHAM5/MPI-OM"
+    }
+  },
+  {
+    "pk": 28,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/ECHAM5_MPI-OM.htm",
+      "model": 13,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - ECHAM5_MPI-OM"
+    }
+  },
+  {
+    "pk": 29,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-MRI-CGCM2_3_2-change.html",
+      "model": 14,
+      "desc": "IPCC Data Distribution Centre website - MRI-CGCM2.3.2"
+    }
+  },
+  {
+    "pk": 30,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/MRI-GCGM2.3.2.htm",
+      "model": 14,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - MRI-CGCM2.3.2"
+    }
+  },
+  {
+    "pk": 31,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/Yukimoto_2005_Papers-submit.pdf",
+      "model": 14,
+      "desc": "Paper - Climate Change of the twentieth through twenty-first centuries simulated by the MRI-CGCM2.3"
+    }
+  },
+  {
+    "pk": 32,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-CCSM3-change.html",
+      "model": 15,
+      "desc": "IPCC Data Distribution Centre website - Community Climate System Model, version 3.0"
+    }
+  },
+  {
+    "pk": 33,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/CCSM3.htm",
+      "model": 15,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - CCSM3"
+    }
+  },
+  {
+    "pk": 34,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-NCAR-PCM-change.html",
+      "model": 16,
+      "desc": "IPCC Data Distribution Centre website - Parallel Climate Model (PCM)"
+    }
+  },
+  {
+    "pk": 35,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/PCM.htm",
+      "model": 16,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - Parallel Climate Model (PCM)"
+    }
+  },
+  {
+    "pk": 36,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-UKMO-HADCM3-change.html",
+      "model": 17,
+      "desc": "IPCC Data Distribution Centre website - HadCM3"
+    }
+  },
+  {
+    "pk": 37,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www-pcmdi.llnl.gov/ipcc/model_documentation/HadCM3.htm",
+      "model": 17,
+      "desc": "PCMDI CMIP3 Climate Model Documentation website - UKMO-HadCM3"
+    }
+  },
+  {
+    "pk": 38,
+    "model": "climatedata.climatemodelmetadataurl",
+    "fields": {
+      "url": "http://www.ipcc-data.org/ar4/model-CCCMA-CGCM3_1-T47-change.html",
+      "model": 3,
+      "desc": "IPCC Data Distribution Centre website - Coupled Global Climate Model (CGCM3)"
     }
   },
   {
     "pk": 2,
     "model": "climatedata.variable",
     "fields": {
-      "units": "K",
       "ndim": 3,
       "code": "tas",
-      "urlslug": "tas",
       "name": "air_temperature",
-      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n################################################\r\nnear-surface (usually, 2 meter) air temperature; the CMOR singleton dimension default value of 2 m can be overridden, if absolutely necessary, by redefining axis \"height1\"."
+      "urlslug": "tas",
+      "units": "C",
+      "description": "near-surface (usually, 2 meter) air temperature"
     }
   },
   {
     "pk": 1,
     "model": "climatedata.variable",
     "fields": {
-      "units": "kg m^-2 s^-1",
       "ndim": 3,
       "code": "pr",
-      "urlslug": "pr",
       "name": "precipitation_flux",
-      "description": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output\r\n================================================\r\nincludes both liquid and solid phases"
+      "urlslug": "pr",
+      "units": "kg m^-2 s^-1",
+      "description": "includes both liquid and solid phases"
+    }
+  },
+  {
+    "pk": 1,
+    "model": "climatedata.variablemetadataurl",
+    "fields": {
+      "variable": 2,
+      "url": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output",
+      "desc": "PCMDI CMIP3 Climate Model Documentation website description of highest priority output fields"
+    }
+  },
+  {
+    "pk": 2,
+    "model": "climatedata.variablemetadataurl",
+    "fields": {
+      "variable": 1,
+      "url": "http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output",
+      "desc": "PCMDI CMIP3 Climate Model Documentation website description of highest priority output fields"
     }
   }
 ]

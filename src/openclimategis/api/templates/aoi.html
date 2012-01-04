@@ -19,24 +19,37 @@
         {% comment %}Create table for a list of Area-of-Interest resources{% endcomment %}
         <tr>
             <th>Code</th>
-            <th>Geometry (WKT)</th>
+            <th>Description</th>
+            <th># of Subareas</th>
         </tr>
-        {% for listitem in data|dictsort:"code" %}
+        {% for listitem in data %}
         <tr>
             <td><a href="{% url aoi_single code=listitem.code emitter_format='html' %}">{{ listitem.code }}</a></td>
-            <td>{{ listitem.geom.wkt }}</td>
-        </td></tr>
+            <td>{{ listitem.desc }}</td>
+            <td>{{ listitem.geom_count }}</td>
+        </tr>
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single Area of Interest{% endcomment %}
+        
         {% for listitem in data %}
+            {% if forloop.counter == 1 %}
             <tr>
                 <th>Code</th>
                 <td>{{ listitem.code}}</td>
             </tr>
             <tr>
-                <th>Geometry (WKT)</th>
-                <td>{{ listitem.geom }}</td>
+                <th>Description</th>
+                <td>{{ listitem.desc }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <th>Geometries (WKT)</th>
+                <td>
+                {% for subarea in listitem.geoms %}
+                    <p>{{ subarea.geom }}</p>
+                {% endfor %}
+                </td>
             </tr>
         {% endfor %}
     {% endif %}
@@ -44,6 +57,6 @@
     </table>
     
     {% if is_collection %}
-        <div class="box"><br /><a href="{% url shpupload_form %}">Upload Custom AOI</a></div>
+        <div class="box"><br /><a href="{% url aoi_upload_form %}">Upload Custom AOI</a></div>
     {% endif %}
 {% endblock content %}

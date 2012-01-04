@@ -173,12 +173,24 @@ class OcgStatFunction(object):
     >>> potentials = stat.get_potentials()
     """
     
-    __descs = {'mean':'Calculate mean for standard normal distribution.'}
+    __descs = {
+        'min': 'Minimum value in the series',
+        'max': 'Maximum value in the series',
+        'mean': 'Mean value for the series',
+        'median': 'Median value for the series',
+        'std': 'Standard deviation for the series',
+        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
+        'gt_thirty_five': 'Count of values greater than 35',
+        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
+        'lt_zero': 'Count of values less than 0',
+        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
+        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
+    }
     
     def get_function_list(self,functions):
         funcs = []
         for f in functions:
-            fname = re.search('([A-Za-z]+)',f).group(1)
+            fname = re.search('([A-Za-z_]+)',f).group(1)
             try:
                 args = re.search('([\d,]+)',f).group(1)
             except AttributeError:
@@ -192,13 +204,13 @@ class OcgStatFunction(object):
     
     @classmethod
     def get_potentials(cls):
-        filters = ['_','get_']
+        filters = ['_','get_'] # filter out methods that start with these strings
         ret = []
         for member in inspect.getmembers(cls):
             if inspect.isfunction(member[1]):
                 test = [member[0].startswith(filter) for filter in filters]
                 if not any(test):
-                    ret.append([member[0],member[0]+' ('+cls.__descs.get(member[0],member[0])+')'])
+                    ret.append([member[0],cls.__descs.get(member[0],member[0])])
         return(ret)
     
     @staticmethod
@@ -220,6 +232,36 @@ class OcgStatFunction(object):
     @staticmethod
     def min(values):
         return(min(values))
+    
+    @staticmethod
+    def gt_thirty_two_point_two(values):
+        days = filter(lambda x: x > 32.2, values)
+        return(len(days))
+    
+    @staticmethod
+    def gt_thirty_five(values):
+        days = filter(lambda x: x > 35, values)
+        return(len(days))
+    
+    @staticmethod
+    def gt_thirty_seven_point_eight(values):
+        days = filter(lambda x: x > 37.8, values)
+        return(len(days))
+    
+    @staticmethod
+    def lt_zero(values):
+        days = filter(lambda x: x < 0, values)
+        return(len(days))
+    
+    @staticmethod
+    def lt_negative_twelve_point_two(values):
+        days = filter(lambda x: x < -12.2, values)
+        return(len(days))
+    
+    @staticmethod
+    def lt_negative_seventeen_point_seven(values):
+        days = filter(lambda x: x < -17.7, values)
+        return(len(days))
     
 #    @staticmethod
 #    def gt(values,threshold=None):

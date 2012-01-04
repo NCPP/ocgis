@@ -221,7 +221,7 @@ class SimulationOutputHandler(NonSpatialHandler):
 
 
 class AoiHandler(NonSpatialHandler):
-    model = UserGeometryData
+    model = UserGeometryMetadata
     exclude = ()
     
     def _read_(self,request):
@@ -230,6 +230,7 @@ class AoiHandler(NonSpatialHandler):
             query = self.model.objects.filter(code__iexact=str(code))
         except:
             query = self.model.objects.all()
+        #temp = query[0]
         return query
 
 
@@ -244,7 +245,7 @@ class QueryHandler(NonSpatialHandler):
         return(request.ocg.simulation_output)
     
     
-class ShpUploadHandler(NonSpatialHandler):
+class AoiUploadHandler(NonSpatialHandler):
     model = None
     allowed_methods = ('GET','POST')
     

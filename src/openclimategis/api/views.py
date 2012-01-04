@@ -193,7 +193,7 @@ def validate_zipfile(value):
         raise(ValidationError("File extension not '.zip or .kml or .kmz'"))
 
 
-class UploadShapefileForm(forms.Form):
+class UploadAoiForm(forms.Form):
 #    uid = forms.CharField(max_length=50,min_length=1,initial='foo',label='UID')
 
     filefld = forms.FileField(
@@ -203,6 +203,10 @@ class UploadShapefileForm(forms.Form):
     code = forms.CharField(
         label='AOI Code',
         help_text='Code by which a user refers to an AOI.'
+    )
+    desc = forms.CharField(
+        label='AOI Description',
+        help_text='A description of the AOI.'
     )
     uid_field = forms.CharField(
         label='UID Field',
@@ -233,9 +237,9 @@ class UploadShapefileForm(forms.Form):
     
 
 @transaction.commit_on_success
-def display_shpupload(request):
+def display_aoi_uploader(request):
     if request.method == 'POST':
-        form = UploadShapefileForm(request.POST,request.FILES)
+        form = UploadAoiForm(request.POST,request.FILES)
         if form.is_valid():
             ## write the file to disk and extract WKT
             wkt_list = handle_uploaded_file(
@@ -245,8 +249,11 @@ def display_shpupload(request):
             
             ## loop through the dictionary list and store the data. first, create
             ## the metadata object.
-            meta = models.UserGeometryMetadata(code=form.cleaned_data['code'],
-                                               uid_field=form.cleaned_data['uid_field'])
+            meta = models.UserGeometryMetadata(
+                code=form.cleaned_data['code'],
+                desc=form.cleaned_data['desc'],
+                uid_field=form.cleaned_data['uid_field'],
+            )
             meta.save()
             ## next insert the geometries
             for feat in wkt_list:
@@ -267,8 +274,8 @@ def display_shpupload(request):
 #            ))
             return redirect('/api/aois/{0}.html'.format(meta.code))
     else:
-        form = UploadShapefileForm()
-    return(render_to_response('shpupload.html', {'form': form}))
+        form = UploadAoiForm()
+    return(render_to_response('aoi_upload.html', {'form': form}))
 
 def handle_uploaded_file(filename,uid_field=None):
     

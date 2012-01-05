@@ -13,15 +13,69 @@ class UserGeometryMetadata(AbstractGeoManager):
     code = models.CharField(max_length=50,unique=True,null=False,blank=False)
     desc = models.TextField()
     uid_field = models.CharField(max_length=50,null=False, blank=True)
-
+    
     @property
     def geoms(self):
         '''Return a list of UserGeometryData objects'''
         return(self.usergeometrydata_set.model.objects.filter(user_meta=self.id))
-
+    
     @property
     def geom_count(self):
         return(len(self.geoms))
+    
+    @property
+    def vertex_count(self):
+        '''Return a count of the vertices for all the geometries'''
+        return [geom.geom.num_points for geom in self.geoms] 
+    
+    @property
+    def vertex_count_total(self):
+        '''Return a count of the vertices for all the geometries'''
+        return sum(self.vertex_count)
+    
+    def geom_gmap_static_url(self,
+        color = '0x0000ff',
+        weight = 4,
+        width = 512,
+        height = 256,
+    ):
+        '''Returns a Google Maps Static API URL representation of the geometry
+        
+        Refs:
+          http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+          http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
+        '''
+        # estimate the simplification threshold based on the number of vertices
+        
+        if self.vertex_count_total < 10:
+            threshold = 0  # no simplification
+        elif self.vertex_count_total < 100:
+            threshold = 0.01
+        elif self.vertex_count_total < 1000:
+            threshold = 0.1
+        else:
+            threshold = 0.5
+        
+        # construct the pathLocations string
+        pathLocations='&'.join(
+            [geom.pathLocations(color=color,weight=weight, threshold=threshold)
+                for geom in self.geoms]
+        )
+        
+        url = (
+            'http://maps.googleapis.com/maps/api/staticmap'
+            '?size={width}x{height}'
+            '&sensor=false'
+            '&{pathLocations}'
+        ).format(
+            color=color,
+            weight=weight,
+            pathLocations=pathLocations,
+            width=width,
+            height=height,
+        )
+        
+        return url
 
 
 class UserGeometryData(AbstractGeoManager):
@@ -30,6 +84,73 @@ class UserGeometryData(AbstractGeoManager):
     user_meta = models.ForeignKey(UserGeometryMetadata)
     desc = models.TextField(blank=True)
     geom = models.MultiPolygonField(srid=4326)
+
+#    def _encode_polyline_data(polyline):
+#        '''encode a polyline for Google Maps Static API
+#        
+#        Ref: 
+#        http://code.google.com/apis/maps/documentation/utilities/polylinealgorithm.html
+#        '''
+#        
+#        
+#        
+##        str = '|'.join( # join each vertex
+##                        [','.join( #join each coordinate
+##                            [str(coord) 
+##                             for coord in tuple(reversed(vertex[:2]))
+##                            ]
+##                            ) for vertex in polygon
+##                        ]
+##                    )
+#        str = ''.join( # join each vertex
+#            [''.join( #join each coordinate
+#                [coord * 1e5 
+#                 for coord in tuple(reversed(vertex[:2]))
+#                ]
+#                ) for vertex in polyline
+#            ]
+#        )
+#        
+#        return 'dummy'
+    
+    def pathLocations(self,color='0x0000ff',weight=4, threshold=0.01):
+        '''Returns a Google Maps Static API path Locations string for the geometry
+        
+        Note that only the first 2 dimensions of vertices are returned and they
+        are ordered (lat,lon).
+        
+        If too many vertices are available, they will be simplified.
+        
+        Ref: http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+        '''
+        from django.contrib.gis.geos import MultiPolygon
+        from contrib.glineenc.glineenc import encode_pairs
+
+        geom = self.geom
+#        if geom.num_coords > 32:
+#            geom = geom.simplify(0.1)
+        
+        #test = self.geom.simplify(0.01)
+        #polygon=self.geom.coords[0][0]
+        
+#        if geom.geom_type == 'Polygon':
+#            geom = MultiPolygon(geom)
+        
+        url = '&'.join( # join multiple multipolygons
+            ['&'.join( # join multiple polygons
+                ['path=color:{color}|weight:{weight}|enc:{encoded_data}'.format(
+                    color=color,
+                    weight=weight,
+                    encoded_data=encode_pairs(
+                        points=tuple([tuple(reversed(i)) for i in polygon]),
+                        threshold=threshold,
+                    )[0]
+                 ) for polygon in multipolygon
+                ]
+             ) for multipolygon in geom.coords
+            ]
+        )
+        return url
 
 
 class NetcdfDataset(AbstractGeoManager):

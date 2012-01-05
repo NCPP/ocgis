@@ -31,27 +31,37 @@
         {% endfor %}
     {% else %}
         {% comment %}Create table for a single Area of Interest{% endcomment %}
-        
-        {% for listitem in data %}
-            {% if forloop.counter == 1 %}
-            <tr>
-                <th>Code</th>
-                <td>{{ listitem.code}}</td>
-            </tr>
-            <tr>
-                <th>Description</th>
-                <td>{{ listitem.desc }}</td>
-            </tr>
-            {% endif %}
-            <tr>
-                <th>Geometries (WKT)</th>
-                <td>
-                {% for subarea in listitem.geoms %}
-                    <p>{{ subarea.geom }}</p>
-                {% endfor %}
-                </td>
-            </tr>
-        {% endfor %}
+        <tr>
+            <th>Code</th>
+            <td>{{ data.0.code}}</td>
+        </tr>
+        <tr>
+            <th>Description</th>
+            <td>{{ data.0.desc }}</td>
+        </tr>
+        <tr>
+            <th># of Geometries</th>
+            <td>{{ data.0.geom_count }}</td>
+        </tr>
+        <tr>
+            <th># of Vertices</th>
+            <td>
+                <p>By geometry: {{ data.0.vertex_count }}</p>
+                <p>Total: {{ data.0.vertex_count_total }}</p>
+            </td>
+        </tr>
+        <tr>
+            <th>Location Map</th>
+            <td>
+              <img src="{{ data.0.geom_gmap_static_url }}" alt="Google Static Map" />
+            </td>
+        </tr>
+        {% comment %}
+        <tr>
+            <th>Download</th>
+            <td>WKT - GeoJSON - KML - Shapefile</td>
+        </tr>
+        {% endcomment %}
     {% endif %}
     </tbody>
     </table>

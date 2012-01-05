@@ -1,7 +1,6 @@
 import netCDF4 as nc
 import numpy as np
 from shapely import prepared
-from helpers import *
 from shapely.ops import cascaded_union
 from util.ncconv.experimental.ocg_meta.interface import SpatialInterface,\
     TemporalInterface, LevelInterface

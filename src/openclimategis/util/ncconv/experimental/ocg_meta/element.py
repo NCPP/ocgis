@@ -1,4 +1,3 @@
-import models
 import inspect
 
 
@@ -55,11 +54,11 @@ class PolyElement(object):
     
     @staticmethod
     def get_checks():
-        from models import Register
+        import models
         members = inspect.getmembers(models)
         return([mem[1] for mem in members if inspect.isclass(mem[1]) and 
-                                             issubclass(mem[1],Register) and 
-                                             mem[1] != Register])
+                                             issubclass(mem[1],models.Register) and 
+                                             mem[1] != models.Register])
     
     
 class DatasetPolyElement(PolyElement):

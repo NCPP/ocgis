@@ -97,7 +97,7 @@ class SubOcgDataEmitter(IdentityEmitter):
         return(self.get_response())
     
     def get_db(self):
-        return(self.sub.as_sqlite(procs=settings.MAXPROCESSES))
+        return(self.sub.to_db(procs=settings.MAXPROCESSES))
     
     def get_converter(self):
         return(self.__converter__(self.db,

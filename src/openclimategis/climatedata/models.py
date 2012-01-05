@@ -22,6 +22,37 @@ class UserGeometryMetadata(AbstractGeoManager):
     @property
     def geom_count(self):
         return(len(self.geoms))
+    
+    def geom_gmap_static_url(self,
+        color = '0x0000ff',
+        weight = 4,
+        width = 512,
+        height = 256,
+    ):
+        '''Returns a Google Maps Static API URL representation of the geometry
+        
+        Ref: http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+        '''
+        # construct the pathLocations string
+        pathLocations='&'.join(
+            [geom.pathLocations(color=color,weight=weight)
+                for geom in self.geoms]
+        )
+        
+        url = (
+            'http://maps.googleapis.com/maps/api/staticmap'
+            '?size={width}x{height}'
+            '&sensor=false'
+            '&{pathLocations}'
+        ).format(
+            color=color,
+            weight=weight,
+            pathLocations=pathLocations,
+            width=width,
+            height=height,
+        )
+        
+        return url
 
 
 class UserGeometryData(AbstractGeoManager):
@@ -30,6 +61,73 @@ class UserGeometryData(AbstractGeoManager):
     user_meta = models.ForeignKey(UserGeometryMetadata)
     desc = models.TextField(blank=True)
     geom = models.MultiPolygonField(srid=4326)
+
+#    def _encode_polyline_data(polyline):
+#        '''encode a polyline for Google Maps Static API
+#        
+#        Ref: 
+#        http://code.google.com/apis/maps/documentation/utilities/polylinealgorithm.html
+#        '''
+#        
+#        
+#        
+##        str = '|'.join( # join each vertex
+##                        [','.join( #join each coordinate
+##                            [str(coord) 
+##                             for coord in tuple(reversed(vertex[:2]))
+##                            ]
+##                            ) for vertex in polygon
+##                        ]
+##                    )
+#        str = ''.join( # join each vertex
+#            [''.join( #join each coordinate
+#                [coord * 1e5 
+#                 for coord in tuple(reversed(vertex[:2]))
+#                ]
+#                ) for vertex in polyline
+#            ]
+#        )
+#        
+#        return 'dummy'
+    
+    def pathLocations(self,color='0x0000ff',weight=4):
+        '''Returns a Google Maps Static API path Locations string for the geometry
+        
+        Note that only the first 2 dimensions of vertices are returned and they
+        are ordered (lat,lon).
+        
+        If too many vertices are available, they will be simplified.
+        
+        Ref: http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+        '''
+        from django.contrib.gis.geos import MultiPolygon
+        from contrib.glineenc.glineenc import encode_pairs
+
+        geom = self.geom
+#        if geom.num_coords > 32:
+#            geom = geom.simplify(0.1)
+        
+        #test = self.geom.simplify(0.01)
+        #polygon=self.geom.coords[0][0]
+        
+#        if geom.geom_type == 'Polygon':
+#            geom = MultiPolygon(geom)
+        
+        url = '&'.join( # join multiple multipolygons
+            ['&'.join( # join multiple polygons
+                ['path=color:{color}|weight:{weight}|enc:{encoded_data}'.format(
+                    color=color,
+                    weight=weight,
+                    encoded_data=encode_pairs(
+                        points=tuple([tuple(reversed(i)) for i in polygon]),
+                        threshold=0.1,
+                    )[0]
+                 ) for polygon in multipolygon
+                ]
+             ) for multipolygon in geom.coords
+            ]
+        )
+        return url
 
 
 class NetcdfDataset(AbstractGeoManager):

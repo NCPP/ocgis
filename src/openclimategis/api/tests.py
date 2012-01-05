@@ -477,6 +477,7 @@ class TestFileUpload(TestCase):
             response = self.client.post(
                 '/api/aoi_upload.html',
                 {'code': 'TESTCODE', 
+                 'desc': 'sample description.',
                  'uid_field': "objectid",
                  'filefld': f},
             )
@@ -487,7 +488,8 @@ class TestFileUpload(TestCase):
         with open('api/testdata/ne_ia_mi.zip') as f:
             response = self.client.post(
                 '/api/aoi_upload.html',
-                {'code': 'argh!^^#$', 
+                {'code': 'argh!^^#$',
+                 'desc': 'sample description.',
                  'uid_field': "objectid",
                  'filefld': f},
             )
@@ -498,7 +500,8 @@ class TestFileUpload(TestCase):
         with open('api/testdata/testfile.kml') as f:
             response = self.client.post(
                 '/api/aoi_upload.html',
-                {'code': 'TESTCODE', 
+                {'code': 'TESTCODE',
+                 'desc': 'sample description.',
                  #'objectid': None,
                  'filefld': f},
             )

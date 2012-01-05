@@ -4,6 +4,7 @@ from shapely import wkt
 import pdb
 from climatedata.models import UserGeometryData, UserGeometryMetadata
 from util.ncconv.experimental.ocg_stat import OcgStatFunction
+from util.ncconv.experimental.helpers import check_function_dictionary
 
 
 class PolygonSlug(OcgSlug):
@@ -36,9 +37,9 @@ class OperationSlug(OcgSlug):
 class FunctionSlug(OcgSlug):
     
     def _get_(self):
-#        import ipdb;ipdb.set_trace()
         stat = OcgStatFunction()
         function_list = stat.get_function_list(self.url_arg[0].split(' '))
+        check_function_dictionary(function_list)
         return(function_list)
     
     

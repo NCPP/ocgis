@@ -93,7 +93,7 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.query.functions = FunctionSlug('stat',possible=qdict).value
         self.ocg.query.grouping = GroupingSlug('grouping',possible=qdict).value
         
-        ## if functions are passed, then so must an interval and vice versa
+        ## if functions are passed, then so must a grouping and vice versa
 #        if self.ocg.query.functions is None and self.ocg.query.interval is None:
 #            raise(ValueError('both a "stat" and "grouping" query are required'))
         if self.ocg.query.functions is not None and self.ocg.query.grouping is not None:

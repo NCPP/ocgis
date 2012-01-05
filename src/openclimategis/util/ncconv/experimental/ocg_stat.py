@@ -199,6 +199,8 @@ class OcgStatFunction(object):
             if args is not None:
                 args = [float(a) for a in args.split(',')]
                 attrs.update({'args':args})
+            if ':' in f:
+                attrs.update({'name':f.split(':')[1]})
             funcs.append(attrs)
         return(funcs)
     
@@ -233,49 +235,49 @@ class OcgStatFunction(object):
     def min(values):
         return(min(values))
     
-    @staticmethod
-    def gt_thirty_two_point_two(values):
-        days = filter(lambda x: x > 32.2, values)
-        return(len(days))
-    
-    @staticmethod
-    def gt_thirty_five(values):
-        days = filter(lambda x: x > 35, values)
-        return(len(days))
-    
-    @staticmethod
-    def gt_thirty_seven_point_eight(values):
-        days = filter(lambda x: x > 37.8, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_zero(values):
-        days = filter(lambda x: x < 0, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_negative_twelve_point_two(values):
-        days = filter(lambda x: x < -12.2, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_negative_seventeen_point_seven(values):
-        days = filter(lambda x: x < -17.7, values)
-        return(len(days))
-    
 #    @staticmethod
-#    def gt(values,threshold=None):
-#        if threshold is None:
-#            raise(ValueError('a threshold must be passed'))
-#        days = filter(lambda x: x > threshold, values)
+#    def gt_thirty_two_point_two(values):
+#        days = filter(lambda x: x > 32.2, values)
 #        return(len(days))
 #    
 #    @staticmethod
-#    def between(values,lower=None,upper=None):
-#        if lower is None or upper is None:
-#            raise(ValueError('a lower and upper limit are required'))
-#        days = filter(lambda x: x >= lower and x <= upper, values)
+#    def gt_thirty_five(values):
+#        days = filter(lambda x: x > 35, values)
 #        return(len(days))
+#    
+#    @staticmethod
+#    def gt_thirty_seven_point_eight(values):
+#        days = filter(lambda x: x > 37.8, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_zero(values):
+#        days = filter(lambda x: x < 0, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_negative_twelve_point_two(values):
+#        days = filter(lambda x: x < -12.2, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_negative_seventeen_point_seven(values):
+#        days = filter(lambda x: x < -17.7, values)
+#        return(len(days))
+    
+    @staticmethod
+    def gt(values,threshold=None):
+        if threshold is None:
+            raise(ValueError('a threshold must be passed'))
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
+    
+    @staticmethod
+    def between(values,lower=None,upper=None):
+        if lower is None or upper is None:
+            raise(ValueError('a lower and upper limit are required'))
+        days = filter(lambda x: x >= lower and x <= upper, values)
+        return(len(days))
     
     
 if __name__ == '__main__':

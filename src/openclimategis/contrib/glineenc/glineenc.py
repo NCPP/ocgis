@@ -181,8 +181,9 @@ def distance(point, A, B):
 def compute_level(distance, threshold, zoom_level_breaks):
     """Compute the appropriate zoom level of a point in terms of its 
     distance from the relevant segment in the DP algorithm."""
-    if distance > threshold:
-        level = 0
+    level = 0
+#    if distance > threshold:
+#        level = 0
     while distance < zoom_level_breaks[level]:
         level += 1
     return level

@@ -259,6 +259,7 @@ class AoiUploadHandler(NonSpatialHandler):
 class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
+        
         logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
@@ -281,7 +282,12 @@ class SpatialHandler(OpenClimateHandler):
             in_parallel = False
         else:
             in_parallel = True
-            
+        
+        ## TODO: for netcdf outputs, we will need to initialize the dataset again.
+        ## not ideal and should be fixed in the future.
+        request.ocg.ocg_opts = kwds
+        request.ocg.dataset_uri = dataset.uri
+        
         sub = multipolygon_operation(dataset.uri,
                                      self.ocg.simulation_output.netcdf_variable.code,
                                      ocg_opts=kwds,

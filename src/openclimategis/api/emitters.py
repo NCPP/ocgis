@@ -82,6 +82,7 @@ class SubOcgDataEmitter(IdentityEmitter):
     
     def render(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
+#        import ipdb;ipdb.set_trace()
         self.sub = self.construct()
         self.db = self.get_db()
         self.request = request
@@ -204,6 +205,16 @@ class CsvEmitter(SubOcgDataEmitter):
 class LinkedCsvEmitter(ZippedSubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedCsvConverter
     __file_ext__ = ''
+    
+    
+class NcEmitter(SubOcgDataEmitter):
+    __converter__ = ocg_converter.NcConverter
+    __file_ext__ = '.nc'
+    
+    def get_response(self):
+        from util.ncconv.experimental.ocg_dataset.dataset import OcgDataset
+        ds = OcgDataset(self.request.ocg.dataset_uri,**self.request.ocg.ocg_opts)
+        return(self.converter.response(self.sub,ds))
 
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
@@ -215,3 +226,4 @@ Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
 Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')
+Emitter.register('nc',NcEmitter,'application/x-netcdf; charset=utf-8')

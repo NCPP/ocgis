@@ -13,15 +13,25 @@ class UserGeometryMetadata(AbstractGeoManager):
     code = models.CharField(max_length=50,unique=True,null=False,blank=False)
     desc = models.TextField()
     uid_field = models.CharField(max_length=50,null=False, blank=True)
-
+    
     @property
     def geoms(self):
         '''Return a list of UserGeometryData objects'''
         return(self.usergeometrydata_set.model.objects.filter(user_meta=self.id))
-
+    
     @property
     def geom_count(self):
         return(len(self.geoms))
+    
+    @property
+    def vertex_count(self):
+        '''Return a count of the vertices for all the geometries'''
+        return [geom.geom.num_points for geom in self.geoms] 
+    
+    @property
+    def vertex_count_total(self):
+        '''Return a count of the vertices for all the geometries'''
+        return sum(self.vertex_count)
     
     def geom_gmap_static_url(self,
         color = '0x0000ff',
@@ -31,11 +41,24 @@ class UserGeometryMetadata(AbstractGeoManager):
     ):
         '''Returns a Google Maps Static API URL representation of the geometry
         
-        Ref: http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+        Refs:
+          http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+          http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
         '''
+        # estimate the simplification threshold based on the number of vertices
+        
+        if self.vertex_count_total < 10:
+            threshold = 0  # no simplification
+        elif self.vertex_count_total < 100:
+            threshold = 0.01
+        elif self.vertex_count_total < 1000:
+            threshold = 0.1
+        else:
+            threshold = 0.5
+        
         # construct the pathLocations string
         pathLocations='&'.join(
-            [geom.pathLocations(color=color,weight=weight)
+            [geom.pathLocations(color=color,weight=weight, threshold=threshold)
                 for geom in self.geoms]
         )
         
@@ -90,7 +113,7 @@ class UserGeometryData(AbstractGeoManager):
 #        
 #        return 'dummy'
     
-    def pathLocations(self,color='0x0000ff',weight=4):
+    def pathLocations(self,color='0x0000ff',weight=4, threshold=0.01):
         '''Returns a Google Maps Static API path Locations string for the geometry
         
         Note that only the first 2 dimensions of vertices are returned and they
@@ -120,7 +143,7 @@ class UserGeometryData(AbstractGeoManager):
                     weight=weight,
                     encoded_data=encode_pairs(
                         points=tuple([tuple(reversed(i)) for i in polygon]),
-                        threshold=0.1,
+                        threshold=threshold,
                     )[0]
                  ) for polygon in multipolygon
                 ]

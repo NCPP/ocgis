@@ -259,7 +259,7 @@ class AoiUploadHandler(NonSpatialHandler):
 class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
-        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
         logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         

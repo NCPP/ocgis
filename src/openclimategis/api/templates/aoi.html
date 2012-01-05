@@ -43,6 +43,7 @@
             <th># of Geometries</th>
             <td>{{ data.0.geom_count }}</td>
         </tr>
+        {% comment %}
         <tr>
             <th># of Vertices</th>
             <td>
@@ -50,10 +51,25 @@
                 <p>Total: {{ data.0.vertex_count_total }}</p>
             </td>
         </tr>
+        {% endcomment %}
         <tr>
-            <th>Location Map</th>
+            <th>Location Maps</th>
             <td>
-              <img src="{{ data.0.geom_gmap_static_url }}" alt="Google Static Map" />
+                {% for subarea in data.0.geoms %}
+                  <table>
+                    <tr>
+                      <td>
+                        <img src="{{ subarea.geom_gmap_static_url }}" alt="Google Static Map" />
+                      </td>
+                      <td>
+                        <p>Vertices: {{ subarea.vertex_count }}</p>
+                        {% if subarea.desc %}
+                        <p>Description: {{ subarea.desc }}</p>
+                        {% endif %}
+                      <td>
+                    </tr>
+                  </table>
+                {% endfor %}
             </td>
         </tr>
         {% comment %}

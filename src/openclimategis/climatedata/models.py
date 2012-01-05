@@ -51,7 +51,7 @@ class UserGeometryMetadata(AbstractGeoManager):
             threshold = 0  # no simplification
         elif self.vertex_count_total < 100:
             threshold = 0.01
-        elif self.vertex_count_total < 1000:
+        elif self.vertex_count_total < 2000:
             threshold = 0.1
         else:
             threshold = 0.5
@@ -84,34 +84,11 @@ class UserGeometryData(AbstractGeoManager):
     user_meta = models.ForeignKey(UserGeometryMetadata)
     desc = models.TextField(blank=True)
     geom = models.MultiPolygonField(srid=4326)
-
-#    def _encode_polyline_data(polyline):
-#        '''encode a polyline for Google Maps Static API
-#        
-#        Ref: 
-#        http://code.google.com/apis/maps/documentation/utilities/polylinealgorithm.html
-#        '''
-#        
-#        
-#        
-##        str = '|'.join( # join each vertex
-##                        [','.join( #join each coordinate
-##                            [str(coord) 
-##                             for coord in tuple(reversed(vertex[:2]))
-##                            ]
-##                            ) for vertex in polygon
-##                        ]
-##                    )
-#        str = ''.join( # join each vertex
-#            [''.join( #join each coordinate
-#                [coord * 1e5 
-#                 for coord in tuple(reversed(vertex[:2]))
-#                ]
-#                ) for vertex in polyline
-#            ]
-#        )
-#        
-#        return 'dummy'
+    
+    @property
+    def vertex_count(self):
+        '''Return a count of the vertices for the geometry'''
+        return self.geom.num_points 
     
     def pathLocations(self,color='0x0000ff',weight=4, threshold=0.01):
         '''Returns a Google Maps Static API path Locations string for the geometry
@@ -123,19 +100,9 @@ class UserGeometryData(AbstractGeoManager):
         
         Ref: http://code.google.com/apis/maps/documentation/staticmaps/#Paths
         '''
-        from django.contrib.gis.geos import MultiPolygon
         from contrib.glineenc.glineenc import encode_pairs
 
         geom = self.geom
-#        if geom.num_coords > 32:
-#            geom = geom.simplify(0.1)
-        
-        #test = self.geom.simplify(0.01)
-        #polygon=self.geom.coords[0][0]
-        
-#        if geom.geom_type == 'Polygon':
-#            geom = MultiPolygon(geom)
-        
         url = '&'.join( # join multiple multipolygons
             ['&'.join( # join multiple polygons
                 ['path=color:{color}|weight:{weight}|enc:{encoded_data}'.format(
@@ -149,6 +116,45 @@ class UserGeometryData(AbstractGeoManager):
                 ]
              ) for multipolygon in geom.coords
             ]
+        )
+        return url
+
+    def geom_gmap_static_url(self,
+        color = '0x0000ff',
+        weight = 4,
+        width = 512,
+        height = 256,
+    ):
+        '''Returns a Google Maps Static API URL representation of the geometry
+        
+        Refs:
+          http://code.google.com/apis/maps/documentation/staticmaps/#Paths
+          http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm
+        '''
+        # estimate the simplification threshold based on the number of vertices
+        
+        if self.vertex_count < 250:
+            threshold = 0  # no simplification
+        elif self.vertex_count < 500:
+            threshold = 0.05
+        elif self.vertex_count < 1000:
+            threshold = 0.01
+        elif self.vertex_count < 2000:
+            threshold = 0.1
+        else:
+            threshold = 0.5
+        
+        url = (
+            'http://maps.googleapis.com/maps/api/staticmap'
+            '?size={width}x{height}'
+            '&sensor=false'
+            '&{pathLocations}'
+        ).format(
+            color=color,
+            weight=weight,
+            pathLocations=self.pathLocations(color=color,weight=weight, threshold=threshold),
+            width=width,
+            height=height,
         )
         return url
 

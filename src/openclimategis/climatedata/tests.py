@@ -31,9 +31,9 @@ class UserGeometryMetadataTest(TestCase):
             'http://maps.googleapis.com/maps/api/staticmap'
             '?size=512x256&sensor=false'
             '&path=color:0x00ff00|weight:10'
-            '|enc:_ilhE~f_cU_pR~oR~oR_pR'
+            '|enc:_ilhE~f_cU?~oR_pR?~oR_pR'
             '&path=color:0x00ff00|weight:10'
-            '|enc:_ilhE~|{|T_pR~oR~oR_pR'
+            '|enc:_ilhE~|{|T?~oR_pR?~oR_pR'
         )
 
 class UserGeometryDataTest(TestCase):
@@ -50,7 +50,7 @@ class UserGeometryDataTest(TestCase):
         
         self.assertEqual(
             UserGeometryData.objects.get(pk=1).pathLocations(),
-            'path=color:0x0000ff|weight:4|enc:_ilhE~f_cU_pR~oR~oR_pR'
+            ['path=color:0x0000ff|weight:4|enc:_ilhE~f_cU?~oR_pR?~oR_pR']
         )
 
 

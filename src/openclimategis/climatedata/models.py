@@ -58,8 +58,8 @@ class UserGeometryMetadata(AbstractGeoManager):
         
         # construct the pathLocations string
         pathLocations='&'.join(
-            [geom.pathLocations(color=color,weight=weight, threshold=threshold)
-                for geom in self.geoms]
+            ['&'.join(geom.pathLocations(color=color,weight=weight, threshold=threshold))
+             for geom in self.geoms]
         )
         
         url = (
@@ -133,14 +133,12 @@ class UserGeometryData(AbstractGeoManager):
         # estimate the simplification threshold based on the number of vertices
         if self.vertex_count < 250:
             threshold = 0  # no simplification
-        elif self.vertex_count < 500:
-            threshold = 0.05
-        elif self.vertex_count < 1000:
-            threshold = 0.01
+#        elif self.vertex_count < 500:
+#            threshold = 0.05
         elif self.vertex_count < 2000:
-            threshold = 0.1
+            threshold = 0.05
         else:
-            threshold = 0.5
+            threshold = 0.4
         
         path_list = self.pathLocations(color=color,weight=weight, threshold=threshold)
         # sort so the geometries with the most vertices are first

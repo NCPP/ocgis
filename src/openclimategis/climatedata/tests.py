@@ -60,7 +60,7 @@ class ArchiveTest(TestCase):
     
     def test_metadata_list(self):
         test = Archive.objects.all()[0]  # get the first archive object
-        self.assertEquals(test.metadata_list, [])
+        self.assertEquals(test.metadata_list(), [])
 
 
 class ScenarioTest(TestCase):
@@ -73,7 +73,7 @@ class ScenarioTest(TestCase):
 #        metadata_list = test.scenariometadataurl_set.model.objects.filter(scenario=test.pk)
         
         self.assertEquals(
-            test.metadata_list,
+            test.metadata_list(),
             ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments']
         )
 
@@ -86,7 +86,7 @@ class ClimateModelTest(TestCase):
         test = ClimateModel.objects.all()[0]  # get the first climate model object
         
         self.assertEquals(
-            test.metadata_list,
+            test.metadata_list(filter_field='model'),
             ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm',
              'External Metadata :: http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html',
              'External Metadata :: http://bcc.cma.gov.cn/CSMD/en/']
@@ -101,7 +101,7 @@ class VariableTest(TestCase):
         test = Variable.objects.all()[0]  # get the first climate model object
         
         self.assertEquals(
-            test.metadata_list,
+            test.metadata_list(),
             ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output']
         )
 

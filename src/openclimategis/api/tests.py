@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.test.client import Client
 from climatedata.models import NetcdfDataset
 import unittest
@@ -172,6 +172,38 @@ class TestUrls(TestCase):
     #            if response.status_code != 200:
     #                print response.content
                 self.assertEqual(response.status_code, 200)
+    
+    def test_simple_metadata_request(self):
+        '''tests that a simple metadata request URL works'''
+    
+        url = ('/api'
+               '/archive/{archive}'
+               '/model/{cm}'
+               '/scenario/{scenario}'
+               '/run/{run}'
+               '/temporal/{drange}'
+               '/spatial/{sop}+polygon(({polygon}))'
+               '/aggregate/{agg}'
+               '/variable/{variable}.{ext}'
+               ).format(ext='meta',
+                        drange='2000-01-01+2000-02-01',
+                        polygon='-104+39.75,-103.75+39.75,-103.75+40,-104+39.75',
+                        sop='intersects',
+                        agg='false',
+                        cm='miroc3.2(medres)',
+                        scenario='sres-a1b',
+                        archive='usgs-cida-maurer',
+                        variable='pr',
+                        run=2,
+                )
+        response = self.client.get(url)
+        if response.status_code != 200:
+            print response.content
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            'Scenario link :: http://testserver/api/scenarios/sres-a1b'
+            in response.content
+        )
     
     def test_simple_json_data_request(self):
         '''tests that a simple data request URLs works'''

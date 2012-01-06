@@ -6,6 +6,35 @@ class AbstractGeoManager(models.Model):
     
     class Meta:
         abstract = True
+    
+    def metadata_list(self, request=None, filter_field=None):
+        '''A list of metadata strings about the class'''
+        classname = self.__class__.__name__.lower()
+        if filter_field is None:
+            filter_field = classname
+        attrname = classname + 'metadataurl_set'
+        filterdict = {filter_field: self.pk}
+        
+        # create a metadata string for the resource, if it is defined
+        try:
+            resource_meta = [
+                '{resource} link :: {link}'.format(
+                    resource=self.__class__.__name__,
+                    link=request.build_absolute_uri(self.resource_path),
+                )
+            ]
+        except:
+            resource_meta = []
+        
+        try:
+            external_links = getattr(self,attrname).model.objects.filter(**filterdict)
+        except:
+            external_links = []
+        
+        external_meta = ['External Metadata :: {0}'.format(link.url)
+                  for link in external_links]
+        
+        return(resource_meta + external_meta)
 
 
 class UserGeometryMetadata(AbstractGeoManager):
@@ -290,10 +319,8 @@ class Scenario(AbstractGeoManager):
         return "{code}".format(code=self.code)
     
     @property
-    def metadata_list(self):
-        '''A list of metadata strings about the emissions scenario'''
-        links = self.scenariometadataurl_set.model.objects.filter(scenario=self.pk)
-        return['External Metadata :: {0}'.format(link.url) for link in links]
+    def resource_path(self):
+        return '/api/scenarios/{0}'.format(self.urlslug)
 
 
 class ScenarioMetadataUrl(AbstractGeoManager):
@@ -327,14 +354,9 @@ class Archive(AbstractGeoManager):
     class Meta():
         verbose_name = "climate simulation archive"
     
-    def __unicode__(self):
-        return "{code}".format(code=self.code)
-    
     @property
-    def metadata_list(self):
-        '''A list of metadata strings about the data archive'''
-        links = self.archivemetadataurl_set.model.objects.filter(archive=self.pk)
-        return['External Metadata :: {0}'.format(link.url) for link in links]
+    def resource_path(self):
+        return '/api/archives/{0}'.format(self.urlslug)
 
 
 class ArchiveMetadataUrl(AbstractGeoManager):
@@ -369,10 +391,8 @@ class ClimateModel(AbstractGeoManager):
         return "{code}".format(code=self.code)
     
     @property
-    def metadata_list(self):
-        '''A list of metadata strings about the climate model'''
-        links = self.climatemodelmetadataurl_set.model.objects.filter(model=self.pk)
-        return['External Metadata :: {0}'.format(link.url) for link in links]
+    def resource_path(self):
+        return '/api/models/{0}'.format(self.urlslug)
 
 
 class ClimateModelMetadataUrl(AbstractGeoManager):
@@ -409,10 +429,8 @@ class Variable(AbstractGeoManager):
         return "{name} ({code})".format(name=self.name, code=self.code)
     
     @property
-    def metadata_list(self):
-        '''A list of metadata strings about the output variable'''
-        links = self.variablemetadataurl_set.model.objects.filter(variable=self.pk)
-        return['External Metadata :: {0}'.format(link.url) for link in links]
+    def resource_path(self):
+        return '/api/variables/{0}'.format(self.urlslug)
 
 
 class VariableMetadataUrl(AbstractGeoManager):
@@ -449,3 +467,7 @@ class SimulationOutput(AbstractGeoManager):
             model=self.climate_model,
             variable=self.netcdf_variable.code,
         )
+    
+    @property
+    def resource_path(self):
+        return '/api/simulations/{0}'.format(self.pk)

@@ -15,6 +15,10 @@ class MetacontentConverter(OcgConverter):
         Sections = [
                     metacontent.SectionGeneratedUrl,
                     metacontent.SectionArchive,
+                    metacontent.SectionScenario,
+                    metacontent.SectionClimateModel,
+                    metacontent.SectionVariable,
+                    metacontent.SectionSimulationOutput,
                     metacontent.SectionTemporalRange,
                     metacontent.SectionSpatial,
                     metacontent.SectionGrouping,

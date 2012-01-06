@@ -137,12 +137,38 @@ class SectionAttributes(RequestSection):
     
 class SectionLinks(RequestSection):
     _attr = None
+    _filter_field = None
     
     def get_lines(self):
         qs = getattr(self.request.ocg,self._attr)
-        return(qs.metadata_list)
+        metalist = qs.metadata_list(
+            request=self.request,
+            filter_field=self._filter_field,
+        )
+        return(metalist)
     
     
 class SectionArchive(SectionLinks):
     _title = 'Climate Data Archive'
     _attr = 'archive'
+
+
+class SectionScenario(SectionLinks):
+    _title = 'Emissions Scenario'
+    _attr = 'scenario'
+
+
+class SectionClimateModel(SectionLinks):
+    _title = 'Climate Model'
+    _attr = 'climate_model'
+    _filter_field = 'model'
+
+
+class SectionVariable(SectionLinks):
+    _title = 'Output Variable'
+    _attr = 'variable'
+
+
+class SectionSimulationOutput(SectionLinks):
+    _title = 'Simulation Output'
+    _attr = 'simulation_output'

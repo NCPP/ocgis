@@ -4,11 +4,11 @@ from django.http import HttpResponse
 from piston.emitters import Emitter
 from api.views import display_spatial_query, display_aoi_uploader
 from util.ncconv.experimental import ocg_converter
-
-import logging
 from util.ncconv.experimental.ocg_stat import OcgStat
 from django.conf import settings
 import time
+
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -116,7 +116,7 @@ class SubOcgDataEmitter(IdentityEmitter):
 class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
     
     def _render_(self,request):
-        base_response = super(ZippedSubOcgDataEmitter,self).render(request)
+        base_response = super(ZippedSubOcgDataEmitter,self)._render_(request)
         response = HttpResponse()
         response['Content-Disposition'] = 'attachment; filename={0}.zip'.\
             format(request.ocg.simulation_output.variable.code)

@@ -133,3 +133,16 @@ class SectionAttributes(RequestSection):
         lines = ['{0} :: {1}'.format(attr,self._descs[attr]) 
                  for attr in attrs]
         return(lines)
+    
+    
+class SectionLinks(RequestSection):
+    _attr = None
+    
+    def get_lines(self):
+        qs = getattr(self.request.ocg,self._attr)
+        return(qs.metadata_list)
+    
+    
+class SectionArchive(SectionLinks):
+    _title = 'Climate Data Archive'
+    _attr = 'archive'

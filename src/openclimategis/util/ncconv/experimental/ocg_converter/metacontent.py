@@ -14,6 +14,7 @@ class MetacontentConverter(OcgConverter):
         ## list of section to add.
         Sections = [
                     metacontent.SectionGeneratedUrl,
+                    metacontent.SectionArchive,
                     metacontent.SectionTemporalRange,
                     metacontent.SectionSpatial,
                     metacontent.SectionGrouping,

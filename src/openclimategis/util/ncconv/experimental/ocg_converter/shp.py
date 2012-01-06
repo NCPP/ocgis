@@ -91,6 +91,7 @@ class ShpConverter(OcgConverter):
         for item in self.__exts__:
             filepath = payload.replace('shp',item)
             zip.write(filepath,arcname=os.path.split(filepath)[1])
+        self.write_meta(zip)
         zip.close()
         buffer.flush()
         zip_stream = buffer.getvalue()
@@ -130,6 +131,7 @@ class LinkedShpConverter(ShpConverter):
             zip.write(filepath,arcname='shp/'+os.path.split(filepath)[1])
         for ii in info:
             zip.writestr('csv/'+ii['arcname'],ii['buffer'].getvalue())
+        self.write_meta(zip)
         zip.close()
         buffer.flush()
         zip_stream = buffer.getvalue()

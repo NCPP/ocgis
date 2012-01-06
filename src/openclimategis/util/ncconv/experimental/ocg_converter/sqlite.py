@@ -13,6 +13,7 @@ class SqliteConverter(OcgConverter):
         buffer = io.BytesIO()
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
         zip.write(payload,arcname=self.base_name+'.sqlite')
+        self.write_meta(zip)
         zip.close()
         buffer.flush()
         zip_stream = buffer.getvalue()

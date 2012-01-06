@@ -14,6 +14,7 @@ usergeometrydata_handler = Resource(handlers.AoiHandler)
 spatial_handler = Resource(handlers.SpatialHandler)
 query_handler = Resource(handlers.QueryHandler)
 aoiupload_handler = Resource(handlers.AoiUploadHandler)
+metacontent_handler = Resource(handlers.MetacontentHandler)
 
 ## REGEX VARIABLES -------------------------------------------------------------
 
@@ -67,6 +68,24 @@ urlpatterns = patterns('',
 ##       scenario/1pctto2x/
 ##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
 ##       grid.<format>
+
+### METACONTENT ----------------------------------------------------------------
+
+    url(r'^{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
+         '{re_aggregate}/{re_variable}\.meta'.format(
+         re_archive=re_archive,
+         re_model=re_model,
+         re_scenario=re_scenario,
+         re_temporal=re_temporal,
+         re_spatial=re_spatial,
+         re_aggregate=re_aggregate,
+         re_variable=re_variable,
+         re_run=re_run),
+       metacontent_handler,
+       {'emitter_format':'meta'}
+     ),
+
+## SPATIAL QUERY ---------------------------------------------------------------
 
 ((r'^{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'
    '{re_aggregate}/{re_variable}{re_format}'.format(

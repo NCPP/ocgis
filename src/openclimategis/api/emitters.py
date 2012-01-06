@@ -8,6 +8,7 @@ from util.ncconv.experimental import ocg_converter
 import logging
 from util.ncconv.experimental.ocg_stat import OcgStat
 from django.conf import settings
+import time
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +18,10 @@ class OpenClimateEmitter(Emitter):
     """
     
     def render(self,request):
-        raise NotImplementedError
+        return(self._render_(request))
+    
+    def _render_(self,request):
+        raise(NotImplementedError)
 
 
 class IdentityEmitter(OpenClimateEmitter):
@@ -32,7 +36,7 @@ class IdentityEmitter(OpenClimateEmitter):
 
 class HelloWorldEmitter(OpenClimateEmitter):
     
-    def render(self,request):
+    def _render_(self,request):
         names = [n['name'] for n in self.construct()]
         msg = 'Hello, World!! The climate model names are:<br><br>{0}'.format('<br>'.join(names))
         return HttpResponse(msg)
@@ -41,7 +45,7 @@ class HelloWorldEmitter(OpenClimateEmitter):
 class HTMLEmitter(IdentityEmitter):
     """Emits an HTML representation 
     """
-    def render(self,request):
+    def _render_(self,request):
         
         logger.info("starting HTMLEmitter.render()...")
         
@@ -80,7 +84,7 @@ class SubOcgDataEmitter(IdentityEmitter):
     __converter__ = None
     __file_ext__ = ''
     
-    def render(self,request):
+    def _render_(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
 #        import ipdb;ipdb.set_trace()
         self.sub = self.construct()
@@ -111,7 +115,7 @@ class SubOcgDataEmitter(IdentityEmitter):
 
 class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
     
-    def render(self,request):
+    def _render_(self,request):
         base_response = super(ZippedSubOcgDataEmitter,self).render(request)
         response = HttpResponse()
         response['Content-Disposition'] = 'attachment; filename={0}.zip'.\
@@ -119,6 +123,15 @@ class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
         response['Content-length'] = str(len(base_response))
         response['Content-Type'] = 'application/zip'
         response.write(base_response)
+        return(response)
+    
+    
+class MetacontentEmitter(SubOcgDataEmitter):
+    
+    def _render_(self,request):
+        request.ocg.end_time = time.time()
+        converter = ocg_converter.MetacontentConverter(request)
+        response = converter.response()
         return(response)
 
 
@@ -166,7 +179,7 @@ class KmzEmitter(KmlEmitter):
     __converter__ = ocg_converter.KmzConverter
     __file_ext__ = '.kmz'
     
-#    def render(self,request):
+#    def _render_(self,request):
 #        logger.info("starting KmzEmitter.render()...")
 #        kml = super(KmzEmitter,self).render(request)
 #        iobuffer = io.BytesIO()
@@ -227,3 +240,4 @@ Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
 Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')
 Emitter.register('nc',NcEmitter,'application/x-netcdf; charset=utf-8')
+Emitter.register('meta',MetacontentEmitter,'text/plain; charset=utf-8')

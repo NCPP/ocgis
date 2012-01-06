@@ -16,6 +16,7 @@ import logging
 from util.ncconv.experimental.wrappers import multipolygon_operation
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+import time
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -39,6 +40,8 @@ class OpenClimateHandler(BaseHandler):
         ## set some default parameters for the handlers
         self.ocg = ocg()
         self.ocg.query = ocg()
+        ## mark the request start time
+        self.ocg.start_time = time.time()
         
         super(OpenClimateHandler,self).__init__(*args,**kwds)
         
@@ -131,6 +134,13 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None
+
+
+class MetacontentHandler(OpenClimateHandler):
+    model = None
+    
+    def _read_(self,request):
+        return(request)
 
 
 class NonSpatialHandler(OpenClimateHandler):

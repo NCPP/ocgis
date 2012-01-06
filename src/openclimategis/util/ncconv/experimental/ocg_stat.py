@@ -173,19 +173,22 @@ class OcgStatFunction(object):
     >>> potentials = stat.get_potentials()
     """
     
-    __descs = {
+    _descs = {
         'min': 'Minimum value in the series',
         'max': 'Maximum value in the series',
         'mean': 'Mean value for the series',
         'median': 'Median value for the series',
         'std': 'Standard deviation for the series',
-        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
-        'gt_thirty_five': 'Count of values greater than 35',
-        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
-        'lt_zero': 'Count of values less than 0',
-        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
-        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
-    }
+        'gt':'Count of values greater than {0} in the series (exclusive).',
+        'between':'Count of values between {0} and {1} (inclusive).',
+        'len':'Sample size of the series.'
+#        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
+#        'gt_thirty_five': 'Count of values greater than 35',
+#        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
+#        'lt_zero': 'Count of values less than 0',
+#        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
+#        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
+              }
     
     def get_function_list(self,functions):
         funcs = []
@@ -212,7 +215,7 @@ class OcgStatFunction(object):
             if inspect.isfunction(member[1]):
                 test = [member[0].startswith(filter) for filter in filters]
                 if not any(test):
-                    ret.append([member[0],cls.__descs.get(member[0],member[0])])
+                    ret.append([member[0],cls._descs.get(member[0],member[0])])
         return(ret)
     
     @staticmethod

@@ -5,3 +5,4 @@ from kml import KmlConverter, KmzConverter
 from nc import NcConverter
 from shp import ShpConverter, LinkedShpConverter
 from sqlite import SqliteConverter
+from metacontent import MetacontentConverter

@@ -288,6 +288,12 @@ class Scenario(AbstractGeoManager):
     
     def __unicode__(self):
         return "{code}".format(code=self.code)
+    
+    @property
+    def metadata_list(self):
+        '''A list of metadata strings about the emissions scenario'''
+        links = self.scenariometadataurl_set.model.objects.filter(scenario=self.pk)
+        return['External Metadata :: {0}'.format(link.url) for link in links]
 
 
 class ScenarioMetadataUrl(AbstractGeoManager):
@@ -323,6 +329,12 @@ class Archive(AbstractGeoManager):
     
     def __unicode__(self):
         return "{code}".format(code=self.code)
+    
+    @property
+    def metadata_list(self):
+        '''A list of metadata strings about the data archive'''
+        links = self.archivemetadataurl_set.model.objects.filter(archive=self.pk)
+        return['External Metadata :: {0}'.format(link.url) for link in links]
 
 
 class ArchiveMetadataUrl(AbstractGeoManager):
@@ -355,6 +367,12 @@ class ClimateModel(AbstractGeoManager):
     
     def __unicode__(self):
         return "{code}".format(code=self.code)
+    
+    @property
+    def metadata_list(self):
+        '''A list of metadata strings about the climate model'''
+        links = self.climatemodelmetadataurl_set.model.objects.filter(model=self.pk)
+        return['External Metadata :: {0}'.format(link.url) for link in links]
 
 
 class ClimateModelMetadataUrl(AbstractGeoManager):
@@ -389,6 +407,12 @@ class Variable(AbstractGeoManager):
     
     def __unicode__(self):
         return "{name} ({code})".format(name=self.name, code=self.code)
+    
+    @property
+    def metadata_list(self):
+        '''A list of metadata strings about the output variable'''
+        links = self.variablemetadataurl_set.model.objects.filter(variable=self.pk)
+        return['External Metadata :: {0}'.format(link.url) for link in links]
 
 
 class VariableMetadataUrl(AbstractGeoManager):

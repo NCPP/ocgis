@@ -31,9 +31,9 @@ class UserGeometryMetadataTest(TestCase):
             'http://maps.googleapis.com/maps/api/staticmap'
             '?size=512x256&sensor=false'
             '&path=color:0x00ff00|weight:10'
-            '|enc:_ilhE~f_cU_pR~oR~oR_pR'
+            '|enc:_ilhE~f_cU?~oR_pR?~oR_pR'
             '&path=color:0x00ff00|weight:10'
-            '|enc:_ilhE~|{|T_pR~oR~oR_pR'
+            '|enc:_ilhE~|{|T?~oR_pR?~oR_pR'
         )
 
 class UserGeometryDataTest(TestCase):
@@ -50,9 +50,60 @@ class UserGeometryDataTest(TestCase):
         
         self.assertEqual(
             UserGeometryData.objects.get(pk=1).pathLocations(),
-            'path=color:0x0000ff|weight:4|enc:_ilhE~f_cU_pR~oR~oR_pR'
+            ['path=color:0x0000ff|weight:4|enc:_ilhE~f_cU?~oR_pR?~oR_pR']
         )
 
+
+class ArchiveTest(TestCase):
+    
+    fixtures = ['test_usgs-cida-maurer.json']
+    
+    def test_metadata_list(self):
+        test = Archive.objects.all()[0]  # get the first archive object
+        self.assertEquals(test.metadata_list, [])
+
+
+class ScenarioTest(TestCase):
+    
+    fixtures = ['test_usgs-cida-maurer.json']
+    
+    def test_metadata_list(self):
+        test = Scenario.objects.all()[0]  # get the first scenario object
+#        # get the associate list of metadata
+#        metadata_list = test.scenariometadataurl_set.model.objects.filter(scenario=test.pk)
+        
+        self.assertEquals(
+            test.metadata_list,
+            ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Experiments']
+        )
+
+
+class ClimateModelTest(TestCase):
+    
+    fixtures = ['test_usgs-cida-maurer.json']
+    
+    def test_metadata_list(self):
+        test = ClimateModel.objects.all()[0]  # get the first climate model object
+        
+        self.assertEquals(
+            test.metadata_list,
+            ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/model_documentation/BCC-CM1.htm',
+             'External Metadata :: http://www.ipcc-data.org/ar4/model-BCC-CM1-change.html',
+             'External Metadata :: http://bcc.cma.gov.cn/CSMD/en/']
+        )
+
+
+class VariableTest(TestCase):
+    
+    fixtures = ['test_usgs-cida-maurer.json']
+    
+    def test_metadata_list(self):
+        test = Variable.objects.all()[0]  # get the first climate model object
+        
+        self.assertEquals(
+            test.metadata_list,
+            ['External Metadata :: http://www-pcmdi.llnl.gov/ipcc/standard_output.html#Highest_priority_output']
+        )
 
 class NcwriteTest(TestCase):
     

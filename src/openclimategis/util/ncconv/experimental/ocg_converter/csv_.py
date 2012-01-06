@@ -92,6 +92,7 @@ class LinkedCsvConverter(CsvConverter):
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
         for info in payload:
             zip.writestr(info['arcname'],info['buffer'].getvalue())
+        self.write_meta(zip)
         zip.close()
         buffer.flush()
         zip_stream = buffer.getvalue()

@@ -119,17 +119,16 @@ class SectionAttributes(RequestSection):
               'LEVEL':('Level indicator from "1" to max level. With "1" '
                        'indicating level nearest the terrestrial surface. Level'
                        ' is included for all variables.'),
-              'VALUE':"Requested variable's value.",
+              'VALUE':"Requested variable's or aggregate statistic's value.",
               'TIME':'Record timestamp with same units as the dataset.',
               'DAY':'Day component of the timestamp.',
               'MONTH':'Month component of the timestamp.',
-              'YEAR':'Year component of the timestamp.'
+              'YEAR':'Year component of the timestamp.',
+              'AREA_M2':'Area of geometry in square meters using SRID 3005 as area-preserving projection.'
               }
     
     def get_lines(self,use_stat=False):
-        attrs = ['OCGID','GID','TID','TIME','LEVEL','VALUE']
-        if self.request.ocg.query.grouping:
-            attrs += [str(grp.upper()) for grp in self.request.ocg.query.grouping]
+        attrs = ['OCGID','GID','TID','TIME','LEVEL','VALUE','DAY','MONTH','YEAR']
         lines = ['{0} :: {1}'.format(attr,self._descs[attr]) 
                  for attr in attrs]
         return(lines)

@@ -125,11 +125,17 @@ class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
         response.write(base_response)
         return(response)
     
+    def get_converter(self):
+        meta = ocg_converter.MetacontentConverter(self.request)
+        return(self.__converter__(self.db,
+                                  self.cfvar+self.__file_ext__,
+                                  use_stat=self.request.ocg.query.use_stat,
+                                  meta=meta))
+    
     
 class MetacontentEmitter(SubOcgDataEmitter):
     
     def _render_(self,request):
-        request.ocg.end_time = time.time()
         converter = ocg_converter.MetacontentConverter(request)
         response = converter.response()
         return(response)

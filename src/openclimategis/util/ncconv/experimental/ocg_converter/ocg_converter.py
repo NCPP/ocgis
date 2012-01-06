@@ -1,21 +1,20 @@
 from util.ncconv.experimental.helpers import timing
+import sys
+import math
 
 
 class OcgConverter(object):
     
-    def __init__(self,db,base_name,use_stat=False):
+    def __init__(self,db,base_name,use_stat=False,meta=None):
         self.db = db
         self.base_name = base_name
         self.use_stat = use_stat
+        self.meta = meta
         
         if self.use_stat:
             self.value_table = self.db.Stat
         else:
             self.value_table = self.db.Value
-    
-#    @property
-#    def mapper(self):
-#        return(self.get_mapper(self.value_table))
     
     def get_iter(self,table,headers=None):
         if headers is None: headers = self.get_headers(table)
@@ -32,18 +31,8 @@ class OcgConverter(object):
         headers = [h.upper() for h in keys]
         return(headers)
     
-#    @staticmethod
-#    def get_mapper(table):
-#        try:
-#            table_mapper = table.__mapper__
-#        except AttributeError:
-#            table_mapper = class_mapper(table)
-#        return(table_mapper)
-    
     def get_tablename(self,table):
         return(table.__tablename__)
-#        m = self.get_mapper(table)
-#        return(m.mapped_table.name)
             
     @staticmethod
     def _todict_(obj,headers):
@@ -72,3 +61,7 @@ class OcgConverter(object):
     
     def write(self):
         raise(NotImplementedError)
+
+    def write_meta(self,zip):
+        if self.meta is not None:
+            zip.writestr('meta.txt',self.meta.response())

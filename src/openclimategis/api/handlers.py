@@ -16,6 +16,7 @@ import logging
 from util.ncconv.experimental.wrappers import multipolygon_operation
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+import time
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -39,6 +40,8 @@ class OpenClimateHandler(BaseHandler):
         ## set some default parameters for the handlers
         self.ocg = ocg()
         self.ocg.query = ocg()
+        ## mark the request start time
+        self.ocg.start_time = time.time()
         
         super(OpenClimateHandler,self).__init__(*args,**kwds)
         
@@ -93,7 +96,7 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.query.functions = FunctionSlug('stat',possible=qdict).value
         self.ocg.query.grouping = GroupingSlug('grouping',possible=qdict).value
         
-        ## if functions are passed, then so must an interval and vice versa
+        ## if functions are passed, then so must a grouping and vice versa
 #        if self.ocg.query.functions is None and self.ocg.query.interval is None:
 #            raise(ValueError('both a "stat" and "grouping" query are required'))
         if self.ocg.query.functions is not None and self.ocg.query.grouping is not None:
@@ -131,6 +134,13 @@ class OpenClimateHandler(BaseHandler):
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None
+
+
+class MetacontentHandler(OpenClimateHandler):
+    model = None
+    
+    def _read_(self,request):
+        return(request)
 
 
 class NonSpatialHandler(OpenClimateHandler):
@@ -259,6 +269,7 @@ class AoiUploadHandler(NonSpatialHandler):
 class SpatialHandler(OpenClimateHandler):
     
     def _read_(self,request):
+#        import ipdb;ipdb.set_trace()
         logger.debug("starting SpatialHandler._read_()...")
         dataset = self.ocg.simulation_output.netcdf_variable.netcdf_dataset
         
@@ -281,7 +292,12 @@ class SpatialHandler(OpenClimateHandler):
             in_parallel = False
         else:
             in_parallel = True
-            
+        
+        ## TODO: for netcdf outputs, we will need to initialize the dataset again.
+        ## not ideal and should be fixed in the future.
+        request.ocg.ocg_opts = kwds
+        request.ocg.dataset_uri = dataset.uri
+        
         sub = multipolygon_operation(dataset.uri,
                                      self.ocg.simulation_output.netcdf_variable.code,
                                      ocg_opts=kwds,

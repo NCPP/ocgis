@@ -4,8 +4,9 @@ import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
 import re
 import inspect
-from sqlalchemy.exc import InvalidRequestError
-from util.ncconv.experimental.helpers import timing, array_split
+from sqlalchemy.exc import InvalidRequestError, OperationalError
+from util.ncconv.experimental.helpers import timing, array_split,\
+    check_function_dictionary
 from multiprocessing import Manager
 from multiprocessing.process import Process
 import ploader as pl
@@ -94,8 +95,14 @@ class OcgStat(object):
     def calculate(self,funcs):
         ## always count the data
         funcs = [{'function':len,'name':'count'}] + funcs
-        ## precalc the function name
-        for f in funcs: f.update({'name':f.get('name',f['function'].__name__)})
+        ## check the function definition dictionary for common problems
+        check_function_dictionary(funcs)
+        ## precalc the function name if none is provided
+        for f in funcs:
+            if 'name' not in f:
+                ## just the function name if the argument test exception was not
+                ## triggered.
+                f.update({'name':f.get('name',f['function'].__name__)})
         ## convert the time vector for faster referencing
         time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
                      for time in self.sub.timevec]
@@ -151,7 +158,11 @@ class OcgStat(object):
             self.db.Stat = type('Stat',
                                 (self.db.AbstractValue,self.db.Base),
                                 attrs)
-        self.db.Stat.__table__.create()
+        try:
+            self.db.Stat.__table__.create()
+        except OperationalError:
+            self.db.Stat.__table__.drop()
+            self.db.Stat.__table__.create()
 
 
 class OcgStatFunction(object):
@@ -162,19 +173,22 @@ class OcgStatFunction(object):
     >>> potentials = stat.get_potentials()
     """
     
-    __descs = {
+    _descs = {
         'min': 'Minimum value in the series',
         'max': 'Maximum value in the series',
         'mean': 'Mean value for the series',
         'median': 'Median value for the series',
         'std': 'Standard deviation for the series',
-        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
-        'gt_thirty_five': 'Count of values greater than 35',
-        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
-        'lt_zero': 'Count of values less than 0',
-        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
-        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
-    }
+        'gt':'Count of values greater than {0} in the series (exclusive).',
+        'between':'Count of values between {0} and {1} (inclusive).',
+        'len':'Sample size of the series.'
+#        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
+#        'gt_thirty_five': 'Count of values greater than 35',
+#        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
+#        'lt_zero': 'Count of values less than 0',
+#        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
+#        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
+              }
     
     def get_function_list(self,functions):
         funcs = []
@@ -188,6 +202,8 @@ class OcgStatFunction(object):
             if args is not None:
                 args = [float(a) for a in args.split(',')]
                 attrs.update({'args':args})
+            if ':' in f:
+                attrs.update({'name':f.split(':')[1]})
             funcs.append(attrs)
         return(funcs)
     
@@ -199,7 +215,7 @@ class OcgStatFunction(object):
             if inspect.isfunction(member[1]):
                 test = [member[0].startswith(filter) for filter in filters]
                 if not any(test):
-                    ret.append([member[0],cls.__descs.get(member[0],member[0])])
+                    ret.append([member[0],cls._descs.get(member[0],member[0])])
         return(ret)
     
     @staticmethod
@@ -222,49 +238,49 @@ class OcgStatFunction(object):
     def min(values):
         return(min(values))
     
-    @staticmethod
-    def gt_thirty_two_point_two(values):
-        days = filter(lambda x: x > 32.2, values)
-        return(len(days))
-    
-    @staticmethod
-    def gt_thirty_five(values):
-        days = filter(lambda x: x > 35, values)
-        return(len(days))
-    
-    @staticmethod
-    def gt_thirty_seven_point_eight(values):
-        days = filter(lambda x: x > 37.8, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_zero(values):
-        days = filter(lambda x: x < 0, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_negative_twelve_point_two(values):
-        days = filter(lambda x: x < -12.2, values)
-        return(len(days))
-    
-    @staticmethod
-    def lt_negative_seventeen_point_seven(values):
-        days = filter(lambda x: x < -17.7, values)
-        return(len(days))
-    
 #    @staticmethod
-#    def gt(values,threshold=None):
-#        if threshold is None:
-#            raise(ValueError('a threshold must be passed'))
-#        days = filter(lambda x: x > threshold, values)
+#    def gt_thirty_two_point_two(values):
+#        days = filter(lambda x: x > 32.2, values)
 #        return(len(days))
 #    
 #    @staticmethod
-#    def between(values,lower=None,upper=None):
-#        if lower is None or upper is None:
-#            raise(ValueError('a lower and upper limit are required'))
-#        days = filter(lambda x: x >= lower and x <= upper, values)
+#    def gt_thirty_five(values):
+#        days = filter(lambda x: x > 35, values)
 #        return(len(days))
+#    
+#    @staticmethod
+#    def gt_thirty_seven_point_eight(values):
+#        days = filter(lambda x: x > 37.8, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_zero(values):
+#        days = filter(lambda x: x < 0, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_negative_twelve_point_two(values):
+#        days = filter(lambda x: x < -12.2, values)
+#        return(len(days))
+#    
+#    @staticmethod
+#    def lt_negative_seventeen_point_seven(values):
+#        days = filter(lambda x: x < -17.7, values)
+#        return(len(days))
+    
+    @staticmethod
+    def gt(values,threshold=None):
+        if threshold is None:
+            raise(ValueError('a threshold must be passed'))
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
+    
+    @staticmethod
+    def between(values,lower=None,upper=None):
+        if lower is None or upper is None:
+            raise(ValueError('a lower and upper limit are required'))
+        days = filter(lambda x: x >= lower and x <= upper, values)
+        return(len(days))
     
     
 if __name__ == '__main__':

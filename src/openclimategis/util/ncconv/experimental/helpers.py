@@ -9,6 +9,46 @@ import os
 from shapely import wkt
 from shapely.geometry.multipolygon import MultiPolygon
 import time
+from collections import namedtuple
+from util.ncconv.experimental.exc import FunctionNameError,\
+    FunctionNotNamedError
+import re
+
+def check_function_dictionary(funcs):
+    """
+    Perform common checks on a list of function definition dictionaries.
+    """
+    
+    for f in funcs:
+        if 'name' in f:
+            if len(f['name']) >= 14:
+                raise(FunctionNameError(f))
+            if f['name'][0] in '0123456789':
+                raise(FunctionNameError(f))
+            if re.search('\W',f['name']) is not None:
+                raise(FunctionNameError(f))
+        else:
+            ## function with parameters must have a name
+            keys = ['args','kwds']
+            lens = []
+            for key in keys:
+                val = f.get(key)
+                if val is not None:
+                    if len(val) > 0:
+                        lens.append(True)
+                else:
+                    lens.append(False)
+            if any(lens):
+                raise(FunctionNotNamedError(f))
+
+
+def bounding_coords(polygon):
+    min_x,min_y,max_x,max_y = polygon.bounds
+    Bounds = namedtuple('Bounds',['min_x','min_y','max_x','max_y'])
+    return(Bounds(min_x=min_x,
+                  max_x=max_x,
+                  min_y=min_y,
+                  max_y=max_y))
 
 def chunks(l, n):
     """ Yield successive n-sized chunks from l.
@@ -53,6 +93,7 @@ def timing(f):
   
 def itr_array(a):
     "a -- 2-d ndarray"
+    assert(len(a.shape) == 2)
     ix = a.shape[0]
     jx = a.shape[1]
     for ii,jj in itertools.product(range(ix),range(jx)):

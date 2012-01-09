@@ -4,10 +4,11 @@ from django.http import HttpResponse
 from piston.emitters import Emitter
 from api.views import display_spatial_query, display_aoi_uploader
 from util.ncconv.experimental import ocg_converter
-
-import logging
 from util.ncconv.experimental.ocg_stat import OcgStat
 from django.conf import settings
+import time
+
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +18,10 @@ class OpenClimateEmitter(Emitter):
     """
     
     def render(self,request):
-        raise NotImplementedError
+        return(self._render_(request))
+    
+    def _render_(self,request):
+        raise(NotImplementedError)
 
 
 class IdentityEmitter(OpenClimateEmitter):
@@ -32,7 +36,7 @@ class IdentityEmitter(OpenClimateEmitter):
 
 class HelloWorldEmitter(OpenClimateEmitter):
     
-    def render(self,request):
+    def _render_(self,request):
         names = [n['name'] for n in self.construct()]
         msg = 'Hello, World!! The climate model names are:<br><br>{0}'.format('<br>'.join(names))
         return HttpResponse(msg)
@@ -41,7 +45,7 @@ class HelloWorldEmitter(OpenClimateEmitter):
 class HTMLEmitter(IdentityEmitter):
     """Emits an HTML representation 
     """
-    def render(self,request):
+    def _render_(self,request):
         
         logger.info("starting HTMLEmitter.render()...")
         
@@ -80,8 +84,9 @@ class SubOcgDataEmitter(IdentityEmitter):
     __converter__ = None
     __file_ext__ = ''
     
-    def render(self,request):
+    def _render_(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
+#        import ipdb;ipdb.set_trace()
         self.sub = self.construct()
         self.db = self.get_db()
         self.request = request
@@ -97,7 +102,7 @@ class SubOcgDataEmitter(IdentityEmitter):
         return(self.get_response())
     
     def get_db(self):
-        return(self.sub.as_sqlite(procs=settings.MAXPROCESSES))
+        return(self.sub.to_db(procs=settings.MAXPROCESSES))
     
     def get_converter(self):
         return(self.__converter__(self.db,
@@ -110,14 +115,29 @@ class SubOcgDataEmitter(IdentityEmitter):
 
 class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
     
-    def render(self,request):
-        base_response = super(ZippedSubOcgDataEmitter,self).render(request)
+    def _render_(self,request):
+        base_response = super(ZippedSubOcgDataEmitter,self)._render_(request)
         response = HttpResponse()
         response['Content-Disposition'] = 'attachment; filename={0}.zip'.\
             format(request.ocg.simulation_output.variable.code)
         response['Content-length'] = str(len(base_response))
         response['Content-Type'] = 'application/zip'
         response.write(base_response)
+        return(response)
+    
+    def get_converter(self):
+        meta = ocg_converter.MetacontentConverter(self.request)
+        return(self.__converter__(self.db,
+                                  self.cfvar+self.__file_ext__,
+                                  use_stat=self.request.ocg.query.use_stat,
+                                  meta=meta))
+    
+    
+class MetacontentEmitter(SubOcgDataEmitter):
+    
+    def _render_(self,request):
+        converter = ocg_converter.MetacontentConverter(request)
+        response = converter.response()
         return(response)
 
 
@@ -165,7 +185,7 @@ class KmzEmitter(KmlEmitter):
     __converter__ = ocg_converter.KmzConverter
     __file_ext__ = '.kmz'
     
-#    def render(self,request):
+#    def _render_(self,request):
 #        logger.info("starting KmzEmitter.render()...")
 #        kml = super(KmzEmitter,self).render(request)
 #        iobuffer = io.BytesIO()
@@ -204,6 +224,16 @@ class CsvEmitter(SubOcgDataEmitter):
 class LinkedCsvEmitter(ZippedSubOcgDataEmitter):
     __converter__ = ocg_converter.LinkedCsvConverter
     __file_ext__ = ''
+    
+    
+class NcEmitter(SubOcgDataEmitter):
+    __converter__ = ocg_converter.NcConverter
+    __file_ext__ = '.nc'
+    
+    def get_response(self):
+        from util.ncconv.experimental.ocg_dataset.dataset import OcgDataset
+        ds = OcgDataset(self.request.ocg.dataset_uri,**self.request.ocg.ocg_opts)
+        return(self.converter.response(self.sub,ds))
 
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
@@ -215,3 +245,5 @@ Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
 Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')
+Emitter.register('nc',NcEmitter,'application/x-netcdf; charset=utf-8')
+Emitter.register('meta',MetacontentEmitter,'text/plain; charset=utf-8')

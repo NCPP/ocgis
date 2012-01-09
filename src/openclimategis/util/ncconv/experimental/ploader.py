@@ -5,8 +5,9 @@ from util.ncconv.experimental.helpers import array_split
 
 class ParallelLoader(object):
     
-    def __init__(self,procs=1):
+    def __init__(self,procs=1,use_lock=True):
         self.procs = procs
+        self.use_lock = use_lock
         
     @staticmethod
     def loader(pmodel,lock=None):
@@ -31,7 +32,10 @@ class ParallelLoader(object):
         
     def load_models(self,pmodels):
         """assumes the pmodels length is equivalent to the number of desired processes."""
-        lock = Lock()
+        if self.use_lock:
+            lock = Lock()
+        else:
+            lock = None
         processes = [Process(target=self.loader,args=(pm,lock)) for pm in pmodels]
         self.run(processes)
         
@@ -75,12 +79,13 @@ class ParallelModel(object):
     
 class ParallelGenerator(ParallelLoader):
     
-    def __init__(self,Model,indices,f,fkwds={},procs=1):
+    def __init__(self,Model,indices,f,fkwds={},procs=1,use_lock=True):
         self.Model = Model
         self.indices = indices
         self.f = f
         self.fkwds = fkwds
         self.procs = procs
+        self.use_lock = use_lock
         
     @staticmethod
     def loader(indices,f,fkwds,Model,lock=None):
@@ -98,7 +103,10 @@ class ParallelGenerator(ParallelLoader):
         
     def load(self):
         indices_groups = array_split(self.indices,self.procs)
-        lock = Lock()
+        if self.use_lock:
+            lock = Lock()
+        else:
+            lock = None
         processes = [Process(target=self.loader,args=(indices_group,self.f,self.fkwds,self.Model,lock))
                      for indices_group in indices_groups]
         self.run(processes)

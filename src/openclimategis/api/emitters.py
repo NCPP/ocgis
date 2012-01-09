@@ -146,7 +146,7 @@ class SqliteEmitter(ZippedSubOcgDataEmitter):
     __file_ext__ = ''
     
     def get_db(self):
-        return(self.sub.as_sqlite(to_disk=True))
+        return(self.sub.to_db(to_disk=True,procs=settings.MAXPROCESSES))
 
 
 class ShapefileEmitter(ZippedSubOcgDataEmitter):

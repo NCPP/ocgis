@@ -1,8 +1,6 @@
-from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData, Column, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
-from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.types import Integer, Float, String, DateTime, Date
+from sqlalchemy.types import Integer, Float, String, DateTime
 from sqlalchemy.orm import relationship
 
 

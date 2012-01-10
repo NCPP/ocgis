@@ -13,6 +13,38 @@ from collections import namedtuple
 from util.ncconv.experimental.exc import FunctionNameError,\
     FunctionNotNamedError
 import re
+from util.helpers import get_temp_path
+
+
+def user_geom_to_db(user_meta_id):
+    pass
+
+def init_db(engine=None,to_disk=False,procs=1):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm.session import sessionmaker
+    from util.ncconv.experimental import db
+    from sqlalchemy.pool import NullPool
+    
+    if engine is None:
+        path = 'sqlite://'
+        if to_disk or procs > 1:
+            path = path + '/' + get_temp_path('.sqlite',nest=True)
+            db.engine = create_engine(path,
+                                      poolclass=NullPool)
+        else:
+            db.engine = create_engine(path,
+    #                                      connect_args={'check_same_thread':False},
+    #                                      poolclass=StaticPool
+                                      )
+    else:
+        db.engine = engine
+    
+    db.metadata.bind = db.engine
+    db.Session = sessionmaker(bind=db.engine)
+    db.metadata.create_all()
+    
+    return(db)
+
 
 def check_function_dictionary(funcs):
     """

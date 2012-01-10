@@ -16,15 +16,37 @@ import re
 from util.helpers import get_temp_path
 
 
-def user_geom_to_db(user_meta_id):
-    pass
+def user_geom_to_db(user_meta_id,to_disk=False):
+    """
+    >>> user_meta_id = 1
+    >>> db = user_geom_to_db(user_meta_id)
+    """
+    from climatedata.models import UserGeometryMetadata
+    from django.conf import settings
+    
+    ## get the user metadata and geometries
+    user_meta = UserGeometryMetadata.objects.filter(pk=user_meta_id)
+    geoms = user_meta[0].usergeometrydata_set.all()
+    ## initialize the database
+    db = init_db(to_disk=to_disk,procs=settings.MAXPROCESSES)
+    ## load the geometries
+    s = db.Session()
+    try:
+        for geom in geoms:
+            obj = db.Geometry(wkt=geom.geom.wkt,gid=geom.gid)
+            s.add(obj)
+        s.commit()
+    finally:
+        s.close()
+    
+    return(db)
 
 def init_db(engine=None,to_disk=False,procs=1):
     from sqlalchemy import create_engine
     from sqlalchemy.orm.session import sessionmaker
     from util.ncconv.experimental import db
     from sqlalchemy.pool import NullPool
-    
+
     if engine is None:
         path = 'sqlite://'
         if to_disk or procs > 1:
@@ -33,8 +55,8 @@ def init_db(engine=None,to_disk=False,procs=1):
                                       poolclass=NullPool)
         else:
             db.engine = create_engine(path,
-    #                                      connect_args={'check_same_thread':False},
-    #                                      poolclass=StaticPool
+#                                      connect_args={'check_same_thread':False},
+#                                      poolclass=StaticPool
                                       )
     else:
         db.engine = engine

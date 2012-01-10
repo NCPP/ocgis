@@ -14,7 +14,7 @@ Base = declarative_base(metadata=metadata)
 class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
-    area_m2 = Column(Float,nullable=False)
+    area_m2 = Column(Float,nullable=True)
     wkt = Column(String,nullable=True)
     wkb = Column(String,nullable=True)
     

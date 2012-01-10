@@ -1,34 +1,60 @@
 Ext.application({
-    name: 'OpenClimateGIS Query Builder',
+    name: 'App',
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
+        /////////////////////////////////////////////////////////////// Classes
+        Ext.define('App.ui.MarkupComponent', {
+            extend: 'Ext.Component',
+            alias: 'widget.markup',
+            config: {
+                frame: false
+                }
+            }); // No callback (third argument)
+        //////////////////////////////////////////////////////////// Components
         Ext.create('Ext.container.Viewport', { // Viewport
-            layout: 'fit',
+            layout: 'border',
             items: [
-                { // Map container
-                    xtype: 'panel',                    
-                    id: 'map-container',
-                    title: 'Mapping Example',
-                    layout: 'fit',
+                { // Banner
+                    xtype: 'markup',
+                    region: 'north',
+                    height: 50,
+                    style: {
+                        background: '#000'
+                        },
+                    html: '<div id="branding"><a href="/">OpenClimateGIS&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a></div>'
+                    },
+                { // Form
+                    xtype: 'form',
+                    region: 'center',
+                    layout: 'table',
+                    columns: 2,
                     items: [
-                        { // Google Maps instance
-                            xtype: 'panel',
-                            disabled: true,
-                            hidden: true,
-                            layout: 'fit',
-                            id: 'map-panel',
-                            listeners: {
-                                afterrender: function() {
-                                    var m = new google.maps.Map(document.getElementById('map-panel'), {
-                                        center: new google.maps.LatLng(-34.397, 150.644),
-                                        mapTypeId: google.maps.MapTypeId.ROADMAP,
-                                        zoom: 8
-                                        });
-                                    }
-                                }
-                            } // eo map-panel
-                        ] // eo items
-                    } // eo map-container
+                        { // Data selection
+                            title: 'Data Selection'
+                            },
+                        { // Temporal selection
+                            title: 'Temporal Selection'
+                            },
+                        { // Output format
+                            title: 'Output format'
+                            },
+                        { // Spatial selection
+                            title: 'Spatial Selection',
+                            rowspan: 3
+                            },
+                        { // Data request URL
+                            title: 'Data Request URL',
+                            colspan: 2
+                            }
+                        ]
+                    },
+                { // Help
+                    xtype: 'panel',
+                    title: 'Help',
+                    region: 'east',
+                    width: 150,
+                    collapsed: true
+                    },
                 ] // eo items
             }); // eo Ext.create
         ////////////////////////////////////////////////////////////////////////

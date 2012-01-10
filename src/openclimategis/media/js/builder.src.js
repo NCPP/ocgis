@@ -81,7 +81,7 @@ Ext.application({
                     items: [
                         {
                             xtype: 'container',
-                            itemId: 'form-sidebar',
+                            itemId: 'sidebar',
                             region: 'west',
                             width: 300,
                             border: 0,
@@ -89,20 +89,20 @@ Ext.application({
                             items: [
                                 { // Data selection
                                     xtype: 'nested',
-                                    itemId: 'form-data-sel',
+                                    itemId: 'data-sel',
                                     title: 'Data Selection',
                                     region: 'north',
                                     height: 200
                                     },
                                 { // Temporal selection
                                     xtype: 'nested',
-                                    itemId: 'form-time-sel',
+                                    itemId: 'time-sel',
                                     title: 'Temporal',
                                     region: 'center'
                                     },
                                 { // Output format
                                     xtype: 'nested',
-                                    itemId: 'form-output',
+                                    itemId: 'output',
                                     title: 'Output Format',
                                     region: 'south',
                                     height: 100
@@ -111,48 +111,64 @@ Ext.application({
                             },
                         { // Spatial selection
                             xtype: 'map',
+                            itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
                             tbar: {
-                                defaults: {
-                                    style: {fontSize: '11px'}
-                                    },
                                 items: [
                                     {
                                         xtype: 'combo',
                                         fieldLabel: 'Area-of-Interest (AOI)',
-                                        emptyText: '(None Selected)'
+                                        emptyText: '(None Selected)',
+                                        style: {textAlign: 'right'}
                                         },
-                                    ' ', // Spacer
+                                    ' ',
                                     {
                                         xtype: 'button',
                                         text: 'Manage AOIs',
                                         iconCls: 'icon-app-edit'
                                         },
-                                    '-', // Vertical separator
-                                    ' ', // Spacer
                                     {
-                                        xtype: 'checkbox',
-                                        boxLabel: 'Clip Output to AOI'
+                                        xtype: 'button',
+                                        text: 'Clip Output to AOI',
+                                        iconCls: 'icon-scissors',
+                                        enableToggle: true
                                         },
-                                    ' ', // Spacer
-                                    '-', // Vertical separator
-                                    ' ', // Spacer
                                     {
-                                        xtype: 'checkbox',
-                                        boxLabel: 'Aggregate Geometries'
-                                        }
+                                        xtype: 'button',
+                                        text: 'Aggregate Geometries',
+                                        iconCls: 'icon-shape-group',
+                                        enableToggle: true
+                                        },
+                                    '->',
+                                    {
+                                        xtype: 'button',
+                                        text: 'Save Sketch As AOI',
+                                        iconCls: 'icon-disk'
+                                        },
                                     ] // eo items
                                 } // eo tbar
                             },
                         { // Data request URL
                             xtype: 'nested',
+                            itemId: 'request-url',
                             region: 'south',
                             height: 150,
                             title: 'Data Request URL',
-                            colspan: 2
-                            }
-                        ]
+                            bbar: {
+                                items: [
+                                    {
+                                        xtype: 'button',
+                                        text: 'Generate Data File'
+                                        },
+                                    {
+                                        xtype: 'progressbar',
+                                        width: 150
+                                        }
+                                    ] // eo items
+                                } // eo bbar
+                            } // eo nested
+                        ] // eo items
                     },
                 { // Help
                     xtype: 'panel',
@@ -166,7 +182,7 @@ Ext.application({
             }); // eo Ext.create
         // Add items to the Data Selection panel ///////////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('form-sidebar').getComponent('form-data-sel');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('data-sel');
             p.add([
                 {
                     xtype: 'combo',
@@ -196,7 +212,7 @@ Ext.application({
             }()); // Execute immediately
         // Add items to the Temporal Selection panel ///////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('form-sidebar').getComponent('form-time-sel');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('time-sel');
             p.add([
                 {
                     xtype: 'combo',
@@ -206,7 +222,7 @@ Ext.application({
             }()); // Execute immediately
         // Add items to the Output Format panel ////////////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('form-sidebar').getComponent('form-output');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('output');
             p.add([
                 {
                     xtype: 'combo',
@@ -214,7 +230,19 @@ Ext.application({
                     fieldLabel: 'Output Format'
                     }
                 ]);
-            }()) // Execute immediately
+            }()); // Execute immediately
+        // Add items to the Data Request URL panel /////////////////////////////
+        (function() {
+            var p = Ext.getCmp('form-panel').getComponent('request-url');
+            p.add([
+                {
+                    xtype: 'textarea',
+                    width: 500,
+                    height: 80,
+                    fieldLabel: 'Data Request URL'
+                    }
+                ]);
+            }()); // Execute immediately
         ////////////////////////////////////////////////////////////////////////
         } // eo launch()
     }); // eo Ext.application

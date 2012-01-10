@@ -94,6 +94,9 @@ a:active {color:#730D00;text-decoration:none;border:none;}
 
 /* Icons */
 .icon-app-edit {background-image:url(/media/img/application_edit.png) !important;}
+.icon-disk {background-image:url(/media/img/disk.png) !important;}
+.icon-scissors {background-image:url(/media/img/cut.png) !important;}
+.icon-shape-group {background-image:url(/media/img/shape_group.png) !important;}
 /* Panel */
     /* Header */
     .x-panel-header-text-default {font-size:12px !important;line-height:14px !important;}

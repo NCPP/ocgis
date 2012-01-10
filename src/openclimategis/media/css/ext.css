@@ -91,3 +91,7 @@ a:active {color:#730D00;text-decoration:none;border:none;}
 #branding a:active {color:#FFF;text-decoration:none;border:none;background:url(/media/img/globe_icon.png) no-repeat right top;}
 .dark-blue {color:#003366;}
 .dark-gray {color:#333;}
+
+/* Panel */
+    /* Header */
+    .x-panel-header-text-default {font-size:12px !important;line-height:14px !important;}

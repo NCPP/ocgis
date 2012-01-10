@@ -6,9 +6,13 @@ Ext.application({
         Ext.define('App.ui.MarkupComponent', {
             extend: 'Ext.Component',
             alias: 'widget.markup',
-            config: {
-                frame: false
-                }
+            frame: false,
+            border: 0
+            }); // No callback (third argument)
+        Ext.define('App.ui.NestedPanel', {
+            extend: 'Ext.Panel',
+            alias: 'widget.nested',
+            resizable: true
             }); // No callback (third argument)
         //////////////////////////////////////////////////////////// Components
         Ext.create('Ext.container.Viewport', { // Viewport
@@ -26,23 +30,41 @@ Ext.application({
                 { // Form
                     xtype: 'form',
                     region: 'center',
-                    layout: 'table',
-                    columns: 2,
+                    layout: 'border',
                     items: [
-                        { // Data selection
-                            title: 'Data Selection'
-                            },
-                        { // Temporal selection
-                            title: 'Temporal Selection'
-                            },
-                        { // Output format
-                            title: 'Output format'
+                        {
+                            region: 'west',
+                            width: 300,
+                            border: 0,
+                            layout: 'border',
+                            items: [
+                                { // Data selection
+                                    xtype: 'nested',
+                                    title: 'Data Selection',
+                                    region: 'north',
+                                    height: 200
+                                    },
+                                { // Temporal selection
+                                    xtype: 'nested',
+                                    title: 'Temporal Selection',
+                                    region: 'center'
+                                    },
+                                { // Output format
+                                    xtype: 'nested',
+                                    title: 'Output Format',
+                                    region: 'south',
+                                    height: 100
+                                    }
+                                ]
                             },
                         { // Spatial selection
                             title: 'Spatial Selection',
-                            rowspan: 3
+                            region: 'center'
                             },
                         { // Data request URL
+                            xtype: 'panel',
+                            region: 'south',
+                            height: 150,
                             title: 'Data Request URL',
                             colspan: 2
                             }
@@ -53,7 +75,8 @@ Ext.application({
                     title: 'Help',
                     region: 'east',
                     width: 150,
-                    collapsed: true
+                    collapsed: true,
+                    collapsible: true
                     },
                 ] // eo items
             }); // eo Ext.create

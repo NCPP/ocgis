@@ -253,10 +253,10 @@ class NcEmitter(SubOcgDataEmitter):
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 Emitter.register('lshz',LinkedShapefileEmitter,'application/zip; charset=utf-8')
-#Emitter.unregister('json')
+Emitter.unregister('json')
 Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
 Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
-Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
+Emitter.register('json',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
 Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')

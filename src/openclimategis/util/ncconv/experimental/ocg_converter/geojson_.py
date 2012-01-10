@@ -5,11 +5,14 @@ import geojson
 class GeojsonConverter(OcgConverter):
     
     def _convert_(self):
-        if self.use_stat:
-            adds = ['WKT']
+        if self.use_geom:
+            headers = ['GID','WKT']
         else:
-            adds = ['WKT','TIME']
-        headers = self.get_headers(self.value_table,adds=adds)
+            if self.use_stat:
+                adds = ['WKT']
+            else:
+                adds = ['WKT','TIME']
+            headers = self.get_headers(self.value_table,adds=adds)
         features = [attrs for attrs in self.get_iter(self.value_table,headers)]
         for feat in features:
             feat['geometry'] = feat.pop('WKT')

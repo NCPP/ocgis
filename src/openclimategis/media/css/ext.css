@@ -92,6 +92,8 @@ a:active {color:#730D00;text-decoration:none;border:none;}
 .dark-blue {color:#003366;}
 .dark-gray {color:#333;}
 
+/* Icons */
+.icon-app-edit {background-image:url(/media/img/application_edit.png) !important;}
 /* Panel */
     /* Header */
     .x-panel-header-text-default {font-size:12px !important;line-height:14px !important;}

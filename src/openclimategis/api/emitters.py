@@ -102,7 +102,7 @@ class SubOcgDataEmitter(IdentityEmitter):
                              request.ocg.query.grouping,
                              procs=settings.MAXPROCESSES)
                 st.calculate_load(self.request.ocg.query.functions)
-                self.cfvar = request.ocg.simulation_output.variable.code
+            self.cfvar = request.ocg.simulation_output.variable.code
         else:
             self.use_geom = True
             self.cfvar = self.request.url_args['code']

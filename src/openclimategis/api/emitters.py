@@ -11,6 +11,7 @@ import time
 import logging
 from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
 from util.ncconv.experimental.helpers import user_geom_to_db
+from django.core import serializers
 logger = logging.getLogger(__name__)
 
 
@@ -104,9 +105,16 @@ class SubOcgDataEmitter(IdentityEmitter):
                 st.calculate_load(self.request.ocg.query.functions)
             self.cfvar = request.ocg.simulation_output.variable.code
         else:
-            self.use_geom = True
-            self.cfvar = self.request.url_args['code']
-            self.db = user_geom_to_db(payload[0].pk)
+            ## first try the case when it is a usergeometry object
+            try:
+                self.use_geom = True
+                self.cfvar = self.request.url_args['code']
+                self.db = user_geom_to_db(payload[0].pk)
+            ## next assume you just need to serialize and manage accordingly
+            except:
+                json_serializer = serializers.get_serializer("json")()
+                j = json_serializer.serialize(payload,ensure_ascii=False)
+                return(j)
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(self.get_response())

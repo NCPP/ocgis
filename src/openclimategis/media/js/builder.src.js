@@ -1,15 +1,24 @@
+/*global Ext, google*/
+var blah;
 Ext.application({
     name: 'App',
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
-        var viewport;
+        blah = this;
         ///////////////////////////////////////////////////////////// Overrides
-        Ext.define('Override.form.field.ComboBox', {
+        Ext.define('App.ui.ComboBox', {
             override: 'Ext.form.field.ComboBox',
             initialize : function() {
                 this.callOverridden(arguments);
                 },
-            labelWidth: 130
+            labelWidth: 120
+            });
+        Ext.define('App.ui.Toolbar', {
+            override: 'Ext.toolbar.Toolbar',
+            initialize : function() {
+                this.callOverridden(arguments);
+                },
+            height: 28
             });
         /////////////////////////////////////////////////////////////// Classes
         Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
@@ -39,8 +48,6 @@ Ext.application({
             alias: 'widget.daterange',
             msgTarget: 'side',
             layout: 'hbox',
-            labelWidth: 90,
-            width: 290,
             defaults: {
                 width: 90,
                 hideLabel: true
@@ -59,8 +66,40 @@ Ext.application({
                     }
                 ]
             }); // No callback (third argument)
+        Ext.define('App.ui.TreePanel', {
+            extend: 'Ext.tree.Panel',
+            alias: 'widget.treepanel'
+            });
+        //////////////////////////////////////////////////////////// Structures
+        App.data = {
+            stats: Ext.create('Ext.data.TreeStore', {
+                sorters: [
+                    {property: 'leaf', direction: 'ASC'},
+                    {property: 'text', direction: 'ASC'}
+                    ],
+                root: {
+                    expanded: true,
+                    children: [
+                        {text: 'Basic Statistics', expanded: true,
+                            children: [
+                                {text: 'Minimum', checked: false, leaf: true},
+                                {text: 'Maximum', checked: false, leaf: true},
+                                {text: 'Mean', checked: false, leaf: true}
+                                ]
+                            },
+                        {text: 'Thresholds', expanded: true,
+                            children: [
+                                {text: 'Less than', checked: false, leaf: true},
+                                {text: 'Greater than', checked: false, leaf: true},
+                                {text: 'Between', checked: false, leaf: true}
+                                ]
+                            }
+                        ] // eo children
+                    } // eo root
+                })
+            };
         //////////////////////////////////////////////////////////// Components
-        viewport = Ext.create('Ext.container.Viewport', { // Viewport
+        App.viewport = Ext.create('Ext.container.Viewport', { // Viewport
             id: 'viewport',
             layout: 'border',
             items: [
@@ -83,7 +122,7 @@ Ext.application({
                             xtype: 'container',
                             itemId: 'sidebar',
                             region: 'west',
-                            width: 300,
+                            width: 310,
                             border: 0,
                             layout: 'border',
                             items: [
@@ -95,17 +134,35 @@ Ext.application({
                                     height: 200
                                     },
                                 { // Temporal selection
-                                    xtype: 'nested',
+                                    xtype: 'treepanel',
                                     itemId: 'time-sel',
                                     title: 'Temporal',
-                                    region: 'center'
+                                    region: 'center',
+                                    store: App.data.stats,
+                                    rootVisible: false,
+                                    tbar: [
+                                        {
+                                            xtype: 'combo',
+                                            fieldLabel: 'Grouping Interval',
+                                            labelWidth: 100,
+                                            queryMode: 'local',
+                                            value: 'yearmonth',
+                                            valueField: 'value',
+                                            store: Ext.create('Ext.data.ArrayStore', {
+                                                fields: ['text', 'value'],
+                                                data: [
+                                                    ['Year and month', 'yearmonth']
+                                                    ] // data
+                                                }) // eo store
+                                            } // eo combo
+                                        ] // eo tbar
                                     },
                                 { // Output format
                                     xtype: 'nested',
                                     itemId: 'output',
                                     title: 'Output Format',
                                     region: 'south',
-                                    height: 100
+                                    height: 70
                                     }
                                 ]
                             },
@@ -159,11 +216,17 @@ Ext.application({
                                 items: [
                                     {
                                         xtype: 'button',
+                                        iconCls: 'icon-page-do',
                                         text: 'Generate Data File'
                                         },
                                     {
                                         xtype: 'progressbar',
-                                        width: 150
+                                        width: 180
+                                        },
+                                    {
+                                        xtype: 'tbtext',
+                                        text: 'No activity',
+                                        style: {fontStyle: 'italic'}
                                         }
                                     ] // eo items
                                 } // eo bbar
@@ -206,18 +269,10 @@ Ext.application({
                     },
                 {
                     xtype: 'daterange',
-                    fieldLabel: 'Date Range'
+                    fieldLabel: 'Date Range',
+                    labelWidth: 80,
+                    width: 290
                     },
-                ]);
-            }()); // Execute immediately
-        // Add items to the Temporal Selection panel ///////////////////////////
-        (function() {
-            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('time-sel');
-            p.add([
-                {
-                    xtype: 'combo',
-                    fieldLabel: 'Grouping Interval'
-                    }
                 ]);
             }()); // Execute immediately
         // Add items to the Output Format panel ////////////////////////////////
@@ -226,8 +281,7 @@ Ext.application({
             p.add([
                 {
                     xtype: 'combo',
-                    labelAlign: 'top',
-                    fieldLabel: 'Output Format'
+                    width: 200
                     }
                 ]);
             }()); // Execute immediately
@@ -237,9 +291,9 @@ Ext.application({
             p.add([
                 {
                     xtype: 'textarea',
+                    emptyText: 'http://openclimategis.org/api/',
                     width: 500,
-                    height: 80,
-                    fieldLabel: 'Data Request URL'
+                    height: 80
                     }
                 ]);
             }()); // Execute immediately

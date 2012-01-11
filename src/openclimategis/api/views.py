@@ -330,4 +330,4 @@ def display_query_builder_app(request):
     '''
     Return the Query Builder web application as markup.
     '''
-    return render_to_response('app.html')
+    return render_to_response('QueryBuilder.html')

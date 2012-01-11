@@ -4,7 +4,6 @@ Ext.application({
     name: 'App',
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
-        blah = this;
         ///////////////////////////////////////////////////////////// Overrides
         Ext.define('App.ui.ComboBox', {
             override: 'Ext.form.field.ComboBox',
@@ -38,10 +37,36 @@ Ext.application({
             resizable: true,
             bodyPadding: 7
             }); // No callback (third argument)
-        Ext.define('App.ui.MapPanel', { // Only for the map
+        Ext.define('App.ui.MapPanel', {
             extend: 'Ext.Panel',
-            alias: 'widget.map',
-            resizable: true
+            alias: 'widget.mappanel',
+            initComponent : function(){
+                var config = {
+                    layout: 'fit',
+                    mapConfig: {
+                        center: new google.maps.LatLng(42.30220, -83.68952),
+                        zoom: 8,
+                        type: google.maps.MapTypeId.ROADMAP
+                        }
+                    };
+                Ext.applyIf(this, config);
+                this.callParent();        
+                },
+            listeners: {
+                afterrender: function() {
+                    new google.maps.Map(this.body.dom, {
+                        center: new google.maps.LatLng(42.30220, -83.68952),
+                        zoom: 8,
+                        mapTypeId: google.maps.MapTypeId.ROADMAP
+                        });
+                    // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
+/*
+                    google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
+                        self.fireEvent('mapready');
+                        });
+*/
+                    }
+                }
             }); // No callback (third argument)
         Ext.define('App.ui.DateRange', {
             extend: 'Ext.form.FieldContainer',
@@ -50,22 +75,55 @@ Ext.application({
             layout: 'hbox',
             defaults: {
                 width: 90,
-                hideLabel: true
+                hideLabel: true,
+                vtype: 'daterange'
                 },
             items: [
                 {
                     xtype: 'datefield',
                     name: 'startDate',
                     itemId: 'date-start',
+                    endDateField: 'date-end',
+                    emptyText: 'Start',
                     margin: '0 5 0 0'
                     },
                 {
                     xtype: 'datefield',
                     name: 'endDate',
-                    itemId: 'date-end'
+                    itemId: 'date-end',
+                    startDateField: 'date-start',
+                    emptyText: 'End'
                     }
                 ]
-            }); // No callback (third argument)
+            }, function() { // Callback function
+                Ext.apply(Ext.form.VTypes, {
+                    daterange: function(val, field) {
+                        var date = field.parseDate(val), start, end;
+                        if (!date) {
+                            return false;
+                            }
+                        if (field.startDateField) {
+                            start = field.ownerCt.getComponent(field.startDateField);
+                            if (!start.maxValue || (date.getTime() !== start.maxValue.getTime())) {
+                                start.setMaxValue(date);
+                                start.validate();
+                                }
+                            }
+                        else if (field.endDateField) {
+                            end = field.ownerCt.getComponent(field.endDateField);
+                            if (!end.minValue || (date.getTime() !== end.minValue.getTime())) {
+                                end.setMinValue(date);
+                                end.validate();
+                                }
+                            }
+                        /**
+                         * Always return true since we're only using this vtype to set the
+                         * min/max allowed values (these are tested for after the vtype test)
+                         */
+                        return true;
+                        }
+                    });
+                });
         Ext.define('App.ui.TreePanel', {
             extend: 'Ext.tree.Panel',
             alias: 'widget.treepanel'
@@ -128,14 +186,14 @@ Ext.application({
                             items: [
                                 { // Data selection
                                     xtype: 'nested',
-                                    itemId: 'data-sel',
+                                    itemId: 'data-selection',
                                     title: 'Data Selection',
                                     region: 'north',
                                     height: 200
                                     },
                                 { // Temporal selection
                                     xtype: 'treepanel',
-                                    itemId: 'time-sel',
+                                    itemId: 'stats-tree',
                                     title: 'Temporal',
                                     region: 'center',
                                     store: App.data.stats,
@@ -167,7 +225,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'map',
+                            xtype: 'mappanel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',

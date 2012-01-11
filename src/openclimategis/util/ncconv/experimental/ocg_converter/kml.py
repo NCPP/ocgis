@@ -1,7 +1,8 @@
 import zipfile
 import io
+from datetime import datetime
 from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
-
+#from xml.sax.saxutils import escape
 
 class KmlConverter(OcgConverter):
     '''Converts data to a KML string'''
@@ -108,67 +109,127 @@ class KmlConverter(OcgConverter):
               KML.PolyStyle(
                 KML.color('400000ff'),
               ),
+              KML.BalloonStyle(
+                KML.text(('<script type="text/javascript" src="http://dygraphs.com/dygraph-combined.js">'
+                  '</script>'
+                  '<div id="graphdiv"></div>'
+                  '<script type="text/javascript">'
+                         'g = new Dygraph('
+                             'document.getElementById("graphdiv"),'
+                             '$[csv_data],'
+                             '{{'
+                                 'ylabel: \'{param} [{units}]\','
+                                 'legend: \'always\''
+                             '}}'
+                          ');'
+                  '</script>').format(
+                      param=meta.variable.name,
+                      units=meta.variable.units,
+                  ))
+              ),
               id="style-highlight",
             ),
             #Time Folders will be appended here
           ),
         )
-        
         try:
             s = db.Session()
-            for time in s.query(db.Time).all():
-                # create a folder for the time
-                timefld = KML.Folder(
-#                    KML.Style(
-#                      KML.ListStyle(
-#                        KML.listItemType('checkHideChildren'),
-#                        KML.bgColor('00ffffff'),
-#                        KML.maxSnippetLines('2'),
-#                      ),
-#                    ),
-                    KML.name(time.as_xml_date()),
-                    # placemarks will be appended here
-                )
-                for val in time.value:
-                    poly_desc = (
-                        '<table border="1">'
-                          '<tbody>'
-                            '<tr><th>Variable</th><td>{variable}</td></tr>'
-                            '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
-                            '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
-                          '</tbody>'
-                        '</table>'
-                    ).format(
-                        variable=meta.variable.name,
-                        time=val.time_ref.as_xml_date(),
-                        value=val.value,
-                        digits=3,
-                        units=meta.variable.units,
-                    )
-                    
-                    coords = val.geometry.as_kml_coords()
-                    timefld.append(
-                      KML.Placemark(
-                        KML.name('Geometry'),
-                        KML.description(poly_desc),
-                        KML.styleUrl('#smap'),
-                        KML.Polygon(
-                          KML.tessellate('1'),
-                          KML.outerBoundaryIs(
-                            KML.LinearRing(
-                              KML.coordinates(coords),
-                            ),
-                          ),
+            
+            # create a folder to hold the geometries
+            geom_fld = KML.Folder(
+                KML.name('Geometries'),
+            )
+            
+            for geom in s.query(db.Geometry).all():
+                
+                coord_list = geom.as_kml_coords()
+                multigeom_args = [
+                    KML.Polygon(
+                      KML.tessellate('1'),
+                      KML.outerBoundaryIs(
+                        KML.LinearRing(
+                          KML.coordinates(coords.text),
                         ),
-                      )
-                    )
-                doc.Document.append(timefld)
-            pass
+                      ),
+                    ) for coords in coord_list
+                ]
+                
+                values = ['{0},{1}'.format(datetime.strftime(val.time, "%Y-%m-%d %H:%M:%S"),val.value) for val in geom.values]
+                pm = KML.Placemark(
+                    KML.name('Geometry'),
+                    
+                    KML.ExtendedData(
+                        KML.Data(
+                            KML.value('"Date,{param}\\n{data}"'.format(
+                                    param=meta.variable.name,
+                                    data='\\n'.join(values))
+                            ),
+                            name="csv_data",
+                        ),
+                    ),
+                    KML.description(''),
+                    KML.styleUrl('#smap'),
+                    KML.MultiGeometry(*multigeom_args),
+                )
+                geom_fld.append(pm)
+            doc.Document.append(geom_fld)
+
+#            for time in s.query(db.Time).all():
+#                # create a folder for the time
+#                timefld = KML.Folder(
+##                    KML.Style(
+##                      KML.ListStyle(
+##                        KML.listItemType('checkHideChildren'),
+##                        KML.bgColor('00ffffff'),
+##                        KML.maxSnippetLines('2'),
+##                      ),
+##                    ),
+#                    KML.name(time.as_xml_date()),
+#                    # placemarks will be appended here
+#                )
+#                for val in time.values:
+#                    poly_desc = (
+#                        '<table border="1">'
+#                          '<tbody>'
+#                            '<tr><th>Variable</th><td>{variable}</td></tr>'
+#                            '<tr><th>Date/Time (UTC)</th><td>{time}</td></tr>'
+#                            '<tr><th>Value</th><td>{value:.{digits}f} {units}</td></tr>'
+#                          '</tbody>'
+#                        '</table>'
+#                    ).format(
+#                        variable=meta.variable.name,
+#                        time=val.time_ref.as_xml_date(),
+#                        value=val.value,
+#                        digits=3,
+#                        units=meta.variable.units,
+#                    )
+#                    
+#                    coords = val.geometry.as_kml_coords()
+#                    timefld.append(
+#                      KML.Placemark(
+#                        KML.name('Geometry'),
+#                        KML.description(poly_desc),
+#                        KML.styleUrl('#smap'),
+#                        KML.Polygon(
+#                          KML.tessellate('1'),
+#                          KML.outerBoundaryIs(
+#                            KML.LinearRing(
+#                              KML.coordinates(coords),
+#                            ),
+#                          ),
+#                        ),
+#                      )
+#                    )
+#                doc.Document.append(timefld)
+#            pass
         finally:
             s.close()
         
-        # return the pretty print sting
-        return(etree.tostring(doc, pretty_print=True))
+        # return the pretty print string
+        output = etree.tostring(doc, pretty_print=True)
+        # Unescape newline characters 
+        #return(output.replace('&amp;#10;','\\n'))
+        return(output)
 
 
 class KmzConverter(KmlConverter):

@@ -4,14 +4,25 @@ import math
 
 
 class OcgConverter(object):
+    """
+    db -- Database module.
+    base_name -- Name of the output file to create (i.e. 'foo.shp').
+    use_stat=False -- Set to True to use data from the statistics table.
+    meta=None -- MetaConverter object.
+    use_geom=False -- Set to True to only write the geometry table. Flag for
+        subclasses to alter operations.
+    """
     
-    def __init__(self,db,base_name,use_stat=False,meta=None):
+    def __init__(self,db,base_name,use_stat=False,meta=None,use_geom=False):
         self.db = db
         self.base_name = base_name
         self.use_stat = use_stat
         self.meta = meta
+        self.use_geom = use_geom
         
-        if self.use_stat:
+        if self.use_geom:
+            self.value_table = self.db.Geometry
+        elif self.use_stat:
             self.value_table = self.db.Stat
         else:
             self.value_table = self.db.Value

@@ -12,6 +12,11 @@ from sqlalchemy.types import Float, Integer, Date, DateTime
 
 class ShpConverter(OcgConverter):
     __exts__ = ['shp','shx','prj','dbf']
+    """
+    <include *args and **kwds from OcgConverter>
+    layer='lyr' -- Name of the layer to create in the shapefile.
+    srid=4326 -- Destination SRID for the data.
+    """
     
     def __init__(self,*args,**kwds):
         self.layer = kwds.pop('layer','lyr')
@@ -35,8 +40,16 @@ class ShpConverter(OcgConverter):
         self.srs.ImportFromEPSG(self.srid)
     
     def _set_ogr_fields_(self):
+        ## limit the attributes in the "use_geom" case
+        if self.use_geom:
+            attrs = ["gid"]
+        else:
+            attrs = None
         ## create shapefile base attributes
         for c in self.value_table.__mapper__.columns:
+            if attrs is not None:
+                if c.name not in attrs:
+                    continue
             self.ogr_fields.append(OgrField(self.fcache,c.name,c.type))
             if c.name == 'tid' and not self.use_stat:
                 self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
@@ -50,7 +63,10 @@ class ShpConverter(OcgConverter):
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        headers = self.get_headers(self.value_table,adds=['WKT'])
+        if self.use_geom:
+            headers = ['GID','WKT']
+        else:
+            headers = self.get_headers(self.value_table,adds=['WKT'])
         if 'TID' in headers:
             headers.insert(headers.index('TID')+1,'TIME')
         return(self.get_iter(self.value_table,headers))
@@ -67,12 +83,11 @@ class ShpConverter(OcgConverter):
             check_err(layer.CreateField(ogr_field.ogr_field))
                 
         feature_def = layer.GetLayerDefn()
-
+        
         for attr in (self._get_iter_()):
             feat = ogr.Feature(feature_def)
             ## pull values 
             for o in self.ogr_fields:
-#                import ipdb;ipdb.set_trace()
                 val = attr[o.orig_name.upper()]
                 args = [o.ogr_name,val]
                 try:

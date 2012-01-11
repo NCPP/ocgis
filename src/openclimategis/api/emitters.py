@@ -9,6 +9,9 @@ from django.conf import settings
 import time
 
 import logging
+from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
+from util.ncconv.experimental.helpers import user_geom_to_db
+from django.core import serializers
 logger = logging.getLogger(__name__)
 
 
@@ -86,17 +89,32 @@ class SubOcgDataEmitter(IdentityEmitter):
     
     def _render_(self,request):
         logger.info("starting {0}.render()...".format(self.__converter__.__name__))
-#        import ipdb;ipdb.set_trace()
-        self.sub = self.construct()
-        self.db = self.get_db()
         self.request = request
-        if request.ocg.query.use_stat:
-            st = OcgStat(self.db,
-                         self.sub,
-                         request.ocg.query.grouping,
-                         procs=settings.MAXPROCESSES)
-            st.calculate_load(self.request.ocg.query.functions)
-        self.cfvar = request.ocg.simulation_output.variable.code
+        ## if it is a usergeometrymetdata object, run a different "flavor" of
+        ## the converter.
+        payload = self.construct()
+        if isinstance(payload,SubOcgDataset):
+            self.use_geom = False
+            self.sub = payload
+            self.db = self.get_db()
+            if request.ocg.query.use_stat:
+                st = OcgStat(self.db,
+                             self.sub,
+                             request.ocg.query.grouping,
+                             procs=settings.MAXPROCESSES)
+                st.calculate_load(self.request.ocg.query.functions)
+            self.cfvar = request.ocg.simulation_output.variable.code
+        else:
+            ## first try the case when it is a usergeometry object
+            try:
+                self.use_geom = True
+                self.cfvar = self.request.url_args['code']
+                self.db = user_geom_to_db(payload[0].pk)
+            ## next assume you just need to serialize and manage accordingly
+            except:
+                json_serializer = serializers.get_serializer("json")()
+                j = json_serializer.serialize(payload,ensure_ascii=False)
+                return(j)
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(self.get_response())
@@ -107,7 +125,8 @@ class SubOcgDataEmitter(IdentityEmitter):
     def get_converter(self):
         return(self.__converter__(self.db,
                                   self.cfvar+self.__file_ext__,
-                                  use_stat=self.request.ocg.query.use_stat))
+                                  use_stat=self.request.ocg.query.use_stat,
+                                  use_geom=self.use_geom))
         
     def get_response(self):
         return(self.converter.response())
@@ -119,18 +138,22 @@ class ZippedSubOcgDataEmitter(SubOcgDataEmitter):
         base_response = super(ZippedSubOcgDataEmitter,self)._render_(request)
         response = HttpResponse()
         response['Content-Disposition'] = 'attachment; filename={0}.zip'.\
-            format(request.ocg.simulation_output.variable.code)
+            format(self.cfvar)
         response['Content-length'] = str(len(base_response))
         response['Content-Type'] = 'application/zip'
         response.write(base_response)
         return(response)
     
     def get_converter(self):
-        meta = ocg_converter.MetacontentConverter(self.request)
+        if not self.use_geom:
+            meta = ocg_converter.MetacontentConverter(self.request)
+        else:
+            meta = None
         return(self.__converter__(self.db,
                                   self.cfvar+self.__file_ext__,
                                   use_stat=self.request.ocg.query.use_stat,
-                                  meta=meta))
+                                  meta=meta,
+                                  use_geom=self.use_geom))
     
     
 class MetacontentEmitter(SubOcgDataEmitter):
@@ -238,10 +261,10 @@ class NcEmitter(SubOcgDataEmitter):
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')
 Emitter.register('lshz',LinkedShapefileEmitter,'application/zip; charset=utf-8')
-#Emitter.unregister('json')
+Emitter.unregister('json')
 Emitter.register('kml',KmlEmitter,'application/vnd.google-earth.kml+xml')
 Emitter.register('kmz',KmzEmitter,'application/vnd.google-earth.kmz')
-Emitter.register('geojson',GeoJsonEmitter,'text/plain; charset=utf-8')
+Emitter.register('json',GeoJsonEmitter,'text/plain; charset=utf-8')
 Emitter.register('csv',CsvEmitter,'text/csv; charset=utf-8')
 Emitter.register('kcsv',LinkedCsvEmitter,'application/zip; charset=utf-8')
 Emitter.register('sqlite',SqliteEmitter,'application/zip; charset=utf-8')

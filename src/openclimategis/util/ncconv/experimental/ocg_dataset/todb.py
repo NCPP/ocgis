@@ -1,7 +1,7 @@
 from util.ncconv.experimental import ploader as pl
 from util.helpers import get_temp_path
 from sqlalchemy.pool import NullPool
-from util.ncconv.experimental.helpers import get_sr, get_area, timing
+from util.ncconv.experimental.helpers import get_sr, get_area, timing, init_db
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 import subprocess
@@ -55,35 +55,20 @@ def sub_to_db(sub,
     wkt=True -- Insert the geomtry's WKT representation.
     wkb=False -- Insert the geometry's WKB representation.
     as_multi=True -- Convert geometries to shapely.MultiPolygon.
-    to_disk=False -- Write the database to disk.
+    to_disk=False -- Write the database to disk (applicable for SQLite).
     procs=1 -- Number of processes to use when loading data.
     engine=None (sqlalchemy.Engine) -- An optional engine to pass overloading
         the creation of other backends. Useful to use PostGRES instead of
         SQLite for example.
     """
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm.session import sessionmaker
-    from util.ncconv.experimental import db
     
     if engine is None:
         use_lock = True
-        path = 'sqlite://'
-        if to_disk or procs > 1:
-            path = path + '/' + get_temp_path('.sqlite',nest=True)
-            db.engine = create_engine(path,
-                                      poolclass=NullPool)
-        else:
-            db.engine = create_engine(path,
-    #                                      connect_args={'check_same_thread':False},
-    #                                      poolclass=StaticPool
-                                      )
     else:
         use_lock = False
-        db.engine = engine
-    
-    db.metadata.bind = db.engine
-    db.Session = sessionmaker(bind=db.engine)
-    db.metadata.create_all()
+
+    ## initialize the db
+    db = init_db(engine=engine,to_disk=to_disk,procs=procs)
 
     print('  loading geometry...')
     ## spatial reference for area calculation

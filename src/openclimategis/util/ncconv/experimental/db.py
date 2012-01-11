@@ -1,8 +1,6 @@
-from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData, Column, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
-from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.types import Integer, Float, String, DateTime, Date
+from sqlalchemy.types import Integer, Float, String, DateTime
 from sqlalchemy.orm import relationship
 
 
@@ -14,7 +12,7 @@ Base = declarative_base(metadata=metadata)
 class Geometry(Base):
     __tablename__ = 'geometry'
     gid = Column(Integer,primary_key=True)
-    area_m2 = Column(Float,nullable=False)
+    area_m2 = Column(Float,nullable=True)
     wkt = Column(String,nullable=True)
     wkb = Column(String,nullable=True)
     

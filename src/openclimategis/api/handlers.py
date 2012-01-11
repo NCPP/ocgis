@@ -241,7 +241,7 @@ class AoiHandler(NonSpatialHandler):
         except:
             query = self.model.objects.all()
         #temp = query[0]
-        return query
+        return(query)
 
 
 class QueryHandler(NonSpatialHandler):

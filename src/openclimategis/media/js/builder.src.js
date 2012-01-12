@@ -1,5 +1,20 @@
 /*global Ext, google*/
 var App, blah;
+/*
+Ext.require([
+    'Ext.Component',
+    'Ext.container.Viewport',
+    'Ext.data.Model',
+    'Ext.data.reader.Json',
+    'Ext.data.Store',
+    'Ext.data.TreeStore',
+    'Ext.form.FieldContainer',
+    'Ext.form.field.*',
+    'Ext.Panel',
+    'Ext.toolbar.Toolbar',
+    'Ext.tree.*'
+    ]);
+*/
 ///////////////////////////////////////////////////////////////////// Overrides
 Ext.define('App.ui.ComboBox', {
     override: 'Ext.form.field.ComboBox',
@@ -33,6 +48,7 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
+/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -56,14 +72,13 @@ Ext.define('App.ui.MapPanel', {
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
-/*
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
                 });
-*/
             }
         }
     }); // No callback (third argument)
+*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -124,35 +139,36 @@ Ext.define('App.ui.TreePanel', {
     extend: 'Ext.tree.Panel',
     alias: 'widget.treepanel'
     });
+Ext.define('App.Function', {
+    extend: 'Ext.data.Model',
+    fields: [
+        {name: 'text', type: 'string'},
+        {name: 'leaf', type: 'boolean'},
+        {name: 'children', type: 'auto'},
+        {name: 'value', type: 'string'},
+        {name: 'desc', type: 'string'}
+        ]
+    });
+////////////////////////////////////////////////////////////////////////////////
 Ext.application({
     name: 'App',
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
-            stats: Ext.create('Ext.data.TreeStore', {
+            functions: Ext.create('Ext.data.TreeStore', {
+                model: 'App.Function',
+                autoLoad: false,
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/functions.json',
+                    reader: {
+                        type: 'json'
+                        }
+                    },
                 sorters: [
                     {property: 'leaf', direction: 'ASC'},
                     {property: 'text', direction: 'ASC'}
-                    ],
-                root: {
-                    expanded: true,
-                    children: [
-                        {text: 'Basic Statistics', expanded: true,
-                            children: [
-                                {text: 'Minimum', checked: false, leaf: true},
-                                {text: 'Maximum', checked: false, leaf: true},
-                                {text: 'Mean', checked: false, leaf: true}
-                                ]
-                            },
-                        {text: 'Thresholds', expanded: true,
-                            children: [
-                                {text: 'Less than', checked: false, leaf: true},
-                                {text: 'Greater than', checked: false, leaf: true},
-                                {text: 'Between', checked: false, leaf: true}
-                                ]
-                            }
-                        ] // eo children
-                    } // eo root
+                    ]
                 })
             };
         //////////////////////////////////////////////////////////// Components
@@ -195,7 +211,7 @@ Ext.application({
                                     itemId: 'stats-tree',
                                     title: 'Temporal',
                                     region: 'center',
-                                    store: App.data.stats,
+                                    store: App.data.functions,
                                     rootVisible: false,
                                     tbar: [
                                         {
@@ -224,7 +240,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'mappanel',
+                            xtype: 'panel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',

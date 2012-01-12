@@ -33,9 +33,8 @@ class OcgFunctionTree(object):
         
     def json(self):
         children = [Group().format() for Group in self.Groups]
-        ret = {'root':dict(expanded=True,
-                           children=children)}
-        return(json.dumps(ret))
+        # ret = {'nodes': dict(expanded=True, children=children)}
+        return(json.dumps(children))
     
     def find(self,name):
         for Group in self.Groups:

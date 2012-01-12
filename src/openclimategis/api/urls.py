@@ -69,6 +69,10 @@ urlpatterns = patterns('',
 ##       spatial/<operation(intersects|clip)>+(<wkt>|<aoi id>)/
 ##       grid.<format>
 
+### FUNCTION DEFINITION JSON ---------------------------------------------------
+
+    (r'^functions.json','api.views.get_function_json'),
+
 ### METACONTENT ----------------------------------------------------------------
 
     url(r'^{re_archive}/{re_model}/{re_scenario}/{re_run}/{re_temporal}/{re_spatial}/'

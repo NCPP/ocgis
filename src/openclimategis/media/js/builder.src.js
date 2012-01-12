@@ -1,134 +1,133 @@
 /*global Ext, google*/
-var blah;
+var App, blah;
+///////////////////////////////////////////////////////////////////// Overrides
+Ext.define('App.ui.ComboBox', {
+    override: 'Ext.form.field.ComboBox',
+    initialize: function() {
+        this.callOverridden(arguments);
+        },
+    labelWidth: 120
+    });
+Ext.define('App.ui.Toolbar', {
+    override: 'Ext.toolbar.Toolbar',
+    initialize: function() {
+        this.callOverridden(arguments);
+        },
+    height: 28
+    });
+/////////////////////////////////////////////////////////////////////// Classes
+Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
+    extend: 'Ext.Component',
+    alias: 'widget.markup',
+    frame: false,
+    border: 0
+    }); // No callback (third argument)
+Ext.define('App.ui.Container', { // Children should only be panels
+    extend: 'Ext.Panel',
+    alias: 'widget.container',
+    resizable: true
+    }); // No callback (third argument)
+Ext.define('App.ui.NestedPanel', { // Padded bodies
+    extend: 'Ext.Panel',
+    alias: 'widget.nested',
+    resizable: true,
+    bodyPadding: 7
+    }); // No callback (third argument)
+Ext.define('App.ui.MapPanel', {
+    extend: 'Ext.Panel',
+    alias: 'widget.mappanel',
+    initComponent : function(){
+        var config = {
+            layout: 'fit',
+            mapConfig: {
+                center: new google.maps.LatLng(42.30220, -83.68952),
+                zoom: 8,
+                type: google.maps.MapTypeId.ROADMAP
+                }
+            };
+        Ext.applyIf(this, config);
+        this.callParent();        
+        },
+    listeners: {
+        afterrender: function() {
+            new google.maps.Map(this.body.dom, {
+                center: new google.maps.LatLng(42.30220, -83.68952),
+                zoom: 8,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+                });
+            // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
+/*
+            google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
+                self.fireEvent('mapready');
+                });
+*/
+            }
+        }
+    }); // No callback (third argument)
+Ext.define('App.ui.DateRange', {
+    extend: 'Ext.form.FieldContainer',
+    alias: 'widget.daterange',
+    msgTarget: 'side',
+    layout: 'hbox',
+    defaults: {
+        width: 90,
+        hideLabel: true,
+        vtype: 'daterange'
+        },
+    items: [
+        {
+            xtype: 'datefield',
+            name: 'startDate',
+            itemId: 'date-start',
+            endDateField: 'date-end',
+            emptyText: 'Start',
+            margin: '0 5 0 0'
+            },
+        {
+            xtype: 'datefield',
+            name: 'endDate',
+            itemId: 'date-end',
+            startDateField: 'date-start',
+            emptyText: 'End'
+            }
+        ]
+    }, function() { // Callback function
+        Ext.apply(Ext.form.VTypes, {
+            daterange: function(val, field) {
+                var date = field.parseDate(val), start, end;
+                if (!date) {
+                    return false;
+                    }
+                if (field.startDateField) {
+                    start = field.ownerCt.getComponent(field.startDateField);
+                    if (!start.maxValue || (date.getTime() !== start.maxValue.getTime())) {
+                        start.setMaxValue(date);
+                        start.validate();
+                        }
+                    }
+                else if (field.endDateField) {
+                    end = field.ownerCt.getComponent(field.endDateField);
+                    if (!end.minValue || (date.getTime() !== end.minValue.getTime())) {
+                        end.setMinValue(date);
+                        end.validate();
+                        }
+                    }
+                /**
+                 * Always return true since we're only using this vtype to set the
+                 * min/max allowed values (these are tested for after the vtype test)
+                 */
+                return true;
+                }
+            });
+        });
+Ext.define('App.ui.TreePanel', {
+    extend: 'Ext.tree.Panel',
+    alias: 'widget.treepanel'
+    });
 Ext.application({
     name: 'App',
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
-        ///////////////////////////////////////////////////////////// Overrides
-        Ext.define('App.ui.ComboBox', {
-            override: 'Ext.form.field.ComboBox',
-            initialize : function() {
-                this.callOverridden(arguments);
-                },
-            labelWidth: 120
-            });
-        Ext.define('App.ui.Toolbar', {
-            override: 'Ext.toolbar.Toolbar',
-            initialize : function() {
-                this.callOverridden(arguments);
-                },
-            height: 28
-            });
-        /////////////////////////////////////////////////////////////// Classes
-        Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
-            extend: 'Ext.Component',
-            alias: 'widget.markup',
-            frame: false,
-            border: 0
-            }); // No callback (third argument)
-        Ext.define('App.ui.Container', { // Children should only be panels
-            extend: 'Ext.Panel',
-            alias: 'widget.container',
-            resizable: true
-            }); // No callback (third argument)
-        Ext.define('App.ui.NestedPanel', { // Padded bodies
-            extend: 'Ext.Panel',
-            alias: 'widget.nested',
-            resizable: true,
-            bodyPadding: 7
-            }); // No callback (third argument)
-        Ext.define('App.ui.MapPanel', {
-            extend: 'Ext.Panel',
-            alias: 'widget.mappanel',
-            initComponent : function(){
-                var config = {
-                    layout: 'fit',
-                    mapConfig: {
-                        center: new google.maps.LatLng(42.30220, -83.68952),
-                        zoom: 8,
-                        type: google.maps.MapTypeId.ROADMAP
-                        }
-                    };
-                Ext.applyIf(this, config);
-                this.callParent();        
-                },
-            listeners: {
-                afterrender: function() {
-                    new google.maps.Map(this.body.dom, {
-                        center: new google.maps.LatLng(42.30220, -83.68952),
-                        zoom: 8,
-                        mapTypeId: google.maps.MapTypeId.ROADMAP
-                        });
-                    // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
-/*
-                    google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
-                        self.fireEvent('mapready');
-                        });
-*/
-                    }
-                }
-            }); // No callback (third argument)
-        Ext.define('App.ui.DateRange', {
-            extend: 'Ext.form.FieldContainer',
-            alias: 'widget.daterange',
-            msgTarget: 'side',
-            layout: 'hbox',
-            defaults: {
-                width: 90,
-                hideLabel: true,
-                vtype: 'daterange'
-                },
-            items: [
-                {
-                    xtype: 'datefield',
-                    name: 'startDate',
-                    itemId: 'date-start',
-                    endDateField: 'date-end',
-                    emptyText: 'Start',
-                    margin: '0 5 0 0'
-                    },
-                {
-                    xtype: 'datefield',
-                    name: 'endDate',
-                    itemId: 'date-end',
-                    startDateField: 'date-start',
-                    emptyText: 'End'
-                    }
-                ]
-            }, function() { // Callback function
-                Ext.apply(Ext.form.VTypes, {
-                    daterange: function(val, field) {
-                        var date = field.parseDate(val), start, end;
-                        if (!date) {
-                            return false;
-                            }
-                        if (field.startDateField) {
-                            start = field.ownerCt.getComponent(field.startDateField);
-                            if (!start.maxValue || (date.getTime() !== start.maxValue.getTime())) {
-                                start.setMaxValue(date);
-                                start.validate();
-                                }
-                            }
-                        else if (field.endDateField) {
-                            end = field.ownerCt.getComponent(field.endDateField);
-                            if (!end.minValue || (date.getTime() !== end.minValue.getTime())) {
-                                end.setMinValue(date);
-                                end.validate();
-                                }
-                            }
-                        /**
-                         * Always return true since we're only using this vtype to set the
-                         * min/max allowed values (these are tested for after the vtype test)
-                         */
-                        return true;
-                        }
-                    });
-                });
-        Ext.define('App.ui.TreePanel', {
-            extend: 'Ext.tree.Panel',
-            alias: 'widget.treepanel'
-            });
-        //////////////////////////////////////////////////////////// Structures
         App.data = {
             stats: Ext.create('Ext.data.TreeStore', {
                 sorters: [
@@ -229,40 +228,38 @@ Ext.application({
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
-                            tbar: {
-                                items: [
-                                    {
-                                        xtype: 'combo',
-                                        fieldLabel: 'Area-of-Interest (AOI)',
-                                        emptyText: '(None Selected)',
-                                        style: {textAlign: 'right'}
-                                        },
-                                    ' ',
-                                    {
-                                        xtype: 'button',
-                                        text: 'Manage AOIs',
-                                        iconCls: 'icon-app-edit'
-                                        },
-                                    {
-                                        xtype: 'button',
-                                        text: 'Clip Output to AOI',
-                                        iconCls: 'icon-scissors',
-                                        enableToggle: true
-                                        },
-                                    {
-                                        xtype: 'button',
-                                        text: 'Aggregate Geometries',
-                                        iconCls: 'icon-shape-group',
-                                        enableToggle: true
-                                        },
-                                    '->',
-                                    {
-                                        xtype: 'button',
-                                        text: 'Save Sketch As AOI',
-                                        iconCls: 'icon-disk'
-                                        },
-                                    ] // eo items
-                                } // eo tbar
+                            tbar: [
+                                {
+                                    xtype: 'combo',
+                                    fieldLabel: 'Area-of-Interest (AOI)',
+                                    emptyText: '(None Selected)',
+                                    style: {textAlign: 'right'}
+                                    },
+                                ' ',
+                                {
+                                    xtype: 'button',
+                                    text: 'Manage AOIs',
+                                    iconCls: 'icon-app-edit'
+                                    },
+                                {
+                                    xtype: 'button',
+                                    text: 'Clip Output to AOI',
+                                    iconCls: 'icon-scissors',
+                                    enableToggle: true
+                                    },
+                                {
+                                    xtype: 'button',
+                                    text: 'Aggregate Geometries',
+                                    iconCls: 'icon-shape-group',
+                                    enableToggle: true
+                                    },
+                                '->',
+                                {
+                                    xtype: 'button',
+                                    text: 'Save Sketch As AOI',
+                                    iconCls: 'icon-disk'
+                                    }
+                                ] // eo items
                             },
                         { // Data request URL
                             xtype: 'nested',
@@ -270,24 +267,22 @@ Ext.application({
                             region: 'south',
                             height: 150,
                             title: 'Data Request URL',
-                            bbar: {
-                                items: [
-                                    {
-                                        xtype: 'button',
-                                        iconCls: 'icon-page-do',
-                                        text: 'Generate Data File'
-                                        },
-                                    {
-                                        xtype: 'progressbar',
-                                        width: 180
-                                        },
-                                    {
-                                        xtype: 'tbtext',
-                                        text: 'No activity',
-                                        style: {fontStyle: 'italic'}
-                                        }
-                                    ] // eo items
-                                } // eo bbar
+                            bbar: [
+                                {
+                                    xtype: 'button',
+                                    iconCls: 'icon-page-do',
+                                    text: 'Generate Data File'
+                                    },
+                                {
+                                    xtype: 'progressbar',
+                                    width: 180
+                                    },
+                                {
+                                    xtype: 'tbtext',
+                                    text: 'No activity',
+                                    style: {fontStyle: 'italic'}
+                                    }
+                                ] // eo items
                             } // eo nested
                         ] // eo items
                     },
@@ -298,12 +293,12 @@ Ext.application({
                     width: 150,
                     collapsed: true,
                     collapsible: true
-                    },
+                    }
                 ] // eo items
             }); // eo Ext.create
         // Add items to the Data Selection panel ///////////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('data-sel');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('data-selection');
             p.add([
                 {
                     xtype: 'combo',
@@ -330,7 +325,7 @@ Ext.application({
                     fieldLabel: 'Date Range',
                     labelWidth: 80,
                     width: 290
-                    },
+                    }
                 ]);
             }()); // Execute immediately
         // Add items to the Output Format panel ////////////////////////////////

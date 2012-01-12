@@ -21,10 +21,10 @@ class Geometry(Base):
 #        pass
     
     def as_kml_coords(self):
-        '''converts to a KML-formatted coordinate string'''
+        '''converts to a list of KML-formatted coordinate strings'''
         from django.contrib.gis.gdal import OGRGeometry
         from pykml.parser import fromstring
-        return fromstring(OGRGeometry(self.wkt).kml).find('.//coordinates').text
+        return fromstring(OGRGeometry(self.wkt).kml).findall('.//coordinates')
     
     
 class Time(Base):
@@ -76,7 +76,8 @@ class Value(AbstractValue,Base):
     level = Column(Integer,nullable=False)
     value = Column(Float,nullable=False)
     
-    time_ref = relationship(Time,backref="value")
+    time_ref = relationship(Time,backref="values")
+    geometry_ref = relationship(Geometry,backref="values")
 
     @property
     def time(self):

@@ -1,5 +1,5 @@
 from django import forms
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponse
 from django.shortcuts import render_to_response
 from django.shortcuts import redirect
 from django.core.exceptions import ValidationError
@@ -18,7 +18,6 @@ from django.contrib.gis.geos import fromstr
 from climatedata import models
 from django.db import transaction
 from shapely.geos import ReadingError
-from util.ncconv.experimental.ocg_stat import OcgStatFunction
 
 
 CHOICES_AGGREGATE = [
@@ -40,6 +39,12 @@ CHOICES_EXT = [
     ('sqlite','SQLite3 Database (zipped)'),
     ('nc','NetCDF')
 ]
+
+def get_function_json(request):
+    from util.ncconv.experimental.ocg_stat import OcgStatFunction
+    json = OcgStatFunction().json()
+    response = HttpResponse(json,content_type='application/json')
+    return(response)
 
 def get_SpatialQueryForm(simulation_output):
     ## the dataset object contains the test values

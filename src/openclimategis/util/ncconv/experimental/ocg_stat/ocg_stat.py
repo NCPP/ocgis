@@ -2,14 +2,14 @@ from sqlalchemy.types import Integer, Float
 from sqlalchemy.schema import Column, ForeignKey
 import numpy as np
 from util.ncconv.experimental.ordered_dict import OrderedDict
-import re
-import inspect
 from sqlalchemy.exc import InvalidRequestError, OperationalError
 from util.ncconv.experimental.helpers import timing, array_split,\
     check_function_dictionary
 from multiprocessing import Manager
 from multiprocessing.process import Process
-import ploader as pl
+from base import OcgFunctionTree
+import groups
+from util.ncconv.experimental import ploader as pl
 
 
 class OcgStat(object):
@@ -97,12 +97,6 @@ class OcgStat(object):
         funcs = [{'function':len,'name':'count'}] + funcs
         ## check the function definition dictionary for common problems
         check_function_dictionary(funcs)
-        ## precalc the function name if none is provided
-        for f in funcs:
-            if 'name' not in f:
-                ## just the function name if the argument test exception was not
-                ## triggered.
-                f.update({'name':f.get('name',f['function'].__name__)})
         ## convert the time vector for faster referencing
         time_conv = [[getattr(time,grp) for grp in self.time_grouping] 
                      for time in self.sub.timevec]
@@ -120,7 +114,7 @@ class OcgStat(object):
             self.run_parallel(processes)
         else:
             self.f_calculate(all_attrs,self.sub,self.groups[0],funcs,time_conv,self.time_grouping)
-            
+
         return(all_attrs)
     
     @timing   
@@ -165,122 +159,15 @@ class OcgStat(object):
             self.db.Stat.__table__.create()
 
 
-class OcgStatFunction(object):
+class OcgStatFunction(OcgFunctionTree):
     """
-    >>> functions = ['mean','median','max','min','gt2','between1,2']
+    >>> functions = ['mean','median','max','min','gt(2)','between(1,2)']
     >>> stat = OcgStatFunction()
     >>> function_list = stat.get_function_list(functions)
-    >>> potentials = stat.get_potentials()
+    >>> import ipdb;ipdb.set_trace()
     """
     
-    _descs = {
-        'min': 'Minimum value in the series',
-        'max': 'Maximum value in the series',
-        'mean': 'Mean value for the series',
-        'median': 'Median value for the series',
-        'std': 'Standard deviation for the series',
-        'gt':'Count of values greater than {0} in the series (exclusive).',
-        'between':'Count of values between {0} and {1} (inclusive).',
-        'len':'Sample size of the series.'
-#        'gt_thirty_two_point_two': 'Count of values greater than 32.2',
-#        'gt_thirty_five': 'Count of values greater than 35',
-#        'gt_thirty_seven_point_eight': 'Count of values greater than 37.8',
-#        'lt_zero': 'Count of values less than 0',
-#        'lt_negative_twelve_point_two': 'Count of values less than -12.2',
-#        'lt_negative_seventeen_point_seven': 'Count of values less than -17.7',
-              }
-    
-    def get_function_list(self,functions):
-        funcs = []
-        for f in functions:
-            fname = re.search('([A-Za-z_]+)',f).group(1)
-            try:
-                args = re.search('([\d,]+)',f).group(1)
-            except AttributeError:
-                args = None
-            attrs = {'function':getattr(self,fname)}
-            if args is not None:
-                args = [float(a) for a in args.split(',')]
-                attrs.update({'args':args})
-            if ':' in f:
-                attrs.update({'name':f.split(':')[1]})
-            funcs.append(attrs)
-        return(funcs)
-    
-    @classmethod
-    def get_potentials(cls):
-        filters = ['_','get_'] # filter out methods that start with these strings
-        ret = []
-        for member in inspect.getmembers(cls):
-            if inspect.isfunction(member[1]):
-                test = [member[0].startswith(filter) for filter in filters]
-                if not any(test):
-                    ret.append([member[0],cls._descs.get(member[0],member[0])])
-        return(ret)
-    
-    @staticmethod
-    def mean(values):
-        return(np.mean(values))
-    
-    @staticmethod
-    def median(values):
-        return(np.median(values))
-    
-    @staticmethod
-    def std(values):
-        return(np.std(values))
-    
-    @staticmethod
-    def max(values):
-        return(max(values))
-    
-    @staticmethod
-    def min(values):
-        return(min(values))
-    
-#    @staticmethod
-#    def gt_thirty_two_point_two(values):
-#        days = filter(lambda x: x > 32.2, values)
-#        return(len(days))
-#    
-#    @staticmethod
-#    def gt_thirty_five(values):
-#        days = filter(lambda x: x > 35, values)
-#        return(len(days))
-#    
-#    @staticmethod
-#    def gt_thirty_seven_point_eight(values):
-#        days = filter(lambda x: x > 37.8, values)
-#        return(len(days))
-#    
-#    @staticmethod
-#    def lt_zero(values):
-#        days = filter(lambda x: x < 0, values)
-#        return(len(days))
-#    
-#    @staticmethod
-#    def lt_negative_twelve_point_two(values):
-#        days = filter(lambda x: x < -12.2, values)
-#        return(len(days))
-#    
-#    @staticmethod
-#    def lt_negative_seventeen_point_seven(values):
-#        days = filter(lambda x: x < -17.7, values)
-#        return(len(days))
-    
-    @staticmethod
-    def gt(values,threshold=None):
-        if threshold is None:
-            raise(ValueError('a threshold must be passed'))
-        days = filter(lambda x: x > threshold, values)
-        return(len(days))
-    
-    @staticmethod
-    def between(values,lower=None,upper=None):
-        if lower is None or upper is None:
-            raise(ValueError('a lower and upper limit are required'))
-        days = filter(lambda x: x >= lower and x <= upper, values)
-        return(len(days))
+    Groups = [groups.BasicStatistics,groups.Thresholds]
     
     
 if __name__ == '__main__':

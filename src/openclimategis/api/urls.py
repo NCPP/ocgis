@@ -21,8 +21,6 @@ metacontent_handler = Resource(handlers.MetacontentHandler)
 nonspatial_formats = '|'.join([
     'html',
     'json',
-    #'csv',
-    #'kcsv',
 ])
 spatial_formats = '|'.join([
     'html',
@@ -30,6 +28,9 @@ spatial_formats = '|'.join([
     'kml',
     'kmz',
     'shz',
+    'lshz',
+    'csv',
+    'kcsv',
 ])
 
 re_archive = 'archive/(?P<archive>.*)'
@@ -40,7 +41,9 @@ re_temporal = 'temporal/(?P<temporal>.*)'
 re_spatial = 'spatial/(?P<operation>intersects|clip)\+(?P<aoi>.*)'
 re_aggregate = 'aggregate/(?P<aggregate>true|false)'
 re_variable = 'variable/(?P<variable>.*)'
-re_format = '\.(?P<emitter_format>.*)'
+#re_format = '\.(?P<emitter_format>.*)'
+re_spatial_format = '\.(?P<emitter_format>{0})'.format(spatial_formats)
+re_nonspatial_format = '\.(?P<emitter_format>{0})'.format(nonspatial_formats)
 re_urlslug = '(?P<urlslug>[\.\(\)A-Za-z0-9_-]+)'
 re_code = '(?P<code>[\.\(\)A-Za-z0-9_-]+)'
 re_id = '(?P<id>\d+)'
@@ -97,7 +100,7 @@ urlpatterns = patterns('',
     re_aggregate=re_aggregate,
     re_variable=re_variable,
     re_run=re_run,
-    re_format=re_format,
+    re_format=re_spatial_format,
     )),
    spatial_handler
  ),
@@ -120,7 +123,7 @@ urlpatterns = patterns('',
     #r'^archives(?:\.(?P<emitter_format>.*))?$'.format(re_format=re_format),
     url(
         (r'^archives{re_format}$').format(
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         archive_handler, 
         {
@@ -144,7 +147,7 @@ urlpatterns = patterns('',
     url(
         (r'^archives/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         archive_handler,
         {
@@ -171,7 +174,7 @@ urlpatterns = patterns('',
     # collection of climate model resources
     url(
         (r'^models{re_format}$').format(
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         climatemodel_handler, 
         {
@@ -195,7 +198,7 @@ urlpatterns = patterns('',
     url(
         (r'^models/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         climatemodel_handler,
         {
@@ -223,7 +226,7 @@ urlpatterns = patterns('',
     # collection of emissions scenario resources
     url(
         (r'^scenarios{re_format}$').format(
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         scenario_handler, 
         {
@@ -247,7 +250,7 @@ urlpatterns = patterns('',
     url(
         (r'^scenarios/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         scenario_handler,
         {
@@ -274,7 +277,7 @@ urlpatterns = patterns('',
     # collection of output variable resources
     url(
         (r'^variables{re_format}$').format(
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         variable_handler, 
         {
@@ -298,7 +301,7 @@ urlpatterns = patterns('',
     url(
         (r'^variables/{re_urlslug}{re_format}$').format(
             re_urlslug=re_urlslug,
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         variable_handler,
         {
@@ -326,7 +329,7 @@ urlpatterns = patterns('',
     # collection of simulation output resources
     url(
         (r'^simulations{re_format}$').format(
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         simulationoutput_handler, 
         {
@@ -350,7 +353,7 @@ urlpatterns = patterns('',
     url(
         (r'^simulations/{re_id}{re_format}$').format(
             re_id=re_id,
-            re_format=re_format,
+            re_format=re_nonspatial_format,
         ),
         simulationoutput_handler,
         {
@@ -378,7 +381,7 @@ urlpatterns = patterns('',
     # collection of AOI resources
     url(
         (r'^aois{re_format}$').format(
-            re_format=re_format,
+            re_format=re_spatial_format,
         ),
         usergeometrydata_handler, 
         {
@@ -402,7 +405,7 @@ urlpatterns = patterns('',
     url(
         (r'^aois/{re_code}{re_format}$').format(
             re_code=re_code,
-            re_format=re_format,
+            re_format=re_spatial_format,
         ),
         usergeometrydata_handler,
         {
@@ -443,7 +446,7 @@ urlpatterns = patterns('',
             re_scenario=re_scenario,
             re_variable=re_variable,
             re_run=re_run,
-            re_format=re_format,
+            re_format=re_spatial_format,
         ),
         query_handler,
         {

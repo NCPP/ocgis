@@ -96,14 +96,10 @@ class SectionFunction(SectionGrouping):
                 continue
             if ii == 0:
                 name = 'COUNT'
-                desc = OcgStatFunction._descs['len']
+                desc = 'Count of values in the series.'
             else:
-                if 'name' in f:
-                    name = f['name']
-                else:
-                    name = f['function'].__name__
-                name = name.upper()
-                desc = OcgStatFunction._descs[f['function'].__name__]
+                name = f['name'].upper()
+                desc = f['desc']
             if 'args' in f:
                 desc = desc.format(*f['args'])
             lines.append(msg.format(name,desc))

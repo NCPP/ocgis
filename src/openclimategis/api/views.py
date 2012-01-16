@@ -18,6 +18,7 @@ from django.contrib.gis.geos import fromstr
 from climatedata import models
 from django.db import transaction
 from shapely.geos import ReadingError
+from util.ncconv.experimental.ocg_stat.ocg_stat import OcgStatFunction
 
 
 CHOICES_AGGREGATE = [

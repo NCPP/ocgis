@@ -16,12 +16,13 @@ Ext.require([
     ]);
 */
 ///////////////////////////////////////////////////////////////////// Overrides
-Ext.define('App.ui.ComboBox', {
-    override: 'Ext.form.field.ComboBox',
+Ext.define('App.ui.BaseField', {
+    override: 'Ext.form.field.Base',
     initialize: function() {
         this.callOverridden(arguments);
         },
-    labelWidth: 120
+    labelWidth: 120,
+    triggerAction: 'all'
     });
 Ext.define('App.ui.Toolbar', {
     override: 'Ext.toolbar.Toolbar',
@@ -30,7 +31,41 @@ Ext.define('App.ui.Toolbar', {
         },
     height: 28
     });
+//////////////////////////////////////////////////////////////////////// Models
+Ext.define('App.api.Archive', {
+    extend: 'Ext.data.Model',
+    fields: ['code', {name: 'id', type: 'int'}, 'name', 'url', 'urlslug']
+    });
+Ext.define('App.api.Function', {
+    extend: 'Ext.data.Model',
+    fields: [
+        'text',
+        {name: 'leaf', type: 'boolean'},
+        {name: 'children', type: 'auto'},
+        'value',
+        'desc'
+        ]
+    });
+Ext.define('App.api.Scenario', {
+    extend: 'Ext.data.Model',
+    fields: ['urlslug', 'description', 'code', 'name', 'id']
+    });
+Ext.define('App.api.Variable', {
+    extend: 'Ext.data.Model',
+    fields: ['ndim', 'urlslug', 'code', 'description', 'units', 'id', 'name']
+    });
 /////////////////////////////////////////////////////////////////////// Classes
+Ext.define('App.ui.ApiComboBox', {
+    extend: 'Ext.form.field.ComboBox',
+    alias: 'widget.apicombo',
+    queryMode: 'remote',
+    valueField: 'id',
+    displayField: 'urlslug',
+    onLoad: function(store) { // Arguments: [store, records, success]
+        // Set the field to the value of the first record, based on store's valueField
+        this.setValue(store.data.items[0].data[this.valueField]);
+        }
+    });
 Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
     extend: 'Ext.Component',
     alias: 'widget.markup',
@@ -48,7 +83,6 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
-/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -66,11 +100,14 @@ Ext.define('App.ui.MapPanel', {
         },
     listeners: {
         afterrender: function() {
-            new google.maps.Map(this.body.dom, {
+            var self = this,
+                drawingManager = new google.maps.drawing.DrawingManager();
+            this.gmap = new google.maps.Map(this.body.dom, {
                 center: new google.maps.LatLng(42.30220, -83.68952),
                 zoom: 8,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
+            drawingManager.setMap(this.gmap);
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
@@ -78,7 +115,6 @@ Ext.define('App.ui.MapPanel', {
             }
         }
     }); // No callback (third argument)
-*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -137,17 +173,8 @@ Ext.define('App.ui.DateRange', {
         });
 Ext.define('App.ui.TreePanel', {
     extend: 'Ext.tree.Panel',
-    alias: 'widget.treepanel'
-    });
-Ext.define('App.Function', {
-    extend: 'Ext.data.Model',
-    fields: [
-        {name: 'text', type: 'string'},
-        {name: 'leaf', type: 'boolean'},
-        {name: 'children', type: 'auto'},
-        {name: 'value', type: 'string'},
-        {name: 'desc', type: 'string'}
-        ]
+    alias: 'widget.treepanel',
+    rootVisible: true
     });
 ////////////////////////////////////////////////////////////////////////////////
 Ext.application({
@@ -155,24 +182,63 @@ Ext.application({
     launch: function() {
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
+            archives: Ext.create('Ext.data.Store', {
+                model: 'App.api.Archive',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/archives.json',
+                    reader: 'json'
+                    }
+                }),
             functions: Ext.create('Ext.data.TreeStore', {
-                model: 'App.Function',
-                autoLoad: false,
+                model: 'App.api.Function',
                 proxy: {
                     type: 'ajax',
                     url: '/api/functions.json',
-                    reader: {
-                        type: 'json'
-                        }
+                    reader: 'json'
                     },
                 sorters: [
                     {property: 'leaf', direction: 'ASC'},
                     {property: 'text', direction: 'ASC'}
-                    ]
+                    ],
+                root: {
+                    text: 'Available Statistics',
+                    expanded: true
+                    }
+                }),
+            outputs: Ext.create('Ext.data.ArrayStore', {
+                fields: ['value', 'text'],
+                data: [
+                    ['geojson', 'GeoJSON Text File'],
+                    ['csv', 'Comma Separated Value'],
+                    ['kcsv', 'Linked Comma Separated Value (zipped)'],
+                    ['shz', 'ESRI Shapefile (zipped)'],
+                    ['lshz', 'CSV-Linked ESRI Shapefile (zipped)'],
+                    ['kml', 'Keyhole Markup Language'],
+                    ['kmz', 'Keyhole Markup Language (zipped)'],
+                    ['sqlite', 'SQLite3 Database (zipped)'],
+                    ['nc', 'NetCDF']
+                    ] 
+                }),
+            scenarios: Ext.create('Ext.data.Store', {
+                model: 'App.api.Scenario',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/scenarios.json',
+                    reader: 'json'
+                    }
+                }),
+            variables: Ext.create('Ext.data.Store', {
+                model: 'App.api.Variable',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/variables.json',
+                    reader: 'json'
+                    }
                 })
             };
         //////////////////////////////////////////////////////////// Components
-        App.viewport = Ext.create('Ext.container.Viewport', { // Viewport
+        App.viewport = Ext.create('Ext.container.Viewport', {
             id: 'viewport',
             layout: 'border',
             items: [
@@ -191,7 +257,7 @@ Ext.application({
                     region: 'center',
                     layout: 'border',
                     items: [
-                        {
+                        { // Sidebar
                             xtype: 'container',
                             itemId: 'sidebar',
                             region: 'west',
@@ -212,19 +278,21 @@ Ext.application({
                                     title: 'Temporal',
                                     region: 'center',
                                     store: App.data.functions,
-                                    rootVisible: false,
                                     tbar: [
                                         {
                                             xtype: 'combo',
                                             fieldLabel: 'Grouping Interval',
                                             labelWidth: 100,
                                             queryMode: 'local',
-                                            value: 'yearmonth',
+                                            value: 'year',
                                             valueField: 'value',
+                                            width: 200,
                                             store: Ext.create('Ext.data.ArrayStore', {
                                                 fields: ['text', 'value'],
                                                 data: [
-                                                    ['Year and month', 'yearmonth']
+                                                    ['Year', 'year'],
+                                                    ['Month', 'month'],
+                                                    ['Day', 'day']
                                                     ] // data
                                                 }) // eo store
                                             } // eo combo
@@ -240,7 +308,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'panel',
+                            xtype: 'mappanel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
@@ -317,24 +385,32 @@ Ext.application({
             var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('data-selection');
             p.add([
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Archive'
+                    xtype: 'apicombo',
+                    fieldLabel: 'Archive',
+                    store: App.data.archives
                     },
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Emissions Scenario'
+                    xtype: 'apicombo',
+                    fieldLabel: 'Emissions Scenario',
+                    displayField: 'code',
+                    store: App.data.scenarios
                     },
                 {
                     xtype: 'combo',
                     fieldLabel: 'Climate Model'
                     },
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Variable'
+                    xtype: 'apicombo',
+                    fieldLabel: 'Variable',
+                    displayField: 'name',
+                    store: App.data.variables
                     },
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Run'
+                    xtype: 'numberfield',
+                    fieldLabel: 'Run',
+                    value: 1,
+                    minValue: 1,
+                    maxValue: 99
                     },
                 {
                     xtype: 'daterange',
@@ -350,7 +426,11 @@ Ext.application({
             p.add([
                 {
                     xtype: 'combo',
-                    width: 200
+                    width: 250,
+                    queryMode: 'local',
+                    valueField: 'value',
+                    value: 'geojson',
+                    store: App.data.outputs
                     }
                 ]);
             }()); // Execute immediately

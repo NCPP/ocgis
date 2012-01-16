@@ -1,5 +1,4 @@
 import re
-import inspect
 import json
 from util.ncconv.experimental.helpers import itersubclasses
 

@@ -1,0 +1,25 @@
+{% extends "app.html" %}
+{% block title %}OpenClimateGIS Query Builder{% endblock title %}
+{% block ext %}
+    <link rel="stylesheet" type="text/css" href="/static/extjs/4.0.7/resources/css/ext-all-gray.css">
+{% block ext-scripts %}
+    <script type="text/javascript" src="/static/extjs/4.0.7/ext-debug.js"></script>
+{% endblock ext-scripts %}
+{% endblock ext %}
+{% block styles %}
+    <!-- Conditional commenting for non-IE browsers -->
+    <!--[if !IE]><!-->
+    <link rel="stylesheet" type="text/css" href="/media/css/ext.css" />
+    <!--<![endif]-->
+
+    <!-- Conditional commenting for IE browsers -->
+    <!--[if IE]>
+    <link rel="stylesheet" type="text/css" href="/media/css/ext.ie.css" />
+    <![endif]-->
+{% endblock styles %}
+{% block scripts %}
+    <script src="http://maps.google.com/maps/api/js?sensor=false&libraries=drawing" type="text/javascript"></script>
+    <script type="text/javascript" src="/media/js/builder.src.js"></script>
+{% endblock scripts %}
+{% block body %}
+{% endblock body %}

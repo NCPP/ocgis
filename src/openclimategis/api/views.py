@@ -329,3 +329,10 @@ def handle_uploaded_kmlfile(filename,objectid):
     wkt_list = [{'geom':wkt} for wkt in to_wkt_list(doc)]
     
     return(wkt_list)
+
+
+def display_query_builder_app(request):
+    '''
+    Return the Query Builder web application as markup.
+    '''
+    return render_to_response('QueryBuilder.html')

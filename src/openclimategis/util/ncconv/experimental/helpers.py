@@ -1,7 +1,6 @@
 import itertools
 import numpy as np
 from shapely.geometry.polygon import Polygon
-import pdb
 from osgeo import osr
 from osgeo import ogr
 import warnings
@@ -15,6 +14,19 @@ from util.ncconv.experimental.exc import FunctionNameError,\
 import re
 from util.helpers import get_temp_path
 
+
+def get_django_attrs(obj):
+    from django.contrib.gis.db import models
+
+    attrs = {}
+    fields = [f.name for f in obj._meta.fields]
+    for field in fields:
+        attr = getattr(obj,field)
+        if isinstance(attr,models.Model):
+            attrs.update({field:get_django_attrs(attr)})
+        else:
+            attrs.update({field:attr})
+    return(attrs)
 
 def itersubclasses(cls, _seen=None):
     """

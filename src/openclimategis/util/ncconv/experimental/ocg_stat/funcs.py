@@ -42,7 +42,7 @@ class Min(OcgFunction):
 class StandardDeviation(OcgFunction):
     description = 'Standard deviation for the series.'
     name = 'std'
-    test = 'Standard Deviation'
+    text = 'Standard Deviation'
     Group = groups.BasicStatistics
     
     @staticmethod

@@ -1,5 +1,5 @@
 /*global Ext, google*/
-var App, blah;
+var App, blah, bloo;
 /*
 Ext.require([
     'Ext.Component',
@@ -44,15 +44,55 @@ Ext.define('App.api.Function', {
         {name: 'children', type: 'auto'},
         'value',
         'desc'
-        ]
+        ],
+    hasFormatString: function() {
+        if (this.get('desc').indexOf('{0}') > 0) {
+            return true;
+            }
+        return false;
+        },
+    singleValued: function() {
+        if (this.get('desc').indexOf('{1}') > 0) {
+            return false;
+            }
+        return true;
+        },
+    getComponents: function() {
+        var raw = this.get('desc');
+        if (this.singleValued()) {
+            if (raw.indexOf('{0}') > 0) { // Clip to the {0} placeholder
+                this.set('first', raw.substr(0, raw.indexOf('{0}')));
+                }
+            return [
+                {
+                    xtype: 'textfield',
+                    fieldLabel: this.get('first'),
+                    labelAlign: 'top',
+                    labelSeparator: ''
+                    }
+                ]; // eo return
+            } // eo if
+        else {
+            this.set('first', raw.substr(0, raw.indexOf('{0}')));
+            this.set('second', raw.substring(raw.indexOf('{0}') + 3, raw.indexOf('{1}')));
+            return [
+                {xtype: 'inlinetextfield', fieldLabel: this.get('first')},
+                {xtype: 'inlinetextfield', fieldLabel: this.get('second')}
+                ] // eo return
+            } // eo else
+        } // eo getComponents
+    });
+Ext.define('App.api.Model', {
+    extend: 'Ext.data.Model',
+    fields: ['urlslug', 'code', 'organization', 'id', 'name', 'comments']
     });
 Ext.define('App.api.Scenario', {
     extend: 'Ext.data.Model',
-    fields: ['urlslug', 'description', 'code', 'name', 'id']
+    fields: ['urlslug', 'code', 'description', 'id', 'name']
     });
 Ext.define('App.api.Variable', {
     extend: 'Ext.data.Model',
-    fields: ['ndim', 'urlslug', 'code', 'description', 'units', 'id', 'name']
+    fields: ['ndim', 'units', 'urlslug', 'code', 'description', 'id', 'name']
     });
 /////////////////////////////////////////////////////////////////////// Classes
 Ext.define('App.ui.ApiComboBox', {
@@ -65,6 +105,13 @@ Ext.define('App.ui.ApiComboBox', {
         // Set the field to the value of the first record, based on store's valueField
         this.setValue(store.data.items[0].data[this.valueField]);
         }
+    });
+Ext.define('App.ui.InlineTextField', {
+    extend: 'Ext.form.field.Text',
+    alias: 'widget.inlinetextfield',
+    labelSeparator: '',
+    labelAlign: 'top',
+    fieldStyle: {width: 80}
     });
 Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
     extend: 'Ext.Component',
@@ -83,6 +130,7 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
+/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -99,6 +147,9 @@ Ext.define('App.ui.MapPanel', {
         this.callParent();        
         },
     listeners: {
+        render: function() {
+            this.getEl().mask('Loading...');
+            },
         afterrender: function() {
             var self = this,
                 drawingManager = new google.maps.drawing.DrawingManager();
@@ -112,9 +163,13 @@ Ext.define('App.ui.MapPanel', {
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
                 });
+            },
+        mapready: function() {
+            this.getEl().unmask();
             }
         }
     }); // No callback (third argument)
+*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -174,12 +229,70 @@ Ext.define('App.ui.DateRange', {
 Ext.define('App.ui.TreePanel', {
     extend: 'Ext.tree.Panel',
     alias: 'widget.treepanel',
-    rootVisible: true
+    rootVisible: true,
+    listeners: {
+        beforeitemmousedown: function(view, rec, el) {
+            var checked = rec.data.checked,
+                config = {
+                    title: 'Add Statistic: ' + rec.data.text,
+                    buttons: Ext.Msg.OKCANCEL,
+                    closable: true,
+                    animateTarget: el,
+                    modal: true
+                    //width: 250,
+                    //height: 150
+                    },
+                desc = rec.data.desc.substr(0, rec.data.desc.indexOf('.')),
+                prompt;
+            // Is the box already checked?
+            if (checked) { // Uncheck the box
+                rec.data.checked = false;
+                view.refresh();
+                }
+            else { // Check the box
+                rec.data.checked = true;
+                view.refresh(); // Updates the view of the checked state
+                // Is inline formatting needed?
+                if (rec.hasFormatString()) {
+                    prompt = Ext.create('Ext.Window', Ext.apply(config, {
+                        bodyPadding: 10,
+                        width: 250,
+                        items: rec.getComponents()
+                        }));
+                    prompt.add([
+                        {xtype: 'button', width: 69, text: 'OK', style: {margin: '0 auto'}},
+                        {xtype: 'label', width: 5},
+                        {xtype: 'button', width: 69, text: 'Cancel', style: {margin: '0 auto'}}
+                        ]);
+                    prompt.show();
+                    }
+                // No inline-formatting needed; display simple prompt
+                else {
+                    Ext.Msg.show(Ext.apply(config, {
+                        msg: desc,
+                        prompt: true,
+                        fn: function(btn, text) {
+                            if (btn === 'cancel' || text === '') { // If 'Cancel' pressed or no text entered
+                                rec.data.checked = false;
+                                view.refresh();
+                                } 
+                            else if (!Ext.isNumeric(text)) { // If the value entered is not numeric
+                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
+                                rec.data.checked = false;
+                                view.refresh();
+                                } // eo else if
+                            } // eo fn
+                        })); // eo Ext.Msg.show()
+                    } // eo else
+                } // eo else
+            } // eo itemclick
+        } // eo listeners
     });
 ////////////////////////////////////////////////////////////////////////////////
 Ext.application({
     name: 'App',
     launch: function() {
+        Ext.getBody().mask('Loading...');
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
             archives: Ext.create('Ext.data.Store', {
@@ -204,6 +317,14 @@ Ext.application({
                 root: {
                     text: 'Available Statistics',
                     expanded: true
+                    }
+                }),
+            models: Ext.create('Ext.data.Store', {
+                model: 'App.api.Model',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/models.json',
+                    reader: 'json'
                     }
                 }),
             outputs: Ext.create('Ext.data.ArrayStore', {
@@ -241,6 +362,11 @@ Ext.application({
         App.viewport = Ext.create('Ext.container.Viewport', {
             id: 'viewport',
             layout: 'border',
+            listeners: {
+                afterrender: function() {
+                    Ext.getBody().unmask();
+                    }
+                },
             items: [
                 { // Banner
                     xtype: 'markup',
@@ -308,7 +434,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'mappanel',
+                            xtype: 'panel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
@@ -396,8 +522,10 @@ Ext.application({
                     store: App.data.scenarios
                     },
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Climate Model'
+                    xtype: 'apicombo',
+                    fieldLabel: 'Climate Model',
+                    displayField: 'code',
+                    store: App.data.models
                     },
                 {
                     xtype: 'apicombo',

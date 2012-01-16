@@ -6,12 +6,11 @@ from api.views import display_spatial_query, display_aoi_uploader
 from util.ncconv.experimental import ocg_converter
 from util.ncconv.experimental.ocg_stat import OcgStat
 from django.conf import settings
-import time
-
-import logging
 from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
 from util.ncconv.experimental.helpers import user_geom_to_db
-from django.core import serializers
+import json
+
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -112,9 +111,19 @@ class SubOcgDataEmitter(IdentityEmitter):
                 self.db = user_geom_to_db(payload[0].pk)
             ## next assume you just need to serialize and manage accordingly
             except:
-                json_serializer = serializers.get_serializer("json")()
-                j = json_serializer.serialize(payload,ensure_ascii=False)
-                return(j)
+                data = []
+                fields = payload[0]._meta.get_all_field_names()
+                for obj in payload:
+                    attrs = {}
+                    for field in fields:
+                        try:
+                            attrs.update({field:getattr(obj,field)})
+                        ## foreign objects are not exposed as attributes of the
+                        ## queryset object.
+                        except AttributeError:
+                            pass
+                    data.append(attrs)
+                return(json.dumps(data))
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))
         return(self.get_response())

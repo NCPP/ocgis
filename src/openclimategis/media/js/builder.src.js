@@ -289,6 +289,9 @@ Ext.define('App.ui.TreePanel', {
     extend: 'Ext.tree.Panel',
     alias: 'widget.treepanel',
     rootVisible: true,
+    getValue: function() {
+        return this.getSelectionModel.getSelection().get('value');
+        },
     listeners: {
         beforeitemmousedown: function(view, rec) {
             var cb = function(btn, values) {
@@ -472,6 +475,7 @@ Ext.application({
                                         {
                                             xtype: 'combo',
                                             fieldLabel: 'Grouping Interval',
+                                            name: 'grouping',
                                             labelWidth: 100,
                                             queryMode: 'local',
                                             value: 'year',
@@ -506,6 +510,7 @@ Ext.application({
                                 {
                                     xtype: 'combo',
                                     fieldLabel: 'Area-of-Interest (AOI)',
+                                    name: 'aoi',
                                     emptyText: '(None Selected)',
                                     style: {textAlign: 'right'}
                                     },
@@ -549,10 +554,12 @@ Ext.application({
                                     },
                                 {
                                     xtype: 'progressbar',
+                                    id: 'query-progress',
                                     width: 180
                                     },
                                 {
                                     xtype: 'tbtext',
+                                    id: 'query-status',
                                     text: 'No activity',
                                     style: {fontStyle: 'italic'}
                                     }
@@ -577,29 +584,34 @@ Ext.application({
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Archive',
+                    name: 'archive',
                     store: App.data.archives
                     },
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Emissions Scenario',
+                    name: 'scenario',
                     displayField: 'code',
                     store: App.data.scenarios
                     },
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Climate Model',
+                    name: 'model',
                     displayField: 'code',
                     store: App.data.models
                     },
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Variable',
+                    name: 'variable',
                     displayField: 'name',
                     store: App.data.variables
                     },
                 {
                     xtype: 'numberfield',
                     fieldLabel: 'Run',
+                    name: 'run',
                     value: 1,
                     minValue: 1,
                     maxValue: 99
@@ -607,6 +619,7 @@ Ext.application({
                 {
                     xtype: 'daterange',
                     fieldLabel: 'Date Range',
+                    name: 'daterange',
                     labelWidth: 80,
                     width: 290
                     }
@@ -618,6 +631,7 @@ Ext.application({
             p.add([
                 {
                     xtype: 'combo',
+                    name: 'output',
                     width: 250,
                     queryMode: 'local',
                     valueField: 'value',
@@ -632,6 +646,7 @@ Ext.application({
             p.add([
                 {
                     xtype: 'textarea',
+                    name: 'query',
                     emptyText: 'http://openclimategis.org/api/',
                     width: 500,
                     height: 80

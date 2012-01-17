@@ -206,11 +206,16 @@ Ext.define('App.ui.MapPanel', {
         },
     listeners: {
         render: function() {
-            this.getEl().mask('Loading...');
+            this.body.mask();
             },
         afterrender: function() {
             var self = this,
-                drawingManager = new google.maps.drawing.DrawingManager();
+                modes = google.maps.drawing.OverlayType,
+                drawingManager = new google.maps.drawing.DrawingManager({
+                    drawingControlOptions: {
+                        drawingModes: [modes.RECTANGLE, modes.POLYGON]
+                        }
+                    });
             this.gmap = new google.maps.Map(this.body.dom, {
                 center: new google.maps.LatLng(42.30220, -83.68952),
                 zoom: 8,
@@ -223,7 +228,7 @@ Ext.define('App.ui.MapPanel', {
                 });
             },
         mapready: function() {
-            this.getEl().unmask();
+            this.body.unmask();
             }
         }
     }); // No callback (third argument)
@@ -305,13 +310,6 @@ Ext.define('App.ui.TreePanel', {
                             }); // eo Ext.iterate()
                         } // eo else
                     },
-                config = {
-                    title: 'Add Statistic: ' + rec.get('text'),
-                    buttons: Ext.Msg.OKCANCEL,
-                    closable: false,
-                    animateTarget: this.header.getEl(),
-                    modal: true
-                    },
                 prompt;
             // Is the box already checked?
             if (rec.get('checked')) { // Uncheck the box
@@ -321,34 +319,23 @@ Ext.define('App.ui.TreePanel', {
                 rec.set('checked', !rec.get('checked'));
                 // Is inline formatting needed?
                 if (rec.hasFormatString()) {
-                    prompt = Ext.create('Ext.Window', Ext.apply(config, {
+                    prompt = Ext.create('Ext.Window', {
+                        title: 'Add Statistic: ' + rec.get('text'),
+                        buttons: Ext.Msg.OKCANCEL,
+                        closable: false,
+                        animateTarget: this.header.getEl(),
+                        modal: true,
                         bodyPadding: 10,
                         width: 250,
                         items: rec.getComponents(),
                         style: {textAlign: 'center'}
-                        }));
+                        });
                     prompt.add([
                         {xtype: 'ok', callback: cb},
                         {xtype: 'cancel', callback: cb}
                         ]);
                     prompt.show();
-                    }
-                // No inline-formatting needed; display simple prompt
-                else {
-                    Ext.Msg.show(Ext.apply(config, {
-                        msg: rec.get('desc').substr(0, rec.get('desc').indexOf('.')),
-                        prompt: true,
-                        fn: function(btn, text) {
-                            if (btn === 'cancel' || text === '') { // If 'Cancel' pressed or no text entered
-                                rec.set('checked', !rec.get('checked'));
-                                } 
-                            else if (!Ext.isNumeric(text)) { // If the value entered is not numeric
-                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
-                                rec.set('checked', !rec.get('checked'));
-                                } // eo else if
-                            } // eo fn
-                        })); // eo Ext.Msg.show()
-                    } // eo else
+                    } // eo if
                 } // eo else
             } // eo itemclick
         } // eo listeners

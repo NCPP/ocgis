@@ -1,4 +1,4 @@
-from base import OcgFunction
+from base import OcgFunction, OcgArgFunction
 import numpy as np
 import groups
 
@@ -42,7 +42,7 @@ class Min(OcgFunction):
 class StandardDeviation(OcgFunction):
     description = 'Standard deviation for the series.'
     name = 'std'
-    test = 'Standard Deviation'
+    text = 'Standard Deviation'
     Group = groups.BasicStatistics
     
     @staticmethod
@@ -50,9 +50,10 @@ class StandardDeviation(OcgFunction):
         return(np.std(values))
     
     
-class Between(OcgFunction):
+class Between(OcgArgFunction):
     description = 'Count of values between {0} and {1} (inclusive).'
     Group = groups.Thresholds
+    nargs = 2
     
     @staticmethod
     def calculate(values,lower=None,upper=None):
@@ -62,11 +63,12 @@ class Between(OcgFunction):
         return(len(days))
     
     
-class GreaterThan(OcgFunction):
+class GreaterThan(OcgArgFunction):
     text = 'Greater Than'
     name = 'gt'
     description = 'Count of values greater than {0} in the series (exclusive).'
     Group = groups.Thresholds
+    nargs = 1
     
     @staticmethod
     def calculate(values,threshold=None):
@@ -76,11 +78,12 @@ class GreaterThan(OcgFunction):
         return(len(days))
     
     
-class LessThan(OcgFunction):
+class LessThan(OcgArgFunction):
     text = 'Less Than'
     name = 'lt'
     description = 'Count of values less than {0} in the series (exclusive).'
     Group = groups.Thresholds
+    nargs = 1
     
     @staticmethod
     def calculate(values,threshold=None):

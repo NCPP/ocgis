@@ -1,5 +1,4 @@
 import re
-import inspect
 import json
 from util.ncconv.experimental.helpers import itersubclasses
 
@@ -9,6 +8,18 @@ class OcgFunctionTree(object):
     
     def __init__(self):
         assert(self.Groups)
+    
+    @staticmethod
+    def get_potentials():
+        """Left in to support HTML query page. Does not support argumented functions."""
+        import funcs
+        
+        potentials = []
+        for sc in itersubclasses(OcgFunction):
+            sc = sc()
+            if sc.__class__ != OcgArgFunction:
+                potentials.append((sc.name,sc.text))
+        return(potentials)
         
     def get_function_list(self,functions):
         funcs = []
@@ -33,9 +44,8 @@ class OcgFunctionTree(object):
         
     def json(self):
         children = [Group().format() for Group in self.Groups]
-        ret = {'root':dict(expanded=True,
-                           children=children)}
-        return(json.dumps(ret))
+        # ret = {'nodes': dict(expanded=True, children=children)}
+        return(json.dumps(children))
     
     def find(self,name):
         for Group in self.Groups:
@@ -70,6 +80,7 @@ class OcgFunction(object):
     checked = False
     name = None
     Group = None
+    nargs = 0
     
     def __init__(self):
         if self.text is None:
@@ -89,5 +100,14 @@ class OcgFunction(object):
                    checked=self.checked,
                    leaf=True,
                    value=self.name,
-                   desc=self.description)
+                   desc=self.description,
+                   nargs=self.nargs)
         return(ret)
+
+
+class OcgArgFunction(OcgFunction):
+    nargs = None
+    
+    def __init__(self):
+        assert(self.nargs)
+        super(OcgArgFunction,self).__init__()

@@ -164,7 +164,6 @@ class OcgStatFunction(OcgFunctionTree):
     >>> functions = ['mean','median','max','min','gt(2)','between(1,2)']
     >>> stat = OcgStatFunction()
     >>> function_list = stat.get_function_list(functions)
-    >>> import ipdb;ipdb.set_trace()
     """
     
     Groups = [groups.BasicStatistics,groups.Thresholds]

@@ -432,7 +432,7 @@ urlpatterns = patterns('',
         name='aoi_single',
     ),
     
-## QUERY BUILDER ---------------------------------------------------------------
+### QUERY BUILDER -------------------------------------------------------------
 #    url(
 #        r'^query/',
 #        'api.views.display_spatial_query'
@@ -459,8 +459,14 @@ urlpatterns = patterns('',
         },
         name='query_form',
     ),
+
+    # Query Builder web application
+    url( # example: query/test
+        r'^query/test',
+        'api.views.display_query_builder_app'
+    ),
     
-## SHAPEFILE UPLOAD ------------------------------------------------------------
+### SHAPEFILE UPLOAD ----------------------------------------------------------
 
     url(( # example: aoi_upload.html
         r'^aoi_upload.html'),

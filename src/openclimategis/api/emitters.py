@@ -7,7 +7,7 @@ from util.ncconv.experimental import ocg_converter
 from util.ncconv.experimental.ocg_stat import OcgStat
 from django.conf import settings
 from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
-from util.ncconv.experimental.helpers import user_geom_to_db
+from util.ncconv.experimental.helpers import user_geom_to_db, get_django_attrs
 import json
 
 import logging
@@ -111,18 +111,7 @@ class SubOcgDataEmitter(IdentityEmitter):
                 self.db = user_geom_to_db(payload[0].pk)
             ## next assume you just need to serialize and manage accordingly
             except:
-                data = []
-                fields = payload[0]._meta.get_all_field_names()
-                for obj in payload:
-                    attrs = {}
-                    for field in fields:
-                        try:
-                            attrs.update({field:getattr(obj,field)})
-                        ## foreign objects are not exposed as attributes of the
-                        ## queryset object.
-                        except AttributeError:
-                            pass
-                    data.append(attrs)
+                data = [get_django_attrs(obj) for obj in payload]
                 return(json.dumps(data))
         self.converter = self.get_converter()
         logger.info("...ending {0}.render()...".format(self.__converter__.__name__))

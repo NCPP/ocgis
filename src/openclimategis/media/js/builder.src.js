@@ -189,7 +189,6 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
-/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -228,7 +227,6 @@ Ext.define('App.ui.MapPanel', {
             }
         }
     }); // No callback (third argument)
-*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -502,7 +500,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'panel',
+                            xtype: 'mappanel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',

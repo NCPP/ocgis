@@ -103,7 +103,10 @@ a:active {color:#730D00;text-decoration:none;border:none;}
     .x-panel-header-text-default {font-size:12px !important;line-height:14px !important;}
 /* Window */
     /* Header */
-    .x-window-header-text-default {font-size:12px;}
+    .x-window-header-text-default {font-size:12px;text-align:left;}
 /* Toolbar */
     /* Text */
     .x-toolbar .x-toolbar-text {color:#666 !important;}
+/* Form */
+    /* Label */
+    .x-form-item-label-top {text-align:left;}

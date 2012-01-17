@@ -24,6 +24,14 @@ Ext.define('App.ui.BaseField', {
     labelWidth: 120,
     triggerAction: 'all'
     });
+Ext.define('App.ui.Labelable', {
+    override: 'Ext.form.Labelable',
+    initialize: function() {
+        this.callOverridden(arguments);
+        },    
+    // Turn on validation errors beside the field globally
+    msgTarget: 'side'
+    });
 Ext.define('App.ui.Toolbar', {
     override: 'Ext.toolbar.Toolbar',
     initialize: function() {
@@ -68,7 +76,8 @@ Ext.define('App.api.Function', {
                     xtype: 'textfield',
                     fieldLabel: this.get('first'),
                     labelAlign: 'top',
-                    labelSeparator: ''
+                    labelSeparator: '',
+                    vtype: 'numeric'
                     }
                 ]; // eo return
             } // eo if
@@ -76,12 +85,28 @@ Ext.define('App.api.Function', {
             this.set('first', raw.substr(0, raw.indexOf('{0}')));
             this.set('second', raw.substring(raw.indexOf('{0}') + 3, raw.indexOf('{1}')));
             return [
-                {xtype: 'inlinetextfield', fieldLabel: this.get('first')},
-                {xtype: 'inlinetextfield', fieldLabel: this.get('second')}
-                ] // eo return
+                {
+                    xtype: 'inlinetextfield',
+                    fieldLabel: this.get('first'),
+                    vtype: 'numeric'
+                    },
+                {
+                    xtype: 'inlinetextfield',
+                    fieldLabel: this.get('second'),
+                    vtype: 'numeric'
+                    }
+                ]; // eo return
             } // eo else
         } // eo getComponents
-    });
+    }, function() {
+        Ext.apply(Ext.form.field.VTypes, {
+            numeric: function(val) {
+                var re = /^\d*\.?\d*$/; // Matches numbers only
+                return re.test(val);
+                },
+            numericText: 'Only numeric values are allowed'
+            });
+        });
 Ext.define('App.api.Model', {
     extend: 'Ext.data.Model',
     fields: ['urlslug', 'code', 'organization', 'id', 'name', 'comments']
@@ -198,7 +223,7 @@ Ext.define('App.ui.DateRange', {
             }
         ]
     }, function() { // Callback function
-        Ext.apply(Ext.form.VTypes, {
+        Ext.apply(Ext.form.field.VTypes, {
             daterange: function(val, field) {
                 var date = field.parseDate(val), start, end;
                 if (!date) {
@@ -231,55 +256,49 @@ Ext.define('App.ui.TreePanel', {
     alias: 'widget.treepanel',
     rootVisible: true,
     listeners: {
-        beforeitemmousedown: function(view, rec, el) {
-            var checked = rec.data.checked,
-                config = {
-                    title: 'Add Statistic: ' + rec.data.text,
+        beforeitemmousedown: function(view, rec) {
+            var config = {
+                    title: 'Add Statistic: ' + rec.get('text'),
                     buttons: Ext.Msg.OKCANCEL,
-                    closable: true,
-                    animateTarget: el,
+                    closable: true, // TODO Set to false
+                    animateTarget: this.getEl(),
                     modal: true
-                    //width: 250,
-                    //height: 150
                     },
-                desc = rec.data.desc.substr(0, rec.data.desc.indexOf('.')),
                 prompt;
+            blah = this;
             // Is the box already checked?
-            if (checked) { // Uncheck the box
-                rec.data.checked = false;
-                view.refresh();
+            if (rec.get('checked')) { // Uncheck the box
+                rec.set('checked', !rec.get('checked'));
                 }
             else { // Check the box
-                rec.data.checked = true;
-                view.refresh(); // Updates the view of the checked state
+                rec.set('checked', !rec.get('checked'));
                 // Is inline formatting needed?
                 if (rec.hasFormatString()) {
                     prompt = Ext.create('Ext.Window', Ext.apply(config, {
                         bodyPadding: 10,
                         width: 250,
-                        items: rec.getComponents()
+                        items: rec.getComponents(),
+                        style: {textAlign: 'center'}
                         }));
                     prompt.add([
-                        {xtype: 'button', width: 69, text: 'OK', style: {margin: '0 auto'}},
+                        {xtype: 'button', width: 69, text: 'OK', style: {margin: '5px 3px 0'}},
                         {xtype: 'label', width: 5},
-                        {xtype: 'button', width: 69, text: 'Cancel', style: {margin: '0 auto'}}
+                        {xtype: 'button', width: 69, text: 'Cancel', style: {margin: '5px 3px 0'}}
                         ]);
                     prompt.show();
                     }
                 // No inline-formatting needed; display simple prompt
                 else {
                     Ext.Msg.show(Ext.apply(config, {
-                        msg: desc,
+                        msg: rec.get('desc').substr(0, rec.get('desc').indexOf('.')),
                         prompt: true,
                         fn: function(btn, text) {
                             if (btn === 'cancel' || text === '') { // If 'Cancel' pressed or no text entered
-                                rec.data.checked = false;
-                                view.refresh();
+                                rec.set('checked', !rec.get('checked'));
                                 } 
                             else if (!Ext.isNumeric(text)) { // If the value entered is not numeric
                                 Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
-                                rec.data.checked = false;
-                                view.refresh();
+                                rec.set('checked', !rec.get('checked'));
                                 } // eo else if
                             } // eo fn
                         })); // eo Ext.Msg.show()

@@ -13,6 +13,8 @@ from util.ncconv.experimental.exc import FunctionNameError,\
     FunctionNotNamedError
 import re
 from util.helpers import get_temp_path
+import datetime
+import django.contrib.gis.geos.polygon as geos
 
 
 def get_django_attrs(obj):
@@ -22,6 +24,10 @@ def get_django_attrs(obj):
     fields = [f.name for f in obj._meta.fields]
     for field in fields:
         attr = getattr(obj,field)
+        if type(attr) in [datetime.date,datetime.datetime]:
+            attr = str(attr)
+        if isinstance(attr,geos.Polygon):
+            attr = attr.wkt
         if isinstance(attr,models.Model):
             attrs.update({field:get_django_attrs(attr)})
         else:

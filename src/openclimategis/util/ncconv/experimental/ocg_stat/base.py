@@ -15,9 +15,9 @@ class OcgFunctionTree(object):
         import funcs
         
         potentials = []
-        for sc in itersubclasses(OcgFunction):
-            sc = sc()
-            if sc.__class__ != OcgArgFunction:
+        for Sc in itersubclasses(OcgFunction):
+            if Sc != OcgArgFunction:
+                sc = Sc()
                 potentials.append((sc.name,sc.text))
         return(potentials)
         

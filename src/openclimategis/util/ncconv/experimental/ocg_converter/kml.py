@@ -70,7 +70,11 @@ class KmlConverter(OcgConverter):
             url_csv=url.replace('.kml', '.csv'),
             url_json=url.replace('.kml', '.geojson'),
         )
-        
+        ##### TODO: build linked urls on the fly
+        #from piston.emitters import Emitter
+        #Emitter.EMITTERS.keys()
+        #['xml', 'sqlite', 'nc', 'shz', 'kml', 'kcsv', 'django', 'json', 'html', 'meta', 'lshz', 'csv', 'pickle', 'kmz']
+
         doc = KML.kml(
           KML.Document(
             KML.name('Climate Simulation Output'),
@@ -154,6 +158,7 @@ class KmlConverter(OcgConverter):
                     ) for coords in coord_list
                 ]
                 
+                # TODO: sort values by time to speed loading
                 values = ['{0},{1}'.format(datetime.strftime(val.time, "%Y-%m-%d %H:%M:%S"),val.value) for val in geom.values]
                 pm = KML.Placemark(
                     KML.name('Geometry'),

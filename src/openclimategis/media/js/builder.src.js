@@ -24,13 +24,19 @@ Ext.define('App.ui.BaseField', {
     labelWidth: 120,
     triggerAction: 'all'
     });
-Ext.define('App.ui.Labelable', {
-    override: 'Ext.form.Labelable',
+Ext.define('App.ui.BaseContainer', {
+    override: 'Ext.container.Container',
     initialize: function() {
         this.callOverridden(arguments);
-        },    
-    // Turn on validation errors beside the field globally
-    msgTarget: 'side'
+        },
+    getValues: function() {
+        var results = {},
+            fields = this.query("{getValue}"); // Assumption is only fields have getValue member
+        Ext.each(fields, function(i) {
+            results[i.name] = i.getValue();
+            });
+        return results;
+        }
     });
 Ext.define('App.ui.Toolbar', {
     override: 'Ext.toolbar.Toolbar',
@@ -88,11 +94,13 @@ Ext.define('App.api.Function', {
                 {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('first'),
+                    name: 'first',
                     vtype: 'numeric'
                     },
                 {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('second'),
+                    name: 'second',
                     vtype: 'numeric'
                     }
                 ]; // eo return
@@ -129,6 +137,32 @@ Ext.define('App.ui.ApiComboBox', {
     onLoad: function(store) { // Arguments: [store, records, success]
         // Set the field to the value of the first record, based on store's valueField
         this.setValue(store.data.items[0].data[this.valueField]);
+        }
+    });
+Ext.define('App.ui.OkButton', {
+    extend: 'Ext.button.Button',
+    alias: 'widget.ok',
+    width: 69,
+    text: 'OK',
+    style: {margin: '5px 3px 0'},
+    handler: function() {
+        // The callback expects the button "type" (e.g. 'ok') and the form values
+        if (!this.callback(this.text.toLowerCase(), this.ownerCt.getValues())) {
+            this.findParentByType('window').close();
+            }
+        }
+    });
+Ext.define('App.ui.CancelButton', {
+    extend: 'Ext.button.Button',
+    alias: 'widget.cancel',
+    width: 69,
+    text: 'Cancel',
+    style: {margin: '5px 3px 0'},
+    handler: function() {
+        // The callback expects the button "type" (e.g. 'ok') and its value
+        if (!this.callback(this.text.toLowerCase(), this.ownerCt.getValues())) {
+            this.findParentByType('window').close();
+            }
         }
     });
 Ext.define('App.ui.InlineTextField', {
@@ -257,15 +291,27 @@ Ext.define('App.ui.TreePanel', {
     rootVisible: true,
     listeners: {
         beforeitemmousedown: function(view, rec) {
-            var config = {
+            var cb = function(btn, values) {
+                    if (btn === 'cancel') {
+                        rec.set('checked', !rec.get('checked'));
+                        } 
+                    else {
+                        Ext.iterate(values, function(k, v, o) {
+                            if (!Ext.isNumeric(v)) {
+                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
+                                rec.set('checked', !rec.get('checked'));
+                                } // eo if
+                            }); // eo Ext.iterate()
+                        } // eo else
+                    },
+                config = {
                     title: 'Add Statistic: ' + rec.get('text'),
                     buttons: Ext.Msg.OKCANCEL,
-                    closable: true, // TODO Set to false
-                    animateTarget: this.getEl(),
+                    closable: false,
+                    animateTarget: this.header.getEl(),
                     modal: true
                     },
                 prompt;
-            blah = this;
             // Is the box already checked?
             if (rec.get('checked')) { // Uncheck the box
                 rec.set('checked', !rec.get('checked'));
@@ -281,9 +327,8 @@ Ext.define('App.ui.TreePanel', {
                         style: {textAlign: 'center'}
                         }));
                     prompt.add([
-                        {xtype: 'button', width: 69, text: 'OK', style: {margin: '5px 3px 0'}},
-                        {xtype: 'label', width: 5},
-                        {xtype: 'button', width: 69, text: 'Cancel', style: {margin: '5px 3px 0'}}
+                        {xtype: 'ok', callback: cb},
+                        {xtype: 'cancel', callback: cb}
                         ]);
                     prompt.show();
                     }

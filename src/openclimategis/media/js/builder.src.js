@@ -24,8 +24,8 @@ Ext.define('App.ui.BaseField', {
     labelWidth: 120,
     triggerAction: 'all',
     listeners: {
-        change: function(field, newValue, oldValue) {
-            
+        change: function(field, newValue) { // Third argument is "oldValue"
+            Ext.getCmp('form-api-url').updateUrl(field.name, newValue);
             }
         }
     });
@@ -137,7 +137,7 @@ Ext.define('App.ui.ApiComboBox', {
     extend: 'Ext.form.field.ComboBox',
     alias: 'widget.apicombo',
     queryMode: 'remote',
-    valueField: 'id',
+    valueField: 'urlslug',
     displayField: 'urlslug',
     onLoad: function(store) { // Arguments: [store, records, success]
         // Set the field to the value of the first record, based on store's valueField
@@ -581,17 +581,17 @@ Ext.application({
                     },
                 {
                     xtype: 'apicombo',
-                    fieldLabel: 'Emissions Scenario',
-                    name: 'scenario',
-                    displayField: 'code',
-                    store: App.data.scenarios
-                    },
-                {
-                    xtype: 'apicombo',
                     fieldLabel: 'Climate Model',
                     name: 'model',
                     displayField: 'code',
                     store: App.data.models
+                    },
+                {
+                    xtype: 'apicombo',
+                    fieldLabel: 'Emissions Scenario',
+                    name: 'scenario',
+                    displayField: 'code',
+                    store: App.data.scenarios
                     },
                 {
                     xtype: 'apicombo',

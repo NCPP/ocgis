@@ -1,5 +1,5 @@
 /*global Ext, google*/
-var App, blah, bloo;
+var App, blah = [], bloo = [];
 /*
 Ext.require([
     'Ext.Component',
@@ -23,11 +23,12 @@ Ext.define('App.ui.BaseField', {
         },
     labelWidth: 120,
     triggerAction: 'all',
+    isQueryParam: true, // NOTE: All form fields are assumed to represent query parameters
     listeners: {
         change: function(field, newValue) { // Third argument is "oldValue"
-            Ext.getCmp('form-api-url').updateUrl(field.name, newValue);
-            }
-        }
+            this.findParentByType('form').fireEvent('change', {field: field, newValue: newValue});
+            } // eo change
+        } // eo listeners
     });
 Ext.define('App.ui.BaseContainer', {
     override: 'Ext.container.Container',
@@ -244,10 +245,41 @@ Ext.define('App.ui.DateRange', {
     alias: 'widget.daterange',
     msgTarget: 'side',
     layout: 'hbox',
+    outFormatEach: 'Y-m-d',
+    outFormat: '{0}+{1}', // e.g. Output format is 'Y-m-d+Y-m-d'
     defaults: {
         width: 90,
         hideLabel: true,
-        vtype: 'daterange'
+        vtype: 'daterange',
+        isQueryParam: false,
+        listeners: {
+            change: function() {
+                if (this.prev()) {
+                    if (this.prev().getValue() === null) {
+                        return;
+                        }
+                    }
+                else if (this.next()) {
+                    if (this.next().getValue() === null) {
+                        return;
+                        }
+                    }
+                this.findParentByType('form').fireEvent('change', {
+                    field: {
+                        name: this.ownerCt.name || 'temporal',
+                        isQueryParam: this.ownerCt.isQueryParam || true
+                        },
+                    newValue: this.ownerCt.getValue()
+                    });
+                }
+            }
+        },
+    getValue: function() {
+        var d1, d2, v = this.getValues();
+        // The outFormatEach property should follow Ext.Date formatting
+        d1 = Ext.util.Format.date(v.startDate, this.outFormatEach);
+        d2 = Ext.util.Format.date(v.endDate, this.outFormatEach);
+        return Ext.String.format(this.outFormat, d1, d2); // e.g. this.outFormat = '{0} to {1}'
         },
     items: [
         {
@@ -441,6 +473,13 @@ Ext.application({
                     id: 'form-panel',
                     region: 'center',
                     layout: 'border',
+                    listeners: {
+                        change: function(args) { // Changes the API Request URL display
+                            if (args.field.isQueryParam) {
+                                Ext.getCmp('form-api-url').updateUrl(args.field.name, args.newValue);
+                                } // eo if
+                            }
+                        },
                     items: [
                         { // Sidebar
                             xtype: 'container',
@@ -611,7 +650,7 @@ Ext.application({
                 {
                     xtype: 'daterange',
                     fieldLabel: 'Date Range',
-                    name: 'daterange',
+                    name: 'temporal',
                     labelWidth: 80,
                     width: 290
                     }
@@ -640,8 +679,9 @@ Ext.application({
                     xtype: 'textarea',
                     name: 'query',
                     id: 'form-api-url',
+                    isQueryParam: false,
                     value: 'http://openclimategis.org/api/',
-                    leftover: 'archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
+                    template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
                     // This is a holder for the parameter values
                     values: {
                         archive: '{0}',
@@ -659,10 +699,18 @@ Ext.application({
                     updateUrl: function(name, value) {
                         var s, v = this.values;
                         this.values[name] = value; // Set the updated parameter's value
-                        s = Ext.String.format(this.getValue() + this.leftover, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
-                        // We want to display only formatted text; unformatted text beyond the length of formatted text is "leftover"
-                        this.leftover = s.substring(s.indexOf('{'), s.length);
+                        s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+/*
+                        // If-else clause here basically just tries to hide format characters (e.g. '{1}') as much as possible
+                        if (this.getValue() === s.substring(0, s.indexOf('{')) && this.getValue().length <= s.substring(0, s.indexOf('{'))) {
+                            this.setValue(s.substring(0, s.lastIndexOf('{')));
+                            }
+                        else {
+                            this.setValue(s.substring(0, s.indexOf('{')));
+                            }
+*/
                         this.setValue(s.substring(0, s.indexOf('{')));
+                        return this.getValue(); // Return the updated URL
                         } // eo updateUrl()
                     } // eo textarea
                 ]);

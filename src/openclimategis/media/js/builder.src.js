@@ -22,7 +22,12 @@ Ext.define('App.ui.BaseField', {
         this.callOverridden(arguments);
         },
     labelWidth: 120,
-    triggerAction: 'all'
+    triggerAction: 'all',
+    listeners: {
+        change: function(field, newValue, oldValue) {
+            
+            }
+        }
     });
 Ext.define('App.ui.BaseContainer', {
     override: 'Ext.container.Container',
@@ -189,6 +194,7 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
+/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -232,6 +238,7 @@ Ext.define('App.ui.MapPanel', {
             }
         }
     }); // No callback (third argument)
+*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -487,7 +494,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'mappanel',
+                            xtype: 'panel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
@@ -632,10 +639,32 @@ Ext.application({
                 {
                     xtype: 'textarea',
                     name: 'query',
-                    emptyText: 'http://openclimategis.org/api/',
+                    id: 'form-api-url',
+                    value: 'http://openclimategis.org/api/',
+                    leftover: 'archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
+                    // This is a holder for the parameter values
+                    values: {
+                        archive: '{0}',
+                        model: '{1}',
+                        scenario: '{2}',
+                        run: '{3}',
+                        temporal: '{4}', 
+                        spatial: '{5}',
+                        aggregate: '{6}',
+                        variable: '{7}',
+                        format: '{8}'
+                        },
                     width: 500,
-                    height: 80
-                    }
+                    height: 80,
+                    updateUrl: function(name, value) {
+                        var s, v = this.values;
+                        this.values[name] = value; // Set the updated parameter's value
+                        s = Ext.String.format(this.getValue() + this.leftover, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+                        // We want to display only formatted text; unformatted text beyond the length of formatted text is "leftover"
+                        this.leftover = s.substring(s.indexOf('{'), s.length);
+                        this.setValue(s.substring(0, s.indexOf('{')));
+                        } // eo updateUrl()
+                    } // eo textarea
                 ]);
             }()); // Execute immediately
         ////////////////////////////////////////////////////////////////////////

@@ -525,7 +525,7 @@ Ext.application({
                                     },
                                 { // Output format
                                     xtype: 'nested',
-                                    itemId: 'output',
+                                    itemId: 'output-format',
                                     title: 'Output Format',
                                     region: 'south',
                                     height: 70
@@ -658,11 +658,11 @@ Ext.application({
             }()); // Execute immediately
         // Add items to the Output Format panel ////////////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('output');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('output-format');
             p.add([
                 {
                     xtype: 'combo',
-                    name: 'output',
+                    name: 'format',
                     width: 250,
                     queryMode: 'local',
                     valueField: 'value',
@@ -696,6 +696,11 @@ Ext.application({
                         },
                     width: 500,
                     height: 80,
+                    listeners: {
+                        afterrender: function() {
+                            Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
+                            }
+                        },
                     updateUrl: function(name, value) {
                         var s, v = this.values;
                         this.values[name] = value; // Set the updated parameter's value

@@ -1,5 +1,5 @@
 /*global Ext, google*/
-var App, blah;
+var App, blah, bloo;
 /*
 Ext.require([
     'Ext.Component',
@@ -24,6 +24,20 @@ Ext.define('App.ui.BaseField', {
     labelWidth: 120,
     triggerAction: 'all'
     });
+Ext.define('App.ui.BaseContainer', {
+    override: 'Ext.container.Container',
+    initialize: function() {
+        this.callOverridden(arguments);
+        },
+    getValues: function() {
+        var results = {},
+            fields = this.query("{getValue}"); // Assumption is only fields have getValue member
+        Ext.each(fields, function(i) {
+            results[i.name] = i.getValue();
+            });
+        return results;
+        }
+    });
 Ext.define('App.ui.Toolbar', {
     override: 'Ext.toolbar.Toolbar',
     initialize: function() {
@@ -44,15 +58,74 @@ Ext.define('App.api.Function', {
         {name: 'children', type: 'auto'},
         'value',
         'desc'
-        ]
+        ],
+    hasFormatString: function() {
+        if (this.get('desc').indexOf('{0}') > 0) {
+            return true;
+            }
+        return false;
+        },
+    singleValued: function() {
+        if (this.get('desc').indexOf('{1}') > 0) {
+            return false;
+            }
+        return true;
+        },
+    getComponents: function() {
+        var raw = this.get('desc');
+        if (this.singleValued()) {
+            if (raw.indexOf('{0}') > 0) { // Clip to the {0} placeholder
+                this.set('first', raw.substr(0, raw.indexOf('{0}')));
+                }
+            return [
+                {
+                    xtype: 'textfield',
+                    fieldLabel: this.get('first'),
+                    labelAlign: 'top',
+                    labelSeparator: '',
+                    vtype: 'numeric'
+                    }
+                ]; // eo return
+            } // eo if
+        else {
+            this.set('first', raw.substr(0, raw.indexOf('{0}')));
+            this.set('second', raw.substring(raw.indexOf('{0}') + 3, raw.indexOf('{1}')));
+            return [
+                {
+                    xtype: 'inlinetextfield',
+                    fieldLabel: this.get('first'),
+                    name: 'first',
+                    vtype: 'numeric'
+                    },
+                {
+                    xtype: 'inlinetextfield',
+                    fieldLabel: this.get('second'),
+                    name: 'second',
+                    vtype: 'numeric'
+                    }
+                ]; // eo return
+            } // eo else
+        } // eo getComponents
+    }, function() {
+        Ext.apply(Ext.form.field.VTypes, {
+            numeric: function(val) {
+                var re = /^\d*\.?\d*$/; // Matches numbers only
+                return re.test(val);
+                },
+            numericText: 'Only numeric values are allowed'
+            });
+        });
+Ext.define('App.api.Model', {
+    extend: 'Ext.data.Model',
+    fields: ['urlslug', 'code', 'organization', 'id', 'name', 'comments']
     });
 Ext.define('App.api.Scenario', {
     extend: 'Ext.data.Model',
-    fields: ['urlslug', 'description', 'code', 'name', 'id']
+    fields: ['urlslug', 'code', 'description', 'id', 'name']
     });
 Ext.define('App.api.Variable', {
     extend: 'Ext.data.Model',
-    fields: ['ndim', 'urlslug', 'code', 'description', 'units', 'id', 'name']
+    fields: ['ndim', 'units', 'urlslug', 'code', 'description', 'id', 'name']
     });
 /////////////////////////////////////////////////////////////////////// Classes
 Ext.define('App.ui.ApiComboBox', {
@@ -65,6 +138,39 @@ Ext.define('App.ui.ApiComboBox', {
         // Set the field to the value of the first record, based on store's valueField
         this.setValue(store.data.items[0].data[this.valueField]);
         }
+    });
+Ext.define('App.ui.OkButton', {
+    extend: 'Ext.button.Button',
+    alias: 'widget.ok',
+    width: 69,
+    text: 'OK',
+    style: {margin: '5px 3px 0'},
+    handler: function() {
+        // The callback expects the button "type" (e.g. 'ok') and the form values
+        if (!this.callback(this.text.toLowerCase(), this.ownerCt.getValues())) {
+            this.findParentByType('window').close();
+            }
+        }
+    });
+Ext.define('App.ui.CancelButton', {
+    extend: 'Ext.button.Button',
+    alias: 'widget.cancel',
+    width: 69,
+    text: 'Cancel',
+    style: {margin: '5px 3px 0'},
+    handler: function() {
+        // The callback expects the button "type" (e.g. 'ok') and its value
+        if (!this.callback(this.text.toLowerCase(), this.ownerCt.getValues())) {
+            this.findParentByType('window').close();
+            }
+        }
+    });
+Ext.define('App.ui.InlineTextField', {
+    extend: 'Ext.form.field.Text',
+    alias: 'widget.inlinetextfield',
+    labelSeparator: '',
+    labelAlign: 'top',
+    fieldStyle: {width: 80}
     });
 Ext.define('App.ui.MarkupComponent', { // No ExtJS fluff
     extend: 'Ext.Component',
@@ -83,6 +189,7 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
+/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -99,6 +206,9 @@ Ext.define('App.ui.MapPanel', {
         this.callParent();        
         },
     listeners: {
+        render: function() {
+            this.getEl().mask('Loading...');
+            },
         afterrender: function() {
             var self = this,
                 drawingManager = new google.maps.drawing.DrawingManager();
@@ -112,9 +222,13 @@ Ext.define('App.ui.MapPanel', {
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
                 });
+            },
+        mapready: function() {
+            this.getEl().unmask();
             }
         }
     }); // No callback (third argument)
+*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -143,7 +257,7 @@ Ext.define('App.ui.DateRange', {
             }
         ]
     }, function() { // Callback function
-        Ext.apply(Ext.form.VTypes, {
+        Ext.apply(Ext.form.field.VTypes, {
             daterange: function(val, field) {
                 var date = field.parseDate(val), start, end;
                 if (!date) {
@@ -174,12 +288,78 @@ Ext.define('App.ui.DateRange', {
 Ext.define('App.ui.TreePanel', {
     extend: 'Ext.tree.Panel',
     alias: 'widget.treepanel',
-    rootVisible: true
+    rootVisible: true,
+    getValue: function() {
+        return this.getSelectionModel.getSelection().get('value');
+        },
+    listeners: {
+        beforeitemmousedown: function(view, rec) {
+            var cb = function(btn, values) {
+                    if (btn === 'cancel') {
+                        rec.set('checked', !rec.get('checked'));
+                        } 
+                    else {
+                        Ext.iterate(values, function(k, v, o) {
+                            if (!Ext.isNumeric(v)) {
+                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
+                                rec.set('checked', !rec.get('checked'));
+                                } // eo if
+                            }); // eo Ext.iterate()
+                        } // eo else
+                    },
+                config = {
+                    title: 'Add Statistic: ' + rec.get('text'),
+                    buttons: Ext.Msg.OKCANCEL,
+                    closable: false,
+                    animateTarget: this.header.getEl(),
+                    modal: true
+                    },
+                prompt;
+            // Is the box already checked?
+            if (rec.get('checked')) { // Uncheck the box
+                rec.set('checked', !rec.get('checked'));
+                }
+            else { // Check the box
+                rec.set('checked', !rec.get('checked'));
+                // Is inline formatting needed?
+                if (rec.hasFormatString()) {
+                    prompt = Ext.create('Ext.Window', Ext.apply(config, {
+                        bodyPadding: 10,
+                        width: 250,
+                        items: rec.getComponents(),
+                        style: {textAlign: 'center'}
+                        }));
+                    prompt.add([
+                        {xtype: 'ok', callback: cb},
+                        {xtype: 'cancel', callback: cb}
+                        ]);
+                    prompt.show();
+                    }
+                // No inline-formatting needed; display simple prompt
+                else {
+                    Ext.Msg.show(Ext.apply(config, {
+                        msg: rec.get('desc').substr(0, rec.get('desc').indexOf('.')),
+                        prompt: true,
+                        fn: function(btn, text) {
+                            if (btn === 'cancel' || text === '') { // If 'Cancel' pressed or no text entered
+                                rec.set('checked', !rec.get('checked'));
+                                } 
+                            else if (!Ext.isNumeric(text)) { // If the value entered is not numeric
+                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
+                                rec.set('checked', !rec.get('checked'));
+                                } // eo else if
+                            } // eo fn
+                        })); // eo Ext.Msg.show()
+                    } // eo else
+                } // eo else
+            } // eo itemclick
+        } // eo listeners
     });
 ////////////////////////////////////////////////////////////////////////////////
 Ext.application({
     name: 'App',
     launch: function() {
+        Ext.getBody().mask('Loading...');
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
             archives: Ext.create('Ext.data.Store', {
@@ -204,6 +384,14 @@ Ext.application({
                 root: {
                     text: 'Available Statistics',
                     expanded: true
+                    }
+                }),
+            models: Ext.create('Ext.data.Store', {
+                model: 'App.api.Model',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/models.json',
+                    reader: 'json'
                     }
                 }),
             outputs: Ext.create('Ext.data.ArrayStore', {
@@ -241,6 +429,11 @@ Ext.application({
         App.viewport = Ext.create('Ext.container.Viewport', {
             id: 'viewport',
             layout: 'border',
+            listeners: {
+                afterrender: function() {
+                    Ext.getBody().unmask();
+                    }
+                },
             items: [
                 { // Banner
                     xtype: 'markup',
@@ -282,6 +475,7 @@ Ext.application({
                                         {
                                             xtype: 'combo',
                                             fieldLabel: 'Grouping Interval',
+                                            name: 'grouping',
                                             labelWidth: 100,
                                             queryMode: 'local',
                                             value: 'year',
@@ -308,7 +502,7 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'mappanel',
+                            xtype: 'panel',
                             itemId: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
@@ -316,6 +510,7 @@ Ext.application({
                                 {
                                     xtype: 'combo',
                                     fieldLabel: 'Area-of-Interest (AOI)',
+                                    name: 'aoi',
                                     emptyText: '(None Selected)',
                                     style: {textAlign: 'right'}
                                     },
@@ -359,10 +554,12 @@ Ext.application({
                                     },
                                 {
                                     xtype: 'progressbar',
+                                    id: 'query-progress',
                                     width: 180
                                     },
                                 {
                                     xtype: 'tbtext',
+                                    id: 'query-status',
                                     text: 'No activity',
                                     style: {fontStyle: 'italic'}
                                     }
@@ -387,27 +584,34 @@ Ext.application({
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Archive',
+                    name: 'archive',
                     store: App.data.archives
                     },
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Emissions Scenario',
+                    name: 'scenario',
                     displayField: 'code',
                     store: App.data.scenarios
                     },
                 {
-                    xtype: 'combo',
-                    fieldLabel: 'Climate Model'
+                    xtype: 'apicombo',
+                    fieldLabel: 'Climate Model',
+                    name: 'model',
+                    displayField: 'code',
+                    store: App.data.models
                     },
                 {
                     xtype: 'apicombo',
                     fieldLabel: 'Variable',
+                    name: 'variable',
                     displayField: 'name',
                     store: App.data.variables
                     },
                 {
                     xtype: 'numberfield',
                     fieldLabel: 'Run',
+                    name: 'run',
                     value: 1,
                     minValue: 1,
                     maxValue: 99
@@ -415,6 +619,7 @@ Ext.application({
                 {
                     xtype: 'daterange',
                     fieldLabel: 'Date Range',
+                    name: 'daterange',
                     labelWidth: 80,
                     width: 290
                     }
@@ -426,6 +631,7 @@ Ext.application({
             p.add([
                 {
                     xtype: 'combo',
+                    name: 'output',
                     width: 250,
                     queryMode: 'local',
                     valueField: 'value',
@@ -440,6 +646,7 @@ Ext.application({
             p.add([
                 {
                     xtype: 'textarea',
+                    name: 'query',
                     emptyText: 'http://openclimategis.org/api/',
                     width: 500,
                     height: 80

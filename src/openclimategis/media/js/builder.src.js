@@ -26,7 +26,9 @@ Ext.define('App.ui.BaseField', {
     isQueryParam: true, // NOTE: All form fields are assumed to represent query parameters
     listeners: {
         change: function(field, newValue) { // Third argument is "oldValue"
-            this.findParentByType('form').fireEvent('change', {field: field, newValue: newValue});
+            if (this.isQueryParam) {
+                this.findParentByType('form').fireEvent('change', {field: field, newValue: newValue});
+                }
             } // eo change
         } // eo listeners
     });
@@ -52,6 +54,10 @@ Ext.define('App.ui.Toolbar', {
     height: 28
     });
 //////////////////////////////////////////////////////////////////////// Models
+Ext.define('App.api.AreaOfInterest', {
+    extend: 'Ext.data.Model',
+    fields: ['uid_field', 'code', {name: 'id', type: 'int'}, 'desc']
+    });
 Ext.define('App.api.Archive', {
     extend: 'Ext.data.Model',
     fields: ['code', {name: 'id', type: 'int'}, 'name', 'url', 'urlslug']
@@ -89,6 +95,7 @@ Ext.define('App.api.Function', {
                     fieldLabel: this.get('first'),
                     labelAlign: 'top',
                     labelSeparator: '',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     }
                 ]; // eo return
@@ -101,12 +108,14 @@ Ext.define('App.api.Function', {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('first'),
                     name: 'first',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     },
                 {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('second'),
                     name: 'second',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     }
                 ]; // eo return
@@ -332,7 +341,18 @@ Ext.define('App.ui.TreePanel', {
     alias: 'widget.treepanel',
     rootVisible: true,
     getValue: function() {
-        return this.getSelectionModel.getSelection().get('value');
+        var stats = this.getChecked(),
+            value = [];
+        Ext.each(stats, function(i, n, all) {
+            if (i.get('attrs')) {
+                value.push({
+                    value: i.get('value'),
+                    attrs: i.get('attrs')
+                    });
+                }
+            else {value.push(i.get('value'));}
+            });
+        return value;
         },
     listeners: {
         beforeitemmousedown: function(view, rec) {
@@ -346,6 +366,10 @@ Ext.define('App.ui.TreePanel', {
                                 Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
                                 rec.set('checked', !rec.get('checked'));
                                 } // eo if
+                            else {
+                                // Adds the user-defined values to the record
+                                rec.set('attrs', values);
+                                }
                             }); // eo Ext.iterate()
                         } // eo else
                     },
@@ -386,6 +410,14 @@ Ext.application({
         Ext.getBody().mask('Loading...');
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
+            aois: Ext.create('Ext.data.Store', {
+                model: 'App.api.AreaOfInterest',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/aois.json',
+                    reader: 'json'
+                    }
+                }),
             archives: Ext.create('Ext.data.Store', {
                 model: 'App.api.Archive',
                 proxy: {
@@ -542,6 +574,10 @@ Ext.application({
                                     xtype: 'combo',
                                     fieldLabel: 'Area-of-Interest (AOI)',
                                     name: 'aoi',
+                                    isQueryParam: false, // TODO Is this right?
+                                    store: App.data.aois,
+                                    displayField: 'code',
+                                    valueField: 'id',
                                     emptyText: '(None Selected)',
                                     style: {textAlign: 'right'}
                                     },
@@ -703,7 +739,7 @@ Ext.application({
                             Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
                             },
                         change: function() { // Draw some attention to this box
-                            Ext.getCmp('form-api-url').container.highlight()
+                            Ext.getCmp('form-api-url').container.highlight();
                             this.animate({
                                 duration: 400,
                                 easing: 'backIn',

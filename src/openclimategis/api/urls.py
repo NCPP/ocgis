@@ -72,6 +72,10 @@ urlpatterns = patterns('',
 ### FUNCTION DEFINITION JSON ---------------------------------------------------
 
     (r'^functions.json','api.views.get_function_json'),
+    
+### AOI DEFINITION JSON
+
+    (r'^aois.json','api.views.get_aois_json'),
 
 ### METACONTENT ----------------------------------------------------------------
 

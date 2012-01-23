@@ -19,6 +19,7 @@ from climatedata import models
 from django.db import transaction
 from shapely.geos import ReadingError
 from util.ncconv.experimental.ocg_stat.ocg_stat import OcgStatFunction
+import json
 
 
 CHOICES_AGGREGATE = [
@@ -45,6 +46,14 @@ def get_function_json(request):
     from util.ncconv.experimental.ocg_stat import OcgStatFunction
     json = OcgStatFunction().json()
     response = HttpResponse(json,content_type='application/json')
+    return(response)
+
+def get_aois_json(request):
+    from util.ncconv.experimental.helpers import get_django_attrs
+    aois = UserGeometryMetadata.objects.all()
+    data = [get_django_attrs(obj) for obj in aois]
+    dump = json.dumps(data)
+    response = HttpResponse(dump,content_type='application/json')
     return(response)
 
 def get_SpatialQueryForm(simulation_output):

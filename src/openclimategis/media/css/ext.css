@@ -108,5 +108,7 @@ a:active {color:#730D00;text-decoration:none;border:none;}
     /* Text */
     .x-toolbar .x-toolbar-text {color:#666 !important;}
 /* Form */
+    textarea.x-form-text {font-family:monospace;font-size:14px;background-color:#FFF;}
+    .shell {background-color:#FFF;}
     /* Label */
     .x-form-item-label-top {text-align:left;}

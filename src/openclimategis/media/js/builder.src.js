@@ -680,6 +680,10 @@ Ext.application({
                     name: 'query',
                     id: 'form-api-url',
                     isQueryParam: false,
+                    width: 500,
+                    height: 80,
+                    cls: 'updateable', // Indicates this field should flash when updated
+                    fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
                     value: 'http://openclimategis.org/api/',
                     template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
                     // This is a holder for the parameter values
@@ -694,11 +698,24 @@ Ext.application({
                         variable: '{7}',
                         format: '{8}'
                         },
-                    width: 500,
-                    height: 80,
                     listeners: {
                         afterrender: function() {
                             Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
+                            },
+                        change: function() { // Draw some attention to this box
+                            Ext.getCmp('form-api-url').container.highlight()
+                            this.animate({
+                                duration: 400,
+                                easing: 'backIn',
+                                from: {opacity: 0.4},
+                                to: {opacity: 1}
+                                });
+                            /* Other choices for animation
+                            this.getEl().slideIn('t', {
+                                easing: 'easeIn',
+                                duration: 300
+                                })
+                            */
                             }
                         },
                     updateUrl: function(name, value) {

@@ -307,7 +307,7 @@ Ext.define('App.ui.MapPanel', {
         change: function(args) {
             this.findParentByType('form').fireEvent('change', {
                 field: {
-                    name: 'spatial',
+                    name: 'geometry',
                     isQueryParam: true,
                     },
                 newValue: this.pathToPolygon(args.path)
@@ -588,7 +588,6 @@ Ext.application({
                     layout: 'border',
                     listeners: {
                         change: function(args) { // Changes the API Request URL display
-                            blah = args;
                             if (args.field.isQueryParam) {
                                 Ext.getCmp('form-api-url').updateUrl(args.field.name, args.newValue);
                                 } // eo if
@@ -679,17 +678,35 @@ Ext.application({
                                     },
                                 {
                                     xtype: 'button',
-                                    disabled: true,
                                     text: 'Clip Output to AOI',
+                                    name: 'clip',
                                     iconCls: 'icon-scissors',
-                                    enableToggle: true
+                                    enableToggle: true,
+                                    handler: function(b) {
+                                        this.findParentByType('form').fireEvent('change', {
+                                            field: {
+                                                name: this.name,
+                                                isQueryParam: true
+                                                },
+                                            newValue: b.pressed
+                                            });
+                                        }
                                     },
                                 {
                                     xtype: 'button',
-                                    disabled: true,
                                     text: 'Aggregate Geometries',
+                                    name: 'aggregate',
                                     iconCls: 'icon-shape-group',
-                                    enableToggle: true
+                                    enableToggle: true,
+                                    handler: function(b) {
+                                        this.findParentByType('form').fireEvent('change', {
+                                            field: {
+                                                name: this.name,
+                                                isQueryParam: true
+                                                },
+                                            newValue: b.pressed
+                                            });
+                                        }
                                     },
                                 '->',
                                 {
@@ -704,11 +721,13 @@ Ext.application({
                             xtype: 'nested',
                             itemId: 'request-url',
                             region: 'south',
-                            height: 150,
                             title: 'Data Request URL',
+                            height: 150,
+                            layout: 'fit',
                             bbar: [
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     iconCls: 'icon-page-do',
                                     text: 'Generate Data File'
                                     },
@@ -723,7 +742,7 @@ Ext.application({
                                     text: 'No activity',
                                     style: {fontStyle: 'italic'}
                                     }
-                                ] // eo items
+                                ] // eo bbar
                             } // eo nested
                         ] // eo items
                     },
@@ -803,108 +822,97 @@ Ext.application({
         // Add items to the Data Request URL panel /////////////////////////////
         (function() {
             var p = Ext.getCmp('form-panel').getComponent('request-url');
-            p.add([
-                {
-                    xtype: 'textarea',
-                    name: 'query',
-                    id: 'form-api-url',
-                    isQueryParam: false,
-                    width: 500,
-                    height: 80,
-                    cls: 'updateable', // Indicates this field should flash when updated
-                    fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
-                    template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
-                    // This is a holder for the parameter values
-                    values: {
-                        archive: '{0}',
-                        model: '{1}',
-                        scenario: '{2}',
-                        run: '{3}',
-                        temporal: '{4}', 
-                        spatial: '{5}',
-                        aggregate: '{6}',
-                        variable: '{7}',
-                        format: '{8}'
+            p.insert(0, {
+                xtype: 'textarea',
+                name: 'query',
+                id: 'form-api-url',
+                isQueryParam: false,
+                height: 80,
+                editable: true,
+                cls: 'updateable', // Indicates this field should flash when updated
+                fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
+                template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
+                // This is a holder for the parameter values
+                values: {
+                    archive: '{0}',
+                    model: '{1}',
+                    scenario: '{2}',
+                    run: '{3}',
+                    temporal: '{4}', 
+                    spatial: '{5}', // This is 'clip+' + values.geometry when clip is true
+                    aggregate: false, // Button is 'off' by default
+                    variable: '{7}',
+                    format: '{8}',
+                    clip: false, // Button is 'off' by default
+                    geometry: undefined // This is essentially the "spatial" parameter but irrespective of "clip"
+                    },
+                listeners: {
+                    afterrender: function() {
+                        Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
+                        this.url = 'http://openclimategis.org/api'; // Initialize base URL
+                        this.query = ''; // Initialize query (none)
+                        this.setValue(this.url + this.query);
                         },
-                    listeners: {
-                        afterrender: function() {
-                            Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
-                            this.url = 'http://openclimategis.org/api'; // Initialize base URL
-                            this.query = ''; // Initialize query (none)
-                            this.setValue(this.url + this.query);
-                            },
-                        change: function() { // Draw some attention to this box
-                            Ext.getCmp('form-api-url').container.highlight();
-                            this.animate({
-                                duration: 400,
-                                easing: 'backIn',
-                                from: {opacity: 0.4},
-                                to: {opacity: 1}
-                                });
-                            /* Other choices for animation
-                            this.getEl().slideIn('t', {
-                                easing: 'easeIn',
-                                duration: 300
-                                })
-                            */
-                            }
-                        },
-                    /**
-                     * Updates the GET request parameters passed in the API request URL
-                     * e.g. resource?param=value
-                     */
-                    updateQuery: function(params) {
-                        var s, v = this.values;
-                        // Break apart the URL; throw away the existing query
-                        s = this.query.slice(0, this.query.indexOf('?'));
-                        s += '?grouping=' + v.grouping;
-                        if (params) { // If there are stat functions specified...
-                            s += '&stat=';
-                            Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
-                                if (typeof(i) === 'object') {
-                                    s += i.value; // e.g. &stat=between
-                                    s += '('; // e.g. &stat=between(
-                                    Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
-                                        s += j; // e.g. &stat=between(0
-                                        if (m < all.length-1) {s += ',';}
-                                        });
-                                    s += ')'; // e.g. &stat=between(0,1)
-                                    }
-                                else {s += i;} // e.g. &stat=max
-                                if (n < all.length-1) {s += '+';}
-                                });
-                            }
-                        this.query = s;
-                        this.setValue(this.url + s);
-                        return this.getValue(); // Return the updated URL
-                        },
-                    /**
-                     * Updates the pseudo-parameters encoded in the API request URL
-                     * e.g. host/resource/type/id
-                     */
-                    updateUrl: function(name, value) {
-                        bloo = [name, value];
-                        var s, v = this.values;
-                        if (name === 'grouping') {this.updateQuery();return;}
-                        this.values[name] = value; // Set the updated parameter's value
-                        s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
-/*
-                        // If-else clause here basically just tries to hide format characters (e.g. '{1}') as much as possible
-                        if (this.getValue() === s.substring(0, s.indexOf('{')) && this.getValue().length <= s.substring(0, s.indexOf('{'))) {
-                            this.setValue(s.substring(0, s.lastIndexOf('{')));
-                            }
-                        else {
-                            this.setValue(s.substring(0, s.indexOf('{')));
-                            }
-*/
-                        s = s.slice(0, s.indexOf('{')); // Hide unformatted parameters
-                        // Add the GET query parameters to the end
-                        this.url = s;
-                        this.setValue(s + this.query);
-                        return this.getValue(); // Return the updated URL
-                        } // eo updateUrl()
-                    } // eo textarea
-                ]);
+                    change: function() { // Draw some attention to this box
+                        Ext.getCmp('form-api-url').container.highlight();
+                        this.animate({
+                            duration: 400,
+                            easing: 'backIn',
+                            from: {opacity: 0.4},
+                            to: {opacity: 1}
+                            });
+                        }
+                    },
+                /**
+                 * Updates the GET request parameters passed in the API request URL
+                 * e.g. resource?param=value
+                 */
+                updateQuery: function(params) {
+                    var s, v = this.values;
+                    // Break apart the URL; throw away the existing query
+                    s = '?grouping=' + v.grouping; // TODO Is this paramter always set? Is it possible to not have a grouping?
+                    if (params) { // If there are stat functions specified...
+                        s += '&stat=';
+                        Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
+                            if (typeof(i) === 'object') {
+                                s += i.value; // e.g. &stat=between
+                                s += '('; // e.g. &stat=between(
+                                Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
+                                    s += j; // e.g. &stat=between(0
+                                    if (m < all.length-1) {s += ',';}
+                                    });
+                                s += ')'; // e.g. &stat=between(0,1)
+                                }
+                            else {s += i;} // e.g. &stat=max
+                            if (n < all.length-1) {s += '+';}
+                            });
+                        }
+                    this.query = s;
+                    this.setValue(this.url + s);
+                    return this.getValue(); // Return the updated URL
+                    },
+                /**
+                 * Updates the pseudo-parameters encoded in the API request URL
+                 * e.g. host/resource/type/id
+                 */
+                updateUrl: function(name, value) {
+                    var s, v = this.values;
+                    this.values[name] = value; // Set the updated parameter's value
+                    if (name === 'grouping') {this.updateQuery();return;}
+                    if (name === 'geometry' || name === 'clip') {
+                        this.values.spatial = (function() {
+                            if (v.clip) {return 'clip+'}
+                            else {return '';}
+                            }()) + v.geometry;
+                        }
+                    s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+                    if (s.indexOf('{') > 0) {s = s.slice(0, s.indexOf('{'));} // Hide unformatted parameters
+                    // Add the GET query parameters to the end
+                    this.url = s;
+                    this.setValue(s + this.query);
+                    return this.getValue(); // Return the updated URL
+                    } // eo updateUrl()
+                });
             }()); // Execute immediately
         ////////////////////////////////////////////////////////////////////////
         } // eo launch()

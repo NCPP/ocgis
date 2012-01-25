@@ -1,5 +1,5 @@
 /*global Ext, google*/
-var App, blah = [], bloo = [];
+var App, blah, bloo;
 /*
 Ext.require([
     'Ext.Component',
@@ -27,8 +27,11 @@ Ext.define('App.ui.BaseField', {
     listeners: {
         change: function(field, newValue) { // Third argument is "oldValue"
             if (this.isQueryParam) {
-                this.findParentByType('form').fireEvent('change', {field: field, newValue: newValue});
-                }
+                this.findParentByType('form').fireEvent('change', {
+                    field: field,
+                    newValue: newValue
+                    });
+                } // eo if
             } // eo change
         } // eo listeners
     });
@@ -346,8 +349,8 @@ Ext.define('App.ui.TreePanel', {
         Ext.each(stats, function(i, n, all) {
             if (i.get('attrs')) {
                 value.push({
-                    value: i.get('value'),
-                    attrs: i.get('attrs')
+                    value: i.value,
+                    attrs: i.attrs
                     });
                 }
             else {value.push(i.get('value'));}
@@ -366,7 +369,7 @@ Ext.define('App.ui.TreePanel', {
                                 Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
                                 rec.set('checked', !rec.get('checked'));
                                 } // eo if
-                            else {
+                            else { // Item checked and successfully validated
                                 // Adds the user-defined values to the record
                                 rec.set('attrs', values);
                                 }
@@ -377,6 +380,13 @@ Ext.define('App.ui.TreePanel', {
             // Is the box already checked?
             if (rec.get('checked')) { // Uncheck the box
                 rec.set('checked', !rec.get('checked'));
+                if (rec.get('attrs')) { // Clear the user-defined values
+                    rec.set('attrs', undefined);
+                    }
+                this.fireEvent('checkchange', {
+                    node: rec,
+                    checked: false
+                    });
                 }
             else { // Check the box
                 rec.set('checked', !rec.get('checked'));
@@ -398,9 +408,23 @@ Ext.define('App.ui.TreePanel', {
                         {xtype: 'cancel', callback: cb}
                         ]);
                     prompt.show();
-                    } // eo if
+                    }
+                this.fireEvent('checkchange', {
+                    node: rec,
+                    checked: true
+                    });
                 } // eo else
-            } // eo itemclick
+            }, // eo beforemousedown
+        checkchange: function(node, checked) {
+            // Event where statistical functions selected have changed
+            this.findParentByType('form').fireEvent('change', {
+                field: {
+                    isQueryParam: true,
+                    name: 'stat'
+                    },
+                newValue: this.getValue()
+                });
+            }
         } // eo listeners
     });
 ////////////////////////////////////////////////////////////////////////////////
@@ -530,7 +554,7 @@ Ext.application({
                                     },
                                 { // Temporal selection
                                     xtype: 'treepanel',
-                                    itemId: 'stats-tree',
+                                    itemId: 'tree-panel',
                                     title: 'Temporal',
                                     region: 'center',
                                     store: App.data.functions,
@@ -767,6 +791,24 @@ Ext.application({
                             this.setValue(s.substring(0, s.indexOf('{')));
                             }
 */
+                        s = s + '?grouping=' + v.grouping;
+                        if (v.stat) { // If there are stat functions specified...
+                            s += '&stat=';
+                            Ext.each(v.stat, function(i, n, all) { // e.g. &stat=between(0,1)
+                                if (typeof(i) === 'object') {
+                                    s += i.value; // e.g. &stat=between
+                                    s += '('; // e.g. &stat=between(
+                                    Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
+                                        s += j; // e.g. &stat=between(0
+                                        if (m < all.length-1) {s += ',';}
+                                        });
+                                    s += ')'; // e.g. &stat=between(0,1)
+                                    }
+                                else {s += i;} // e.g. &stat=max
+                                if (n < all.length-1) {s += '+';}
+                                });
+                            }
+                        blah = s;
                         this.setValue(s.substring(0, s.indexOf('{')));
                         return this.getValue(); // Return the updated URL
                         } // eo updateUrl()

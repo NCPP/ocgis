@@ -220,7 +220,24 @@ Ext.define('App.ui.MapPanel', {
                 }
             };
         Ext.applyIf(this, config);
+        this.addEvents('change', 'mapready', 'overlaycomplete');
         this.callParent();        
+        },
+    /**
+     * Generates a polygon definition string for the API
+     * @param   path    {Array}     An Array of {lat, lng} objects
+     * @return          {String}    A polygon string (e.g. 'polygon((...))')
+     */
+    pathToPolygon: function(path) {
+        var str = 'polygon((';
+        Ext.each(path, function(i, n, all) {
+            str += i.lng.toFixed(5) // Longitude
+            str += ','
+            str += i.lat.toFixed(5) // Latitude
+            if (n < all.length-1) {str += '+';} // More coordinates?
+            });
+        str += '))'
+        return str;
         },
     listeners: {
         render: function() {
@@ -231,12 +248,11 @@ Ext.define('App.ui.MapPanel', {
                 Type = google.maps.drawing.OverlayType,
                 drawingManager = new google.maps.drawing.DrawingManager({
                     rectangleOptions: {editable: true},
-                    polygonOptions: {editable: true},
+                    polygonOptions: {editable: false},
                     drawingControlOptions: {
                         drawingModes: [Type.RECTANGLE, Type.POLYGON]
                         }
                     });
-            this.addEvents('mapready', 'overlaycomplete');
             this.gmap = new google.maps.Map(this.body.dom, {
                 center: new google.maps.LatLng(42.30220, -83.68952),
                 zoom: 8,
@@ -260,26 +276,43 @@ Ext.define('App.ui.MapPanel', {
                 path = [];
             // Remove any existing overlay (only one allowed at a time
             if (this.overlay) {this.overlay.setMap(null);}
-            blah = args;
+            // Polygon drawn
             if (args.event.type === Type.POLYGON) {
                 args.event.overlay.getPath().forEach(function(i, n) {
-                    path.push([i.lng(), i.lat()]);
+                    path.push({
+                        lng: i.lng(),
+                        lat: i.lat()
+                        });
                     });
                 }
+            // Rectangle drawn
             else if (args.event.type === Type.RECTANGLE) {
                 path = (function() {
                     var b = args.event.overlay.getBounds();
                     return [ // An array of the each of the corners
-                        [b.getNorthEast().lat(), b.getSouthWest().lng()], // NW
-                        [b.getNorthEast().lat(), b.getNorthEast().lng()], // NE
-                        [b.getSouthWest().lat(), b.getNorthEast().lng()], // SE
-                        [b.getSouthWest().lat(), b.getSouthWest().lng()]  // SW
+                        {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
+                        {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
+                        {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
+                        {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}  // SW
                         ];
                     }()); // Execute immediately
+                // Listen for the 'mouseup' event as an indicator of editing
+                google.maps.event.addListener(args.event.overlay, 'bounds_changed', function() {
+                    alert('bounds_changed');
+                    });
                 } // eo else if
             this.overlay = args.event.overlay; // Remember this overlay
-            bloo = path;
-            } // eo overlaycomplete
+            this.fireEvent('change', {path: path})
+            },
+        change: function(args) {
+            this.findParentByType('form').fireEvent('change', {
+                field: {
+                    name: 'spatial',
+                    isQueryParam: true,
+                    },
+                newValue: this.pathToPolygon(args.path)
+                });
+            }
         }
     }); // No callback (third argument)
 Ext.define('App.ui.DateRange', {
@@ -555,6 +588,7 @@ Ext.application({
                     layout: 'border',
                     listeners: {
                         change: function(args) { // Changes the API Request URL display
+                            blah = args;
                             if (args.field.isQueryParam) {
                                 Ext.getCmp('form-api-url').updateUrl(args.field.name, args.newValue);
                                 } // eo if
@@ -849,6 +883,7 @@ Ext.application({
                      * e.g. host/resource/type/id
                      */
                     updateUrl: function(name, value) {
+                        bloo = [name, value];
                         var s, v = this.values;
                         if (name === 'grouping') {this.updateQuery();return;}
                         this.values[name] = value; // Set the updated parameter's value

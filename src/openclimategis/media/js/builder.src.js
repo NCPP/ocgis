@@ -207,7 +207,6 @@ Ext.define('App.ui.NestedPanel', { // Padded bodies
     resizable: true,
     bodyPadding: 7
     }); // No callback (third argument)
-/*
 Ext.define('App.ui.MapPanel', {
     extend: 'Ext.Panel',
     alias: 'widget.mappanel',
@@ -225,22 +224,29 @@ Ext.define('App.ui.MapPanel', {
         },
     listeners: {
         render: function() {
-            this.body.mask();
+            this.body.mask(); // Mask labels will not be placed correctly so don't provide text
             },
         afterrender: function() {
             var self = this,
-                modes = google.maps.drawing.OverlayType,
+                Type = google.maps.drawing.OverlayType,
                 drawingManager = new google.maps.drawing.DrawingManager({
+                    rectangleOptions: {editable: true},
+                    polygonOptions: {editable: true},
                     drawingControlOptions: {
-                        drawingModes: [modes.RECTANGLE, modes.POLYGON]
+                        drawingModes: [Type.RECTANGLE, Type.POLYGON]
                         }
                     });
+            this.addEvents('mapready', 'overlaycomplete');
             this.gmap = new google.maps.Map(this.body.dom, {
                 center: new google.maps.LatLng(42.30220, -83.68952),
                 zoom: 8,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
             drawingManager.setMap(this.gmap);
+            // Listen for the 'overlaycomplete' event and pass it to the container
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+                self.fireEvent('overlaycomplete', {event: event});
+                });
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
@@ -248,10 +254,34 @@ Ext.define('App.ui.MapPanel', {
             },
         mapready: function() {
             this.body.unmask();
-            }
+            },
+        overlaycomplete: function(args) {
+            var Type = google.maps.drawing.OverlayType,
+                path = [];
+            // Remove any existing overlay (only one allowed at a time
+            if (this.overlay) {this.overlay.setMap(null);}
+            blah = args;
+            if (args.event.type === Type.POLYGON) {
+                args.event.overlay.getPath().forEach(function(i, n) {
+                    path.push([i.lng(), i.lat()]);
+                    });
+                }
+            else if (args.event.type === Type.RECTANGLE) {
+                path = (function() {
+                    var b = args.event.overlay.getBounds();
+                    return [ // An array of the each of the corners
+                        [b.getNorthEast().lat(), b.getSouthWest().lng()], // NW
+                        [b.getNorthEast().lat(), b.getNorthEast().lng()], // NE
+                        [b.getSouthWest().lat(), b.getNorthEast().lng()], // SE
+                        [b.getSouthWest().lat(), b.getSouthWest().lng()]  // SW
+                        ];
+                    }()); // Execute immediately
+                } // eo else if
+            this.overlay = args.event.overlay; // Remember this overlay
+            bloo = path;
+            } // eo overlaycomplete
         }
     }); // No callback (third argument)
-*/
 Ext.define('App.ui.DateRange', {
     extend: 'Ext.form.FieldContainer',
     alias: 'widget.daterange',
@@ -589,8 +619,9 @@ Ext.application({
                                 ]
                             },
                         { // Spatial selection
-                            xtype: 'panel',
+                            xtype: 'mappanel',
                             itemId: 'map-panel',
+                            id: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
                             tbar: [
@@ -608,17 +639,20 @@ Ext.application({
                                 ' ',
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Manage AOIs',
                                     iconCls: 'icon-app-edit'
                                     },
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Clip Output to AOI',
                                     iconCls: 'icon-scissors',
                                     enableToggle: true
                                     },
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Aggregate Geometries',
                                     iconCls: 'icon-shape-group',
                                     enableToggle: true
@@ -626,6 +660,7 @@ Ext.application({
                                 '->',
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Save Sketch As AOI',
                                     iconCls: 'icon-disk'
                                     }
@@ -760,8 +795,8 @@ Ext.application({
                     listeners: {
                         afterrender: function() {
                             Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
-                            this.url = 'http://openclimategis.org/api';
-                            this.query = '';
+                            this.url = 'http://openclimategis.org/api'; // Initialize base URL
+                            this.query = ''; // Initialize query (none)
                             this.setValue(this.url + this.query);
                             },
                         change: function() { // Draw some attention to this box
@@ -805,7 +840,6 @@ Ext.application({
                                 if (n < all.length-1) {s += '+';}
                                 });
                             }
-                        blah = s;
                         this.query = s;
                         this.setValue(this.url + s);
                         return this.getValue(); // Return the updated URL
@@ -828,7 +862,6 @@ Ext.application({
                             this.setValue(s.substring(0, s.indexOf('{')));
                             }
 */
-                        bloo = s;
                         s = s.slice(0, s.indexOf('{')); // Hide unformatted parameters
                         // Add the GET query parameters to the end
                         this.url = s;

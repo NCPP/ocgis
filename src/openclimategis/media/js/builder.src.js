@@ -348,10 +348,7 @@ Ext.define('App.ui.TreePanel', {
             value = [];
         Ext.each(stats, function(i, n, all) {
             if (i.get('attrs')) {
-                value.push({
-                    value: i.value,
-                    attrs: i.attrs
-                    });
+                value.push(i.data);
                 }
             else {value.push(i.get('value'));}
             });
@@ -359,6 +356,7 @@ Ext.define('App.ui.TreePanel', {
         },
     listeners: {
         beforeitemmousedown: function(view, rec) {
+            var that = this;
             var cb = function(btn, values) {
                     if (btn === 'cancel') {
                         rec.set('checked', !rec.get('checked'));
@@ -372,6 +370,10 @@ Ext.define('App.ui.TreePanel', {
                             else { // Item checked and successfully validated
                                 // Adds the user-defined values to the record
                                 rec.set('attrs', values);
+                                that.fireEvent('checkchange', {
+                                    node: rec,
+                                    checked: true
+                                    });
                                 }
                             }); // eo Ext.iterate()
                         } // eo else
@@ -409,22 +411,14 @@ Ext.define('App.ui.TreePanel', {
                         ]);
                     prompt.show();
                     }
-                this.fireEvent('checkchange', {
-                    node: rec,
-                    checked: true
-                    });
+                else {
+                    this.fireEvent('checkchange', {
+                        node: rec,
+                        checked: true
+                        });
+                    }
                 } // eo else
-            }, // eo beforemousedown
-        checkchange: function(node, checked) {
-            // Event where statistical functions selected have changed
-            this.findParentByType('form').fireEvent('change', {
-                field: {
-                    isQueryParam: true,
-                    name: 'stat'
-                    },
-                newValue: this.getValue()
-                });
-            }
+            } // eo beforemousedown
         } // eo listeners
     });
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,6 +552,12 @@ Ext.application({
                                     title: 'Temporal',
                                     region: 'center',
                                     store: App.data.functions,
+                                    listeners: {
+                                        checkchange: function(node, checked) {
+                                            // Event where statistical functions selected have changed
+                                            Ext.getCmp('form-api-url').updateQuery(this.getValue());
+                                            }
+                                        },
                                     tbar: [
                                         {
                                             xtype: 'combo',
@@ -744,7 +744,6 @@ Ext.application({
                     height: 80,
                     cls: 'updateable', // Indicates this field should flash when updated
                     fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
-                    value: 'http://openclimategis.org/api/',
                     template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
                     // This is a holder for the parameter values
                     values: {
@@ -761,6 +760,9 @@ Ext.application({
                     listeners: {
                         afterrender: function() {
                             Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
+                            this.url = 'http://openclimategis.org/api';
+                            this.query = '';
+                            this.setValue(this.url + this.query);
                             },
                         change: function() { // Draw some attention to this box
                             Ext.getCmp('form-api-url').container.highlight();
@@ -778,23 +780,18 @@ Ext.application({
                             */
                             }
                         },
-                    updateUrl: function(name, value) {
+                    /**
+                     * Updates the GET request parameters passed in the API request URL
+                     * e.g. resource?param=value
+                     */
+                    updateQuery: function(params) {
                         var s, v = this.values;
-                        this.values[name] = value; // Set the updated parameter's value
-                        s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
-/*
-                        // If-else clause here basically just tries to hide format characters (e.g. '{1}') as much as possible
-                        if (this.getValue() === s.substring(0, s.indexOf('{')) && this.getValue().length <= s.substring(0, s.indexOf('{'))) {
-                            this.setValue(s.substring(0, s.lastIndexOf('{')));
-                            }
-                        else {
-                            this.setValue(s.substring(0, s.indexOf('{')));
-                            }
-*/
-                        s = s + '?grouping=' + v.grouping;
-                        if (v.stat) { // If there are stat functions specified...
+                        // Break apart the URL; throw away the existing query
+                        s = this.query.slice(0, this.query.indexOf('?'));
+                        s += '?grouping=' + v.grouping;
+                        if (params) { // If there are stat functions specified...
                             s += '&stat=';
-                            Ext.each(v.stat, function(i, n, all) { // e.g. &stat=between(0,1)
+                            Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
                                 if (typeof(i) === 'object') {
                                     s += i.value; // e.g. &stat=between
                                     s += '('; // e.g. &stat=between(
@@ -809,7 +806,33 @@ Ext.application({
                                 });
                             }
                         blah = s;
-                        this.setValue(s.substring(0, s.indexOf('{')));
+                        this.query = s;
+                        this.setValue(this.url + s);
+                        return this.getValue(); // Return the updated URL
+                        },
+                    /**
+                     * Updates the pseudo-parameters encoded in the API request URL
+                     * e.g. host/resource/type/id
+                     */
+                    updateUrl: function(name, value) {
+                        var s, v = this.values;
+                        if (name === 'grouping') {this.updateQuery();return;}
+                        this.values[name] = value; // Set the updated parameter's value
+                        s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+/*
+                        // If-else clause here basically just tries to hide format characters (e.g. '{1}') as much as possible
+                        if (this.getValue() === s.substring(0, s.indexOf('{')) && this.getValue().length <= s.substring(0, s.indexOf('{'))) {
+                            this.setValue(s.substring(0, s.lastIndexOf('{')));
+                            }
+                        else {
+                            this.setValue(s.substring(0, s.indexOf('{')));
+                            }
+*/
+                        bloo = s;
+                        s = s.slice(0, s.indexOf('{')); // Hide unformatted parameters
+                        // Add the GET query parameters to the end
+                        this.url = s;
+                        this.setValue(s + this.query);
                         return this.getValue(); // Return the updated URL
                         } // eo updateUrl()
                     } // eo textarea

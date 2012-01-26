@@ -30,7 +30,7 @@ CHOICES_SOP = [
     ('clip','Clip'),
 ]
 CHOICES_EXT = [
-    ('geojson','GeoJSON Text File'),
+    ('json','GeoJSON Text File'),
     ('csv','Comma Separated Value'),
     ('kcsv','Linked Comma Separated Value (zipped)'),
     ('shz','ESRI Shapefile (zipped)'),

@@ -167,6 +167,7 @@ td {vertical-align:top;height:30px;}
 .quote {float:left;width:450px;font-family:CabinSemiBoldItalic,sans-serif;font-size:42px;padding-left:48px;text-indent:-48px;line-height:32px;text-shadow:0 0 9px rgba(100,100,100,0.4);color:#003366;}
 .quote .author {color:#666;font-size:28px;}
 .quotemark {}
+.errorlist {color:#FF0000;font-size:14px;}
 
 /*
 #sidebar {float:left;width:260px;height:100%;position:fixed;margin-top:270px;border-right:20px solid #730D00;}

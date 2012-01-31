@@ -22,7 +22,18 @@ Ext.define('App.ui.BaseField', {
         this.callOverridden(arguments);
         },
     labelWidth: 120,
-    triggerAction: 'all'
+    triggerAction: 'all',
+    isQueryParam: true, // NOTE: All form fields are assumed to represent query parameters
+    listeners: {
+        change: function(field, newValue) { // Third argument is "oldValue"
+            if (this.isQueryParam) {
+                this.findParentByType('form').fireEvent('change', {
+                    field: field,
+                    newValue: newValue
+                    });
+                } // eo if
+            } // eo change
+        } // eo listeners
     });
 Ext.define('App.ui.BaseContainer', {
     override: 'Ext.container.Container',
@@ -46,6 +57,10 @@ Ext.define('App.ui.Toolbar', {
     height: 28
     });
 //////////////////////////////////////////////////////////////////////// Models
+Ext.define('App.api.AreaOfInterest', {
+    extend: 'Ext.data.Model',
+    fields: ['uid_field', 'code', {name: 'id', type: 'int'}, 'desc']
+    });
 Ext.define('App.api.Archive', {
     extend: 'Ext.data.Model',
     fields: ['code', {name: 'id', type: 'int'}, 'name', 'url', 'urlslug']
@@ -83,6 +98,7 @@ Ext.define('App.api.Function', {
                     fieldLabel: this.get('first'),
                     labelAlign: 'top',
                     labelSeparator: '',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     }
                 ]; // eo return
@@ -95,12 +111,14 @@ Ext.define('App.api.Function', {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('first'),
                     name: 'first',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     },
                 {
                     xtype: 'inlinetextfield',
                     fieldLabel: this.get('second'),
                     name: 'second',
+                    isQueryParam: false,
                     vtype: 'numeric'
                     }
                 ]; // eo return
@@ -132,7 +150,7 @@ Ext.define('App.ui.ApiComboBox', {
     extend: 'Ext.form.field.ComboBox',
     alias: 'widget.apicombo',
     queryMode: 'remote',
-    valueField: 'id',
+    valueField: 'urlslug',
     displayField: 'urlslug',
     onLoad: function(store) { // Arguments: [store, records, success]
         // Set the field to the value of the first record, based on store's valueField
@@ -202,18 +220,37 @@ Ext.define('App.ui.MapPanel', {
                 }
             };
         Ext.applyIf(this, config);
+        this.addEvents('change', 'mapready', 'overlaycomplete');
         this.callParent();        
+        },
+    /**
+     * Generates a polygon definition string for the API
+     * @param   path    {Array}     An Array of {lat, lng} objects
+     * @return          {String}    A polygon string (e.g. 'polygon((...))')
+     */
+    pathToPolygon: function(path) {
+        var str = 'polygon((';
+        Ext.each(path, function(i, n, all) {
+            str += i.lng.toFixed(5) // Longitude
+            str += ','
+            str += i.lat.toFixed(5) // Latitude
+            if (n < all.length-1) {str += '+';} // More coordinates?
+            });
+        str += '))'
+        return str;
         },
     listeners: {
         render: function() {
-            this.body.mask();
+            this.body.mask(); // Mask labels will not be placed correctly so don't provide text
             },
         afterrender: function() {
             var self = this,
-                modes = google.maps.drawing.OverlayType,
+                Type = google.maps.drawing.OverlayType,
                 drawingManager = new google.maps.drawing.DrawingManager({
+                    rectangleOptions: {editable: true},
+                    polygonOptions: {editable: false},
                     drawingControlOptions: {
-                        drawingModes: [modes.RECTANGLE, modes.POLYGON]
+                        drawingModes: [Type.RECTANGLE, Type.POLYGON]
                         }
                     });
             this.gmap = new google.maps.Map(this.body.dom, {
@@ -222,6 +259,10 @@ Ext.define('App.ui.MapPanel', {
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
             drawingManager.setMap(this.gmap);
+            // Listen for the 'overlaycomplete' event and pass it to the container
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+                self.fireEvent('overlaycomplete', {event: event});
+                });
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
@@ -229,6 +270,48 @@ Ext.define('App.ui.MapPanel', {
             },
         mapready: function() {
             this.body.unmask();
+            },
+        overlaycomplete: function(args) {
+            var Type = google.maps.drawing.OverlayType,
+                path = [];
+            // Remove any existing overlay (only one allowed at a time
+            if (this.overlay) {this.overlay.setMap(null);}
+            // Polygon drawn
+            if (args.event.type === Type.POLYGON) {
+                args.event.overlay.getPath().forEach(function(i, n) {
+                    path.push({
+                        lng: i.lng(),
+                        lat: i.lat()
+                        });
+                    });
+                }
+            // Rectangle drawn
+            else if (args.event.type === Type.RECTANGLE) {
+                path = (function() {
+                    var b = args.event.overlay.getBounds();
+                    return [ // An array of the each of the corners
+                        {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
+                        {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
+                        {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
+                        {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}  // SW
+                        ];
+                    }()); // Execute immediately
+                // Listen for the 'mouseup' event as an indicator of editing
+                google.maps.event.addListener(args.event.overlay, 'bounds_changed', function() {
+                    alert('bounds_changed');
+                    });
+                } // eo else if
+            this.overlay = args.event.overlay; // Remember this overlay
+            this.fireEvent('change', {path: path})
+            },
+        change: function(args) {
+            this.findParentByType('form').fireEvent('change', {
+                field: {
+                    name: 'geometry',
+                    isQueryParam: true,
+                    },
+                newValue: this.pathToPolygon(args.path)
+                });
             }
         }
     }); // No callback (third argument)
@@ -237,10 +320,41 @@ Ext.define('App.ui.DateRange', {
     alias: 'widget.daterange',
     msgTarget: 'side',
     layout: 'hbox',
+    outFormatEach: 'Y-m-d',
+    outFormat: '{0}+{1}', // e.g. Output format is 'Y-m-d+Y-m-d'
     defaults: {
         width: 90,
         hideLabel: true,
-        vtype: 'daterange'
+        vtype: 'daterange',
+        isQueryParam: false,
+        listeners: {
+            change: function() {
+                if (this.prev()) {
+                    if (this.prev().getValue() === null) {
+                        return;
+                        }
+                    }
+                else if (this.next()) {
+                    if (this.next().getValue() === null) {
+                        return;
+                        }
+                    }
+                this.findParentByType('form').fireEvent('change', {
+                    field: {
+                        name: this.ownerCt.name || 'temporal',
+                        isQueryParam: this.ownerCt.isQueryParam || true
+                        },
+                    newValue: this.ownerCt.getValue()
+                    });
+                }
+            }
+        },
+    getValue: function() {
+        var d1, d2, v = this.getValues();
+        // The outFormatEach property should follow Ext.Date formatting
+        d1 = Ext.util.Format.date(v.startDate, this.outFormatEach);
+        d2 = Ext.util.Format.date(v.endDate, this.outFormatEach);
+        return Ext.String.format(this.outFormat, d1, d2); // e.g. this.outFormat = '{0} to {1}'
         },
     items: [
         {
@@ -293,10 +407,19 @@ Ext.define('App.ui.TreePanel', {
     alias: 'widget.treepanel',
     rootVisible: true,
     getValue: function() {
-        return this.getSelectionModel.getSelection().get('value');
+        var stats = this.getChecked(),
+            value = [];
+        Ext.each(stats, function(i, n, all) {
+            if (i.get('attrs')) {
+                value.push(i.data);
+                }
+            else {value.push(i.get('value'));}
+            });
+        return value;
         },
     listeners: {
         beforeitemmousedown: function(view, rec) {
+            var that = this;
             var cb = function(btn, values) {
                     if (btn === 'cancel') {
                         rec.set('checked', !rec.get('checked'));
@@ -307,6 +430,14 @@ Ext.define('App.ui.TreePanel', {
                                 Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
                                 rec.set('checked', !rec.get('checked'));
                                 } // eo if
+                            else { // Item checked and successfully validated
+                                // Adds the user-defined values to the record
+                                rec.set('attrs', values);
+                                that.fireEvent('checkchange', {
+                                    node: rec,
+                                    checked: true
+                                    });
+                                }
                             }); // eo Ext.iterate()
                         } // eo else
                     },
@@ -314,6 +445,13 @@ Ext.define('App.ui.TreePanel', {
             // Is the box already checked?
             if (rec.get('checked')) { // Uncheck the box
                 rec.set('checked', !rec.get('checked'));
+                if (rec.get('attrs')) { // Clear the user-defined values
+                    rec.set('attrs', undefined);
+                    }
+                this.fireEvent('checkchange', {
+                    node: rec,
+                    checked: false
+                    });
                 }
             else { // Check the box
                 rec.set('checked', !rec.get('checked'));
@@ -335,9 +473,15 @@ Ext.define('App.ui.TreePanel', {
                         {xtype: 'cancel', callback: cb}
                         ]);
                     prompt.show();
-                    } // eo if
+                    }
+                else {
+                    this.fireEvent('checkchange', {
+                        node: rec,
+                        checked: true
+                        });
+                    }
                 } // eo else
-            } // eo itemclick
+            } // eo beforemousedown
         } // eo listeners
     });
 ////////////////////////////////////////////////////////////////////////////////
@@ -347,6 +491,14 @@ Ext.application({
         Ext.getBody().mask('Loading...');
     /////////////////////////////////////////////////// Application Entry Point
         App.data = {
+            aois: Ext.create('Ext.data.Store', {
+                model: 'App.api.AreaOfInterest',
+                proxy: {
+                    type: 'ajax',
+                    url: '/api/aois.json',
+                    reader: 'json'
+                    }
+                }),
             archives: Ext.create('Ext.data.Store', {
                 model: 'App.api.Archive',
                 proxy: {
@@ -434,6 +586,13 @@ Ext.application({
                     id: 'form-panel',
                     region: 'center',
                     layout: 'border',
+                    listeners: {
+                        change: function(args) { // Changes the API Request URL display
+                            if (args.field.isQueryParam) {
+                                Ext.getCmp('form-api-url').updateUrl(args.field.name, args.newValue);
+                                } // eo if
+                            }
+                        },
                     items: [
                         { // Sidebar
                             xtype: 'container',
@@ -452,10 +611,16 @@ Ext.application({
                                     },
                                 { // Temporal selection
                                     xtype: 'treepanel',
-                                    itemId: 'stats-tree',
+                                    itemId: 'tree-panel',
                                     title: 'Temporal',
                                     region: 'center',
                                     store: App.data.functions,
+                                    listeners: {
+                                        checkchange: function(node, checked) {
+                                            // Event where statistical functions selected have changed
+                                            Ext.getCmp('form-api-url').updateQuery(this.getValue());
+                                            }
+                                        },
                                     tbar: [
                                         {
                                             xtype: 'combo',
@@ -479,7 +644,7 @@ Ext.application({
                                     },
                                 { // Output format
                                     xtype: 'nested',
-                                    itemId: 'output',
+                                    itemId: 'output-format',
                                     title: 'Output Format',
                                     region: 'south',
                                     height: 70
@@ -489,6 +654,7 @@ Ext.application({
                         { // Spatial selection
                             xtype: 'mappanel',
                             itemId: 'map-panel',
+                            id: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
                             tbar: [
@@ -496,30 +662,56 @@ Ext.application({
                                     xtype: 'combo',
                                     fieldLabel: 'Area-of-Interest (AOI)',
                                     name: 'aoi',
+                                    isQueryParam: false, // TODO Is this right?
+                                    store: App.data.aois,
+                                    displayField: 'code',
+                                    valueField: 'id',
                                     emptyText: '(None Selected)',
                                     style: {textAlign: 'right'}
                                     },
                                 ' ',
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Manage AOIs',
                                     iconCls: 'icon-app-edit'
                                     },
                                 {
                                     xtype: 'button',
                                     text: 'Clip Output to AOI',
+                                    name: 'clip',
                                     iconCls: 'icon-scissors',
-                                    enableToggle: true
+                                    enableToggle: true,
+                                    handler: function(b) {
+                                        this.findParentByType('form').fireEvent('change', {
+                                            field: {
+                                                name: this.name,
+                                                isQueryParam: true
+                                                },
+                                            newValue: b.pressed
+                                            });
+                                        }
                                     },
                                 {
                                     xtype: 'button',
                                     text: 'Aggregate Geometries',
+                                    name: 'aggregate',
                                     iconCls: 'icon-shape-group',
-                                    enableToggle: true
+                                    enableToggle: true,
+                                    handler: function(b) {
+                                        this.findParentByType('form').fireEvent('change', {
+                                            field: {
+                                                name: this.name,
+                                                isQueryParam: true
+                                                },
+                                            newValue: b.pressed
+                                            });
+                                        }
                                     },
                                 '->',
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     text: 'Save Sketch As AOI',
                                     iconCls: 'icon-disk'
                                     }
@@ -529,11 +721,13 @@ Ext.application({
                             xtype: 'nested',
                             itemId: 'request-url',
                             region: 'south',
-                            height: 150,
                             title: 'Data Request URL',
+                            height: 150,
+                            layout: 'fit',
                             bbar: [
                                 {
                                     xtype: 'button',
+                                    disabled: true,
                                     iconCls: 'icon-page-do',
                                     text: 'Generate Data File'
                                     },
@@ -548,7 +742,7 @@ Ext.application({
                                     text: 'No activity',
                                     style: {fontStyle: 'italic'}
                                     }
-                                ] // eo items
+                                ] // eo bbar
                             } // eo nested
                         ] // eo items
                     },
@@ -574,17 +768,17 @@ Ext.application({
                     },
                 {
                     xtype: 'apicombo',
-                    fieldLabel: 'Emissions Scenario',
-                    name: 'scenario',
-                    displayField: 'code',
-                    store: App.data.scenarios
-                    },
-                {
-                    xtype: 'apicombo',
                     fieldLabel: 'Climate Model',
                     name: 'model',
                     displayField: 'code',
                     store: App.data.models
+                    },
+                {
+                    xtype: 'apicombo',
+                    fieldLabel: 'Emissions Scenario',
+                    name: 'scenario',
+                    displayField: 'code',
+                    store: App.data.scenarios
                     },
                 {
                     xtype: 'apicombo',
@@ -604,7 +798,7 @@ Ext.application({
                 {
                     xtype: 'daterange',
                     fieldLabel: 'Date Range',
-                    name: 'daterange',
+                    name: 'temporal',
                     labelWidth: 80,
                     width: 290
                     }
@@ -612,11 +806,11 @@ Ext.application({
             }()); // Execute immediately
         // Add items to the Output Format panel ////////////////////////////////
         (function() {
-            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('output');
+            var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('output-format');
             p.add([
                 {
                     xtype: 'combo',
-                    name: 'output',
+                    name: 'format',
                     width: 250,
                     queryMode: 'local',
                     valueField: 'value',
@@ -628,15 +822,97 @@ Ext.application({
         // Add items to the Data Request URL panel /////////////////////////////
         (function() {
             var p = Ext.getCmp('form-panel').getComponent('request-url');
-            p.add([
-                {
-                    xtype: 'textarea',
-                    name: 'query',
-                    emptyText: 'http://openclimategis.org/api/',
-                    width: 500,
-                    height: 80
-                    }
-                ]);
+            p.insert(0, {
+                xtype: 'textarea',
+                name: 'query',
+                id: 'form-api-url',
+                isQueryParam: false,
+                height: 80,
+                editable: true,
+                cls: 'updateable', // Indicates this field should flash when updated
+                fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
+                template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
+                // This is a holder for the parameter values
+                values: {
+                    archive: '{0}',
+                    model: '{1}',
+                    scenario: '{2}',
+                    run: '{3}',
+                    temporal: '{4}', 
+                    spatial: '{5}', // This is 'clip+' + values.geometry when clip is true
+                    aggregate: false, // Button is 'off' by default
+                    variable: '{7}',
+                    format: '{8}',
+                    clip: false, // Button is 'off' by default
+                    geometry: undefined // This is essentially the "spatial" parameter but irrespective of "clip"
+                    },
+                listeners: {
+                    afterrender: function() {
+                        Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
+                        this.url = 'http://openclimategis.org/api'; // Initialize base URL
+                        this.query = ''; // Initialize query (none)
+                        this.setValue(this.url + this.query);
+                        },
+                    change: function() { // Draw some attention to this box
+                        Ext.getCmp('form-api-url').container.highlight();
+                        this.animate({
+                            duration: 400,
+                            easing: 'backIn',
+                            from: {opacity: 0.4},
+                            to: {opacity: 1}
+                            });
+                        }
+                    },
+                /**
+                 * Updates the GET request parameters passed in the API request URL
+                 * e.g. resource?param=value
+                 */
+                updateQuery: function(params) {
+                    var s, v = this.values;
+                    // Break apart the URL; throw away the existing query
+                    s = '?grouping=' + v.grouping; // TODO Is this paramter always set? Is it possible to not have a grouping?
+                    if (params) { // If there are stat functions specified...
+                        s += '&stat=';
+                        Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
+                            if (typeof(i) === 'object') {
+                                s += i.value; // e.g. &stat=between
+                                s += '('; // e.g. &stat=between(
+                                Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
+                                    s += j; // e.g. &stat=between(0
+                                    if (m < all.length-1) {s += ',';}
+                                    });
+                                s += ')'; // e.g. &stat=between(0,1)
+                                }
+                            else {s += i;} // e.g. &stat=max
+                            if (n < all.length-1) {s += '+';}
+                            });
+                        }
+                    this.query = s;
+                    this.setValue(this.url + s);
+                    return this.getValue(); // Return the updated URL
+                    },
+                /**
+                 * Updates the pseudo-parameters encoded in the API request URL
+                 * e.g. host/resource/type/id
+                 */
+                updateUrl: function(name, value) {
+                    var s, v = this.values;
+                    this.values[name] = value; // Set the updated parameter's value
+                    if (name === 'grouping') {this.updateQuery();return;}
+                    if (name === 'geometry' || name === 'clip') {
+                        this.values.spatial = (function() {
+                            if (v.clip) {return 'clip+'}
+                            else {return '';}
+                            }()) + v.geometry;
+                        }
+                    s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+                    if (s.indexOf('{') > 0) {s = s.slice(0, s.indexOf('{'));} // Hide unformatted parameters
+                    // Add the GET query parameters to the end
+                    this.url = s;
+                    this.setValue(s + this.query);
+                    return this.getValue(); // Return the updated URL
+                    } // eo updateUrl()
+                });
             }()); // Execute immediately
         ////////////////////////////////////////////////////////////////////////
         } // eo launch()

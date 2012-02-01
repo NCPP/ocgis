@@ -269,10 +269,25 @@ Ext.define('App.ui.MapPanel', {
         str += '))';
         return str;
         },
+    /**
+     * Generates a path from latitude-longitude bounds (as from a rectangle)
+     * @param   bounds  {google.maps.LatLngBounds}  Bounds of, presumably, a rectangle
+     * @return          {Array}                     An Array of {lat, lng} objects
+     */
+    boundsToPath: function(bounds) {
+        var b = bounds;
+        return [ // An array of the each of the corners
+            {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
+            {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
+            {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
+            {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}  // SW
+            ];
+        },
     listeners: {
         render: function() {
             this.body.mask(); // Mask labels will not be placed correctly so don't provide text
             },
+        // Set up the map and listeners
         afterrender: function() {
             var self = this,
                 Type = google.maps.drawing.OverlayType,
@@ -301,9 +316,11 @@ Ext.define('App.ui.MapPanel', {
         mapready: function() {
             this.body.unmask();
             },
+        // When a new AOI is drawn
         overlaycomplete: function(args) {
             var Type = google.maps.drawing.OverlayType,
-                path = [];
+                path = [],
+                that = this;
             // Remove any existing overlay (only one allowed at a time
             if (this.overlay) {this.overlay.setMap(null);}
             // Polygon drawn
@@ -316,23 +333,19 @@ Ext.define('App.ui.MapPanel', {
                     });
                 }
             // Rectangle drawn
-            else if (args.event.type === Type.RECTANGLE) {
-                path = (function() {
-                    var b = args.event.overlay.getBounds();
-                    return [ // An array of the each of the corners
-                        {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
-                        {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
-                        {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
-                        {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}  // SW
-                        ];
-                    }()); // Execute immediately
-                // Listen for the 'mouseup' event as an indicator of editing
+            else if (args.event.type === Type.RECTANGLE) { 
+                path = this.boundsToPath(args.event.overlay.getBounds());
+                // Listen for the 'bounds_changed' event and update the geometry
                 google.maps.event.addListener(args.event.overlay, 'bounds_changed', function() {
+                    that.fireEvent('change', {
+                        path: that.boundsToPath(that.overlay.getBounds())
+                        });
                     });
                 } // eo else if
             this.overlay = args.event.overlay; // Remember this overlay
             this.fireEvent('change', {path: path});
             },
+        // When map feature geometry changes
         change: function(args) {
             this.findParentByType('form').fireEvent('change', {
                 field: {

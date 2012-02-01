@@ -619,7 +619,7 @@ Ext.application({
                     listeners: {
                         change: function(args) { // Changes the API Request URL display
                             if (args.field.isQueryParam) {
-                                Ext.getCmp('form-api-url').updateUrl(args.field.name, args.newValue);
+                                Ext.getCmp('request-url').updateUrl(args.field.name, args.newValue);
                                 } // eo if
                             }
                         },
@@ -648,7 +648,7 @@ Ext.application({
                                     listeners: {
                                         checkchange: function(node, checked) {
                                             // Event where statistical functions selected have changed
-                                            Ext.getCmp('form-api-url').updateQuery(this.getValue());
+                                            Ext.getCmp('request-url').updateQuery(this.getValue());
                                             }
                                         },
                                     tbar: [
@@ -760,7 +760,11 @@ Ext.application({
                                     id: 'query-run-btn',
                                     disabled: true,
                                     iconCls: 'icon-page-do',
-                                    text: 'Generate Data File'
+                                    text: 'Generate Data File',
+                                    handler: function() { // Open window for API call
+                                        // Alternately: this.findParentByType('panel').items.getComponent('').getValue();
+                                        window.open(Ext.getCmp('request-url').getValue(), 'call');
+                                        }
                                     },
                                 {
                                     xtype: 'progressbar',
@@ -866,7 +870,7 @@ Ext.application({
             p.insert(0, {
                 xtype: 'textarea',
                 name: 'query',
-                id: 'form-api-url',
+                id: 'request-url',
                 isQueryParam: false,
                 height: 80,
                 editable: true,
@@ -895,7 +899,7 @@ Ext.application({
                         this.setValue(this.url + this.query);
                         },
                     change: function() { // Draw some attention to this box
-                        Ext.getCmp('form-api-url').container.highlight();
+                        Ext.getCmp('request-url').container.highlight();
                         this.animate({
                             duration: 400,
                             easing: 'backIn',

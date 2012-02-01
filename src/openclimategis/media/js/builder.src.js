@@ -871,7 +871,7 @@ Ext.application({
                     var s, v = this.values;
                     // Break apart the URL; throw away the existing query
                     s = '?grouping=' + v.grouping; // TODO Is this paramter always set? Is it possible to not have a grouping?
-                    if (params) { // If there are stat functions specified...
+                    if (params && params.length > 0) { // If there are stat functions specified...
                         s += '&stat=';
                         Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
                             if (typeof(i) === 'object') {
@@ -888,7 +888,8 @@ Ext.application({
                             });
                         }
                     this.query = s;
-                    this.setValue(this.url + s);
+                    // Replace format strings characters in this.url with ???
+                    this.setValue(this.url.replace(/\{\d\}/g, '???') + s);
                     return this.getValue(); // Return the updated URL
                     },
                 /**
@@ -896,7 +897,7 @@ Ext.application({
                  * e.g. host/resource/type/id
                  */
                 updateUrl: function(name, value) {
-                    var s, v = this.values;
+                    var v = this.values;
                     this.values[name] = value; // Set the updated parameter's value
                     if (name === 'grouping') {this.updateQuery();return;}
                     if (name === 'geometry' || name === 'clip') {
@@ -905,11 +906,9 @@ Ext.application({
                             else {return '';}
                             }()) + v.geometry;
                         }
-                    s = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
-                    if (s.indexOf('{') > 0) {s = s.slice(0, s.indexOf('{'));} // Hide unformatted parameters
-                    // Add the GET query parameters to the end
-                    this.url = s;
-                    this.setValue(s + this.query);
+                    this.url = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
+                    // Replace format strings with ??? and add the GET query parameters to the end
+                    this.setValue(this.url.replace(/\{\d\}/g, '???') + this.query);
                     return this.getValue(); // Return the updated URL
                     } // eo updateUrl()
                 });

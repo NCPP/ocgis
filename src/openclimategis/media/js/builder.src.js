@@ -254,6 +254,21 @@ Ext.define('App.ui.MapPanel', {
         this.callParent();        
         },
     /**
+     * Generates a path of {lat, lng} objects from an Overlay path
+     * @param   path    {Array}     An Array of {lat, lng} objects
+     * @return          {String}    A polygon string (e.g. 'polygon((...))')
+     */
+    pathToPath: function(arr) {
+        var path = [];
+        arr.forEach(function(i) {
+            path.push({
+                lng: i.lng(),
+                lat: i.lat()
+                });
+            });
+        return path;
+        },
+    /**
      * Generates a polygon definition string for the API
      * @param   path    {Array}     An Array of {lat, lng} objects
      * @return          {String}    A polygon string (e.g. 'polygon((...))')
@@ -293,7 +308,7 @@ Ext.define('App.ui.MapPanel', {
                 Type = google.maps.drawing.OverlayType,
                 drawingManager = new google.maps.drawing.DrawingManager({
                     rectangleOptions: {editable: true},
-                    polygonOptions: {editable: false},
+                    polygonOptions: {editable: true},
                     drawingControlOptions: {
                         drawingModes: [Type.RECTANGLE, Type.POLYGON]
                         }
@@ -318,17 +333,30 @@ Ext.define('App.ui.MapPanel', {
             },
         // When a new AOI is drawn
         overlaycomplete: function(args) {
-            var Type = google.maps.drawing.OverlayType,
-                path = [],
-                that = this;
+            var path = [],
+                that = this,
+                Type = google.maps.drawing.OverlayType;
             // Remove any existing overlay (only one allowed at a time
             if (this.overlay) {this.overlay.setMap(null);}
             // Polygon drawn
             if (args.event.type === Type.POLYGON) {
-                args.event.overlay.getPath().forEach(function(i) {
-                    path.push({
-                        lng: i.lng(),
-                        lat: i.lat()
+                path = this.pathToPath(args.event.overlay.getPath());
+                // New vertex is inserted
+                google.maps.event.addListener(args.event.overlay.getPath(), 'insert_at', function(n) {
+                    that.fireEvent('change', {
+                        path: that.pathToPath(that.overlay.getPath())
+                        });
+                    });
+                // Existing vertex is removed (insertion is undone)
+                google.maps.event.addListener(args.event.overlay.getPath(), 'remove_at', function(n) {
+                    that.fireEvent('change', {
+                        path: that.pathToPath(that.overlay.getPath())
+                        });
+                    });
+                // Existing vertex is moved (set elsewhere)
+                google.maps.event.addListener(args.event.overlay.getPath(), 'set_at', function(n) {
+                    that.fireEvent('change', {
+                        path: that.pathToPath(that.overlay.getPath())
                         });
                     });
                 }

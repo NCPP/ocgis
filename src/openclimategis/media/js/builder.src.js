@@ -557,9 +557,10 @@ Ext.define('App.ui.TreePanel', {
 ////////////////////////////////////////////////////////////////////////////////
 Ext.application({
     name: 'App',
+    /////////////////////////////////////////////////// Application Entry Point
     launch: function() {
         Ext.getBody().mask('Loading...');
-    /////////////////////////////////////////////////// Application Entry Point
+        App.host = window.location.hostname || 'openclimategis.org';
         App.data = {
             aois: Ext.create('Ext.data.Store', {
                 model: 'App.api.AreaOfInterest',
@@ -942,7 +943,7 @@ Ext.application({
                 editable: true,
                 cls: 'updateable', // Indicates this field should flash when updated
                 fieldBodyCls: 'shell', // Indicates this field's body text is code to be copy/pasted
-                template: 'http://openclimategis.org/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
+                template: 'http://' + App.host + '/api/archive/{0}/model/{1}/scenario/{2}/run/{3}/temporal/{4}/spatial/{5}/aggregate/{6}/variable/{7}.{8}',
                 // This is a holder for the parameter values
                 values: {
                     archive: '{0}',
@@ -960,7 +961,7 @@ Ext.application({
                 listeners: {
                     afterrender: function() {
                         Ext.apply(this.values, Ext.getCmp('form-panel').getValues());
-                        this.url = 'http://openclimategis.org/api'; // Initialize base URL
+                        this.url = 'http://' + App.host + '/api'; // Initialize base URL
                         this.query = ''; // Initialize query (none)
                         this.setValue(this.url + this.query);
                         },

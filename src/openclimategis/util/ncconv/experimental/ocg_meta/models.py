@@ -103,10 +103,11 @@ class Time(Register,VariablePolyElement,TemporalTranslationalElement):
     _dtype = 'i4'
     
     def calculate(self,timevec):
-        time_units = TimeUnits(self,self.dataset)
-        calendar = Calendar(self,self.dataset)
+        time_units = TimeUnits(self,self.dataset,default=self.default)
+        calendar = Calendar(self,self.dataset,default=self.default)
         return(date2num(timevec,units=time_units.value,calendar=calendar.value))
-    
+
+
 class Calendar(VariableAttrPolyElement):
     _names = ['calendar']
     
@@ -130,24 +131,28 @@ class FileName(DatasetPolyElement,Register,TranslationalElement):
     
 class TimeDimension(TemporalDimensionElement,Register):
     _names = ['time']
-    
+
+
 class LatitudeDimension(SpatialDimensionElement,Register):
     _names = ['latitude','lat']
     
     def calculate(self,grid):
         return(len(grid['y']))
-    
+
+
 class LongitudeDimension(SpatialDimensionElement,Register):
     _names = ['longitude','lon']
     
     def calculate(self,grid):
         return(len(grid['x']))
-    
+
+
 class BoundsDimension(SpatialDimensionElement,Register):
     _names = ['bound','bounds','bnd','bnds']
     
     def calculate(self,grid):
         return(2)
-    
+
+
 class LevelDimension(LevelDimensionElement,Register):
     _names = ['level','levels','lvl','lvls']

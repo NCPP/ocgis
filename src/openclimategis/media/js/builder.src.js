@@ -146,6 +146,36 @@ Ext.define('App.api.Variable', {
     fields: ['ndim', 'units', 'urlslug', 'code', 'description', 'id', 'name']
     });
 /////////////////////////////////////////////////////////////////////// Classes
+Ext.define('App.ui.Indicator', {
+    extend: 'Ext.Component',
+    alias: 'widget.indicator',
+    baseCls: 'error-state',
+    validText: 'Form is valid',
+    invalidText: 'Form has errors',
+    flex: 1,
+    initComponent: function() {
+        this.addEvents('valid', 'invalid');
+        },
+    setValid: function(valid) {
+        if (valid) {
+            this.addCls(this.baseCls + '-valid');
+            this.removeCls(this.baseCls + '-invalid');
+            this.update(this.validText);
+            this.fireEvent('valid');
+            } else {
+            this.addCls(this.baseCls + '-invalid');
+            this.removeCls(this.baseCls + '-valid');
+            this.update(this.invalidText);
+            this.fireEvent('invalid');
+            }
+        },
+    listeners: {
+        afterrender: function() {
+            this.setValid(false); // Request URL is not complete to begin with
+            this.fireEvent('invalid');
+            }
+        }
+    });
 Ext.define('App.ui.ApiComboBox', {
     extend: 'Ext.form.field.ComboBox',
     alias: 'widget.apicombo',
@@ -727,6 +757,7 @@ Ext.application({
                             bbar: [
                                 {
                                     xtype: 'button',
+                                    id: 'query-run-btn',
                                     disabled: true,
                                     iconCls: 'icon-page-do',
                                     text: 'Generate Data File'
@@ -736,12 +767,22 @@ Ext.application({
                                     id: 'query-progress',
                                     width: 180
                                     },
+                                ' ', // Spacer
                                 {
-                                    xtype: 'tbtext',
-                                    id: 'query-status',
-                                    text: 'No activity',
-                                    style: {fontStyle: 'italic'}
-                                    }
+                                    xtype: 'indicator',
+                                    id: 'query-indicator',
+                                    baseCls: 'ready-state',
+                                    validText: 'Ready',
+                                    invalidText: 'URL Incomplete',
+                                    listeners: {
+                                        valid: function() {
+                                            Ext.getCmp('query-run-btn').enable();
+                                            },
+                                        invalid: function() {
+                                            Ext.getCmp('query-run-btn').disable();
+                                            }
+                                        } // eo listeners
+                                    } // eo indicator
                                 ] // eo bbar
                             } // eo nested
                         ] // eo items
@@ -861,7 +902,22 @@ Ext.application({
                             from: {opacity: 0.4},
                             to: {opacity: 1}
                             });
+                        this.updateIndicator();
                         }
+                    },
+                /**
+                 * Updates the "API Ready" indicator
+                 */
+                updateIndicator: function() {
+                    var valid = true; // Assume all is well
+                    Ext.iterate(this.values, function(k, v, o) { // Arguments: key, value, object
+                        var fmt = /\{\d\}/;
+                        // If a value is undefined or set to a format string
+                        if (v === undefined || fmt.test(v)) {
+                            valid = false; // You proved me wrong
+                            }
+                        });
+                    Ext.getCmp('query-indicator').setValid(valid);
                     },
                 /**
                  * Updates the GET request parameters passed in the API request URL

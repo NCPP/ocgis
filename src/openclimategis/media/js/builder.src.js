@@ -250,7 +250,7 @@ Ext.define('App.ui.MapPanel', {
                 }
             };
         Ext.applyIf(this, config);
-        this.addEvents('change', 'mapready', 'overlaycomplete');
+        this.addEvents('change', 'mapready', 'overlaycomplete', 'sketchcomplete');
         this.callParent();        
         },
     /**
@@ -336,6 +336,7 @@ Ext.define('App.ui.MapPanel', {
             var path = [],
                 that = this,
                 Type = google.maps.drawing.OverlayType;
+            this.fireEvent('sketchcomplete'); // Listened for in instances
             // Remove any existing overlay (only one allowed at a time
             if (this.overlay) {this.overlay.setMap(null);}
             // Polygon drawn
@@ -741,17 +742,28 @@ Ext.application({
                             id: 'map-panel',
                             title: 'Spatial',
                             region: 'center',
+                            listeners: {
+                                sketchcomplete: function() { // Clear the AOI selector
+                                    this.down('#aoi').reset();
+                                    }
+                                },
                             tbar: [
                                 {
                                     xtype: 'combo',
                                     fieldLabel: 'Area-of-Interest (AOI)',
                                     name: 'aoi',
-                                    isQueryParam: false, // TODO Is this right?
+                                    itemId: 'aoi',
+                                    isQueryParam: true,
                                     store: App.data.aois,
                                     displayField: 'code',
                                     valueField: 'id',
                                     emptyText: '(None Selected)',
-                                    style: {textAlign: 'right'}
+                                    style: {textAlign: 'right'},
+                                    listeners: {
+                                        select: function(c, records) {
+                                            Ext.getCmp('request-url').updateUrl(this.name, records[0].get('code'));
+                                            }
+                                        }
                                     },
                                 ' ',
                                 {
@@ -1007,14 +1019,22 @@ Ext.application({
                         this.updateQuery(name, value);
                         return;
                         }
-                    if (name === 'geometry' || name === 'clip') {
+                    if (name === 'geometry' || name === 'clip' || name === 'aoi') {
                         this.values.spatial = (function() {
-                            if (v.clip) { // Either clip+ or intersects+ must precede the geometry
-                                return 'clip+';
-                                } else {
-                                return 'intersects+';
+                            var prefix = (v.clip) ? 'clip+' : 'intersects+';
+                            // Either clip+ or intersects+ must precede the geometry
+                            switch(name) {
+                                // In each case, set the competing parameter to null
+                                case 'aoi':
+                                    v.geometry = null; // There can only be one!
+                                    return prefix + v.aoi;
+                                case 'geometry':
+                                    v.aoi = null; // There can only be one!
+                                    return prefix + v.geometry;
+                                default:
+                                    return prefix + (v.geometry || v.aoi);
                                 }
-                            }()) + v.geometry;
+                            }());
                         }
                     this.url = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);
                     // Replace format strings with ??? and add the GET query parameters to the end

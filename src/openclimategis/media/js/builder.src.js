@@ -261,12 +261,12 @@ Ext.define('App.ui.MapPanel', {
     pathToPolygon: function(path) {
         var str = 'polygon((';
         Ext.each(path, function(i, n, all) {
-            str += i.lng.toFixed(5) // Longitude
-            str += ','
-            str += i.lat.toFixed(5) // Latitude
+            str += i.lng.toFixed(5); // Longitude
+            str += ',';
+            str += i.lat.toFixed(5); // Latitude
             if (n < all.length-1) {str += '+';} // More coordinates?
             });
-        str += '))'
+        str += '))';
         return str;
         },
     listeners: {
@@ -308,7 +308,7 @@ Ext.define('App.ui.MapPanel', {
             if (this.overlay) {this.overlay.setMap(null);}
             // Polygon drawn
             if (args.event.type === Type.POLYGON) {
-                args.event.overlay.getPath().forEach(function(i, n) {
+                args.event.overlay.getPath().forEach(function(i) {
                     path.push({
                         lng: i.lng(),
                         lat: i.lat()
@@ -328,17 +328,16 @@ Ext.define('App.ui.MapPanel', {
                     }()); // Execute immediately
                 // Listen for the 'mouseup' event as an indicator of editing
                 google.maps.event.addListener(args.event.overlay, 'bounds_changed', function() {
-                    alert('bounds_changed');
                     });
                 } // eo else if
             this.overlay = args.event.overlay; // Remember this overlay
-            this.fireEvent('change', {path: path})
+            this.fireEvent('change', {path: path});
             },
         change: function(args) {
             this.findParentByType('form').fireEvent('change', {
                 field: {
                     name: 'geometry',
-                    isQueryParam: true,
+                    isQueryParam: true
                     },
                 newValue: this.pathToPolygon(args.path)
                 });
@@ -439,7 +438,7 @@ Ext.define('App.ui.TreePanel', {
     getValue: function() {
         var stats = this.getChecked(),
             value = [];
-        Ext.each(stats, function(i, n, all) {
+        Ext.each(stats, function(i) {
             if (i.get('attrs')) {
                 value.push(i.data);
                 }
@@ -449,29 +448,28 @@ Ext.define('App.ui.TreePanel', {
         },
     listeners: {
         beforeitemmousedown: function(view, rec) {
-            var that = this;
-            var cb = function(btn, values) {
-                    if (btn === 'cancel') {
-                        rec.set('checked', !rec.get('checked'));
-                        } 
-                    else {
-                        Ext.iterate(values, function(k, v, o) {
-                            if (!Ext.isNumeric(v)) {
-                                Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
-                                rec.set('checked', !rec.get('checked'));
-                                } // eo if
-                            else { // Item checked and successfully validated
-                                // Adds the user-defined values to the record
-                                rec.set('attrs', values);
-                                that.fireEvent('checkchange', {
-                                    node: rec,
-                                    checked: true
-                                    });
-                                }
-                            }); // eo Ext.iterate()
-                        } // eo else
-                    },
-                prompt;
+            var that = this, cb, prompt;
+            cb = function(btn, values) {
+                if (btn === 'cancel') {
+                    rec.set('checked', !rec.get('checked'));
+                    } 
+                else {
+                    Ext.iterate(values, function(k, v) {
+                        if (!Ext.isNumeric(v)) {
+                            Ext.Msg.alert('Invalid Value', 'You must enter a numeric value only.').setIcon(Ext.Msg.ERROR);
+                            rec.set('checked', !rec.get('checked'));
+                            } // eo if
+                        else { // Item checked and successfully validated
+                            // Adds the user-defined values to the record
+                            rec.set('attrs', values);
+                            that.fireEvent('checkchange', {
+                                node: rec,
+                                checked: true
+                                });
+                            }
+                        }); // eo Ext.iterate()
+                    } // eo else
+                };
             // Is the box already checked?
             if (rec.get('checked')) { // Uncheck the box
                 rec.set('checked', !rec.get('checked'));
@@ -646,9 +644,23 @@ Ext.application({
                                     region: 'center',
                                     store: App.data.functions,
                                     listeners: {
-                                        checkchange: function(node, checked) {
-                                            // Event where statistical functions selected have changed
-                                            Ext.getCmp('request-url').updateQuery(this.getValue());
+                                        // Event where statistical functions selected have changed
+                                        checkchange: function() { // Arguments: node, checked
+                                            var s = ''; // Create a query string
+                                            Ext.each(this.getValue(), function(i, n, all) { // e.g. &stat=between(0,1)
+                                                if (typeof(i) === 'object') {
+                                                    s += i.value; // e.g. &stat=between
+                                                    s += '('; // e.g. &stat=between(
+                                                    Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
+                                                        s += j; // e.g. &stat=between(0
+                                                        if (m < all.length-1) {s += ',';}
+                                                        });
+                                                    s += ')'; // e.g. &stat=between(0,1)
+                                                    }
+                                                else {s += i;} // e.g. &stat=max
+                                                if (n < all.length-1) {s += '+';}
+                                                });
+                                            Ext.getCmp('request-url').updateQuery('stat', s);
                                             }
                                         },
                                     tbar: [
@@ -658,12 +670,13 @@ Ext.application({
                                             name: 'grouping',
                                             labelWidth: 100,
                                             queryMode: 'local',
-                                            value: 'year',
+                                            value: '',
                                             valueField: 'value',
                                             width: 200,
                                             store: Ext.create('Ext.data.ArrayStore', {
                                                 fields: ['text', 'value'],
                                                 data: [
+                                                    ['None', ''],
                                                     ['Year', 'year'],
                                                     ['Month', 'month'],
                                                     ['Day', 'day']
@@ -914,7 +927,7 @@ Ext.application({
                  */
                 updateIndicator: function() {
                     var valid = true; // Assume all is well
-                    Ext.iterate(this.values, function(k, v, o) { // Arguments: key, value, object
+                    Ext.iterate(this.values, function(k, v) { // Arguments: key, value, object
                         var fmt = /\{\d\}/;
                         // If a value is undefined or set to a format string
                         if (v === undefined || fmt.test(v)) {
@@ -927,29 +940,19 @@ Ext.application({
                  * Updates the GET request parameters passed in the API request URL
                  * e.g. resource?param=value
                  */
-                updateQuery: function(params) {
-                    var s, v = this.values;
-                    // Break apart the URL; throw away the existing query
-                    s = '?grouping=' + v.grouping; // TODO Is this paramter always set? Is it possible to not have a grouping?
-                    if (params && params.length > 0) { // If there are stat functions specified...
-                        s += '&stat=';
-                        Ext.each(params, function(i, n, all) { // e.g. &stat=between(0,1)
-                            if (typeof(i) === 'object') {
-                                s += i.value; // e.g. &stat=between
-                                s += '('; // e.g. &stat=between(
-                                Ext.each(Ext.Object.getValues(i.attrs), function(j, m, all) {
-                                    s += j; // e.g. &stat=between(0
-                                    if (m < all.length-1) {s += ',';}
-                                    });
-                                s += ')'; // e.g. &stat=between(0,1)
-                                }
-                            else {s += i;} // e.g. &stat=max
-                            if (n < all.length-1) {s += '+';}
-                            });
-                        }
-                    this.query = s;
+                updateQuery: function(name, value) {
+                    var v = this.values;
+                    this.values[name] = value;
+                    // Can't use Ext.Object.toQueryString() because of unreadable HTML character encoding
+                    this.query = (function() {
+                        var x = '?';
+                        if (v.stat) {x += 'stat=' + v.stat;}
+                        if (v.stat && v.grouping) {x += '&';}
+                        if (v.grouping) {x += 'grouping=' + v.grouping;}
+                        return x;
+                        }()); // Execute immediately
                     // Replace format strings characters in this.url with ???
-                    this.setValue(this.url.replace(/\{\d\}/g, '???') + s);
+                    this.setValue(this.url.replace(/\{\d\}/g, '???') + this.query);
                     return this.getValue(); // Return the updated URL
                     },
                 /**
@@ -959,11 +962,17 @@ Ext.application({
                 updateUrl: function(name, value) {
                     var v = this.values;
                     this.values[name] = value; // Set the updated parameter's value
-                    if (name === 'grouping') {this.updateQuery();return;}
+                    if (name === 'grouping') {
+                        this.updateQuery(name, value);
+                        return;
+                        }
                     if (name === 'geometry' || name === 'clip') {
                         this.values.spatial = (function() {
-                            if (v.clip) {return 'clip+'}
-                            else {return '';}
+                            if (v.clip) { // Either clip+ or intersects+ must precede the geometry
+                                return 'clip+';
+                                } else {
+                                return 'intersects+';
+                                }
                             }()) + v.geometry;
                         }
                     this.url = Ext.String.format(this.template, v.archive, v.model, v.scenario, v.run, v.temporal, v.spatial, v.aggregate, v.variable, v.format);

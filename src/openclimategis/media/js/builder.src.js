@@ -258,11 +258,11 @@ Ext.define('App.ui.MapPanel', {
         },
     /**
      * Draws a feature with a given well-known text (WKT) representation on the map.
-     * @param   wkt     {String}    The well-known text string geometry
+     * @param   text    {String}    The well-known text string geometry
      * @return          {google.maps.Polygon}
      */
-    addWktPolygon: function(wkt) {
-        
+    addWktPolygon: function(text) {
+        var geometry = App.decodeWkt(text);
         },
     /**
      * Generates a WKT string from an MVCArray defining a polygon path
@@ -591,7 +591,18 @@ Ext.application({
          * Decodes a WKT geometry string into an object
          * @return      {Object}    The corresponding Javascript object
          */
-        App.decodeWkt = function() {
+        App.decodeWkt = function(text) {
+            var geometry = {},
+                prefix = text.slice(0, text.indexOf('(')).toLowerCase(),
+                remainder = text.slice(text.lastIndexOf('(')+1, text.indexOf(')'));
+            geometry[prefix] = [];
+            remainder.split(',').forEach(function(i) {
+                geometry[prefix].push({
+                    lng: Ext.String.trim(i).split(' ')[0],
+                    lat: Ext.String.trim(i).split(' ')[1]
+                    });
+                });
+            return geometry;
             };
         App.data = {
             aois: Ext.create('Ext.data.Store', {

@@ -142,6 +142,7 @@ class NcConverter(OcgConverter):
                         ## the data query to loop through
                         ## TODO: add parallel capability
                         qq = s.query(self.value_table)
+                        import ipdb;ipdb.set_trace()
                         ## loop through the data and populate the 2-d arrays
                         for obj in qq:
                             idx = np.argmax(obj.gid == sub.gid)

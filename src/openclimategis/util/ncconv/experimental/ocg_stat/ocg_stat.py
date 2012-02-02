@@ -10,6 +10,8 @@ from multiprocessing.process import Process
 from base import OcgFunctionTree
 import groups
 from util.ncconv.experimental import ploader as pl
+from collections import namedtuple
+import itertools
 
 
 class OcgStat(object):
@@ -36,40 +38,69 @@ class OcgStat(object):
         for p in processes:
             p.join()
     
-    def get_date_query(self,session):
-        qdate = session.query(self.db.Value,
-                              self.db.Time.day,
-                              self.db.Time.month,
-                              self.db.Time.year)
-        qdate = qdate.join(self.db.Time)
-        return(qdate.subquery())
+#    def get_date_query(self,session):
+#        qdate = session.query(self.db.Value.gid,
+#                              self.db.Value.level,
+#                              self.db.Time.day,
+#                              self.db.Time.month,
+#                              self.db.Time.year)
+##        qdate = session.query(self.db.Time.day,
+##                              self.db.Time.month,
+##                              self.db.Time.year)
+#        qdate = qdate.join(self.db.Time)
+#        return(qdate.subquery())
     
-    @timing
-    def get_distinct_groups(self):
+    def get_distinct(self,Model,attr):
         s = self.db.Session()
         try:
-            ## return the date subquery
-            sq = self.get_date_query(s)
-            ## retrieve the unique groups over which to iterate
-            columns = [getattr(sq.c,grp) for grp in self.grouping]
-            qdistinct = s.query(*columns).distinct()
-            return(qdistinct.all())
+            qq = s.query(getattr(Model,attr)).distinct()
+            return([obj[0] for obj in qq.all()])
         finally:
             s.close()
     
+    @timing
+    def get_distinct_groups(self):
+        gids = self.sub.gid.tolist()
+        levels = self.get_distinct(self.db.Value,'level')
+        years = [None]
+        months = [None]
+        days = [None]
+        if 'year' in self.grouping:
+            years = self.get_distinct(self.db.Time,'year')
+        if 'month' in self.grouping:
+            months = self.get_distinct(self.db.Time,'month')
+        if 'day' in self.grouping:
+            days = self.get_distinct(self.db.Time,'day')
+        Group = namedtuple('Group',['gid','level','day','month','year'])
+        groups = []
+        for gid,level,year,month,day in itertools.product(gids,levels,years,months,days):
+            groups.append(Group(gid=gid,level=level,year=year,day=day,month=month))
+        return(groups)
+#        s = self.db.Session()
+#        try:
+#            ## return the date subquery
+#            sq = self.get_date_query(s)
+#            ## retrieve the unique groups over which to iterate
+#            columns = [getattr(sq.c,grp) for grp in self.grouping]
+#            qdistinct = s.query(*columns).distinct()
+##            return(qdistinct)
+#            return(qdistinct.all())
+#        finally:
+#            s.close()
+    
     @staticmethod
-    def f_calculate(all_attrs,sub,groups,funcs,time_conv,time_grouping):
+    def f_calculate(all_attrs,sub,groups,funcs,time_conv,time_grouping,grouping):
         """
         funcs -- dict[] {'function':sum,'name':'foo','kwds':{}} - kwds optional
         """ 
         ## construct the base variable dictionary
-        keys = list(groups[0]._labels) + [f.get('name') for f in funcs]
+        keys = list(grouping) + [f.get('name') for f in funcs]
         pvars = OrderedDict([[key,list()] for key in keys])
         ## loop through the groups adding the data
         for group in groups:
             ## append the grouping information
-            for label in group._labels:
-                pvars[label].append(getattr(group,label))
+            for grp in grouping:
+                pvars[grp].append(getattr(group,grp))
             ## extract the time indices of the values
             cmp = [getattr(group,grp) for grp in time_grouping]
             ## loop through time vector selecting the time indices
@@ -109,11 +140,12 @@ class OcgStat(object):
                                        groups,
                                        funcs,
                                        time_conv,
-                                       self.time_grouping))
+                                       self.time_grouping,
+                                       self.grouping))
                          for groups in self.groups]
             self.run_parallel(processes)
         else:
-            self.f_calculate(all_attrs,self.sub,self.groups[0],funcs,time_conv,self.time_grouping)
+            self.f_calculate(all_attrs,self.sub,self.groups[0],funcs,time_conv,self.time_grouping,self.grouping)
 
         return(all_attrs)
     

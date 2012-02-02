@@ -133,7 +133,7 @@ def check_function_dictionary(funcs):
     
     for f in funcs:
         if 'name' in f:
-            if len(f['name']) >= 14:
+            if len(f['name']) >= 11:
                 raise(FunctionNameError(f))
             if f['name'][0] in '0123456789':
                 raise(FunctionNameError(f))

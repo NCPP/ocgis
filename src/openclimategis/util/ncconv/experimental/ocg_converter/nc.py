@@ -11,11 +11,15 @@ from multiprocessing import Manager
 from sqlalchemy.engine import create_engine
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.schema import MetaData, Table
+from multiprocessing.managers import Array
+from multiprocessing.process import Process
+from util.ncconv.experimental.pmanager import ProcessManager
 
 
 class NcConverter(OcgConverter):
     
-    def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20):
+    def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20,substat=None):
+        print('starting convert...')
         ## create the dataset object
         path = get_temp_path(name=self.base_name,nest=True)
         tdataset = nc.Dataset(path,'w')
@@ -126,25 +130,35 @@ class NcConverter(OcgConverter):
                     cs = [c for c in self.value_table.__table__.c if c.name not in exclude]
                     ## loop through the columns and generate the numpy arrays to
                     ## to populate.
-                    arrays = {}
-                    for c in cs:
+                    manager = Manager()
+                    arrays = manager.list()
+#                    arrays = {}
+                    ary_idx = {}
+                    print('making variables...')
+                    for ii,c in enumerate(cs):
                         ## get the correct python type from the column type
                         if type(c.type) == Float:
                             nctype = 'f4'
                         if type(c.type) == Integer:
                             nctype = 'i4'
                         ## generate the array
-                        ary = np.empty((len(grid['y']),len(grid['x'])))
+#                        ary = np.zeros((len(grid['y']),len(grid['x'])))
                         ## put in the fill values to account for dataset masking
-                        ary[grid['gidx'].mask] = fill_value 
+#                        ary[grid['gidx'].mask] = fill_value 
+                        ## convert to shared array
+#                        ary = ary.reshape(-1).tolist()
                         ## store for later
-                        arrays.update({c.name:ary})
+#                        arrays.append(ary)
                         ## make the netcdf variable
                         tdataset.createVariable(c.name,nctype,('latitude','longitude'))
+#                        ary_idx.update({c.name:ii})
                     ## check for parallel
                     if settings.MAXPROCESSES > 1:
                         manager = Manager()
-                        arrays = manager.dict(arrays)
+                        data = manager.list()
+#                        for cc in cs:
+#                            data.update({cc.name:[0.0 for ii in range(0,len(grid['y'])*len(grid['x']))]})
+                        print('configuring processes...')
                         ## create the indices over which to split jobs
                         s = self.db.Session()
                         try:
@@ -154,10 +168,26 @@ class NcConverter(OcgConverter):
                         indices = [[min(ary),max(ary)] 
                                    for ary in array_split(range(0,count+1),
                                                           settings.MAXPROCESSES)]
-                        for rng in indices:
-                            self.f_fill(rng,arrays,sub,grid,cs,self.db.engine)
-                        print(arrays['year'] == 2000)
-                        import ipdb;ipdb.set_trace()
+                        ## construct the processes
+                        procs = [Process(target=self.f_fill,
+                                         args=(data,rng,sub,grid['gidx'].reshape(-1),cs,self.db.engine))
+                                 for rng in indices]
+                        pmanager = ProcessManager(procs,settings.MAXPROCESSES)
+                        ## run the processes
+                        print('executing processes...')
+                        pmanager.run()
+                        ## reshape/transform list data into numpy arrays
+                        ## the dictionary to hold merged data
+                        merged = dict.fromkeys(data[0].keys(),np.zeros(len(grid['gidx'].reshape(-1))))
+                        ## merge the data
+                        for dd in data:
+                            for key,value in dd.iteritems():
+                                merged[key] = merged[key] + value
+                        print('reformatting arrays...')
+                        for key,value in merged.iteritems():
+                            tary = value.reshape(len(grid['y']),len(grid['x']))
+                            tary[grid['gidx'].mask] = fill_value
+                            merged.update({key:tary})
                     else:
                         ## construct the data query
                         s = self.db.Session()
@@ -175,7 +205,7 @@ class NcConverter(OcgConverter):
                         finally:
                             s.close()
                     ## set the variable value in the nc dataset
-                    for key,value in arrays.iteritems():
+                    for key,value in merged.iteritems():
                         tdataset.variables[key].missing_value = fill_value
                         tdataset.variables[key][:] = value
             else:
@@ -200,8 +230,12 @@ class NcConverter(OcgConverter):
             tdataset.close()
             
     @staticmethod
-    def f_fill(rng,arrays,sub,grid,cs,engine):
-#        engine = create_engine(connstr)
+    def f_fill(data,rng,sub,gidx,cs,engine):
+        ## generate the arrays to fill
+        fill = {}
+        for cc in cs:
+            fill.update({cc.name:np.zeros(len(gidx))})
+        
         metadata = MetaData(bind=engine)
         Session = sessionmaker(bind=engine)
         
@@ -215,10 +249,14 @@ class NcConverter(OcgConverter):
             ## loop through the data and populate the 2-d arrays
             for obj in qq.slice(*rng).all():
                 idx = np.argmax(obj.gid == sub.gid)
-                idx = np.argmax(grid['gidx'] == idx)
-                tup = np.unravel_index(idx,grid['gidx'].shape)
-                for cc in cs:
-                    arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
+                idx = np.argmax(gidx == idx)
+#                tup = np.unravel_index(idx,gidx.shape)
+                for key,value in fill.iteritems():
+                    value[idx] = getattr(obj,key)
+#                    data[cc.name] = data[cc.name] + [cc.name,tup,getattr(obj,cc.name)]
+#                    data[cc.name][idx] = getattr(obj,cc.name)
+#                    data[cc.name] = data[cc.name]
+            data.append(fill)
         finally:
             s.close()
             

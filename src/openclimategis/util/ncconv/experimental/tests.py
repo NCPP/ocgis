@@ -17,6 +17,7 @@ from util.ncconv.experimental.helpers import timing
 from shapely.geometry.polygon import Polygon
 import itertools
 from util.ncconv.experimental.ocg_dataset.todb import PgBackend
+from util.ncconv.experimental.ocg_dataset.stat import SubOcgStat
 
 verbose = False
 
@@ -153,8 +154,8 @@ class TestData(object):
                                      ocg_opts=self.nc_opts,
                                      polygons=[
                                                {'gid':99,'geom':self.nebraska()},
-                                               {'gid':100,'geom':self.iowa()},
-                                               {'gid':200,'geom':self.vermont()}
+#                                               {'gid':100,'geom':self.iowa()},
+#                                               {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
                                                  datetime.datetime(2013,12,31)],
@@ -239,7 +240,49 @@ class TestNcConversion(TestData,unittest.TestCase):
 #                    print(payload[1])
 #        import ipdb;ipdb.set_trace()
 
+class TestSubOcgStat(TestData,unittest.TestCase):
+    
+    _ss = None
+    
+    @property
+    def ss(self):
+        if self._ss is None:
+            self._ss = SubOcgStat(self.sub_ocg_dataset,['year'],procs=8)
+        return(self._ss)
+    
+    @staticmethod
+    def change_from_mean(values,mean=2.0):
+        return(np.mean(values) - mean)
+    
+    @staticmethod
+    def threshold_values(values,threshold=2.0):
+        days = filter(lambda x: x > threshold, values)
+        return(len(days))
+    
+    def test_get_distinct_groups(self):
+        self.ss.get_distinct_groups()
+        
+    def test_calculate(self):
+        funcs = [
+                {'function':np.mean,'name':'mean'},
+                {'function':np.std,'name':'std'},
+                {'function':self.change_from_mean,'name':'meanchg','args':[2.0,]},
+                {'function':self.threshold_values,'name':'threshval','kwds':{'threshold':2.0}}
+                ]
+        self.ss.calculate(funcs)
+    
+    def test_url(self):
+        from django.test.client import Client
+        
+        url = ('/api/archive/usgs-cida-maurer/model/miroc3.2%28medres%29/scenario'
+               '/sres-a1b/run/2/temporal/2000-01-01+2000-03-01/spatial'
+               '/intersects+polygon%28%28-104+39,+-95+39,+-95+44,+-104+39%29%29'
+               '/aggregate/false/variable/pr.nc?stat=min+gt(5):gt5'
+               '+between(5,10):btwn5_10&grouping=year')
+        c = Client()
+        response = c.get(url)
+        assert(response.status_code == 200)
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestStats']
+    import sys;sys.argv = ['', 'TestSubOcgStat.test_url']
     unittest.main()

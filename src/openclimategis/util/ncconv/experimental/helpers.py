@@ -15,7 +15,18 @@ import re
 from util.helpers import get_temp_path
 import datetime
 import django.contrib.gis.geos.polygon as geos
+import copy
 
+
+def merge_dict_list(dl):
+    for ii,dd in enumerate(dl):
+        if ii == 0:
+            arch = copy.copy(dd)
+        else:
+            for key,value in dd.iteritems():
+                arch[key] += value
+    return(arch)
+        
 
 def get_django_attrs(obj):
     from django.contrib.gis.db import models

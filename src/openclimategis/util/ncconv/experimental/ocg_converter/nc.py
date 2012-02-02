@@ -3,9 +3,14 @@ from util.helpers import get_temp_path
 import netCDF4 as nc
 from util.ncconv.experimental.ocg_meta import element, models
 from util.ncconv.experimental.ocg_meta.element import PolyElementNotFound
-from util.ncconv.experimental.helpers import itr_array
+from util.ncconv.experimental.helpers import itr_array, array_split
 import numpy as np
 from sqlalchemy.types import Float, Integer
+from django.conf import settings
+from multiprocessing import Manager
+from sqlalchemy.engine import create_engine
+from sqlalchemy.orm.session import sessionmaker
+from sqlalchemy.schema import MetaData, Table
 
 
 class NcConverter(OcgConverter):
@@ -136,22 +141,39 @@ class NcConverter(OcgConverter):
                         arrays.update({c.name:ary})
                         ## make the netcdf variable
                         tdataset.createVariable(c.name,nctype,('latitude','longitude'))
-                    ## construct the data query
-                    s = self.db.Session()
-                    try:
-                        ## the data query to loop through
-                        ## TODO: add parallel capability
-                        qq = s.query(self.value_table)
+                    ## check for parallel
+                    if settings.MAXPROCESSES > 1:
+                        manager = Manager()
+                        arrays = manager.dict(arrays)
+                        ## create the indices over which to split jobs
+                        s = self.db.Session()
+                        try:
+                            count = s.query(self.value_table).count()
+                        finally:
+                            s.close()
+                        indices = [[min(ary),max(ary)] 
+                                   for ary in array_split(range(0,count+1),
+                                                          settings.MAXPROCESSES)]
+                        for rng in indices:
+                            self.f_fill(rng,arrays,sub,grid,cs,self.db.engine)
+                        print(arrays['year'] == 2000)
                         import ipdb;ipdb.set_trace()
-                        ## loop through the data and populate the 2-d arrays
-                        for obj in qq:
-                            idx = np.argmax(obj.gid == sub.gid)
-                            idx = np.argmax(grid['gidx'] == idx)
-                            tup = np.unravel_index(idx,grid['gidx'].shape)
-                            for cc in cs:
-                                arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
-                    finally:
-                        s.close()
+                    else:
+                        ## construct the data query
+                        s = self.db.Session()
+                        try:
+                            ## the data query to loop through
+                            ## TODO: add parallel capability
+                            qq = s.query(self.value_table)
+                            ## loop through the data and populate the 2-d arrays
+                            for obj in qq:
+                                idx = np.argmax(obj.gid == sub.gid)
+                                idx = np.argmax(grid['gidx'] == idx)
+                                tup = np.unravel_index(idx,grid['gidx'].shape)
+                                for cc in cs:
+                                    arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
+                        finally:
+                            s.close()
                     ## set the variable value in the nc dataset
                     for key,value in arrays.iteritems():
                         tdataset.variables[key].missing_value = fill_value
@@ -176,6 +198,29 @@ class NcConverter(OcgConverter):
             return(path)
         finally:
             tdataset.close()
+            
+    @staticmethod
+    def f_fill(rng,arrays,sub,grid,cs,engine):
+#        engine = create_engine(connstr)
+        metadata = MetaData(bind=engine)
+        Session = sessionmaker(bind=engine)
+        
+        stats = Table("stats",metadata,autoload=True)
+        ## construct the data query
+        s = Session()
+        try:
+            ## the data query to loop through
+            ## TODO: add parallel capability
+            qq = s.query(*stats.c)
+            ## loop through the data and populate the 2-d arrays
+            for obj in qq.slice(*rng).all():
+                idx = np.argmax(obj.gid == sub.gid)
+                idx = np.argmax(grid['gidx'] == idx)
+                tup = np.unravel_index(idx,grid['gidx'].shape)
+                for cc in cs:
+                    arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
+        finally:
+            s.close()
             
     def write(self,sub,ocg_dataset):
         return(self.convert(sub,ocg_dataset))

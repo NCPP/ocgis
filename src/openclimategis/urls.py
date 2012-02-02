@@ -28,4 +28,9 @@ if settings.DEBUG:
         url(r'^static/(?P<path>.*)$', 'django.views.static.serve', {
             'document_root': settings.APACHE_STATIC_ROOT,
         }),
+        # Query Builder web application
+        url( # example: /builder
+            r'^builder',
+            'api.views.display_query_builder_app'
+        ),
    )

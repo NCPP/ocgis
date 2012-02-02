@@ -5,13 +5,8 @@ from util.ncconv.experimental.ocg_meta import element, models
 from util.ncconv.experimental.ocg_meta.element import PolyElementNotFound
 from util.ncconv.experimental.helpers import itr_array, array_split
 import numpy as np
-from sqlalchemy.types import Float, Integer
 from django.conf import settings
 from multiprocessing import Manager
-from sqlalchemy.engine import create_engine
-from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.schema import MetaData, Table
-from multiprocessing.managers import Array
 from multiprocessing.process import Process
 from util.ncconv.experimental.pmanager import ProcessManager
 
@@ -19,18 +14,10 @@ from util.ncconv.experimental.pmanager import ProcessManager
 class NcConverter(OcgConverter):
     
     def __init__(self,base_name,use_stat=False,meta=None,use_geom=False):
-#        self.db = db
         self.base_name = base_name
         self.use_stat = use_stat
         self.meta = meta
         self.use_geom = use_geom
-        
-#        if self.use_geom:
-#            self.value_table = self.db.Geometry
-#        elif self.use_stat:
-#            self.value_table = self.db.Stat
-#        else:
-#            self.value_table = self.db.Value
     
     def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20,substat=None):
         print('starting convert...')
@@ -144,10 +131,6 @@ class NcConverter(OcgConverter):
                     cs = [c for c in substat.stats.keys() if c not in exclude]
                     ## loop through the columns and generate the numpy arrays to
                     ## to populate.
-#                    manager = Manager()
-#                    arrays = manager.list()
-#                    arrays = {}
-#                    ary_idx = {}
                     print('making variables...')
                     for ii,c in enumerate(cs):
                         ## get the correct python type from the column type
@@ -155,31 +138,15 @@ class NcConverter(OcgConverter):
                             nctype = 'f4'
                         if type(substat.stats[c][0]) == int:
                             nctype = 'i4'
-                        ## generate the array
-#                        ary = np.zeros((len(grid['y']),len(grid['x'])))
-                        ## put in the fill values to account for dataset masking
-#                        ary[grid['gidx'].mask] = fill_value 
-                        ## convert to shared array
-#                        ary = ary.reshape(-1).tolist()
-                        ## store for later
-#                        arrays.append(ary)
                         ## make the netcdf variable
                         tdataset.createVariable(c,nctype,('latitude','longitude'))
-#                        ary_idx.update({c.name:ii})
                     ## check for parallel
                     if settings.MAXPROCESSES > 1:
                         manager = Manager()
                         data = manager.list()
-#                        for cc in cs:
-#                            data.update({cc.name:[0.0 for ii in range(0,len(grid['y'])*len(grid['x']))]})
                         print('configuring processes...')
                         ## create the indices over which to split jobs
                         count = len(substat.stats['ocgid'])
-#                        s = self.db.Session()
-#                        try:
-#                            count = s.query(self.value_table).count()
-#                        finally:
-#                            s.close()
                         indices = [[min(ary),max(ary)] 
                                    for ary in array_split(range(0,count+1),
                                                           settings.MAXPROCESSES)]
@@ -237,31 +204,13 @@ class NcConverter(OcgConverter):
         for cc in cs:
             fill.update({cc:np.zeros(len(gidx))})
         
-#        metadata = MetaData(bind=engine)
-#        Session = sessionmaker(bind=engine)
-#        
-#        stats = Table("stats",metadata,autoload=True)
-        ## construct the data query
-#        s = Session()
-#        try:
-            ## the data query to loop through
-            ## TODO: add parallel capability
-#            qq = s.query(*stats.c)
-            ## loop through the data and populate the 2-d arrays
-#        for obj in qq.slice(*rng).all():
+        ## loop through the sub range
         for ii in range(*rng):
             idx = np.argmax(substat.stats['gid'][ii] == sub.gid)
             idx = np.argmax(gidx == idx)
-#                tup = np.unravel_index(idx,gidx.shape)
             for key,value in fill.iteritems():
                 value[idx] = substat.stats[key][ii]
-#                value[idx] = getattr(obj,key)
-#                    data[cc.name] = data[cc.name] + [cc.name,tup,getattr(obj,cc.name)]
-#                    data[cc.name][idx] = getattr(obj,cc.name)
-#                    data[cc.name] = data[cc.name]
         data.append(fill)
-#        finally:
-#            s.close()
             
     def write(self,sub,ocg_dataset):
         return(self.convert(sub,ocg_dataset))

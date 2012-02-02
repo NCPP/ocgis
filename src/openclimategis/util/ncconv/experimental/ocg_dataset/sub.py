@@ -60,7 +60,8 @@ class SubOcgDataset(object):
             guidance on |kwds|.
         """
         return(sub_to_db(self,**kwds))
-        
+    
+    @timing
     def to_grid_dict(self,ocg_dataset):
         """
         Generate spatial grid information for NetCDF output. Assumes an 

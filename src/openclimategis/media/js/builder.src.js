@@ -1,5 +1,5 @@
 /*global Ext, google*/
-var App, blah, bloo;
+var App;
 /*
 Ext.require([
     'Ext.Component',
@@ -266,8 +266,11 @@ Ext.define('App.ui.MapPanel', {
         this.clearOverlays();
         polygon = new google.maps.Polygon({
             editable: (function() {
+                return false; // TODO Make it so that edits to AOI geometry are reflected in the URL
+                /* Still a good limit for improved performance:
                 if (geometry.multipolygon) {return (geometry.multipolygon.length < 25);}
                 else if (geometry.polygon) {return (geometry.polygon.length < 25);}
+                */
                 }()), // Execute immediately
             paths: (function() {
                 var paths = [];
@@ -596,6 +599,30 @@ Ext.application({
     launch: function() {
         Ext.getBody().mask('Loading...');
         App.host = window.location.hostname || 'openclimategis.org';
+        App.helpContents = (function() {
+            var t;
+            t = "<span class=\"help-title\">Welcome to OpenClimateGIS!</span>";
+            t +="<br />This web application was designed to help users write API queries.";
+            t +="You can use this form to parameterize your data request.";
+            t +="The corresponding API query will be continuously updated at the bottom as you make your selections.<br /><br />";
+            t +="<div class=\"help-topic-title\">Data Selection</div><div class=\"help-topic\">";
+            t +="Specify the <b>data archive</b>, the <b>climate model</b>, the <b>emissions scenario</b>, <b>output variable</b>, the number of <b>runs</b>, and the <b>date range</b> for the model in this panel.";
+            t +="</div>";
+            t +="<div class=\"help-topic-title\">Temporal</div><div class=\"help-topic\">";
+            t +="This panel contains a list of statistical functions that can be applied to the data, with or without a specified <b>grouping</b>. Click on an entry or check the box next to it to include it in your request. Unlike the entries under <b>Basic Statistics</b>, the <b>Thresholds</b> require you to specify values (e.g. between x and y).";
+            t +="</div>";
+            t +="<div class=\"help-topic-title\">Spatial</div><div class=\"help-topic\">";
+            t +="The map panel is used for selecting an area-of-interest (AOI). You can use the drawing tools in the upper-left corner of the map to draw a rectangle or a polygon. Once you have drawn a rectangle or polygon, you can edit its vertices by clicking and dragging them. Start drawing a new polygon or rectangle elsewhere in the map and the old one will be removed (you can only use single polygon/rectangle geometry for now). You can also select pre-defined AOIs to use from the <b>Area-of-Interest (AOI)</b> drop-down menu in the map's top toolbar. You will see the AOI drawn on the map, but in the current version of the API Query Builder you cannot edit pre-defined AOIs.";
+            t +="Click the <b>Clip Output to AOI</b> button to have the climate model results clipped to your AOI. Leaving this off (not toggled) will return climate data cells that are intersected by your AOI. Click the <b>Aggregate Geometries</b> button to treat multigeometries as singular.";
+            t +="</div>";
+            t +="<div class=\"help-topic-title\">Output Format</div><div class=\"help-topic\">";
+            t +="You need to specify an <b>output format</b>, selected from the drop-down menu.";
+            t +="</div>";
+            t +="<div class=\"help-topic-title\">Data Request URL</div><div class=\"help-topic\">";
+            t +="The result of your selections is displayed in the text box here as an API query URL. You can copy/paste this to save it or into a browser's navigation bar to execute it. Clicking the <b>Generate Data File</b> button will also execute your query. This button is disabled until the query is full parameterized; there are several required selections you have to make. You will know when your API query is full parameterized and ready to be executed when the indicator at the bottom of the screen changes from red to green and the text from \"URL Incomplete\" to \"Ready\".";
+            t +="</div>"
+            return t;
+            }()); // Execute immediately
         /**
          * Encodes a WKT geometry from an array of coordinate pairs
          * @param   prefix  {String}    The type of WKT geometry (e.g. 'POLYGON')
@@ -674,7 +701,7 @@ Ext.application({
             outputs: Ext.create('Ext.data.ArrayStore', {
                 fields: ['value', 'text'],
                 data: [
-                    ['geojson', 'GeoJSON Text File'],
+                    ['json', 'GeoJSON Text File'],
                     ['csv', 'Comma Separated Value'],
                     ['kcsv', 'Linked Comma Separated Value (zipped)'],
                     ['shz', 'ESRI Shapefile (zipped)'],
@@ -939,9 +966,14 @@ Ext.application({
                     xtype: 'panel',
                     title: 'Help',
                     region: 'east',
-                    width: 150,
+                    width: 200,
+                    resizable: true,
+                    autoScroll: true,
+                    bodyPadding: 5,
+                    bodyCls: 'help-contents',
                     collapsed: true,
-                    collapsible: true
+                    collapsible: true,
+                    html: App.helpContents
                     }
                 ] // eo items
             }); // eo Ext.create

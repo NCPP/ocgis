@@ -102,6 +102,11 @@ a:active {color:#730D00;text-decoration:none;border:none;}
     color:#009900;
     }
 
+.help-contents {font-size:12px;font-family:Arial,sans-serif;}
+.help-title {font-size:16px;font-weight:bold;}
+.help-topic-title {padding:5px 10px;font-size:14px;font-weight:bold;background-color:#EEE;text-indent:-5px;}
+.help-topic {margin:5px 0 10px 5px;}
+
 /* Icons */
 .icon-app-edit {background-image:url(/media/img/application_edit.png) !important;}
 .icon-disk {background-image:url(/media/img/disk.png) !important;}

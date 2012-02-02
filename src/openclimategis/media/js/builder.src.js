@@ -1035,7 +1035,7 @@ Ext.application({
                     width: 250,
                     queryMode: 'local',
                     valueField: 'value',
-                    value: 'geojson',
+                    value: 'json',
                     store: App.data.outputs
                     }
                 ]);

@@ -620,7 +620,7 @@ Ext.application({
             t +="</div>";
             t +="<div class=\"help-topic-title\">Data Request URL</div><div class=\"help-topic\">";
             t +="The result of your selections is displayed in the text box here as an API query URL. You can copy/paste this to save it or into a browser's navigation bar to execute it. Clicking the <b>Generate Data File</b> button will also execute your query. This button is disabled until the query is full parameterized; there are several required selections you have to make. You will know when your API query is full parameterized and ready to be executed when the indicator at the bottom of the screen changes from red to green and the text from \"URL Incomplete\" to \"Ready\".";
-            t +="</div>"
+            t +="</div>";
             return t;
             }()); // Execute immediately
         /**

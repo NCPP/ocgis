@@ -142,6 +142,10 @@ as an example:
     localhost/static/extjs/4.0.7/resources/css/ext-all-gray.css
     localhost/static/extjs/4.0.7/ext-debug.js
 
+Fabric can also be used to install the ExtJS resources on AWS:
+
+    fab apache2.make_local_copy_of_extjs
+
 ------------
 Source Code
 ------------

@@ -262,7 +262,29 @@ Ext.define('App.ui.MapPanel', {
      * @return          {google.maps.Polygon}
      */
     addWktPolygon: function(text) {
-        var geometry = App.decodeWkt(text);
+        var geometry = App.decodeWkt(text), polygon;
+        polygon = new google.maps.Polygon({
+            editable: (function() {
+                if (geometry.multipolygon) {return (geometry.multipolygon.length < 25);}
+                else if (geometry.polygon) {return (geometry.polygon.length < 25);}
+                }()), // Execute immediately
+            paths: (function() {
+                var paths = [];
+                if (geometry.polygon) {
+                    Ext.each(geometry.polygon, function(i) {
+                        paths.push(new google.maps.LatLng(i.lat, i.lng));
+                        });
+                    }
+                if (geometry.multipolygon) {
+                    Ext.each(geometry.multipolygon, function(i) {
+                        paths.push(new google.maps.LatLng(i.lat, i.lng));
+                        });
+                    }
+                return paths;
+                }()) // Execute immediately
+            });
+        this.gmap.setCenter(polygon.getPath().getAt(0));
+        polygon.setMap(this.gmap);
         },
     /**
      * Generates a WKT string from an MVCArray defining a polygon path
@@ -593,7 +615,7 @@ Ext.application({
          */
         App.decodeWkt = function(text) {
             var geometry = {},
-                prefix = text.slice(0, text.indexOf('(')).toLowerCase(),
+                prefix = Ext.String.trim(text.slice(0, text.indexOf('('))).toLowerCase(),
                 remainder = text.slice(text.lastIndexOf('(')+1, text.indexOf(')'));
             geometry[prefix] = [];
             remainder.split(',').forEach(function(i) {
@@ -811,7 +833,7 @@ Ext.application({
                                             Ext.Ajax.request({
                                                 url: '/api/aois/' + code + '.json',
                                                 callback: function(o, s, resp) { // Arguments: options, success, response
-                                                    that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText));
+                                                    that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText).features[0].geometry);
                                                     }
                                                 });
                                             }

@@ -90,6 +90,8 @@ class SubOcgStat(object):
                              self.time_grouping,
                              self.grouping)
         self.stats = merge_dict_list(list(all_attrs))
+        ## add the ocgid
+        self.stats.update({'ocgid':range(1,len(self.stats['gid'])+1)})
     
     @staticmethod
     def f_calculate(all_attrs,sub,groups,funcs,time_conv,time_grouping,grouping):

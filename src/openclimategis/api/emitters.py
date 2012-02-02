@@ -261,7 +261,7 @@ class NcEmitter(SubOcgDataEmitter):
         if isinstance(payload,SubOcgDataset):
             self.use_geom = False
             self.sub = payload
-            self.db = self.get_db()
+            self.db = None
             if request.ocg.query.use_stat:
                 self.st = SubOcgStat(self.sub,
                                 request.ocg.query.grouping,
@@ -278,6 +278,11 @@ class NcEmitter(SubOcgDataEmitter):
         from util.ncconv.experimental.ocg_dataset.dataset import OcgDataset
         ds = OcgDataset(self.request.ocg.dataset_uri,**self.request.ocg.ocg_opts)
         return(self.converter.response(self.sub,ds,substat=self.st))
+    
+    def get_converter(self):
+        return(self.__converter__(self.cfvar+self.__file_ext__,
+                                  use_stat=self.request.ocg.query.use_stat,
+                                  use_geom=self.use_geom))
 
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')

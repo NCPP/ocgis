@@ -18,6 +18,20 @@ from util.ncconv.experimental.pmanager import ProcessManager
 
 class NcConverter(OcgConverter):
     
+    def __init__(self,base_name,use_stat=False,meta=None,use_geom=False):
+#        self.db = db
+        self.base_name = base_name
+        self.use_stat = use_stat
+        self.meta = meta
+        self.use_geom = use_geom
+        
+#        if self.use_geom:
+#            self.value_table = self.db.Geometry
+#        elif self.use_stat:
+#            self.value_table = self.db.Stat
+#        else:
+#            self.value_table = self.db.Value
+    
     def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20,substat=None):
         print('starting convert...')
         ## create the dataset object
@@ -127,19 +141,19 @@ class NcConverter(OcgConverter):
                     ## these are the columns to exclude
                     exclude = ['ocgid','gid','level']
                     ## get the columns we want to write to the netcdf
-                    cs = [c for c in self.value_table.__table__.c if c.name not in exclude]
+                    cs = [c for c in substat.stats.keys() if c not in exclude]
                     ## loop through the columns and generate the numpy arrays to
                     ## to populate.
-                    manager = Manager()
-                    arrays = manager.list()
+#                    manager = Manager()
+#                    arrays = manager.list()
 #                    arrays = {}
-                    ary_idx = {}
+#                    ary_idx = {}
                     print('making variables...')
                     for ii,c in enumerate(cs):
                         ## get the correct python type from the column type
-                        if type(c.type) == Float:
+                        if type(substat.stats[c][0]) == float:
                             nctype = 'f4'
-                        if type(c.type) == Integer:
+                        if type(substat.stats[c][0]) == int:
                             nctype = 'i4'
                         ## generate the array
 #                        ary = np.zeros((len(grid['y']),len(grid['x'])))
@@ -150,7 +164,7 @@ class NcConverter(OcgConverter):
                         ## store for later
 #                        arrays.append(ary)
                         ## make the netcdf variable
-                        tdataset.createVariable(c.name,nctype,('latitude','longitude'))
+                        tdataset.createVariable(c,nctype,('latitude','longitude'))
 #                        ary_idx.update({c.name:ii})
                     ## check for parallel
                     if settings.MAXPROCESSES > 1:
@@ -160,17 +174,18 @@ class NcConverter(OcgConverter):
 #                            data.update({cc.name:[0.0 for ii in range(0,len(grid['y'])*len(grid['x']))]})
                         print('configuring processes...')
                         ## create the indices over which to split jobs
-                        s = self.db.Session()
-                        try:
-                            count = s.query(self.value_table).count()
-                        finally:
-                            s.close()
+                        count = len(substat.stats['ocgid'])
+#                        s = self.db.Session()
+#                        try:
+#                            count = s.query(self.value_table).count()
+#                        finally:
+#                            s.close()
                         indices = [[min(ary),max(ary)] 
                                    for ary in array_split(range(0,count+1),
                                                           settings.MAXPROCESSES)]
                         ## construct the processes
                         procs = [Process(target=self.f_fill,
-                                         args=(data,rng,sub,grid['gidx'].reshape(-1),cs,self.db.engine))
+                                         args=(data,rng,sub,substat,grid['gidx'].reshape(-1),cs))
                                  for rng in indices]
                         pmanager = ProcessManager(procs,settings.MAXPROCESSES)
                         ## run the processes
@@ -189,21 +204,7 @@ class NcConverter(OcgConverter):
                             tary[grid['gidx'].mask] = fill_value
                             merged.update({key:tary})
                     else:
-                        ## construct the data query
-                        s = self.db.Session()
-                        try:
-                            ## the data query to loop through
-                            ## TODO: add parallel capability
-                            qq = s.query(self.value_table)
-                            ## loop through the data and populate the 2-d arrays
-                            for obj in qq:
-                                idx = np.argmax(obj.gid == sub.gid)
-                                idx = np.argmax(grid['gidx'] == idx)
-                                tup = np.unravel_index(idx,grid['gidx'].shape)
-                                for cc in cs:
-                                    arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
-                        finally:
-                            s.close()
+                        raise(NotImplementedError)
                     ## set the variable value in the nc dataset
                     for key,value in merged.iteritems():
                         tdataset.variables[key].missing_value = fill_value
@@ -230,35 +231,37 @@ class NcConverter(OcgConverter):
             tdataset.close()
             
     @staticmethod
-    def f_fill(data,rng,sub,gidx,cs,engine):
+    def f_fill(data,rng,sub,substat,gidx,cs):
         ## generate the arrays to fill
         fill = {}
         for cc in cs:
-            fill.update({cc.name:np.zeros(len(gidx))})
+            fill.update({cc:np.zeros(len(gidx))})
         
-        metadata = MetaData(bind=engine)
-        Session = sessionmaker(bind=engine)
-        
-        stats = Table("stats",metadata,autoload=True)
+#        metadata = MetaData(bind=engine)
+#        Session = sessionmaker(bind=engine)
+#        
+#        stats = Table("stats",metadata,autoload=True)
         ## construct the data query
-        s = Session()
-        try:
+#        s = Session()
+#        try:
             ## the data query to loop through
             ## TODO: add parallel capability
-            qq = s.query(*stats.c)
+#            qq = s.query(*stats.c)
             ## loop through the data and populate the 2-d arrays
-            for obj in qq.slice(*rng).all():
-                idx = np.argmax(obj.gid == sub.gid)
-                idx = np.argmax(gidx == idx)
+#        for obj in qq.slice(*rng).all():
+        for ii in range(*rng):
+            idx = np.argmax(substat.stats['gid'][ii] == sub.gid)
+            idx = np.argmax(gidx == idx)
 #                tup = np.unravel_index(idx,gidx.shape)
-                for key,value in fill.iteritems():
-                    value[idx] = getattr(obj,key)
+            for key,value in fill.iteritems():
+                value[idx] = substat.stats[key][ii]
+#                value[idx] = getattr(obj,key)
 #                    data[cc.name] = data[cc.name] + [cc.name,tup,getattr(obj,cc.name)]
 #                    data[cc.name][idx] = getattr(obj,cc.name)
 #                    data[cc.name] = data[cc.name]
-            data.append(fill)
-        finally:
-            s.close()
+        data.append(fill)
+#        finally:
+#            s.close()
             
     def write(self,sub,ocg_dataset):
         return(self.convert(sub,ocg_dataset))

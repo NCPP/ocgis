@@ -72,6 +72,7 @@ class SubOcgDataset(object):
         ## make the bounding polygon
         envelope = MultiPolygon(self.geometry.tolist()).envelope
         ## get the x,y vectors
+        print('subsetting centroids...')
         x,y = ocg_dataset.spatial.subset_centroids(envelope)
         ## make the grids
         gx,gy = np.meshgrid(x,y)
@@ -87,6 +88,7 @@ class SubOcgDataset(object):
         ## make the empty value array
 #        value = np.empty(mask.shape,dtype=float)
         ## loop for each centroid
+        print('finding centroid location in array...')
         for ii,geom in enumerate(self.geometry):
             diffx = abs(gx - geom.centroid.x)
             diffy = abs(gy - geom.centroid.y)

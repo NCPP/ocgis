@@ -18,6 +18,7 @@ from shapely.geometry.polygon import Polygon
 import itertools
 from util.ncconv.experimental.ocg_dataset.todb import PgBackend
 from util.ncconv.experimental.ocg_dataset.stat import SubOcgStat
+import time
 
 verbose = False
 
@@ -274,13 +275,20 @@ class TestSubOcgStat(TestData,unittest.TestCase):
     def test_url(self):
         from django.test.client import Client
         
+#        url = ('/api/archive/usgs-cida-maurer/model/miroc3.2%28medres%29/scenario'
+#               '/sres-a1b/run/2/temporal/2000-01-01+2000-03-01/spatial'
+#               '/intersects+polygon%28%28-104+39,+-95+39,+-95+44,+-104+39%29%29'
+#               '/aggregate/false/variable/pr.nc?stat=min+gt(5):gt5'
+#               '+between(5,10):btwn5_10&grouping=year')
         url = ('/api/archive/usgs-cida-maurer/model/miroc3.2%28medres%29/scenario'
-               '/sres-a1b/run/2/temporal/2000-01-01+2000-03-01/spatial'
-               '/intersects+polygon%28%28-104+39,+-95+39,+-95+44,+-104+39%29%29'
-               '/aggregate/false/variable/pr.nc?stat=min+gt(5):gt5'
-               '+between(5,10):btwn5_10&grouping=year')
+          '/sres-a1b/run/2/temporal/2000-01-01+2004-12-31/spatial'
+          '/intersects+states'
+          '/aggregate/false/variable/tas.nc?stat=gt(38):gt_100f&grouping=year')
+        
         c = Client()
+        t1 = time.time()
         response = c.get(url)
+        print((time.time() - t1)/60)
         assert(response.status_code == 200)
 
 if __name__ == "__main__":

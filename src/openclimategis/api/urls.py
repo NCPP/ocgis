@@ -466,8 +466,8 @@ urlpatterns = patterns('',
     ),
 
     # Query Builder web application
-    url( # example: query/test
-        r'^query/test',
+    url( # example: query/builder
+        r'^query/builder',
         'api.views.display_query_builder_app'
     ),
     

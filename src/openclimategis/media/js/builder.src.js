@@ -263,6 +263,7 @@ Ext.define('App.ui.MapPanel', {
      */
     addWktPolygon: function(text) {
         var geometry = App.decodeWkt(text), polygon;
+        this.clearOverlays();
         polygon = new google.maps.Polygon({
             editable: (function() {
                 if (geometry.multipolygon) {return (geometry.multipolygon.length < 25);}
@@ -283,6 +284,7 @@ Ext.define('App.ui.MapPanel', {
                 return paths;
                 }()) // Execute immediately
             });
+        this.overlays.push(polygon);
         this.gmap.setCenter(polygon.getPath().getAt(0));
         polygon.setMap(this.gmap);
         },
@@ -335,22 +337,22 @@ Ext.define('App.ui.MapPanel', {
         // Set up the map and listeners ////////////////////////////////////////
         afterrender: function() {
             var self = this,
-                Type = google.maps.drawing.OverlayType,
-                drawingManager = new google.maps.drawing.DrawingManager({
-                    rectangleOptions: {editable: true},
-                    polygonOptions: {editable: true},
-                    drawingControlOptions: {
-                        drawingModes: [Type.RECTANGLE, Type.POLYGON]
-                        }
-                    });
+                Type = google.maps.drawing.OverlayType;
+            this.drawingManager = new google.maps.drawing.DrawingManager({
+                rectangleOptions: {editable: true},
+                polygonOptions: {editable: true},
+                drawingControlOptions: {
+                    drawingModes: [Type.RECTANGLE, Type.POLYGON]
+                    }
+                });
             this.gmap = new google.maps.Map(this.body.dom, {
                 center: new google.maps.LatLng(42.30220, -83.68952),
                 zoom: 8,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
-            drawingManager.setMap(this.gmap);
+            this.drawingManager.setMap(this.gmap);
             // Listen for the 'overlaycomplete' event and pass it to the container
-            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(event) {
+            google.maps.event.addListener(this.drawingManager, 'overlaycomplete', function(event) {
                 self.fireEvent('overlaycomplete', {event: event});
                 });
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
@@ -370,6 +372,8 @@ Ext.define('App.ui.MapPanel', {
             this.fireEvent('sketchcomplete'); // Listened for in instances
             // Remove any existing overlay (only one allowed at a time
             this.clearOverlays();
+            // Set the drawing mode to "pan" (the hand) so users can immediately edit
+            this.drawingManager.setDrawingMode(null);
             // Polygon drawn
             if (args.event.type === Type.POLYGON) {
                 geometry = this.pathToWktPolygon(args.event.overlay.getPath());

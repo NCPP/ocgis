@@ -119,6 +119,28 @@ file to its destination using::
 
     sudo mv ~/settings.ini /etc/openclimategis/settings.ini
 
+~~~~~~~~~~~~~~~~~~~~
+Javascript Libraries
+~~~~~~~~~~~~~~~~~~~~
+
+The API Query Builder uses the ExtJS framework and the Google Maps API to provide
+a user-friendly interface for constructing OpenClimateGIS queries. It requires
+that ExtJS 4.x media files are installed and accessible. Currently, the API
+Query Builder uses ExtJS 4.0.7 and version 3.7 of the Google Maps API. The
+Google Maps API is loaded automatically with the Query Builder.
+
+Download ExtJS: http://www.sencha.com/products/extjs/download
+
+ExtJS 4.0.7 should be extracted into the following directory off of localhost
+(or whatever the host name is):
+
+    localhost/static/extjs/4.0.7/
+
+Resources should be accessible at the following locations, again using localhost
+as an example:
+
+    localhost/static/extjs/4.0.7/resources/css/ext-all-gray.css
+    localhost/static/extjs/4.0.7/ext-debug.js
 
 ------------
 Source Code

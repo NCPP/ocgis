@@ -20,12 +20,17 @@ class PolyElement(object):
     dataset -- open netCDF4-python Dataset object.
     name -- set the name of the element. if None is passed, then it searches
         the dataset for the correct name.
+    default -- if True, use the default name specified in the class definition
     """
     _names = []
     
-    def __init__(self,dataset,name=None):
+    def __init__(self,dataset=None,name=None,default=False):
         self.dataset = dataset
-        self.name = name or self.find()
+        self.default = default
+        if self.default:
+            self.name = self.default_name
+        else:
+            self.name = name or self.find()
         self._value = None
         
     @property
@@ -33,6 +38,10 @@ class PolyElement(object):
         if self._value is None:
             self._value = self.get()
         return(self._value)
+    
+    @property
+    def default_name(self):
+        return(self._names[0])
         
     def find(self):
         possible = self.possible()

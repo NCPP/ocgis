@@ -5,12 +5,12 @@ from util.ncconv.experimental.ocg_meta import element, models
 from util.ncconv.experimental.ocg_meta.element import PolyElementNotFound
 from util.ncconv.experimental.helpers import itr_array
 import numpy as np
+from sqlalchemy.types import Float, Integer
 
 
 class NcConverter(OcgConverter):
     
     def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20):
-#        import ipdb;ipdb.set_trace()
         ## create the dataset object
         path = get_temp_path(name=self.base_name,nest=True)
         tdataset = nc.Dataset(path,'w')
@@ -62,6 +62,8 @@ class NcConverter(OcgConverter):
                         captured = check
                         break
                 if isinstance(captured,element.TemporalDimensionElement):
+                    if self.use_stat:
+                        continue
                     calc = captured.calculate(sub.timevec)
                 elif isinstance(captured,element.SpatialDimensionElement):
                     calc = captured.calculate(grid)
@@ -89,6 +91,8 @@ class NcConverter(OcgConverter):
                     calc = captured.make_dimension_tup(models.LongitudeDimension(ocg_dataset.dataset),
                                                        models.BoundsDimension(ocg_dataset.dataset))
                 elif isinstance(captured,models.Time):
+                    if self.use_stat:
+                        continue
                     calc = captured.make_dimension_tup(models.TimeDimension(ocg_dataset.dataset))
                 else:
                     raise
@@ -108,7 +112,49 @@ class NcConverter(OcgConverter):
                     setattr(tdataset.variables[captured.name],attr,getattr(ocg_dataset.dataset.variables[captured.name],attr))
             ## set the actual value
             if self.use_stat:
-                raise(NotImplementedError)
+                if has_levels:
+                    raise(NotImplementedError)
+                else:
+                    ## these are the columns to exclude
+                    exclude = ['ocgid','gid','level']
+                    ## get the columns we want to write to the netcdf
+                    cs = [c for c in self.value_table.__table__.c if c.name not in exclude]
+                    ## loop through the columns and generate the numpy arrays to
+                    ## to populate.
+                    arrays = {}
+                    for c in cs:
+                        ## get the correct python type from the column type
+                        if type(c.type) == Float:
+                            nctype = 'f4'
+                        if type(c.type) == Integer:
+                            nctype = 'i4'
+                        ## generate the array
+                        ary = np.empty((len(grid['y']),len(grid['x'])))
+                        ## put in the fill values to account for dataset masking
+                        ary[grid['gidx'].mask] = fill_value 
+                        ## store for later
+                        arrays.update({c.name:ary})
+                        ## make the netcdf variable
+                        tdataset.createVariable(c.name,nctype,('latitude','longitude'))
+                    ## construct the data query
+                    s = self.db.Session()
+                    try:
+                        ## the data query to loop through
+                        ## TODO: add parallel capability
+                        qq = s.query(self.value_table)
+                        ## loop through the data and populate the 2-d arrays
+                        for obj in qq:
+                            idx = np.argmax(obj.gid == sub.gid)
+                            idx = np.argmax(grid['gidx'] == idx)
+                            tup = np.unravel_index(idx,grid['gidx'].shape)
+                            for cc in cs:
+                                arrays[cc.name][tup[0],tup[1]] = getattr(obj,cc.name)
+                    finally:
+                        s.close()
+                    ## set the variable value in the nc dataset
+                    for key,value in arrays.iteritems():
+                        tdataset.variables[key].missing_value = fill_value
+                        tdataset.variables[key][:] = value
             else:
                 gidx = grid['gidx']
                 if has_levels:
@@ -132,11 +178,3 @@ class NcConverter(OcgConverter):
             
     def write(self,sub,ocg_dataset):
         return(self.convert(sub,ocg_dataset))
-                
-#    def _capture_(self,name):
-#        ret = None
-#        for check in cls._checks:
-#            if check.name == name:
-#                ret = check
-#                break
-#        return(ret)

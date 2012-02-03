@@ -106,6 +106,10 @@ class UserGeometryMetadata(AbstractGeoManager):
         
         return url
 
+    def __unicode__(self):
+        #return '{code} ({desc})'.format(code=self.code,desc=self.desc)
+        return '{code}'.format(code=self.code)
+
 
 class UserGeometryData(AbstractGeoManager):
     """holds user uploaded geometries"""

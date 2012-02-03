@@ -11,12 +11,13 @@ from climatedata.models import Scenario
 from climatedata.models import Variable
 from climatedata.models import SimulationOutput
 from django.conf import settings
-
-import logging
 from util.ncconv.experimental.wrappers import multipolygon_operation
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 import time
+
+import logging
+from exc import OcgUrlError, MalformedSimulationOutputSelection
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -46,24 +47,36 @@ class OpenClimateHandler(BaseHandler):
         super(OpenClimateHandler,self).__init__(*args,**kwds)
         
     def create(self,request,**kwds):
-        self._prepare_(request,kwds)
-        return(self._create_(request))
+        try:
+            self._prepare_(request,kwds)
+            return(self._create_(request))
+        except Exception, e:
+            return(self.error_handler(e))
     
     def read(self,request,**kwds):
         """
         Subclasses should not overload this method. Each return will be checked
         for basic validity.
         """
-        self._prepare_(request,kwds)
-        return(self._read_(request))
+        try:
+            self._prepare_(request,kwds)
+            return(self._read_(request))
+        except Exception, e:
+            return(self.error_handler(e))
     
-    def check(self,payload):
-        """Basic checks on returned data."""
-        
-        if len(payload) == 0:
-            return rc.NOT_FOUND
+    def error_handler(self,e):
+        if isinstance(e,OcgUrlError):
+            return(e.response())
         else:
-            return payload
+            raise(e)
+    
+#    def check(self,payload):
+#        """Basic checks on returned data."""
+#        
+#        if len(payload) == 0:
+#            return rc.NOT_FOUND
+#        else:
+#            return payload
         
     def _prepare_(self,request,kwds):
         """Called by all response method to look for common URL arguments."""
@@ -130,7 +143,8 @@ class OpenClimateHandler(BaseHandler):
                          run=self.ocg.run,
                          variable=self.ocg.variable)
             qs = climatedata.models.SimulationOutput.objects.filter(**fkwds)
-            assert(len(qs) == 1)
+            if len(qs) == 0:
+                raise(MalformedSimulationOutputSelection)
             self.ocg.simulation_output = qs[0]
         else:
             self.ocg.simulation_output = None

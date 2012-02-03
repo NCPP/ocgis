@@ -1,10 +1,10 @@
 from generic import *
 from util.helpers import parse_polygon_wkt
 from shapely import wkt
-import pdb
 from climatedata.models import UserGeometryData, UserGeometryMetadata
 from util.ncconv.experimental.ocg_stat import OcgStatFunction
 from util.ncconv.experimental.helpers import check_function_dictionary
+from exc import UserGeometryNotFound
 
 
 class PolygonSlug(OcgSlug):
@@ -14,7 +14,8 @@ class PolygonSlug(OcgSlug):
             ret = [dict(geom=(wkt.loads(parse_polygon_wkt(self.url_arg))),gid=None)]
         except ValueError:
             meta = UserGeometryMetadata.objects.filter(code=self.url_arg)
-            assert(len(meta) == 1)
+            if len(meta) == 0:
+                raise(UserGeometryNotFound(self))
             geoms = UserGeometryData.objects.filter(user_meta=meta)
             assert(len(geoms) > 0)
             ret = [dict(gid=geom.gid,geom=(wkt.loads(geom.geom.wkt))) for geom in geoms]

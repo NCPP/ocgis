@@ -93,7 +93,9 @@ class SubOcgDataEmitter(IdentityEmitter):
         ## if it is a usergeometrymetdata object, run a different "flavor" of
         ## the converter.
         payload = self.construct()
-        if isinstance(payload,SubOcgDataset):
+        if isinstance(payload,HttpResponse):
+            return(payload)
+        elif isinstance(payload,SubOcgDataset):
             self.use_geom = False
             self.sub = payload
             self.db = self.get_db()
@@ -258,7 +260,9 @@ class NcEmitter(SubOcgDataEmitter):
         ## if it is a usergeometrymetdata object, run a different "flavor" of
         ## the converter.
         payload = self.construct()
-        if isinstance(payload,SubOcgDataset):
+        if isinstance(payload,HttpResponse):
+            return(payload)
+        elif isinstance(payload,SubOcgDataset):
             self.use_geom = False
             self.sub = payload
             self.db = None

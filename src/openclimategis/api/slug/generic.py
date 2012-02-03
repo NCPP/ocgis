@@ -1,21 +1,13 @@
 import datetime
 from django.http import QueryDict
-
-
-class SlugError(Exception):
-    
-    def __init__(self,slug):
-        self.slug = slug
-        
-    def __str__(self):
-        msg = 'Cannot parse URL argument "{0}"'.format(self.slug.url_arg)
-        return(msg)
+from exc import SlugError, MultipleRecordsFound, NoRecordsFound
 
 
 class OcgSlug(object):
     
     def __init__(self,code,url_arg=None,possible=None,str_lower=True):
         self.code = code
+        self.value = None
         
         if url_arg is None and possible is not None:
             if isinstance(possible,QueryDict):
@@ -87,9 +79,9 @@ class DjangoQuerySlug(OcgSlug):
         qs = self.model.objects.filter(**self.filter_kwds)
         if self.one:
             if len(qs) > 1:
-                raise ValueError('One record requested, {0} records returned.'.format(len(qs)))
+                raise MultipleRecordsFound(self)
             elif len(qs) == 0:
-                raise ValueError('One record requested. None returned.')
+                raise NoRecordsFound(self)
             ret = qs[0]
         else:
             ret = qs

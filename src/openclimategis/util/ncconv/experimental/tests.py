@@ -281,7 +281,7 @@ class TestSubOcgStat(TestData,unittest.TestCase):
 #               '/aggregate/false/variable/pr.nc?stat=min+gt(5):gt5'
 #               '+between(5,10):btwn5_10&grouping=year')
         url = ('/api/archive/usgs-cida-maurer/model/miroc3.2%28medres%29/scenario'
-          '/sres-a1b/run/2/temporal/2000-01-01+2004-12-31/spatial'
+          '/sres-a1b/run/2/temporal/2000-01-01+2029-12-31/spatial'
           '/intersects+states'
           '/aggregate/false/variable/tas.nc?stat=gt(38):gt_100f&grouping=year')
         

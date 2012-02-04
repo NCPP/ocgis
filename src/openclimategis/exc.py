@@ -64,6 +64,7 @@ class UserGeometryNotFound(SlugError):
     
 class MalformedSimulationOutputSelection(OcgUrlError):
     _rc = rc.BAD_REQUEST
-    _msg = ("This URL does not return a valid simulation output. Ensure the"
-            " combination of archive, climate model, scenario, run, and variable"
-            " return a valid simulation output.")
+    _msg = ("Simulation data matching parameters in the URL were not found. "
+            "Ensure the combination of "
+            "archive, climate model, emissions scenario, run, and variable "
+            "specified in the URL match a record in the simulation output table.")

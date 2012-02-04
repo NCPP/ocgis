@@ -70,6 +70,7 @@ class SubOcgDataset(object):
         ocg_dataset -- OcgDataset object. This is needed to establish the
             reference grid.
         """
+        import ipdb;ipdb.set_trace()
         ## make the bounding polygon
         envelope = MultiPolygon(self.geometry.tolist()).envelope
         ## get the x,y vectors
@@ -128,7 +129,7 @@ class SubOcgDataset(object):
         for attr in self.__attrs__:  _find_set(attr)  
         return(new_ds)
     
-    def merge(self,sub,id=None):
+    def merge(self,sub,id=None,union=False):
         """
         Merges another SubOcgDataset object with this instance. Assumes same 
         time and level vectors.
@@ -141,8 +142,9 @@ class SubOcgDataset(object):
         gid = np.hstack((self.gid,sub.gid))
         ## if there are non-unique cell ids (which may happen with union
         ## operations, regenerate the unique values.
-        if len(gid) > len(np.unique(gid)):
-            gid = np.arange(1,len(gid)+1)
+        if union:
+            if len(gid) > len(np.unique(gid)):
+                gid = np.arange(1,len(gid)+1)
         return(self.copy(geometry=geometry,
                          value=value,
                          gid=gid,

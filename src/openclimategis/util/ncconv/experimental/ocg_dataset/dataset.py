@@ -87,11 +87,13 @@ class OcgDataset(object):
         ## calculate approximate data resolution
         self.res = approx_resolution(self.min_col[0,:])
         ## generate unique id for each grid cell
-        self.gids = np.empty(self.real_col.shape,dtype=int)
-        curr_id = 1
-        for i,j in itr_array(self.gids):
-            self.gids[i,j] = curr_id
-            curr_id += 1
+        self.gids = np.arange(1,self.real_col.shape[0]*self.real_col.shape[1]+1)
+        self.gids = self.gids.reshape(self.real_col.shape)
+#        self.gids = np.empty(self.real_col.shape,dtype=int)
+#        curr_id = 1
+#        for i,j in itr_array(self.gids):
+#            self.gids[i,j] = curr_id
+#            curr_id += 1
         ## set the array shape.
         self.shape = self.real_col.shape
         
@@ -222,6 +224,9 @@ class OcgDataset(object):
         var = self.dataset.variables[var_name]
         rowidx = sub_range(row)
         colidx = sub_range(col)
+        
+#        ## extract the global gids
+#        gids = self.gids[min(rowidx):max(rowidx)+1,min(colidx):max(colidx)+1]
 
         if ndim == 3:
             args = [timeidx,rowidx,colidx]

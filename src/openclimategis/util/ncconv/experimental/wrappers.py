@@ -168,7 +168,7 @@ def multipolygon_operation(uri,
         if ii == 0:
             base = sub
         else:
-            base = base.merge(sub)
+            base = base.merge(sub,union=union)
     ## if the operation is intersects, there may be duplicate geometries. purge
     ## the dataset for those duplicate geometries and values.
     if clip == False:

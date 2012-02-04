@@ -155,7 +155,7 @@ class TestData(object):
                                      ocg_opts=self.nc_opts,
                                      polygons=[
                                                {'gid':99,'geom':self.nebraska()},
-#                                               {'gid':100,'geom':self.iowa()},
+                                               {'gid':100,'geom':self.iowa()},
 #                                               {'gid':200,'geom':self.vermont()}
                                                ],
                                      time_range=[datetime.datetime(2011,1,1),
@@ -167,7 +167,15 @@ class TestData(object):
                                      max_proc=8,
                                      max_proc_per_poly=2)
         return(sub)
-            
+
+
+class TestWrapper(TestData,unittest.TestCase):
+    
+    def test_wrapper(self):
+        dataset = self.ocg_dataset
+        sub = self.sub_ocg_dataset
+        sub.to_grid_dict(dataset)
+        import ipdb;ipdb.set_trace()   
             
 class TestStats(TestData,unittest.TestCase):
     
@@ -292,5 +300,5 @@ class TestSubOcgStat(TestData,unittest.TestCase):
         assert(response.status_code == 200)
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestSubOcgStat.test_url']
+    import sys;sys.argv = ['', 'TestWrapper.test_wrapper']
     unittest.main()

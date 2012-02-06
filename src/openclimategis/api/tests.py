@@ -126,6 +126,8 @@ class TestUrls(TestCase):
             'shz',
             'lshz',
             'json',
+            'sqlite',
+            'nc'
         ]
         drange = '2010-3-1+2010-4-30'
         polygon = '-96.25+38.7,-95.78+38.1,-95.9+39.1,-96.23+39.8,-96.25+38.7'

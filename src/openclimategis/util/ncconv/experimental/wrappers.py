@@ -45,9 +45,10 @@ def f(arg):
             sub = ocg_dataset.subset(var_name,poly,time_range,level_range)
             if clip: sub.clip(poly)
             if union: 
-                sub.union()
+                sub.union_nosum()
                 if not clip: sub.select_values(clip=True,igeom=poly)
                 else: sub.select_values(clip=False)
+                sub._union_sum_()
         except (MaskedDataError,ExtentError):
             if not allow_empty:
                 raise

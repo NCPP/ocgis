@@ -109,11 +109,9 @@ class SubOcgDataEmitter(IdentityEmitter):
         else:
             ## first try the case when it is a usergeometry object
             try:
-                
                 self.use_geom = True
                 self.cfvar = self.request.url_args['code']
                 self.sub = user_geom_to_sub(payload[0].pk)
-                import ipdb;ipdb.set_trace()
             ## next assume you just need to serialize and manage accordingly
             except:
                 self.use_geom = False

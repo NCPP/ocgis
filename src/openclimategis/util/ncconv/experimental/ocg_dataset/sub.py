@@ -23,10 +23,11 @@ class SubOcgDataset(object):
         tid -- numpy array containing integer unique ids for the time cells.
             has dimension (n)
         """
+
         self.id = id
-        self.geometry = np.array(geometry)
+        self.geometry = np.array(geometry,dtype=object)
         self.value = np.array(value)
-        self.timevec = np.array(timevec)
+        self.timevec = np.array(timevec,dtype=object)
         
         if gid is not None:
             self.gid = np.array(gid)
@@ -40,7 +41,7 @@ class SubOcgDataset(object):
             self.levelvec = np.array(levelvec)
         else:
             if len(self.value) == 0:
-                self.levelvec = np.array()
+                self.levelvec = np.array([])
             else:
                 self.levelvec = np.arange(1,self.value.shape[1]+1)
         

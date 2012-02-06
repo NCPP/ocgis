@@ -117,7 +117,7 @@ def user_geom_to_sub(user_meta_id):
     """
     from climatedata.models import UserGeometryMetadata
     from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
-    
+
     ## get the user metadata and geometries
     user_meta = UserGeometryMetadata.objects.filter(pk=user_meta_id)
     geoms = user_meta[0].usergeometrydata_set.all()
@@ -127,7 +127,10 @@ def user_geom_to_sub(user_meta_id):
     ## loop and population
     for geom in geoms:
         geometry.append(wkt.loads(geom.geom.wkt))
-        gid.append(geom.gid)
+        if geom.gid is not None:
+            gid.append(geom.gid)
+        else:
+            gid = None
     ## return the dataset
     return(SubOcgDataset(geometry,
                           [],

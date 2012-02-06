@@ -1,4 +1,9 @@
-from piston.utils import rc
+#from piston.utils import rc
+from django.http import HttpResponse
+
+class rc_factory(object):
+    BAD_REQUEST = [400,'Bad Request']
+rc = rc_factory()
 
 
 class OcgException(Exception):
@@ -28,9 +33,17 @@ class OcgUrlError(OcgException):
         return(self.msg)
         
     def response(self):
+        response = HttpResponse(self._rc[1],
+                                status=self._rc[0],
+                                content_type='text/plain')
         if self.msg is not None:
-            self._rc.write('\n\n'+self.msg)
-        return(self._rc)
+            response.write('\n\n'+self.msg)
+        return(response)
+    
+    
+class AggregateFunctionError(OcgUrlError):
+    _rc = rc.BAD_REQUEST
+    _msg = 'Using raw values in statistics functions is only allowed with an aggregated spatial operation.'
     
     
 class SlugError(OcgUrlError):

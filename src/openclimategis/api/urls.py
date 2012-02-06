@@ -31,7 +31,8 @@ spatial_formats = '|'.join([
     'lshz',
     'csv',
     'kcsv',
-    'nc'
+    'nc',
+    'sqlite'
 ])
 
 re_archive = 'archive/(?P<archive>.*)'

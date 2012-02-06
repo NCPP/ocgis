@@ -17,7 +17,8 @@ from shapely.geometry.multipolygon import MultiPolygon
 import time
 
 import logging
-from exc import OcgUrlError, MalformedSimulationOutputSelection
+from exc import OcgUrlError, MalformedSimulationOutputSelection,\
+    AggregateFunctionError
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -109,10 +110,14 @@ class OpenClimateHandler(BaseHandler):
         self.ocg.query.functions = FunctionSlug('stat',possible=qdict).value
         self.ocg.query.grouping = GroupingSlug('grouping',possible=qdict).value
         
-        ## if functions are passed, then so must a grouping and vice versa
-#        if self.ocg.query.functions is None and self.ocg.query.interval is None:
-#            raise(ValueError('both a "stat" and "grouping" query are required'))
-        if self.ocg.query.functions is not None and self.ocg.query.grouping is not None:
+        ## check for any raw aggregate functions
+        if self.ocg.query.functions is not None:
+            if any([f['raw'] for f in self.ocg.query.functions]):
+                if self.ocg.aggregate is False:
+                    raise(AggregateFunctionError)
+        
+        ## if functions are passed, calculate statistics.
+        if self.ocg.query.functions is not None:
             self.ocg.query.use_stat = True
         else:
             self.ocg.query.use_stat = False

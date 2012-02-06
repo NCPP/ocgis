@@ -1,19 +1,21 @@
-from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
+#from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
 import geojson
+from util.ncconv.experimental.ocg_converter.subocg_converter import SubOcgConverter
 
 
-class GeojsonConverter(OcgConverter):
+class GeojsonConverter(SubOcgConverter):
     
     def _convert_(self):
-        if self.use_geom:
-            headers = ['GID','WKT']
-        else:
-            if self.use_stat:
-                adds = ['WKT']
-            else:
-                adds = ['WKT','TIME']
-            headers = self.get_headers(self.value_table,adds=adds)
-        features = [attrs for attrs in self.get_iter(self.value_table,headers)]
+#        if self.use_geom:
+#            raise(NotImplementedError)
+#            headers = ['GID','WKT']
+#        else:
+##            if self.use_stat:
+##                adds = ['WKT']
+##            else:
+##                adds = ['WKT','TIME']
+#            headers = self.get_headers()
+        features = [attrs for attrs in self.get_iter(wkt=True)]
         for feat in features:
             feat['geometry'] = feat.pop('WKT')
             if 'TIME' in feat:

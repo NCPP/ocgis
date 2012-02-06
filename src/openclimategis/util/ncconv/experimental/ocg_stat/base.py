@@ -27,13 +27,24 @@ class OcgFunctionTree(object):
             fname = re.search('([A-Za-z_]+)',f).group(1)
             obj = self.find(fname)()
             try:
-                args = re.search('([\d,]+)',f).group(1)
+                args = re.search('\(([\d,aggraw]+)\)',f).group(1)
             except AttributeError:
                 args = None
             attrs = {'function':getattr(obj,'calculate')}
+            raw = False
             if args is not None:
-                args = [float(a) for a in args.split(',')]
-                attrs.update({'args':args})
+                args = [str(arg) for arg in args.split(',')]
+                args_conv = []
+                for arg in args:
+                    if arg == 'raw':
+                        raw = True
+                    elif arg == 'agg':
+                        raw = False
+                    else:
+                        args_conv.append(float(arg))
+#                args = [float(a) for a in args.split(',')]
+                attrs.update({'args':args_conv})
+            attrs.update({'raw':raw})
             if ':' in f:
                 name = f.split(':')[1]
             else:

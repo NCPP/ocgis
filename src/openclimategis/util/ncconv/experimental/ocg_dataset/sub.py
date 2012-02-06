@@ -1,20 +1,15 @@
-import util.ncconv.experimental.ploader as pl
-import numpy as np
-from shapely.geometry.multipolygon import MultiPolygon
-import copy
 from util.ncconv.experimental.helpers import *
 from shapely import prepared
 from shapely.ops import cascaded_union
-from util.helpers import get_temp_path
-from sqlalchemy.pool import NullPool
-from shapely.geometry.polygon import Polygon
 from util.ncconv.experimental.ocg_dataset.todb import sub_to_db
+from util.ncconv.experimental.ordered_dict import OrderedDict
+from warnings import warn
 
 
 class SubOcgDataset(object):
-    __attrs__ = ['geometry','value','gid','weight','timevec','levelvec']
+    __attrs__ = ['geometry','value','gid','weight','timevec','levelvec','tid']
     
-    def __init__(self,geometry,value,timevec,gid=None,levelvec=None,mask=None,id=None):
+    def __init__(self,geometry,value,timevec,gid=None,levelvec=None,mask=None,id=None,tid=None):
         """
         geometry -- numpy array with dimension (n) of shapely Polygon 
             objects
@@ -25,8 +20,9 @@ class SubOcgDataset(object):
             value
         mask -- boolean mask array with same dimension as value. will subset other
             inputs if passed. a value to be masked is indicated by True.
+        tid -- numpy array containing integer unique ids for the time cells.
+            has dimension (n)
         """
-        
         self.id = id
         self.geometry = np.array(geometry)
         self.value = np.array(value)
@@ -35,7 +31,11 @@ class SubOcgDataset(object):
         if gid is not None:
             self.gid = np.array(gid)
         else:
-            self.gid = np.arange(1,len(self.geometry) + 1)
+            self.gid = np.arange(1,len(self.geometry)+1)
+        if tid is not None:
+            self.tid = np.array(tid)
+        else:
+            self.tid = np.arange(1,len(self.timevec)+1)
         if levelvec is not None:
             self.levelvec = np.array(levelvec)
         else:
@@ -53,7 +53,14 @@ class SubOcgDataset(object):
         
         ## calculate nominal weights
         self.weight = np.ones(self.geometry.shape,dtype=float)
-        
+    
+    @property
+    def has_value_set(self):
+        if hasattr(self,'value_set'):
+            return(True)
+        else:
+            return(False)
+    
     def to_db(self,**kwds):
         """
         Convert the object to a database. See documentation for |sub_to_db| for
@@ -70,7 +77,6 @@ class SubOcgDataset(object):
         ocg_dataset -- OcgDataset object. This is needed to establish the
             reference grid.
         """
-        import ipdb;ipdb.set_trace()
         ## make the bounding polygon
         envelope = MultiPolygon(self.geometry.tolist()).envelope
         ## get the x,y vectors
@@ -140,6 +146,11 @@ class SubOcgDataset(object):
         geometry = np.hstack((self.geometry,sub.geometry))
         value = np.dstack((self.value,sub.value))
         gid = np.hstack((self.gid,sub.gid))
+        weight = np.hstack((self.weight,sub.weight))
+        
+        if self.has_value_set:
+            self.value_set = np.ma.dstack((self.value_set,sub.value_set))
+        
         ## if there are non-unique cell ids (which may happen with union
         ## operations, regenerate the unique values.
         if union:
@@ -148,7 +159,8 @@ class SubOcgDataset(object):
         return(self.copy(geometry=geometry,
                          value=value,
                          gid=gid,
-                         id=id))
+                         id=id,
+                         weight=weight))
     
     @timing 
     def purge(self):
@@ -159,22 +171,50 @@ class SubOcgDataset(object):
         self.geometry = self.geometry[uidx]
         self.gid = self.gid[uidx]
         self.value = self.value[:,:,uidx]
-        
+#        
+#        if self.has_value_set:
+#            self.value_set = self.value_set[:,:,uidx]
         
     def __iter__(self):
         """
         Default object iterator returning a dictionary representation of each
             object "record".
         """
-        for dt,dl,dd in itertools.product(self.dim_time,self.dim_level,self.dim_data):
-            d = dict(geometry=self.geometry[dd],
-                     value=float(self.value[dt,dl,dd]),
-                     time=self.timevec[dt],
-                     level=int(self.levelvec[dl]),
-                     gid=int(self.gid[dd]))
+
+        ocgid = 0
+        
+        for dt in self.dim_time:
+            tid = int(self.tid[dt])
+            for dl in self.dim_level:
+                for dd in self.dim_data:
+                    ocgid += 1
+                    keys = ['OCGID','GID','TID','LEVEL','TIME','VALUE','geometry']
+                    values = [ocgid,
+                              int(self.gid[dd]),
+                              tid,
+                              int(self.levelvec[dl]),
+                              self.timevec[dt],
+                              float(self.value[dt,dl,dd]),
+                              self.geometry[dd]]
+                    d = OrderedDict(zip(keys,values))
+                    yield(d)
+                    
+    def iter_value_keyed(self):
+        pops = ['geometry','TIME']
+        for row in self:
+            for pop in pops: row.pop(pop)
+            yield(row)
+            
+    def iter_time(self,expand=True):
+        for dt in self.dim_time:
+            d = OrderedDict(zip(['TID','TIME'],[int(self.tid[dt]),self.timevec[dt]]))
+            if expand:
+                attrs = ['YEAR','MONTH','DAY']
+                for attr in attrs:
+                    d.update({attr:getattr(d['TIME'],attr.lower())})
             yield(d)
             
-    def iter_with_area(self,area_srid=3005):
+    def iter_with_area(self,area_srid=3005,wkt=False,wkb=False,keep_geom=True):
         """
         Wraps the default object iterator appending the geometric area of a
             geometry.
@@ -184,8 +224,34 @@ class SubOcgDataset(object):
         sr_orig = get_sr(4326)
         sr_dest = get_sr(area_srid)
         for attrs in self:
-            attrs.update(dict(area_m2=get_area(attrs['geometry'],sr_orig,sr_dest)))
+            if not keep_geom:
+                geom = attrs.pop('geometry')
+            else:
+                geom = attrs['geometry']
+            attrs.update({'AREA_M2':get_area(geom,sr_orig,sr_dest)})
+            if wkt:
+                attrs.update(dict(WKT=geom.wkt))
+            if wkb:
+                attrs.update(dict(WKB=geom.wkb))
             yield(attrs)
+            
+    def iter_geom_with_area(self,area_srid=3005,keep_geom=True,wkt=False,wkb=False):
+        sr_orig = get_sr(4326)
+        sr_dest = get_sr(area_srid)
+        for gid,geom in zip(self.gid,self.geometry):
+            if keep_geom:
+                d = OrderedDict(zip(
+                    ['GID','AREA_M2','geometry'],
+                    [int(gid),get_area(geom,sr_orig,sr_dest),geom]))
+            else:
+                d = OrderedDict(zip(
+                    ['GID','AREA_M2'],
+                    [int(gid),get_area(geom,sr_orig,sr_dest)]))
+            if wkt:
+                d.update(dict(WKT=geom.wkt))
+            if wkb:
+                d.update(dict(WKB=geom.wkb))
+            yield(d)
     
     def _range_(self,idx):
         try:
@@ -230,6 +296,40 @@ class SubOcgDataset(object):
                 assert(weight != 0.0) #tdk
                 self.weight[ii] = weight
                 self.geometry[ii] = new_geom
+    
+    @timing           
+    def select_values(self,igeom=None,clip=False):
+        ## if an intersection geometry is passed, use it to calculate the weights
+        ## but do not modify the geometry. this weight is used to select values
+        ## to keep for set statistics.
+        
+        ## this is the case of no intersection geometry. basically, requesting
+        ## the entire dataset.
+        if clip and igeom is None:
+            mask = np.zeros(self.value_shape)
+        elif clip and igeom is not None:
+            prep_igeom = prepared.prep(igeom)
+            for ii,geom in enumerate(self.geometry):
+                if keep(prep_igeom,igeom,geom):
+                    new_geom = igeom.intersection(geom)
+                    weight = new_geom.area/geom.area
+                    assert(weight != 0.0) #tdk
+                    self.weight[ii] = weight
+            ## it has now been clipped
+            clip = False
+        if not clip:
+            ## loop through the weights determining which values to maintain based
+            ## on weights.
+            idx = []
+            for ii,weight in enumerate(self.weight):
+                if weight > 0.5:
+                    idx.append(ii)
+                elif weight == 0.5:
+                    warn('0.5 weight encountered. Removing it.')
+            ## select the data and store in special variable for use by set statistics
+            mask = np.ones(self.value.shape)
+            mask[:,:,idx] = 0
+        self.value_set = np.ma.masked_array(self.value,mask=mask)
         
     def report_shape(self):
         for attr in self.__attrs__:

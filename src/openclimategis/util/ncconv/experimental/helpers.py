@@ -110,6 +110,30 @@ def user_geom_to_db(user_meta_id,to_disk=False):
     
     return(db)
 
+def user_geom_to_sub(user_meta_id):
+    """
+    >>> user_meta_id = 1
+    >>> db = user_geom_to_db(user_meta_id)
+    """
+    from climatedata.models import UserGeometryMetadata
+    from util.ncconv.experimental.ocg_dataset.sub import SubOcgDataset
+    
+    ## get the user metadata and geometries
+    user_meta = UserGeometryMetadata.objects.filter(pk=user_meta_id)
+    geoms = user_meta[0].usergeometrydata_set.all()
+    ## initialize the sub data
+    geometry = []
+    gid = []
+    ## loop and population
+    for geom in geoms:
+        geometry.append(wkt.loads(geom.geom.wkt))
+        gid.append(geom.gid)
+    ## return the dataset
+    return(SubOcgDataset(geometry,
+                          [],
+                          [],
+                          gid=gid))
+
 def init_db(engine=None,to_disk=False,procs=1):
     from sqlalchemy import create_engine
     from sqlalchemy.orm.session import sessionmaker

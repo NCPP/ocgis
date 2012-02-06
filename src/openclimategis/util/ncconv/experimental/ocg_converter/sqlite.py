@@ -1,12 +1,16 @@
-from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
 import zipfile
 import io
+from util.ncconv.experimental.ocg_converter.subocg_converter import SubOcgConverter
+from django.conf import settings
 
 
-class SqliteConverter(OcgConverter):
+class SqliteConverter(SubOcgConverter):
     
     def _convert_(self):
-        url = self.db.metadata.bind.url.database
+        db = self._true_sub.to_db(to_disk=True,procs=settings.MAXPROCESSES)
+        if self.use_stat:
+            self.sub.load(db)
+        url = db.metadata.bind.url.database
         return(url)
         
     def _response_(self,payload):

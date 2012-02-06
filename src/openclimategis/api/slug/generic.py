@@ -5,9 +5,10 @@ from exc import SlugError, MultipleRecordsFound, NoRecordsFound
 
 class OcgSlug(object):
     
-    def __init__(self,code,url_arg=None,possible=None,str_lower=True):
+    def __init__(self,code,url_arg=None,possible=None,str_lower=True,default=None):
         self.code = code
         self.value = None
+        self.default = default
         
         if url_arg is None and possible is not None:
             if isinstance(possible,QueryDict):
@@ -31,6 +32,8 @@ class OcgSlug(object):
             ret = None
         else:
             ret = self._get_()
+        if ret is None and self.default is not None:
+            ret = self.default
         return(ret)
     
     def _get_(self):

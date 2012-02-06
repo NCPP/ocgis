@@ -1,4 +1,6 @@
 from util.ncconv.experimental.ocg_stat import OcgStatFunction
+
+
 class Section(object):
     _title = None
     
@@ -89,20 +91,28 @@ class SectionFunction(SectionGrouping):
     
     def _extract_(self):
         lines = []
+        msg = '{0} :: {1} :: {2}'
         for ii,f in enumerate(self.request.ocg.query.functions):
-            msg = '{0} :: {1}'
             ## always add count & ignore it if in the function dictionary
             if 'name' in f and f['name'].lower() == 'count':
                 continue
             if ii == 0:
-                name = 'COUNT'
-                desc = 'Count of values in the series.'
+                name = 'COUNT_AGG'
+                desc = 'Count of aggregated values in the series.'
             else:
                 name = f['name'].upper()
                 desc = f['desc']
+            if f['raw']:
+                raw = 'on raw values'
+            else:
+                raw = 'on aggregated values'
             if 'args' in f:
                 desc = desc.format(*f['args'])
-            lines.append(msg.format(name,desc))
+            lines.append(msg.format(name,raw,desc))
+            if ii == 0 and any([f['raw'] for f in self.request.ocg.query.functions]):
+                    lines.append(msg.format('COUNT_RAW',
+                                            'on raw values',
+                                            'Count of raw values in the series.'))
         return(lines)
     
     

@@ -1,10 +1,10 @@
 import zipfile
 import io
 from datetime import datetime
-from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
+from util.ncconv.experimental.ocg_converter.subocg_converter import SubOcgConverter
 #from xml.sax.saxutils import escape
 
-class KmlConverter(OcgConverter):
+class KmlConverter(SubOcgConverter):
     '''Converts data to a KML string'''
     
     def _convert_(self,request):
@@ -12,7 +12,10 @@ class KmlConverter(OcgConverter):
         from lxml import etree
         
         ## create the database
-        db = self.db
+        if self.use_stat:
+            raise(NotImplementedError)
+        else:
+            db = self.sub.to_db(wkt=True)
         
         meta = request.ocg
         if request.environ['SERVER_PORT']=='80':

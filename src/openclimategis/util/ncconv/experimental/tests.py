@@ -161,8 +161,8 @@ class TestData(object):
                                      time_range=[datetime.datetime(2011,1,1),
                                                  datetime.datetime(2013,12,31)],
                                      level_range=None,
-                                     clip=False,
-                                     union=False,
+                                     clip=True,
+                                     union=True,
                                      in_parallel=True,
                                      max_proc=8,
                                      max_proc_per_poly=2)
@@ -174,8 +174,21 @@ class TestWrapper(TestData,unittest.TestCase):
     def test_wrapper(self):
         dataset = self.ocg_dataset
         sub = self.sub_ocg_dataset
-        sub.to_grid_dict(dataset)
         import ipdb;ipdb.set_trace()   
+    
+    def test_wrapper2(self):
+        sub = multipolygon_operation('http://cida.usgs.gov/qa/thredds/dodsC/maurer/monthly',
+                                     'sresa1b_miroc3-2-medres_2_Prcp',
+            ocg_opts = {'colbnds_name': u'bounds_longitude', 'calendar': u'proleptic_gregorian', 'time_name': u'time', 'time_units': u'days since 1950-01-01 00:00:00', 'rowbnds_name': u'bounds_latitude'},
+            polygons = [{'gid': None, 'geom': wkt.loads('POLYGON ((-104.0000000000000000 39.0000000000000000, -95.0000000000000000 39.0000000000000000, -95.0000000000000000 44.0000000000000000, -104.0000000000000000 39.0000000000000000))')}],
+            time_range = [datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2001, 12, 31, 0, 0)],
+            level_range = None,
+            clip = True,
+            union = True,
+            in_parallel = True,
+            max_proc = 8,
+            max_proc_per_poly = 2,
+            allow_empty = True)
             
 class TestStats(TestData,unittest.TestCase):
     
@@ -300,5 +313,5 @@ class TestSubOcgStat(TestData,unittest.TestCase):
         assert(response.status_code == 200)
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestWrapper.test_wrapper']
+    import sys;sys.argv = ['', 'TestWrapper.test_wrapper2']
     unittest.main()

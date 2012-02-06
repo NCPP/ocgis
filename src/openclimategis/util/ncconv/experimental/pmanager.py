@@ -24,7 +24,11 @@ class ProcessManager(object):
         self.polling = polling
         
     def run(self):
-        for ii in range(0,self.maxprocs):
+        if len(self.procs) < self.maxprocs:
+            rng = len(self.procs)
+        else:
+            rng = self.maxprocs
+        for ii in range(0,rng):
             self.procs[ii].start()
         self._ii = ii + 1
         while True:

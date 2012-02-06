@@ -118,27 +118,27 @@ def sub_to_db(sub,
                                procs=procs,
                                use_lock=use_lock)
     gen.load()
-
+    
     print('  loading time...')
     ## load the time data
     data = dict([[key,list()] for key in ['tid','time','day','month','year']])
-    for ii,dt in enumerate(sub.dim_time,start=1):
-        data['tid'].append(ii)
+    for dt in sub.dim_time:
+        data['tid'].append(int(sub.tid[dt]))
         data['time'].append(sub.timevec[dt])
         data['day'].append(sub.timevec[dt].day)
         data['month'].append(sub.timevec[dt].month)
         data['year'].append(sub.timevec[dt].year)
     load_parallel(db.Time,data,procs,use_lock=use_lock)
-        
+    
     print('  loading value...')
     ## set up parallel loading data
     data = dict([key,list()] for key in ['gid','level','tid','value'])
-    for ii,dt in enumerate(sub.dim_time,start=1):
+    for dt in sub.dim_time:
         for dl in sub.dim_level:
             for dd in sub.dim_data:
                 data['gid'].append(int(sub.gid[dd]))
                 data['level'].append(int(sub.levelvec[dl]))
-                data['tid'].append(ii)
+                data['tid'].append(int(sub.tid[dt]))
                 data['value'].append(float(sub.value[dt,dl,dd]))
     load_parallel(db.Value,data,procs,use_lock=use_lock)
 

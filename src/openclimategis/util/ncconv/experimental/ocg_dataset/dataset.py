@@ -66,6 +66,7 @@ class OcgDataset(object):
                                               self.time_units,
                                               self.calendar)
         self.timeidx = np.arange(0,len(self.timevec))
+        self.tids = np.arange(1,len(self.timevec)+1)
         
         ## pull levels if possible
         if self.level is not None:
@@ -268,13 +269,14 @@ class OcgDataset(object):
                 raise(MaskedDataError)
         else:
             mask = None
-        
+
         return(SubOcgDataset(geometry,
                              npd,
                              self.timevec[timeidx],
                              gid=gids,
                              levelvec=self.levelvec[levelidx],
-                             mask=mask))
+                             mask=mask,
+                             tid=self.tids[timeidx]))
     
     def split_subset(self,var_name,
                            max_proc=1,
@@ -300,7 +302,8 @@ class OcgDataset(object):
                                 ref.timevec,
                                 gid=gid,
                                 levelvec=ref.levelvec,
-                                id=ii)
+                                id=ii,
+                                tid=ref.tid)
             subs.append(sub)
                 
         return(subs)
@@ -312,6 +315,10 @@ class OcgDataset(object):
                 sub.clip(polygon)
             if union:
                 sub.union_nosum()
+                if not clip:
+                    sub.select_values(clip=True,igeom=polygon)
+                else:
+                    sub.select_values(clip=False)
             out.append(sub)
         
         parallel = True
@@ -327,30 +334,20 @@ class OcgDataset(object):
             for sub in subs:
                 f(out,sub,polygon,clip,union)
         
-        return([sub for sub in out])
+        return(list(out))
                 
     def combine_subsets(self,subs,union=False):
         ## collect data from subsets
         for ii,sub in enumerate(subs): 
             if ii == 0:
-                all_geometry = sub.geometry
-                all_weights = sub.weight
-                all_value = sub.value
-                all_gid = sub.gid
+                base = sub
             else:
-                all_gid = np.hstack((all_gid,sub.gid))
-                all_geometry = np.hstack((all_geometry,sub.geometry))
-                all_weights = np.hstack((all_weights,sub.weight))
-                all_value = np.dstack((all_value,sub.value))
+                base = base.merge(sub,union=union)
         
         ## if union is true, sum the values, add new gid, and union the 
         ## geometries.
         if union:
-            all_geometry = np.array([cascaded_union(all_geometry)],dtype=object)
-            all_value = union_sum(all_weights,all_value,normalize=True)
-        
-        return(SubOcgDataset(all_geometry,
-                             all_value,
-                             sub.timevec,
-                             gid=all_gid,
-                             levelvec=sub.levelvec))
+            base.geometry = np.array([cascaded_union(base.geometry)],dtype=object)
+            base.value = union_sum(base.weight,base.value,normalize=True)
+            base.gid = np.array([1])
+        return(base)

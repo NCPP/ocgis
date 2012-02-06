@@ -44,7 +44,10 @@ def f(arg):
         try:
             sub = ocg_dataset.subset(var_name,poly,time_range,level_range)
             if clip: sub.clip(poly)
-            if union: sub.union()
+            if union: 
+                sub.union()
+                if not clip: sub.select_values(clip=True,igeom=poly)
+                else: sub.select_values(clip=False)
         except (MaskedDataError,ExtentError):
             if not allow_empty:
                 raise
@@ -64,7 +67,7 @@ def f(arg):
             if not allow_empty:
                 raise
     if gid is not None and union is True:
-        sub.cell_id = np.array([gid])
+        sub.gid = np.array([gid])
     return(sub)
 
 
@@ -80,7 +83,6 @@ def multipolygon_operation(uri,
                            max_proc=4,
                            max_proc_per_poly=4,
                            allow_empty=True):
-
     ## we do not allow a union operation coupled with an intersects operation.
     ## it may return overlapping geometries.
     if not clip and union:
@@ -146,7 +148,7 @@ def multipolygon_operation(uri,
                     ## unioned is the user gid relevant.
                     gid = polygon.get('gid')
                     if gid is not None and union is True:
-                        sub.cell_id = np.array([gid])
+                        sub.gid = np.array([gid])
                 ## hold for later merging
                 subs.append(sub)
             except (MaskedDataError,ExtentError):
@@ -155,20 +157,27 @@ def multipolygon_operation(uri,
                     continue
                 else:
                     raise
-    ## it is possible to to have no subdatasets if empty intersections are
+    ## it is possible to have no subdatasets if empty intersections are
     ## permitted.
     if allow_empty and len(subs) == 0:
         warn('all attempted geometric operations returned empty.')
         subs = [SubOcgDataset([],[],[])]
     elif not allow_empty and len(subs) == 0:
         raise(ValueError('empty overlays are not allowed but no SubOcgDataset objects captured.'))
-    ## merge subsets
+    ## merge subsets. subset at this point represent polygons from the request.
+    ## we need to carefully manage the value_sets if there is a union operation.
+    value_set_coll = {}
     for ii,sub in enumerate(subs):
+        ## if this is a union operation, collect the values.
+        if union:
+            value_set_coll.update({int(sub.gid):sub.value_set})
         ## keep the first one separate to merge against
         if ii == 0:
             base = sub
         else:
             base = base.merge(sub,union=union)
+    ## store this collection for potential use by the statistics
+    base.value_set = value_set_coll
     ## if the operation is intersects, there may be duplicate geometries. purge
     ## the dataset for those duplicate geometries and values.
     if clip == False:

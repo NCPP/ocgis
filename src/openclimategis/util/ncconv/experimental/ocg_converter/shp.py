@@ -8,12 +8,12 @@ import os
 from util.ncconv.experimental.ocg_converter.csv_ import LinkedCsvConverter
 import datetime
 from sqlalchemy.types import Float, Integer, Date, DateTime
+from util.ncconv.experimental.ocg_converter.subocg_converter import SubOcgConverter
 
 
-class ShpConverter(OcgConverter):
+class ShpConverter(SubOcgConverter):
     __exts__ = ['shp','shx','prj','dbf']
     """
-    <include *args and **kwds from OcgConverter>
     layer='lyr' -- Name of the layer to create in the shapefile.
     srid=4326 -- Destination SRID for the data.
     """
@@ -40,19 +40,13 @@ class ShpConverter(OcgConverter):
         self.srs.ImportFromEPSG(self.srid)
     
     def _set_ogr_fields_(self):
-        ## limit the attributes in the "use_geom" case
-        if self.use_geom:
-            attrs = ["gid"]
-        else:
-            attrs = None
         ## create shapefile base attributes
-        for c in self.value_table.__mapper__.columns:
-            if attrs is not None:
-                if c.name not in attrs:
-                    continue
-            self.ogr_fields.append(OgrField(self.fcache,c.name,c.type))
-            if c.name == 'tid' and not self.use_stat:
-                self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
+        for key,value in self.archetype.iteritems():
+            if key == 'WKT':
+                continue
+            self.ogr_fields.append(OgrField(self.fcache,key,type(value)))
+#            if c.name == 'tid' and not self.use_stat:
+#                self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
 #        self.ogr_fields.append(OgrField(self.fcache,'ocgid',int))
 #        self.ogr_fields.append(OgrField(self.fcache,'gid',int))
 #        self.ogr_fields.append(OgrField(self.fcache,'time',datetime.datetime))
@@ -63,13 +57,12 @@ class ShpConverter(OcgConverter):
     def _get_iter_(self):
         ## returns an iterator instance that generates a dict to match
         ## the ogr field mapping. must also return a geometry wkt attribute.
-        if self.use_geom:
-            headers = ['GID','WKT']
-        else:
-            headers = self.get_headers(self.value_table,adds=['WKT'])
-        if 'TID' in headers:
-            headers.insert(headers.index('TID')+1,'TIME')
-        return(self.get_iter(self.value_table,headers))
+        
+        def wrap():
+            for row in self.get_iter(wkt=True,keep_geom=False):
+                yield(row)
+            
+        return(wrap())
         
     def _convert_(self):
         dr = ogr.GetDriverByName('ESRI Shapefile')
@@ -118,7 +111,7 @@ class LinkedShpConverter(ShpConverter):
     
     def __init__(self,*args,**kwds):
         args = list(args)
-        args[1] = os.path.splitext(args[1])[0]+'.shp'
+        args[0] = os.path.splitext(args[0])[0]+'.shp'
         super(LinkedShpConverter,self).__init__(*args,**kwds)
         
     def write(self):
@@ -131,7 +124,7 @@ class LinkedShpConverter(ShpConverter):
     def _convert_(self):
         ## get the payload dictionary from the linked csv converter. we also
         ## want to store the database module.
-        lcsv = LinkedCsvConverter(self.db,os.path.splitext(self.base_name)[0],use_stat=self.use_stat)
+        lcsv = LinkedCsvConverter(os.path.splitext(self.base_name)[0],self.sub)
         info = lcsv._convert_()
         ## get the shapefile path (and write in the process)
         path = super(LinkedShpConverter,self)._convert_()
@@ -154,7 +147,18 @@ class LinkedShpConverter(ShpConverter):
         return(zip_stream)
 
     def _get_iter_(self):
-        return(self.get_iter(self.db.Geometry,['GID','AREA_M2','WKT']))
+        
+        def wrap():
+            if self.use_stat:
+                iter = self.sub.sub.iter_geom_with_area
+            else:
+                iter = self.sub.iter_geom_with_area
+            for row in iter():
+                geom = row.pop('geometry')
+                row.update({'WKT':geom.wkt})
+                yield(row)
+                
+        return(wrap())
 
     def _set_ogr_fields_(self):
         ## create shapefile base attributes

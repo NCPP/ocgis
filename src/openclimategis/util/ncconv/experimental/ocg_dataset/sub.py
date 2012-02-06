@@ -25,9 +25,9 @@ class SubOcgDataset(object):
         """
 
         self.id = id
-        self.geometry = np.array(geometry,dtype=object)
+        self.geometry = np.array(geometry)
         self.value = np.array(value)
-        self.timevec = np.array(timevec,dtype=object)
+        self.timevec = np.array(timevec)
         
         if gid is not None:
             self.gid = np.array(gid)

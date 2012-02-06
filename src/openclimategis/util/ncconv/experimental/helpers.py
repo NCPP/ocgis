@@ -122,13 +122,13 @@ def user_geom_to_sub(user_meta_id):
     user_meta = UserGeometryMetadata.objects.filter(pk=user_meta_id)
     geoms = user_meta[0].usergeometrydata_set.all()
     ## initialize the sub data
-    geometry = []
-    gid = []
+    geometry = np.empty(len(geoms),dtype=object)
+    gid = np.empty(len(geoms),dtype=int)
     ## loop and population
-    for geom in geoms:
-        geometry.append(wkt.loads(geom.geom.wkt))
+    for ii,geom in enumerate(geoms):
+        geometry[ii] = wkt.loads(geom.geom.wkt)
         if geom.gid is not None:
-            gid.append(geom.gid)
+            gid[ii] = geom.gid
         else:
             gid = None
     ## return the dataset

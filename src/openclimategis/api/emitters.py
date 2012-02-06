@@ -285,12 +285,12 @@ class NcEmitter(SubOcgDataEmitter):
     def get_response(self):
         from util.ncconv.experimental.ocg_dataset.dataset import OcgDataset
         ds = OcgDataset(self.request.ocg.dataset_uri,**self.request.ocg.ocg_opts)
-        return(self.converter.response(self.sub,ds,substat=self.st))
+        return(self.converter.response(ds))
     
-    def get_converter(self):
-        return(self.__converter__(self.cfvar+self.__file_ext__,
-                                  use_stat=self.request.ocg.query.use_stat,
-                                  use_geom=self.use_geom))
+#    def get_converter(self):
+#        return(self.__converter__(self.cfvar+self.__file_ext__,
+#                                  use_stat=self.request.ocg.query.use_stat,
+#                                  use_geom=self.use_geom))
 
 
 Emitter.register('shz',ShapefileEmitter,'application/zip; charset=utf-8')

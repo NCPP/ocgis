@@ -1,4 +1,4 @@
-from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
+#from util.ncconv.experimental.ocg_converter.ocg_converter import OcgConverter
 from util.helpers import get_temp_path
 import netCDF4 as nc
 from util.ncconv.experimental.ocg_meta import element, models
@@ -9,17 +9,26 @@ from django.conf import settings
 from multiprocessing import Manager
 from multiprocessing.process import Process
 from util.ncconv.experimental.pmanager import ProcessManager
+from util.ncconv.experimental.ocg_converter.subocg_converter import SubOcgConverter
 
 
-class NcConverter(OcgConverter):
+class NcConverter(SubOcgConverter):
     
-    def __init__(self,base_name,use_stat=False,meta=None,use_geom=False):
-        self.base_name = base_name
-        self.use_stat = use_stat
-        self.meta = meta
-        self.use_geom = use_geom
+#    def __init__(self,base_name,use_stat=False,meta=None,use_geom=False):
+#        self.base_name = base_name
+#        self.use_stat = use_stat
+#        self.meta = meta
+#        self.use_geom = use_geom
     
-    def _convert_(self,sub,ocg_dataset,has_levels=False,fill_value=1e20,substat=None):
+    def _convert_(self,ocg_dataset,has_levels=False,fill_value=1e20):
+        
+        if self.use_stat:
+            sub = self.sub.sub
+            substat = self.sub
+        else:
+            sub = self.sub
+            substat = None
+        
         print('starting convert...')
         ## create the dataset object
         path = get_temp_path(name=self.base_name,nest=True)
@@ -126,7 +135,7 @@ class NcConverter(OcgConverter):
                     raise(NotImplementedError)
                 else:
                     ## these are the columns to exclude
-                    exclude = ['ocgid','gid','level']
+                    exclude = ['ocgid','gid','level','geometry']
                     ## get the columns we want to write to the netcdf
                     cs = [c for c in substat.stats.keys() if c not in exclude]
                     ## loop through the columns and generate the numpy arrays to
@@ -146,7 +155,7 @@ class NcConverter(OcgConverter):
                         data = manager.list()
                         print('configuring processes...')
                         ## create the indices over which to split jobs
-                        count = len(substat.stats['ocgid'])
+                        count = len(substat.stats['gid'])
                         indices = [[min(ary),max(ary)] 
                                    for ary in array_split(range(0,count+1),
                                                           settings.MAXPROCESSES)]
@@ -209,6 +218,7 @@ class NcConverter(OcgConverter):
             idx = np.argmax(substat.stats['gid'][ii] == sub.gid)
             idx = np.argmax(gidx == idx)
             for key,value in fill.iteritems():
+#                print ii,key,value,substat.stats[key][ii]
                 value[idx] = substat.stats[key][ii]
         data.append(fill)
             

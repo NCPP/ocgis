@@ -15,7 +15,7 @@ class KmlConverter(SubOcgConverter):
         if self.use_stat:
             raise(NotImplementedError)
         else:
-            db = self.sub.to_db(wkt=True)
+            db = self.sub.to_db(wkt=True,to_disk=True)
         
         meta = request.ocg
         if request.environ['SERVER_PORT']=='80':

@@ -17,7 +17,7 @@ class SubOcgConverter(object):
         self.sub = sub
         self.base_name = base_name
         self.meta = meta
-        self.use_geom
+        self.use_geom = use_geom
 
         if isinstance(sub,SubOcgDataset):
             self.use_stat = False

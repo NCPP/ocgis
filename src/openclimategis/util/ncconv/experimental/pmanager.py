@@ -13,7 +13,7 @@ class ProcessManager(object):
              float :: manually set delay in seconds
     """
     
-    _max_poll = 0.5
+    _max_poll = 1
     _poll_interval = 0.001
     _curr_poll = 0.0
     _ii = None
@@ -39,6 +39,10 @@ class ProcessManager(object):
                 except IndexError:
                     self.join()
                     break
+        codes = [bool(p.exitcode) for p in self.procs]
+        if any(codes):
+            raise(RuntimeError('{0} processes had a non-zero exit status.'.format(sum(codes))))
+        
         
     def alive(self):
         count = sum([p.is_alive() for p in self.procs])

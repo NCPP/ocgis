@@ -156,9 +156,9 @@ class TestUrls(TestCase):
                     
         for ext,sop,agg in itertools.product(exts,sops,aggs):
             
-            print(ext,sop,agg)
-            
-            if not (sop=='intersects' and agg=='true'):
+            if not (sop=='intersects' and agg=='true') and \
+               not (ext == 'nc' and sop == 'clip'):
+                print(ext,sop,agg)
                 url = base_url.format(ext=ext,
                                       drange=drange,
                                       polygon=polygon,

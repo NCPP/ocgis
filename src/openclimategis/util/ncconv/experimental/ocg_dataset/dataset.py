@@ -234,7 +234,7 @@ class OcgDataset(object):
         if ndim == 4:
             args = [timeidx,levelidx,rowidx,colidx]
         npd = self.get_numpy_data(var,args)
-        
+
         ## ensure we have four-dimensional data.
         len_sh = len(npd.shape)
 
@@ -243,12 +243,14 @@ class OcgDataset(object):
                 npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
             elif len_sh == 3 and len(timeidx) > 1 and level_range is None:
                 npd = npd.reshape(npd.shape[0],1,npd.shape[1],npd.shape[2])
+            elif len_sh == 2 and len(timeidx) > 1 and level_range is None:
+                npd = npd.reshape(npd.shape[0],1,npd.shape[1],npd.shape[1])
             else:
-                raise NotImplementedError
+                raise(NotImplementedError)
         if ndim == 4:
             if len_sh == 3:
                 npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
-        
+
         ## we need to remove the unwanted data and reshape in the process. first,
         ## construct the relative indices.
         rel_mask = np.repeat(False,npd.shape[2]*npd.shape[3]).reshape((npd.shape[2],npd.shape[3]))
@@ -284,12 +286,15 @@ class OcgDataset(object):
         """
         returns -- list of SubOcgDatasets
         """
-
         ## the initial subset
         ref = self.subset(var_name,**subset_opts)
         ## make base process map
         ref_idx_array = np.arange(0,len(ref.geometry))
         splits = np.array_split(ref_idx_array,max_proc)
+        ## for the case of a single value, truncate the last split if it is
+        ## empty
+        if len(splits[-1]) == 0:
+            splits = splits[0:-1]
         ## will hold the subsets
         subs = []
         ## create the subsets
@@ -305,10 +310,9 @@ class OcgDataset(object):
                                 id=ii,
                                 tid=ref.tid)
             subs.append(sub)
-                
         return(subs)
     
-    def parallel_process_subsets(self,subs,polygon=None,clip=False,union=False):
+    def parallel_process_subsets(self,subs,polygon=None,clip=False,union=False,debug=False):
         
         def f(out,sub,polygon,clip,union):
             if clip:
@@ -321,8 +325,7 @@ class OcgDataset(object):
                     sub.select_values(clip=False)
             out.append(sub)
         
-        parallel = True
-        if parallel:
+        if not debug:
             import multiprocessing as mp
             
             out = mp.Manager().list()
@@ -333,7 +336,6 @@ class OcgDataset(object):
             out = []
             for sub in subs:
                 f(out,sub,polygon,clip,union)
-        
         return(list(out))
                 
     def combine_subsets(self,subs,union=False):

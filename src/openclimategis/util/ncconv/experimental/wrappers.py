@@ -10,7 +10,7 @@ class SpatialOperationProcess(mp.Process):
     def __init__(self,*args):
         attrs = ['out','uri','ocg_opts','var_name','polygon','time_range',
                  'level_range','clip','union','subpoly_proc','allow_empty',
-                 'max_retries']
+                 'max_retries','debug']
         for arg,attr in zip(args,attrs):
             setattr(self,attr,arg)
         
@@ -42,7 +42,8 @@ class SpatialOperationProcess(mp.Process):
                 subs = ocg_dataset.parallel_process_subsets(subs,
                                                             clip=self.clip,
                                                             union=self.union,
-                                                            polygon=poly)
+                                                            polygon=poly,
+                                                            debug=self.debug)
                 sub = ocg_dataset.combine_subsets(subs,union=self.union)
             except (MaskedDataError,ExtentError):
                 if not self.allow_empty:
@@ -50,7 +51,7 @@ class SpatialOperationProcess(mp.Process):
             if self.union is True:
                 sub.gid = np.array([gid])
             self.out.append(sub)
-        except:
+        except RuntimeError:
             ## if the current try is less than the max_retries, try again. this
             ## is to attempt to overcome RuntimeErrors...
             if self._curr_try < self.max_retries:
@@ -58,6 +59,8 @@ class SpatialOperationProcess(mp.Process):
                 self.run()
             else:
                 raise
+        except:
+            raise
         
 
 #def f_put(out,exc,arg):
@@ -178,11 +181,16 @@ def multipolygon_operation(uri,
 #        exc = mp.Manager().list()
     ## generate the processes
     processes = []
+    
+    debug = False
+    max_retries = 5
+    in_parallel = not debug
+    
     for polygon in polygons:
         processes.append(
          SpatialOperationProcess(out,uri,ocg_opts,var_name,polygon,
                                  time_range,level_range,clip,union,
-                                 subpoly_proc,allow_empty,5))
+                                 subpoly_proc,allow_empty,max_retries,debug))
     if in_parallel:
         pmanager = ProcessManager(processes,poly_proc)
         pmanager.run()
@@ -209,6 +217,7 @@ def multipolygon_operation(uri,
 #            raise(RuntimeError('Child processes raised unhandled exceptions: {0}'.format(exc)))
         ## extract data
     subs = list(out)
+    
 #    else:
 #        subs = []
 #        ## loop through each polygon

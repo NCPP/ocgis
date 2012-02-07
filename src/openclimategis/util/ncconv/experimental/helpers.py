@@ -296,7 +296,12 @@ def sub_range(a):
     array([2, 3, 4, 5, 6, 7, 8, 9])
     """
     a = np.array(a)
-    return(np.arange(a.min(),a.max()+1))
+#    ## for the special case of the array with one element
+#    if len(a) == 1:
+#        ret = np.arange(a[0],a[0]+1)
+#    else:
+    ret = np.arange(a.min(),a.max()+1)
+    return(ret)
 
 def keep(prep_igeom=None,igeom=None,target=None):
     test_geom = prep_igeom or igeom

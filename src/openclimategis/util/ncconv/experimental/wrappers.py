@@ -84,6 +84,11 @@ def multipolygon_operation(uri,
                            max_proc=4,
                            max_proc_per_poly=4,
                            allow_empty=True):
+    ## if there are no assigned gids, assign some
+    if polygons is not None:
+        if polygons[0]['gid'] is None:
+            for ii,poly in enumerate(polygons,start=1):
+                poly['gid'] = ii
     ## we do not allow a union operation coupled with an intersects operation.
     ## it may return overlapping geometries.
     if not clip and union:

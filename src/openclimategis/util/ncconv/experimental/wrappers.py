@@ -61,75 +61,6 @@ class SpatialOperationProcess(mp.Process):
                 raise
         except:
             raise
-        
-
-#def f_put(out,exc,arg):
-#    try:
-#        ret = f(arg)
-#    except RuntimeError:
-#        ## try again if a runtime error is received
-#        try:
-#            ret = f(arg)
-#        except RuntimeError:
-#            exc.append('RuntimeError')
-#    except:
-#        raise
-#        exc.append('unhandled fatal error')
-#    ## accounting for the empty intersection...
-#    if ret is not None:
-#        out.append(ret)
-#
-### this is the function to map
-#def f(arg):
-##    from util.ncconv.experimental.ocg_dataset import OcgDataset
-#    
-#    uri = arg[0]
-#    ocg_opts = arg[1]
-#    var_name = arg[2]
-#    polygon = arg[3]
-#    time_range = arg[4]
-#    level_range = arg[5]
-#    clip = arg[6]
-#    union = arg[7]
-#    subpoly_proc = arg[8]
-#    allow_empty = arg[9]
-#    
-#    ## split out the polygon arguments
-#    gid = polygon['gid']
-#    poly = polygon['geom']
-#    ## there is potential to return empty data
-#    sub = None
-#    ocg_dataset = OcgDataset(uri,**ocg_opts)
-#    if subpoly_proc <= 1:
-#        try:
-#            sub = ocg_dataset.subset(var_name,poly,time_range,level_range)
-#            if clip: sub.clip(poly)
-#            if union: 
-#                sub.union_nosum()
-#                if not clip: sub.select_values(clip=True,igeom=poly)
-#                else: sub.select_values(clip=False)
-#                sub._union_sum_()
-#        except (MaskedDataError,ExtentError):
-#            if not allow_empty:
-#                raise
-#    else:
-#        subset_opts = dict(time_range=time_range,
-#                           polygon=poly)
-#        try:
-#            subs = ocg_dataset.split_subset(var_name,
-#                                             max_proc=subpoly_proc,
-#                                             subset_opts=subset_opts)
-#            subs = ocg_dataset.parallel_process_subsets(subs,
-#                                                        clip=clip,
-#                                                        union=union,
-#                                                        polygon=poly)
-#            sub = ocg_dataset.combine_subsets(subs,union=union)
-#        except (MaskedDataError,ExtentError):
-#            if not allow_empty:
-#                raise
-#    if gid is not None and union is True:
-#        sub.gid = np.array([gid])
-#    return(sub)
 
 
 def multipolygon_operation(uri,
@@ -160,11 +91,8 @@ def multipolygon_operation(uri,
             raise(ValueError('If clip is requested, polygon boundaries must be passed.'))
         polygons = [{'gid':1,'geom':None}]
     
-    ## switch depending on parallel request
-#    if in_parallel:
-        
-        ## construct the pool. first, calculate number of remaining processes
-        ## to allocate to sub-polygon processing.
+    ## construct the pool. first, calculate number of remaining processes
+    ## to allocate to sub-polygon processing.
     if len(polygons) <= max_proc:
         poly_proc = len(polygons)
         subpoly_proc = max_proc - len(polygons)
@@ -176,16 +104,17 @@ def multipolygon_operation(uri,
     ## ensure we don't exceed the maximum processes per polygon
     if subpoly_proc > max_proc_per_poly:
         subpoly_proc = max_proc_per_poly
+        
     ## assemble the argument list
     out = mp.Manager().list()
-#        exc = mp.Manager().list()
+    
     ## generate the processes
-    processes = []
     
     debug = False
     max_retries = 5
     in_parallel = not debug
     
+    processes = []
     for polygon in polygons:
         processes.append(
          SpatialOperationProcess(out,uri,ocg_opts,var_name,polygon,
@@ -197,50 +126,9 @@ def multipolygon_operation(uri,
     else:
         for process in processes:
             process.run()
-#        args = []
-#        for polygon in polygons:
-#            arg = [uri,ocg_opts,var_name,polygon,time_range,level_range,clip,union,subpoly_proc,allow_empty]
-#            args.append(arg)
-        ## process list
-#        processes = [mp.Process(target=f_put,args=(out,exc,arg)) for arg in args]
-        ## execute and manage processes
-#        for ii,process in enumerate(processes,start=1):
-#            process.start()
-#            print('started')
-#            if ii >= poly_proc:
-#                while sum([p.is_alive() for p in processes]) >= poly_proc:
-#                    pass
-#        for p in processes:
-#            p.join()
-        ## check for exceptions
-#        if len(exc) > 0:
-#            raise(RuntimeError('Child processes raised unhandled exceptions: {0}'.format(exc)))
-        ## extract data
+
     subs = list(out)
-    
-#    else:
-#        subs = []
-#        ## loop through each polygon
-#        ocg_dataset = OcgDataset(uri,**ocg_opts)
-#        for polygon in polygons:
-#            try:
-#                sub = ocg_dataset.subset(var_name,polygon['geom'],time_range,level_range)
-#                if clip: sub.clip(polygon['geom'])
-#                if union:
-#                    sub.union()
-#                    ## apply the gid if passed. only when the geometries are
-#                    ## unioned is the user gid relevant.
-#                    gid = polygon.get('gid')
-#                    if gid is not None and union is True:
-#                        sub.gid = np.array([gid])
-#                ## hold for later merging
-#                subs.append(sub)
-#            except (MaskedDataError,ExtentError):
-#                if allow_empty:
-#                    warn('empty overlay encountered.')
-#                    continue
-#                else:
-#                    raise
+
     ## it is possible to have no subdatasets if empty intersections are
     ## permitted.
     if allow_empty and len(subs) == 0:

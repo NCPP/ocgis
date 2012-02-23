@@ -304,6 +304,10 @@ Ext.define('App.ui.MapPanel', {
                 lat: i.lat()
                 });
             });
+        coords.push({ // Push the first coordinate pair onto the end for closure of geometry
+            lng: path.getAt(0).lng(),
+            lat: path.getAt(0).lat()
+            });
         return App.encodeWkt('polygon', coords);
         },
     /**
@@ -317,7 +321,8 @@ Ext.define('App.ui.MapPanel', {
             {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
             {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
             {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
-            {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}  // SW
+            {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}, // SW
+            {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}  // NW (again, for closure)
             ];        
         return App.encodeWkt('polygon', coords);
         },
@@ -633,9 +638,9 @@ Ext.application({
             var str = prefix + '((';
             coords.forEach(function(i, n, all) {
                 str += i.lng.toFixed(5); // Longitude
-                str += ',';
+                str += '+'; // Plus signs can be replaced with spaces
                 str += i.lat.toFixed(5); // Latitude
-                if (n < all.length-1) {str += '+';} // More coordinates?
+                if (n < all.length-1) {str += ',';} // More coordinates?
                 });
             str += '))';
             return str;
@@ -883,6 +888,7 @@ Ext.application({
                                     name: 'clip',
                                     iconCls: 'icon-scissors',
                                     enableToggle: true,
+                                    pressed: true, // Enabled by default; note this has to be set also in the default parameters object
                                     handler: function(b) {
                                         this.findParentByType('form').fireEvent('change', {
                                             field: {
@@ -899,6 +905,7 @@ Ext.application({
                                     name: 'aggregate',
                                     iconCls: 'icon-shape-group',
                                     enableToggle: true,
+                                    pressed: true, // Enabled by default; note this has to be set also in the default parameters object
                                     handler: function(b) {
                                         this.findParentByType('form').fireEvent('change', {
                                             field: {
@@ -1061,10 +1068,10 @@ Ext.application({
                     run: '{3}',
                     temporal: '{4}', 
                     spatial: '{5}', // This is 'clip+' + values.geometry when clip is true
-                    aggregate: false, // Button is 'off' by default
+                    aggregate: true, // Button is 'on' by default
                     variable: '{7}',
                     format: '{8}',
-                    clip: false, // Button is 'off' by default
+                    clip: true, // Button is 'on' by default
                     geometry: undefined // This is essentially the "spatial" parameter but irrespective of "clip"
                     },
                 listeners: {

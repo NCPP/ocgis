@@ -603,7 +603,7 @@ Ext.application({
     /////////////////////////////////////////////////// Application Entry Point
     launch: function() {
         Ext.getBody().mask('Loading...');
-        App.host = window.location.hostname || 'openclimategis.org';
+        App.host = window.location.host || 'openclimategis.org';
         App.helpContents = (function() {
             var t;
             t = "<span class=\"help-title\">Welcome to OpenClimateGIS!</span>";

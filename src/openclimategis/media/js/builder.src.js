@@ -258,12 +258,13 @@ Ext.define('App.ui.MapPanel', {
         },
     /**
      * Draws a feature with a given well-known text (WKT) representation on the map.
-     * @param   text    {String}    The well-known text string geometry
+     * @param   text        {String}    The well-known text string geometry
+     * @param   multiple    {Boolean}   Multiple polygons indicated by true
      * @return          {google.maps.Polygon}
      */
-    addWktPolygon: function(text) {
+    addWktPolygon: function(text, multiple) {
         var geometry = App.decodeWkt(text), polygon;
-        this.clearOverlays();
+        if (!multiple) {this.clearOverlays();}
         polygon = new google.maps.Polygon({
             editable: (function() {
                 return false; // TODO Make it so that edits to AOI geometry are reflected in the URL
@@ -650,9 +651,12 @@ Ext.application({
          * @return      {Object}    The corresponding Javascript object
          */
         App.decodeWkt = function(text) {
-            var geometry = {},
-                prefix = Ext.String.trim(text.slice(0, text.indexOf('('))).toLowerCase(),
-                remainder = text.slice(text.lastIndexOf('(')+1, text.indexOf(')'));
+            var geometry, // Holder for objectified geometry
+                prefix, // The name of the WKT geometry (e.g. POLYGON)
+                remainder; // The actual digest (coordinate pairs)
+            geometry = {};
+            prefix = Ext.String.trim(text.slice(0, text.indexOf('('))).toLowerCase();
+            remainder = text.slice(text.lastIndexOf('(')+1, text.indexOf(')'));
             geometry[prefix] = [];
             remainder.split(',').forEach(function(i) {
                 geometry[prefix].push({
@@ -869,7 +873,13 @@ Ext.application({
                                             Ext.Ajax.request({
                                                 url: '/api/aois/' + code + '.json',
                                                 callback: function(o, s, resp) { // Arguments: options, success, response
-                                                    that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText).features[0].geometry);
+                                                    var feats = Ext.JSON.decode(resp.responseText).features;
+                                                    that.up('#map-panel').clearOverlays(); // Clear before adding multiple polygons
+                                                    Ext.each(feats, function(i) {
+                                                        // The true flag indicates multiple polygons
+                                                        that.up('#map-panel').addWktPolygon(i.geometry, true);
+                                                        });
+//                                                  that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText).features[0].geometry);
                                                     }
                                                 });
                                             }

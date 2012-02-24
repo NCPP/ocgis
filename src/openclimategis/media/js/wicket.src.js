@@ -33,8 +33,11 @@ var Wkt = (function() {
 
     return {
 
+        trim: trim,
+
         Wkt: function(str) {
-            var digest, type;
+            var digest, // The "body" (digest) of the WKT message
+                type; // A truncated name for the WKT geometry type
 
             if (str == null) {
                 throw "Wkt.Wkt: 'str' parameter cannot be null.";
@@ -68,22 +71,15 @@ var Wkt = (function() {
             } // eo switch
 
             return {
+
                 digest: digest,
                 type: type,
 
-                /**
-                 * The WKT geometry itself (inside the geometry type name)
-                 */
-                points: (function() {
-                    return trim(trim(digest, '('), ')');
-                }()), // Execute immediately
+                 //The WKT geometry as an Array of WKT point strings
+                points: trim(trim(digest, '('), ')').split(','),
 
-                /**
-                 * The base WKT representation without whitespace
-                 */
-                string: (function() {
-                    return trim(str);
-                }()), // Execute immediately
+                 // The base WKT representation without whitespace
+                string: trim(str),
 
                 /**
                  * Return the base WKT representation

@@ -243,12 +243,7 @@ Ext.define('App.ui.MapPanel', {
     overlays: [], // Initialize the overlays holder
     initComponent : function(){
         var config = {
-            layout: 'fit',
-            mapConfig: {
-                center: new google.maps.LatLng(42.30220, -83.68952),
-                zoom: 8,
-                type: google.maps.MapTypeId.ROADMAP
-                }
+            layout: 'fit'
             };
         Ext.applyIf(this, config);
         // Event overlaycomplete - An overlay has finished being drawn
@@ -355,8 +350,9 @@ Ext.define('App.ui.MapPanel', {
                     }
                 });
             this.gmap = new google.maps.Map(this.body.dom, {
-                center: new google.maps.LatLng(42.30220, -83.68952),
-                zoom: 8,
+                // Using the geographic center of continental U.S. (Lebanon, Kansas)
+                center: new google.maps.LatLng(39.8282, -98.5795),
+                zoom: 5,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
             this.drawingManager.setMap(this.gmap);

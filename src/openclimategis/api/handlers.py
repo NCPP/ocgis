@@ -18,7 +18,8 @@ import time
 
 import logging
 from exc import OcgUrlError, MalformedSimulationOutputSelection,\
-    AggregateFunctionError
+    AggregateFunctionError, AoiError, UncaughtRuntimeError
+from util.ncconv.experimental.ocg_dataset.dataset import EmptyDataNotAllowed
 logger = logging.getLogger(__name__)
 
 class ocg(object):
@@ -317,18 +318,25 @@ class SpatialHandler(OpenClimateHandler):
         request.ocg.ocg_opts = kwds
         request.ocg.dataset_uri = dataset.uri
         
-        sub = multipolygon_operation(dataset.uri,
-                                     self.ocg.simulation_output.netcdf_variable.code,
-                                     ocg_opts=kwds,
-                                     polygons=self.ocg.aoi,
-                                     time_range=self.ocg.temporal,
-                                     level_range=None, 
-                                     clip=clip,
-                                     union=self.ocg.aggregate,
-                                     in_parallel=in_parallel, 
-                                     max_proc=settings.MAXPROCESSES,
-                                     max_proc_per_poly=settings.MAXPROCESSES_PER_POLY,
-                                     allow_empty=True)
+        try:
+            sub = multipolygon_operation(dataset.uri,
+                                         self.ocg.simulation_output.netcdf_variable.code,
+                                         ocg_opts=kwds,
+                                         polygons=self.ocg.aoi,
+                                         time_range=self.ocg.temporal,
+                                         level_range=None, 
+                                         clip=clip,
+                                         union=self.ocg.aggregate,
+                                         in_parallel=in_parallel, 
+                                         max_proc=settings.MAXPROCESSES,
+                                         max_proc_per_poly=settings.MAXPROCESSES_PER_POLY,
+                                         allow_empty=False)
+        except EmptyDataNotAllowed:
+            raise(AoiError)
+        except RuntimeError:
+            raise(UncaughtRuntimeError)
+        except:
+            raise
 
         logger.debug("...ending SpatialHandler._read_()")
         return(sub)

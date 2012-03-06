@@ -24,6 +24,11 @@ class ExtentError(Exception):
 class EmptyDataNotAllowed(Exception):
     def __str__(self):
         return('Interesection returned empty, but empty data not allowed.')
+    
+    
+class EmptyData(Exception):
+    def __str__(self):
+        return('Empty data returned.')
 
 
 class OcgDataset(object):

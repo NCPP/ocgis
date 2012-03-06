@@ -3,15 +3,27 @@ from warnings import warn
 import numpy as np
 import multiprocessing as mp
 from util.ncconv.experimental.pmanager import ProcessManager
-from util.ncconv.experimental.ocg_dataset.dataset import EmptyDataNotAllowed
+from util.ncconv.experimental.ocg_dataset.dataset import EmptyDataNotAllowed,\
+    EmptyData
 
+
+class UncaughtProcessError(Exception):
+    
+    def __init__(self,excs):
+        self.excs = excs
+    
+    def __str__(self):
+        return(('A process returned an exception, but the exception handler'
+                ' has no solution. Please contact the system admin if you '
+                'continue to encounter this error. The multiprocess exception '
+                'list is: {0}').format(self.excs))
 
 class SpatialOperationProcess(mp.Process):
     
     def __init__(self,*args):
         attrs = ['out','uri','ocg_opts','var_name','polygon','time_range',
                  'level_range','clip','union','subpoly_proc','allow_empty',
-                 'max_retries','debug']
+                 'max_retries','debug','exc']
         for arg,attr in zip(args,attrs):
             setattr(self,attr,arg)
         
@@ -36,24 +48,24 @@ class SpatialOperationProcess(mp.Process):
             ocg_dataset = OcgDataset(self.uri,**self.ocg_opts)
             subset_opts = dict(time_range=self.time_range,
                                polygon=poly)
-            try:
-                subs = ocg_dataset.split_subset(self.var_name,
-                                                max_proc=self.subpoly_proc,
-                                                subset_opts=subset_opts)
-                subs = ocg_dataset.parallel_process_subsets(subs,
-                                                            clip=self.clip,
-                                                            union=self.union,
-                                                            polygon=poly,
-                                                            debug=self.debug)
-                sub = ocg_dataset.combine_subsets(subs,union=self.union)
-                if self.union is True:
-                    sub.gid = np.array([gid])
-                self.out.append(sub)
-            except (MaskedDataError,ExtentError):
-                if not self.allow_empty:
-                    raise(EmptyDataNotAllowed)
-                else:
-                    raise
+#            try:
+            subs = ocg_dataset.split_subset(self.var_name,
+                                            max_proc=self.subpoly_proc,
+                                            subset_opts=subset_opts)
+            subs = ocg_dataset.parallel_process_subsets(subs,
+                                                        clip=self.clip,
+                                                        union=self.union,
+                                                        polygon=poly,
+                                                        debug=self.debug)
+            sub = ocg_dataset.combine_subsets(subs,union=self.union)
+            if self.union is True:
+                sub.gid = np.array([gid])
+            self.out.append(sub)
+#            except (MaskedDataError,ExtentError) as e:
+#                if not self.allow_empty:
+#                    raise(EmptyDataNotAllowed)
+#                else:
+#                    raise
         except RuntimeError:
             ## if the current try is less than the max_retries, try again. this
             ## is to attempt to overcome RuntimeErrors...
@@ -62,8 +74,8 @@ class SpatialOperationProcess(mp.Process):
                 self.run()
             else:
                 raise
-        except:
-            raise
+        except Exception as e:
+            self.exc.append(e)
 
 
 def multipolygon_operation(uri,
@@ -109,7 +121,10 @@ def multipolygon_operation(uri,
         subpoly_proc = max_proc_per_poly
         
     ## assemble the argument list
-    out = mp.Manager().list()
+    manager = mp.Manager()
+    out = manager.list()
+    ## collect exceptions
+    exc = manager.list()
     
     ## generate the processes
     
@@ -123,23 +138,39 @@ def multipolygon_operation(uri,
         processes.append(
          SpatialOperationProcess(out,uri,ocg_opts,var_name,polygon,
                                  time_range,level_range,clip,union,
-                                 subpoly_proc,allow_empty,max_retries,debug))
+                                 subpoly_proc,allow_empty,max_retries,debug,
+                                 exc))
     if in_parallel:
         pmanager = ProcessManager(processes,poly_proc)
         pmanager.run()
     else:
         for process in processes:
             process.run()
-
     subs = list(out)
+    
+    ## exception handling. processes are designed to not raise errors, but
+    ## record them in the shared list "exc".
+    def _classify(exc_vec,exc_type):
+        if type(exc_type) not in [list,tuple]:
+            exc_type = [exc_type]
+        return([type(e) in exc_type for e in exc_vec])
+    
+    if len(exc) > 0:
+        ## first check for runtime errors
+        if any(_classify(exc,RuntimeError)):
+            raise(RuntimeError)
+        ## next see if the problem is related to the extent of the request
+        elif all(_classify(exc,[MaskedDataError,ExtentError])):
+            ## it is possible to have no subdatasets if empty intersections are
+            ## permitted.
+            if allow_empty and len(subs) == 0:
+                warn('all attempted geometric operations returned empty.')
+                subs = [SubOcgDataset([],[],[])]
+            elif not allow_empty and len(subs) == 0:
+                raise(EmptyDataNotAllowed)
+        else:
+            raise(UncaughtProcessError(exc))
 
-    ## it is possible to have no subdatasets if empty intersections are
-    ## permitted.
-    if allow_empty and len(subs) == 0:
-        warn('all attempted geometric operations returned empty.')
-        subs = [SubOcgDataset([],[],[])]
-    elif not allow_empty and len(subs) == 0:
-        raise(ValueError('empty overlays are not allowed but no SubOcgDataset objects captured.'))
     ## merge subsets. subset at this point represent polygons from the request.
     ## we need to carefully manage the value_sets if there is a union operation.
     value_set_coll = {}

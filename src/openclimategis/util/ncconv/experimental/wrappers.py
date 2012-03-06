@@ -3,6 +3,7 @@ from warnings import warn
 import numpy as np
 import multiprocessing as mp
 from util.ncconv.experimental.pmanager import ProcessManager
+from util.ncconv.experimental.ocg_dataset.dataset import EmptyDataNotAllowed
 
 
 class SpatialOperationProcess(mp.Process):
@@ -45,12 +46,14 @@ class SpatialOperationProcess(mp.Process):
                                                             polygon=poly,
                                                             debug=self.debug)
                 sub = ocg_dataset.combine_subsets(subs,union=self.union)
+                if self.union is True:
+                    sub.gid = np.array([gid])
+                self.out.append(sub)
             except (MaskedDataError,ExtentError):
                 if not self.allow_empty:
+                    raise(EmptyDataNotAllowed)
+                else:
                     raise
-            if self.union is True:
-                sub.gid = np.array([gid])
-            self.out.append(sub)
         except RuntimeError:
             ## if the current try is less than the max_retries, try again. this
             ## is to attempt to overcome RuntimeErrors...
@@ -112,7 +115,8 @@ def multipolygon_operation(uri,
     
     debug = False
     max_retries = 5
-    in_parallel = not debug
+    in_parallel = in_parallel
+#    in_parallel = False
     
     processes = []
     for polygon in polygons:

@@ -19,6 +19,11 @@ class MaskedDataError(Exception):
 class ExtentError(Exception):
     def __str__(self):
         return('Geometric intersection is empty.')
+    
+    
+class EmptyDataNotAllowed(Exception):
+    def __str__(self):
+        return('Interesection returned empty, but empty data not allowed.')
 
 
 class OcgDataset(object):

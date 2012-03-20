@@ -80,7 +80,7 @@
     font-weight: normal;
     font-style: normal;
     }
-body {background:#EEE url(/media/img/load_msg.png) no-repeat center center;}
+body {width:100%;height:100%;background:#EEE url(/media/img/load_msg.png) no-repeat center center;}
 
 a:link,
 a:visited {color:#003366;text-decoration:none;border:none;}

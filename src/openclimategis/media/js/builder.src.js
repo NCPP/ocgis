@@ -1,20 +1,29 @@
-/*global Ext, google*/
+/*global Wkt, Ext, google*/
 var App;
-/*
 Ext.require([
     'Ext.Component',
     'Ext.container.Viewport',
+    'Ext.container.Container',
     'Ext.data.Model',
     'Ext.data.reader.Json',
     'Ext.data.Store',
+    'Ext.data.ArrayStore',
     'Ext.data.TreeStore',
     'Ext.form.FieldContainer',
     'Ext.form.field.*',
+    'Ext.form.Basic',
+    'Ext.form.Panel',
+    'Ext.form.action.*',
+    'Ext.window.MessageBox',
     'Ext.Panel',
     'Ext.toolbar.Toolbar',
-    'Ext.tree.*'
+    'Ext.toolbar.Spacer',
+    'Ext.layout.*',
+    'Ext.resizer.*',
+    'Ext.tree.*',
+    'Ext.button.Button',
+    'Ext.ProgressBar'
     ]);
-*/
 ///////////////////////////////////////////////////////////////////// Overrides
 Ext.define('App.ui.BaseField', {
     override: 'Ext.form.field.Base',
@@ -327,7 +336,6 @@ Ext.define('App.ui.MapPanel', {
                     var i, p, bounds, paths, path;
                     bounds = new google.maps.LatLngBounds();
                     paths = this.getPaths();
-                    path;
                     for (p=0; p < paths.getLength(); p+=1) {
                         path = paths.getAt(p);
                         for (i=0; i < path.getLength(); i+=1) {

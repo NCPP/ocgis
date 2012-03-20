@@ -81,3 +81,18 @@ class MalformedSimulationOutputSelection(OcgUrlError):
             "Ensure the combination of "
             "archive, climate model, emissions scenario, run, and variable "
             "specified in the URL match a record in the simulation output table.")
+    
+    
+class AoiError(OcgUrlError):
+    _rc = rc.BAD_REQUEST
+    _msg = ('The user-supplied geometry returns an empty intersection with the '
+            'data extent of the requested simulation output.')
+    
+    
+class UncaughtRuntimeError(OcgUrlError):
+    _rc = rc.BAD_REQUEST
+    _msg = ('An uncaught RuntimeError has occurred when attempting to download '
+            'the requested data. This may sometimes be solved by resubmitting '
+            'the request. If this does not solve the problem, please contact '
+            'the system administrator being sure to include the URL raising '
+            'the error.')

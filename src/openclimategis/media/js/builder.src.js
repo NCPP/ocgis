@@ -276,6 +276,7 @@ Ext.define('App.ui.MapPanel', {
      */
     getWktString: function(obj) {
         var wkt = new Wkt.Wkt();
+        wkt.delimiter = '='; // VERY IMPORTANT for URL serialization of WKT strings
         wkt.fromObject(obj); // Read in a geometry class member
         return wkt.write(); // Write the WKT representation
         },

@@ -349,3 +349,9 @@ def display_query_builder_app(request):
     Return the Query Builder web application as markup.
     '''
     return render_to_response('QueryBuilder.html')
+
+
+def wicket_test(request):
+    '''
+    '''
+    return render_to_response('Wicket.html')

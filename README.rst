@@ -123,10 +123,10 @@ file to its destination using::
 Javascript Libraries
 ~~~~~~~~~~~~~~~~~~~~
 
-The API Query Builder uses the ExtJS framework and the Google Maps API to provide
-a user-friendly interface for constructing OpenClimateGIS queries. It requires
-that ExtJS 4.x media files are installed and accessible. Currently, the API
-Query Builder uses ExtJS 4.0.7 and version 3.7 of the Google Maps API. The
+The API Query Builder uses the ExtJS framework, the Google Maps API, and Wicket
+to provide a user-friendly interface for constructing OpenClimateGIS queries. It
+requires that ExtJS 4.x media files are installed and accessible. Currently, the
+API Query Builder uses ExtJS 4.0.7 and version 3.7 of the Google Maps API. The
 Google Maps API is loaded automatically with the Query Builder.
 
 Download ExtJS: http://www.sencha.com/products/extjs/download
@@ -145,6 +145,14 @@ as an example:
 Fabric can also be used to install the ExtJS resources on AWS:
 
     fab apache2.make_local_copy_of_extjs
+
+Download Wicket: http://github.com/arthur-e/Wicket
+
+    git clone git@github.com:arthur-e/Wicket.git
+
+The Wicket library (for WKT transforms) should be made accessible from:
+
+    localhost/static/Wicket/
 
 ------------
 Source Code

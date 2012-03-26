@@ -1,20 +1,29 @@
-/*global Ext, google*/
+/*global Wkt, Ext, google*/
 var App;
-/*
 Ext.require([
     'Ext.Component',
     'Ext.container.Viewport',
+    'Ext.container.Container',
     'Ext.data.Model',
     'Ext.data.reader.Json',
     'Ext.data.Store',
+    'Ext.data.ArrayStore',
     'Ext.data.TreeStore',
     'Ext.form.FieldContainer',
     'Ext.form.field.*',
+    'Ext.form.Basic',
+    'Ext.form.Panel',
+    'Ext.form.action.*',
+    'Ext.window.MessageBox',
     'Ext.Panel',
     'Ext.toolbar.Toolbar',
-    'Ext.tree.*'
+    'Ext.toolbar.Spacer',
+    'Ext.layout.*',
+    'Ext.resizer.*',
+    'Ext.tree.*',
+    'Ext.button.Button',
+    'Ext.ProgressBar'
     ]);
-*/
 ///////////////////////////////////////////////////////////////////// Overrides
 Ext.define('App.ui.BaseField', {
     override: 'Ext.form.field.Base',
@@ -243,12 +252,7 @@ Ext.define('App.ui.MapPanel', {
     overlays: [], // Initialize the overlays holder
     initComponent : function(){
         var config = {
-            layout: 'fit',
-            mapConfig: {
-                center: new google.maps.LatLng(42.30220, -83.68952),
-                zoom: 8,
-                type: google.maps.MapTypeId.ROADMAP
-                }
+            layout: 'fit'
             };
         Ext.applyIf(this, config);
         // Event overlaycomplete - An overlay has finished being drawn
@@ -258,73 +262,32 @@ Ext.define('App.ui.MapPanel', {
         },
     /**
      * Draws a feature with a given well-known text (WKT) representation on the map.
-     * @param   text    {String}    The well-known text string geometry
-     * @return          {google.maps.Polygon}
+     * @param   text        {String}    The well-known text string geometry
+     * @return              {google.maps.Polygon}
      */
     addWktPolygon: function(text) {
-        var geometry = App.decodeWkt(text), polygon;
-        this.clearOverlays();
-        polygon = new google.maps.Polygon({
-            editable: (function() {
-                return false; // TODO Make it so that edits to AOI geometry are reflected in the URL
-                /* Still a good limit for improved performance:
-                if (geometry.multipolygon) {return (geometry.multipolygon.length < 25);}
-                else if (geometry.polygon) {return (geometry.polygon.length < 25);}
-                */
-                }()), // Execute immediately
-            paths: (function() {
-                var paths = [];
-                if (geometry.polygon) {
-                    Ext.each(geometry.polygon, function(i) {
-                        paths.push(new google.maps.LatLng(i.lat, i.lng));
-                        });
-                    }
-                if (geometry.multipolygon) {
-                    Ext.each(geometry.multipolygon, function(i) {
-                        paths.push(new google.maps.LatLng(i.lat, i.lng));
-                        });
-                    }
-                return paths;
-                }()) // Execute immediately
-            });
+        var polygon = new Wkt.Wkt(text).toObject();
+        // Still a good editing limit for improved performance:
+        //  if (geometry.multipolygon) {return (geometry.multipolygon.length < 25);}
+        //  else if (geometry.polygon) {return (geometry.polygon.length < 25);}
+        polygon.setEditable(false);
         this.overlays.push(polygon);
-        this.gmap.setCenter(polygon.getPath().getAt(0));
+        if (polygon.getBounds) {
+            this.gmap.fitBounds(polygon.getBounds());
+            }
         polygon.setMap(this.gmap);
+        return polygon;
         },
     /**
      * Generates a WKT string from an MVCArray defining a polygon path
-     * @param   path    {Array}     An Array of {lat, lng} objects
+     * @param   obj     {Object}    Some Google geometry class instance (e.g. google.maps.Polygon)
      * @return          {String}    A polygon string (e.g. 'polygon((...))')
      */
-    pathToWktPolygon: function(path) {
-        var coords = [];
-        path.forEach(function(i) {
-            coords.push({
-                lng: i.lng(),
-                lat: i.lat()
-                });
-            });
-        coords.push({ // Push the first coordinate pair onto the end for closure of geometry
-            lng: path.getAt(0).lng(),
-            lat: path.getAt(0).lat()
-            });
-        return App.encodeWkt('polygon', coords);
-        },
-    /**
-     * Generates a WKT string from latitude-longitude bounds (as from a rectangle)
-     * @param   bounds  {google.maps.LatLngBounds}  Bounds of, presumably, a rectangle
-     * @return          {Array}                     An Array of {lat, lng} objects
-     */
-    boundsToWktPolygon: function(bounds) {
-        var coords, b = bounds;
-        coords = [ // An array of the each of the corners
-            {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}, // NW
-            {lat: b.getNorthEast().lat(), lng: b.getNorthEast().lng()}, // NE
-            {lat: b.getSouthWest().lat(), lng: b.getNorthEast().lng()}, // SE
-            {lat: b.getSouthWest().lat(), lng: b.getSouthWest().lng()}, // SW
-            {lat: b.getNorthEast().lat(), lng: b.getSouthWest().lng()}  // NW (again, for closure)
-            ];        
-        return App.encodeWkt('polygon', coords);
+    getWktString: function(obj) {
+        var wkt = new Wkt.Wkt();
+        wkt.delimiter = '+'; // VERY IMPORTANT for URL serialization of WKT strings
+        wkt.fromObject(obj); // Read in a geometry class member
+        return wkt.write(); // Write the WKT representation
         },
     /**
      * Removes any overlay(s) from the map
@@ -338,14 +301,18 @@ Ext.define('App.ui.MapPanel', {
         this.overlays.length = 0; // Empty the holder
         },
     listeners: {
+
         // When the container is rendered //////////////////////////////////////
         render: function() {
             this.body.mask(); // Mask labels will not be placed correctly so don't provide text
             },
+
         // Set up the map and listeners ////////////////////////////////////////
         afterrender: function() {
-            var self = this,
-                Type = google.maps.drawing.OverlayType;
+            var self, Type;
+            self = this;
+            Type = google.maps.drawing.OverlayType;
+
             this.drawingManager = new google.maps.drawing.DrawingManager({
                 rectangleOptions: {editable: true},
                 polygonOptions: {editable: true},
@@ -353,70 +320,101 @@ Ext.define('App.ui.MapPanel', {
                     drawingModes: [Type.RECTANGLE, Type.POLYGON]
                     }
                 });
+
             this.gmap = new google.maps.Map(this.body.dom, {
-                center: new google.maps.LatLng(42.30220, -83.68952),
-                zoom: 8,
+                // Using the geographic center of continental U.S. (Lebanon, Kansas)
+                center: new google.maps.LatLng(39.8282, -98.5795),
+                zoom: 5,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
                 });
+
             this.drawingManager.setMap(this.gmap);
+
+            // Adds a getBounds method to members of the Polygon class
+            if (!google.maps.Polygon.prototype.getBounds) {
+                google.maps.Polygon.prototype.getBounds = function(latLng) {
+                    var i, p, bounds, paths, path;
+                    bounds = new google.maps.LatLngBounds();
+                    paths = this.getPaths();
+                    for (p=0; p < paths.getLength(); p+=1) {
+                        path = paths.getAt(p);
+                        for (i=0; i < path.getLength(); i+=1) {
+                            bounds.extend(path.getAt(i));
+                            }
+                        }
+                    return bounds;
+                    };
+                }
+
             // Listen for the 'overlaycomplete' event and pass it to the container
             google.maps.event.addListener(this.drawingManager, 'overlaycomplete', function(event) {
                 self.fireEvent('overlaycomplete', {event: event});
                 });
+
             // Listen for the 'tilesloaded' event as proxy indicator for 'mapready'
             google.maps.event.addListener(this.gmap, 'tilesloaded', function() {
                 self.fireEvent('mapready');
                 });
+
             },
+
         // When the map API is ready ///////////////////////////////////////////
         mapready: function() {
             this.body.unmask();
             },
+
         // When a new AOI is drawn /////////////////////////////////////////////
         overlaycomplete: function(args) {
             var geometry,
                 that = this,
                 Type = google.maps.drawing.OverlayType;
+
             this.fireEvent('sketchcomplete'); // Listened for in instances
+
             // Remove any existing overlay (only one allowed at a time
             this.clearOverlays();
+
             // Set the drawing mode to "pan" (the hand) so users can immediately edit
             this.drawingManager.setDrawingMode(null);
+
             // Polygon drawn
             if (args.event.type === Type.POLYGON) {
-                geometry = this.pathToWktPolygon(args.event.overlay.getPath());
+                geometry = this.getWktString(args.event.overlay);
                 // New vertex is inserted
                 google.maps.event.addListener(args.event.overlay.getPath(), 'insert_at', function(n) {
                     that.fireEvent('change', {
-                        wkt: that.pathToWktPolygon(that.overlays[0].getPath())
+                        wkt: that.getWktString(that.overlays[0])
                         });
                     });
                 // Existing vertex is removed (insertion is undone)
                 google.maps.event.addListener(args.event.overlay.getPath(), 'remove_at', function(n) {
                     that.fireEvent('change', {
-                        wkt: that.pathToWktPolygon(that.overlays[0].getPath())
+                        wkt: that.getWktString(that.overlays[0])
                         });
                     });
                 // Existing vertex is moved (set elsewhere)
                 google.maps.event.addListener(args.event.overlay.getPath(), 'set_at', function(n) {
                     that.fireEvent('change', {
-                        wkt: that.pathToWktPolygon(that.overlays[0].getPath())
+                        wkt: that.getWktString(that.overlays[0])
                         });
                     });
                 }
+
             // Rectangle drawn
             else if (args.event.type === Type.RECTANGLE) { 
-                geometry = this.boundsToWktPolygon(args.event.overlay.getBounds());
+                geometry = this.getWktString(args.event.overlay);
                 // Listen for the 'bounds_changed' event and update the geometry
                 google.maps.event.addListener(args.event.overlay, 'bounds_changed', function() {
                     that.fireEvent('change', {
-                        wkt: that.boundsToWktPolygon(that.overlays[0].getBounds())
+                        wkt: that.getWktString(that.overlays[0])
                         });
                     });
                 } // eo else if
+
             this.overlays.push(args.event.overlay); // Remember this overlay
             this.fireEvent('change', {wkt: geometry});
             },
+
         // When map feature geometry changes ///////////////////////////////////
         change: function(args) {
             this.findParentByType('form').fireEvent('change', {
@@ -427,6 +425,7 @@ Ext.define('App.ui.MapPanel', {
                 newValue: args.wkt
                 });
             }
+
         }
     }); // No callback (third argument)
 Ext.define('App.ui.DateRange', {
@@ -603,7 +602,9 @@ Ext.application({
     /////////////////////////////////////////////////// Application Entry Point
     launch: function() {
         Ext.getBody().mask('Loading...');
+
         App.host = window.location.host || 'openclimategis.org';
+
         App.helpContents = (function() {
             var t;
             t = "<span class=\"help-title\">Welcome to OpenClimateGIS!</span>";
@@ -628,40 +629,7 @@ Ext.application({
             t +="</div>";
             return t;
             }()); // Execute immediately
-        /**
-         * Encodes a WKT geometry from an array of coordinate pairs
-         * @param   prefix  {String}    The type of WKT geometry (e.g. 'POLYGON')
-         * @param   coords  {Array}     The coordinate pairs
-         * @return          {String}    The corresponding WKT string
-         */
-        App.encodeWkt = function(prefix, coords) {
-            var str = prefix + '((';
-            coords.forEach(function(i, n, all) {
-                str += i.lng.toFixed(5); // Longitude
-                str += '+'; // Plus signs can be replaced with spaces
-                str += i.lat.toFixed(5); // Latitude
-                if (n < all.length-1) {str += ',';} // More coordinates?
-                });
-            str += '))';
-            return str;
-            };
-        /**
-         * Decodes a WKT geometry string into an object
-         * @return      {Object}    The corresponding Javascript object
-         */
-        App.decodeWkt = function(text) {
-            var geometry = {},
-                prefix = Ext.String.trim(text.slice(0, text.indexOf('('))).toLowerCase(),
-                remainder = text.slice(text.lastIndexOf('(')+1, text.indexOf(')'));
-            geometry[prefix] = [];
-            remainder.split(',').forEach(function(i) {
-                geometry[prefix].push({
-                    lng: Ext.String.trim(i).split(' ')[0],
-                    lat: Ext.String.trim(i).split(' ')[1]
-                    });
-                });
-            return geometry;
-            };
+
         App.data = {
             aois: Ext.create('Ext.data.Store', {
                 model: 'App.api.AreaOfInterest',
@@ -734,6 +702,7 @@ Ext.application({
                     }
                 })
             };
+
         //////////////////////////////////////////////////////////// Components
         App.viewport = Ext.create('Ext.container.Viewport', {
             id: 'viewport',
@@ -869,7 +838,12 @@ Ext.application({
                                             Ext.Ajax.request({
                                                 url: '/api/aois/' + code + '.json',
                                                 callback: function(o, s, resp) { // Arguments: options, success, response
-                                                    that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText).features[0].geometry);
+                                                    var feats = Ext.JSON.decode(resp.responseText).features;
+                                                    that.up('#map-panel').clearOverlays(); // Clear before adding multiple polygons
+                                                    Ext.each(feats, function(i) {
+                                                        that.up('#map-panel').addWktPolygon(i.geometry);
+                                                        });
+//                                                  that.up('#map-panel').addWktPolygon(Ext.JSON.decode(resp.responseText).features[0].geometry);
                                                     }
                                                 });
                                             }
@@ -984,6 +958,7 @@ Ext.application({
                     }
                 ] // eo items
             }); // eo Ext.create
+
         // Add items to the Data Selection panel ///////////////////////////////
         (function() {
             var p = Ext.getCmp('form-panel').getComponent('sidebar').getComponent('data-selection');

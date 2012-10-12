@@ -8,7 +8,7 @@ from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc.wrap import library
 
 
-class OcgArgument(object):
+class OcgParameter(object):
     name = None
     can_be_none = None
     
@@ -46,13 +46,13 @@ class OcgArgument(object):
         raise(NotImplementedError)
     
     
-class BooleanArgument(OcgArgument):
+class BooleanArgument(OcgParameter):
     
     def validate(self):
         assert(type(self.value) == bool)
         
         
-class StringArgument(OcgArgument):
+class StringArgument(OcgParameter):
     _possible = []
     
     def __init__(self,*args,**kwds):
@@ -142,7 +142,7 @@ class CalcGrouping(StringListArgument):
         return(msg)
     
     
-class LevelRange(OcgArgument):
+class LevelRange(OcgParameter):
     '''
     >>> LevelRange([1,2]).value
     [1, 2]
@@ -226,7 +226,7 @@ class Aggregate(BooleanArgument):
             msg = 'Selected geometries are not aggregated (unioned).'
         return(msg)
     
-class TimeRange(OcgArgument):
+class TimeRange(OcgParameter):
     name = 'time_range'
     can_be_none = True
     
@@ -244,7 +244,7 @@ class TimeRange(OcgArgument):
             msg = 'Time selection range is: {0}. Selection is inclusive.'.format(self.value)
         return(msg)
         
-class Calc(OcgArgument):
+class Calc(OcgParameter):
     name = 'calc'
     can_be_none = True
     
@@ -285,7 +285,7 @@ class Calc(OcgArgument):
         return(msg)
             
             
-class Geom(OcgArgument):
+class Geom(OcgParameter):
     name = 'geom'
     can_be_none = True
     
@@ -316,7 +316,7 @@ class Geom(OcgArgument):
                 return(msg)
          
             
-class Meta(OcgArgument):
+class Meta(OcgParameter):
     name = 'meta'
     can_be_none = False
     

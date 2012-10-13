@@ -11,6 +11,7 @@ from ocgis.calc.wrap import library
 class OcgParameter(object):
     name = None
     can_be_none = None
+    url_slug_name = None
     
     def __init__(self,value):
         self._assert_(self.name is not None,'name must be provided')
@@ -90,7 +91,6 @@ class StringListArgument(StringArgument):
 
 
 class Backend(StringArgument):
-
     _possible = ['ocg']
     can_be_none = False
     name = 'backend'
@@ -128,6 +128,7 @@ class CalcGrouping(StringListArgument):
                  ['day','year']]
     can_be_none = True
     name = 'calc_grouping'
+    url_slug_name = 'calc_grouping'
     
     def __init__(self,value):
         if value is not None:
@@ -155,6 +156,7 @@ class LevelRange(OcgParameter):
     '''
     can_be_none = True
     name = 'level_range'
+    url_slug_name = 'level'
     
     def format(self,value):
         if type(value) not in [list,tuple]:
@@ -178,6 +180,7 @@ class OutputFormat(StringArgument):
     _possible = ['numpy','shpidx','shp','csv','nc','keyed','meta']
     name = 'output_format'
     can_be_none = False
+    url_slug_name = 'output_format'
     
     def message(self):
         mmap = {'numpy':'an OpenClimateGIS data format storing variables as NumPy arrays.',
@@ -195,6 +198,7 @@ class SpatialOperation(StringArgument):
     _possible = ['intersects','clip']
     name = 'spatial_operation'
     can_be_none = False
+    url_slug_name = 'operation'
     
     def message(self):
         if self.value == 'intersects':
@@ -206,6 +210,7 @@ class SpatialOperation(StringArgument):
 class CalcRaw(BooleanArgument):
     name = 'calc_raw'
     can_be_none = True
+    url_slug_name = 'calc_raw'
     
     def message(self):
         if self.value:
@@ -218,6 +223,7 @@ class CalcRaw(BooleanArgument):
 class Aggregate(BooleanArgument):
     name = 'aggregate'
     can_be_none = False
+    url_slug_name = 'aggregate'
     
     def message(self):
         if self.value:
@@ -229,6 +235,7 @@ class Aggregate(BooleanArgument):
 class TimeRange(OcgParameter):
     name = 'time_range'
     can_be_none = True
+    url_slug_name = 'time'
     
     def validate(self):
         for ii in self.value:
@@ -241,12 +248,13 @@ class TimeRange(OcgParameter):
         if self.value is None:
             msg = 'Time selection range not provided. All time points returned.'
         else:
-            msg = 'Time selection range is: {0}. Selection is inclusive.'.format(self.value)
+            msg = 'Inclusive time selection range is: {0}.'.format([str(v) for v in self.value])
         return(msg)
         
 class Calc(OcgParameter):
     name = 'calc'
     can_be_none = True
+    url_slug_name = 'calc'
     
     def format(self,value):
         funcs_copy = copy(value)
@@ -276,11 +284,11 @@ class Calc(OcgParameter):
         else:
             msg = ''
             for ii in self.value:
-                msg += '{0} :: {1}\n'.format(ii['name'],ii['ref'].description)
+                msg += '+ {0} :: {1}\n'.format(ii['name'],ii['ref'].description)
                 if len(ii['kwds']) > 0:
-                    msg += ' Parameters:\n'
+                    msg += '   Parameters:\n'
                     for key,value in ii['kwds'].iteritems():
-                        msg += '  {0}={1}\n'.format(key,value)
+                        msg += '    {0}={1}\n'.format(key,value)
                 msg += '\n'
         return(msg)
             
@@ -288,6 +296,7 @@ class Calc(OcgParameter):
 class Geom(OcgParameter):
     name = 'geom'
     can_be_none = True
+    url_slug_name = '"uid" or "uri"'
     
     def format(self,value):
         if type(value) not in [list,tuple]:
@@ -334,7 +343,7 @@ class Meta(OcgParameter):
     def message(self):
         lines = []
         for ii in self.value:
-            lines.append('The variable "{0}" requested from dataset with URI "{1}".'.format(ii['variable'],ii['uri']))
+            lines.append('+ Variable "{0}" requested from dataset with URI "{1}".'.format(ii['variable'],ii['uri']))
         return('\n'.join(lines))
             
 ## collection of arguments that comprise an operational call to OCG

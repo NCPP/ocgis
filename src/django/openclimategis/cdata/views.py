@@ -220,6 +220,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     
     interp = Interpreter.get_interpreter(ops)
     ret = interp.execute()
+    import ipdb;ipdb.set_trace()
     print(ret)
     
 def display_inspect(request,uid=None):

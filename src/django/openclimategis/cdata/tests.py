@@ -17,8 +17,8 @@ class CdataTest(TestCase):
         
         variable = 'albisccp'
         
-        output = 'keyed'
-#        output = 'meta'
+#        output = 'keyed'
+        output = 'meta'
         
         time = '0020-1-1|0020-12-31'
 #        time = 'none'

@@ -18,10 +18,10 @@ class ShpCabinet(object):
     60
     >>> sc.get_headers(geom_dict)
     ['ID', 'HUC', 'HUCCODE', 'HUCNAME']
-    >>> path = '/tmp/foo.shp'
-    >>> sc.write(geom_dict,path)
-    '/tmp/foo.shp'
     '''
+#    >>> path = '/tmp/foo.shp'
+#    >>> sc.write(geom_dict,path)
+#    '/tmp/foo.shp'
 #    >>> it = sc.get_converter_iterator(geom_dict)
 #    >>> print(it.next())
 #    '''

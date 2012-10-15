@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from ocgis.api.interp.interpreter import Interpreter
 from ocgis.util.inspect import Inspect
 from util.slugs import *
+from util.zipper import Zipper
 
 
 def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
@@ -64,7 +65,11 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
             ops.update({key:value})
     
     interp = Interpreter.get_interpreter(ops)
-    ret = interp.execute()
+    path = interp.execute()
+    
+    zipper = Zipper(path)
+    zip_stream = zipper.get_zip_stream()
+    
     import ipdb;ipdb.set_trace()
     print(ret)
     

@@ -18,18 +18,18 @@ class CdataTest(TestCase):
         variable = 'albisccp'
         
 #        output = 'keyed'
-        output = 'meta'
+#        output = 'meta'
+        output = 'csv'
         
         time = '0020-1-1|0020-12-31'
 #        time = 'none'
         
 #        calc = ''
-#        calc = ('&calc=max~max|min~min|gt~gt_32c!threshold~32|'
-#                'between~btwn5_10!lower~5!upper~10')
-        calc = ('&calc='
-                'max_cons~max_cons_gte!threshold~15!operation~gte|'
-                'max_cons~max_cons_lt!threshold~15!operation~lt'
-                '&calc_grouping=month&calc_raw=false')
+        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')
+#        calc = ('&calc='
+#                'max_cons~max_cons_gte!threshold~15!operation~gte|'
+#                'max_cons~max_cons_lt!threshold~15!operation~lt'
+#                '&calc_grouping=month&calc_raw=false')
         
         url = ('/uid/none/variable/{variable}/level/none/time/{time}/'
                'space/{space}/operation/clip/aggregate/true/output/{output}'

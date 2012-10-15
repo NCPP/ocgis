@@ -5,19 +5,25 @@ import os
 
 class Zipper(object):
     '''
-    >>> base_dir = '/tmp/test_zip'
-    >>> zip = Zipper(base_dir)
+    >>> base_path = '/tmp/test_zip'
+    >>> zip = Zipperbase_pathth)
     >>> zip.get_zip_stream()
     '''
     
-    def __init__(self,base_dir):
-        self.base_dir = base_dir
+    def __init__(self,base_path):
+        self.base_path = base_path
     
     def get_zip_stream(self):
         buffer = io.BytesIO()
         zip = zipfile.ZipFile(buffer,'w',zipfile.ZIP_DEFLATED)
-        for item in os.listdir(self.base_dir):
-            filepath = os.path.join(self.base_dir,item)
+        try:
+            items = os.listdir(self.base_path)
+            path = self.base_path
+        except OSError:
+            path,items = os.path.split(self.base_path)
+            items = [items]
+        for item in items:
+            filepath = os.path.join(path,item)
             zip.write(filepath,arcname=item)
         zip.close()
         buffer.flush()

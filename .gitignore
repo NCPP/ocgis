@@ -1,0 +1,18 @@
+# Compiled source #
+###################
+*.pyc
+
+# Misc #
+########
+*.orig
+*~
+*.log
+*.nc
+*.project
+*.pydevproject
+
+# Django #
+############
+*settings.py
+*.sqlite
+*wsgi.py

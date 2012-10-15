@@ -26,7 +26,8 @@ class CdataTest(TestCase):
 #        calc = ''
 #        calc = ('&calc=max~max|min~min|gt~gt_32c!threshold~32|'
 #                'between~btwn5_10!lower~5!upper~10')
-        calc = ('&calc=max_cons~max_cons_gte!threshold~15!operation~gte|'
+        calc = ('&calc='
+                'max_cons~max_cons_gte!threshold~15!operation~gte|'
                 'max_cons~max_cons_lt!threshold~15!operation~lt'
                 '&calc_grouping=month&calc_raw=false')
         

@@ -70,8 +70,11 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     zipper = Zipper(path)
     zip_stream = zipper.get_zip_stream()
     
-    import ipdb;ipdb.set_trace()
-    print(ret)
+    resp = HttpResponse(zip_stream,mimetype='application/zip')
+    resp['Content-Disposition'] = 'attachment; filename=ocg.zip'
+    resp['Content-length'] = str(len(zip_stream))
+    
+    return(resp)
     
 def display_inspect(request,uid=None):
     ## parse the query string

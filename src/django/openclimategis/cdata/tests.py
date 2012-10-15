@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.test.client import Client
 import os.path
+import subprocess
 
 
 CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data'
@@ -17,9 +18,9 @@ class CdataTest(TestCase):
         
         variable = 'albisccp'
         
-#        output = 'keyed'
+        output = 'keyed'
 #        output = 'meta'
-        output = 'csv'
+#        output = 'csv'
         
         time = '0020-1-1|0020-12-31'
 #        time = 'none'
@@ -40,8 +41,14 @@ class CdataTest(TestCase):
                          calc=calc,
                          output=output,
                          time=time)
-        c = Client()
-        c.get(url)
+        
+        self.open_in_chrome(url)
+        
+#        c = Client()
+#        resp = c.get(url)
+        
+    def open_in_chrome(self,url):
+        subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])
         
     def test_display_inspect(self):
         uri = ALBISCCP

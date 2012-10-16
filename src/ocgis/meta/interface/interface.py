@@ -341,7 +341,7 @@ class GlobalInterface(object):
             self.spatial = SpatialInterfacePolygon(dataset)
         except ElementNotFound:
             self.spatial = SpatialInterfacePoint(dataset)
-        self.projection = get_projection(dataset)
+        self._projection = get_projection(dataset)
         ## necessary to rebuild after pickling
         self._projection_class = copy(self.projection.__class__)
         self.temporal = TemporalInterface(dataset)
@@ -356,14 +356,20 @@ class GlobalInterface(object):
             self.level.levelidx = np.array([0])
             self._has_level = False
             self.level.lid = np.array([1])
+            
+    @property
+    def projection(self):
+        if self._projection is None:
+            self._projection = self._projection_class._build_()
+        return(self._projection)
     
     def __getstate__(self):
         '''SpatialReference objects are Swig objects and must handled correctly
         for the pickler.'''
         
-        self.__dict__['projection'] = None
+        self.__dict__['_projection'] = None
         return(self.__dict__)
     
     def __setstate__(self,dct):
         self.__dict__.update(dct)
-        self.__dict__['projection'] = self._projection_class._build_()
+        self.__dict__['_projection'] = self._projection_class._build_()

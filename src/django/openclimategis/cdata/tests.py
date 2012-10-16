@@ -11,9 +11,9 @@ class CdataTest(TestCase):
     c = Client()
     
     def test_get_data(self):
-#        space = '-123.4|45.6|-122.2|48.7'
+        space = '-123.4|45.6|-122.2|48.7'
 #        space = 'mi_watersheds'
-        space = 'co_watersheds'
+#        space = 'co_watersheds'
         
 #        uri = 'http://an.opendap.dataset'
         uri = ALBISCCP

@@ -14,15 +14,17 @@ class OcgConverter(object):
     wd="/tmp" :: str :: Working directory for data outputs. Outputs are nested
         in temporary folders creating in this directory.
     use_dir=None :: str :: If provided, forces outputs into this directory.
+    alt_it :: iterator :: Yields same as so iterator. Used for caching.
     '''
     _ext = None
     
-    def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None):
+    def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None,alt_it=None):
         self.so = so
         self.base_name = base_name
         self.wd = wd
         self.use_dir = use_dir
         self.mode = mode
+        self.alt_it = alt_it
         
         ## reference to calculation engine for convenience
         self.cengine = self.so.cengine
@@ -91,9 +93,18 @@ class OcgConverter(object):
         OcgCollection
         dict'''
         
-        for coll,geom_dict in self.so:
+        if self.alt_it is not None:
+            it = self.alt_it()
+        else:
+            it = self.so
+        
+        for coll,geom_dict in it:
             #tdk
-            print('geom id processed: {0}'.format(geom_dict['id']))
+            try:
+                print('geom id processed: {0}'.format(geom_dict['id']))
+            except TypeError:
+                pass
+            #tdk
             yield(coll,geom_dict)
             
     def get_headers(self,upper=False):

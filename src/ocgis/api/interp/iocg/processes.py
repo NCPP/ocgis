@@ -16,18 +16,13 @@ class SubsetOperation(object):
     serial=True :: bool :: Set to False to run in parallel.
     nprocs=1 :: int :: Number of processes to use when executing parallel
         operations.
-    cache=True :: bool :: When True, once data has been retrieved it will be
-        cached for access by future operations. Useful when doing multiple
-        conversions.
     '''
     
-    def __init__(self,desc,serial=True,nprocs=1,cache=True):
+    def __init__(self,desc,serial=True,nprocs=1):
         self.desc = desc
         self.serial = serial
         self.nprocs = nprocs
-        self.cache = cache
         
-        self._cache = [] # will hold cached data.
         ## update meta entries with OcgDataset objects checking for
         ## duplicate URIs. if the URI is the same, there is not reason to build
         ## the interface objects again.
@@ -61,30 +56,23 @@ class SubsetOperation(object):
         
         OcgCollection'''
         
-        ## iterate cache if filled
-        if len(self._cache) > 0:
-            for ii in self._cache:
-                yield(ii)
+        ## simple iterator for serial operations
+        if self.serial:
+            it = itertools.imap(get_collection,self._iter_proc_args_())
+        ## use a multiprocessing pool returning unordered geometries
+        ## for the parallel case
         else:
-            ## simple iterator for serial operations
-            if self.serial:
-                it = itertools.imap(get_collection,self._iter_proc_args_())
-            ## use a multiprocessing pool returning unordered geometries
-            ## for the parallel case
-            else:
-                pool = Pool(processes=self.nprocs)
-                it = pool.imap_unordered(get_collection,
-                                         self._iter_proc_args_())
-            ## the iterator return from the Pool requires calling its 'next'
-            ## method and catching the StopIteration exception
-            while True:
-                try:
-                    yld = it.next()
-                    if self.cache:
-                        self._cache.append(yld)
-                    yield(yld)
-                except StopIteration:
-                    break
+            pool = Pool(processes=self.nprocs)
+            it = pool.imap_unordered(get_collection,
+                                     self._iter_proc_args_())
+        ## the iterator return from the Pool requires calling its 'next'
+        ## method and catching the StopIteration exception
+        while True:
+            try:
+                yld = it.next()
+                yield(yld)
+            except StopIteration:
+                break
         
     def _iter_proc_args_(self):
         '''Generate arguments for the extraction function.

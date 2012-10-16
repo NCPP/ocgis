@@ -71,4 +71,5 @@ class CdataTest(TestCase):
         variable = 'albisccp'
         url = '/snippet/uid/{uid}/variable/{variable}?uri={uri}'\
               .format(uri=uri,uid=uid,variable=variable)
-        self.c.get(url)
+#        self.c.get(url)
+        self.open_in_chrome(url)

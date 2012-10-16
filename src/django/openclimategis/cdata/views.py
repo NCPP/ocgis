@@ -77,9 +77,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     if output.value == 'meta':
         resp = HttpResponse(ret,content_type="text/plain")
     else:
-        zipper = Zipper(ret)
-        zip_stream = zipper.get_zip_stream()
-        resp = _zip_response_(zip_stream)
+        resp = _zip_response_(ret)
     
     return(resp)
 
@@ -106,9 +104,8 @@ def get_shp(request,key=None):
     dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
     path = os.path.join(dir_path,'{0}.shp'.format(key))
     path = sc.write(geom_dict,path)
-    zipper = Zipper(os.path.split(path)[0])
-    zip_stream = zipper.get_zip_stream()
-    resp = _zip_response_(zip_stream)
+    path = os.path.split(path)[0]
+    resp = _zip_response_(path)
     return(resp)
 
 def get_snippet(request,uid=None,variable=None):
@@ -119,16 +116,17 @@ def get_snippet(request,uid=None,variable=None):
     ops = {
      'meta':[{'uri':uri.value[0],'variable':variable.value[0]}],
      'level_range':1,
-     'output_format':'numpy',
+     'output_format':'shp',
      'request_snippet':True,
      'aggregate':False,
            }
     
     ret = _get_interpreter_return_(ops)
+    resp = _zip_response_(os.path.split(ret)[0])
+    return(resp)
     
-    import ipdb;ipdb.set_trace()
-    
-def _zip_response_(zip_stream,filename=None):
+def _zip_response_(path,filename=None):
+    zip_stream = Zipper(path).get_zip_stream()
     if filename is None:
         dt = str(datetime.datetime.utcnow())
         dt = dt.replace('-','')

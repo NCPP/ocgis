@@ -8,6 +8,7 @@ CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_
 ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
 
 class CdataTest(TestCase):
+    c = Client()
     
     def test_get_data(self):
 #        space = '-123.4|45.6|-122.2|48.7'
@@ -44,8 +45,7 @@ class CdataTest(TestCase):
         
         self.open_in_chrome(url)
         
-#        c = Client()
-#        resp = c.get(url)
+#        resp = self.c.get(url)
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])
@@ -55,5 +55,9 @@ class CdataTest(TestCase):
         
         url = '/inspect/uid/none?uri={uri}'.format(uri=uri)
         
-        c = Client()
-        resp = c.get(url)
+        resp = self.c.get(url)
+        
+    def test_get_shp(self):
+        url = '/shp/co_watersheds'
+        self.open_in_chrome(url)
+#        resp = self.c.get(url)

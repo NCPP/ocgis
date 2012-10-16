@@ -5,6 +5,9 @@ from ocgis.api.interp.interpreter import Interpreter
 from ocgis.util.inspect import Inspect
 from util.slugs import *
 from util.zipper import Zipper
+from ocgis.util.helpers import get_temp_path
+from ocgis import env
+import os.path
 
 
 def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
@@ -70,9 +73,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     zipper = Zipper(path)
     zip_stream = zipper.get_zip_stream()
     
-    resp = HttpResponse(zip_stream,mimetype='application/zip')
-    resp['Content-Disposition'] = 'attachment; filename=ocg.zip'
-    resp['Content-length'] = str(len(zip_stream))
+    resp = _zip_response_(zip_stream)
     
     return(resp)
     
@@ -84,3 +85,27 @@ def display_inspect(request,uid=None):
     report = io.__repr__()
     response = HttpResponse(report,content_type="text/plain")
     return(response)
+
+def get_shp(request,key=None):
+    sc = ShpCabinet()
+    geom_dict = sc.get_geom_dict(key)
+    dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
+    path = os.path.join(dir_path,'{0}.shp'.format(key))
+    path = sc.write(geom_dict,path)
+    zipper = Zipper(os.path.split(path)[0])
+    zip_stream = zipper.get_zip_stream()
+    resp = _zip_response_(zip_stream)
+    return(resp)
+    
+def _zip_response_(zip_stream,filename=None):
+    if filename is None:
+        dt = str(datetime.datetime.utcnow())
+        dt = dt.replace('-','')
+        dt = dt.replace(' ','_')
+        dt = dt.split('.')[0]
+        dt = dt.replace(':','')
+        filename = 'ocg_{0}.zip'.format(dt)
+    resp = HttpResponse(zip_stream,mimetype='application/zip')
+    resp['Content-Disposition'] = 'attachment; filename={0}'.format(filename)
+    resp['Content-length'] = str(len(zip_stream))
+    return(resp)

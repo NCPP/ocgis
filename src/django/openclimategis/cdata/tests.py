@@ -27,11 +27,11 @@ class CdataTest(TestCase):
 #        time = 'none'
         
 #        calc = ''
-        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')
-#        calc = ('&calc='
-#                'max_cons~max_cons_gte!threshold~15!operation~gte|'
-#                'max_cons~max_cons_lt!threshold~15!operation~lt'
-#                '&calc_grouping=month&calc_raw=false')
+#        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')
+        calc = ('&calc='
+                'max_cons~max_cons_gte!threshold~15!operation~gte|'
+                'max_cons~max_cons_lt!threshold~15!operation~lt'
+                '&calc_grouping=month&calc_raw=false')
         
         url = ('/uid/none/variable/{variable}/level/none/time/{time}/'
                'space/{space}/operation/clip/aggregate/true/output/{output}'
@@ -43,9 +43,9 @@ class CdataTest(TestCase):
                          output=output,
                          time=time)
         
-#        self.open_in_chrome(url)
-        resp = self.c.get(url)
-        print resp.content
+        self.open_in_chrome(url)
+#        resp = self.c.get(url)
+#        print resp.content
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

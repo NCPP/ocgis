@@ -22,7 +22,9 @@ class OcgInterpreter(Interpreter):
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
         if self.desc['output_format'] == 'meta':
-            ret = MetaConverter(self.desc).write()
+            ## attempt to pull the request url
+            request_url = self.desc.get('request_url')
+            ret = MetaConverter(self.desc,request_url=request_url).write()
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations

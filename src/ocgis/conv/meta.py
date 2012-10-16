@@ -23,22 +23,22 @@ HEADERS = {
 
 class MetaConverter(object):
     
-    def __init__(self,desc,uri=None):
+    def __init__(self,desc,request_url=None):
         self.desc = desc
-        self.uri = uri
+        self.request_url = request_url
         
     def write(self):
         from ocgis.api.interp.definition import DEF_ARGS
         
         lines = ['== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)]
         lines.append('')
-        if self.uri is not None:
+        if self.request_url is not None:
             lines.append('Requested URL:')
-            lines.append(self.uri)
+            lines.append(self.request_url)
             lines.append('')
         lines.append('++++ Parameter and Slug Definitions ++++')
         lines.append('')
-        lines.append('Contains parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).')
+        lines.append('Parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).')
         lines.append('')
         
         for Da in DEF_ARGS:

@@ -284,13 +284,13 @@ class Calc(OcgParameter):
         else:
             msg = ''
             for ii in self.value:
-                msg += '+ {0} :: {1}\n'.format(ii['name'],ii['ref'].description)
+                msg += '* {0} :: {1}\n'.format(ii['name'],ii['ref'].description)
                 if len(ii['kwds']) > 0:
-                    msg += '   Parameters:\n'
+                    msg += '** Parameters:\n'
                     for key,value in ii['kwds'].iteritems():
-                        msg += '    {0}={1}\n'.format(key,value)
+                        msg += '*** {0}={1}\n'.format(key,value)
                 msg += '\n'
-        return(msg)
+        return(msg[:-2])
             
             
 class Geom(OcgParameter):
@@ -343,7 +343,7 @@ class Meta(OcgParameter):
     def message(self):
         lines = []
         for ii in self.value:
-            lines.append('+ Variable "{0}" requested from dataset with URI "{1}".'.format(ii['variable'],ii['uri']))
+            lines.append('* Variable "{0}" requested from dataset with URI "{1}".'.format(ii['variable'],ii['uri']))
         return('\n'.join(lines))
             
 ## collection of arguments that comprise an operational call to OCG

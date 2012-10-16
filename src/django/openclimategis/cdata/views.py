@@ -66,6 +66,9 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
             ops.update({key:value.value})
         except AttributeError:
             ops.update({key:value})
+            
+    ## add request url for the meta handler
+    ops['request_url'] = request.build_absolute_uri()
     
     interp = Interpreter.get_interpreter(ops)
     ret = interp.execute()

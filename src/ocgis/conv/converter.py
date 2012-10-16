@@ -92,6 +92,8 @@ class OcgConverter(object):
         dict'''
         
         for coll,geom_dict in self.so:
+            #tdk
+            print('geom id processed: {0}'.format(geom_dict['id']))
             yield(coll,geom_dict)
             
     def get_headers(self,upper=False):

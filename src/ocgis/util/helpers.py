@@ -6,7 +6,7 @@ import os
 import tempfile
 import warnings
 from osgeo import ogr, osr
-from shapely import wkt
+from shapely import wkt, wkb
 from numpy.ma.core import MaskedArray
 
 
@@ -271,7 +271,9 @@ class ShpIterator(object):
                 ## get the geometry
                 wkt_str = feat.GetGeometryRef().ExportToWkt()
                 if to_shapely:
+                    ## additional load to clean geometries
                     geom_data = wkt.loads(wkt_str)
+                    geom_data = wkb.loads(geom_data.wkb)
                 else:
                     geom_data = wkt_str
                 attrs.update({geom:geom_data})

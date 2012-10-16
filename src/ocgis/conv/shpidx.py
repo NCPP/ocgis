@@ -5,7 +5,7 @@ from ocgis.conv.shp import ShpConverter
 class ShpIdxConverter(ShpConverter):
     
     def get_headers(self,upper=None):
-        return(['GID'])
+        return(['UGID'])
     
     def get_iter(self,coll):
         for gidx,gid in iter_array(coll.gid,return_value=True):

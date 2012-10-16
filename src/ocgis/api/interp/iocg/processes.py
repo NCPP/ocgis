@@ -5,6 +5,7 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.meta.interface.interface import SpatialInterfacePolygon
 from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
+import copy
 
 
 class SubsetOperation(object):
@@ -106,10 +107,12 @@ class SubsetOperation(object):
 #                meta['ocg_dataset'].i.projection = projection
         
 #        try:
+        ## copy for the iterator to avoid pickling the cache
+        so_copy = copy.copy(self)
         for geom_dict in self.desc['geom']:
 #            projection = _remove_projection_()
 #            try:
-            yield(self,geom_dict)
+            yield(so_copy,geom_dict)
 #            finally:
 #                _add_projection_(projection)
 #        except TypeError:

@@ -48,7 +48,7 @@ class ShpCabinet(object):
         return(geom_dict)
     
     def get_headers(self,geom_dict):
-        ret = ['id']
+        ret = ['ugid']
         keys = geom_dict[0].keys()
         keys.remove('id')
         keys.remove('geom')
@@ -62,6 +62,7 @@ class ShpCabinet(object):
             geom = dct.pop('geom')
             if not isinstance(geom,MultiPolygon):
                 geom = MultiPolygon([geom])
+            dct['ugid'] = dct.pop('id')
             yield(dct,geom)
             
     def write(self,geom_dict,path):

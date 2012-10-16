@@ -59,5 +59,5 @@ class CdataTest(TestCase):
         
     def test_get_shp(self):
         url = '/shp/co_watersheds'
-        self.open_in_chrome(url)
-#        resp = self.c.get(url)
+#        self.open_in_chrome(url)
+        resp = self.c.get(url)

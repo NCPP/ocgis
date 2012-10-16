@@ -34,6 +34,13 @@ class SubsetOperation(object):
                 ods = OcgDataset(meta['uri'])
                 uri_map.update({meta['uri']:ods})
             meta.update({'ocg_dataset':ods})
+            
+        ## check for snippet request in the operations dictionary. if there is
+        ## on, the time range should be set in the operations dictionary.
+        request_snippet = self.desc.get('request_snippet')
+        if request_snippet is True:
+            ref = self.desc['meta'][0]['ocg_dataset'].i.temporal.time.value
+            self.desc['time_range'] = [ref[0],ref[0]]
         ## create the calculation engine
         if self.desc['calc'] is None:
             self.cengine = None

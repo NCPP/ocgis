@@ -8,6 +8,8 @@ from util.zipper import Zipper
 from ocgis.util.helpers import get_temp_path
 from ocgis import env
 import os.path
+from ocgis.exc import InterpreterNotRecognized
+from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
 
 
 def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
@@ -70,8 +72,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     ## add request url for the meta handler
     ops['request_url'] = request.build_absolute_uri()
     
-    interp = Interpreter.get_interpreter(ops)
-    ret = interp.execute()
+    ret = _get_interpreter_return_(ops)
     
     if output.value == 'meta':
         resp = HttpResponse(ret,content_type="text/plain")
@@ -81,6 +82,14 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
         resp = _zip_response_(zip_stream)
     
     return(resp)
+
+def _get_interpreter_return_(ops):
+    try:
+        interp = Interpreter.get_interpreter(ops)
+    except InterpreterNotRecognized:
+        interp = OcgInterpreter(ops)
+    ret = interp.execute()
+    return(ret)
     
 def display_inspect(request,uid=None):
     ## parse the query string
@@ -101,6 +110,23 @@ def get_shp(request,key=None):
     zip_stream = zipper.get_zip_stream()
     resp = _zip_response_(zip_stream)
     return(resp)
+
+def get_snippet(request,uid=None,variable=None):
+    query = _get_query_dict_(request)
+    uri = UidSlug(uid,query)
+    variable = Slug(variable)
+    
+    ops = {
+     'meta':[{'uri':uri.value[0],'variable':variable.value[0]}],
+     'level_range':1,
+     'output_format':'numpy',
+     'request_snippet':True,
+     'aggregate':False,
+           }
+    
+    ret = _get_interpreter_return_(ops)
+    
+    import ipdb;ipdb.set_trace()
     
 def _zip_response_(zip_stream,filename=None):
     if filename is None:
@@ -114,3 +140,7 @@ def _zip_response_(zip_stream,filename=None):
     resp['Content-Disposition'] = 'attachment; filename={0}'.format(filename)
     resp['Content-length'] = str(len(zip_stream))
     return(resp)
+
+def _get_query_dict_(request):
+    query = parse_qs(request.META['QUERY_STRING'])
+    return(query)

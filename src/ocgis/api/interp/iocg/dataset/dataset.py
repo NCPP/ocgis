@@ -137,7 +137,7 @@ class OcgDataset(object):
             self.subset(var_name,
                         polygon=polygon,
                         time_range=[self.i.temporal.time.value[0],
-                                    self.i.temporal.time.value[1]])
+                                    self.i.temporal.time.value[0]])
             ret = True
         except MaskedDataError:
             ret = False
@@ -252,7 +252,10 @@ class OcgDataset(object):
                 levelidx = sub_range(level_range)
         else:
             if level_range is not None:
-                raise ValueError('Target variable has no levels.')
+                if len(level_range) == 1 and level_range[0] == 1:
+                    level_range = None
+                else:
+                    raise ValueError('Target variable has no levels.')
             
         ## extract the data
         var = self.dataset.variables[var_name]

@@ -11,6 +11,7 @@ urlpatterns = patterns('',
         'cdata.views.get_data'),
     url(r'^inspect/uid/(?P<uid>.*)$','cdata.views.display_inspect'),
     url(r'^shp/(?P<key>.*)$','cdata.views.get_shp'),
+    url(r'^snippet/uid/(?P<uid>.*)/variable/(?P<variable>.*)$','cdata.views.get_snippet'),
     # Examples:
     # url(r'^$', 'ocgis.views.home', name='home'),
     # url(r'^ocgis/', include('ocgis.foo.urls')),

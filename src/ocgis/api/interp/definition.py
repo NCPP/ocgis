@@ -92,7 +92,7 @@ class StringListArgument(StringArgument):
 
 class Backend(StringArgument):
     _possible = ['ocg']
-    can_be_none = False
+    can_be_none = True
     name = 'backend'
     
     def message(self):
@@ -197,7 +197,7 @@ class OutputFormat(StringArgument):
 class SpatialOperation(StringArgument):
     _possible = ['intersects','clip']
     name = 'spatial_operation'
-    can_be_none = False
+    can_be_none = True
     url_slug_name = 'operation'
     
     def message(self):
@@ -206,6 +206,9 @@ class SpatialOperation(StringArgument):
         if self.value == 'clip':
             msg = 'The "clip" operation is a full geometric intersection of the selection and target geometries.'
         return(msg)
+    
+    def _none_format_(self):
+        return('intersects')
     
 class CalcRaw(BooleanArgument):
     name = 'calc_raw'
@@ -222,7 +225,7 @@ class CalcRaw(BooleanArgument):
     
 class Aggregate(BooleanArgument):
     name = 'aggregate'
-    can_be_none = False
+    can_be_none = True
     url_slug_name = 'aggregate'
     
     def message(self):
@@ -231,6 +234,9 @@ class Aggregate(BooleanArgument):
         else:
             msg = 'Selected geometries are not aggregated (unioned).'
         return(msg)
+    
+    def _none_format_(self):
+        return(True)
     
 class TimeRange(OcgParameter):
     name = 'time_range'
@@ -355,6 +361,7 @@ def validate_update_definition(desc):
     for Da in DEF_ARGS:
         obj = Da(desc.get(Da.name))
         desc.update({Da.name:obj.value})
+    desc['output_grouping'] = None
         
 ## determine the iterator mode for the converters
 def identify_iterator_mode(desc):

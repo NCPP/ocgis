@@ -64,3 +64,11 @@ class CdataTest(TestCase):
         url = '/shp/co_watersheds'
 #        self.open_in_chrome(url)
         resp = self.c.get(url)
+        
+    def test_get_snippet(self):
+        uri = ALBISCCP
+        uid = 'none'
+        variable = 'albisccp'
+        url = '/snippet/uid/{uid}/variable/{variable}?uri={uri}'\
+              .format(uri=uri,uid=uid,variable=variable)
+        self.c.get(url)

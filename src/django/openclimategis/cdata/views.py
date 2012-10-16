@@ -68,12 +68,14 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
             ops.update({key:value})
     
     interp = Interpreter.get_interpreter(ops)
-    path = interp.execute()
+    ret = interp.execute()
     
-    zipper = Zipper(path)
-    zip_stream = zipper.get_zip_stream()
-    
-    resp = _zip_response_(zip_stream)
+    if output.value == 'meta':
+        resp = HttpResponse(ret,content_type="text/plain")
+    else:
+        zipper = Zipper(ret)
+        zip_stream = zipper.get_zip_stream()
+        resp = _zip_response_(zip_stream)
     
     return(resp)
     

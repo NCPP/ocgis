@@ -19,8 +19,8 @@ class CdataTest(TestCase):
         
         variable = 'albisccp'
         
-        output = 'keyed'
-#        output = 'meta'
+#        output = 'keyed'
+        output = 'meta'
 #        output = 'csv'
         
         time = '0020-1-1|0020-12-31'
@@ -43,9 +43,9 @@ class CdataTest(TestCase):
                          output=output,
                          time=time)
         
-        self.open_in_chrome(url)
-        
-#        resp = self.c.get(url)
+#        self.open_in_chrome(url)
+        resp = self.c.get(url)
+        print resp.content
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

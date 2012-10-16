@@ -23,33 +23,40 @@ HEADERS = {
 
 class MetaConverter(object):
     
-    def __init__(self,desc):
+    def __init__(self,desc,uri=None):
         self.desc = desc
+        self.uri = uri
         
     def write(self):
         from ocgis.api.interp.definition import DEF_ARGS
         
-        print '== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)
-        print ''
-        print '++++ Parameter and Slug Definitions ++++'
-        print ''
-        print 'Contains parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).'
-        print ''
+        lines = ['== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)]
+        lines.append('')
+        if self.uri is not None:
+            lines.append('Requested URL:')
+            lines.append(self.uri)
+            lines.append('')
+        lines.append('++++ Parameter and Slug Definitions ++++')
+        lines.append('')
+        lines.append('Contains parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).')
+        lines.append('')
+        
         for Da in DEF_ARGS:
             obj = Da(self.desc.get(Da.name))
             msg = "{0}, URL slug name '{1}'".format(obj.name,obj.url_slug_name)
             divider = ''.join(['=' for ii in range(len(msg))])
-            print divider
-            print msg
-            print divider
-            print ''
-            print obj.message()
-            print ''
+            lines.append(divider)
+            lines.append(msg)
+            lines.append(divider)
+            lines.append('')
+            lines.append(obj.message())
+            lines.append('')
         
-        print '++++ Potential Header Names and Definitions ++++'
-        print ''
+        lines.append('++++ Potential Header Names and Definitions ++++')
+        lines.append('')
         sh = sorted(HEADERS)
         for key in sh:
             msg = '{0} :: {1}'.format(key.upper(),HEADERS[key])
-            print msg
-        import ipdb;ipdb.set_trace()
+            lines.append(msg)
+        ret = '\n'.join(lines)
+        return(ret)

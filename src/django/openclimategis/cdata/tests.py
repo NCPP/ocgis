@@ -73,3 +73,11 @@ class CdataTest(TestCase):
               .format(uri=uri,uid=uid,variable=variable)
 #        self.c.get(url)
         self.open_in_chrome(url)
+        
+    def test_multi_url(self):
+        url = ('/uid/none/variable/tas/level/none/time/none/space/co_watersheds'
+               '/operation/clip/aggregate/true/output/keyed?uri=/usr/local'
+               '/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101'
+               '-20101231.nc|/usr/local/climate_data/CanCM4/tas_day_CanCM4_deca'
+               'dal2010_r2i1p1_20110101-20201231.nc')
+        resp = self.c.get(url)

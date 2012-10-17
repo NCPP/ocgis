@@ -28,13 +28,14 @@ class SubsetOperation(object):
         ## the interface objects again.
         uri_map = {}
         for meta in self.desc['meta']:
-            if meta['uri'] in uri_map:
-                ods = uri_map[meta['uri']]
+            key = '+++'.join(meta['uri'])
+            if key in uri_map:
+                ods = uri_map[key]
             else:
                 ods = OcgDataset(meta['uri'])
-                uri_map.update({meta['uri']:ods})
+                uri_map.update({key:ods})
             meta.update({'ocg_dataset':ods})
-            
+
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
         request_snippet = self.desc.get('request_snippet')

@@ -118,7 +118,11 @@ class OcgDataset(object):
 #            pass
     
     def connect(self,uri):
-        return(nc.Dataset(uri,'r'))
+        try:
+            ret = nc.Dataset(uri,'r')
+        except TypeError:
+            ret = nc.MFDataset(uri)
+        return(ret)
         
 #    def extent(self):
 #        minx = self.i.spatial.min_col.min()

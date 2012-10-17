@@ -44,6 +44,11 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
         for u in uid:
             for v in variable:
                 meta.append({'uri':u,'variable':v})
+    elif len(variable.value) < len(uid.value):
+        if len(variable.value) > 1:
+            raise(NotImplementedError)
+        else:
+            meta.append({'uri':uid.value,'variable':variable.value[0]})
     else:
         for u,v in zip(uid,variable):
             meta.append({'uri':u,'variable':v})

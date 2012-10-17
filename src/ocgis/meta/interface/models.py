@@ -97,5 +97,5 @@ class Time(VariableElement):
 
 
 class Level(VariableElement):
-    _names = ['level','lvl','levels','lvls']
+    _names = ['level','lvl','levels','lvls','lev']
     _ocg_name = 'level'

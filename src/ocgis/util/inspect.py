@@ -62,8 +62,9 @@ class Inspect(object):
         if isinstance(self._l,DummyLevelInterface):
             lines = ['No level dimension found.']
         else:
-            raise(NotImplementedError)
-
+            lines = []
+            lines.append('Level Variable = {0}'.format(self._l.level.name))
+            lines.append('         Count = {0}'.format(self._l.level.value.shape[0]))
         return(lines)
     
     def get_dump_report(self):

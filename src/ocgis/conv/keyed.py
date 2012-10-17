@@ -44,7 +44,6 @@ class KeyedConverter(OcgConverter):
                     writer = csv.writer(f,dialect=OcgDialect)
                     writer.writerow(value['headers'])
                     files.update({key:{'w':writer,'f':f}})
-                build = False
             ## write the data
             for key,value in its.iteritems():
                 if not build:
@@ -53,6 +52,7 @@ class KeyedConverter(OcgConverter):
                 writer = files[key]['w']
                 for row in value['it']():
                     writer.writerow(row)
+            build = False
         ## close file objects
         for value in files.itervalues():
             value['f'].close()

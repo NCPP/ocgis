@@ -58,6 +58,17 @@ class Min(OcgFunction):
         return(np.min(values,axis=axis))
     
     
+class StandardDeviation(OcgFunction):
+    description = 'Standard deviation for the series.'
+    Group = groups.BasicStatistics
+    dtype = float
+    name = 'std'
+    
+    @staticmethod
+    def _calculate_(values,axis):
+        return(np.std(values,axis=axis))
+    
+    
 class MaxConsecutive(OcgArgFunction):
     name = 'max_cons'
     nargs = 2

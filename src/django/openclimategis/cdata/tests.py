@@ -61,7 +61,8 @@ class CdataTest(TestCase):
         resp = self.c.get(url)
         
     def test_get_shp(self):
-        url = '/shp/co_watersheds'
+#        url = '/shp/co_watersheds'
+        url = '/shp/state_boundaries'
 #        self.open_in_chrome(url)
         resp = self.c.get(url)
         
@@ -71,8 +72,8 @@ class CdataTest(TestCase):
         variable = 'albisccp'
         url = '/snippet/uid/{uid}/variable/{variable}?uri={uri}'\
               .format(uri=uri,uid=uid,variable=variable)
-#        self.c.get(url)
-        self.open_in_chrome(url)
+        self.c.get(url)
+#        self.open_in_chrome(url)
         
     def test_multi_url(self):
         url = ('/uid/none/variable/tas/level/none/time/none/space/co_watersheds'
@@ -80,4 +81,16 @@ class CdataTest(TestCase):
                '/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101'
                '-20101231.nc|/usr/local/climate_data/CanCM4/tas_day_CanCM4_deca'
                'dal2010_r2i1p1_20110101-20201231.nc')
+        resp = self.c.get(url)
+        
+    def test_multi_calc_url(self):
+        url = ('/uid/none/variable/tas/level/none/time/none/space/co_watersheds'
+               '/operation/clip/aggregate/true/output/keyed?uri=/usr/local'
+               '/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-'
+               '20101231.nc|/usr/local/climate_data/CanCM4/tas_day_CanCM4_decada'
+               'l2010_r2i1p1_20110101-20201231.nc&calc=max_cons~max_cons_gte'
+               '!threshold~299.817!operation~gte|max_cons~max_cons_lt'
+               '!threshold~273.15!operation~lt|mean~mean_temp|std~std_temp'
+               '|min~min_temp|max~max_temp'
+               '&calc_grouping=month|year&calc_raw=false')
         resp = self.c.get(url)

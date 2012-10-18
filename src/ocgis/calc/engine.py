@@ -132,7 +132,6 @@ class OcgCalculationEngine(object):
             ## for multivariate calculations, the structure is different and
             ## functions are not applied to individual variables.
             if self.has_multi:
-                import ipdb;ipdb.set_trace()
                 archetype = coll.variables.keys()[0]
                 ref = f['ref'](agg=self.agg,
                                raw=self.raw,
@@ -152,11 +151,17 @@ class OcgCalculationEngine(object):
                         ## data arrays before passing to function.
                         kwds = f['kwds'].copy()
                         for key in ref.keys:
-                            dref = coll._get_value_(key)
+                            ## the name of the variable passed in the request
+                            ## that should be mapped to the named argument
+                            backref = kwds[key]
+                            ## pull associated data
+                            dref = coll._get_value_(backref)
+                            ## subset by date group
                             data = dref[grp,:,:,:]
+                            ## update dict with properly reference data
                             kwds.update({key:data})
                         calc[grp_idx,:,:,:] = ref.calculate(
-                                                shapes[key]['out_shape'],**kwds)
+                                                shapes[backref]['out_shape'],**kwds)
                 coll.calc_multi[f['name']] = calc
             else:
                 for var_name,value in coll._iter_items_():

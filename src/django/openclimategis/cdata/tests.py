@@ -8,6 +8,7 @@ CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_
 ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
 
 class CdataTest(TestCase):
+    fixtures = ['cdata.json']
     c = Client()
     
     def test_get_data(self):
@@ -67,20 +68,19 @@ class CdataTest(TestCase):
         resp = self.c.get(url)
         
     def test_get_snippet(self):
-        uri = ALBISCCP
-        uid = 'none'
-        variable = 'albisccp'
-        url = '/snippet/uid/{uid}/variable/{variable}?uri={uri}'\
+#        uri = ALBISCCP
+#        uid = 'none'
+        uri = ''
+        uid = 3
+        variable = 'tas'
+        url = '/snippet/uid/{uid}/variable/{variable}{uri}'\
               .format(uri=uri,uid=uid,variable=variable)
-        self.c.get(url)
-#        self.open_in_chrome(url)
+#        self.c.get(url)
+        self.open_in_chrome(url)
         
     def test_multi_url(self):
-        url = ('/uid/none/variable/tas/level/none/time/none/space/co_watersheds'
-               '/operation/clip/aggregate/true/output/keyed?uri=/usr/local'
-               '/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101'
-               '-20101231.nc|/usr/local/climate_data/CanCM4/tas_day_CanCM4_deca'
-               'dal2010_r2i1p1_20110101-20201231.nc')
+        url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/state_boundaries'
+               '/operation/clip/aggregate/true/output/keyed')
         resp = self.c.get(url)
         
     def test_multi_calc_url(self):

@@ -1,6 +1,7 @@
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
 import datetime
+from cdata.models import Address
 
 
 class Slug(object):
@@ -54,9 +55,10 @@ class UidSlug(Slug):
     def format(self,value):
         if value.lower() == 'none':
             value = self.query['uri'][0]
+            value = value.split('|')
         else:
-            raise(NotImplementedError)
-        value = value.split('|')
+            value = value.split('|')
+            value = [Address.objects.get(pk=int(v)).uri for v in value]
         if self.scalar:
             value = value[0]
         return(value)

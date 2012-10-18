@@ -52,7 +52,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     else:
         for u,v in zip(uid,variable):
             meta.append({'uri':u,'variable':v})
-    
+
     ops = OrderedDict(
      meta=meta,
      time_range=time,

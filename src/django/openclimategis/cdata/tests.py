@@ -84,13 +84,13 @@ class CdataTest(TestCase):
         resp = self.c.get(url)
         
     def test_multi_calc_url(self):
-        url = ('/uid/none/variable/tas/level/none/time/none/space/co_watersheds'
-               '/operation/clip/aggregate/true/output/keyed?uri=/usr/local'
-               '/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-'
-               '20101231.nc|/usr/local/climate_data/CanCM4/tas_day_CanCM4_decada'
-               'l2010_r2i1p1_20110101-20201231.nc&calc=max_cons~max_cons_gte'
-               '!threshold~299.817!operation~gte|max_cons~max_cons_lt'
-               '!threshold~273.15!operation~lt|mean~mean_temp|std~std_temp'
-               '|min~min_temp|max~max_temp'
+        url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/co_watersheds'
+               '/operation/clip/aggregate/true/output/csv'
+               '?calc=max_cons~max_cons_gte!threshold~305.372!operation~gte'
+               '|max_cons~max_cons_lt!threshold~273.15!operation~lte'
+               '|mean~mean_temp'
+               '|std~std_temp'
+               '|min~min_temp'
+               '|max~max_temp'
                '&calc_grouping=month|year&calc_raw=false')
         resp = self.c.get(url)

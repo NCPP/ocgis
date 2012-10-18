@@ -85,7 +85,7 @@ class CdataTest(TestCase):
         
     def test_multi_calc_url(self):
         url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/co_watersheds'
-               '/operation/clip/aggregate/true/output/csv'
+               '/operation/clip/aggregate/true/output/meta'
                '?calc=max_cons~max_cons_gte!threshold~305.372!operation~gte'
                '|max_cons~max_cons_lt!threshold~273.15!operation~lte'
                '|mean~mean_temp'
@@ -94,3 +94,4 @@ class CdataTest(TestCase):
                '|max~max_temp'
                '&calc_grouping=month|year&calc_raw=false')
         resp = self.c.get(url)
+        print resp.content

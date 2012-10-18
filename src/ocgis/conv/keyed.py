@@ -32,9 +32,8 @@ class KeyedConverter(OcgConverter):
                 its = kits.AggKeyedIterator(coll).get_iters()
             elif self.mode == 'calc':
                 its = kits.CalcKeyedIterator(coll).get_iters()
-            else:
-                import ipdb;ipdb.set_trace()
-                raise(NotImplementedError)
+            elif self.mode == 'multi':
+                its = kits.MultiKeyedIterator(coll).get_iters()
             ## perform operations on first iteration
             if build:
                 ## make file objects

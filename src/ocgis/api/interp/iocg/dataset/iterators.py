@@ -215,3 +215,57 @@ class CalcKeyedIterator(BaseIterator):
                }
         return(ret)
     
+    
+class MultiKeyedIterator(BaseIterator):
+    
+    def get_iters(self):
+        
+        def user_geometry():
+            yield([self.coll.geom_dict['id']])
+        
+        def geometry():
+            for gidx in iter_array(self.coll.gid):
+                yield([self.coll.gid[gidx]])
+        
+        time_headers = ['TGID','YEAR','MONTH','DAY']
+        def time():
+            for tidx in iter_array(self.coll.tgid):
+                tidx = tidx[0]
+                yield(self.coll.tgid[tidx],self.coll.year[tidx],
+                      self.coll.month[tidx],self.coll.day[tidx])
+                    
+#        def variable():
+#            for value in self.coll.variables.itervalues():
+#                yield(value.vid,value.name)
+                
+#        def level():
+#            for value in self.coll.variables.itervalues():
+#                for lidx in iter_array(value.lid):
+#                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
+#                break
+        
+        def multi(): ##cid,key
+            for ii,key in enumerate(self.coll.calc_multi.keys(),start=1):
+                yield(ii,key)
+        
+        def value():
+            for tidx in iter_array(self.coll.tgid):
+                for gidx in iter_array(self.coll.gid):
+                    for cidx,value in enumerate(self.coll.calc_multi.itervalues(),start=1):
+                        for lidx in range(value.shape[1]):
+                            yield(self.coll.geom_dict['id'],
+                                  self.coll.gid[gidx],
+                                  self.coll.tid[tidx],
+                                  cidx,
+                                  value[tidx][lidx][gidx])
+        
+        ret = {
+         'ugid':{'it':user_geometry,'headers':['UGID']},
+         'gid':{'it':geometry,'headers':['GID']},
+         'tgid':{'it':time,'headers':time_headers},
+#         'vid':{'it':variable,'headers':['VID','VAR_NAME']},
+#         'vlid':{'it':level,'headers':['VLID','LID','LEVEL']},
+         'cid':{'it':multi,'headers':['CID','CALC_NAME']},
+         'value':{'it':value,'headers':['UGID','GID','TGID','CID','VALUE']}
+               }
+        return(ret)

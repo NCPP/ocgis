@@ -28,7 +28,7 @@ class OcgInterpreter(Interpreter):
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.desc,serial=True,nprocs=7)
+            so = SubsetOperation(self.desc,serial=False,nprocs=7)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
             if self.desc['output_grouping'] is None:

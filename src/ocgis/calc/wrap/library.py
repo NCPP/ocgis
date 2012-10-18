@@ -152,7 +152,7 @@ class FooMulti(OcgCvArgFunction):
     
 
 class HeatIndex(OcgCvArgFunction):
-    description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index'
+    description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation.'
     Group = groups.MultivariateStatistics
     dtype = float
     nargs = 2
@@ -160,7 +160,12 @@ class HeatIndex(OcgCvArgFunction):
     name = 'heat_index'
     
     @staticmethod
-    def _calculate_(tas=None,rhs=None):
+    def _calculate_(tas=None,rhs=None,units=None):
+        if units == 'k':
+            tas = 1.8*(tas - 273.15) + 32
+        else:
+            raise(NotImplementedError)
+        
         c1 = -42.379
         c2 = 2.04901523
         c3 = 10.14333127
@@ -170,6 +175,11 @@ class HeatIndex(OcgCvArgFunction):
         c7 = 1.22874e-3
         c8 = 8.5282e-4
         c9 = -1.99e-6
+        
+        idx = tas < 80
+        tas.mask = np.logical_or(idx,tas.mask)
+        idx = rhs < 40
+        rhs.mask = np.logical_or(idx,rhs.mask)
         
         tas_sq = np.square(tas)
         rhs_sq = np.square(rhs)

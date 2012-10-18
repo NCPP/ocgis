@@ -160,8 +160,10 @@ class OcgCalculationEngine(object):
                             data = dref[grp,:,:,:]
                             ## update dict with properly reference data
                             kwds.update({key:data})
-                        calc[grp_idx,:,:,:] = ref.calculate(
-                                                shapes[backref]['out_shape'],**kwds)
+                        calc_ret = ref.calculate(shapes[backref]['out_shape'],**kwds)
+                        calc[grp_idx,:,:,:] = calc_ret
+                        ## mask must be updated due to irregularities of certain calculations.
+                        calc.mask[grp_idx,:,:,:] = calc_ret.mask
                 coll.calc_multi[f['name']] = calc
             else:
                 for var_name,value in coll._iter_items_():

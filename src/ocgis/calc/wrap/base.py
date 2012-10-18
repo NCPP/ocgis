@@ -97,8 +97,8 @@ class OcgFunction(object):
             assert(attr is not None)
     
     def calculate(self,values,out_shape,**kwds):
-        
         ret = np.empty(out_shape,dtype=self.dtype)
+        ret = np.ma.array(ret,mask=values.mask[0])
         for lidx in range(values.shape[1]):
             value_slice = values[:,lidx,:,:]
             assert(len(value_slice.shape) == 3)
@@ -161,7 +161,12 @@ class OcgCvArgFunction(OcgArgFunction):
         return(ret)
     
     def _run_calculation_(self,kwds):
-        return(self._spatial_aggregation_(self._calculate_(**kwds)))
+        ## run calculation
+        ret = self._calculate_(**kwds)
+        ## this method is necessary to account for point-based calculations that
+        ## must be spatially weighted when aggregated.
+        ret = self._spatial_aggregation_(ret)
+        return(ret)
     
     def _spatial_aggregation_(self,values):
         if all([self.agg,self.raw]):

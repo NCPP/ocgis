@@ -176,4 +176,6 @@ class HeatIndex(OcgCvArgFunction):
         
         hi = c1 + c2*tas + c3*rh + c4*tas*rh + c5*tas_sq + c6*rh_sq + c7*tas_sq*rh + c8*tas*rh_sq + c9*tas_sq*rh_sq
         
+        hi = np.mean(hi,axis=0)
+        
         return(hi)

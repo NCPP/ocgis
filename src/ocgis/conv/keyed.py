@@ -33,6 +33,7 @@ class KeyedConverter(OcgConverter):
             elif self.mode == 'calc':
                 its = kits.CalcKeyedIterator(coll).get_iters()
             else:
+                import ipdb;ipdb.set_trace()
                 raise(NotImplementedError)
             ## perform operations on first iteration
             if build:

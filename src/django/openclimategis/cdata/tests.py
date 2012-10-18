@@ -97,5 +97,6 @@ class CdataTest(TestCase):
     
     def test_multivariate_request(self):
         url = ('/uid/1|3/variable/tasmax|tas/level/none/time/none/space/state_boundaries'
-               '/operation/clip/aggregate/true/output/keyed')
+               '/operation/clip/aggregate/true/output/keyed'
+               '?calc=heat_index~hi!tas~tas!rh~rh')
         resp = self.c.get(url)

@@ -372,7 +372,7 @@ def identify_iterator_mode(desc):
     if desc['calc'] is not None:
         mode = 'calc'
         for f in desc['calc']:
-            if isinstance(f['ref'],OcgCvArgFunction):
+            if issubclass(f['ref'],OcgCvArgFunction):
                 mode = 'multi'
                 break
     desc['mode'] = mode

@@ -121,53 +121,18 @@ class OcgCalculationEngine(object):
         
         ## hold calculated data
         if self.has_multi:
-#            coll['attr'] = OrderedDict()
-            ## put the mulivariate calculation presence in the output collection
-            ## for reference by future iterators.
-#            coll['has_multi'] = True
             coll.has_multi = True
         else:
-#            coll['attr'] = OrderedDict.fromkeys(coll['value'].keys(),value={})
-#            coll['has_multi'] = False
             coll.has_multi = False
             
         ## store array shapes
         coll._use_agg = self.use_agg
         shapes = coll._get_shape_dict_(len(self.dgroups),raw=self.raw)
-#        shapes = {}
-#        for var_name,value in coll.iter_values(agg=self.iter_agg):
-#            import ipdb;ipdb.set_trace()
-#            ## shape of the output calculation array
-#            calc_shape = (len(self.dgroups),
-#                          value['lid'].shape[0],
-#                          coll['geom'].shape[0],
-#                          coll['geom'].shape[1])
-#            calc_mask = np.empty(calc_shape,dtype=bool)
-#            calc_mask[:,:,:,:] = coll['geom_mask']
-#            ## this is the shape for each temporally grouped calculation
-#            out_shape = (1,
-#                         value['lid'].shape[0],
-#                         coll['geom'].shape[0],
-#                         coll['geom'].shape[1])
-#            ## set up the weights reshaping to account for levels
-#            wshape = (value['lid'].shape[0],
-#                      coll['weights'].shape[0],
-#                      coll['weights'].shape[1])
-#            fweights = np.ma.array(np.empty(wshape,dtype=float),
-#                                   mask=np.zeros(wshape,
-#                                                 dtype=bool))
-#            fweights[:] = coll['weights']
-#            fweights.mask[:] = coll['geom_mask']
-#            shapes.update({var_name:{'calc_shape':calc_shape,
-#                                     'calc_mask':calc_mask,
-#                                     'out_shape':out_shape,
-#                                     'fweights':fweights}})
-        ## loop through functions and make calculations
         for ii,f in enumerate(self.funcs,start=1):
             ## for multivariate calculations, the structure is different and
             ## functions are not applied to individual variables.
             if self.has_multi:
-                raise(NotImplementedError)
+                import ipdb;ipdb.set_trace()
                 archetype = coll.variables.keys()[0]
                 ref = f['ref'](agg=self.agg,
                                raw=self.raw,
@@ -215,71 +180,4 @@ class OcgCalculationEngine(object):
                       update({f['name']:calc})
                     coll.variables[var_name].cid = np.append(
                                             coll.variables[var_name].cid,ii)
-                    
-#        coll['attr'] = attr
         return(coll)
-    
-#    def execute(self,coll):
-#        ## TODO: potential speed-up with vectorization
-#        ## hold calculated data
-#        if self.has_multi:
-#            coll['attr'] = OrderedDict()
-#            ## put the mulivariate calculation presence in the output collection
-#            ## for reference by future iterators.
-#            coll['has_multi'] = True
-#        else:
-#            coll['attr'] = OrderedDict.fromkeys(coll['value'].keys(),value={})
-#            coll['has_multi'] = False
-#        ## shape of the output calculation array
-#        calc_shape = (len(self.dgroups),
-#                      coll['lid'].shape[0],
-#                      coll['geom'].shape[0],
-#                      coll['geom'].shape[1])
-#        calc_mask = np.empty(calc_shape,dtype=bool)
-#        calc_mask[:,:,:,:] = coll['geom_mask']
-#        ## loop through functions and make calculations
-#        for f in self.funcs:
-#            ref = f['ref']()
-#            calc = np.ma.array(np.empty(calc_shape,dtype=ref.dtype),
-#                               mask=calc_mask)
-#            ## arguments for iterator
-#            iter_args = [zip(range(len(self.dgroups)),self.dgroups),
-#                         iter_array(coll['gid']),
-#                         range(coll['lid'].shape[0])]
-#            ## for multivariate calculations, the structure is different and
-#            ## functions are not applied to individual variables.
-#            if self.has_multi:
-#                for grp,gidx,lidx in itertools.product(*iter_args):
-#                    ## for sample size, we just need the count from one variable.
-#                    if isinstance(ref,SampleSize):
-#                        key = coll[self.vkey].keys()[0]
-#                        dref = coll[self.vkey][key]
-#                        if not self.raw:
-#                            data = (dref[grp[1],lidx,gidx[0],gidx[1]]).reshape(-1,1,1,1)
-#                        else:
-#                            data = (dref[grp[1],lidx,:,:]).reshape(-1,1,dref.shape[2],dref.shape[3])
-#                        calc[grp[0]][lidx][gidx] = ref.calculate(data)
-#                    else:
-#                        ## cv-controlled multivariate functions require collecting
-#                        ## data arrays before passing to function.
-#                        kwds = f['kwds'].copy()
-#                        for key in ref.keys:
-#                            dref = coll[self.vkey][key]
-#                            if not self.raw:
-#                                data = (dref[grp[1],lidx,gidx[0],gidx[1]]).reshape(-1,1,1,1)
-#                            else:
-#                                data = (dref[grp[1],lidx,:,:]).reshape(-1,1,dref.shape[2],dref.shape[3])
-#                            kwds.update({key:data})
-#                        calc[grp[0]][lidx][gidx] = ref.calculate(**kwds)
-#                coll['attr'][f['name']] = calc
-#            else:
-#                for var,value in coll[self.vkey].iteritems():
-#                    for grp,gidx,lidx in itertools.product(*iter_args):
-#                        if not self.raw:
-#                            data = (value[grp[1],lidx,gidx[0],gidx[1]]).reshape(-1,1,1,1)
-#                        else:
-#                            data = (value[grp[1],lidx,:,:]).reshape(-1,1,value.shape[2],value.shape[3])
-#                        calc[grp[0],lidx,gidx[0],gidx[1]] = ref.calculate(data,**f['kwds'])
-#                    coll['attr'][var].update({f['name']:calc})
-##        coll['attr'] = attr
-#        return(coll)

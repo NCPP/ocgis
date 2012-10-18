@@ -94,4 +94,8 @@ class CdataTest(TestCase):
                '|max~max_temp'
                '&calc_grouping=month|year&calc_raw=false')
         resp = self.c.get(url)
-        print resp.content
+    
+    def test_multivariate_request(self):
+        url = ('/uid/1|3/variable/tasmax|tas/level/none/time/none/space/state_boundaries'
+               '/operation/clip/aggregate/true/output/keyed')
+        resp = self.c.get(url)

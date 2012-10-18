@@ -156,11 +156,11 @@ class HeatIndex(OcgCvArgFunction):
     Group = groups.MultivariateStatistics
     dtype = float
     nargs = 2
-    keys = ['tas','rh']
+    keys = ['tas','rhs']
     name = 'heat_index'
     
     @staticmethod
-    def _calculate_(tas=None,rh=None):
+    def _calculate_(tas=None,rhs=None):
         c1 = -42.379
         c2 = 2.04901523
         c3 = 10.14333127
@@ -172,9 +172,9 @@ class HeatIndex(OcgCvArgFunction):
         c9 = -1.99e-6
         
         tas_sq = np.square(tas)
-        rh_sq = np.square(rh)
+        rhs_sq = np.square(rhs)
         
-        hi = c1 + c2*tas + c3*rh + c4*tas*rh + c5*tas_sq + c6*rh_sq + c7*tas_sq*rh + c8*tas*rh_sq + c9*tas_sq*rh_sq
+        hi = c1 + c2*tas + c3*rhs + c4*tas*rhs + c5*tas_sq + c6*rhs_sq + c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
         
         hi = np.mean(hi,axis=0)
         

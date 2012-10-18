@@ -6,6 +6,8 @@ import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
 from ocgis.conv.shp import OgrField, FieldCache
+import csv
+from ocgis.conv.csv_ import OcgDialect
 
 
 class ShpCabinet(object):
@@ -82,11 +84,17 @@ class ShpCabinet(object):
         build = True
         for dct,geom in self.get_converter_iterator(geom_dict):
             if build:
+                csv_path = path.replace('shp','csv')
+                csv_f = open(csv_path,'w')
+                writer = csv.writer(csv_f,dialect=OcgDialect)
+                writer.writerow(headers)
+                
                 ogr_fields = self._get_ogr_fields_(headers,dct)
                 for of in ogr_fields:
                     layer.CreateField(of.ogr_field)
                     feature_def = layer.GetLayerDefn()
                 build = False
+            writer.writerow([dct[h.lower()] for h in headers])
             feat = ogr.Feature(feature_def)
             for o in ogr_fields:
                 args = [o.ogr_name,o.convert(dct[o.ogr_name.lower()])]
@@ -99,6 +107,7 @@ class ShpCabinet(object):
             layer.CreateFeature(feat)
         
         ds = None
+        csv_f.close()
         
         return(path)
 

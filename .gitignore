@@ -4,6 +4,7 @@
 
 # Misc #
 ########
+*.csv
 *.orig
 *~
 *.log

@@ -98,12 +98,15 @@ class OcgCalculationEngine(object):
         for year,month,day in itertools.product(duni['year'],duni['month'],duni['day']):
             ## idx arrays that when combined provide a group set
             check = dict(zip(['year','month','day'],[year,month,day]))
-            for key,value in check.iteritems():
-                dtime[key].append(value)
             yidx,midx,didx = [self._get_date_idx_(bidx,dparts,part,value) 
                               for part,value in check.iteritems()]
             idx = yidx*midx*didx
-#            dgroups.append((dparts['idx'][idx]).astype(bool))
+            ## if dates are drilling down to day, it is possible to return date
+            ## combinations that are unreasonable.
+            if idx.sum() == 0:
+                continue
+            for key,value in check.iteritems():
+                dtime[key].append(value)
             dgroups.append(idx)
             dtime['tgid'].append(tgid)
             tgid += 1

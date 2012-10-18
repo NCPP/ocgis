@@ -253,11 +253,17 @@ class MultiKeyedIterator(BaseIterator):
                 for gidx in iter_array(self.coll.gid):
                     for cidx,value in enumerate(self.coll.calc_multi.itervalues(),start=1):
                         for lidx in range(value.shape[1]):
+                            v = value[tidx][lidx][gidx]
+                            try:
+                                if v.mask:
+                                    v = None
+                            except AttributeError:
+                                pass
                             yield(self.coll.geom_dict['id'],
                                   self.coll.gid[gidx],
                                   self.coll.tid[tidx],
                                   cidx,
-                                  value[tidx][lidx][gidx])
+                                  v)
         
         ret = {
          'ugid':{'it':user_geometry,'headers':['UGID']},

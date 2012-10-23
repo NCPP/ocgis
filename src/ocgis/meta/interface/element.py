@@ -1,3 +1,4 @@
+from warnings import warn
 class ElementNotFound(Exception):
     
     def __init__(self,klass):
@@ -13,6 +14,7 @@ class ElementNotFound(Exception):
 class Element(object):
     _names = []
     _ocg_name = None
+    _default = None
     
     def __init__(self,dataset):
         assert(len(self._names) > 0)
@@ -33,7 +35,14 @@ class Element(object):
                 ret = self._names[a.index(True)]
                 break
             if ii == len(possible):
-                raise(ElementNotFound(self.__class__))
+                if self.__class__._default is None:
+                    raise(ElementNotFound(self.__class__))
+                else:
+                    msg = ('Default value of "{0}" used for "{1}"'.\
+                           format(self.__class__._default,
+                                  self.__class__.__name__))
+                    warn(msg)
+                    ret = self.__class__._default
         return(ret)
     
     

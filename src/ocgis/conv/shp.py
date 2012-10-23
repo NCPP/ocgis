@@ -95,7 +95,8 @@ class OgrField(object):
                 NoneType:[ogr.OFTInteger,None],
                 np.int32:[ogr.OFTInteger,int],
                 np.float64:[ogr.OFTReal,float],
-                np.float32:[ogr.OFTReal,float]}
+                np.float32:[ogr.OFTReal,float],
+                np.int16:[ogr.OFTInteger,int]}
     
     def __init__(self,fcache,name,data_type,precision=6,width=255):
         self.orig_name = name

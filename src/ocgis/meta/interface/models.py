@@ -34,6 +34,7 @@ class Column(VariableElement):
 class Calendar(AttributeElement):
     _names = ['calendar','time_Convention']
     _ocg_name = 'calendar'
+    _default = 'proleptic_gregorian'
     
     def __init__(self,*args,**kwds):
         self._mode = 'local'
@@ -56,7 +57,10 @@ class Calendar(AttributeElement):
     
     def _get_value_(self,dataset):
         if self._mode == 'local':
-            ret = getattr(dataset.variables[self._parent.name],self.name)
+            try:
+                ret = getattr(dataset.variables[self._parent.name],self.name)
+            except AttributeError:
+                ret = self.name
         else:
             ret = getattr(dataset,self.name)
         return(ret)
@@ -68,7 +72,7 @@ class TimeUnits(AttributeElement):
 
 
 class Time(VariableElement):
-    _names = ['time']
+    _names = ['time','time_gmo']
     _ocg_name = 'time'
     _AttributeElements = [Calendar,TimeUnits]
     _calendar_map = {'Calandar is no leap':'noleap',
@@ -97,5 +101,5 @@ class Time(VariableElement):
 
 
 class Level(VariableElement):
-    _names = ['level','lvl','levels','lvls','lev']
+    _names = ['level','lvl','levels','lvls','lev','threshold']
     _ocg_name = 'level'

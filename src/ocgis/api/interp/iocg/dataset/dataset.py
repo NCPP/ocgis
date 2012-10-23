@@ -268,11 +268,12 @@ class OcgDataset(object):
         
 #        ## extract the global gids
 #        gids = self.gids[min(rowidx):max(rowidx)+1,min(colidx):max(colidx)+1]
-
         if ndim == 3:
             args = [timeidx,rowidx,colidx]
-        if ndim == 4:
+        elif ndim == 4:
             args = [timeidx,levelidx,rowidx,colidx]
+        else:
+            raise(NotImplementedError('cannot hold dimension count of "{0}"'.format(ndim)))
         npd = self.get_numpy_data(var,args)
         
 #        if npd.shape[3] == 4:

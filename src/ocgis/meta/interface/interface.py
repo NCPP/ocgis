@@ -200,15 +200,23 @@ class SpatialInterfacePoint(SpatialInterface):
     
     def __init__(self,*args,**kwds):
         super(SpatialInterfacePoint,self).__init__(*args,**kwds)
-
+        
+        ## some data uses 360 dynamic range for longitude coordinates. compliance
+        ## with WGS84 data requires data ranging from -180 to 180.
+        if self.longitude.value.max() > 180:
+#            self.longitude.value = self.longitude.value - 180
+            self.longitude.value = self.longitude.value - 360
+            warn(('0 to 360 longitude variable encountered. simple '
+                  'remapping to [-180,180] occurred.'))
+        
         ## change how the row and column point variables are created based
         ## on the shape of the incoming coordinates.
-        if all([ii > 1 for ii in self.longitude.value.shape]):
+        try:
             self.col_pt,self.row_pt = self.longitude.value,self.latitude.value
             self.real_col,self.real_row = np.meshgrid(
                                     np.arange(0,self.longitude.value.shape[1]),
                                     np.arange(0,self.longitude.value.shape[0]))
-        else:
+        except IndexError:
             self.col_pt,self.row_pt = np.meshgrid(self.longitude.value,
                                                   self.latitude.value)
             self.real_col,self.real_row = np.meshgrid(

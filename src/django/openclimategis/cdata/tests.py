@@ -101,3 +101,64 @@ class CdataTest(TestCase):
                '/operation/intersects/aggregate/false/output/keyed'
                '?calc=heat_index~hi!tas~tas!rhs~rhs!units~K&calc_grouping=day|month|year')
         resp = self.c.get(url)
+        
+    def test_presentation_urls(self):
+        
+        fus = []
+        def _fu(url):
+            fus.append('http://127.0.0.1:8000'+url)
+            return(url)
+        
+        ## inspect url
+        url = _fu('/inspect/uid/none?uri=/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc')
+        resp = self.c.get(url)
+        self.assertEqual(len(resp.content),4842)
+        
+        ## snippet url
+        url = _fu('/snippet/uid/5/variable/tasmin?prefix=snippet_tasmin')
+        resp = self.c.get(url)
+        self.assertEqual(resp.tell(),285437)
+        self.assertTrue(resp._headers['content-disposition'][1].startswith('attachment; filename=snippet_tasmin_'))
+        
+        ## download shapefiles
+        keys = ['co_watersheds','state_boundaries']
+        for key in keys:
+            url = _fu('/shp/{0}'.format(key))
+            resp = self.c.get(url)
+            self.assertEqual(resp._headers['content-disposition'][1],'attachment; filename={0}.zip'.format(key))
+            
+        ## basic overlays
+        keys = ['co_watersheds','state_boundaries']
+        for key in keys:
+            url = _fu('/snippet/uid/5/variable/tasmin?prefix=snippet_{0}&space={0}'.format(key))
+            resp = self.c.get(url)
+            self.assertTrue(int(resp._headers['content-length'][1]) > 0)
+
+        ## co watersheds data download
+        url = ('/uid/5/variable/tasmin/level/none/time/none/'
+               'space/co_watersheds/operation/clip/aggregate/true/output/keyed'
+               '?prefix=tasmin_CanCM4')
+        resp = self.c.get(_fu(url))
+        
+        ## co watersheds calculation
+        outputs = ['meta','keyed']
+        for output in outputs:
+            url = ('/uid/6/variable/tasmin/level/none/time/none/'
+                   'space/co_watersheds/operation/clip/aggregate/true/output/{0}'
+                   '?prefix=calc_tasmin_CanCM4'
+                   '&calc=max_cons~max_cons_lte_0c_tasmin!threshold~273.175!operation~lte'
+                   '|mean~mean_tasmin'
+                   '|std~std_tasmin'
+                   '|min~min_tasmin'
+                   '|max~max_tasmin'
+                   '&calc_grouping=month|year&calc_raw=false'.format(output))
+            resp = self.c.get(_fu(url))
+        
+        ## heat index by state
+        url = ('/uid/4|9/variable/tas|rhs/level/none/time/none/space/state_boundaries'
+               '/operation/intersects/aggregate/false/output/meta'
+               '?calc=heat_index~hi!tas~tas!rhs~rhs!units~K&calc_grouping=day|month|year')
+        resp = self.c.get(_fu(url))
+        
+        for fu in fus:
+            print fu

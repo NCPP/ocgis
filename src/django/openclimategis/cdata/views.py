@@ -10,6 +10,8 @@ from ocgis import env
 import os.path
 from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.ops import cascaded_union
 
 
 def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
@@ -109,10 +111,11 @@ def get_shp(request,key=None):
     sc = ShpCabinet()
     geom_dict = sc.get_geom_dict(key)
     dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
-    path = os.path.join(dir_path,'{0}.shp'.format(key))
+    filename = '{0}.shp'.format(key)
+    path = os.path.join(dir_path,filename)
     path = sc.write(geom_dict,path)
     path = os.path.split(path)[0]
-    resp = _zip_response_(path)
+    resp = _zip_response_(path,filename=filename.replace('shp','zip'))
     return(resp)
 
 def get_snippet(request,uid=None,variable=None):
@@ -120,6 +123,21 @@ def get_snippet(request,uid=None,variable=None):
     uri = UidSlug(uid,query)
     variable = Slug(variable)
     prefix = QueryParm(query,'prefix',scalar=True)
+    space = QueryParm(query,'space',scalar=True)
+    
+    if space.value is not None:
+        space = SpaceSlug(space.value)
+        if len(space.value) > 1:
+            ugeom = []
+            for dct in space.value:
+                geom = dct['geom']
+                if isinstance(geom,MultiPolygon):
+                    for poly in geom:
+                        ugeom.append(poly)
+                else:
+                    ugeom.append(geom)
+            ugeom = cascaded_union(ugeom)
+            space.value = {'id':1,'geom':ugeom}
     
     ops = {
      'meta':[{'uri':uri.value[0],'variable':variable.value[0]}],
@@ -127,7 +145,8 @@ def get_snippet(request,uid=None,variable=None):
      'output_format':'shp',
      'request_snippet':True,
      'aggregate':False,
-     'request_prefix':prefix.value
+     'request_prefix':prefix.value,
+     'geom':space.value
            }
     
     ret = _get_interpreter_return_(ops)

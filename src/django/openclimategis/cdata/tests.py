@@ -73,10 +73,11 @@ class CdataTest(TestCase):
         uri = ''
         uid = 3
         variable = 'tas'
-        url = '/snippet/uid/{uid}/variable/{variable}{uri}'\
-              .format(uri=uri,uid=uid,variable=variable)
-#        self.c.get(url)
-        self.open_in_chrome(url)
+        query = '?prefix=my_prefix'
+        url = '/snippet/uid/{uid}/variable/{variable}{uri}{query}'\
+              .format(uri=uri,uid=uid,variable=variable,query=query)
+        resp = self.c.get(url)
+#        self.open_in_chrome(url)
         
     def test_multi_url(self):
         url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/state_boundaries'

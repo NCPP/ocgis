@@ -19,6 +19,11 @@ class OcgInterpreter(Interpreter):
     def execute(self):
         self.check() ## run validation
         
+        ## check for a user-supplied output prefix
+        request_prefix = self.desc.get('request_prefix')
+        if request_prefix is not None:
+            env.BASE_NAME = request_prefix
+        
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
         if self.desc['output_format'] == 'meta':

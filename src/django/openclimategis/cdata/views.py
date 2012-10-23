@@ -35,6 +35,7 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
     calc = CalcQueryParm(query,'calc')
     backend = QueryParm(query,'backend',default='ocg')
     output_grouping = QueryParm(query,'output_grouping')
+    prefix = QueryParm(query,'prefix',scalar=True)
     
     ## piece together the OCGIS operations dictionary ##########################
 
@@ -74,8 +75,9 @@ def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
         except AttributeError:
             ops.update({key:value})
             
-    ## add request url for the meta handler
+    ## add request specific values
     ops['request_url'] = request.build_absolute_uri()
+    ops['request_prefix'] = prefix.value
     
     ret = _get_interpreter_return_(ops)
     
@@ -117,6 +119,7 @@ def get_snippet(request,uid=None,variable=None):
     query = _get_query_dict_(request)
     uri = UidSlug(uid,query)
     variable = Slug(variable)
+    prefix = QueryParm(query,'prefix',scalar=True)
     
     ops = {
      'meta':[{'uri':uri.value[0],'variable':variable.value[0]}],
@@ -124,6 +127,7 @@ def get_snippet(request,uid=None,variable=None):
      'output_format':'shp',
      'request_snippet':True,
      'aggregate':False,
+     'request_prefix':prefix.value
            }
     
     ret = _get_interpreter_return_(ops)
@@ -138,7 +142,7 @@ def _zip_response_(path,filename=None):
         dt = dt.replace(' ','_')
         dt = dt.split('.')[0]
         dt = dt.replace(':','')
-        filename = 'ocg_{0}.zip'.format(dt)
+        filename = '{1}_{0}.zip'.format(dt,env.BASE_NAME)
     resp = HttpResponse(zip_stream,mimetype='application/zip')
     resp['Content-Disposition'] = 'attachment; filename={0}'.format(filename)
     resp['Content-length'] = str(len(zip_stream))

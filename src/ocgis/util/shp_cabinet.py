@@ -52,8 +52,11 @@ class ShpCabinet(object):
     def get_headers(self,geom_dict):
         ret = ['ugid']
         keys = geom_dict[0].keys()
-        keys.remove('id')
-        keys.remove('geom')
+        for key in ['id','geom']:
+            try:
+                keys.remove(key)
+            except ValueError:
+                keys.remove(key.upper())
         keys.sort()
         ret += keys
         ret = [h.upper() for h in ret]
@@ -64,7 +67,10 @@ class ShpCabinet(object):
             geom = dct.pop('geom')
             if not isinstance(geom,MultiPolygon):
                 geom = MultiPolygon([geom])
-            dct['ugid'] = dct.pop('id')
+            try:
+                dct['ugid'] = dct.pop('id')
+            except KeyError:
+                dct['ugid'] = dct.pop('ID')
             yield(dct,geom)
             
     def write(self,geom_dict,path):
@@ -94,10 +100,25 @@ class ShpCabinet(object):
                     layer.CreateField(of.ogr_field)
                     feature_def = layer.GetLayerDefn()
                 build = False
-            writer.writerow([dct[h.lower()] for h in headers])
+            try:
+                row = [dct[h.lower()] for h in headers]
+            except KeyError:
+                row = []
+                for h in headers:
+                    try:
+                        x = dct[h]
+                    except KeyError:
+                        x = dct[h.lower()]
+                    row.append(x)
+            writer.writerow(row)
             feat = ogr.Feature(feature_def)
             for o in ogr_fields:
-                args = [o.ogr_name,o.convert(dct[o.ogr_name.lower()])]
+                args = [o.ogr_name,None]
+                try:
+                    args[1] = dct[o.ogr_name.lower()]
+                except KeyError:
+                    args[1] = dct[o.ogr_name]
+#                args = [o.ogr_name,o.convert(dct[o.ogr_name.lower()])]
                 try:
                     feat.SetField(*args)
                 except NotImplementedError:
@@ -110,13 +131,20 @@ class ShpCabinet(object):
         csv_f.close()
         
         return(path)
+    
+    def _get_(self,dct,key):
+        try:
+            ret = dct[key]
+        except KeyError:
+            ret = dct[key.lower()]
+        return(ret)
 
     def _get_ogr_fields_(self,headers,row):
         ## do not want to have a geometry field
         ogr_fields = []
         fcache = FieldCache()
-        for h,r in zip(headers,row):
-            ogr_fields.append(OgrField(fcache,h,type(r)))
+        for header in headers:
+            ogr_fields.append(OgrField(fcache,header,type(self._get_(row,header))))
         return(ogr_fields)
         
         

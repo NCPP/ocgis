@@ -13,8 +13,6 @@ class SampleSize(OcgFunction):
     @staticmethod
     def _calculate_(values,axis):
         ret = np.sum(~values.mask,axis=axis)
-#        if axis is 0:
-#            ret = np.ma.array(ret,mask=values.mask)
         return(ret)
 
 
@@ -83,7 +81,6 @@ class MaxConsecutive(OcgArgFunction):
         ref = np.arange(0,values.shape[0])
         ## storage array for counts
         store = np.empty(list(values.shape)[1:])
-#        store = np.ma.array(store,mask=values.mask[0,0,:].reshape(store.shape))
         ## perform requested logical operation
         if operation == 'gt':
             arr = values > threshold
@@ -94,9 +91,6 @@ class MaxConsecutive(OcgArgFunction):
         elif operation == 'lte':
             arr = values <= threshold
 
-#        ## index iterator
-#        it = itertools.product(*[range(0,values.shape[ii]) \
-#                                 for ii in range(2,4)])
         ## find longest sequence for each geometry across time dimension
         for xidx,yidx in iter_array(values[0,:]):
             vec = arr[:,xidx,yidx]
@@ -184,7 +178,8 @@ class HeatIndex(OcgCvArgFunction):
         tas_sq = np.square(tas)
         rhs_sq = np.square(rhs)
         
-        hi = c1 + c2*tas + c3*rhs + c4*tas*rhs + c5*tas_sq + c6*rhs_sq + c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
+        hi = c1 + c2*tas + c3*rhs + c4*tas*rhs + c5*tas_sq + c6*rhs_sq + \
+             c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
         
         hi = np.mean(hi,axis=0)
         

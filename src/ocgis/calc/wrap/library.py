@@ -146,7 +146,7 @@ class FooMulti(OcgCvArgFunction):
     
 
 class HeatIndex(OcgCvArgFunction):
-    description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation.'
+    description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation. Output units are Fahrenheit.'
     Group = groups.MultivariateStatistics
     dtype = float
     nargs = 2

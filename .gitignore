@@ -9,8 +9,12 @@
 *~
 *.log
 *.nc
+
+# Eclipse #
+###########
 *.project
 *.pydevproject
+*.settings
 
 # Django #
 ############

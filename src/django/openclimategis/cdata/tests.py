@@ -11,9 +11,6 @@ class CdataTest(TestCase):
     fixtures = ['cdata.json']
     c = Client()
     
-    def test_slugs(self):
-        import ipdb;ipdb.set_trace()
-    
     def test_get_data(self):
         space = '-123.4|45.6|-122.2|48.7'
 #        space = 'mi_watersheds'

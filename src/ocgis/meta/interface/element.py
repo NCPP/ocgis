@@ -16,10 +16,10 @@ class Element(object):
     _ocg_name = None
     _default = None
     
-    def __init__(self,dataset):
+    def __init__(self,dataset,name=None):
         assert(len(self._names) > 0)
         assert(self._ocg_name is not None)
-        self.name = self._get_name_(dataset)
+        self.name = name or self._get_name_(dataset)
     
     def calculate(self):
         raise(NotImplementedError)

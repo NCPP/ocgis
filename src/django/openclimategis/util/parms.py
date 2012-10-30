@@ -16,6 +16,7 @@ with open(os.path.join(os.path.split(
     _cp.readfp(f)
     PARMS = dict(_cp.items('parms'))
 
+
 class QueryParm(object):
     
     def __init__(self,query,key,default=None,scalar=False,nullable=True,

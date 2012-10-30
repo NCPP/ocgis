@@ -40,19 +40,17 @@ class QueryParm(object):
             yield(ii)
             
     def _get_(self):
-        value = self.query.get(self.key)
-        if value is None:
-            value = self.query.get(self.name_map.get(self.key))
-            try:
-                value = value.lower()
-                if value == 'none':
-                    value = None
-            except AttributeError:
-                pass
+        value = self.query.get(self.key) or self.query.get(self.name_map.get(self.key))
+        try:
+            value = value.lower()
+            if value == 'none':
+                value = None
+        except AttributeError:
+            pass
         if value is None and self.nullable:
             value = self.default
         elif value is None and not self.nullable:
-            raise(exc.QueryParmError(self.key))
+            raise(exc.NotNullableError(self.key))
         else:
             value = self.format(value)
         return(value)
@@ -77,24 +75,25 @@ class QueryParm(object):
         return(value)
     
     
-#class UidSlug(Slug):
-#    
-#    def __init__(self,value,query,default=None,scalar=False):
-#        self.query = query
-#        super(UidSlug,self).__init__(value,default=default,scalar=scalar)
-#    
-#    def format(self,value):
-#        if value.lower() == 'none':
-#            value = self.query['uri'][0]
-#            value = value.split('|')
-#        else:
-#            value = value.split('|')
-#            value = [Address.objects.get(pk=int(v)).uri for v in value]
-#        if self.scalar:
-#            value = value[0]
-#        return(value)
-#        
-#        
+class OcgQueryParm(QueryParm):
+    
+    def __init__(self,*args,**kwds):
+        kwds.update({'name_map':PARMS})
+        super(OcgQueryParm,self).__init__(*args,**kwds)
+    
+    
+class UidParm(OcgQueryParm):
+    
+    def __init__(self,*args,**kwds):
+        kwds.update({'nullable':False})
+        super(UidParm,self).__init__(*args,**kwds)
+    
+    def format(self,value):
+        value = value.split('|')
+        value = [Address.objects.get(pk=int(v)).uri for v in value]
+        return(value)
+
+  
 #class LevelSlug(Slug):
 #    
 #    def _format_element_(self,value):

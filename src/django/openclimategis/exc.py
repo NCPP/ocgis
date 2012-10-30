@@ -19,3 +19,10 @@ class ScalarError(QueryParmError):
     def _get_msg_(self):
         msg = 'scalar value requested for "{0}", but more than one element present in value list.'
         return(msg)
+    
+    
+class NotNullableError(QueryParmError):
+    
+    def _get_msg_(self):
+        msg = 'query parameter "{0}" is not nullable.'
+        return(msg)

@@ -16,16 +16,20 @@ class InterfaceElement(object):
     def __init__(self,Model):
         self._Model = Model
         
-    def set(self,target,dataset):
-        setattr(target,self._Model._ocg_name,self._Model(dataset))
+    def set(self,target,dataset,name):
+        try:
+            setattr(target,self._Model._ocg_name,self._Model(dataset,name))
+        except KeyError:
+            raise(ElementNotFound(self._Model,name=name))
         
         
 class Interface(object):
     _Models = []
     
-    def __init__(self,dataset):
+    def __init__(self,dataset,name_map={}):
         for Model in self._Models:
-            InterfaceElement(Model).set(self,dataset)
+            name = name_map.get(Model)
+            InterfaceElement(Model).set(self,dataset,name=name)
 
 
 class SpatialSelection(object):

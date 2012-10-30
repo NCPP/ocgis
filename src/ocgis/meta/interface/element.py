@@ -3,13 +3,17 @@ from warnings import warn
 
 class ElementNotFound(Exception):
     
-    def __init__(self,klass):
+    def __init__(self,klass,name=None):
         self.klass = klass
+        self.name = name
         
     def __str__(self):
-        args = (self.klass.__name__,
+        if self.name is not None:
+            msg = 'element model "{0}" found no matches for overloaded name "{1}"'.format(self.klass.__name__,self.name)
+        else:
+            args = (self.klass.__name__,
                 self.klass._names)
-        msg = 'Element model "{0}" found no matches for {1}'.format(*args)
+            msg = 'element model "{0}" found no matches for {1}'.format(*args)
         return(msg)
     
     

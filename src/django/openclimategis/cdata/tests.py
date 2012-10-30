@@ -1,12 +1,8 @@
 from django.test import TestCase
 from django.test.client import Client
-import os.path
 import subprocess
 import itertools
 
-
-#CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data'
-#ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
 
 class TestCdata(TestCase):
     fixtures = ['cdata.json']
@@ -73,21 +69,6 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_grouping',calc_grouping)
             
             resp = self.c.get(url)
-
-        
-#        url = ('/uid/none/variable/{variable}/level/none/time/{time}/'
-#               'space/{space}/operation/clip/aggregate/true/output/{output}'
-#               '?uri={uri}{calc}')
-#        url = url.format(space=space,
-#                         uri=uri,
-#                         variable=variable,
-#                         calc=calc,
-#                         output=output,
-#                         time=time)
-        
-#        self.open_in_chrome(url)
-#        resp = self.c.get(url)
-#        print resp.content
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

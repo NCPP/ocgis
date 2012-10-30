@@ -51,8 +51,8 @@ class Element(object):
 class VariableElement(Element):
     _AttributeElements = []
     
-    def __init__(self,dataset):
-        super(VariableElement,self).__init__(dataset)
+    def __init__(self,dataset,name=None):
+        super(VariableElement,self).__init__(dataset,name=name)
         self.dtype = self._get_dtype_(dataset)
         
         for Attr in self._AttributeElements:
@@ -82,9 +82,9 @@ class DimensionElement(Element):
 
 class AttributeElement(Element):
     
-    def __init__(self,dataset,parent):
+    def __init__(self,dataset,parent,name=None):
         self._parent = parent
-        super(AttributeElement,self).__init__(dataset)
+        super(AttributeElement,self).__init__(dataset,name=name)
         self.value = self._get_value_(dataset)
     
     def _possible_(self,dataset):
@@ -97,8 +97,8 @@ class AttributeElement(Element):
     
 class DatasetElement(Element):
     
-    def __init__(self,dataset):
-        super(DatasetElement,self).__init__(dataset)
+    def __init__(self,dataset,name=None):
+        super(DatasetElement,self).__init__(dataset,name=name)
         self.value = self._get_value_(dataset)
     
     def _possible_(self,dataset):

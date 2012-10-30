@@ -5,10 +5,7 @@ from django.conf.urls import patterns, include, url
 # admin.autodiscover()
 
 urlpatterns = patterns('',
-    url((r'^uid/(?P<uid>.*)/variable/(?P<variable>.*)/level/(?P<level>.*)'
-          '/time/(?P<time>.*)/space/(?P<space>.*)/operation/(?P<operation>.*)'
-          '/aggregate/(?P<aggregate>.*)/output/(?P<output>.*)$'),
-        'cdata.views.get_data'),
+    url(r'^subset$','cdata.views.get_data'),
     url(r'^inspect$','cdata.views.display_inspect'),
     url(r'^shp/(?P<key>.*)$','cdata.views.get_shp'),
     url(r'^snippet/uid/(?P<uid>.*)/variable/(?P<variable>.*)$','cdata.views.get_snippet'),

@@ -2,55 +2,91 @@ from django.test import TestCase
 from django.test.client import Client
 import os.path
 import subprocess
+import itertools
 
 
-CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data'
-ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
+#CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data'
+#ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
 
 class TestCdata(TestCase):
     fixtures = ['cdata.json']
     c = Client()
     
     def test_get_data(self):
-        space = ['-123.4|45.6|-122.2|48.7',
-                 'mi_watersheds',
-                 'co_watersheds']
+        spaces = [
+                 '-123.4|45.6|-122.2|48.7',
+#                 'mi_watersheds',
+#                 'co_watersheds',
+#                 'state_boundaries'
+                 ]
         
-        uri = []
+        datasets = [
+                    [1,'tasmax'],
+                    [7,'rhsmax']
+                   ]
         
-#        uri = 'http://an.opendap.dataset'
-        uri = ALBISCCP
+        outputs = [
+                  'keyed',
+                  'meta'
+                  ]
         
-        variable = 'albisccp'
+        times = ['none']
         
-        output = 'keyed'
-#        output = 'meta'
-#        output = 'csv'
+        levels = ['none']
         
-#        time = '0020-1-1|0020-12-31'
-#        time = '0020-1-1|0020-1-31'
-        time = '0020-1-1|0049-12-13'
-#        time = 'none'
+        operations = ['intersects','clip']
+        
+        aggregates = ['true','false']
+        
+        calcs = ['none','min~min_val|max~max_val']
+        
+        calc_raws = ['none','true','false']
+        
+        calc_groupings = ['none','month','day|month|year','year','year|month']
         
 #        calc = ''
 #        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')
-        calc = ('&calc='
-                'max_cons~max_cons_gte!threshold~15!operation~gte|'
-                'max_cons~max_cons_lt!threshold~15!operation~lt'
-                '&calc_grouping=month|year&calc_raw=false')
+#        calc = ('&calc='
+#                'max_cons~max_cons_gte!threshold~15!operation~gte|'
+#                'max_cons~max_cons_lt!threshold~15!operation~lt'
+#                '&calc_grouping=month|year&calc_raw=false')
+
+        def _append_(url,key,value,prepend=True):
+            kv = '{0}={1}'.format(key,value)
+            if prepend:
+                kv = '&'+kv
+            return(url+kv)
+
+        args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings)
+        for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping in itertools.product(*args):
+            url = '/subset?'
+            url = _append_(url,'space',space,prepend=False)
+            url = _append_(url,'uid',dataset[0])
+            url = _append_(url,'variable',dataset[1])
+            url = _append_(url,'output',output)
+            url = _append_(url,'time',time)
+            url = _append_(url,'level',level)
+            url = _append_(url,'operation',operation)
+            url = _append_(url,'aggregate',agg)
+            url = _append_(url,'calc',calc)
+            url = _append_(url,'calc_raw',calc_raw)
+            url = _append_(url,'calc_grouping',calc_grouping)
+            
+            resp = self.c.get(url)
+
         
-        url = ('/uid/none/variable/{variable}/level/none/time/{time}/'
-               'space/{space}/operation/clip/aggregate/true/output/{output}'
-               '?uri={uri}{calc}')
-        url = url.format(space=space,
-                         uri=uri,
-                         variable=variable,
-                         calc=calc,
-                         output=output,
-                         time=time)
+#        url = ('/uid/none/variable/{variable}/level/none/time/{time}/'
+#               'space/{space}/operation/clip/aggregate/true/output/{output}'
+#               '?uri={uri}{calc}')
+#        url = url.format(space=space,
+#                         uri=uri,
+#                         variable=variable,
+#                         calc=calc,
+#                         output=output,
+#                         time=time)
         
 #        self.open_in_chrome(url)
-        resp = self.c.get(url)
+#        resp = self.c.get(url)
 #        print resp.content
         
     def open_in_chrome(self,url):

@@ -179,13 +179,10 @@ class OcgCalculationEngine(object):
                     for grp_idx,grp in zip(range(len(self.dgroups)),
                                            self.dgroups):
                         data = value[grp,:,:,:]
-                        try:
-                            calc[grp_idx,:,:,:] = ref.calculate(
+                        calc[grp_idx,:,:,:] = ref.calculate(
                                                 data,
                                                 shapes[var_name]['out_shape'],
                                                 **f['kwds'])
-                        except:
-                            import ipdb;ipdb.set_trace()
                     coll.variables[var_name].calc_value.\
                       update({f['name']:calc})
                     coll.variables[var_name].cid = np.append(

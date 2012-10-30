@@ -98,7 +98,13 @@ class OcgFunction(object):
     
     def calculate(self,values,out_shape,**kwds):
         ret = np.empty(out_shape,dtype=self.dtype)
-        ret = np.ma.array(ret,mask=values.mask[0])
+        try:
+            ret = np.ma.array(ret,mask=values.mask[0])
+        except MaskError:
+            if self.agg and self.raw:
+                ret = np.ma.array(ret,mask=np.array([False]).reshape(*ret.shape))
+            else:
+                raise
         for lidx in range(values.shape[1]):
             value_slice = values[:,lidx,:,:]
             assert(len(value_slice.shape) == 3)

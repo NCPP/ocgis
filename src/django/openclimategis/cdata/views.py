@@ -7,7 +7,6 @@ from util.parms import *
 from util.zipper import Zipper
 from ocgis.util.helpers import get_temp_path
 from ocgis import env
-import os.path
 from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
 from shapely.geometry.multipolygon import MultiPolygon
@@ -19,67 +18,71 @@ def get_data(request):
     
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
-    import ipdb;ipdb.set_trace()
-    ## format the url slugs
-    uid = UidSlug(uid,query)
-    variable = Slug(variable)
-    level = LevelSlug(level)
-    time = TimeSlug(time)
-    space = SpaceSlug(space)
-    operation = Slug(operation,default='intersects',scalar=True)
-    aggregate = BooleanSlug(aggregate,default=True,scalar=True)
-    output = Slug(output,default='keyed',scalar=True)
     
-    ## get the query parameters
-    calc_raw = BoolQueryParm(query,'calc_raw',default=True,scalar=True)
-    calc_grouping = QueryParm(query,'calc_grouping')
-    calc = CalcQueryParm(query,'calc')
+    ## extract from request
+    uri = _get_uri_(query)
+    variable = OcgQueryParm(query,'variable',nullable=False)
+    level = LevelParm(query,'level_range')
+    time = TimeParm(query,'time_range')
+    space = SpaceParm(query,'geom',nullable=False)
+    operation = OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
+    aggregate = BooleanParm(query,'aggregate',default=True,scalar=True)
+    output = OcgQueryParm(query,'output_format',default='keyed',scalar=True)
+    calc_raw = BooleanParm(query,'calc_raw',default=True,scalar=True)
+    calc_grouping = OcgQueryParm(query,'calc_grouping')
+    calc = CalcParm(query,'calc')
     backend = QueryParm(query,'backend',default='ocg')
     output_grouping = QueryParm(query,'output_grouping')
-    prefix = QueryParm(query,'prefix',scalar=True)
-    
+    prefix = QueryParm(query,'request_prefix',scalar=True)
+
     ## piece together the OCGIS operations dictionary ##########################
 
     ## format meta list
     meta = []
-    if len(uid.value) < len(variable.value):
-        for u in uid:
+    if len(uri.value) < len(variable.value):
+        for u in uri:
             for v in variable:
                 meta.append({'uri':u,'variable':v})
-    elif len(variable.value) < len(uid.value):
+    elif len(variable.value) < len(uri.value):
         if len(variable.value) > 1:
             raise(NotImplementedError)
         else:
-            meta.append({'uri':uid.value,'variable':variable.value[0]})
+            meta.append({'uri':uri.value,'variable':variable.value[0]})
     else:
-        for u,v in zip(uid,variable):
+        for u,v in zip(uri,variable):
             meta.append({'uri':u,'variable':v})
 
-    ops = OrderedDict(
-     meta=meta,
-     time_range=time,
-     level_range=level,
-     spatial_operation=operation,
-     aggregate=aggregate,
-     output_format=output,
-     calc=calc,
-     calc_raw=calc_raw,
-     calc_grouping=calc_grouping,
-     geom=space,
-     backend=backend,
-     output_grouping=output_grouping
-                )
+    ## construct operations dictionary
+    items = [level,time,space,operation,aggregate,output,calc_raw,
+             calc_grouping,calc,backend,output_grouping,prefix]
+    ops = dict([[ii.key,ii.value] for ii in items])
+    ops.update({'meta':meta})
     
-    for key,value in ops.iteritems():
-        try:
-            ops.update({key:value.value})
-        except AttributeError:
-            ops.update({key:value})
+#    import ipdb;ipdb.set_trace()
+#    ops = OrderedDict(
+#     meta=meta,
+#     time_range=time,
+#     level_range=level,
+#     spatial_operation=operation,
+#     aggregate=aggregate,
+#     output_format=output,
+#     calc=calc,
+#     calc_raw=calc_raw,
+#     calc_grouping=calc_grouping,
+#     geom=space,
+#     backend=backend,
+#     output_grouping=output_grouping
+#                )
+#    
+#    for key,value in ops.iteritems():
+#        try:
+#            ops.update({key:value.value})
+#        except AttributeError:
+#            ops.update({key:value})
             
     ## add request specific values
     ops['request_url'] = request.build_absolute_uri()
-    ops['request_prefix'] = prefix.value
-    
+#    ops['request_prefix'] = prefix.value
     ret = _get_interpreter_return_(ops)
     
     if output.value == 'meta':

@@ -1,5 +1,4 @@
 from urlparse import parse_qs
-from collections import OrderedDict
 from django.http import HttpResponse
 from ocgis.api.interp.interpreter import Interpreter
 from ocgis.util.inspect import Inspect
@@ -11,6 +10,7 @@ from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
+import ocgis.meta.interface.models as imodels
 
 
 def get_data(request):
@@ -51,13 +51,17 @@ def get_data(request):
     else:
         for u,v in zip(uri,variable):
             meta.append({'uri':u,'variable':v})
+            
+    ## pull interface overload information
+    name_map = _get_interface_overload_(query)
 
     ## construct operations dictionary
     items = [level,time,space,operation,aggregate,output,calc_raw,
              calc_grouping,calc,backend,output_grouping,prefix]
     ops = dict([[ii.key,ii.value] for ii in items])
     ops.update({'meta':meta})
-    
+    ops.update({'interface':name_map})
+
 #    import ipdb;ipdb.set_trace()
 #    ops = OrderedDict(
 #     meta=meta,
@@ -178,3 +182,29 @@ def _get_uri_(query,scalar=False):
     except exc.QueryParmError:
         uri = UriParm(query,'uri',scalar=scalar)
     return(uri)
+
+def _get_interface_overload_(query):
+    mmap = {'s_row':imodels.Row,
+            's_column':imodels.Column,
+            's_row_bounds':imodels.RowBounds,
+            's_column_bounds':imodels.ColumnBounds,
+            's_proj':None,
+            's_abstraction':None,
+            't_calendar':imodels.Calendar,
+            't_units':imodels.TimeUnits,
+            't_variable':imodels.Time,
+            'l_variable':imodels.Level}
+    
+    name_map = {}
+    
+    for key,value in mmap.iteritems():
+        qp = QueryParm(query,key,scalar=True)
+        if value is None:
+            value = key
+        name_map.update({value:qp.value})
+        
+    return(name_map)
+    
+    
+    
+    

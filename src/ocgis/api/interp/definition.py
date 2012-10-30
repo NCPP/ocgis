@@ -6,6 +6,7 @@ from copy import copy
 from ocgis.exc import DefinitionValidationError
 from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc.wrap import library
+from ocgis.meta.interface.element import Element
 
 
 class OcgParameter(object):
@@ -351,10 +352,25 @@ class Meta(OcgParameter):
         for ii in self.value:
             lines.append('* Variable "{0}" requested from dataset with URI "{1}".'.format(ii['variable'],ii['uri']))
         return('\n'.join(lines))
+    
+    
+class Interface(OcgParameter):
+    name = 'interface'
+    can_be_none = True
+    
+    def validate(self):
+        for key,value in self.value.iteritems():
+            try:
+                assert(issubclass(key,Element))
+            except TypeError:
+                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
+            if value is not None:
+                self._assert_(type(value) == str,'interface values must be strings')
+
             
 ## collection of arguments that comprise an operational call to OCG
 DEF_ARGS = [Meta,Backend,TimeRange,LevelRange,Geom,OutputFormat,SpatialOperation,
-            Aggregate,CalcRaw,CalcGrouping,Calc]
+            Aggregate,CalcRaw,CalcGrouping,Calc,Interface]
 
 ## dictionary validation and formatting
 def validate_update_definition(desc):

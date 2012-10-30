@@ -42,8 +42,12 @@ class QueryParm(object):
     def _get_(self):
         value = self.query.get(self.key) or self.query.get(self.name_map.get(self.key))
         try:
-            value = value.lower()
-            if value == 'none':
+            value = value[0]
+        except TypeError:
+            pass
+        try:
+            test_value = value.lower()
+            if test_value == 'none':
                 value = None
         except AttributeError:
             pass
@@ -89,13 +93,13 @@ class UidParm(OcgQueryParm):
         super(UidParm,self).__init__(*args,**kwds)
     
     def _format_element_(self,value):
-        return(Address.objects.get(pk=int(value)).uri)
+        return(str(Address.objects.get(pk=int(value)).uri))
     
     
 class UriParm(UidParm):
     
     def _format_element_(self,value):
-        return(value)
+        return(str(value))
 
   
 class LevelParm(OcgQueryParm):

@@ -9,7 +9,7 @@ urlpatterns = patterns('',
           '/time/(?P<time>.*)/space/(?P<space>.*)/operation/(?P<operation>.*)'
           '/aggregate/(?P<aggregate>.*)/output/(?P<output>.*)$'),
         'cdata.views.get_data'),
-    url(r'^inspect/uid/(?P<uid>.*)$','cdata.views.display_inspect'),
+    url(r'^inspect$','cdata.views.display_inspect'),
     url(r'^shp/(?P<key>.*)$','cdata.views.get_shp'),
     url(r'^snippet/uid/(?P<uid>.*)/variable/(?P<variable>.*)$','cdata.views.get_snippet'),
     # Examples:

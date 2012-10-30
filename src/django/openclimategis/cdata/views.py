@@ -3,7 +3,7 @@ from collections import OrderedDict
 from django.http import HttpResponse
 from ocgis.api.interp.interpreter import Interpreter
 from ocgis.util.inspect import Inspect
-from util.slugs import *
+from util.parms import *
 from util.zipper import Zipper
 from ocgis.util.helpers import get_temp_path
 from ocgis import env
@@ -14,13 +14,12 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 
 
-def get_data(request,uid=None,variable=None,level=None,time=None,space=None,
-             operation='intersects',aggregate=True,output='keyed'):
+def get_data(request):
     '''The standard entry point for an OCGIS request.'''
     
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
-    
+    import ipdb;ipdb.set_trace()
     ## format the url slugs
     uid = UidSlug(uid,query)
     variable = Slug(variable)
@@ -98,11 +97,11 @@ def _get_interpreter_return_(ops):
     ret = interp.execute()
     return(ret)
     
-def display_inspect(request,uid=None):
+def display_inspect(request):
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
-    uid = UidSlug(uid,query,scalar=True)
-    io = Inspect(uid.value)
+    uri = _get_uri_(query,scalar=True)
+    io = Inspect(uri.value)
     report = io.__repr__()
     response = HttpResponse(report,content_type="text/plain")
     return(response)
@@ -170,3 +169,10 @@ def _zip_response_(path,filename=None):
 def _get_query_dict_(request):
     query = parse_qs(request.META['QUERY_STRING'])
     return(query)
+
+def _get_uri_(query,scalar=False):
+    try:
+        uri = UidParm(query,'uid',scalar=scalar)
+    except exc.QueryParmError:
+        uri = UriParm(query,'uri',scalar=scalar)
+    return(uri)

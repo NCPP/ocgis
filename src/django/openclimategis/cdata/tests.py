@@ -7,14 +7,16 @@ import subprocess
 CLIMATE_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data'
 ALBISCCP = os.path.join(CLIMATE_DATA,'cmip5/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc')
 
-class CdataTest(TestCase):
+class TestCdata(TestCase):
     fixtures = ['cdata.json']
     c = Client()
     
     def test_get_data(self):
-        space = '-123.4|45.6|-122.2|48.7'
-#        space = 'mi_watersheds'
-#        space = 'co_watersheds'
+        space = ['-123.4|45.6|-122.2|48.7',
+                 'mi_watersheds',
+                 'co_watersheds']
+        
+        uri = []
         
 #        uri = 'http://an.opendap.dataset'
         uri = ALBISCCP
@@ -55,11 +57,15 @@ class CdataTest(TestCase):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])
         
     def test_display_inspect(self):
-        uri = ALBISCCP
+        uid = '5'
+        uri = '/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
         
-        url = '/inspect/uid/none?uri={uri}'.format(uri=uri)
+        url1 = '/inspect?uid='+uid
+        url2 = '/inspect?uri='+uri
         
-        resp = self.c.get(url)
+        for url in [url1,url2]:
+            resp = self.c.get(url)
+            self.assertTrue(len(resp.content) > 100)
         
     def test_get_shp(self):
 #        url = '/shp/co_watersheds'

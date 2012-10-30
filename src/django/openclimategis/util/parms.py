@@ -88,58 +88,63 @@ class UidParm(OcgQueryParm):
         kwds.update({'nullable':False})
         super(UidParm,self).__init__(*args,**kwds)
     
-    def format(self,value):
-        value = value.split('|')
-        value = [Address.objects.get(pk=int(v)).uri for v in value]
+    def _format_element_(self,value):
+        return(Address.objects.get(pk=int(value)).uri)
+    
+    
+class UriParm(UidParm):
+    
+    def _format_element_(self,value):
         return(value)
 
   
-#class LevelSlug(Slug):
-#    
-#    def _format_element_(self,value):
-#        return(int(value))
-#    
-#    
-#class TimeSlug(Slug):
-#    
-#    def _format_element_(self,value):
-#        return(datetime.datetime.strptime(value,'%Y-%m-%d'))
-#    
-#    
-#class SpaceSlug(Slug):
-#    
-#    def _format_element_(self,value):
-#        try:
-#            ret = float(value)
-#        except ValueError:
-#            ret = value
-#        return(ret)
-#    
-#    def _format_all_elements_(self,value):
-#        try:
-#            minx,miny,maxx,maxy = value
-#            geom = Polygon(((minx,miny),
-#                           (minx,maxy),
-#                           (maxx,maxy),
-#                           (maxx,miny)))
-#            assert(geom.is_valid)
-#            ret = [{'id':1,'geom':geom}]
-#        except ValueError:
-#            sc = ShpCabinet()
-#            ret = sc.get_geom_dict(value[0])
-#        return(ret)
-#    
-#    
-#class BooleanSlug(Slug):
-#    
-#    def _format_element_(self,value):
-#        if value in ['false','f']:
-#            ret = False
-#        elif value in ['true','t']:
-#            ret = True
-#        return(ret)
-#    
-#    
+class LevelParm(OcgQueryParm):
+    
+    def __init__(self,*args,**kwds):
+        kwds.update({'dtype':int})
+        super(LevelParm,self).__init__(*args,**kwds)
+    
+    
+class TimeParm(OcgQueryParm):
+    
+    def _format_element_(self,value):
+        return(datetime.datetime.strptime(value,'%Y-%m-%d'))
+    
+    
+class SpaceParm(OcgQueryParm):
+    
+    def _format_element_(self,value):
+        try:
+            ret = float(value)
+        except ValueError:
+            ret = value
+        return(ret)
+    
+    def _format_all_elements_(self,value):
+        try:
+            minx,miny,maxx,maxy = value
+            geom = Polygon(((minx,miny),
+                            (minx,maxy),
+                            (maxx,maxy),
+                            (maxx,miny)))
+            assert(geom.is_valid)
+            ret = [{'id':1,'geom':geom}]
+        except ValueError:
+            sc = ShpCabinet()
+            ret = sc.get_geom_dict(value[0])
+        return(ret)
+    
+    
+class BooleanParm(OcgQueryParm):
+    
+    def _format_element_(self,value):
+        if value in ['false','f']:
+            ret = False
+        elif value in ['true','t']:
+            ret = True
+        return(ret)
+    
+    
 #class QueryParm(Slug):
 #    
 #    def __init__(self,query,key,default=None,split_char='|',scalar=False):
@@ -168,21 +173,21 @@ class UidParm(OcgQueryParm):
 #        return(ret)
 #    
 #    
-#class CalcQueryParm(QueryParm):
-#    
-#    def _format_element_(self,value):
-#        func,name = value.split('~',1)
-#        try:
-#            name,kwds_raw = name.split('!',1)
-#            kwds_raw = kwds_raw.split('!')
-#            kwds = {}
-#            for kwd in kwds_raw:
-#                kwd_name,kwd_value = kwd.split('~')
-#                try:
-#                    kwds.update({kwd_name:float(kwd_value)})
-#                except ValueError:
-#                    kwds.update({kwd_name:str(kwd_value)})
-#        except ValueError:
-#            kwds = {}
-#        ret = {'func':func,'name':name,'kwds':kwds}
-#        return(ret)
+class CalcParm(OcgQueryParm):
+    
+    def _format_element_(self,value):
+        func,name = value.split('~',1)
+        try:
+            name,kwds_raw = name.split('!',1)
+            kwds_raw = kwds_raw.split('!')
+            kwds = {}
+            for kwd in kwds_raw:
+                kwd_name,kwd_value = kwd.split('~')
+                try:
+                    kwds.update({kwd_name:float(kwd_value)})
+                except ValueError:
+                    kwds.update({kwd_name:str(kwd_value)})
+        except ValueError:
+            kwds = {}
+        ret = {'func':func,'name':name,'kwds':kwds}
+        return(ret)

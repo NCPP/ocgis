@@ -362,7 +362,7 @@ class Interface(OcgParameter):
         for key,value in self.value.iteritems():
             try:
                 assert(issubclass(key,Element))
-            except TypeError:
+            except (TypeError,AssertionError):
                 self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
             if value is not None:
                 self._assert_(type(value) == str,'interface values must be strings')

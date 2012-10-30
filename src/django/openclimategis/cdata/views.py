@@ -16,52 +16,7 @@ import ocgis.meta.interface.models as imodels
 def get_data(request):
     '''The standard entry point for an OCGIS request.'''
     
-    ## parse the query string
-    query = parse_qs(request.META['QUERY_STRING'])
     
-    ## extract from request
-    uri = _get_uri_(query)
-    variable = OcgQueryParm(query,'variable',nullable=False)
-    level = LevelParm(query,'level_range')
-    time = TimeParm(query,'time_range')
-    space = SpaceParm(query,'geom',nullable=False)
-    operation = OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
-    aggregate = BooleanParm(query,'aggregate',default=True,scalar=True)
-    output = OcgQueryParm(query,'output_format',default='keyed',scalar=True)
-    calc_raw = BooleanParm(query,'calc_raw',default=True,scalar=True)
-    calc_grouping = OcgQueryParm(query,'calc_grouping')
-    calc = CalcParm(query,'calc')
-    backend = QueryParm(query,'backend',default='ocg')
-    output_grouping = QueryParm(query,'output_grouping')
-    prefix = QueryParm(query,'request_prefix',scalar=True)
-
-    ## piece together the OCGIS operations dictionary ##########################
-
-    ## format meta list
-    meta = []
-    if len(uri.value) < len(variable.value):
-        for u in uri:
-            for v in variable:
-                meta.append({'uri':u,'variable':v})
-    elif len(variable.value) < len(uri.value):
-        if len(variable.value) > 1:
-            raise(NotImplementedError)
-        else:
-            meta.append({'uri':uri.value,'variable':variable.value[0]})
-    else:
-        for u,v in zip(uri,variable):
-            meta.append({'uri':u,'variable':v})
-            
-    ## pull interface overload information
-    name_map = _get_interface_overload_(query)
-
-    ## construct operations dictionary
-    items = [level,time,space,operation,aggregate,output,calc_raw,
-             calc_grouping,calc,backend,output_grouping,prefix]
-    ops = dict([[ii.key,ii.value] for ii in items])
-    ops.update({'meta':meta})
-    ops.update({'interface':name_map})
-
 #    import ipdb;ipdb.set_trace()
 #    ops = OrderedDict(
 #     meta=meta,
@@ -84,25 +39,18 @@ def get_data(request):
 #        except AttributeError:
 #            ops.update({key:value})
             
-    ## add request specific values
-    ops['request_url'] = request.build_absolute_uri()
+    
 #    ops['request_prefix'] = prefix.value
+
+    ops = _get_operations_dictionary_(request)
     ret = _get_interpreter_return_(ops)
     
-    if output.value == 'meta':
+    if ops['output_format'] == 'meta':
         resp = HttpResponse(ret,content_type="text/plain")
     else:
         resp = _zip_response_(ret)
     
     return(resp)
-
-def _get_interpreter_return_(ops):
-    try:
-        interp = Interpreter.get_interpreter(ops)
-    except InterpreterNotRecognized:
-        interp = OcgInterpreter(ops)
-    ret = interp.execute()
-    return(ret)
     
 def display_inspect(request):
     ## parse the query string
@@ -125,16 +73,18 @@ def get_shp(request,key=None):
     return(resp)
 
 def get_snippet(request,uid=None,variable=None):
-    query = _get_query_dict_(request)
-    uri = _get_uri_(query,scalar=True)
-    variable = OcgQueryParm(query,'variable',scalar=True,nullable=False)
-    prefix = OcgQueryParm(query,'request_prefix',scalar=True)
-    space = SpaceParm(query,'geom')
+#    query = _get_query_dict_(request)
+#    uri = _get_uri_(query,scalar=True)
+#    variable = OcgQueryParm(query,'variable',scalar=True,nullable=False)
+#    prefix = OcgQueryParm(query,'request_prefix',scalar=True)
+#    space = SpaceParm(query,'geom')
+    
+    ops = _get_operations_dictionary_(request)
 
-    if space.value is not None:
-        if len(space.value) > 1:
+    if ops['geom'] is not None:
+        if len(ops['geom']) > 1:
             ugeom = []
-            for dct in space.value:
+            for dct in ops['geom']:
                 geom = dct['geom']
                 if isinstance(geom,MultiPolygon):
                     for poly in geom:
@@ -142,17 +92,22 @@ def get_snippet(request,uid=None,variable=None):
                 else:
                     ugeom.append(geom)
             ugeom = cascaded_union(ugeom)
-            space.value = {'id':1,'geom':ugeom}
+            ops['geom'] = {'id':1,'geom':ugeom}
     
-    ops = {
-     'meta':[{'uri':uri.value,'variable':variable.value}],
-     'level_range':1,
-     'output_format':'shp',
-     'request_snippet':True,
-     'aggregate':False,
-     prefix.key:prefix.value,
-     'geom':space.value
-           }
+#    ops = {
+#     'meta':[{'uri':uri.value,'variable':variable.value}],
+#     'level_range':1,
+#     'output_format':'shp',
+#     'request_snippet':True,
+#     'aggregate':False,
+#     prefix.key:prefix.value,
+#     'geom':space.value
+#           }
+    
+    ops['level_range'] = 1
+    ops['output_format'] = 'shp'
+    ops['request_snippet'] = True
+    ops['aggregate'] = False
     
     ret = _get_interpreter_return_(ops)
     resp = _zip_response_(os.path.split(ret)[0])
@@ -205,6 +160,62 @@ def _get_interface_overload_(query):
         
     return(name_map)
     
+def _get_interpreter_return_(ops):
+    try:
+        interp = Interpreter.get_interpreter(ops)
+    except InterpreterNotRecognized:
+        interp = OcgInterpreter(ops)
+    ret = interp.execute()
+    return(ret)
+
+def _get_operations_dictionary_(request):
+    ## parse the query string
+    query = parse_qs(request.META['QUERY_STRING'])
     
+    ## extract from request
+    uri = _get_uri_(query)
+    variable = OcgQueryParm(query,'variable',nullable=False)
+    level = LevelParm(query,'level_range')
+    time = TimeParm(query,'time_range')
+    space = SpaceParm(query,'geom')
+    operation = OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
+    aggregate = BooleanParm(query,'aggregate',default=True,scalar=True)
+    output = OcgQueryParm(query,'output_format',default='keyed',scalar=True)
+    calc_raw = BooleanParm(query,'calc_raw',default=True,scalar=True)
+    calc_grouping = OcgQueryParm(query,'calc_grouping')
+    calc = CalcParm(query,'calc')
+    backend = OcgQueryParm(query,'backend',default='ocg')
+    output_grouping = OcgQueryParm(query,'output_grouping')
+    prefix = OcgQueryParm(query,'request_prefix',scalar=True)
     
+    ## piece together the OCGIS operations dictionary ##########################
+
+    ## format meta list
+    meta = []
+    if len(uri.value) < len(variable.value):
+        for u in uri:
+            for v in variable:
+                meta.append({'uri':u,'variable':v})
+    elif len(variable.value) < len(uri.value):
+        if len(variable.value) > 1:
+            raise(NotImplementedError)
+        else:
+            meta.append({'uri':uri.value,'variable':variable.value[0]})
+    else:
+        for u,v in zip(uri,variable):
+            meta.append({'uri':u,'variable':v})
+            
+    ## pull interface overload information
+    name_map = _get_interface_overload_(query)
+
+    ## construct operations dictionary
+    items = [level,time,space,operation,aggregate,output,calc_raw,
+             calc_grouping,calc,backend,output_grouping,prefix]
+    ops = dict([[ii.key,ii.value] for ii in items])
+    ops.update({'meta':meta})
+    ops.update({'interface':name_map})
     
+    ## add request specific values
+    ops['request_url'] = request.build_absolute_uri()
+    
+    return(ops)

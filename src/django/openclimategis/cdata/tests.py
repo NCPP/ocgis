@@ -4,6 +4,10 @@ import subprocess
 import itertools
 
 
+def pause(f):
+    print('test "{0}" paused...'.format(f.__name__))
+
+
 class TestCdata(TestCase):
     fixtures = ['cdata.json']
     c = Client()
@@ -110,12 +114,14 @@ class TestCdata(TestCase):
             url = url.format(uid=uid,variable=variable,prefix=prefix,space=space)
             resp = self.c.get(url)
 #        self.open_in_chrome(url)
-        
+    
+    @pause
     def test_multi_url(self):
         url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/state_boundaries'
                '/operation/clip/aggregate/true/output/keyed')
         resp = self.c.get(url)
-        
+    
+    @pause
     def test_multi_calc_url(self):
         url = ('/uid/1|2/variable/tasmax/level/none/time/none/space/co_watersheds'
                '/operation/clip/aggregate/true/output/meta'
@@ -128,12 +134,14 @@ class TestCdata(TestCase):
                '&calc_grouping=month|year&calc_raw=false')
         resp = self.c.get(url)
     
+    @pause
     def test_multivariate_request(self):
         url = ('/uid/4|9/variable/tas|rhs/level/none/time/none/space/state_boundaries'
                '/operation/intersects/aggregate/false/output/keyed'
                '?calc=heat_index~hi!tas~tas!rhs~rhs!units~K&calc_grouping=day|month|year')
         resp = self.c.get(url)
-        
+    
+    @pause
     def test_presentation_urls(self):
         
         fus = []

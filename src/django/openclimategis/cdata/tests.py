@@ -91,15 +91,24 @@ class TestCdata(TestCase):
         resp = self.c.get(url)
         
     def test_get_snippet(self):
-#        uri = ALBISCCP
-#        uid = 'none'
-        uri = ''
-        uid = 3
-        variable = 'tas'
-        query = '?prefix=my_prefix'
-        url = '/snippet/uid/{uid}/variable/{variable}{uri}{query}'\
-              .format(uri=uri,uid=uid,variable=variable,query=query)
-        resp = self.c.get(url)
+        uids = [3]
+        variables = ['tas']
+        prefixes = [
+#                    'none',
+                    'some_prefix'
+                    ]
+        spaces = [
+                 'none',
+                 '-123.4|45.6|-122.2|48.7',
+                 'mi_watersheds',
+                 'co_watersheds',
+                 'state_boundaries'
+                 ]
+        
+        for uid,variable,prefix,space in itertools.product(uids,variables,prefixes,spaces):
+            url = '/snippet?uid={uid}&variable={variable}&prefix={prefix}&space={space}'
+            url = url.format(uid=uid,variable=variable,prefix=prefix,space=space)
+            resp = self.c.get(url)
 #        self.open_in_chrome(url)
         
     def test_multi_url(self):

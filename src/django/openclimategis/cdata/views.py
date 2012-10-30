@@ -122,13 +122,12 @@ def get_shp(request,key=None):
 
 def get_snippet(request,uid=None,variable=None):
     query = _get_query_dict_(request)
-    uri = UidSlug(uid,query)
-    variable = Slug(variable)
-    prefix = QueryParm(query,'prefix',scalar=True)
-    space = QueryParm(query,'space',scalar=True)
-    
+    uri = _get_uri_(query,scalar=True)
+    variable = OcgQueryParm(query,'variable',scalar=True,nullable=False)
+    prefix = OcgQueryParm(query,'request_prefix',scalar=True)
+    space = SpaceParm(query,'geom')
+
     if space.value is not None:
-        space = SpaceSlug(space.value)
         if len(space.value) > 1:
             ugeom = []
             for dct in space.value:
@@ -142,12 +141,12 @@ def get_snippet(request,uid=None,variable=None):
             space.value = {'id':1,'geom':ugeom}
     
     ops = {
-     'meta':[{'uri':uri.value[0],'variable':variable.value[0]}],
+     'meta':[{'uri':uri.value,'variable':variable.value}],
      'level_range':1,
      'output_format':'shp',
      'request_snippet':True,
      'aggregate':False,
-     'request_prefix':prefix.value,
+     prefix.key:prefix.value,
      'geom':space.value
            }
     

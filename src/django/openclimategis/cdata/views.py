@@ -15,32 +15,6 @@ import ocgis.meta.interface.models as imodels
 
 def get_data(request):
     '''The standard entry point for an OCGIS request.'''
-    
-    
-#    import ipdb;ipdb.set_trace()
-#    ops = OrderedDict(
-#     meta=meta,
-#     time_range=time,
-#     level_range=level,
-#     spatial_operation=operation,
-#     aggregate=aggregate,
-#     output_format=output,
-#     calc=calc,
-#     calc_raw=calc_raw,
-#     calc_grouping=calc_grouping,
-#     geom=space,
-#     backend=backend,
-#     output_grouping=output_grouping
-#                )
-#    
-#    for key,value in ops.iteritems():
-#        try:
-#            ops.update({key:value.value})
-#        except AttributeError:
-#            ops.update({key:value})
-            
-    
-#    ops['request_prefix'] = prefix.value
 
     ops = _get_operations_dictionary_(request)
     ret = _get_interpreter_return_(ops)
@@ -72,13 +46,7 @@ def get_shp(request,key=None):
     resp = _zip_response_(path,filename=filename.replace('shp','zip'))
     return(resp)
 
-def get_snippet(request,uid=None,variable=None):
-#    query = _get_query_dict_(request)
-#    uri = _get_uri_(query,scalar=True)
-#    variable = OcgQueryParm(query,'variable',scalar=True,nullable=False)
-#    prefix = OcgQueryParm(query,'request_prefix',scalar=True)
-#    space = SpaceParm(query,'geom')
-    
+def get_snippet(request):
     ops = _get_operations_dictionary_(request)
 
     if ops['geom'] is not None:
@@ -93,16 +61,6 @@ def get_snippet(request,uid=None,variable=None):
                     ugeom.append(geom)
             ugeom = cascaded_union(ugeom)
             ops['geom'] = {'id':1,'geom':ugeom}
-    
-#    ops = {
-#     'meta':[{'uri':uri.value,'variable':variable.value}],
-#     'level_range':1,
-#     'output_format':'shp',
-#     'request_snippet':True,
-#     'aggregate':False,
-#     prefix.key:prefix.value,
-#     'geom':space.value
-#           }
     
     ops['level_range'] = 1
     ops['output_format'] = 'shp'

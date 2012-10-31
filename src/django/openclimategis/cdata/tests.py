@@ -114,6 +114,11 @@ class TestCdata(TestCase):
             url = url.format(uid=uid,variable=variable,prefix=prefix,space=space)
             resp = self.c.get(url)
 #        self.open_in_chrome(url)
+
+    def test_point_abstraction(self):
+        url = '/snippet?uid=3&variable=tas&s_abstraction=point'
+        resp = self.c.get(url)
+        import ipdb;ipdb.set_trace()
     
     @pause
     def test_multi_url(self):

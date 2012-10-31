@@ -208,8 +208,8 @@ class SpatialInterfacePoint(SpatialInterface):
         ## some data uses 360 dynamic range for longitude coordinates. compliance
         ## with WGS84 data requires data ranging from -180 to 180.
         if self.longitude.value.max() > 180:
-#            self.longitude.value = self.longitude.value - 180
-            self.longitude.value = self.longitude.value - 360
+            self.longitude.value = self.longitude.value - 180
+#            self.longitude.value = self.longitude.value - 360
             warn(('0 to 360 longitude variable encountered. simple '
                   'remapping to [-180,180] occurred.'))
         
@@ -351,13 +351,16 @@ class GlobalInterface(object):
     def __init__(self,dataset,overload=None):
 
         ## quick check for not supported overload arguments
-        for key in ['s_proj','s_abstraction']:
+        for key in ['s_proj']:
             if overload.get(key) is not None:
                 raise(NotImplementedError('arguments to overload parameter '
                                           '"{0}" currently not supported'.\
                                           format(key)))
-#        try:
-        self.spatial = SpatialInterfacePolygon(dataset,overload=overload)
+        
+        if overload['s_abstraction'] in ['poly','polygon',None]:
+            self.spatial = SpatialInterfacePolygon(dataset,overload=overload)
+        elif overload['s_abstraction'] in ['pt','point']:
+            self.spatial = SpatialInterfacePoint(dataset,overload=overload)
 #        except ElementNotFound as e:
 #            self.spatial = SpatialInterfacePoint(dataset,overload=overload)
         self._projection = get_projection(dataset)

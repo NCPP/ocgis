@@ -278,6 +278,12 @@ class Calc(OcgParameter):
                 f['name'] = f['func']
             if 'kwds' not in f:
                 f['kwds'] = {}
+            else:
+                for key,value in f['kwds'].iteritems():
+                    try:
+                        f['kwds'][key] = value.lower()
+                    except AttributeError:
+                        pass
         return(funcs_copy)
     
     def validate(self):

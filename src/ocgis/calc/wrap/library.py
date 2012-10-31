@@ -11,9 +11,13 @@ class SampleSize(OcgFunction):
     dtype = int
     
     @staticmethod
-    def _calculate_(values,axis):
-        ret = np.sum(~values.mask,axis=axis)
+    def _calculate_(values):
+        ret = np.sum(~values.mask,axis=0)
         return(ret)
+    
+    @staticmethod
+    def _aggregate_(values,weights):
+        return(np.sum(values))
 
 
 class Median(OcgFunction):
@@ -22,8 +26,8 @@ class Median(OcgFunction):
     dtype = float
     
     @staticmethod
-    def _calculate_(values,axis):
-        return(np.median(values,axis=axis))
+    def _calculate_(values):
+        return(np.median(values,axis=0))
     
     
 class Mean(OcgFunction):
@@ -32,8 +36,8 @@ class Mean(OcgFunction):
     dtype = float
     
     @staticmethod
-    def _calculate_(values,axis):
-        return(np.mean(values,axis=axis))
+    def _calculate_(values):
+        return(np.mean(values,axis=0))
     
     
 class Max(OcgFunction):
@@ -42,8 +46,8 @@ class Max(OcgFunction):
     dtype = float
     
     @staticmethod
-    def _calculate_(values,axis):
-        return(np.max(values,axis=axis))
+    def _calculate_(values):
+        return(np.max(values,axis=0))
     
     
 class Min(OcgFunction):
@@ -52,8 +56,8 @@ class Min(OcgFunction):
     dtype = float
     
     @staticmethod
-    def _calculate_(values,axis):
-        return(np.min(values,axis=axis))
+    def _calculate_(values):
+        return(np.min(values,axis=0))
     
     
 class StandardDeviation(OcgFunction):
@@ -63,8 +67,8 @@ class StandardDeviation(OcgFunction):
     name = 'std'
     
     @staticmethod
-    def _calculate_(values,axis):
-        return(np.std(values,axis=axis))
+    def _calculate_(values):
+        return(np.std(values,axis=0))
     
     
 class MaxConsecutive(OcgArgFunction):
@@ -76,7 +80,7 @@ class MaxConsecutive(OcgArgFunction):
                    ' where the logical operation returns TRUE.')
     
     @staticmethod
-    def _calculate_(values,axis,threshold=None,operation=None):
+    def _calculate_(values,threshold=None,operation=None):
         ## time index reference
         ref = np.arange(0,values.shape[0])
         ## storage array for counts
@@ -94,9 +98,9 @@ class MaxConsecutive(OcgArgFunction):
         ## find longest sequence for each geometry across time dimension
         for xidx,yidx in iter_array(values[0,:]):
             vec = arr[:,xidx,yidx]
-            ## collapse data if no axis provided
-            if axis is None:
-                vec = vec.reshape(-1)
+#            ## collapse data if no axis provided
+#            if axis is None:
+#                vec = vec.reshape(-1)
             ## check first if there is a longer series than 1
             if np.any(np.diff(ref[vec]) == 1):
                 split_idx = ref[np.diff(vec)] + 1
@@ -111,9 +115,9 @@ class MaxConsecutive(OcgArgFunction):
                 fill = 0
             store[xidx,yidx] = fill
         
-        ## summarize across geometries if axis is collapsed
-        if axis is None:
-            store = np.max(store)
+#        ## summarize across geometries if axis is collapsed
+#        if axis is None:
+#            store = np.max(store)
             
         return(store)
         
@@ -125,24 +129,24 @@ class Between(OcgArgFunction):
     dtype = int
     
     @staticmethod
-    def _calculate_(values,axis,lower=None,upper=None):
+    def _calculate_(values,lower=None,upper=None):
         idx = (values >= lower)*(values <= upper)
-        return(np.sum(idx,axis=axis))
+        return(np.sum(idx,axis=0))
 
 
-class FooMulti(OcgCvArgFunction):
-    description = 'Meaningless test statistic.'
-    Group = groups.MultivariateStatistics
-    dtype = float
-    nargs = 2
-    keys = ['foo','foo2']
-    
-    @staticmethod
-    def _calculate_(foo=None,foo2=None):
-        ret = foo + foo2
-        ret = 2*ret
-        ret = np.mean(ret,axis=0)
-        return(ret)
+#class FooMulti(OcgCvArgFunction):
+#    description = 'Meaningless test statistic.'
+#    Group = groups.MultivariateStatistics
+#    dtype = float
+#    nargs = 2
+#    keys = ['foo','foo2']
+#    
+#    @staticmethod
+#    def _calculate_(foo=None,foo2=None):
+#        ret = foo + foo2
+#        ret = 2*ret
+#        ret = np.mean(ret,axis=0)
+#        return(ret)
     
 
 class HeatIndex(OcgCvArgFunction):

@@ -21,28 +21,49 @@ class TestCdata(TestCase):
                  ]
         
         datasets = [
-                    [1,'tasmax'],
-                    [7,'rhsmax']
+#                    [1,'tasmax'],
+#                    [7,'rhsmax'],
+                    ['4|9','tas|rhs']
                    ]
         
         outputs = [
                   'keyed',
-                  'meta'
+#                  'meta'
                   ]
         
         times = ['none']
         
         levels = ['none']
         
-        operations = ['intersects','clip']
+        operations = [
+                      'intersects',
+#                      'clip'
+                      ]
         
-        aggregates = ['true','false']
+        aggregates = [
+                      'true',
+#                      'false'
+                      ]
         
-        calcs = ['none','min~min_val|max~max_val']
+        calcs = [
+#                 'none',
+#                 'min~min_val|max~max_val',
+                 'heat_index~hi!tas~tas!rhs~rhs!units~K',
+                 ]
         
-        calc_raws = ['none','true','false']
+        calc_raws = [
+#                     'none',
+                     'true',
+#                     'false'
+                     ]
         
-        calc_groupings = ['none','month','day|month|year','year','year|month']
+        calc_groupings = [
+#                          'none',
+#                          'month',
+#                          'day|month|year',
+#                          'year',
+                          'year|month'
+                          ]
         
 #        calc = ''
 #        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')

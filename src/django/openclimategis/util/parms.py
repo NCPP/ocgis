@@ -3,16 +3,17 @@ from shapely.geometry.polygon import Polygon
 import datetime
 from cdata.models import Address
 from ConfigParser import ConfigParser
-import ocgis
 import os.path
 import exc
 
 
+def _nav_(path,n):
+    for ii in range(n):
+        path = os.path.split(path)[0]
+    return(path)
+
 _cp = ConfigParser()
-with open(os.path.join(os.path.split(
-                       os.path.split(
-                       os.path.split(ocgis.__file__)[0])[0])[0],
-                       'ocgis.cfg'),'r') as f:
+with open(os.path.join(_nav_(__file__,5),'ocgis.cfg'),'r') as f:
     _cp.readfp(f)
     PARMS = dict(_cp.items('parms'))
 

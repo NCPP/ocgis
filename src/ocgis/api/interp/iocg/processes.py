@@ -32,6 +32,7 @@ class SubsetOperation(object):
             if key in uri_map:
                 ods = uri_map[key]
             else:
+                import ipdb;ipdb.set_trace()
                 ods = OcgDataset(meta['uri'])
                 uri_map.update({key:ods})
             meta.update({'ocg_dataset':ods})

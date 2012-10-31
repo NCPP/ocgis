@@ -27,13 +27,14 @@ class SubsetOperation(object):
         ## duplicate URIs. if the URI is the same, there is not reason to build
         ## the interface objects again.
         uri_map = {}
+        ## pull the overloaded interface arguments.
+        interface_overload = self.desc.get('interface',{})
         for meta in self.desc['meta']:
             key = '+++'.join(meta['uri'])
             if key in uri_map:
                 ods = uri_map[key]
             else:
-                import ipdb;ipdb.set_trace()
-                ods = OcgDataset(meta['uri'])
+                ods = OcgDataset(meta['uri'],interface_overload=interface_overload)
                 uri_map.update({key:ods})
             meta.update({'ocg_dataset':ods})
 

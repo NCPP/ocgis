@@ -26,9 +26,9 @@ class InterfaceElement(object):
 class Interface(object):
     _Models = []
     
-    def __init__(self,dataset,name_map={}):
+    def __init__(self,dataset,overload={}):
         for Model in self._Models:
-            name = name_map.get(Model)
+            name = overload.get(Model)
             InterfaceElement(Model).set(self,dataset,name=name)
 
 
@@ -348,25 +348,32 @@ class DummyLevelVariable(object):
 
 class GlobalInterface(object):
     
-    def __init__(self,dataset):
-        try:
-            self.spatial = SpatialInterfacePolygon(dataset)
-        except ElementNotFound:
-            self.spatial = SpatialInterfacePoint(dataset)
+    def __init__(self,dataset,overload=None):
+
+        ## quick check for not supported overload arguments
+        for key in ['s_proj','s_abstraction']:
+            if overload.get(key) is not None:
+                raise(NotImplementedError('arguments to overload parameter '
+                                          '"{0}" currently not supported'.\
+                                          format(key)))
+#        try:
+        self.spatial = SpatialInterfacePolygon(dataset,overload=overload)
+#        except ElementNotFound as e:
+#            self.spatial = SpatialInterfacePoint(dataset,overload=overload)
         self._projection = get_projection(dataset)
         ## necessary to rebuild after pickling
         self._projection_class = copy(self.projection.__class__)
-        self.temporal = TemporalInterface(dataset)
+        self.temporal = TemporalInterface(dataset,overload=overload)
         try:
-            self.level = LevelInterface(dataset)
-            self._has_level = True
+            self.level = LevelInterface(dataset,overload=overload)
+#            self._has_level = True
         except ElementNotFound:
             warn('no level variable found.')
             self.level = DummyLevelInterface()
             self.level.level = DummyLevelVariable()
             self.level.level.value = np.array([1])
             self.level.levelidx = np.array([0])
-            self._has_level = False
+#            self._has_level = False
             self.level.lid = np.array([1])
             
     @property

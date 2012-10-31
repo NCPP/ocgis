@@ -32,22 +32,16 @@ class OcgDataset(object):
     spatial and temporal queries.
     
     uri -- location of the dataset object.
-    **kwds -- arguments for the names of multiple configuration parameters:
-        rowbnds_name
-        colbnds_name
-        time_name
-        time_units
-        level_name
-        calendar
-        verbose
+    interface -- dictionary containing overloaded parameters for interface
+        objects
     """
     
-    def __init__(self,uri,**kwds):
+    def __init__(self,uri,interface_overload={}):
         self.uri = uri
         self.dataset = self.connect(uri)
 
         ## construct interface
-        self.i = GlobalInterface(self.dataset)
+        self.i = GlobalInterface(self.dataset,overload=interface_overload)
 #        self.spatial = SpatialInterface(self.dataset,**kwds)
 #        self.temporal = TemporalInterface(self.dataset,**kwds)
 #        try:

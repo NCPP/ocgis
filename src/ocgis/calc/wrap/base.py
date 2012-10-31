@@ -108,8 +108,7 @@ class OcgFunction(object):
         for lidx in range(values.shape[1]):
             value_slice = values[:,lidx,:,:]
             assert(len(value_slice.shape) == 3)
-            ret[0,lidx,:] = self._calculate_\
-                 (value_slice,self.axis,**kwds)
+            ret[0,lidx,:] = self._calculate_(value_slice,self.axis,**kwds)
         return(ret)
         
 #        if self.axis is None:

@@ -21,8 +21,8 @@ class TestCdata(TestCase):
                  ]
         
         datasets = [
-#                    [1,'tasmax'],
-#                    [7,'rhsmax'],
+                    [1,'tasmax'],
+                    [7,'rhsmax'],
                     ['4|9','tas|rhs']
                    ]
         
@@ -37,30 +37,30 @@ class TestCdata(TestCase):
         
         operations = [
                       'intersects',
-#                      'clip'
+                      'clip'
                       ]
         
         aggregates = [
                       'true',
-#                      'false'
+                      'false'
                       ]
         
         calcs = [
-#                 'none',
-#                 'min~min_val|max~max_val',
+                 'none',
+                 'min~min_val|max~max_val',
                  'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
         calc_raws = [
-#                     'none',
+                     'none',
                      'true',
-#                     'false'
+                     'false'
                      ]
         
         calc_groupings = [
 #                          'none',
-#                          'month',
-#                          'day|month|year',
+                          'month',
+                          'day|month|year',
 #                          'year',
                           'year|month'
                           ]
@@ -80,6 +80,9 @@ class TestCdata(TestCase):
 
         args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings)
         for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping in itertools.product(*args):
+            dataset[0] = str(dataset[0])
+            if '|' not in dataset[0] and 'heat_index' in calc:
+                continue
             url = '/subset?'
             url = _append_(url,'space',space,prepend=False)
             url = _append_(url,'uid',dataset[0])
@@ -93,7 +96,10 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_raw',calc_raw)
             url = _append_(url,'calc_grouping',calc_grouping)
             
-            resp = self.c.get(url)
+            try:
+                resp = self.c.get(url)
+            except Exception as e:
+                import ipdb;ipdb.set_trace()
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

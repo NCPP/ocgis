@@ -6,11 +6,46 @@ from ocgis.util.helpers import iter_array
 
 
 class CalcIdentifier(OrderedDict):
-    _curr = 1
+    
+    def __init__(self,*args,**kwds):
+        self._curr = 1
+        super(CalcIdentifier,self).__init__(*args,**kwds)
     
     def add(self,key):
-        self.update({key:self._curr})
-        self._curr += 1
+        if key not in self:
+            self.update({key:self._curr})
+            self._curr += 1
+            
+            
+class VariableLevelIdentifier(OrderedDict):
+    
+    def __init__(self,*args,**kwds):
+        self._curr = 1
+        self._dtype = None
+        super(VariableLevelIdentifier,self).__init__(*args,**kwds)
+    
+    def add(self,lid,level_value):
+        if self._dtype is None:
+            self._dtype = type(level_value)
+        key = self._key_(lid,level_value)
+        if key not in self:
+            self.update({key:self._curr})
+            self._curr += 1
+            
+    def get(self,lid,level_value):
+        key = self._key_(lid,level_value)
+        return(self[key])
+    
+    def iteritems(self):
+        for key,value in super(VariableLevelIdentifier,self).iteritems():
+            lid,level_value = key.split('__')
+            lid = int(lid)
+            level_value = self._dtype(level_value)
+            yield(value,lid,level_value)
+    
+    def _key_(self,lid,level_value):
+        key = '{0}__{1}'.format(lid,level_value)
+        return(key)
         
         
 class OcgVariable(object):
@@ -33,7 +68,7 @@ class OcgVariable(object):
         self.agg_value = None
         self.calc_value = OrderedDict()
         self.vid = vid
-        self.vlid = np.array([],dtype=int)
+#        self.vlid = np.array([],dtype=int)
 #        self.cid = np.array([],dtype=int)
 #        self.vlid = Identifier()
 #        self.cid = Identifier()
@@ -66,6 +101,8 @@ class OcgCollection(object):
         self.geom_dict = geom_dict
         
         self.cid = CalcIdentifier()
+        self.vlid = VariableLevelIdentifier()
+        
         self.variables = {}
 #        self.has_multi = None
         self.calc_multi = OrderedDict()
@@ -250,14 +287,14 @@ class OcgCollection(object):
             ret = self.cengine.dtime[attr]
         return(ret)
     
-    @property
-    def _curr_vlid(self):
-        '''Increment the current collection-level level identifier.'''
-        
-        try:
-            return(self._vlid_inc)
-        finally:
-            self._vlid_inc += 1
+#    @property
+#    def _curr_vlid(self):
+#        '''Increment the current collection-level level identifier.'''
+#        
+#        try:
+#            return(self._vlid_inc)
+#        finally:
+#            self._vlid_inc += 1
         
     def _get_value_(self,var_name):
         return(getattr(self.variables[var_name],self._value_attr))
@@ -278,8 +315,9 @@ class OcgCollection(object):
         for ii in iterator:
             self.variables.update({ii.name:ii})
             for lidx in iter_array(ii.lid):
+                self.vlid.add(ii.lid[lidx],ii.levelvec[lidx])
 #                ii.vlid.add()
-                ii.vlid = np.append(ii.vlid,self._curr_vlid)
+#                ii.vlid = np.append(ii.vlid,self._curr_vlid)
             
     def _get_shape_dict_(self,n,raw=False):
         '''Used during calculation to ensure shapes are properly returned.'''

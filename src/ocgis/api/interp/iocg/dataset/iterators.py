@@ -30,6 +30,7 @@ class RawIterator(BaseIterator):
         for ((tidx,),gidx,var_key) in it_idx:
             ref = self.coll.variables[var_key]
             for lidx in iter_array(ref.lid):
+                vlid = self.coll.vlid.get(ref.lid[lidx],ref.levelvec[lidx])
                 ret = dict(
                  tid=self.coll.tid[tidx],
                  gid=self.coll.gid[gidx],
@@ -37,7 +38,8 @@ class RawIterator(BaseIterator):
                  time=self.coll.timevec[tidx],
                  lid=ref.lid[lidx],
                  level=ref.levelvec[lidx],
-                 vlid=ref.vlid[lidx],
+                 vlid=vlid,
+#                 vlid=ref.vlid[lidx],
                  value=ref.raw_value[tidx][lidx][gidx],
                  vid=ref.vid,
                  variable=ref.name,
@@ -54,6 +56,7 @@ class AggIterator(RawIterator):
         for ((tidx,),gidx,var_key) in it_idx:
             ref = self.coll.variables[var_key]
             for lidx in iter_array(ref.lid):
+                vlid = self.coll.vlid.get(ref.lid[lidx],ref.levelvec[lidx])
                 ret = dict(
                  tid=self.coll.tid[tidx],
                  gid=self.coll.gid[gidx],
@@ -61,7 +64,8 @@ class AggIterator(RawIterator):
                  time=self.coll.timevec[tidx],
                  lid=ref.lid[lidx],
                  level=ref.levelvec[lidx],
-                 vlid=ref.vlid[lidx],
+                 vlid=vlid,
+#                 vlid=ref.vlid[lidx],
                  value=ref.agg_value[tidx][lidx][gidx],
                  vid=ref.vid,
                  variable=ref.name,
@@ -129,9 +133,8 @@ class RawKeyedIterator(BaseIterator):
                 yield(value.vid,value.name)
                 
         def level():
-            for value in self.coll.variables.itervalues():
-                for lidx in iter_array(value.lid):
-                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
+            for vlid,lid,level_value in self.coll.vlid.iteritems():
+                yield(vlid,lid,level_value)
         
         def value():
             for tidx in iter_array(self.coll.tid):
@@ -139,8 +142,13 @@ class RawKeyedIterator(BaseIterator):
                     for value in self.coll.variables.itervalues():
                         vref = getattr(value,self._value_attr)
                         for lidx in iter_array(value.lid):
-                            yield(self.coll.geom_dict['id'],self.coll.gid[gidx],self.coll.tid[tidx],value.vid,
-                                   value.vlid[lidx],vref[tidx][lidx][gidx])
+                            yield(self.coll.geom_dict['id'],
+                                  self.coll.gid[gidx],
+                                  self.coll.tid[tidx],
+                                  value.vid,
+                                  self.coll.vlid.get(value.lid[lidx],value.levelvec[lidx]),
+#                                  value.vlid[lidx],
+                                  vref[tidx][lidx][gidx])
         
         ret = {
          'ugid':{'it':user_geometry,'headers':['UGID']},
@@ -180,28 +188,33 @@ class CalcKeyedIterator(BaseIterator):
                 yield(value.vid,value.name)
                 
         def level():
-            for value in self.coll.variables.itervalues():
-                for lidx in iter_array(value.lid):
-                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
+            for vlid,lid,level_value in self.coll.vlid.iteritems():
+                yield(vlid,lid,level_value)
+#            for value in self.coll.variables.itervalues():
+#                for lidx in iter_array(value.lid):
+#                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
         
         def calc():
-            for value in self.coll.variables.itervalues():
-                for cidx,key in enumerate(value.calc_value.keys()):
-                    yield(value.cid[cidx],key)
-                break
+            for key,value in self.coll.cid.iteritems():
+                yield(value,key)
+#            for value in self.coll.variables.itervalues():
+#                for cidx,key in enumerate(value.calc_value.keys()):
+#                    yield(value.cid[cidx],key)
+#                break
         
         def value():
             for tidx in iter_array(self.coll.tgid):
                 for gidx in iter_array(self.coll.gid):
                     for value in self.coll.variables.itervalues():
                         for lidx in iter_array(value.lid):
-                            for cidx,calc_value in enumerate(value.calc_value.itervalues()):
+                            for calc_name,calc_value in value.calc_value.iteritems():
                                 yield(self.coll.geom_dict['id'],
                                       self.coll.gid[gidx],
                                       self.coll.tid[tidx],
                                       value.vid,
-                                      value.vlid[lidx],
-                                      value.cid[cidx],
+                                      self.coll.vlid.get(value.lid[lidx],value.levelvec[lidx]),
+#                                      value.vlid[lidx],
+                                      self.coll.cid[calc_name],
                                       calc_value[tidx][lidx][gidx])
         
         ret = {
@@ -238,22 +251,29 @@ class MultiKeyedIterator(BaseIterator):
 #            for value in self.coll.variables.itervalues():
 #                yield(value.vid,value.name)
                 
-#        def level():
+        def level():
+            for vlid,lid,level_value in self.coll.vlid.iteritems():
+                yield(vlid,lid,level_value)
 #            for value in self.coll.variables.itervalues():
 #                for lidx in iter_array(value.lid):
 #                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
 #                break
         
         def multi(): ##cid,key
-            for ii,key in enumerate(self.coll.calc_multi.keys(),start=1):
-                yield(ii,key)
+#            for ii,key in enumerate(self.coll.calc_multi.keys(),start=1):
+#                yield(ii,key)
+            for key,value in self.coll.cid.iteritems():
+                yield(value,key)
         
         def value():
+            arch = self.coll.variables[self.coll.variables.keys()[0]]
             for tidx in iter_array(self.coll.tgid):
+                tidx = tidx[0]
                 for gidx in iter_array(self.coll.gid):
-                    for cidx,value in enumerate(self.coll.calc_multi.itervalues(),start=1):
-                        for lidx in range(value.shape[1]):
-                            v = value[tidx][lidx][gidx]
+                    for multi_name,multi_value in self.coll.calc_multi.iteritems():
+#                    for cidx,value in enumerate(self.coll.calc_multi.itervalues(),start=1):
+                        for lidx in range(multi_value.shape[1]):
+                            v = multi_value[tidx][lidx][gidx]
                             try:
                                 if v.mask:
                                     v = None
@@ -261,17 +281,28 @@ class MultiKeyedIterator(BaseIterator):
                                 pass
                             yield(self.coll.geom_dict['id'],
                                   self.coll.gid[gidx],
-                                  self.coll.tid[tidx],
-                                  cidx,
+                                  self.coll.tgid[tidx],
+                                  self.coll.vlid.get(arch.lid[lidx],arch.levelvec[lidx]),
+                                  self.coll.cid[multi_name],
                                   v)
+                    for var_name,variable in self.coll.variables.iteritems():
+                        for calc_name,calc_value in variable.calc_value.iteritems():
+                            for lidx in iter_array(variable.lid):
+                                v = calc_value[tidx][lidx][gidx]
+                                yield(self.coll.geom_dict['id'],
+                                      self.coll.gid[gidx],
+                                      self.coll.tgid[tidx],
+                                      self.coll.vlid.get(variable.lid[lidx],variable.levelvec[lidx]),
+                                      self.coll.cid[calc_name],
+                                      v)
         
         ret = {
          'ugid':{'it':user_geometry,'headers':['UGID']},
          'gid':{'it':geometry,'headers':['GID']},
          'tgid':{'it':time,'headers':time_headers},
 #         'vid':{'it':variable,'headers':['VID','VAR_NAME']},
-#         'vlid':{'it':level,'headers':['VLID','LID','LEVEL']},
+         'vlid':{'it':level,'headers':['VLID','LID','LEVEL']},
          'cid':{'it':multi,'headers':['CID','CALC_NAME']},
-         'value':{'it':value,'headers':['UGID','GID','TGID','CID','VALUE']}
+         'value':{'it':value,'headers':['UGID','GID','TGID','VLID','CID','VALUE']}
                }
         return(ret)

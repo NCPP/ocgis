@@ -2,8 +2,7 @@ import numpy as np
 import models
 from element import ElementNotFound
 from warnings import warn
-from ocgis.util.helpers import bounding_coords, approx_resolution, contains,\
-    iter_array, make_poly, keep
+import ocgis.util.helpers as helpers
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
@@ -69,7 +68,7 @@ class SpatialInterfacePolygon(SpatialInterface):
                                 np.arange(0,len(self.longitude_bounds.value)),
                                 np.arange(0,len(self.latitude_bounds.value))
                                                  )
-        self.resolution = approx_resolution(self.min_col[0,:])
+        self.resolution = helpers.approx_resolution(self.min_col[0,:])
         self.shape = self.real_col.shape
         self.gid = np.arange(1,self.real_col.shape[0]*
                                self.real_col.shape[1]+1).reshape(self.shape)
@@ -77,7 +76,7 @@ class SpatialInterfacePolygon(SpatialInterface):
     def calc_weights(self,npd,geom):
         weight = np.ma.array(np.zeros((npd.shape[2],npd.shape[3]),dtype=float),
                              mask=npd.mask[0,0,:,:])
-        for ii,jj in iter_array(weight):
+        for ii,jj in helpers.iter_array(weight):
 #            try:
             weight[ii,jj] = geom[ii,jj].area
 #            except:
@@ -90,16 +89,16 @@ class SpatialInterfacePolygon(SpatialInterface):
         if polygon is not None:
             prep_polygon = prepared.prep(polygon)
             emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
-            smin_col = contains(self.min_col,
+            smin_col = helpers.contains(self.min_col,
                                 emin_col,emax_col,
                                 self.resolution)
-            smax_col = contains(self.max_col,
+            smax_col = helpers.contains(self.max_col,
                                 emin_col,emax_col,
                                 self.resolution)
-            smin_row = contains(self.min_row,
+            smin_row = helpers.contains(self.min_row,
                                 emin_row,emax_row,
                                 self.resolution)
-            smax_row = contains(self.max_row,
+            smax_row = helpers.contains(self.max_row,
                                 emin_row,emax_row,
                                 self.resolution)
             include = np.any((smin_col,smax_col),axis=0)*\
@@ -123,13 +122,13 @@ class SpatialInterfacePolygon(SpatialInterface):
             self.selection.idx.append([self.real_row[ii,jj],
                                        self.real_col[ii,jj]])
         
-        for ii,jj in iter_array(include,use_mask=False):
+        for ii,jj in helpers.iter_array(include,use_mask=False):
             if include[ii,jj]:
-                test_geom = make_poly((self.min_row[ii,jj],
+                test_geom = helpers.make_poly((self.min_row[ii,jj],
                                        self.max_row[ii,jj]),
                                       (self.min_col[ii,jj],
                                        self.max_col[ii,jj]))
-                if polygon is not None and keep(prep_polygon,polygon,test_geom):
+                if polygon is not None and helpers.keep(prep_polygon,polygon,test_geom):
                     _append(ii,jj,test_geom)
                 elif polygon is None:
                     _append(ii,jj,test_geom)
@@ -169,7 +168,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         return(self.get_bounds(1))
     
     def subset_bounds(self,polygon):
-        bounds = bounding_coords(polygon)
+        bounds = helpers.bounding_coords(polygon)
         xbnd = self.longitude_bounds.value
         ybnd = self.latitude_bounds.value
         xbnd_idx1 = self._subset_(xbnd[:,0],bounds.min_x,bounds.max_x,ret_idx=True,method='open')
@@ -179,7 +178,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         return(xbnd[xbnd_idx1*xbnd_idx2,:],ybnd[ybnd_idx1*ybnd_idx2,:])
     
     def subset_centroids(self,polygon):
-        bounds = bounding_coords(polygon)
+        bounds = helpers.bounding_coords(polygon)
         y = self._subset_(self.row.value[:],bounds.min_y,bounds.max_y)
         x = self._subset_(self.col.value[:],bounds.min_x,bounds.max_x)
         return(x,y)
@@ -226,7 +225,7 @@ class SpatialInterfacePoint(SpatialInterface):
             self.real_col,self.real_row = np.meshgrid(
                                     np.arange(0,len(self.longitude.value)),
                                     np.arange(0,len(self.latitude.value)))
-        self.resolution = approx_resolution(np.ravel(self.col_pt))
+        self.resolution = helpers.approx_resolution(np.ravel(self.col_pt))
         self.shape = self.real_col.shape
         self.gid = np.arange(1,self.real_col.shape[0]*
                                self.real_col.shape[1]+1).reshape(self.shape)
@@ -237,7 +236,7 @@ class SpatialInterfacePoint(SpatialInterface):
         return(weight)
     
     def fill_geom(self):
-        for ii,jj in iter_array(self.col_pt,use_mask=False):
+        for ii,jj in helpers.iter_array(self.col_pt,use_mask=False):
             self.selection.geom[ii,jj] = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
     
     def select(self,polygon):
@@ -246,7 +245,7 @@ class SpatialInterfacePoint(SpatialInterface):
         if polygon is not None:
 #            include = np.zeros(self.shape,dtype=bool)
             prep_polygon = prepared.prep(polygon)
-            for ii,jj in iter_array(self.col_pt,use_mask=False):
+            for ii,jj in helpers.iter_array(self.col_pt,use_mask=False):
                 pt = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
                 if prep_polygon.intersects(pt):
                     self.selection.geom[ii,jj] = pt
@@ -259,7 +258,7 @@ class SpatialInterfacePoint(SpatialInterface):
             self.fill_geom()
             self.selection.row = self.real_row.flatten()
             self.selection.col = self.real_col.flatten()
-            for ii,jj in iter_array(self.real_row,use_mask=False):
+            for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
                 self.selection.idx.append([self.real_row[ii,jj],
                                            self.real_col[ii,jj]])
 #            include = np.ones(self.shape,dtype=bool)
@@ -319,7 +318,7 @@ class TemporalInterface(Interface):
     
     def get_approx_res_days(self):
         diffs = np.array([],dtype=float)
-        for tidx,tval in iter_array(self.time.value,return_value=True):
+        for tidx,tval in helpers.iter_array(self.time.value,return_value=True):
             try:
                 diffs = np.append(diffs,
                                 np.abs((tval-self.time.value[tidx[0]+1]).days))

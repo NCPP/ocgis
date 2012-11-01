@@ -173,7 +173,9 @@ class OcgCalculationEngine(object):
 #                coll.calc_multi[f['name']] = calc
 #            else:
 #            ref = f['ref']
+            has_multi = False
             if issubclass(f['ref'],OcgCvArgFunction):
+                has_multi = True
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
                 kwds = f['kwds'].copy()
@@ -213,5 +215,12 @@ class OcgCalculationEngine(object):
 #                                                **f['kwds'])
 #                    coll.variables[var_name].calc_value.\
 #                      update({f['name']:calc})
-        import ipdb;ipdb.set_trace()     
+        ## calculate sample size for multivariate calculation
+        if has_multi:
+            for ii,value in enumerate(coll.variables.itervalues()):
+                if ii == 0:
+                    n = value.calc_value['n'].copy()
+                else:
+                    n += value.calc_value['n']
+            coll.calc_multi['n'] = n
         return(coll)

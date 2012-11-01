@@ -22,13 +22,14 @@ class TestCdata(TestCase):
         
         datasets = [
                     [1,'tasmax'],
-                    [7,'rhsmax'],
-                    ['4|9','tas|rhs']
+#                    [7,'rhsmax'],
+#                    ['4|9','tas|rhs']
                    ]
         
         outputs = [
-                  'keyed',
-#                  'meta'
+#                  'keyed',
+#                  'meta',
+                  'nc',
                   ]
         
         times = ['none']
@@ -41,28 +42,28 @@ class TestCdata(TestCase):
                       ]
         
         aggregates = [
-                      'true',
+#                      'true',
                       'false'
                       ]
         
         calcs = [
                  'none',
-                 'min~min_val|max~max_val',
-                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
+#                 'min~min_val|max~max_val',
+#                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
         calc_raws = [
                      'none',
-                     'true',
-                     'false'
+#                     'true',
+#                     'false'
                      ]
         
         calc_groupings = [
-#                          'none',
-                          'month',
-                          'day|month|year',
+                          'none',
+#                          'month',
+#                          'day|month|year',
 #                          'year',
-                          'year|month'
+#                          'year|month'
                           ]
         
 #        calc = ''

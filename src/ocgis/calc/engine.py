@@ -2,22 +2,20 @@ import numpy as np
 import itertools
 from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc.wrap import library
-from ocgis.calc.wrap.library import SampleSize
 
 
 class OcgCalculationEngine(object):
     '''
-    wrapf : object : this is the wrapped function object
-    grouping_idx : int[] : quickly split the data into groups
-    ugrouping_idx : int[] : unique representation of grouping_idx for iteration
-    weights : float[] : areal weights (not normalized)
-    values : float[] : value vector corresponding to dim of grouping_idx. if
-        it is a multivariate function, this should be a dictionary mapping
-        variables to values that the base function will know how to interpret
+    grouping : list of bool ndarray : temporal groups
+    timevec : ndarray of datetime.datetime : actual datetime objects
+    funcs : dict : dictionary of function definitions
+    raw=False : bool : true if calculation should be on raw data values
+    agg=False : bool : true if calculations should be performed on aggregated values
+    time_range : list of datetime.datetime : bounding range for time selection
     '''
     
     def __init__(self,grouping,timevec,funcs,raw=False,agg=False,
-                 time_range=None,mode='raw'):
+                 time_range=None):
         self.raw = raw
         self.agg = agg
         self.time_range = time_range

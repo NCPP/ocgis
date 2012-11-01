@@ -36,12 +36,6 @@ class OcgCalculationEngine(object):
 #        funcs_copy.insert(0,{'func':'n'})
         self.funcs = self.set_funcs(funcs)
         self.funcs = funcs
-#        ## set flag for multivariate calculations. univariate and multivariate
-#        ## requests are not allowed at this point.
-#        if mode == 'multi':
-#            self.has_multi = True
-#        else:
-#            self.has_multi = False
         ## get the time groups
         self.dgroups,self.dtime = self.get_distinct_groups()
         ## select which value data to pull based on raw and agg arguments
@@ -120,60 +114,13 @@ class OcgCalculationEngine(object):
         return(idx)
     
     def execute(self,coll):
-        
-#        import ipdb;ipdb.set_trace()
-#        ## TODO: potential speed-up with vectorization
-#        
-#        ## hold calculated data
-#        if self.has_multi:
-#            coll.has_multi = True
-#        else:
-#            coll.has_multi = False
-            
-#        ## store array shapes
+        ## tell collection which data to return
         coll._use_agg = self.use_agg
-#        shapes = coll._get_shape_dict_(len(self.dgroups),raw=self.raw)
+        ## flag used for sample size calculation for multivariate calculations
+        has_multi = False
+        ## iterate over functions
         for cid,f in enumerate(self.funcs,start=1):
-#            import ipdb;ipdb.set_trace()
-            ## for multivariate calculations, the structure is different and
-            ## functions are not applied to individual variables.
-#            if self.has_multi:
-#                archetype = coll.variables.keys()[0]
-#                ref = f['ref'](agg=self.agg,
-#                               raw=self.raw,
-#                               weights=shapes[archetype]['fweights'])
-#                calc = np.ma.array(np.empty(shapes[archetype]['calc_shape'],
-#                                       dtype=ref.dtype),
-#                                       mask=shapes[archetype]['calc_mask'])
-#                for grp_idx,grp in zip(range(len(self.dgroups)),self.dgroups):
-#                    ## for sample size, we just need the count from one variable.
-#                    if isinstance(ref,SampleSize):
-#                        dref = coll._get_value_(archetype)
-#                        data = dref[grp,:,:,:]
-#                        calc[grp_idx,:,:,:] = ref.calculate(
-#                                            data,shapes[archetype]['out_shape'])
-#                    else:
-#                        ## cv-controlled multivariate functions require collecting
-#                        ## data arrays before passing to function.
-#                        kwds = f['kwds'].copy()
-#                        for key in ref.keys:
-#                            ## the name of the variable passed in the request
-#                            ## that should be mapped to the named argument
-#                            backref = kwds[key]
-#                            ## pull associated data
-#                            dref = coll._get_value_(backref)
-#                            ## subset by date group
-#                            data = dref[grp,:,:,:]
-#                            ## update dict with properly reference data
-#                            kwds.update({key:data})
-#                        calc_ret = ref.calculate(shapes[backref]['out_shape'],**kwds)
-#                        calc[grp_idx,:,:,:] = calc_ret
-#                        ## mask must be updated due to irregularities of certain calculations.
-#                        calc.mask[grp_idx,:,:,:] = calc_ret.mask
-#                coll.calc_multi[f['name']] = calc
-#            else:
-#            ref = f['ref']
-            has_multi = False
+            ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction):
                 has_multi = True
                 ## cv-controlled multivariate functions require collecting
@@ -185,36 +132,23 @@ class OcgCalculationEngine(object):
                     backref = kwds[key]
                     ## pull associated data
                     dref = coll._get_value_(backref)
-#                    ## subset by date group
-#                    data = dref[grp,:,:,:]
                     ## update dict with properly reference data
                     kwds.update({key:dref})
+                ## function object instance
                 ref = f['ref'](agg=self.agg,groups=self.dgroups,kwds=kwds,weights=coll.weights)
-                calc = ref.calculate()
-                coll.calc_multi[f['name']] = calc
-#                import ipdb;ipdb.set_trace()
+                ## store calculation value
+                coll.calc_multi[f['name']] = ref.calculate()
             else:
+                ## perform calculation on each variable
                 for var_name,values in coll._iter_items_():
+                    ## instance of function object
                     ref = f['ref'](values=values,agg=self.agg,groups=self.dgroups,kwds=f['kwds'],weights=coll.weights)
+                    ## calculate the values
                     calc = ref.calculate()
+                    ## store the values
                     coll.variables[var_name].calc_value.update({f['name']:calc})
+                    ## update calculation identifier
                     coll.variables[var_name].cid = np.append(coll.variables[var_name].cid,cid)
-#        import ipdb;ipdb.set_trace()
-#                ref = f['ref'](agg=self.agg,
-#                                   raw=self.raw,
-#                                   weights=shapes[var_name]['fweights'])
-#                calc = np.ma.array(np.empty(shapes[var_name]['calc_shape'],
-#                                                dtype=ref.dtype),
-#                                       mask=shapes[var_name]['calc_mask'])
-#                for grp_idx,grp in zip(range(len(self.dgroups)),
-#                                           self.dgroups):
-#                    data = value[grp,:,:,:]
-#                    calc[grp_idx,:,:,:] = ref.calculate(
-#                                                data,
-#                                                shapes[var_name]['out_shape'],
-#                                                **f['kwds'])
-#                    coll.variables[var_name].calc_value.\
-#                      update({f['name']:calc})
         ## calculate sample size for multivariate calculation
         if has_multi:
             for ii,value in enumerate(coll.variables.itervalues()):
@@ -223,4 +157,5 @@ class OcgCalculationEngine(object):
                 else:
                     n += value.calc_value['n']
             coll.calc_multi['n'] = n
+        
         return(coll)

@@ -5,6 +5,14 @@ from ocgis.api.interp.iocg.dataset import iterators
 from ocgis.util.helpers import iter_array
 
 
+class CalcIdentifier(OrderedDict):
+    _curr = 1
+    
+    def add(self,key):
+        self.update({key:self._curr})
+        self._curr += 1
+        
+        
 class OcgVariable(object):
     """Holds variable data. Variables may be climate variables or derived 
     values.
@@ -26,7 +34,13 @@ class OcgVariable(object):
         self.calc_value = OrderedDict()
         self.vid = vid
         self.vlid = np.array([],dtype=int)
-        self.cid = np.array([],dtype=int)
+#        self.cid = np.array([],dtype=int)
+#        self.vlid = Identifier()
+#        self.cid = Identifier()
+        
+    def __repr__(self):
+        msg = '<{0}>:{1}'.format(self.__class__.__name__,self.name)
+        return(msg)
 
 
 class OcgCollection(object):
@@ -51,8 +65,9 @@ class OcgCollection(object):
         self.cengine = cengine
         self.geom_dict = geom_dict
         
+        self.cid = CalcIdentifier()
         self.variables = {}
-        self.has_multi = None
+#        self.has_multi = None
         self.calc_multi = OrderedDict()
 #        self.calc_value = OrderedDict()
         self._use_agg = None
@@ -192,7 +207,7 @@ class OcgCollection(object):
 #                yield(ret,base['geom'])
         
     def __repr__(self):
-        msg = ('OcgCollection with {n} variable(s): {vars}').\
+        msg = ('<OcgCollection> with {n} variable(s): {vars}').\
           format(n=len(self.variables.keys()),
                        vars=self.variables.keys())
         return(msg)
@@ -251,20 +266,19 @@ class OcgCollection(object):
         for var_name,value in self.variables.iteritems():
             yield(var_name,getattr(value,self._value_attr))
         
-    def add_variable(self,ocg_variable,location='variables'):
+    def add_variable(self,ocg_variable):
         '''Add a variable to the collection.
         
         ocg_variable :: OcgVariable
-        location="variables" :: str :: Name of the dictiony to update with new
-            variable data.'''
-        
+        '''
         try:
             iterator = iter(ocg_variable)
         except TypeError:
             iterator = iter([ocg_variable])
         for ii in iterator:
-            getattr(self,location).update({ii.name:ii})
+            self.variables.update({ii.name:ii})
             for lidx in iter_array(ii.lid):
+#                ii.vlid.add()
                 ii.vlid = np.append(ii.vlid,self._curr_vlid)
             
     def _get_shape_dict_(self,n,raw=False):

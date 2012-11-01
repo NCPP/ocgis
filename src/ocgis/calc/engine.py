@@ -117,7 +117,7 @@ class OcgCalculationEngine(object):
         ## flag used for sample size calculation for multivariate calculations
         has_multi = False
         ## iterate over functions
-        for cid,f in enumerate(self.funcs,start=1):
+        for f in self.funcs:
             ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction):
                 has_multi = True
@@ -136,6 +136,7 @@ class OcgCalculationEngine(object):
                 ref = f['ref'](agg=self.agg,groups=self.dgroups,kwds=kwds,weights=coll.weights)
                 ## store calculation value
                 coll.calc_multi[f['name']] = ref.calculate()
+                coll.cid.add(f['name'])
             else:
                 ## perform calculation on each variable
                 for var_name,values in coll._iter_items_():
@@ -143,17 +144,23 @@ class OcgCalculationEngine(object):
                     ref = f['ref'](values=values,agg=self.agg,groups=self.dgroups,kwds=f['kwds'],weights=coll.weights)
                     ## calculate the values
                     calc = ref.calculate()
-                    ## store the values
-                    coll.variables[var_name].calc_value.update({f['name']:calc})
                     ## update calculation identifier
-                    coll.variables[var_name].cid = np.append(coll.variables[var_name].cid,cid)
+#                    coll.variables[var_name].cid = np.append(coll.variables[var_name].cid,cid)
+                    if f['name'] == 'n':
+                        add_name = f['name'] + '_' + var_name
+                    else:
+                        add_name = f['name']
+                    ## store the values
+                    coll.variables[var_name].calc_value.update({add_name:calc})
+                    coll.cid.add(add_name)
         ## calculate sample size for multivariate calculation
         if has_multi:
-            for ii,value in enumerate(coll.variables.itervalues()):
+            for ii,(key,value) in enumerate(coll.variables.iteritems()):
                 if ii == 0:
-                    n = value.calc_value['n'].copy()
+                    n = value.calc_value['n_'+key].copy()
                 else:
-                    n += value.calc_value['n']
+                    n += value.calc_value['n_'+key]
             coll.calc_multi['n_multi'] = n
-        
+            coll.cid.add('n_multi')
+
         return(coll)

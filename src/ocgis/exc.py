@@ -20,3 +20,27 @@ class DefinitionValidationError(OcgException):
         msg = ('definition dict validation raised an exception on the argument '
                '"{0}" with the message: "{1}"')
         return(msg.format(self.ocg_argument.name,self.msg))
+    
+
+class SubsetException(OcgException):
+    pass
+
+
+class MaskedDataError(SubsetException):
+    def __str__(self):
+        return('Geometric intersection returns all masked values.')
+    
+    
+class ExtentError(SubsetException):
+    def __str__(self):
+        return('Geometric intersection is empty.')
+    
+    
+class EmptyDataNotAllowed(SubsetException):
+    def __str__(self):
+        return('Interesection returned empty, but empty data not allowed.')
+    
+    
+class EmptyData(SubsetException):
+    def __str__(self):
+        return('Empty data returned.')

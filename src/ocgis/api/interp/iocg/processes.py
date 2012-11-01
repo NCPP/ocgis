@@ -53,8 +53,7 @@ class SubsetOperation(object):
                                            self.desc['calc'],
                                            raw=self.desc['calc_raw'],
                                            agg=self.desc['aggregate'],
-                                           time_range=self.desc['time_range'],
-                                           mode=self.desc['mode'])
+                                           time_range=self.desc['time_range'])
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial
         

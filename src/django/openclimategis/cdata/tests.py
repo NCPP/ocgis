@@ -48,7 +48,7 @@ class TestCdata(TestCase):
         calcs = [
 #                 'none',
 #                 'min~min_val|max~max_val',
-                 'heat_index~hi!tas~tas!rhs~rhs!units~K',
+                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
         calc_raws = [

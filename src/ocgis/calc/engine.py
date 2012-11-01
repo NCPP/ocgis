@@ -154,6 +154,6 @@ class OcgCalculationEngine(object):
                     n = value.calc_value['n'].copy()
                 else:
                     n += value.calc_value['n']
-            coll.calc_multi['n'] = n
+            coll.calc_multi['n_multi'] = n
         
         return(coll)

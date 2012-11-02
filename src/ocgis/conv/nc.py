@@ -175,9 +175,12 @@ class NcConverter(OcgConverter):
         
         ## loop through variables
         for var_name,var_value in coll.variables.iteritems():
+            ## reference leve interface
             level = var_value.ocg_dataset.i.level
+            ## if there is no level on the variable no need to build one.
             if isinstance(level,DummyLevelInterface):
                 dim_level = None
+            ## if there is a level, create the dimension and set the variable.
             else:
                 dim_level = ds.createDimension('d_'+level.level.name)
                 levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
@@ -186,9 +189,10 @@ class NcConverter(OcgConverter):
                 value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
             else:
                 value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
+            ## create the value variable.
             value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
             value[:] = var_value.raw_value
             value.fill_value = var_value.raw_value.fill_value
 
-        ds.close()        
+        ds.close()
         return(path)

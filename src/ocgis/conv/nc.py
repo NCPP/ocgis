@@ -142,11 +142,6 @@ class NcConverter(OcgConverter):
 
         ## make dimensions #####################################################
         
-        ## build the level dimension if one existed in the original nc
-        if not isinstance(level,DummyLevelInterface):
-            raise(NotImplementedError)
-        else:
-            dim_level = None
         ## time dimensions
         dim_time = ds.createDimension('d_'+temporal.time.name,len(coll.timevec))
         ## spatial dimensions
@@ -155,10 +150,6 @@ class NcConverter(OcgConverter):
         dim_bnds = ds.createDimension('d_bounds',2)
         
         ## set data + attributes ###############################################
-        
-        ## level if one exists
-        if dim_level is not None:
-            raise(NotImplementedError)
         
         ## time variable
         time_nc_value = temporal.time.calculate(coll.timevec)
@@ -182,11 +173,18 @@ class NcConverter(OcgConverter):
         longitude_bounds = _make_spatial_variable_(ds,spatial.longitude_bounds.name,longitude_bounds_values,(dim_lon,dim_bnds))
         
         ## set the variable(s)
-        if dim_level is not None:
-            value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
-        else:
-            value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
-        for var_name,var_value in coll.variables.iteritems():
+        for ii,(var_name,var_value) in enumerate(coll.variables.iteritems()):
+            level = var_value.ocg_dataset.i.level
+            if isinstance(level,DummyLevelInterface):
+                dim_level = None
+            else:
+                dim_level = ds.createDimension('d_'+level.level.name)
+                levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
+                levels[:] = var_value.levelvec
+            if dim_level is not None:
+                value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
+            else:
+                value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
             value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
             value[:] = var_value.raw_value
             value.fill_value = var_value.raw_value.fill_value

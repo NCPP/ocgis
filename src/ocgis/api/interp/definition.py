@@ -244,6 +244,12 @@ class TimeRange(OcgParameter):
     can_be_none = True
     url_slug_name = 'time'
     
+    def format(self,value):
+        ## ensure the time range is inclusive
+        d = value[1]
+        value[1] = datetime.datetime(d.year,d.month,d.day,23,59,59)
+        return(value)
+    
     def validate(self):
         for ii in self.value:
             self._assert_(type(ii) == datetime.datetime,

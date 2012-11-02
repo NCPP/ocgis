@@ -34,13 +34,16 @@ class TestCdata(TestCase):
                   'nc',
                   ]
         
-        times = ['none']
+        times = [
+#                 'none',
+                 '2002-1-1|2002-1-31'
+                 ]
         
         levels = ['none']
         
         operations = [
                       'intersects',
-                      'clip'
+#                      'clip'
                       ]
         
         aggregates = [

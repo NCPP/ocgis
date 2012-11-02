@@ -29,27 +29,21 @@ class NcConverter(OcgConverter):
         ## spatial variable calculation ########################################
         
         ## first construct values from the stored geometry array
-        geom_masked = coll.geom_masked
-        latitude_values = np.ma.array(np.empty(geom_masked.reshape(-1).shape[0],dtype=float),mask=False)
-        longitude_values = latitude_values.copy()
-        latitude_bounds_values = np.ma.array(np.empty((geom_masked.reshape(-1).shape[0],2),dtype=float),
-                                             mask=False)
-        longitude_bounds_values = latitude_bounds_values.copy()
+        geom = coll.geom
+        latitude_values = np.empty(geom.shape[0],dtype=float)
+        longitude_values = np.empty(geom.shape[1],dtype=float)
+        latitude_bounds_values = np.empty((geom.shape[0],2),dtype=float)
+        longitude_bounds_values = np.empty((geom.shape[1],2),dtype=float)
         ## iterate geometries filling in updated geometry values
-        for idx,geom in iter_array(geom_masked.reshape(-1),return_value=True,use_mask=False):
-            lat = geom.centroid.y
-            lon = geom.centroid.x
-            lon_min,lat_min,lon_max,lat_max = geom.bounds
-            mask = geom_masked.mask.reshape(-1)[idx]
-            latitude_values[idx] = lat
-            latitude_values.mask[idx] = mask
-            longitude_values[idx] = lon
-            longitude_values.mask[idx] = mask
-            latitude_bounds_values[idx][:] = [lat_min,lat_max]
-            latitude_bounds_values.mask[idx][:] = [mask,mask]
-            longitude_bounds_values[idx][:] = [lon_min,lon_max]
-            longitude_bounds_values.mask[idx][:] = [mask,mask]
-        
+        for row_idx in range(len(geom[:,0])):
+            latitude_values[row_idx] = geom[row_idx,0].centroid.y
+            lon_min,lat_min,lon_max,lat_max = geom[row_idx,0].bounds
+            latitude_bounds_values[row_idx,:] = [lat_min,lat_max]
+        for col_idx in range(len(geom[0,:])):
+            longitude_values[col_idx] = geom[0,col_idx].centroid.x
+            lon_min,lat_min,lon_max,lat_max = geom[0,col_idx].bounds
+            longitude_bounds_values[col_idx,:] = [lon_min,lon_max]
+
         ## make dimensions #####################################################
         
         ## build the level dimension if one existed in the original nc
@@ -97,8 +91,9 @@ class NcConverter(OcgConverter):
         else:
             value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
         for var_name,var_value in coll.variables.iteritems():
-            value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims)
-            import ipdb;ipdb.set_trace()
+            value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
             value[:] = var_value.raw_value
-        
-        import ipdb;ipdb.set_trace()
+            value.fill_value = var_value.raw_value.fill_value
+
+        ds.close()        
+        return(path)

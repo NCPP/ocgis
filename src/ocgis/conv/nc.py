@@ -2,15 +2,11 @@ from ocgis.conv.converter import OcgConverter
 import netCDF4 as nc
 from ocgis.meta.interface.interface import DummyLevelInterface
 import numpy as np
-from ocgis.util.helpers import iter_array
 
     
 class NcConverter(OcgConverter):
     _ext = 'nc'
 
-#    def __init__(self,*args,**kwds):
-        
-    
     def write(self):
         if self.mode == 'raw':
             ret = self._write_raw_()

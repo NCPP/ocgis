@@ -10,8 +10,17 @@ class NcConverter(OcgConverter):
 
 #    def __init__(self,*args,**kwds):
         
-        
+    
     def write(self):
+        if self.mode == 'raw':
+            ret = self._write_raw_()
+        elif self.mode == 'agg':
+            raise(NotImplementedError)
+        else:
+            ret = self._write_calc_()
+        return(ret)
+    
+    def _write_raw_(self):
         ## get the collection
         for ii,(coll,geom_dict) in enumerate(self):
             if ii > 0:

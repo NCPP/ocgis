@@ -120,7 +120,6 @@ class NcConverter(OcgConverter):
         iglobal = self.ocg_dataset.i
         spatial = self.ocg_dataset.i.spatial
         temporal = self.ocg_dataset.i.temporal
-        level = self.ocg_dataset.i.level
         
         ## spatial variable calculation ########################################
         

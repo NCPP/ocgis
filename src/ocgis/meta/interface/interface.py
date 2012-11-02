@@ -347,7 +347,7 @@ class DummyLevelVariable(object):
 
 class GlobalInterface(object):
     
-    def __init__(self,dataset,overload=None):
+    def __init__(self,dataset,overload={}):
 
         ## quick check for not supported overload arguments
         for key in ['s_proj']:
@@ -356,9 +356,9 @@ class GlobalInterface(object):
                                           '"{0}" currently not supported'.\
                                           format(key)))
         
-        if overload['s_abstraction'] in ['poly','polygon',None]:
+        if overload.get('s_abstraction') in ['poly','polygon',None]:
             self.spatial = SpatialInterfacePolygon(dataset,overload=overload)
-        elif overload['s_abstraction'] in ['pt','point']:
+        elif overload.get('s_abstraction') in ['pt','point']:
             self.spatial = SpatialInterfacePoint(dataset,overload=overload)
 #        except ElementNotFound as e:
 #            self.spatial = SpatialInterfacePoint(dataset,overload=overload)

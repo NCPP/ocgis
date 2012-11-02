@@ -23,7 +23,8 @@ class TestCdata(TestCase):
                  ]
         
         datasets = [
-                    [1,'tasmax'],
+#                    [1,'tasmax'],
+                    ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc','cl'],
 #                    [7,'rhsmax'],
 #                    ['4|9','tas|rhs']
                    ]
@@ -36,7 +37,7 @@ class TestCdata(TestCase):
         
         times = [
 #                 'none',
-                 '2002-1-1|2002-1-31'
+                 '2002-1-1|2002-12-31'
                  ]
         
         levels = ['none']
@@ -64,8 +65,8 @@ class TestCdata(TestCase):
                      ]
         
         calc_groupings = [
-                          'none',
-#                          'month',
+#                          'none',
+                          'month',
 #                          'day|month|year',
 #                          'year',
 #                          'year|month'
@@ -91,7 +92,10 @@ class TestCdata(TestCase):
                 continue
             url = '/subset?'
             url = _append_(url,'space',space,prepend=False)
-            url = _append_(url,'uid',dataset[0])
+            if len(dataset[0]) > 10:
+                url = _append_(url,'uri',dataset[0])
+            else:
+                url = _append_(url,'uid',dataset[0])
             url = _append_(url,'variable',dataset[1])
             url = _append_(url,'output',output)
             url = _append_(url,'time',time)

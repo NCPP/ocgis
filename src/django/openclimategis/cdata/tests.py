@@ -16,7 +16,8 @@ class TestCdata(TestCase):
     
     def test_get_data(self):
         spaces = [
-                 '-123.4|45.6|-122.2|48.7',
+#                 '-123.4|45.6|-122.2|48.7',
+                 '-128.66|44.27|-121.81|50.69'
 #                 'mi_watersheds',
 #                 'co_watersheds',
 #                 'state_boundaries'
@@ -139,22 +140,29 @@ class TestCdata(TestCase):
         resp = self.c.get(url)
         
     def test_get_snippet(self):
-        uids = [3]
-        variables = ['tas']
+#        uids = [3]
+        uids = ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc']
+        variables = [
+#                     'tas',
+                     'cl'
+                     ]
         prefixes = [
 #                    'none',
                     'some_prefix'
                     ]
         spaces = [
                  'none',
-                 '-123.4|45.6|-122.2|48.7',
-                 'mi_watersheds',
-                 'co_watersheds',
-                 'state_boundaries'
+#                 '-123.4|45.6|-122.2|48.7',
+#                 'mi_watersheds',
+#                 'co_watersheds',
+#                 'state_boundaries'
                  ]
         
         for uid,variable,prefix,space in itertools.product(uids,variables,prefixes,spaces):
-            url = '/snippet?uid={uid}&variable={variable}&prefix={prefix}&space={space}'
+            if len(uid) > 10:
+                url = '/snippet?uri={uid}&variable={variable}&prefix={prefix}&space={space}'
+            else:
+                url = '/snippet?uid={uid}&variable={variable}&prefix={prefix}&space={space}'
             url = url.format(uid=uid,variable=variable,prefix=prefix,space=space)
             resp = self.c.get(url)
 #        self.open_in_chrome(url)

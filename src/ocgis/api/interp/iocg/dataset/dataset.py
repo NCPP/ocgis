@@ -91,6 +91,8 @@ class OcgDataset(object):
         ## the initial selection
         self.i.spatial.selection.clear()
         self.i.spatial.select(polygon)
+        if self.i.spatial.selection.is_empty:
+            raise(exc.ExtentError)
         
         ## get the number of dimensions of the target variable
         ndim = len(self.dataset.variables[var_name].dimensions)

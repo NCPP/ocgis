@@ -38,6 +38,15 @@ class SpatialSelection(object):
         self.col = []
         self.idx = []
         
+    @property
+    def is_empty(self):
+        lens = [bool(len(ii)) for ii in [self.row,self.col,self.idx]]
+        if all(lens) == False:
+            ret = True
+        else:
+            ret = False
+        return(ret)
+        
     def clear(self):
         self.row = []
         self.col = []

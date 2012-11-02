@@ -78,6 +78,10 @@ class Time(VariableElement):
     _calendar_map = {'Calandar is no leap':'noleap',
                      'Calandar is actual':'noleap'}
     
+    def calculate(self,values):
+        ret = nc.date2num(values,self.units.value,calendar=self.calendar.value)
+        return(ret)
+        
     def _format_(self,timevec):
         time_units = self.units.value
         calendar = self.calendar.value

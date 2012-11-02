@@ -57,12 +57,14 @@ class OcgConverter(object):
         from ocgis.conv.numpy_ import NumpyConverter
         from ocgis.conv.shpidx import ShpIdxConverter
         from ocgis.conv.keyed import KeyedConverter
+        from ocgis.conv.nc import NcConverter
         
         mmap = {'shp':ShpConverter,
                 'csv':CsvConverter,
                 'numpy':NumpyConverter,
                 'shpidx':ShpIdxConverter,
-                'keyed':KeyedConverter}
+                'keyed':KeyedConverter,
+                'nc':NcConverter}
         
         return(mmap[output_format])
     

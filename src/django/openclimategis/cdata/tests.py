@@ -2,6 +2,8 @@ from django.test import TestCase
 from django.test.client import Client
 import subprocess
 import itertools
+from traceback import print_exc
+import sys
 
 
 def pause(f):
@@ -97,10 +99,11 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_raw',calc_raw)
             url = _append_(url,'calc_grouping',calc_grouping)
             
-            try:
-                resp = self.c.get(url)
-            except Exception as e:
-                import ipdb;ipdb.set_trace()
+#            try:
+            resp = self.c.get(url)
+#            except:
+#                print_exc(file=sys.stdout)
+#                import ipdb;ipdb.set_trace()
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

@@ -3,6 +3,7 @@ from copy import copy
 from collections import OrderedDict
 from ocgis.api.interp.iocg.dataset import iterators
 from ocgis.util.helpers import iter_array
+from ocgis import env
 
 
 class CalcIdentifier(OrderedDict):
@@ -262,7 +263,8 @@ class OcgCollection(object):
            inefficient property.'''
         
         return(np.ma.array(self.geom,
-                           mask=self.geom_mask))
+                           mask=self.geom_mask,
+                           fill_value=env.FILL_VALUE))
     
     ## TODO: these calls are inefficient
     @property

@@ -54,8 +54,8 @@ class TestCdata(TestCase):
                       ]
         
         calcs = [
-                 'none',
-#                 'min~min_val|max~max_val',
+#                 'none',
+                 'min~min_val|max~max_val',
 #                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
@@ -74,8 +74,8 @@ class TestCdata(TestCase):
                           ]
         
         s_abstractions = [
-#                          'polygon',
-                          'point'
+                          'polygon',
+#                          'point'
                           ]
         
 #        calc = ''

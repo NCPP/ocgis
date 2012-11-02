@@ -60,7 +60,7 @@ class NcConverter(OcgConverter):
         ## make dimensions #####################################################
         
         ## time dimensions
-        dim_time = ds.createDimension('d_'+temporal.time.name,len(coll.timevec))
+        dim_time = ds.createDimension('d_time_group',len(coll.tgid))
         ## spatial dimensions
         dim_lat = ds.createDimension('d_'+spatial.latitude.name,len(latitude_values))
         dim_lon = ds.createDimension('d_'+spatial.longitude.name,len(longitude_values))
@@ -70,11 +70,16 @@ class NcConverter(OcgConverter):
         ## set data + attributes ###############################################
         
         ## time variable
-        time_nc_value = temporal.time.calculate(coll.timevec)
-        times = ds.createVariable(temporal.time.name,time_nc_value.dtype,(dim_time._name,))
-        times[:] = time_nc_value
-        times.calendar = temporal.time.calendar.value
-        times.units = temporal.time.units.value
+        for attr in ['year','month','day']:
+            ref = getattr(coll,attr)
+            if ref[0] is not None:
+                times = ds.createVariable(attr,np.int,(dim_time._name))
+                times[:] = ref
+#        time_nc_value = temporal.time.calculate(coll.timevec)
+#        times = ds.createVariable(temporal.time.name,time_nc_value.dtype,(dim_time._name,))
+#        times[:] = time_nc_value
+#        times.calendar = temporal.time.calendar.value
+#        times.units = temporal.time.units.value
         
         ## spatial variables ###################################################
         
@@ -93,8 +98,14 @@ class NcConverter(OcgConverter):
         
         ## set the variable(s) #################################################
         
-        ## loop through variables
-        for var_name,var_value in coll.variables.iteritems():
+        ## generator to return all calculations
+        def _iter_calc_():
+            for var_value in coll.variables.itervalues():
+                for calc_name,calc_value in var_value.calc_value.iteritems():
+                    yield(var_value,calc_name,calc_value)
+            for calc_name,calc_value in coll.calc_multi.iteritems():
+                yield(var_value,calc_name,calc_value)
+        for var_value,calc_name,calc_value in _iter_calc_():
             ## reference leve interface
             level = var_value.ocg_dataset.i.level
             ## if there is no level on the variable no need to build one.
@@ -102,16 +113,19 @@ class NcConverter(OcgConverter):
                 dim_level = None
             ## if there is a level, create the dimension and set the variable.
             else:
-                dim_level = ds.createDimension('d_'+level.level.name,len(var_value.levelvec))
-                levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
-                levels[:] = var_value.levelvec
+                try:
+                    dim_level = ds.createDimension('d_'+level.level.name,len(var_value.levelvec))
+                    levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
+                    levels[:] = var_value.levelvec
+                except RuntimeError:
+                    pass
             if dim_level is not None:
                 value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
             else:
                 value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
             ## create the value variable.
-            value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
-            value[:] = var_value.raw_value
+            value = ds.createVariable(calc_name,calc_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
+            value[:] = calc_value
             value.fill_value = var_value.raw_value.fill_value
 
         ds.close()

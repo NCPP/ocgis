@@ -172,8 +172,10 @@ class NcConverter(OcgConverter):
         latitude_bounds = _make_spatial_variable_(ds,spatial.latitude_bounds.name,latitude_bounds_values,(dim_lat,dim_bnds))
         longitude_bounds = _make_spatial_variable_(ds,spatial.longitude_bounds.name,longitude_bounds_values,(dim_lon,dim_bnds))
         
-        ## set the variable(s)
-        for ii,(var_name,var_value) in enumerate(coll.variables.iteritems()):
+        ## set the variable(s) #################################################
+        
+        ## loop through variables
+        for var_name,var_value in coll.variables.iteritems():
             level = var_value.ocg_dataset.i.level
             if isinstance(level,DummyLevelInterface):
                 dim_level = None

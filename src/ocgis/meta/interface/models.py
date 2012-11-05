@@ -105,5 +105,5 @@ class Time(VariableElement):
 
 
 class Level(VariableElement):
-    _names = ['level','lvl','levels','lvls','lev','threshold']
+    _names = ['level','lvl','levels','lvls','lev','threshold','plev','plevel','plvl']
     _ocg_name = 'level'

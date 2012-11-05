@@ -143,6 +143,9 @@ class CalcGrouping(StringListArgument):
         msg = msg.format(self.value)
         return(msg)
     
+    def _none_format_(self):
+        return(['day','month','year'])
+    
     
 class LevelRange(OcgParameter):
     '''
@@ -210,7 +213,8 @@ class SpatialOperation(StringArgument):
     
     def _none_format_(self):
         return('intersects')
-    
+
+
 class CalcRaw(BooleanArgument):
     name = 'calc_raw'
     can_be_none = True
@@ -222,6 +226,9 @@ class CalcRaw(BooleanArgument):
         else:
             msg = 'Aggregated values will be used during the calculation.'
         return(msg)
+    
+    def _none_format_(self):
+        return(False)
     
     
 class Aggregate(BooleanArgument):

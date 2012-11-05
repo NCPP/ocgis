@@ -18,7 +18,6 @@ def get_meta(name,ext='tar.gz'):
                 src=src,
                 install=install,
                 base=base))
-            
 
 @task
 def install_hdf():
@@ -37,6 +36,7 @@ def install_hdf():
 def install_netCDF4():
     meta = get_meta('netCDF4')
     meta_hdf5 = get_meta('hdf5')
+    fab.sudo('apt-get install libcurl4-openssl-dev')
     fab.run('mkdir -p '+meta.src)
     with fab.cd(meta.src):
         fab.run('wget '+meta.url)

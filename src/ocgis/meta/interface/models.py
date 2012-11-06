@@ -11,6 +11,7 @@ class RowBounds(VariableElement):
               'latitude_bounds',
               'lat_bnds']
     _ocg_name = 'latitude_bounds'
+    _iname = 's_row_bounds'
     
     
 class ColumnBounds(VariableElement):
@@ -19,22 +20,26 @@ class ColumnBounds(VariableElement):
               'longitude_bounds',
               'lon_bnds']
     _ocg_name = 'longitude_bounds'
+    _iname = 's_column_bounds'
     
     
 class Row(VariableElement):
     _names = ['latitude','lat']
     _ocg_name = 'latitude'
+    _iname = 's_row'
     
     
 class Column(VariableElement):
     _names = ['longitude','lon']
     _ocg_name = 'longitude'
+    _iname = 's_column'
 
 
 class Calendar(AttributeElement):
     _names = ['calendar','time_Convention']
     _ocg_name = 'calendar'
     _default = 'proleptic_gregorian'
+    _iname = 't_calendar'
     
     def __init__(self,*args,**kwds):
         self._mode = 'local'
@@ -69,6 +74,7 @@ class Calendar(AttributeElement):
 class TimeUnits(AttributeElement):
     _names = ['units']
     _ocg_name = 'units'
+    _iname = 't_units'
 
 
 class Time(VariableElement):
@@ -77,6 +83,7 @@ class Time(VariableElement):
     _AttributeElements = [Calendar,TimeUnits]
     _calendar_map = {'Calandar is no leap':'noleap',
                      'Calandar is actual':'noleap'}
+    _iname = 't_variable'
     
     def calculate(self,values):
         ret = nc.date2num(values,self.units.value,calendar=self.calendar.value)
@@ -107,3 +114,4 @@ class Time(VariableElement):
 class Level(VariableElement):
     _names = ['level','lvl','levels','lvls','lev','threshold','plev','plevel','plvl']
     _ocg_name = 'level'
+    _iname = 'l_variable'

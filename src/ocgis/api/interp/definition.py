@@ -490,7 +490,7 @@ class Interface(OcgParameter):
         msg = ['Interface parameter arguments:']
         for key,value in self.value.iteritems():
             try:
-                name = key._ocg_name
+                name = key._iname
             except AttributeError:
                 name = key
             msg2 = ' {0} :: {1}'.format(name,value)

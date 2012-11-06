@@ -113,14 +113,7 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_grouping',calc_grouping)
             url = _append_(url,'s_abstraction',s_abstraction)
             
-#            try:
             resp = self.c.get(url)
-            
-            print resp.content
-            import ipdb;ipdb.set_trace()
-#            except:
-#                print_exc(file=sys.stdout)
-#                import ipdb;ipdb.set_trace()
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

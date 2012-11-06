@@ -23,8 +23,8 @@ HEADERS = {
 
 class MetaConverter(object):
     
-    def __init__(self,desc,request_url=None):
-        self.desc = desc
+    def __init__(self,ops,request_url=None):
+        self.ops = ops
         self.request_url = request_url
         
     def write(self):
@@ -42,7 +42,7 @@ class MetaConverter(object):
         lines.append('')
         
         for Da in DEF_ARGS:
-            obj = Da(self.desc.get(Da.name))
+            obj = Da(getattr(self.ops,Da.name))
             msg = "{0}, URL slug name '{1}'".format(obj.name,obj.url_slug_name)
             divider = ''.join(['=' for ii in range(len(msg))])
             lines.append(divider)

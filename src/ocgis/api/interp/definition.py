@@ -485,6 +485,18 @@ class Interface(OcgParameter):
                 
     def _none_format_(self):
         return({})
+    
+    def message(self):
+        msg = ['Interface parameter arguments:']
+        for key,value in self.value.iteritems():
+            try:
+                name = key._ocg_name
+            except AttributeError:
+                name = key
+            msg2 = ' {0} :: {1}'.format(name,value)
+            msg.append(msg2)
+        msg = '\n'.join(msg)
+        return(msg)
 
             
 ## collection of arguments that comprise an operational call to OCG

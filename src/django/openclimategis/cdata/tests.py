@@ -31,8 +31,8 @@ class TestCdata(TestCase):
                    ]
         
         outputs = [
-                  'keyed',
-#                  'meta',
+#                  'keyed',
+                  'meta',
 #                  'nc',
                   ]
         
@@ -115,6 +115,9 @@ class TestCdata(TestCase):
             
 #            try:
             resp = self.c.get(url)
+            
+            print resp.content
+            import ipdb;ipdb.set_trace()
 #            except:
 #                print_exc(file=sys.stdout)
 #                import ipdb;ipdb.set_trace()

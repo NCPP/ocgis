@@ -9,6 +9,7 @@ import exc
 from ocgis.api.interp.interpreter import Interpreter
 from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
+from ocgis.api.interp.definition import OcgOperations
 
 
 def _zip_response_(path,filename=None):
@@ -68,7 +69,7 @@ def _get_interpreter_return_(ops):
     ret = interp.execute()
     return(ret)
 
-def _get_operations_dictionary_(request):
+def _get_operations_(request):
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
     
@@ -86,7 +87,7 @@ def _get_operations_dictionary_(request):
     calc = parms.CalcParm(query,'calc')
     backend = parms.OcgQueryParm(query,'backend',default='ocg')
     output_grouping = parms.OcgQueryParm(query,'output_grouping')
-    prefix = parms.OcgQueryParm(query,'request_prefix',scalar=True)
+    prefix = parms.OcgQueryParm(query,'prefix',scalar=True)
     
     ## piece together the OCGIS operations dictionary ##########################
 
@@ -118,4 +119,6 @@ def _get_operations_dictionary_(request):
     ## add request specific values
     ops['request_url'] = request.build_absolute_uri()
     
+    ops = OcgOperations(**ops)
+
     return(ops)

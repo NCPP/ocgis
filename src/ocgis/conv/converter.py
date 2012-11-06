@@ -29,7 +29,7 @@ class OcgConverter(object):
         ## reference to calculation engine for convenience
         self.cengine = self.so.cengine
         ## reference dataset object
-        self.ocg_dataset = so.desc['meta'][0]['ocg_dataset']
+        self.ocg_dataset = so.ops.meta[0]['ocg_dataset']
         self.projection = self.ocg_dataset.i.projection
         ## destination projection for area calculations.
         ## TODO: consider moving this to the "get_collection" method inside the

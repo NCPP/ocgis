@@ -14,10 +14,10 @@ from ocgis.spatial.union import union_geom_dicts
 def get_data(request):
     '''The standard entry point for an OCGIS request.'''
 
-    ops = helpers._get_operations_dictionary_(request)
+    ops = helpers._get_operations_(request)
     ret = helpers._get_interpreter_return_(ops)
     
-    if ops['output_format'] == 'meta':
+    if ops.output_format == 'meta':
         resp = HttpResponse(ret,content_type="text/plain")
     else:
         resp = helpers._zip_response_(ret)
@@ -45,15 +45,14 @@ def get_shp(request,key=None):
     return(resp)
 
 def get_snippet(request):
-    ops = helpers._get_operations_dictionary_(request)
-
-    if ops['geom'] is not None:
-        ops['geom'] = union_geom_dicts(ops['geom'])
+    ops = helpers._get_operations_(request)
+    if ops.geom is not None:
+        ops.geom = union_geom_dicts(ops.geom)
     
-    ops['level_range'] = 1
-    ops['output_format'] = 'shp'
-    ops['request_snippet'] = True
-    ops['aggregate'] = False
+    ops.level_range = 1
+    ops.output_format = 'shp'
+    ops.snippet = True
+    ops.aggregate = False
     
     ret = helpers._get_interpreter_return_(ops)
     resp = helpers._zip_response_(os.path.split(ret)[0])

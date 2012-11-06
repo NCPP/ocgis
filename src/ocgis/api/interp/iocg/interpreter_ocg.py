@@ -11,35 +11,35 @@ class OcgInterpreter(Interpreter):
     
     def check(self):
         ## perform basic validation checks
-        definition.validate_update_definition(self.desc)
+#        definition.validate_update_definition(self.ops)
         ## by parsing operational commands, determine iterator mode for
         ## converters
-        definition.identify_iterator_mode(self.desc)
+        definition.identify_iterator_mode(self.ops)
     
     def execute(self):
         self.check() ## run validation
         
         ## check for a user-supplied output prefix
-        request_prefix = self.desc.get('request_prefix')
-        if request_prefix is not None:
-            env.BASE_NAME = request_prefix
+        prefix = self.ops.prefix
+        if prefix is not None:
+            env.BASE_NAME = prefix
         
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
-        if self.desc['output_format'] == 'meta':
+        if self.ops.output_format == 'meta':
             ## attempt to pull the request url
-            request_url = self.desc.get('request_url')
-            ret = MetaConverter(self.desc,request_url=request_url).write()
+            request_url = self.ops.request_url
+            ret = MetaConverter(self.ops,request_url=request_url).write()
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.desc,serial=env.SERIAL,nprocs=7)
+            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=7)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
-            if self.desc['output_grouping'] is None:
-                Conv = OcgConverter.get_converter(self.desc['output_format'])
+            if self.ops.output_grouping is None:
+                Conv = OcgConverter.get_converter(self.ops.output_format)
                 conv = Conv(so,wd=env.WORKSPACE,base_name=env.BASE_NAME,
-                            mode=self.desc['mode'])
+                            mode=self.ops.mode)
                 ret = conv.write()
             else:
                 raise(NotImplementedError)

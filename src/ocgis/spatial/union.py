@@ -77,5 +77,5 @@ def union_geom_dicts(geom_dicts):
             else:
                 ugeom.append(geom)
         ugeom = cascaded_union(ugeom)
-        ret = {'id':1,'geom':ugeom}
+        ret = [{'id':1,'geom':ugeom}]
     return(ret)

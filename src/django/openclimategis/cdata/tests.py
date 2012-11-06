@@ -16,40 +16,40 @@ class TestCdata(TestCase):
     
     def test_get_data(self):
         spaces = [
-#                 '-123.4|45.6|-122.2|48.7',
-                 '-128.66|44.27|-121.81|50.69'
+                 '-123.4|45.6|-122.2|48.7',
+#                 '-128.66|44.27|-121.81|50.69'
 #                 'mi_watersheds',
 #                 'co_watersheds',
 #                 'state_boundaries'
                  ]
         
         datasets = [
-#                    [1,'tasmax'],
-                    ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc','cl'],
+                    [1,'tasmax'],
+#                    ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc','cl'],
 #                    [7,'rhsmax'],
-#                    ['4|9','tas|rhs']
+                    ['4|9','tas|rhs']
                    ]
         
         outputs = [
-#                  'keyed',
+                  'keyed',
 #                  'meta',
-                  'nc',
+#                  'nc',
                   ]
         
         times = [
-#                 'none',
-                 '2002-1-1|2002-12-31'
+                 'none',
+#                 '2002-1-1|2002-12-31'
                  ]
         
         levels = ['none']
         
         operations = [
                       'intersects',
-#                      'clip'
+                      'clip'
                       ]
         
         aggregates = [
-#                      'true',
+                      'true',
                       'false'
                       ]
         
@@ -60,9 +60,9 @@ class TestCdata(TestCase):
                  ]
         
         calc_raws = [
-                     'none',
-#                     'true',
-#                     'false'
+#                     'none',
+                     'true',
+                     'false'
                      ]
         
         calc_groupings = [
@@ -152,10 +152,10 @@ class TestCdata(TestCase):
                     ]
         spaces = [
                  'none',
-#                 '-123.4|45.6|-122.2|48.7',
-#                 'mi_watersheds',
-#                 'co_watersheds',
-#                 'state_boundaries'
+                 '-123.4|45.6|-122.2|48.7',
+                 'mi_watersheds',
+                 'co_watersheds',
+                 'state_boundaries'
                  ]
         
         for uid,variable,prefix,space in itertools.product(uids,variables,prefixes,spaces):

@@ -19,21 +19,21 @@ class OcgDataset(object):
     
     def __init__(self,uri,interface_overload={}):
         self.uri = uri
-        self.dataset = self.connect(uri)
 
         ## construct interface
+        self.dataset = self.connect(uri)
         try:
             self.i = GlobalInterface(self.dataset,overload=interface_overload)
         finally:
             self.dataset.close()
         
-    def __del__(self):
-        try:
-            self.dataset.close()
-        except:
-            pass
-        finally:
-            pass
+#    def __del__(self):
+#        try:
+#            self.dataset.close()
+#        except:
+#            pass
+#        finally:
+#            pass
     
     def connect(self,uri):
         try:

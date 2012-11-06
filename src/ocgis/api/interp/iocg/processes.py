@@ -18,8 +18,8 @@ class SubsetOperation(object):
         operations.
     '''
     
-    def __init__(self,desc,serial=True,nprocs=1):
-        self.desc = desc
+    def __init__(self,ops,serial=True,nprocs=1):
+        self.ops = ops
         self.serial = serial
         self.nprocs = nprocs
         
@@ -27,33 +27,30 @@ class SubsetOperation(object):
         ## duplicate URIs. if the URI is the same, there is not reason to build
         ## the interface objects again.
         uri_map = {}
-        ## pull the overloaded interface arguments.
-        interface_overload = self.desc.get('interface',{})
-        for meta in self.desc['meta']:
+        for meta in self.ops.meta:
             key = '+++'.join(meta['uri'])
             if key in uri_map:
                 ods = uri_map[key]
             else:
-                ods = OcgDataset(meta['uri'],interface_overload=interface_overload)
+                ods = OcgDataset(meta['uri'],interface_overload=self.ops.interface)
                 uri_map.update({key:ods})
             meta.update({'ocg_dataset':ods})
 
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
-        request_snippet = self.desc.get('request_snippet')
-        if request_snippet is True:
-            ref = self.desc['meta'][0]['ocg_dataset'].i.temporal.time.value
-            self.desc['time_range'] = [ref[0],ref[0]]
+        if self.ops.snippet is True:
+            ref = self.ops.meta[0]['ocg_dataset'].i.temporal.time.value
+            self.ops.time_range = [ref[0],ref[0]]
         ## create the calculation engine
-        if self.desc['calc'] is None:
+        if self.ops.calc is None:
             self.cengine = None
         else:
-            self.cengine = OcgCalculationEngine(self.desc['calc_grouping'],
+            self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
                                            ods.i.temporal.time.value,
-                                           self.desc['calc'],
-                                           raw=self.desc['calc_raw'],
-                                           agg=self.desc['aggregate'],
-                                           time_range=self.desc['time_range'])
+                                           self.ops.calc,
+                                           raw=self.ops.calc_raw,
+                                           agg=self.ops.aggregate,
+                                           time_range=self.ops.time_range)
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial
         
@@ -95,18 +92,18 @@ class SubsetOperation(object):
 #        ## these functions are for pickling problems of the OcgSpatialReference
 #        ## which is a Swig object not consumable by pickle routines.
 #        def _remove_projection_():
-#            projection = copy(self.desc['meta'][0]['ocg_dataset'].i.projection)
-#            for meta in self.desc['meta']:
+#            projection = copy(self.ops.meta'][0]['ocg_dataset.i.projection)
+#            for meta in self.ops.meta:
 #                meta['ocg_dataset'].i.projection = None
 #            return(projection)
 #        def _add_projection_(projection):
-#            for meta in self.desc['meta']:
+#            for meta in self.ops.meta:
 #                meta['ocg_dataset'].i.projection = projection
         
 #        try:
         ## copy for the iterator to avoid pickling the cache
         so_copy = copy.copy(self)
-        for geom_dict in self.desc['geom']:
+        for geom_dict in self.ops.geom:
 #            projection = _remove_projection_()
 #            try:
             yield(so_copy,geom_dict)
@@ -130,13 +127,13 @@ def get_collection((so,geom_dict)):
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     return_collection=True
-    for ii,meta in enumerate(so.desc['meta'],start=1):
+    for ii,meta in enumerate(so.ops.meta,start=1):
         ## collection are always returned but only the first one is needed.
         subset_return = \
           meta['ocg_dataset'].subset(meta['variable'],
                             polygon=geom_dict['geom'],
-                            time_range=so.desc['time_range'],
-                            level_range=so.desc['level_range'],
+                            time_range=so.ops.time_range,
+                            level_range=so.ops.level_range,
                             return_collection=return_collection)
         try:
             coll,ocg_variable = subset_return
@@ -154,11 +151,11 @@ def get_collection((so,geom_dict)):
         coll.add_variable(ocg_variable)
                     
     ## clipping operation.
-    if so.desc['spatial_operation'] == 'clip':
+    if so.ops.spatial_operation == 'clip':
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):
             coll = clip(coll,geom_dict['geom'])
     ## data aggregation.
-    if so.desc['aggregate']:
+    if so.ops.aggregate:
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):
             coll = union(geom_dict['id'],coll)
         else:
@@ -176,7 +173,7 @@ def get_collection((so,geom_dict)):
     if so.cengine is not None:
         coll = so.cengine.execute(coll)
     ## conversion of groups.
-    if so.desc['output_grouping'] is not None:
+    if so.ops.output_grouping is not None:
         raise(NotImplementedError)
     else:
         return(coll,geom_dict)

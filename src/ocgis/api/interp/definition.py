@@ -7,6 +7,7 @@ from ocgis.exc import DefinitionValidationError
 from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc.wrap import library
 from ocgis.meta.interface.element import Element
+from types import NoneType
 
 
 class OcgOperations(object):
@@ -27,9 +28,13 @@ class OcgOperations(object):
     ('clip', False)
     """
     
-    def __init__(self,**kwds):
-        self._kwds = kwds
+    def __init__(self,meta=None,spatial_operation=None,geom=None,aggregate=None,
+                 time_range=None,level_range=None,calc=None,calc_grouping=None,
+                 calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
+                 prefix=None,output_format=None,output_grouping=None):
         
+        self._kwds = locals()
+        self.meta = Meta
         self.spatial_operation = SpatialOperation
         self.geom = Geom
         self.aggregate = Aggregate
@@ -41,7 +46,11 @@ class OcgOperations(object):
         self.interface = Interface
         self.snippet = Snippet
         self.backend = Backend
-    
+        self.request_url = RequestUrl
+        self.prefix = Prefix
+        self.output_format = OutputFormat
+        self.output_grouping = output_grouping
+            
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
         if isinstance(attr,OcgParameter):
@@ -55,6 +64,7 @@ class OcgOperations(object):
             if issubclass(value,OcgParameter):
                 object.__setattr__(self,name,value(self._kwds.get(value.name)))
             else:
+                import ipdb;ipdb.set_trace()
                 raise(NotImplementedError)
         except TypeError:
             try:
@@ -100,7 +110,7 @@ class OcgParameter(object):
         raise(NotImplementedError)
         
     def validate(self):
-        raise(NotImplementedError)
+        pass
     
     def _assert_(self,test,errmsg):
         try:
@@ -153,6 +163,17 @@ class StringListArgument(StringArgument):
         if not valid:
             msg = '"{0}" is not a supported grouping'.format(self.value)
             raise(DefinitionValidationError(self,msg))
+
+
+class RequestUrl(OcgParameter):
+    name = 'request_url'
+    can_be_none = True
+    
+    
+class Prefix(OcgParameter):
+    name = 'prefix'
+    can_be_none = True
+    url_slug_name = 'prefix'
 
 
 class Snippet(BooleanArgument):
@@ -414,7 +435,7 @@ class Geom(OcgParameter):
              'list elements must be dictionaries with keys "id" and "geom"')
             self._assert_('id' in ii,'a geom geom must have an id key')
             self._assert_('geom' in ii,'a geom dict must have a geom key')
-            self._assert_(type(ii['geom']) in [Polygon,MultiPolygon],
+            self._assert_(type(ii['geom']) in [NoneType,Polygon,MultiPolygon],
                           'geometry type not recognized')
     
     def message(self):
@@ -461,33 +482,36 @@ class Interface(OcgParameter):
                 self._assert_(key in ['s_proj','s_abstraction','s_column_shift','s_row_shift'],'interface key not a subclass of "Element"')
             if value is not None:
                 self._assert_(type(value) == str,'interface values must be strings')
+                
+    def _none_format_(self):
+        return({})
 
             
 ## collection of arguments that comprise an operational call to OCG
 DEF_ARGS = [Meta,Backend,TimeRange,LevelRange,Geom,OutputFormat,SpatialOperation,
             Aggregate,CalcRaw,CalcGrouping,Calc,Interface]
 
-## dictionary validation and formatting
-def validate_update_definition(desc):
-    for Da in DEF_ARGS:
-        obj = Da(desc.get(Da.name))
-        desc.update({Da.name:obj.value})
-    desc['output_grouping'] = None
-#    multi_validate(desc)
+### dictionary validation and formatting
+#def validate_update_definition(desc):
+#    for Da in DEF_ARGS:
+#        obj = Da(desc.get(Da.name))
+#        desc.update({Da.name:obj.value})
+#    desc['output_grouping'] = None
+##    multi_validate(desc)
         
 ## determine the iterator mode for the converters
-def identify_iterator_mode(desc):
+def identify_iterator_mode(ops):
     '''raw,agg,calc,multi'''
     mode = 'raw'
-    if desc['aggregate']:
+    if ops.aggregate:
         mode = 'agg'
-    if desc['calc'] is not None:
+    if ops.calc is not None:
         mode = 'calc'
-        for f in desc['calc']:
+        for f in ops.calc:
             if issubclass(f['ref'],OcgCvArgFunction):
                 mode = 'multi'
                 break
-    desc['mode'] = mode
+    ops.mode = mode
     
 ### function looking for parameter combinations.
 #def multi_validate(desc):

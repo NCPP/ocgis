@@ -5,20 +5,20 @@ from ocgis import exc
 class Interpreter(object):
     '''Superclass for custom interpreter frameworks.
     
-    desc :: dict :: Operational arguments for the interpreter to execute.'''
+    ops :: OcgOperations'''
     
-    def __init__(self,desc):
-        self.desc = desc
+    def __init__(self,ops):
+        self.ops = ops
         
     @classmethod
-    def get_interpreter(cls,desc):
+    def get_interpreter(cls,ops):
         '''Select interpreter class.'''
         
         from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
         
         imap = {'ocg':OcgInterpreter}
         try:
-            return(imap[desc['backend']](desc))
+            return(imap[ops.backend](ops))
         except KeyError:
             raise(exc.InterpreterNotRecognized)
         

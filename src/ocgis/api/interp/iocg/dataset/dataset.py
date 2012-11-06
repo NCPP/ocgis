@@ -145,9 +145,9 @@ class OcgDataset(object):
         ## we need to remove the unwanted data and reshape in the process. first,
         ## construct the relative indices.
         rel_mask = np.ones(npd.shape,dtype=bool)
-        ## now iterate and remove the data
         min_row = min(self.i.spatial.selection.row)
         min_col = min(self.i.spatial.selection.col)
+        ## now iterate and remove the data
         for ii in self.i.spatial.selection.idx:
             rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
         

@@ -4,6 +4,7 @@ from ocgis.conv.meta import MetaConverter
 from ocgis.api.interp.iocg.processes import SubsetOperation
 from ocgis.conv.converter import OcgConverter
 from ocgis import env
+from ocgis.spatial.union import union_geom_dicts
 
 
 class OcgInterpreter(Interpreter):
@@ -23,6 +24,10 @@ class OcgInterpreter(Interpreter):
         prefix = self.ops.prefix
         if prefix is not None:
             env.BASE_NAME = prefix
+            
+        ## in the case of netcdf output, geometries must be unioned
+        if self.ops.output_format == 'nc':
+            self.ops.geom = union_geom_dicts(self.ops.geom)
         
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.

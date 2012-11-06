@@ -16,9 +16,9 @@ class TestCdata(TestCase):
     
     def test_get_data(self):
         spaces = [
-                 '-123.4|45.6|-122.2|48.7',
+#                 '-123.4|45.6|-122.2|48.7',
 #                 '-128.66|44.27|-121.81|50.69'
-#                 'mi_watersheds',
+                 'mi_watersheds',
 #                 'co_watersheds',
 #                 'state_boundaries'
                  ]
@@ -27,13 +27,13 @@ class TestCdata(TestCase):
                     [1,'tasmax'],
 #                    ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc','cl'],
 #                    [7,'rhsmax'],
-                    ['4|9','tas|rhs']
+#                    ['4|9','tas|rhs']
                    ]
         
         outputs = [
 #                  'keyed',
-                  'meta',
-#                  'nc',
+#                  'meta',
+                  'nc',
                   ]
         
         times = [
@@ -45,29 +45,29 @@ class TestCdata(TestCase):
         
         operations = [
                       'intersects',
-                      'clip'
+#                      'clip'
                       ]
         
         aggregates = [
-                      'true',
+#                      'true',
                       'false'
                       ]
         
         calcs = [
-#                 'none',
-                 'min~min_val|max~max_val',
+                 'none',
+#                 'min~min_val|max~max_val',
 #                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
         calc_raws = [
-#                     'none',
-                     'true',
-                     'false'
+                     'none',
+#                     'true',
+#                     'false'
                      ]
         
         calc_groupings = [
-#                          'none',
-                          'month',
+                          'none',
+#                          'month',
 #                          'day|month|year',
 #                          'year',
 #                          'year|month'
@@ -112,7 +112,7 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_raw',calc_raw)
             url = _append_(url,'calc_grouping',calc_grouping)
             url = _append_(url,'s_abstraction',s_abstraction)
-            
+
             resp = self.c.get(url)
         
     def open_in_chrome(self,url):

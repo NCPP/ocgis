@@ -4,6 +4,8 @@ import subprocess
 import itertools
 from traceback import print_exc
 import sys
+from ocgis.api.interp.definition import OcgOperations
+from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
 
 
 def pause(f):
@@ -114,6 +116,13 @@ class TestCdata(TestCase):
             url = _append_(url,'s_abstraction',s_abstraction)
 
             resp = self.c.get(url)
+            
+    def test_nc_output(self):
+        uri = '/tmp/tmpy_XSfN/ocg.nc'
+        ops = OcgOperations(meta={'uri':uri,'variable':'tasmax'},snippet=True,
+                            spatial_operation='intersects',aggregate=False,
+                            output_format='shp')
+        OcgInterpreter(ops).execute()
         
     def open_in_chrome(self,url):
         subprocess.call(["google-chrome",'http://127.0.0.1:8000'+url])

@@ -123,8 +123,8 @@ class SpatialInterfacePolygon(SpatialInterface):
 #        idx = []
         
         ## fill the matrices if value is included
-        def _append(ii,jj,geom):
-            self.selection.geom[ii,jj] = geom
+        def _append(ii,jj):
+#            self.selection.geom[ii,jj] = geom
             self.selection.row.append(self.real_row[ii,jj])
             self.selection.col.append(self.real_col[ii,jj])
 #            gids.append(self.gids[ii,jj])
@@ -137,10 +137,11 @@ class SpatialInterfacePolygon(SpatialInterface):
                                        self.max_row[ii,jj]),
                                       (self.min_col[ii,jj],
                                        self.max_col[ii,jj]))
+                self.selection.geom[ii,jj] = test_geom
                 if polygon is not None and helpers.keep(prep_polygon,polygon,test_geom):
-                    _append(ii,jj,test_geom)
+                    _append(ii,jj)
                 elif polygon is None:
-                    _append(ii,jj,test_geom)
+                    _append(ii,jj)
         
 #        if len(self.selection.row) == 8:
 #            check = np.empty(self.selection.geom.shape,dtype=object)

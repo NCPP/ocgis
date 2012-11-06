@@ -120,9 +120,9 @@ class NcConverter(OcgConverter):
                 except RuntimeError:
                     pass
             if dim_level is not None:
-                value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
+                value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
             else:
-                value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
+                value_dims = (dim_time._name,dim_lat._name,dim_lon._name)
             ## create the value variable.
             value = ds.createVariable(calc_name,calc_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
             value[:] = calc_value
@@ -220,9 +220,9 @@ class NcConverter(OcgConverter):
                 levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
                 levels[:] = var_value.levelvec
             if dim_level is not None:
-                value_dims = (dim_time._name,dim_level._name,dim_lon._name,dim_lat._name)
+                value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
             else:
-                value_dims = (dim_time._name,dim_lon._name,dim_lat._name)
+                value_dims = (dim_time._name,dim_lat._name,dim_lon._name)
             ## create the value variable.
             value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
             value[:] = var_value.raw_value

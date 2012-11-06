@@ -117,15 +117,16 @@ class OcgDataset(object):
         var = self.dataset.variables[var_name]
         rowidx = sub_range(self.i.spatial.selection.row)
         colidx = sub_range(self.i.spatial.selection.col)
-        
+
         if ndim == 3:
             args = [timeidx,rowidx,colidx]
         elif ndim == 4:
             args = [timeidx,levelidx,rowidx,colidx]
         else:
             raise(NotImplementedError('cannot hold dimension count of "{0}"'.format(ndim)))
-        npd = self.get_numpy_data(var,args)
         
+        npd = self.get_numpy_data(var,args)
+
         ## ensure we have four-dimensional data.
         len_sh = len(npd.shape)
 
@@ -148,6 +149,7 @@ class OcgDataset(object):
         min_row = min(self.i.spatial.selection.row)
         min_col = min(self.i.spatial.selection.col)
         ## now iterate and remove the data
+
         for ii in self.i.spatial.selection.idx:
             rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
         

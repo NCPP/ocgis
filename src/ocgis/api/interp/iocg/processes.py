@@ -41,6 +41,7 @@ class SubsetOperation(object):
         if self.ops.snippet is True:
             ref = self.ops.meta[0]['ocg_dataset'].i.temporal.time.value
             self.ops.time_range = [ref[0],ref[0]]
+            self.ops.level_range = [1]
         ## create the calculation engine
         if self.ops.calc is None:
             self.cengine = None

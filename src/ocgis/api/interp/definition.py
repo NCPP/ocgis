@@ -177,9 +177,9 @@ class Prefix(OcgParameter):
 
 
 class Snippet(BooleanArgument):
-    name = 'request_snippet'
+    name = 'snippet'
     can_be_none = True
-    url_slug_name = 'request_snippet'
+    url_slug_name = 'snippet'
     
     def _none_format_(self):
         return(False)

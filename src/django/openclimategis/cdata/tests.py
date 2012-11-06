@@ -140,11 +140,11 @@ class TestCdata(TestCase):
         resp = self.c.get(url)
         
     def test_get_snippet(self):
-#        uids = [3]
-        uids = ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc']
+        uids = ['3']
+#        uids = ['/home/local/WX/ben.koziol/links/ocgis/bin/climate_data/wcrp_cmip3/pcmdi.ipcc4.bccr_bcm2_0.1pctto2x.run1.monthly.cl_A1_1.nc']
         variables = [
-#                     'tas',
-                     'cl'
+                     'tas',
+#                     'cl'
                      ]
         prefixes = [
 #                    'none',

@@ -1,6 +1,7 @@
 import numpy as np
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
+from copy import copy
 
 
 def union(new_id,coll):
@@ -62,3 +63,19 @@ def union_sum(weight,value):
         for dim_level in range(value.shape[1]):
             weighted[dim_time,dim_level,0,0] = np.ma.average(value[dim_time,dim_level,:,:],weights=weight)
     return(weighted)
+
+def union_geom_dicts(geom_dicts):
+    if len(geom_dicts) == 1:
+        ret = copy(geom_dicts)
+    else:
+        ugeom = []
+        for dct in geom_dicts:
+            geom = dct['geom']
+            if isinstance(geom,MultiPolygon):
+                for poly in geom:
+                    ugeom.append(poly)
+            else:
+                ugeom.append(geom)
+        ugeom = cascaded_union(ugeom)
+        ret = {'id':1,'geom':ugeom}
+    return(ret)

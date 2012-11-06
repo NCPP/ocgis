@@ -9,6 +9,70 @@ from ocgis.calc.wrap import library
 from ocgis.meta.interface.element import Element
 
 
+class OcgOperations(object):
+    """
+    >>> oo = OcgOperations(spatial_operation='clip')
+    >>> oo.spatial_operation = 'intersects'
+    >>> oo.spatial_operation
+    'intersects'
+    >>> oo.spatial_operation = 'foo'
+    Traceback (most recent call last):
+    ...
+    DefinitionValidationError: definition dict validation raised an exception on the argument "spatial_operation" with the message: ""foo" not in found in "['intersects', 'clip']""
+    >>> oo.as_dict()
+    {'level_range': None, 'calc_raw': False, 'spatial_operation': 'intersects', 'time_range': None, 'calc_grouping': ['day', 'month', 'year'], 'aggregate': True, 'geom': [{'geom': None, 'id': 1}], 'interface': None, 'calc': None, 'request_snippet': False, 'backend': 'ocg'}
+    >>> kwds = {'spatial_operation':'clip','aggregate':False}
+    >>> oo = OcgOperations(**kwds)
+    >>> oo.spatial_operation,oo.aggregate
+    ('clip', False)
+    """
+    
+    def __init__(self,**kwds):
+        self._kwds = kwds
+        
+        self.spatial_operation = SpatialOperation
+        self.geom = Geom
+        self.aggregate = Aggregate
+        self.time_range = TimeRange
+        self.level_range = LevelRange
+        self.calc = Calc
+        self.calc_grouping = CalcGrouping
+        self.calc_raw = CalcRaw
+        self.interface = Interface
+        self.snippet = Snippet
+        self.backend = Backend
+    
+    def __getattribute__(self,name):
+        attr = object.__getattribute__(self,name)
+        if isinstance(attr,OcgParameter):
+            ret = attr.value
+        else:
+            ret = attr
+        return(ret)
+    
+    def __setattr__(self,name,value):
+        try:
+            if issubclass(value,OcgParameter):
+                object.__setattr__(self,name,value(self._kwds.get(value.name)))
+            else:
+                raise(NotImplementedError)
+        except TypeError:
+            try:
+                attr = object.__getattribute__(self,name)
+                object.__setattr__(self,name,attr.__class__(value))
+            except AttributeError:
+                object.__setattr__(self,name,value)
+        
+    def as_dict(self):
+        ret = {}
+        for value in self.__dict__.itervalues():
+            try:
+                ret.update({value.name:value.value})
+            except AttributeError:
+                pass
+        return(ret)
+    
+    
 class OcgParameter(object):
     name = None
     can_be_none = None
@@ -91,6 +155,15 @@ class StringListArgument(StringArgument):
             raise(DefinitionValidationError(self,msg))
 
 
+class Snippet(BooleanArgument):
+    name = 'request_snippet'
+    can_be_none = True
+    url_slug_name = 'request_snippet'
+    
+    def _none_format_(self):
+        return(False)
+
+
 class Backend(StringArgument):
     _possible = ['ocg']
     can_be_none = True
@@ -103,6 +176,9 @@ class Backend(StringArgument):
         else:
             raise(NotImplementedError)
         return(msg)
+    
+    def _none_format_(self):
+        return('ocg')
 
 
 class Grouping(StringArgument):
@@ -397,6 +473,7 @@ def validate_update_definition(desc):
         obj = Da(desc.get(Da.name))
         desc.update({Da.name:obj.value})
     desc['output_grouping'] = None
+#    multi_validate(desc)
         
 ## determine the iterator mode for the converters
 def identify_iterator_mode(desc):
@@ -411,6 +488,17 @@ def identify_iterator_mode(desc):
                 mode = 'multi'
                 break
     desc['mode'] = mode
+    
+### function looking for parameter combinations.
+#def multi_validate(desc):
+#    if desc['output_format'] == 'nc':
+#        ## combinations not allowed for netCDF requests.
+#        nots = {'spatial_operation':'clip',
+#                'aggregate':True}
+#        for key,value in nots.iteritems():
+#            if desc[key] == value:
+#                raise(DefinitionValidationError(ocg_argument, msg))
+#    import ipdb;ipdb.set_trace()
 
             
 if __name__ == "__main__":

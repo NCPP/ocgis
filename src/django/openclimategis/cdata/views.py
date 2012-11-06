@@ -8,6 +8,7 @@ from shapely.ops import cascaded_union
 import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
 import os.path
+from ocgis.spatial.union import union_geom_dicts
 
 
 def get_data(request):
@@ -47,17 +48,7 @@ def get_snippet(request):
     ops = helpers._get_operations_dictionary_(request)
 
     if ops['geom'] is not None:
-        if len(ops['geom']) > 1:
-            ugeom = []
-            for dct in ops['geom']:
-                geom = dct['geom']
-                if isinstance(geom,MultiPolygon):
-                    for poly in geom:
-                        ugeom.append(poly)
-                else:
-                    ugeom.append(geom)
-            ugeom = cascaded_union(ugeom)
-            ops['geom'] = {'id':1,'geom':ugeom}
+        ops['geom'] = union_geom_dicts(ops['geom'])
     
     ops['level_range'] = 1
     ops['output_format'] = 'shp'

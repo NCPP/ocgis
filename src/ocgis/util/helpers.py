@@ -299,6 +299,9 @@ def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False):
     if len(uid_field) == 0 and make_id is True:
         for ii,dct in enumerate(data,start=1):
             dct['id'] = ii
+    else:
+        for dct in data:
+            dct[uid_field[0]] = int(dct[uid_field[0]])
     
 #    ## check the WKT is a polygon and the unique identifier is a unique integer
 #    uids = []

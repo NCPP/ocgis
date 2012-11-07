@@ -17,6 +17,11 @@ class TestCdata(TestCase):
     c = Client()
     
     def test_get_data(self):
+        snippets = [
+#                   'none',
+                   'true',
+#                   'false'
+                   ]
         spaces = [
 #                 '-123.4|45.6|-122.2|48.7',
 #                 '-128.66|44.27|-121.81|50.69'
@@ -33,9 +38,9 @@ class TestCdata(TestCase):
                    ]
         
         outputs = [
-#                  'keyed',
+                  'keyed',
 #                  'meta',
-                  'nc',
+#                  'nc',
                   ]
         
         times = [
@@ -46,13 +51,13 @@ class TestCdata(TestCase):
         levels = ['none']
         
         operations = [
-                      'intersects',
-#                      'clip'
+#                      'intersects',
+                      'clip'
                       ]
         
         aggregates = [
-#                      'true',
-                      'false'
+                      'true',
+#                      'false'
                       ]
         
         calcs = [
@@ -93,8 +98,8 @@ class TestCdata(TestCase):
                 kv = '&'+kv
             return(url+kv)
 
-        args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings,s_abstractions)
-        for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping,s_abstraction in itertools.product(*args):
+        args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings,s_abstractions,snippets)
+        for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping,s_abstraction,snippet in itertools.product(*args):
             dataset[0] = str(dataset[0])
             if '|' not in dataset[0] and 'heat_index' in calc:
                 continue
@@ -114,6 +119,7 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_raw',calc_raw)
             url = _append_(url,'calc_grouping',calc_grouping)
             url = _append_(url,'s_abstraction',s_abstraction)
+            url = _append_(url,'snippet',snippet)
 
             resp = self.c.get(url)
             

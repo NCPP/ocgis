@@ -88,7 +88,8 @@ def _get_operations_(request):
     backend = parms.OcgQueryParm(query,'backend',default='ocg')
     output_grouping = parms.OcgQueryParm(query,'output_grouping')
     prefix = parms.OcgQueryParm(query,'prefix',scalar=True)
-    
+    snippet = parms.BooleanParm(query,'snippet',default=False,scalar=True)
+
     ## piece together the OCGIS operations dictionary ##########################
 
     ## format meta list
@@ -111,7 +112,7 @@ def _get_operations_(request):
 
     ## construct operations dictionary
     items = [level,time,space,operation,aggregate,output,calc_raw,
-             calc_grouping,calc,backend,output_grouping,prefix]
+             calc_grouping,calc,backend,output_grouping,prefix,snippet]
     ops = dict([[ii.key,ii.value] for ii in items])
     ops.update({'meta':meta})
     ops.update({'interface':name_map})

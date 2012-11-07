@@ -26,14 +26,6 @@ class OcgDataset(object):
             self.i = GlobalInterface(self.dataset,overload=interface_overload)
         finally:
             self.dataset.close()
-        
-#    def __del__(self):
-#        try:
-#            self.dataset.close()
-#        except:
-#            pass
-#        finally:
-#            pass
     
     def connect(self,uri):
         try:
@@ -74,6 +66,13 @@ class OcgDataset(object):
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
+            
+        ## resize the data to match returned counts
+        npd.resize(*[len(a) for a in args])
+        ## ensure we have four-dimensional data.
+        if len(npd.shape) == 3:
+            npd.resize(npd.shape[0],1,npd.shape[1],npd.shape[2])
+            
         return(npd)
     
     def _subset_(self,var_name,polygon=None,time_range=None,level_range=None,
@@ -113,35 +112,22 @@ class OcgDataset(object):
                 else:
                     raise ValueError('Target variable has no levels.')
             
-        ## extract the data
+        ## extract the data ####################################################
+        
+        ## get the variable from the netcdf dataset
         var = self.dataset.variables[var_name]
+        ## restructure arrays for fancy indexing in the dataset
         rowidx = sub_range(self.i.spatial.selection.row)
         colidx = sub_range(self.i.spatial.selection.col)
-
+        ## make the subset arguments depending on the number of dimensions
         if ndim == 3:
             args = [timeidx,rowidx,colidx]
         elif ndim == 4:
             args = [timeidx,levelidx,rowidx,colidx]
         else:
             raise(NotImplementedError('cannot hold dimension count of "{0}"'.format(ndim)))
-        
+        ## actually get the data
         npd = self.get_numpy_data(var,args)
-
-        ## ensure we have four-dimensional data.
-        len_sh = len(npd.shape)
-
-        if ndim == 3:
-            if len_sh == 3 and len(timeidx) == 1 and level_range is None:
-                npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
-            elif len_sh == 3 and len(timeidx) > 1 and level_range is None:
-                npd = npd.reshape(npd.shape[0],1,npd.shape[1],npd.shape[2])
-            elif len_sh == 2 and len(timeidx) > 1 and level_range is None:
-                npd = npd.reshape(npd.shape[0],1,npd.shape[1],npd.shape[1])
-            else:
-                raise(NotImplementedError)
-        if ndim == 4:
-            if len_sh == 3:
-                npd = npd.reshape(1,1,npd.shape[1],npd.shape[2])
 
         ## we need to remove the unwanted data and reshape in the process. first,
         ## construct the relative indices.
@@ -149,7 +135,6 @@ class OcgDataset(object):
         min_row = min(self.i.spatial.selection.row)
         min_col = min(self.i.spatial.selection.col)
         ## now iterate and remove the data
-
         for ii in self.i.spatial.selection.idx:
             rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
         

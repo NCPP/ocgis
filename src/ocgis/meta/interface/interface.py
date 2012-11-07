@@ -142,6 +142,7 @@ class SpatialInterfacePolygon(SpatialInterface):
                     _append(ii,jj)
                 elif polygon is None:
                     _append(ii,jj)
+#        import ipdb;ipdb.set_trace()
         
 #        if len(self.selection.row) == 8:
 #            check = np.empty(self.selection.geom.shape,dtype=object)

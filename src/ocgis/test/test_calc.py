@@ -6,17 +6,18 @@ import ocgis.calc.wrap.library as library
 class TestCalc(unittest.TestCase):
 
     def test_Mean(self):
-        agg = True
-        raw = True
-        
+        agg = False
         weights = None
-        values = np.ones((12,2,4,4))
+        values = np.ones((36,2,4,4))
         values = np.ma.array(values,mask=False)
         
-        out_shape = (1,2,1,1)
+        on = np.ones(12,dtype=bool)
+        off = np.zeros(12,dtype=bool)
         
-        mean = library.Mean(agg=agg,raw=raw,weights=weights)
-        ret = mean.calculate(values,out_shape)
+        groups = [[on,off,off],[off,on,off],[off,off,on]]
+        
+        mean = library.Mean(values=values,agg=agg,weights=weights,groups=groups)
+        ret = mean.calculate()
         
         import ipdb;ipdb.set_trace()
 

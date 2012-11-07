@@ -163,6 +163,7 @@ class OcgFunction(object):
         fill = self._get_fill_(self.values)
         ## iterate over temporal groups and levels
         for idx,group in enumerate(self.groups):
+            import ipdb;ipdb.set_trace()
             for lidx in range(self.values.shape[1]):
                 value_slice = self.values[group,lidx,:,:]
                 assert(len(value_slice.shape) == 3)

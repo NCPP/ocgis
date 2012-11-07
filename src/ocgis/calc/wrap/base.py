@@ -241,9 +241,9 @@ class OcgCvArgFunction(OcgArgFunction):
         fill = self._get_fill_(arch)
         ## iterate over temporal groups and levels
         for idx,group in enumerate(self.groups):
-            for lidx in range(arch.shape[1]):
-                kwds = self._subset_kwds_(group,lidx,self.kwds)
-                fill[idx,lidx,:]= self._calculate_(**kwds)
+#            for lidx in range(arch.shape[1]):
+            kwds = self._subset_kwds_(group,self.kwds)
+            fill[idx]= self._calculate_(**kwds)
 #                import ipdb;ipdb.set_trace()
 #                value_slice = self.values[group,lidx,:,:]
 #                assert(len(value_slice.shape) == 3)
@@ -277,11 +277,11 @@ class OcgCvArgFunction(OcgArgFunction):
 #            ret = values
 #        return(ret)
     
-    def _subset_kwds_(self,group,lidx,kwds):
+    def _subset_kwds_(self,group,kwds):
         ret = {}
         for key,value in kwds.iteritems():
             if key in self.keys:
-                u = value[group,lidx,:,:]
+                u = value[group,:,:,:]
             else:
                 u = value
             ret.update({key:u})

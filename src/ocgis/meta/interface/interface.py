@@ -86,11 +86,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         weight = np.ma.array(np.zeros((npd.shape[2],npd.shape[3]),dtype=float),
                              mask=npd.mask[0,0,:,:])
         for ii,jj in helpers.iter_array(weight):
-#            try:
             weight[ii,jj] = geom[ii,jj].area
-#            except:
-#                import ipdb;ipdb.set_trace()
-#                tdk
         weight = weight/weight.max()
         return(weight)
     
@@ -272,34 +268,6 @@ class SpatialInterfacePoint(SpatialInterface):
             for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
                 self.selection.idx.append([self.real_row[ii,jj],
                                            self.real_col[ii,jj]])
-#            include = np.ones(self.shape,dtype=bool)
-        
-        ## construct the reference matrices
-#        self.selection.geom = np.empty(self.shape,dtype=object)
-#        row = []
-#        col = []
-##        gids = []
-#        idx = []
-        
-#        ## fill the matrices if value is included
-#        def _append(ii,jj,geom):
-#            self.selection.geom[ii,jj] = geom
-#            self.selection.row.append(self.real_row[ii,jj])
-#            self.selection.col.append(self.real_col[ii,jj])
-##            gids.append(self.gids[ii,jj])
-#            self.selection.idx.append([self.real_row[ii,jj],
-#                                       self.real_col[ii,jj]])
-#        
-#        for ii,jj in iter_array(include,use_mask=False):
-#            if include[ii,jj]:
-#                test_geom = make_poly((self.min_row[ii,jj],
-#                                       self.max_row[ii,jj]),
-#                                      (self.min_col[ii,jj],
-#                                       self.max_col[ii,jj]))
-#                if polygon is not None and keep(prep_polygon,polygon,test_geom):
-#                    _append(ii,jj,test_geom)
-#                elif polygon is None:
-#                    _append(ii,jj,test_geom)
              
     def extent(self):
         minx = self.longitude.value.min()

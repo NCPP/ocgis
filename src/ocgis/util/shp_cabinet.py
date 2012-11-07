@@ -39,14 +39,25 @@ class ShpCabinet(object):
     
     def get_geom_dict(self,key):
         shp_path = self.get_shp_path(key)
+        ## make sure requested geometry exists
+        if not os.path.exists(shp_path):
+            raise(RuntimeError('requested geometry with identifier "{0}" does not exists in the file system.'.format(key)))
         cfg_path = self.get_cfg_path(key)
         config = ConfigParser()
         config.read(cfg_path)
         id_attr = config.get('mapping','id')
+        ## adjust the id attribute name for auto-generation in the shapefile
+        ## reader.
+        if id_attr == 'none':
+            id_attr = None
+            make_id = True
+        else:
+            make_id = False
         other_attrs = config.get('mapping','attributes').split(',')
         geom_dict = get_shp_as_multi(shp_path,
                                      uid_field=id_attr,
-                                     attr_fields=other_attrs)
+                                     attr_fields=other_attrs,
+                                     make_id=make_id)
         return(geom_dict)
     
     def get_headers(self,geom_dict):

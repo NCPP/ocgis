@@ -140,7 +140,7 @@ class TestCdata(TestCase):
         
     def test_get_shp(self):
 #        url = '/shp/co_watersheds'
-        url = '/shp/state_boundaries'
+        url = '/shp/world_countries'
 #        self.open_in_chrome(url)
         resp = self.c.get(url)
         

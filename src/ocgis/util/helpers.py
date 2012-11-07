@@ -282,7 +282,7 @@ class ShpIterator(object):
             ds.Destroy()
 
 
-def get_shp_as_multi(path,uid_field=None,attr_fields=[]):
+def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False):
     """
     >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
     >>> uid_field = 'objectid'
@@ -295,15 +295,18 @@ def get_shp_as_multi(path,uid_field=None,attr_fields=[]):
     fields = uid_field + attr_fields
     shpitr = ShpIterator(path)
     data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
-    ## check the WKT is a polygon and the unique identifier is a unique integer
-    uids = []
-    for feat in data:
-#        assert('POLYGON' in feat['geom'])
-        if len(uid_field) > 0:
-            feat[uid_field[0]] = int(feat[uid_field[0]])
-#            assert(isinstance(feat[uid_field[0]],int))
-            uids.append(feat[uid_field[0]])
-    assert(len(uids) == len(set(uids)))
+    ## add unique identifier if requested and the passed uid field is none
+    if len(uid_field) == 0 and make_id is True:
+        for ii,dct in enumerate(data,start=1):
+            dct['id'] = ii
+    
+#    ## check the WKT is a polygon and the unique identifier is a unique integer
+#    uids = []
+#    for feat in data:
+#        if len(uid_field) > 0:
+#            feat[uid_field[0]] = int(feat[uid_field[0]])
+#            uids.append(feat[uid_field[0]])
+#    assert(len(uids) == len(set(uids)))
     return(data)
 
 def get_sr(srid):

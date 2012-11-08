@@ -36,12 +36,6 @@ class SubsetOperation(object):
                 uri_map.update({key:ods})
             meta.update({'ocg_dataset':ods})
 
-        ## check for snippet request in the operations dictionary. if there is
-        ## on, the time range should be set in the operations dictionary.
-        if self.ops.snippet is True:
-            ref = self.ops.meta[0]['ocg_dataset'].i.temporal.time.value
-            self.ops.time_range = [ref[0],ref[0]]
-            self.ops.level_range = [1]
         ## create the calculation engine
         if self.ops.calc is None:
             self.cengine = None
@@ -52,6 +46,27 @@ class SubsetOperation(object):
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate,
                                            time_range=self.ops.time_range)
+            
+        ## check for snippet request in the operations dictionary. if there is
+        ## on, the time range should be set in the operations dictionary.
+        if self.ops.snippet is True:
+            ## only select the first level
+            self.ops.level_range = [1]
+            ## case of no calculation request
+            if self.cengine is None:
+                ref = self.ops.meta[0]['ocg_dataset'].i.temporal.time.value
+                self.ops.time_range = [ref[0],ref[0]]
+            ## case of a calculation. will need to select data based on temporal
+            ## group.
+            else:
+                ## subset the calc engine time groups
+                self.cengine.dgroups = [self.cengine.dgroups[0]]
+                for key,value in self.cengine.dtime.iteritems():
+                    self.cengine.dtime[key] = [value[0]]
+                ## modify the time range to only pull a single group
+                sub_time = self.cengine.timevec[self.cengine.dgroups[0]]
+                self.ops.time_range = [sub_time.min(),sub_time.max()]
+            
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial
         

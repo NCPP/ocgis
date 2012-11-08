@@ -61,20 +61,20 @@ class TestCdata(TestCase):
                       ]
         
         calcs = [
-                 'none',
-#                 'min~min_val|max~max_val',
+#                 'none',
+                 'min~min_val|max~max_val',
 #                 'heat_index~hi!tas~tas!rhs~rhs!units~K|min~min_val|max~max_val',
                  ]
         
         calc_raws = [
-                     'none',
+#                     'none',
 #                     'true',
-#                     'false'
+                     'false'
                      ]
         
         calc_groupings = [
-                          'none',
-#                          'month',
+#                          'none',
+                          'month',
 #                          'day|month|year',
 #                          'year',
 #                          'year|month'

@@ -64,7 +64,6 @@ class OcgOperations(object):
             if issubclass(value,OcgParameter):
                 object.__setattr__(self,name,value(self._kwds.get(value.name)))
             else:
-                import ipdb;ipdb.set_trace()
                 raise(NotImplementedError)
         except TypeError:
             try:

@@ -85,6 +85,12 @@ class TestCdata(TestCase):
 #                          'point'
                           ]
         
+        agg_selections = [
+#                          'none',
+#                          'false',
+                          'true'
+                          ]
+        
 #        calc = ''
 #        calc = ('&calc=max~max|min~min&calc_raw=false&calc_grouping=month')
 #        calc = ('&calc='
@@ -98,8 +104,8 @@ class TestCdata(TestCase):
                 kv = '&'+kv
             return(url+kv)
 
-        args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings,s_abstractions,snippets)
-        for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping,s_abstraction,snippet in itertools.product(*args):
+        args = (spaces,datasets,outputs,times,levels,operations,aggregates,calcs,calc_raws,calc_groupings,s_abstractions,snippets,agg_selections)
+        for space,dataset,output,time,level,operation,agg,calc,calc_raw,calc_grouping,s_abstraction,snippet,agg_selection in itertools.product(*args):
             dataset[0] = str(dataset[0])
             if '|' not in dataset[0] and 'heat_index' in calc:
                 continue
@@ -120,6 +126,7 @@ class TestCdata(TestCase):
             url = _append_(url,'calc_grouping',calc_grouping)
             url = _append_(url,'s_abstraction',s_abstraction)
             url = _append_(url,'snippet',snippet)
+            url = _append_(url,'agg_selection',agg_selection)
 
             resp = self.c.get(url)
             

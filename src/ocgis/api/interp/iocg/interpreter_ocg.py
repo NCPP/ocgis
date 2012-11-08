@@ -25,8 +25,10 @@ class OcgInterpreter(Interpreter):
         if prefix is not None:
             env.BASE_NAME = prefix
             
-        ## in the case of netcdf output, geometries must be unioned
-        if self.ops.output_format == 'nc':
+        ## in the case of netcdf output, geometries must be unioned. this is
+        ## also true for the case of the selection geometry being requested as
+        ## aggregated.
+        if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
             self.ops.geom = union_geom_dicts(self.ops.geom)
         
         ## if the requested output format is "meta" then no operations are run

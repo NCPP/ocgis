@@ -31,7 +31,7 @@ class OcgOperations(object):
     def __init__(self,meta=None,spatial_operation=None,geom=None,aggregate=None,
                  time_range=None,level_range=None,calc=None,calc_grouping=None,
                  calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
-                 prefix=None,output_format=None,output_grouping=None):
+                 prefix=None,output_format=None,output_grouping=None,agg_selection=None):
         
         self._kwds = locals()
         self.meta = Meta
@@ -50,6 +50,7 @@ class OcgOperations(object):
         self.prefix = Prefix
         self.output_format = OutputFormat
         self.output_grouping = output_grouping
+        self.agg_selection = AggregateSelection
             
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -179,6 +180,15 @@ class Snippet(BooleanArgument):
     name = 'snippet'
     can_be_none = True
     url_slug_name = 'snippet'
+    
+    def _none_format_(self):
+        return(False)
+    
+    
+class AggregateSelection(BooleanArgument):
+    name = 'agg_selection'
+    can_be_none = True
+    url_slug_name = 'agg_selection'
     
     def _none_format_(self):
         return(False)

@@ -19,14 +19,12 @@ class ShpCabinet(object):
     >>> len(geom_dict)
     60
     >>> sc.get_headers(geom_dict)
-    ['ID', 'HUC', 'HUCCODE', 'HUCNAME']
+    ['UGID', 'HUC', 'HUCCODE', 'HUCNAME']
+    >>> attr_filter = {'ugid':['1','2']}
+    >>> filtered = sc.get_geom_dict('mi_watersheds',attr_filter=attr_filter)
+    >>> len(filtered)
+    2
     '''
-#    >>> path = '/tmp/foo.shp'
-#    >>> sc.write(geom_dict,path)
-#    '/tmp/foo.shp'
-#    >>> it = sc.get_converter_iterator(geom_dict)
-#    >>> print(it.next())
-#    '''
     
     def __init__(self,path=None):
         self.path = path or env.SHP_DIR
@@ -37,7 +35,7 @@ class ShpCabinet(object):
     def get_cfg_path(self,key):
         return(os.path.join(self.path,key,'{0}.cfg'.format(key)))
     
-    def get_geom_dict(self,key):
+    def get_geom_dict(self,key,attr_filter=None):
         shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
@@ -58,6 +56,15 @@ class ShpCabinet(object):
                                      uid_field=id_attr,
                                      attr_fields=other_attrs,
                                      make_id=make_id)
+        if attr_filter is not None:
+            attr = attr_filter.keys()[0].lower()
+            if attr == 'ugid':
+                attr = 'id'
+            dtype = type(geom_dict[0][attr])
+            fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
+            def _filter_(x):
+                if x[attr] in fvalues: return(True)
+            geom_dict = filter(_filter_,geom_dict)
         return(geom_dict)
     
     def get_headers(self,geom_dict):

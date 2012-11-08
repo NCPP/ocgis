@@ -1,10 +1,10 @@
-from ocgis.api.interp.interpreter import Interpreter
-from ocgis.api.interp import definition
 from ocgis.conv.meta import MetaConverter
-from ocgis.api.interp.iocg.processes import SubsetOperation
 from ocgis.conv.converter import OcgConverter
 from ocgis import env
 from ocgis.spatial.union import union_geom_dicts
+from ocgis.api.interpreter import Interpreter
+from ocgis.api import definition
+from ocgis.api.iocg.processes import SubsetOperation
 
 
 class OcgInterpreter(Interpreter):

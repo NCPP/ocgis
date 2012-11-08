@@ -6,10 +6,11 @@ from urlparse import parse_qs
 import util.parms as parms
 import ocgis.meta.interface.models as imodels
 import exc
-from ocgis.api.interp.interpreter import Interpreter
 from ocgis.exc import InterpreterNotRecognized
-from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
-from ocgis.api.interp.definition import OcgOperations
+from ocgis.api.interpreter import Interpreter
+from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
+from ocgis.api.operations import OcgOperations
+from ocgis.api.definition import OcgParameter
 
 
 def _zip_response_(path,filename=None):
@@ -73,54 +74,76 @@ def _get_operations_(request):
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
     
-    ## extract from request
+    ## get dataset information
     uri = _get_uri_(query)
     variable = parms.OcgQueryParm(query,'variable',nullable=False)
-    level = parms.LevelParm(query,'level_range')
-    time = parms.TimeParm(query,'time_range')
-    space = parms.SpaceParm(query,'geom')
-    operation = parms.OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
-    aggregate = parms.BooleanParm(query,'aggregate',default=True,scalar=True)
-    output = parms.OcgQueryParm(query,'output_format',default='keyed',scalar=True)
-    calc_raw = parms.BooleanParm(query,'calc_raw',default=True,scalar=True)
-    calc_grouping = parms.OcgQueryParm(query,'calc_grouping')
-    calc = parms.CalcParm(query,'calc')
-    backend = parms.OcgQueryParm(query,'backend',default='ocg')
-    output_grouping = parms.OcgQueryParm(query,'output_grouping')
-    prefix = parms.OcgQueryParm(query,'prefix',scalar=True)
-    snippet = parms.BooleanParm(query,'snippet',default=False,scalar=True)
-    agg_selection = parms.BooleanParm(query,'agg_selection',default=False,scalar=True)
-
-    ## piece together the OCGIS operations dictionary ##########################
-
-    ## format meta list
-    meta = []
+    dataset = []
     if len(uri.value) < len(variable.value):
         for u in uri:
             for v in variable:
-                meta.append({'uri':u,'variable':v})
+                dataset.append({'uri':u,'variable':v})
     elif len(variable.value) < len(uri.value):
         if len(variable.value) > 1:
             raise(NotImplementedError)
         else:
-            meta.append({'uri':uri.value,'variable':variable.value[0]})
+            dataset.append({'uri':uri.value,'variable':variable.value[0]})
     else:
         for u,v in zip(uri,variable):
-            meta.append({'uri':u,'variable':v})
+            dataset.append({'uri':u,'variable':v})
+    
+    ## initialize initial operations object
+    ops = OcgOperations(dataset=dataset)
+    
+    ## iterate objects parsing the query dictionary
+    for value in ops.__dict__.itervalues():
+        if isinstance(value,OcgParameter) and value.name != 'dataset':
+            value.parse_query(query)
+#    import ipdb;ipdb.set_trace()
+    
+#    level = parms.LevelParm(query,'level_range')
+#    time = parms.TimeParm(query,'time_range')
+#    space = parms.SpaceParm(query,'geom')
+#    operation = parms.OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
+#    aggregate = parms.BooleanParm(query,'aggregate',default=True,scalar=True)
+#    output = parms.OcgQueryParm(query,'output_format',default='keyed',scalar=True)
+#    calc_raw = parms.BooleanParm(query,'calc_raw',default=True,scalar=True)
+#    calc_grouping = parms.OcgQueryParm(query,'calc_grouping')
+#    calc = parms.CalcParm(query,'calc')
+#    backend = parms.OcgQueryParm(query,'backend',default='ocg')
+#    output_grouping = parms.OcgQueryParm(query,'output_grouping')
+#    prefix = parms.OcgQueryParm(query,'prefix',scalar=True)
+#    snippet = parms.BooleanParm(query,'snippet',default=False,scalar=True)
+#    agg_selection = parms.BooleanParm(query,'agg_selection',default=False,scalar=True)
+
+    ## piece together the OCGIS operations dictionary ##########################
+
+#    ## format meta list
+#    meta = []
+#    if len(uri.value) < len(variable.value):
+#        for u in uri:
+#            for v in variable:
+#                meta.append({'uri':u,'variable':v})
+#    elif len(variable.value) < len(uri.value):
+#        if len(variable.value) > 1:
+#            raise(NotImplementedError)
+#        else:
+#            meta.append({'uri':uri.value,'variable':variable.value[0]})
+#    else:
+#        for u,v in zip(uri,variable):
+#            meta.append({'uri':u,'variable':v})
             
     ## pull interface overload information
-    name_map = _get_interface_overload_(query)
+    ops.interface = _get_interface_overload_(query)
 
-    ## construct operations dictionary
-    items = [level,time,space,operation,aggregate,output,calc_raw,
-             calc_grouping,calc,backend,output_grouping,prefix,snippet,agg_selection]
-    ops = dict([[ii.key,ii.value] for ii in items])
-    ops.update({'meta':meta})
-    ops.update({'interface':name_map})
+#    ## construct operations dictionary
+#    items = [level,time,space,operation,aggregate,output,calc_raw,
+#             calc_grouping,calc,backend,output_grouping,prefix,snippet,agg_selection]
+#    ops = dict([[ii.key,ii.value] for ii in items])
+#    ops.update({'meta':meta})
+#    ops.update({'interface':name_map})
     
     ## add request specific values
-    ops['request_url'] = request.build_absolute_uri()
-    
-    ops = OcgOperations(**ops)
-
+    ops.request_url = request.build_absolute_uri()
+#    ops = OcgOperations(**ops)
+#    import ipdb;ipdb.set_trace()
     return(ops)

@@ -1,9 +1,9 @@
 import numpy as np
 from copy import copy
 from collections import OrderedDict
-from ocgis.api.interp.iocg.dataset import iterators
 from ocgis.util.helpers import iter_array
 from ocgis import env
+from ocgis.api.iocg.dataset import iterators
 
 
 class CalcIdentifier(OrderedDict):

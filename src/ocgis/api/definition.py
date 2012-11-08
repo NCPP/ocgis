@@ -1,6 +1,6 @@
 from datetime import datetime
 from copy import copy
-from ocgis.calc.wrap.base import OcgFunctionTree
+from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc.wrap import library
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
@@ -529,7 +529,7 @@ class Geom(AttributedOcgParameter):
             ret = [{'id':1,'geom':geom}]
         except ValueError:
             sc = ShpCabinet()
-            ret = sc.get_geom_dict(value[0])
+            ret = sc.get_geom_dict(value)
         return(ret)
     
     
@@ -561,14 +561,14 @@ class Interface(AttributedOcgParameter):
     _nullable = True
     _dtype = dict
     
-    def validate(self):
-        for key,value in self.value.iteritems():
+    def validate(self,value):
+        for key,val in value.iteritems():
             try:
                 assert(issubclass(key,Element))
             except (TypeError,AssertionError):
                 self._assert_(key in ['s_proj','s_abstraction','s_column_shift','s_row_shift'],'interface key not a subclass of "Element"')
-            if value is not None:
-                self._assert_(type(value) == str,'interface values must be strings')
+            if val is not None:
+                self._assert_(type(val) == str,'interface values must be strings')
     
     def message(self):
         msg = ['Interface parameter arguments:']
@@ -582,6 +582,20 @@ class Interface(AttributedOcgParameter):
         msg = '\n'.join(msg)
         return(msg)
 
+
+## determine the iterator mode for the converters
+def identify_iterator_mode(ops):
+    '''raw,agg,calc,multi'''
+    mode = 'raw'
+    if ops.aggregate:
+        mode = 'agg'
+    if ops.calc is not None:
+        mode = 'calc'
+        for f in ops.calc:
+            if issubclass(f['ref'],OcgCvArgFunction):
+                mode = 'multi'
+                break
+    ops.mode = mode
         
 if __name__ == '__main__':
     import doctest

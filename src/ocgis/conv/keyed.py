@@ -4,7 +4,7 @@ from ocgis.conv.csv_ import OcgDialect
 from ocgis.util.helpers import get_temp_path
 from ocgis.conv.shpidx import ShpIdxConverter
 import os.path
-import ocgis.api.interp.iocg.dataset.iterators as kits
+import ocgis.api.iocg.dataset.iterators as kits
 from collections import namedtuple
 
 

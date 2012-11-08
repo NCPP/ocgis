@@ -14,7 +14,7 @@ class Interpreter(object):
     def get_interpreter(cls,ops):
         '''Select interpreter class.'''
         
-        from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
+        from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
         
         imap = {'ocg':OcgInterpreter}
         try:

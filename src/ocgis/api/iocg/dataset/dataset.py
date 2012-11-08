@@ -1,10 +1,10 @@
 import netCDF4 as nc
 from shapely import prepared
 from ocgis.meta.interface.interface import GlobalInterface
-from ocgis.api.interp.iocg.dataset import collection
 from ocgis.util.helpers import keep, sub_range
 import numpy as np
 import ocgis.exc as exc
+from ocgis.api.iocg.dataset import collection
 
 
 class OcgDataset(object):
@@ -107,7 +107,7 @@ class OcgDataset(object):
                 levelidx = sub_range(level_range)
         else:
             if level_range is not None:
-                if len(level_range) == 1 and level_range[0] == 1:
+                if len(set(level_range)) == 1 and level_range[0] == 1:
                     level_range = None
                 else:
                     raise ValueError('Target variable has no levels.')

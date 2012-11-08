@@ -2,10 +2,6 @@ from django.test import TestCase
 from django.test.client import Client
 import subprocess
 import itertools
-from traceback import print_exc
-import sys
-from ocgis.api.interp.definition import OcgOperations
-from ocgis.api.interp.iocg.interpreter_ocg import OcgInterpreter
 
 
 def pause(f):
@@ -87,8 +83,8 @@ class TestCdata(TestCase):
         
         agg_selections = [
 #                          'none',
-#                          'false',
-                          'true'
+                          'false',
+#                          'true'
                           ]
         
 #        calc = ''
@@ -110,16 +106,16 @@ class TestCdata(TestCase):
             if '|' not in dataset[0] and 'heat_index' in calc:
                 continue
             url = '/subset?'
-            url = _append_(url,'space',space,prepend=False)
+            url = _append_(url,'geom',space,prepend=False)
             if len(dataset[0]) > 10:
                 url = _append_(url,'uri',dataset[0])
             else:
                 url = _append_(url,'uid',dataset[0])
             url = _append_(url,'variable',dataset[1])
             url = _append_(url,'output',output)
-            url = _append_(url,'time',time)
-            url = _append_(url,'level',level)
-            url = _append_(url,'operation',operation)
+            url = _append_(url,'time_range',time)
+            url = _append_(url,'level_range',level)
+            url = _append_(url,'spatial_operation',operation)
             url = _append_(url,'aggregate',agg)
             url = _append_(url,'calc',calc)
             url = _append_(url,'calc_raw',calc_raw)

@@ -1,11 +1,11 @@
 import itertools
 from multiprocessing import Pool
-from ocgis.api.interp.iocg.dataset.dataset import OcgDataset
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.meta.interface.interface import SpatialInterfacePolygon
 from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
 import copy
+from ocgis.api.iocg.dataset.dataset import OcgDataset
 
 
 class SubsetOperation(object):
@@ -27,14 +27,14 @@ class SubsetOperation(object):
         ## duplicate URIs. if the URI is the same, there is not reason to build
         ## the interface objects again.
         uri_map = {}
-        for meta in self.ops.meta:
-            key = '+++'.join(meta['uri'])
+        for dataset in self.ops.dataset:
+            key = '+++'.join(dataset['uri'])
             if key in uri_map:
                 ods = uri_map[key]
             else:
-                ods = OcgDataset(meta['uri'],interface_overload=self.ops.interface)
+                ods = OcgDataset(dataset['uri'],interface_overload=self.ops.interface)
                 uri_map.update({key:ods})
-            meta.update({'ocg_dataset':ods})
+            dataset.update({'ocg_dataset':ods})
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -54,7 +54,7 @@ class SubsetOperation(object):
             self.ops.level_range = [1]
             ## case of no calculation request
             if self.cengine is None:
-                ref = self.ops.meta[0]['ocg_dataset'].i.temporal.time.value
+                ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.time.value
                 self.ops.time_range = [ref[0],ref[0]]
             ## case of a calculation. will need to select data based on temporal
             ## group.
@@ -143,10 +143,10 @@ def get_collection((so,geom_dict)):
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     return_collection=True
-    for ii,meta in enumerate(so.ops.meta,start=1):
+    for ii,dataset in enumerate(so.ops.dataset,start=1):
         ## collection are always returned but only the first one is needed.
         subset_return = \
-          meta['ocg_dataset'].subset(meta['variable'],
+          dataset['ocg_dataset'].subset(dataset['variable'],
                             polygon=geom_dict['geom'],
                             time_range=so.ops.time_range,
                             level_range=so.ops.level_range,

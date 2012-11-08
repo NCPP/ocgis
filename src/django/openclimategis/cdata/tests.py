@@ -34,8 +34,8 @@ class TestCdata(TestCase):
                    ]
         
         outputs = [
-                  'keyed',
-#                  'meta',
+#                  'keyed',
+                  'meta',
 #                  'nc',
                   ]
         
@@ -112,7 +112,7 @@ class TestCdata(TestCase):
             else:
                 url = _append_(url,'uid',dataset[0])
             url = _append_(url,'variable',dataset[1])
-            url = _append_(url,'output',output)
+            url = _append_(url,'output_format',output)
             url = _append_(url,'time_range',time)
             url = _append_(url,'level_range',level)
             url = _append_(url,'spatial_operation',operation)
@@ -125,6 +125,7 @@ class TestCdata(TestCase):
             url = _append_(url,'agg_selection',agg_selection)
 
             resp = self.c.get(url)
+            print resp.content
             
     def test_nc_output(self):
         uri = '/tmp/tmpy_XSfN/ocg.nc'

@@ -42,15 +42,19 @@ class MetaConverter(object):
         lines.append('')
         
         for key,value in self.ops.__dict__.iteritems():
-            import ipdb;ipdb.set_trace()
-            obj = Da(getattr(self.ops,Da.name))
-            msg = "{0}, URL slug name '{1}'".format(obj.name,obj.url_slug_name)
-            divider = ''.join(['=' for ii in range(len(msg))])
+            try:
+                str_value = str(value.value)
+                if len(str_value) > 20:
+                    str_value = str_value[0:21]+'...<truncated>'
+                msg = "  {0}={1}  ".format(value.name,str_value)
+            except AttributeError:
+                continue
+            divider = ''.join(['-' for ii in range(len(msg))])
             lines.append(divider)
             lines.append(msg)
             lines.append(divider)
             lines.append('')
-            lines.append(obj.message())
+            lines.append(value.message())
             lines.append('')
         
         lines.append('++++ Potential Header Names and Definitions ++++')

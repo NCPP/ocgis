@@ -98,52 +98,11 @@ def _get_operations_(request):
     for value in ops.__dict__.itervalues():
         if isinstance(value,OcgParameter) and value.name != 'dataset':
             value.parse_query(query)
-#    import ipdb;ipdb.set_trace()
-    
-#    level = parms.LevelParm(query,'level_range')
-#    time = parms.TimeParm(query,'time_range')
-#    space = parms.SpaceParm(query,'geom')
-#    operation = parms.OcgQueryParm(query,'spatial_operation',default='intersects',scalar=True)
-#    aggregate = parms.BooleanParm(query,'aggregate',default=True,scalar=True)
-#    output = parms.OcgQueryParm(query,'output_format',default='keyed',scalar=True)
-#    calc_raw = parms.BooleanParm(query,'calc_raw',default=True,scalar=True)
-#    calc_grouping = parms.OcgQueryParm(query,'calc_grouping')
-#    calc = parms.CalcParm(query,'calc')
-#    backend = parms.OcgQueryParm(query,'backend',default='ocg')
-#    output_grouping = parms.OcgQueryParm(query,'output_grouping')
-#    prefix = parms.OcgQueryParm(query,'prefix',scalar=True)
-#    snippet = parms.BooleanParm(query,'snippet',default=False,scalar=True)
-#    agg_selection = parms.BooleanParm(query,'agg_selection',default=False,scalar=True)
-
-    ## piece together the OCGIS operations dictionary ##########################
-
-#    ## format meta list
-#    meta = []
-#    if len(uri.value) < len(variable.value):
-#        for u in uri:
-#            for v in variable:
-#                meta.append({'uri':u,'variable':v})
-#    elif len(variable.value) < len(uri.value):
-#        if len(variable.value) > 1:
-#            raise(NotImplementedError)
-#        else:
-#            meta.append({'uri':uri.value,'variable':variable.value[0]})
-#    else:
-#        for u,v in zip(uri,variable):
-#            meta.append({'uri':u,'variable':v})
             
     ## pull interface overload information
     ops.interface = _get_interface_overload_(query)
-
-#    ## construct operations dictionary
-#    items = [level,time,space,operation,aggregate,output,calc_raw,
-#             calc_grouping,calc,backend,output_grouping,prefix,snippet,agg_selection]
-#    ops = dict([[ii.key,ii.value] for ii in items])
-#    ops.update({'meta':meta})
-#    ops.update({'interface':name_map})
     
     ## add request specific values
     ops.request_url = request.build_absolute_uri()
-#    ops = OcgOperations(**ops)
-#    import ipdb;ipdb.set_trace()
+
     return(ops)

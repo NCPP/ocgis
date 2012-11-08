@@ -28,7 +28,7 @@ class MetaConverter(object):
         self.request_url = request_url
         
     def write(self):
-        from ocgis.api.interp.definition import DEF_ARGS
+#        from ocgis.api.interp.definition import DEF_ARGS
         
         lines = ['== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)]
         lines.append('')
@@ -41,7 +41,8 @@ class MetaConverter(object):
         lines.append('Parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).')
         lines.append('')
         
-        for Da in DEF_ARGS:
+        for key,value in self.ops.__dict__.iteritems():
+            import ipdb;ipdb.set_trace()
             obj = Da(getattr(self.ops,Da.name))
             msg = "{0}, URL slug name '{1}'".format(obj.name,obj.url_slug_name)
             divider = ''.join(['=' for ii in range(len(msg))])

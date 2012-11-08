@@ -73,6 +73,14 @@ class SpatialInterfacePolygon(SpatialInterface):
         
         self.min_col,self.min_row = self.get_min_bounds()
         self.max_col,self.max_row = self.get_max_bounds()
+        
+#        import ipdb;ipdb.set_trace()
+#        idx = self.max_col > 180
+#        self.max_col[idx] = -(self.max_col[idx] - 180)
+#        idx = self.min_col >= 180
+#        self.min_col[idx] = -(self.min_col[idx] - 180)
+#        import ipdb;ipdb.set_trace()
+        
         self.real_col,self.real_row = np.meshgrid(
                                 np.arange(0,len(self.longitude_bounds.value)),
                                 np.arange(0,len(self.latitude_bounds.value))
@@ -160,12 +168,15 @@ class SpatialInterfacePolygon(SpatialInterface):
     def get_bounds(self,colidx):
         col,row = np.meshgrid(self.longitude_bounds.value[:,colidx],
                               self.latitude_bounds.value[:,colidx])
-        ## some data uses 360 dynamic range for longitude coordinates. compliance
-        ## with WGS84 data requires data ranging from -180 to 180.
-        if col.max() > 180:
-            col = col - 180
-            warn(('0 to 360 longitude variable encountered. simple '
-                  'remapping to [-180,180] occurred.'))
+#        ## some data uses 360 dynamic range for longitude coordinates. compliance
+#        ## with WGS84 data requires data ranging from -180 to 180.
+#        if col.max() > 180:
+#            import ipdb;ipdb.set_trace()
+#            idx = col > 180
+#            col[idx] = -(col[idx]-180)
+##            col = col - 180
+#            warn(('0 to 360 longitude variable encountered. simple '
+#                  'remapping to [-180,180] occurred.'))
         return(col,row)
     
     def get_min_bounds(self):
@@ -211,13 +222,13 @@ class SpatialInterfacePoint(SpatialInterface):
     def __init__(self,*args,**kwds):
         super(SpatialInterfacePoint,self).__init__(*args,**kwds)
         
-        ## some data uses 360 dynamic range for longitude coordinates. compliance
-        ## with WGS84 data requires data ranging from -180 to 180.
-        if self.longitude.value.max() > 180:
-            self.longitude.value = self.longitude.value - 180
-#            self.longitude.value = self.longitude.value - 360
-            warn(('0 to 360 longitude variable encountered. simple '
-                  'remapping to [-180,180] occurred.'))
+#        ## some data uses 360 dynamic range for longitude coordinates. compliance
+#        ## with WGS84 data requires data ranging from -180 to 180.
+#        if self.longitude.value.max() > 180:
+#            self.longitude.value = self.longitude.value - 180
+##            self.longitude.value = self.longitude.value - 360
+#            warn(('0 to 360 longitude variable encountered. simple '
+#                  'remapping to [-180,180] occurred.'))
         
         ## change how the row and column point variables are created based
         ## on the shape of the incoming coordinates.

@@ -9,6 +9,7 @@ import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
 import os.path
 from ocgis.spatial.union import union_geom_dicts
+from ocgis.api.definition import SelectUgid
 
 
 def get_data(request):
@@ -34,8 +35,10 @@ def display_inspect(request):
     return(response)
 
 def get_shp(request,key=None):
+    select_ugid = SelectUgid()
+    select_ugid.parse_query(helpers.parse_qs(request.META['QUERY_STRING']))
     sc = ShpCabinet()
-    geom_dict = sc.get_geom_dict(key)
+    geom_dict = sc.get_geom_dict(key,attr_filter=select_ugid.value)
     dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
     filename = '{0}.shp'.format(key)
     path = os.path.join(dir_path,filename)
@@ -53,7 +56,7 @@ def get_snippet(request):
     ops.output_format = 'shp'
     ops.snippet = True
     ops.aggregate = False
-    
+
     ret = helpers._get_interpreter_return_(ops)
     resp = helpers._zip_response_(os.path.split(ret)[0])
     return(resp)

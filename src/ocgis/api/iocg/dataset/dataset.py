@@ -66,12 +66,19 @@ class OcgDataset(object):
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
-            
+        
         ## resize the data to match returned counts
-        npd.resize(*[len(a) for a in args])
+        new_shape = [len(a) for a in args]
+        try:
+            npd.resize(new_shape)
+        except ValueError:
+            npd = np.ma.resize(npd,new_shape)
         ## ensure we have four-dimensional data.
         if len(npd.shape) == 3:
-            npd.resize(npd.shape[0],1,npd.shape[1],npd.shape[2])
+            try:
+                npd.resize(npd.shape[0],1,npd.shape[1],npd.shape[2])
+            except ValueError:
+                npd = np.ma.resize(npd,(npd.shape[0],1,npd.shape[1],npd.shape[2]))
             
         return(npd)
     

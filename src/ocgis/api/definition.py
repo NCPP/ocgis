@@ -581,6 +581,26 @@ class Interface(AttributedOcgParameter):
             msg.append(msg2)
         msg = '\n'.join(msg)
         return(msg)
+    
+    
+class SelectUgid(AttributedOcgParameter):
+    _name = 'select_ugid'
+    _nullable = True
+    _default = None
+    _dtype = dict
+    
+    def _format_string_(self,value):
+        elements = value.split('|')
+        elements = [int(ii) for ii in elements]
+        return({'ugid':elements})
+    
+    def message(self):
+        if self.value is None:
+            msg = 'All user geometries returned.'
+        else:
+            msg = 'The following UGIDs used to limit geometries: {0}'.format(self.value)
+        return(msg)
+        
 
 
 ## determine the iterator mode for the converters

@@ -56,14 +56,30 @@ class ShpCabinet(object):
                                      uid_field=id_attr,
                                      attr_fields=other_attrs,
                                      make_id=make_id)
+        ## filter the returned geometries if an attribute filter is passed
         if attr_filter is not None:
+            ## get the attribute
             attr = attr_filter.keys()[0].lower()
+            ## rename ugid to id to prevent confusion on the front end.
             if attr == 'ugid':
                 attr = 'id'
+            ## get the target attribute data type
             dtype = type(geom_dict[0][attr])
+            ## attempt to convert the filter values to that data type
             fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
+            ## if the filter data type is a string, do a conversion
+            if dtype == str:
+                fvalues = [f.lower() for f in fvalues]
+            ## filter function
             def _filter_(x):
-                if x[attr] in fvalues: return(True)
+                ref = x[attr]
+                ## attempt to lower the string value, otherwise move on
+                try:
+                    ref = ref.lower()
+                except AttributeError:
+                    pass
+                if ref in fvalues: return(True)
+            ## filter the geometry dictionary
             geom_dict = filter(_filter_,geom_dict)
         return(geom_dict)
     

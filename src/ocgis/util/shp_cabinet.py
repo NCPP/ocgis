@@ -110,8 +110,12 @@ class ShpCabinet(object):
     def write(self,geom_dict,path):
 #        path = self.get_path()
 
+        ##tdk
         sr = osr.SpatialReference()
         sr.ImportFromEPSG(4326)
+#        sr = osr.SpatialReference()
+#        sr.ImportFromProj4('+proj=longlat +datum=WGS84 +pm=180dW ')
+        ##tdk
         
         dr = ogr.GetDriverByName('ESRI Shapefile')
         ds = dr.CreateDataSource(path)

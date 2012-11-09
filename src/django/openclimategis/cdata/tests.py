@@ -241,13 +241,13 @@ class TestCdata(TestCase):
 #        ## download world and states shapefiles
 #        pu.run('/shp/state_boundaries')
 #        pu.run('/shp/state_boundaries?select_ugid=25')
-#        pu.run('/shp/world_countries')
+        pu.run('/shp/world_countries')
 #        
 #        ## inspect the dataset
 #        resp = pu.run('/inspect?uri={0}'.format(pu._uri))
         
         ## get data snippet
-        pu.run('/snippet?&variable={0}'.format(pu._var),uri=True,prefix='snippet_ta')
+        pu.run('/snippet?s_abstraction=point&variable={0}'.format(pu._var),uri=True,prefix='snippet_ta')
         import ipdb;ipdb.set_trace()
         
         

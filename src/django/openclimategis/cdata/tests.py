@@ -214,24 +214,20 @@ class TestCdata(TestCase):
         resp = self.c.get(url)
     
     def test_presentation_urls(self):
+        dataset = {'ta':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/ta/mon/grid/NASA-JPL/AIRS/v20110608/ta_AIRS_L3_RetStd-v5_200209-201105.nc',
+                   'clt':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc'}
         
         class PresUrl(object):
-            _uri = 'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/ta/mon/grid/NASA-JPL/AIRS/v20110608/ta_AIRS_L3_RetStd-v5_200209-201105.nc'
-#            _uri = 'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc'
-            _var = 'ta'
-#            _var = 'clt'
             _urls = []
             _ip = 'http://127.0.0.1:8000'
             
             def __init__(self):
                 self.c = Client()
                 
-            def run(self,url,uri=False,prefix=None):
+            def run(self,url,prefix=None):
                 url_run = '{0}{1}'.format(self._ip,url)
                 if prefix is not None:
                     url_run = '{0}&prefix={1}'.format(url_run,prefix)
-                if uri:
-                    url_run = '{0}&uri={1}'.format(url_run,self._uri)
                 self._urls.append(url_run)
                 print(url_run)
                 return(self.c.get(url_run))
@@ -241,13 +237,38 @@ class TestCdata(TestCase):
 #        ## download world and states shapefiles
 #        pu.run('/shp/state_boundaries')
 #        pu.run('/shp/state_boundaries?select_ugid=25')
-        pu.run('/shp/world_countries')
-#        
+#        pu.run('/shp/world_countries')
+#
 #        ## inspect the dataset
-#        resp = pu.run('/inspect?uri={0}'.format(pu._uri))
+#        resp = pu.run('/inspect?uri={0}'.format(dataset['clt']))
+#
+#        ## get data snippet
+#        pu.run('/snippet?s_abstraction=point&variable={0}&uri={1}'.format('ta',dataset['ta']),prefix='snippet_ta_point')
+#        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
         
-        ## get data snippet
-        pu.run('/snippet?s_abstraction=point&variable={0}'.format(pu._var),uri=True,prefix='snippet_ta')
+        ## subset data using snippet again
+        geom_parms = [
+#                      'state_boundaries',
+#                      'state_boundaries&select_ugid=25',
+                      'world_countries'
+                      ]
+        geom_tags = [
+#                     'states',
+#                     'california',
+                     'countries'
+                     ]
+        for geom_parm,geom_tag in zip(geom_parms,geom_tags):
+            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
+            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
+            pu.run(url)
+            
+#        ## clip aggregation query
+#        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=keyed'
+#        url = url.format(uri=dataset['clt'])
+#        pu.run(url)
+        
+        
+        
         import ipdb;ipdb.set_trace()
         
         

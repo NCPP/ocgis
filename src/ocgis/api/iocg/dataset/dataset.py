@@ -88,7 +88,7 @@ class OcgDataset(object):
         polygon -- shapely Polygon object
         return -- SubOcgDataset
         """
-
+        import ipdb;ipdb.set_trace()
         ## do a quick extent check if a polygon is passed
         if polygon is not None:
             if not self.check_extent(polygon):

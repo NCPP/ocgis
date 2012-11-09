@@ -532,6 +532,12 @@ class Geom(AttributedOcgParameter):
             ret = sc.get_geom_dict(value)
         return(ret)
     
+    def _filter_by_ugid_(self,ugids):
+        def _filter_(geom_dict):
+            if geom_dict['id'] in ugids:
+                return(True)
+        self.value = filter(_filter_,self.value)
+    
     
 class Dataset(AttributedOcgParameter):
     _name = 'dataset'

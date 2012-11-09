@@ -24,6 +24,10 @@ class OcgInterpreter(Interpreter):
         prefix = self.ops.prefix
         if prefix is not None:
             env.BASE_NAME = prefix
+        
+        if self.ops.select_ugid is not None:
+            geom = self.ops._get_object_('geom')
+            geom._filter_by_ugid_(self.ops.select_ugid['ugid'])
             
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as

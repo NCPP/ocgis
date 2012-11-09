@@ -19,7 +19,8 @@ class OcgOperations(object):
     def __init__(self,dataset=None,spatial_operation=None,geom=None,aggregate=None,
                  time_range=None,level_range=None,calc=None,calc_grouping=None,
                  calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
-                 prefix=None,output_format=None,output_grouping=None,agg_selection=None):
+                 prefix=None,output_format=None,output_grouping=None,agg_selection=None,
+                 select_ugid=None):
         
         self._kwds = locals()
         self.dataset = Dataset
@@ -39,6 +40,7 @@ class OcgOperations(object):
         self.output_format = OutputFormat
         self.output_grouping = output_grouping
         self.agg_selection = AggregateSelection
+        self.select_ugid = SelectUgid
             
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -71,6 +73,9 @@ class OcgOperations(object):
             except AttributeError:
                 pass
         return(ret)
+    
+    def _get_object_(self,name):
+        return(object.__getattribute__(self,name))
     
     
 if __name__ == '__main__':

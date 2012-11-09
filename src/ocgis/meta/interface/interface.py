@@ -54,6 +54,7 @@ class SpatialSelection(object):
 
 
 class SpatialInterface(Interface):
+    pass
     
     def __init__(self,*args,**kwds):
         self.selection = SpatialSelection()
@@ -99,7 +100,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         return(weight)
     
     def select(self,polygon):
-
+        print('entering select...')
         if polygon is not None:
             prep_polygon = prepared.prep(polygon)
             emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
@@ -119,6 +120,7 @@ class SpatialInterfacePolygon(SpatialInterface):
                       np.any((smin_row,smax_row),axis=0)
         else:
             include = np.ones(self.shape,dtype=bool)
+        print('initial subset complete.')
         
         ## construct the reference matrices
         geom = np.empty(self.gid.shape,dtype=object)
@@ -126,9 +128,17 @@ class SpatialInterfacePolygon(SpatialInterface):
         col = np.array([],dtype=int)
 #        self.selection.geom = np.empty(self.gid.shape,dtype=object)
         
-        def _append_(arr,real,ii,jj):
+        def _append_(arr,value):
             arr.resize(arr.shape[0]+1,refcheck=False)
-            arr[arr.shape[0]-1] = real[ii,jj]
+            arr[arr.shape[0]-1] = value
+        
+        real_row = self.real_row
+        real_col = self.real_col
+        min_row = self.min_row
+        min_col = self.min_col
+        max_row = self.max_row
+        max_col = self.max_col
+        append = _append_
         
 #        ## fill the matrices if value is included
 #        def _append(ii,jj):
@@ -138,22 +148,37 @@ class SpatialInterfacePolygon(SpatialInterface):
 ##            gids.append(self.gids[ii,jj])
 #            self.selection.idx.append([self.real_row[ii,jj],
 #                                       self.real_col[ii,jj]])
-        
-        for ii,jj in helpers.iter_array(include,use_mask=False):
-            if include[ii,jj]:
-                test_geom = helpers.make_poly((self.min_row[ii,jj],
-                                       self.max_row[ii,jj]),
-                                      (self.min_col[ii,jj],
-                                       self.max_col[ii,jj]))
-                geom[ii,jj] = test_geom
-#                self.selection.geom[ii,jj] = test_geom
-                if polygon is not None and helpers.keep(prep_polygon,polygon,test_geom):
-                    _append_(row,self.real_row,ii,jj)
-                    _append_(col,self.real_col,ii,jj)
-                elif polygon is None:
-                    _append_(row,self.real_row,ii,jj)
-                    _append_(col,self.real_col,ii,jj)
-        
+        print('starting main loop...')
+        if polygon is not None:
+            intersects = prep_polygon.intersects
+            touches = polygon.touches
+#            print('total calculations: {0}'.format(include.sum()))
+#            ctr = 0
+            for ii,jj in helpers.iter_array(include,use_mask=False):
+                if include[ii,jj]:
+#                    test_geom = helpers.make_poly((min_row[ii,jj],
+#                                           max_row[ii,jj]),
+#                                          (min_col[ii,jj],
+#                                           max_col[ii,jj]))
+                    test_geom = Polygon(((min_col[ii,jj],min_row[ii,jj]),
+                                         (max_col[ii,jj],min_row[ii,jj]),
+                                         (max_col[ii,jj],max_row[ii,jj]),
+                                         (min_col[ii,jj],max_row[ii,jj])))
+                    geom[ii,jj] = test_geom
+                    if intersects(test_geom):
+                        if not touches(test_geom):
+                            append(row,real_row[ii,jj])
+                            append(col,real_col[ii,jj])
+#                    ctr += 1
+#                    if ctr%1000 == 0:
+#                        print(' finished: {0}'.format(ctr))
+        elif polygon is None:
+            for ii,jj in helpers.iter_array(include,use_mask=False):
+                if include[ii,jj]:
+                    append(row,real_row[ii,jj])
+                    append(col,real_col[ii,jj])
+        print('main select loop finished.')
+#        import ipdb;ipdb.set_trace()
         return(geom,row,col)
                 
              

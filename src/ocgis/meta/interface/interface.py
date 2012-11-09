@@ -122,6 +122,14 @@ class SpatialInterfacePolygon(SpatialInterface):
             include = np.ones(self.shape,dtype=bool)
         print('initial subset complete.')
         
+        ##tdk
+        print('building spatial index...')
+        from ocgis.util import spatial_index as si
+        grid = si.build_index_grid(10.0,polygon)
+        index = si.build_index(polygon,grid)
+        index_intersects = si.index_intersects
+        ##tdk
+        
         ## construct the reference matrices
         geom = np.empty(self.gid.shape,dtype=object)
         row = np.array([],dtype=int)
@@ -152,10 +160,13 @@ class SpatialInterfacePolygon(SpatialInterface):
                                          (max_col[ii,jj],max_row[ii,jj]),
                                          (min_col[ii,jj],max_row[ii,jj])))
                     geom[ii,jj] = test_geom
-                    if intersects(test_geom):
-                        if not touches(test_geom):
+                    ##tdk
+                    if index_intersects(test_geom,index):
+#                    if intersects(test_geom):
+#                        if not touches(test_geom):
                             append(row,real_row[ii,jj])
                             append(col,real_col[ii,jj])
+                    ##tdk
 #                    ctr += 1
 #                    if ctr%1000 == 0:
 #                        print(' finished: {0}'.format(ctr))

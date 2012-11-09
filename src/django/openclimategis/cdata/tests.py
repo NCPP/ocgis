@@ -244,23 +244,23 @@ class TestCdata(TestCase):
 #
 #        ## get data snippet
 #        pu.run('/snippet?s_abstraction=point&variable={0}&uri={1}'.format('ta',dataset['ta']),prefix='snippet_ta_point')
-#        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
+        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
         
-        ## subset data using snippet again
-        geom_parms = [
+#        ## subset data using snippet again
+#        geom_parms = [
 #                      'state_boundaries',
 #                      'state_boundaries&select_ugid=25',
-                      'world_countries'
-                      ]
-        geom_tags = [
+##                      'world_countries'
+#                      ]
+#        geom_tags = [
 #                     'states',
 #                     'california',
-                     'countries'
-                     ]
-        for geom_parm,geom_tag in zip(geom_parms,geom_tags):
-            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
-            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
-            pu.run(url)
+##                     'countries'
+#                     ]
+#        for geom_parm,geom_tag in zip(geom_parms,geom_tags):
+#            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
+#            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
+#            pu.run(url)
             
 #        ## clip aggregation query
 #        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=keyed'

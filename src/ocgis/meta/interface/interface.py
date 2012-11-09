@@ -123,11 +123,12 @@ class SpatialInterfacePolygon(SpatialInterface):
         print('initial subset complete.')
         
         ##tdk
-        print('building spatial index...')
-        from ocgis.util import spatial_index as si
-        grid = si.build_index_grid(10.0,polygon)
-        index = si.build_index(polygon,grid)
-        index_intersects = si.index_intersects
+        if polygon is not None:
+            print('building spatial index...')
+            from ocgis.util import spatial_index as si
+            grid = si.build_index_grid(10.0,polygon)
+            index = si.build_index(polygon,grid)
+            index_intersects = si.index_intersects
         ##tdk
         
         ## construct the reference matrices
@@ -173,6 +174,10 @@ class SpatialInterfacePolygon(SpatialInterface):
         elif polygon is None:
             for ii,jj in helpers.iter_array(include,use_mask=False):
                 if include[ii,jj]:
+                    geom[ii,jj] = Polygon(((min_col[ii,jj],min_row[ii,jj]),
+                                         (max_col[ii,jj],min_row[ii,jj]),
+                                         (max_col[ii,jj],max_row[ii,jj]),
+                                         (min_col[ii,jj],max_row[ii,jj])))
                     append(row,real_row[ii,jj])
                     append(col,real_col[ii,jj])
         print('main select loop finished.')
@@ -302,6 +307,7 @@ class SpatialInterfacePoint(SpatialInterface):
             for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
                 self.selection.idx.append([self.real_row[ii,jj],
                                            self.real_col[ii,jj]])
+        return(self.selection.geom,self.selection.row,self.selection.col)
              
     def extent(self):
         minx = self.longitude.value.min()

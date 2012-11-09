@@ -1,11 +1,7 @@
 import numpy as np
-import os
-from shapely.geometry.polygon import Polygon
-from datetime import datetime
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import prepared
-from ocgis.util.helpers import make_poly, shapely_to_shp
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.helpers import make_poly
 
     
 def shapely_grid(dim,rtup,ctup,target=None):
@@ -27,11 +23,18 @@ def shapely_grid(dim,rtup,ctup,target=None):
                 polygons.append(polygon)
     return(MultiPolygon(polygons))
 
+
+def build_index_grid(dim,target):
+    bounds = target.bounds
+    rtup = (bounds[1],bounds[3])
+    ctup = (bounds[0],bounds[2])
+    grid = shapely_grid(float(dim),rtup,ctup,target=target)
+    return(grid)
+
 def build_index(target,grid):
-    prep = prepared.prep(target)
     tree = {}
     for ii,polygon in enumerate(grid):
-        if prep.intersects(target):
+        if keep(target,polygon):
             tree.update({ii:{'box':polygon,'geom':target.intersection(polygon)}})
     return(tree)
 
@@ -55,7 +58,7 @@ def index_intersects(target,index):
 #ctup = (-120.0,-100.0)
 #dim = 5.0
 #
-tag = str(datetime.now())
+#tag = str(datetime.now())
 #target = make_poly(rtup,ctup)
 #grid = shapely_grid(dim,rtup,ctup)
 #index = build_index(target,grid)
@@ -74,16 +77,16 @@ tag = str(datetime.now())
 #shapely_to_shp(test_in,'test_in_'+tag)
 #shapely_to_shp(test_out,'test_out_'+tag)
 
-sc = ShpCabinet()
-geom_dict = sc.get_geom_dict('state_boundaries',{'ugid':[25]})
-geom = geom_dict[0]['geom']
-bounds = geom.bounds
-rtup = (bounds[1],bounds[3])
-ctup = (bounds[0],bounds[2])
-grid = shapely_grid(1.0,rtup,ctup,target=geom)
-index = build_index(geom,grid)
-
-import ipdb;ipdb.set_trace()
-
-shapely_to_shp(geom,'geom_'+tag)
-shapely_to_shp(grid,'grid_'+tag)
+#sc = ShpCabinet()
+#geom_dict = sc.get_geom_dict('state_boundaries',{'ugid':[25]})
+#geom = geom_dict[0]['geom']
+#bounds = geom.bounds
+#rtup = (bounds[1],bounds[3])
+#ctup = (bounds[0],bounds[2])
+#grid = shapely_grid(1.0,rtup,ctup,target=geom)
+#index = build_index(geom,grid)
+#
+#import ipdb;ipdb.set_trace()
+#
+#shapely_to_shp(geom,'geom_'+tag)
+#shapely_to_shp(grid,'grid_'+tag)

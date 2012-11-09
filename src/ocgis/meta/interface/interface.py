@@ -126,7 +126,6 @@ class SpatialInterfacePolygon(SpatialInterface):
         geom = np.empty(self.gid.shape,dtype=object)
         row = np.array([],dtype=int)
         col = np.array([],dtype=int)
-#        self.selection.geom = np.empty(self.gid.shape,dtype=object)
         
         def _append_(arr,value):
             arr.resize(arr.shape[0]+1,refcheck=False)
@@ -140,14 +139,6 @@ class SpatialInterfacePolygon(SpatialInterface):
         max_col = self.max_col
         append = _append_
         
-#        ## fill the matrices if value is included
-#        def _append(ii,jj):
-##            self.selection.geom[ii,jj] = geom
-#            self.selection.row.append(self.real_row[ii,jj])
-#            self.selection.col.append(self.real_col[ii,jj])
-##            gids.append(self.gids[ii,jj])
-#            self.selection.idx.append([self.real_row[ii,jj],
-#                                       self.real_col[ii,jj]])
         print('starting main loop...')
         if polygon is not None:
             intersects = prep_polygon.intersects
@@ -156,10 +147,6 @@ class SpatialInterfacePolygon(SpatialInterface):
 #            ctr = 0
             for ii,jj in helpers.iter_array(include,use_mask=False):
                 if include[ii,jj]:
-#                    test_geom = helpers.make_poly((min_row[ii,jj],
-#                                           max_row[ii,jj]),
-#                                          (min_col[ii,jj],
-#                                           max_col[ii,jj]))
                     test_geom = Polygon(((min_col[ii,jj],min_row[ii,jj]),
                                          (max_col[ii,jj],min_row[ii,jj]),
                                          (max_col[ii,jj],max_row[ii,jj]),
@@ -178,9 +165,8 @@ class SpatialInterfacePolygon(SpatialInterface):
                     append(row,real_row[ii,jj])
                     append(col,real_col[ii,jj])
         print('main select loop finished.')
-#        import ipdb;ipdb.set_trace()
-        return(geom,row,col)
-                
+        
+        return(geom,row,col)  
              
     def extent(self):
         minx = self.min_col.min()

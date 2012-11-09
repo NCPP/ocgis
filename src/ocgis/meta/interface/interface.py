@@ -99,6 +99,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         return(weight)
     
     def select(self,polygon):
+
         if polygon is not None:
             prep_polygon = prepared.prep(polygon)
             emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
@@ -120,20 +121,23 @@ class SpatialInterfacePolygon(SpatialInterface):
             include = np.ones(self.shape,dtype=bool)
         
         ## construct the reference matrices
-        self.selection.geom = np.empty(self.gid.shape,dtype=object)
-#        row = []
-#        col = []
-##        gids = []
-#        idx = []
+        geom = np.empty(self.gid.shape,dtype=object)
+        row = np.array([],dtype=int)
+        col = np.array([],dtype=int)
+#        self.selection.geom = np.empty(self.gid.shape,dtype=object)
         
-        ## fill the matrices if value is included
-        def _append(ii,jj):
-#            self.selection.geom[ii,jj] = geom
-            self.selection.row.append(self.real_row[ii,jj])
-            self.selection.col.append(self.real_col[ii,jj])
-#            gids.append(self.gids[ii,jj])
-            self.selection.idx.append([self.real_row[ii,jj],
-                                       self.real_col[ii,jj]])
+        def _append_(arr,real,ii,jj):
+            arr.resize(arr.shape[0]+1,refcheck=False)
+            arr[arr.shape[0]-1] = real[ii,jj]
+        
+#        ## fill the matrices if value is included
+#        def _append(ii,jj):
+##            self.selection.geom[ii,jj] = geom
+#            self.selection.row.append(self.real_row[ii,jj])
+#            self.selection.col.append(self.real_col[ii,jj])
+##            gids.append(self.gids[ii,jj])
+#            self.selection.idx.append([self.real_row[ii,jj],
+#                                       self.real_col[ii,jj]])
         
         for ii,jj in helpers.iter_array(include,use_mask=False):
             if include[ii,jj]:
@@ -141,21 +145,17 @@ class SpatialInterfacePolygon(SpatialInterface):
                                        self.max_row[ii,jj]),
                                       (self.min_col[ii,jj],
                                        self.max_col[ii,jj]))
-                self.selection.geom[ii,jj] = test_geom
+                geom[ii,jj] = test_geom
+#                self.selection.geom[ii,jj] = test_geom
                 if polygon is not None and helpers.keep(prep_polygon,polygon,test_geom):
-                    _append(ii,jj)
+                    _append_(row,self.real_row,ii,jj)
+                    _append_(col,self.real_col,ii,jj)
                 elif polygon is None:
-                    _append(ii,jj)
-#        import ipdb;ipdb.set_trace()
+                    _append_(row,self.real_row,ii,jj)
+                    _append_(col,self.real_col,ii,jj)
         
-#        if len(self.selection.row) == 8:
-#            check = np.empty(self.selection.geom.shape,dtype=object)
-#            for (ii,jj),val in iter_array(self.selection.geom,use_mask=False,return_value=True):
-#                if val is None:
-#                    check[ii,jj] = None
-#                else:
-#                    check[ii,jj] = 'P'
-#            import ipdb;ipdb.set_trace()
+        return(geom,row,col)
+                
              
     def extent(self):
         minx = self.min_col.min()

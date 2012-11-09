@@ -1,7 +1,7 @@
 import netCDF4 as nc
 from shapely import prepared
 from ocgis.meta.interface.interface import GlobalInterface
-from ocgis.util.helpers import keep, sub_range
+from ocgis.util.helpers import keep, sub_range, iter_array
 import numpy as np
 import ocgis.exc as exc
 from ocgis.api.iocg.dataset import collection
@@ -88,16 +88,15 @@ class OcgDataset(object):
         polygon -- shapely Polygon object
         return -- SubOcgDataset
         """
-        import ipdb;ipdb.set_trace()
         ## do a quick extent check if a polygon is passed
         if polygon is not None:
             if not self.check_extent(polygon):
                 raise(exc.ExtentError)
             
         ## the initial selection
-        self.i.spatial.selection.clear()
-        self.i.spatial.select(polygon)
-        if self.i.spatial.selection.is_empty:
+#        self.i.spatial.selection.clear()
+        geom,row,col = self.i.spatial.select(polygon)
+        if len(row) == 0 and len(col) == 0:
             raise(exc.ExtentError)
         
         ## get the number of dimensions of the target variable
@@ -124,8 +123,11 @@ class OcgDataset(object):
         ## get the variable from the netcdf dataset
         var = self.dataset.variables[var_name]
         ## restructure arrays for fancy indexing in the dataset
-        rowidx = sub_range(self.i.spatial.selection.row)
-        colidx = sub_range(self.i.spatial.selection.col)
+        rowidx = sub_range(row)
+        colidx = sub_range(col)
+#        rowidx = sub_range(self.i.spatial.selection.row)
+#        colidx = sub_range(self.i.spatial.selection.col)
+
         ## make the subset arguments depending on the number of dimensions
         if ndim == 3:
             args = [timeidx,rowidx,colidx]
@@ -139,11 +141,16 @@ class OcgDataset(object):
         ## we need to remove the unwanted data and reshape in the process. first,
         ## construct the relative indices.
         rel_mask = np.ones(npd.shape,dtype=bool)
-        min_row = min(self.i.spatial.selection.row)
-        min_col = min(self.i.spatial.selection.col)
+        min_row = row.min()
+        min_col = col.min()
+#        min_row = min(self.i.spatial.selection.row)
+#        min_col = min(self.i.spatial.selection.col)
         ## now iterate and remove the data
-        for ii in self.i.spatial.selection.idx:
-            rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
+#        for ii in self.i.spatial.selection.idx:
+#            rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
+        for ii in iter_array(row,use_mask=False):
+            rel_mask[:,:,row[ii]-min_row,col[ii]-min_col] = False
+#        import ipdb;ipdb.set_trace()
         
         ## test for masked data
         if hasattr(npd,'mask'):
@@ -162,7 +169,7 @@ class OcgDataset(object):
         
         ## keeping the geometry mask separate is necessary related to this error:
         ## http://projects.scipy.org/numpy/ticket/897
-        geom = self.i.spatial.selection.geom[rowidx][:,colidx].reshape((npd.shape[2],npd.shape[3]))
+        geom = geom[rowidx][:,colidx].reshape((npd.shape[2],npd.shape[3]))
         geom_mask = npd.mask[0,0,:,:]
         
         ocg_variable = collection.OcgVariable(

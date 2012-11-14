@@ -43,8 +43,6 @@ def _get_interface_overload_(query):
             's_column':imodels.Column,
             's_row_bounds':imodels.RowBounds,
             's_column_bounds':imodels.ColumnBounds,
-            's_column_shift':None,
-            's_row_shift':None,
             's_proj':None,
             's_abstraction':None,
             't_calendar':imodels.Calendar,

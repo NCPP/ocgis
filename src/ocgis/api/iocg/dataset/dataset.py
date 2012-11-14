@@ -75,10 +75,11 @@ class OcgDataset(object):
             npd = np.ma.resize(npd,new_shape)
         ## ensure we have four-dimensional data.
         if len(npd.shape) == 3:
+            new_shape = (npd.shape[0],1,npd.shape[1],npd.shape[2])
             try:
-                npd.resize(npd.shape[0],1,npd.shape[1],npd.shape[2])
+                npd.resize(new_shape)
             except ValueError:
-                npd = np.ma.resize(npd,(npd.shape[0],1,npd.shape[1],npd.shape[2]))
+                npd = np.ma.resize(npd,new_shape)
             
         return(npd)
     

@@ -382,7 +382,7 @@ class CalcRaw(BooleanParameter,AttributedOcgParameter):
 class Aggregate(BooleanParameter,AttributedOcgParameter):
     _name = 'aggregate'
     _nullable = True
-    _default = True
+    _default = False
     
     def message(self):
         if self.value:
@@ -566,6 +566,7 @@ class Interface(AttributedOcgParameter):
     _name = 'interface'
     _nullable = True
     _dtype = dict
+    _default = {}
     
     def validate(self,value):
         for key,val in value.iteritems():

@@ -8,6 +8,8 @@ from shapely import prepared
 from shapely.geometry.point import Point
 from ocgis.meta.interface.projection import get_projection
 from copy import copy
+from ocgis import env
+from ocgis.util.helpers import vprint
 
 
 class InterfaceElement(object):
@@ -100,7 +102,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         return(weight)
     
     def select(self,polygon):
-        print('entering select...')
+        vprint('entering select...')
         if polygon is not None:
             prep_polygon = prepared.prep(polygon)
             emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
@@ -120,11 +122,11 @@ class SpatialInterfacePolygon(SpatialInterface):
                       np.any((smin_row,smax_row),axis=0)
         else:
             include = np.ones(self.shape,dtype=bool)
-        print('initial subset complete.')
+        vprint('initial subset complete.')
         
         ##tdk
         if polygon is not None:
-            print('building spatial index...')
+            vprint('building spatial index...')
             from ocgis.util import spatial_index as si
             grid = si.build_index_grid(10.0,polygon)
             index = si.build_index(polygon,grid)
@@ -148,7 +150,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         max_col = self.max_col
         append = _append_
         
-        print('starting main loop...')
+        vprint('starting main loop...')
         if polygon is not None:
             intersects = prep_polygon.intersects
             touches = polygon.touches
@@ -180,7 +182,7 @@ class SpatialInterfacePolygon(SpatialInterface):
                                          (min_col[ii,jj],max_row[ii,jj])))
                     append(row,real_row[ii,jj])
                     append(col,real_col[ii,jj])
-        print('main select loop finished.')
+        vprint('main select loop finished.')
         
         return(geom,row,col)  
              

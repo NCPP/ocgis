@@ -34,6 +34,13 @@ class OcgInterpreter(Interpreter):
         ## aggregated.
         if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
             self.ops.geom = union_geom_dicts(self.ops.geom)
+            
+        ## limited operations available for netcdf
+        if self.ops.output_format == 'nc':
+            self.ops.spatial_operation = 'intersects'
+            self.ops.aggregate = False
+            self.ops.calc_raw = False
+            self.ops.mode = 'raw'
         
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.

@@ -2,6 +2,8 @@ from django.test import TestCase
 from django.test.client import Client
 import subprocess
 import itertools
+from ocgis.api.operations import OcgOperations
+from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 
 
 def pause(f):
@@ -128,8 +130,8 @@ class TestCdata(TestCase):
             print resp.content
             
     def test_nc_output(self):
-        uri = '/tmp/tmpy_XSfN/ocg.nc'
-        ops = OcgOperations(meta={'uri':uri,'variable':'tasmax'},snippet=True,
+        uri = '/tmp/tmp76bZWz/ocg.nc'
+        ops = OcgOperations(dataset={'uri':uri,'variable':'clt'},snippet=True,
                             spatial_operation='intersects',aggregate=False,
                             output_format='shp')
         OcgInterpreter(ops).execute()
@@ -244,16 +246,16 @@ class TestCdata(TestCase):
 #
 #        ## get data snippet
 #        pu.run('/snippet?s_abstraction=point&variable={0}&uri={1}'.format('ta',dataset['ta']),prefix='snippet_ta_point')
-        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
+#        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
         
-#        ## subset data using snippet again
+#        ## snippet again
 #        geom_parms = [
-#                      'state_boundaries',
+##                      'state_boundaries',
 #                      'state_boundaries&select_ugid=25',
 ##                      'world_countries'
 #                      ]
 #        geom_tags = [
-#                     'states',
+##                     'states',
 #                     'california',
 ##                     'countries'
 #                     ]
@@ -261,13 +263,21 @@ class TestCdata(TestCase):
 #            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
 #            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
 #            pu.run(url)
-            
-#        ## clip aggregation query
-#        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=keyed'
-#        url = url.format(uri=dataset['clt'])
+#
+#        ## subset by bounding box for area over california
+#        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&uri={uri}'.format(uri=dataset['clt'])
+#        pu.run(url)
+#        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&spatial_operation=intersects&time_range=none&level_range=none&output_format=keyed&uri={uri}'.format(uri=dataset['clt'])
 #        pu.run(url)
         
-        
+        ## clip aggregation query
+        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=shp&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
+        url = url.format(uri=dataset['clt'])
+        pu.run(url)
+#
+#        ## netcdf
+#        url = '/subset?variable=clt&uri={uri}&output_format=nc&geom=state_boundaries&snippet=true&select_ugid=25&spatial_operation=intersects&aggregate=false'.format(uri=dataset['clt'])
+#        pu.run(url)
         
         import ipdb;ipdb.set_trace()
         

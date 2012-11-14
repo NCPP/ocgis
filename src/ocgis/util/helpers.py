@@ -8,6 +8,12 @@ import warnings
 from osgeo import ogr, osr
 from shapely import wkt, wkb
 from numpy.ma.core import MaskedArray
+from ocgis import env
+
+
+def vprint(msg):
+    if env.VERBOSE:
+        print(msg)
 
 
 def iter_array(a,use_mask=True,return_value=False):

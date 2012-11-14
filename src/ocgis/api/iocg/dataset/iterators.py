@@ -90,6 +90,7 @@ class CalcIterator(BaseIterator):
             ref = self.coll.variables[var_key]
             for lidx in iter_array(ref.lid):
                 for cidx,(key,value) in enumerate(ref.calc_value.iteritems()):
+#                    import ipdb;ipdb.set_trace()
                     ret = dict(
                      tgid=self.coll.tgid[tidx],
                      year=self.coll.year[tidx],
@@ -100,12 +101,14 @@ class CalcIterator(BaseIterator):
                      time=self.coll.timevec[tidx],
                      lid=ref.lid[lidx],
                      level=ref.levelvec[lidx],
-                     vlid=ref.vlid[lidx],
+#                     vlid=ref.vlid[lidx],
+                     vlid=self.coll.vlid.get(ref.lid[lidx],ref.levelvec[lidx]),
                      value=value[tidx][lidx][gidx],
                      vid=ref.vid,
                      variable=ref.name,
                      calc_name=key,
-                     cid=ref.cid[cidx],
+#                     cid=ref.cid[cidx],
+                     cid=self.coll.cid.get(key),
                      ugid=self.coll.geom_dict['id']
                                )
                     yield(ret)

@@ -17,8 +17,8 @@ class TestCdata(TestCase):
     def test_get_data(self):
         snippets = [
 #                   'none',
-                   'true',
-#                   'false'
+#                   'true',
+                   'false'
                    ]
         spaces = [
 #                 '-123.4|45.6|-122.2|48.7',
@@ -36,8 +36,9 @@ class TestCdata(TestCase):
                    ]
         
         outputs = [
+                   'shp'
 #                  'keyed',
-                  'meta',
+#                  'meta',
 #                  'nc',
                   ]
         
@@ -85,8 +86,8 @@ class TestCdata(TestCase):
         
         agg_selections = [
 #                          'none',
-                          'false',
-#                          'true'
+#                          'false',
+                          'true'
                           ]
         
 #        calc = ''
@@ -127,7 +128,7 @@ class TestCdata(TestCase):
             url = _append_(url,'agg_selection',agg_selection)
 
             resp = self.c.get(url)
-            print resp.content
+#            print resp.content
             
     def test_nc_output(self):
         uri = '/tmp/tmp76bZWz/ocg.nc'

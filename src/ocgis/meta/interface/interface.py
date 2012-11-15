@@ -76,7 +76,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         
         self.min_col,self.min_row = self.get_min_bounds()
         self.max_col,self.max_row = self.get_max_bounds()
-        
+
         if self.min_col.max() > 180:
             warn('0 to 360 data encountered. coordinate shift occurred.')
             idx = self.max_col > 180

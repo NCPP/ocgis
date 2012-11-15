@@ -6,6 +6,7 @@ from ocgis.api.operations import OcgOperations
 from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
+from ocgis import env
 
 
 class NcSpatial(object):
@@ -46,6 +47,21 @@ class NcSpatial(object):
 
 
 class Test360(unittest.TestCase):
+    
+    def test_high_res(self):
+        nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
+        path = self.make_data(nc_spatial)
+        
+        env.WORKSPACE = '/tmp/highres'
+        dataset = {'uri':path,'variable':'foo'}
+        output_format = 'nc'
+        snippet = True
+        geom = self.nebraska
+        
+        ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom,snippet=snippet)
+        ret = OcgInterpreter(ops).execute()
+        
+        import ipdb;ipdb.set_trace()
 
     def test_low_res(self):
         nc_spatial = NcSpatial(10.0,(-90.0,90.0),(0.0,360.0))
@@ -61,9 +77,7 @@ class Test360(unittest.TestCase):
 #        sc.write(geom,'/tmp/transformed_ne.shp')
         
         ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom)
-        
         ret = OcgInterpreter(ops).execute()
-        
         import ipdb;ipdb.set_trace()
         
     @property
@@ -133,5 +147,5 @@ class Test360(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    import sys;sys.argv = ['', 'Test360.test_high_res']
     unittest.main()

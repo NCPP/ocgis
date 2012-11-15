@@ -151,7 +151,6 @@ class OcgDataset(object):
 #            rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
         for ii in iter_array(row,use_mask=False):
             rel_mask[:,:,row[ii]-min_row,col[ii]-min_col] = False
-#        import ipdb;ipdb.set_trace()
         
         ## test for masked data
         if hasattr(npd,'mask'):
@@ -162,7 +161,7 @@ class OcgDataset(object):
                 npd.mask = np.logical_or(npd.mask,rel_mask)
         else:
             npd = np.ma.array(npd,mask=rel_mask)
-
+        
         ## create masked arrays for other relevant variables
         gid = self.i.spatial.gid[rowidx][:,colidx].\
               reshape((npd.shape[2],npd.shape[3]))

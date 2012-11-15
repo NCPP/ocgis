@@ -271,14 +271,14 @@ class TestCdata(TestCase):
 #        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&spatial_operation=intersects&time_range=none&level_range=none&output_format=keyed&uri={uri}'.format(uri=dataset['clt'])
 #        pu.run(url)
         
-        ## clip aggregation query
-        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=shp&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
-        url = url.format(uri=dataset['clt'])
-        pu.run(url)
-#
-#        ## netcdf
-#        url = '/subset?variable=clt&uri={uri}&output_format=nc&geom=state_boundaries&snippet=true&select_ugid=25&spatial_operation=intersects&aggregate=false'.format(uri=dataset['clt'])
+#        ## clip aggregation query
+#        url = '/subset?variable=clt&uri={uri}&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=shp&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
+#        url = url.format(uri=dataset['clt'])
 #        pu.run(url)
+#
+        ## netcdf
+        url = '/subset?variable=clt&uri={uri}&output_format=nc&geom=state_boundaries&snippet=true&select_ugid=25&spatial_operation=intersects&aggregate=false'.format(uri=dataset['clt'])
+        pu.run(url)
         
         import ipdb;ipdb.set_trace()
         

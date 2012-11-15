@@ -154,6 +154,15 @@ class NcConverter(OcgConverter):
         
         ## first construct values from the stored geometry array
         geom = coll.geom
+        
+#        ##tdk
+#        from ocgis.util.helpers import iter_array
+#        lc = np.empty(geom.shape,dtype=float)
+#        for idx,g in iter_array(geom,return_value=True,use_mask=False):
+#            lc[idx] = g.centroid.x
+#        import ipdb;ipdb.set_trace()
+#        ##tdk
+        
         latitude_values = np.empty(geom.shape[0],dtype=float)
         longitude_values = np.empty(geom.shape[1],dtype=float)
         if is_poly:

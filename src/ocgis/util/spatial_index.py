@@ -2,6 +2,11 @@ import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import prepared
 from ocgis.util.helpers import make_poly
+from ocgis.util.shp_cabinet import ShpCabinet
+from shapely.geometry.point import Point
+import time
+import matplotlib.pyplot as plt
+from ocgis.spatial.union import union_geom_dicts
 
     
 def shapely_grid(dim,rtup,ctup,target=None):
@@ -53,7 +58,52 @@ def index_intersects(target,index):
                 ret = True
                 break
     return(ret)
-            
+
+################################################################################
+
+#sc = ShpCabinet()
+
+#geom = sc.get_geom_dict('state_boundaries',{'id':[16]})[0]['geom']
+#geom = sc.get_geom_dict('world_countries')
+#geom = union_geom_dicts(geom)[0]['geom']
+#
+##target = Point(-99.77,41.22)
+#target = make_poly((40,41),(-99,-98))
+#
+#dims = np.arange(10,100,10)
+#build_times = []
+#int_times = []
+#for dim in dims.flat:
+#    print(dim)
+#    
+#    t1 = time.time()
+#    grid = build_index_grid(dim,geom)
+#    index = build_index(geom,grid)
+#    t2 = time.time()
+#    build_times.append(t2-t1)
+#    
+#    t1 = time.time()
+#    index_intersects(target,index)
+#    t2 = time.time()
+#    int_times.append(t2-t1)
+#
+#plt.figure(1)
+#plt.subplot(211)
+#plt.plot(dims,build_times)
+#plt.title('build times')
+#
+#plt.subplot(212)
+#plt.plot(dims,int_times)
+#plt.title('intersects times')
+#
+#plt.show()
+
+#print index_intersects(pt,index)
+
+#import ipdb;ipdb.set_trace()
+
+################################################################################
+
 #rtup = (40.0,50.0)
 #ctup = (-120.0,-100.0)
 #dim = 5.0

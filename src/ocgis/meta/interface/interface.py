@@ -128,7 +128,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         if polygon is not None:
             vprint('building spatial index...')
             from ocgis.util import spatial_index as si
-            grid = si.build_index_grid(10.0,polygon)
+            grid = si.build_index_grid(30.0,polygon)
             index = si.build_index(polygon,grid)
             index_intersects = si.index_intersects
         ##tdk

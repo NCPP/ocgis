@@ -257,14 +257,22 @@ class SpatialInterfacePoint(SpatialInterface):
     def __init__(self,*args,**kwds):
         super(SpatialInterfacePoint,self).__init__(*args,**kwds)
         
-        ## some data uses 360 dynamic range for longitude coordinates. compliance
-        ## with WGS84 data requires data ranging from -180 to 180.
+        ## check for values over 180 in the longitude variable. if higher values
+        ## exists, user geometries will need to be wrapped and data may be 
+        ## wrapped later in the conversion process.
         if self.longitude.value.max() > 180:
-            idx = self.longitude.value > 180
-            self.longitude.value[idx] = self.longitude.value[idx] - 360
-#            self.longitude.value = self.longitude.value - 180
-#            self.longitude.value = self.longitude.value - 360
-            warn('0 to 360 data encountered. coordinate shift occurred.')
+            self.is_360 = True
+        else:
+            self.is_360 = False
+        
+#        ## some data uses 360 dynamic range for longitude coordinates. compliance
+#        ## with WGS84 data requires data ranging from -180 to 180.
+#        if self.longitude.value.max() > 180:
+#            idx = self.longitude.value > 180
+#            self.longitude.value[idx] = self.longitude.value[idx] - 360
+##            self.longitude.value = self.longitude.value - 180
+##            self.longitude.value = self.longitude.value - 360
+#            warn('0 to 360 data encountered. coordinate shift occurred.')
         
         ## change how the row and column point variables are created based
         ## on the shape of the incoming coordinates.

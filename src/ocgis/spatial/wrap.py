@@ -2,15 +2,11 @@ import numpy as np
 from ocgis.util.helpers import make_poly
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-from ocgis.util.shp_cabinet import ShpCabinet
-import time
 
 
 def wrap_geoms(geoms,left_max_x_bound):
     clip1 = make_poly((-90,90),(-180,left_max_x_bound))
     clip2 = make_poly((-90,90),(left_max_x_bound,180))
-#        clip = MultiPolygon([clip1,clip2])
-#    lon_cutoff = -1.40625
     
     def _get_iter_(geom):
         try:
@@ -35,11 +31,7 @@ def wrap_geoms(geoms,left_max_x_bound):
             if np.any(coords[0,:] < lon_cutoff):
                 adjust = True
                 break
-#            import ipdb;ipdb.set_trace()
-#            for coords in polygon.exterior.coords:
-#                if any([c < lon_cutoff for c in coords]):
-#                    adjust = True
-#                    break
+
         ## wrap the polygon if requested
         if adjust:
             ## intersection with the two regions
@@ -48,43 +40,23 @@ def wrap_geoms(geoms,left_max_x_bound):
             
             ## pull out the right side polygons
             right_polygons = [poly for poly in _get_iter_(right)]
-#            import ipdb;ipdb.set_trace()
-#            if right.is_empty:
-#                right_polygons = []
-#            else:
-#                if isinstance(right,MultiPolygon):
-#                    right_polygons = [poly for poly in right]
-#                else:
-#                    right_polygons = [right]
             
-#                shapely_to_shp(left,'left')
-#                shapely_to_shp(right,'right')
-#                tdk
-#                import ipdb;ipdb.set_trace()
-#                sc.write([{'geom':new_geom,'id':1}],'/tmp/spain3.shp')
-#                import ipdb;ipdb.set_trace()
+            ## adjust polygons falling the left window
             if isinstance(left,Polygon):
                 left_polygons = [_shift_(left)]
-#                left_polygons = [Polygon([_shift_(ctup) for ctup in left.exterior.coords])]
             else:
                 left_polygons = []
                 for polygon in left:
-#                    new_geom = Polygon(_shift_(polygon))
-#                    new_geom = Polygon([_shift_(ctup) for ctup in polygon.exterior.coords])
                     left_polygons.append(_shift_(polygon))
-#                if isinstance(right,MultiPolygon):
-#                    right_polygons = [poly for poly in right]
-#                else:
-#                    right_polygons = [right]
-#                    left = MultiPolygon(polygons)
+            
+            ## merge polygons into single unit
             ret = MultiPolygon(left_polygons + right_polygons)
+        
+        ## if polygon does not need adjustment, just return it.
         else:
             ret = geom
         return(ret)
     
+    ## update the polygons in place
     for geom in geoms:
         geom['geom'] = _transform_(geom['geom'],left_max_x_bound)
-    
-#    sc = ShpCabinet()
-#    sc.write(geoms,'/tmp/remapped{0}.shp'.format(time.time()))
-#    import ipdb;ipdb.set_trace()

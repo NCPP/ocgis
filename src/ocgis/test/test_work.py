@@ -99,9 +99,14 @@ class TestWork(unittest.TestCase):
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
-        geom = {'geom':[self.california]}
+        geom = {'geom':[
+#                        self.california,
+                        self.state_boundaries
+                        ]}
+        aggregate = {'aggregate':[True]}
+        spatial_operation = {'spatial_operation':['clip']}
         
-        args = [output_format,snippet,dataset,geom]
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)
@@ -119,6 +124,12 @@ class TestWork(unittest.TestCase):
     def california(self):
         sc = ShpCabinet()
         ret = sc.get_geom_dict('state_boundaries',{'id':[25]})
+        return(ret)
+    
+    @property
+    def state_boundaries(self):
+        sc = ShpCabinet()
+        ret = sc.get_geom_dict('state_boundaries')
         return(ret)
 
 

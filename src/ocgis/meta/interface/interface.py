@@ -77,12 +77,12 @@ class SpatialInterfacePolygon(SpatialInterface):
         self.min_col,self.min_row = self.get_min_bounds()
         self.max_col,self.max_row = self.get_max_bounds()
 
-        if self.min_col.max() > 180:
-            warn('0 to 360 data encountered. coordinate shift occurred.')
-            idx = self.max_col > 180
-            self.max_col[idx] = self.max_col[idx] - 360
-            idx = self.min_col >= 180
-            self.min_col[idx] = self.min_col[idx] - 360
+#        if self.min_col.max() > 180:
+#            warn('0 to 360 data encountered. coordinate shift occurred.')
+#            idx = self.max_col > 180
+#            self.max_col[idx] = self.max_col[idx] - 360
+#            idx = self.min_col >= 180
+#            self.min_col[idx] = self.min_col[idx] - 360
         
         self.real_col,self.real_row = np.meshgrid(
                                 np.arange(0,len(self.longitude_bounds.value)),

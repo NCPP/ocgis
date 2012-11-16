@@ -6,6 +6,7 @@ from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
 import copy
 from ocgis.api.iocg.dataset.dataset import OcgDataset
+from ocgis.spatial.wrap import wrap_geoms
 
 
 class SubsetOperation(object):
@@ -37,9 +38,9 @@ class SubsetOperation(object):
             dataset.update({'ocg_dataset':ods})
             
         ## wrap the geometry dictionary if needed
-        arch = self.ops.dataset[0]
-        if arch.is_360:
-            import ipdb;ipdb.set_trace()
+        arch = self.ops.dataset[0]['ocg_dataset']
+        if arch.i.spatial.is_360:
+            wrap_geoms(self.ops.geom,arch.i.spatial.left_upper_bound)
 
         ## create the calculation engine
         if self.ops.calc is None:

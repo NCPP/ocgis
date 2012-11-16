@@ -234,55 +234,55 @@ class TestCdata(TestCase):
                     url_run = '{0}&prefix={1}'.format(url_run,prefix)
                 self._urls.append(url_run)
                 print(url_run)
-                return(self.c.get(url_run))
+#                return(self.c.get(url_run))
         
         pu = PresUrl()
         env.WORKSPACE = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/20121126_esgf_f2f/output_data/2'
         
-#        ## download world and states shapefiles
-#        pu.run('/shp/state_boundaries')
-#        pu.run('/shp/state_boundaries?select_ugid=25&prefix=california')
-#        pu.run('/shp/world_countries')
-#
-#        ## inspect the dataset
-#        resp = pu.run('/inspect?uri={0}'.format(dataset['clt']))
+        ## download world and states shapefiles
+        pu.run('/shp/state_boundaries')
+        pu.run('/shp/state_boundaries?select_ugid=25&prefix=california')
+        pu.run('/shp/world_countries')
+
+        ## inspect the dataset
+        resp = pu.run('/inspect?uri={0}'.format(dataset['clt']))
 #        print(resp.content)
-#
-#        ## get data snippet
-#        pu.run('/snippet?s_abstraction=point&variable={0}&uri={1}'.format('ta',dataset['ta']),prefix='snippet_ta_point')
-#        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
-#        
-#        ## snippet again
-#        geom_parms = [
-#                      'state_boundaries',
-#                      'state_boundaries&select_ugid=25',
-#                      'world_countries'
-#                      ]
-#        geom_tags = [
-#                     'states',
-#                     'california',
-#                     'world'
-#                     ]
-#        for geom_parm,geom_tag in zip(geom_parms,geom_tags):
-#            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
-#            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
-#            pu.run(url)
-#
-#        ## subset by bounding box for area over california
-#        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&uri={uri}'.format(uri=dataset['clt'])
-#        pu.run(url)
-#        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&spatial_operation=intersects&time_range=none&level_range=none&output_format=keyed&uri={uri}'.format(uri=dataset['clt'])
-#        pu.run(url)
-#        
-#        ## clip aggregation/calculation query
-#        url = '/subset?variable=clt&uri={uri}&time_range=2000-1-1|2000-12-31&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=shp&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
-#        url = url.format(uri=dataset['clt'])
-#        pu.run(url)
-#        
-#        ## meta output for aggregation/calculation query
-#        url = '/subset?variable=clt&uri={uri}&time_range=2000-1-1|2000-12-31&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=meta&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
-#        url = url.format(uri=dataset['clt'])
-#        resp = pu.run(url)
+
+        ## get data snippet
+        pu.run('/snippet?s_abstraction=point&variable={0}&uri={1}'.format('ta',dataset['ta']),prefix='snippet_ta_point')
+        pu.run('/snippet?s_abstraction=polygon&variable={0}&uri={1}'.format('clt',dataset['clt']),prefix='snippet_clt_polygon')
+        
+        ## snippet again
+        geom_parms = [
+                      'state_boundaries',
+                      'state_boundaries&select_ugid=25',
+                      'world_countries'
+                      ]
+        geom_tags = [
+                     'states',
+                     'california',
+                     'world'
+                     ]
+        for geom_parm,geom_tag in zip(geom_parms,geom_tags):
+            url = '/snippet?variable=clt&uri={uri}&geom={geom_parm}&prefix=snippet_{geom_tag}'
+            url = url.format(uri=dataset['clt'],geom_parm=geom_parm,geom_tag=geom_tag)
+            pu.run(url)
+
+        ## subset by bounding box for area over california
+        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&uri={uri}'.format(uri=dataset['clt'])
+        pu.run(url)
+        url = '/subset?variable=clt&geom=-127.79297|32.24997|-112.98340|42.29356&prefix=bb_ca&spatial_operation=intersects&time_range=none&level_range=none&output_format=keyed&uri={uri}'.format(uri=dataset['clt'])
+        pu.run(url)
+        
+        ## clip aggregation/calculation query
+        url = '/subset?variable=clt&uri={uri}&time_range=2000-1-1|2000-12-31&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=shp&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
+        url = url.format(uri=dataset['clt'])
+        pu.run(url)
+        
+        ## meta output for aggregation/calculation query
+        url = '/subset?variable=clt&uri={uri}&time_range=2000-1-1|2000-12-31&spatial_operation=clip&aggregate=true&geom=state_boundaries&output_format=meta&calc=mean~mean_clt|min~min_clt|max~max_clt|std~std_clt&calc_raw=false&calc_grouping=year'
+        url = url.format(uri=dataset['clt'])
+        resp = pu.run(url)
 #        print(resp.content)
 #
         ## netcdf

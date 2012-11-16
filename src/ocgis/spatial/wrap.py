@@ -41,7 +41,7 @@ def wrap_coll(coll):
         else:
             continue
 
-def wrap_geoms(geoms,left_max_x_bound):
+def unwrap_geoms(geoms,left_max_x_bound):
     clip1 = make_poly((-90,90),(-180,left_max_x_bound))
     clip2 = make_poly((-90,90),(left_max_x_bound,180))
     
@@ -89,5 +89,5 @@ def wrap_geoms(geoms,left_max_x_bound):
     
     ## update the polygons in place
     for geom in geoms:
-        geom['_original_geom'] = copy(geom['geom'])
+#        geom['_original_geom'] = copy(geom['geom'])
         geom['geom'] = _transform_(geom['geom'],left_max_x_bound)

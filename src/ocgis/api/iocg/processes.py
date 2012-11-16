@@ -6,7 +6,7 @@ from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
 import copy
 from ocgis.api.iocg.dataset.dataset import OcgDataset
-from ocgis.spatial.wrap import wrap_geoms
+from ocgis.spatial.wrap import unwrap_geoms
 
 
 class SubsetOperation(object):
@@ -40,7 +40,7 @@ class SubsetOperation(object):
         ## wrap the geometry dictionary if needed
         arch = self.ops.dataset[0]['ocg_dataset']
         if arch.i.spatial.is_360 and self.ops._get_object_('geom').is_empty is False:
-            wrap_geoms(self.ops.geom,arch.i.spatial.left_upper_bound)
+            unwrap_geoms(self.ops.geom,arch.i.spatial.left_upper_bound)
 
         ## create the calculation engine
         if self.ops.calc is None:

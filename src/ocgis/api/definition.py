@@ -628,6 +628,22 @@ class VectorWrap(BooleanParameter,AttributedOcgParameter):
         else:
             msg = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
         return(msg)
+    
+    
+class Unwrap(BooleanParameter,AttributedOcgParameter):
+    _name = 'unwrap'
+    _nullable = True
+    _default = False
+    
+    
+class PrimeMeridian(AttributedOcgParameter):
+    _name = 'pm'
+    _nullable = True
+    _default = 0.0
+    _dtype = float
+    
+    def _format_string_(self,value):
+        return(float(value))
 
 
 ## determine the iterator mode for the converters

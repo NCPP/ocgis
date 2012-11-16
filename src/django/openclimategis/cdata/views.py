@@ -7,7 +7,8 @@ import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
 import os.path
 from ocgis.spatial.union import union_geom_dicts
-from ocgis.api.definition import SelectUgid, Prefix
+from ocgis.api.definition import SelectUgid, Prefix, Unwrap, PrimeMeridian
+from ocgis.spatial.wrap import unwrap_geoms
 
 
 def get_data(request):
@@ -33,13 +34,27 @@ def display_inspect(request):
     return(response)
 
 def get_shp(request,key=None):
-    select_ugid = SelectUgid()
     query = helpers.parse_qs(request.META['QUERY_STRING'])
+    
+    select_ugid = SelectUgid()
     select_ugid.parse_query(query)
+    
     prefix = Prefix()
     prefix.parse_query(query)
+    
+    unwrap = Unwrap()
+    unwrap.parse_query(query)
+    
+    pm = PrimeMeridian()
+    pm.parse_query(query)
+    
     sc = ShpCabinet()
     geom_dict = sc.get_geom_dict(key,attr_filter=select_ugid.value)
+    
+    ## unwrap coordinates if requested
+    if unwrap.value:
+        unwrap_geoms(geom_dict,pm.value)
+    
     dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
     if prefix.value is None:
         out_name = key
@@ -49,6 +64,7 @@ def get_shp(request,key=None):
     path = os.path.join(dir_path,filename)
     path = sc.write(geom_dict,path)
     path = os.path.split(path)[0]
+    
     resp = helpers._zip_response_(path,filename=filename.replace('shp','zip'))
     return(resp)
 

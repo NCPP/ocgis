@@ -154,7 +154,9 @@ class TestCdata(TestCase):
         
     def test_get_shp(self):
 #        url = '/shp/co_watersheds'
-        url = '/shp/world_countries'
+#        url = '/shp/world_countries'
+        url = '/shp/co_watersheds?unwrap=true&pm=0'
+
 #        self.open_in_chrome(url)
         resp = self.c.get(url)
         

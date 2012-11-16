@@ -2,6 +2,7 @@ import numpy as np
 from ocgis.util.helpers import make_poly
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
+from copy import copy
 
 
 def wrap_geoms(geoms,left_max_x_bound):
@@ -59,4 +60,5 @@ def wrap_geoms(geoms,left_max_x_bound):
     
     ## update the polygons in place
     for geom in geoms:
+        geom['_original_geom'] = copy(geom['geom'])
         geom['geom'] = _transform_(geom['geom'],left_max_x_bound)

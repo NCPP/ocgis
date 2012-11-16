@@ -9,7 +9,7 @@ from shapely.geometry.point import Point
 from ocgis.meta.interface.projection import get_projection
 from copy import copy
 from ocgis import env
-from ocgis.util.helpers import vprint
+from ocgis.util.helpers import vprint, iter_array
 
 
 class InterfaceElement(object):
@@ -77,6 +77,21 @@ class SpatialInterfacePolygon(SpatialInterface):
         self.min_col,self.min_row = self.get_min_bounds()
         self.max_col,self.max_row = self.get_max_bounds()
 
+        ## check for values over 180 in the bounds variables. if higher values
+        ## exists, user geometries will need to be wrapped and data may be 
+        ## wrapped later in the conversion process.
+        if np.any(self.min_col > 180) or np.any(self.max_col > 180):
+            self.is_360 = True
+            ## iterate bounds coordinates to identify upper bound for left
+            ## clip polygon for geometry wrapping.
+            self.left_upper_bound = 0.0
+            for idx in iter_array(self.min_col):
+                if self.min_col[idx] < 0 and self.max_col[idx] > 0:
+                    self.left_upper_bound = self.min_col[idx]
+                    break
+        else:
+            self.is_360 = False
+
 #        if self.min_col.max() > 180:
 #            warn('0 to 360 data encountered. coordinate shift occurred.')
 #            idx = self.max_col > 180
@@ -92,6 +107,9 @@ class SpatialInterfacePolygon(SpatialInterface):
         self.shape = self.real_col.shape
         self.gid = np.arange(1,self.real_col.shape[0]*
                                self.real_col.shape[1]+1).reshape(self.shape)
+                               
+    def wrap(self,polygon):
+        import ipdb;ipdb.set_trace()
     
     def calc_weights(self,npd,geom):
         weight = np.ma.array(np.zeros((npd.shape[2],npd.shape[3]),dtype=float),
@@ -197,15 +215,6 @@ class SpatialInterfacePolygon(SpatialInterface):
     def get_bounds(self,colidx):
         col,row = np.meshgrid(self.longitude_bounds.value[:,colidx],
                               self.latitude_bounds.value[:,colidx])
-#        ## some data uses 360 dynamic range for longitude coordinates. compliance
-#        ## with WGS84 data requires data ranging from -180 to 180.
-#        if col.max() > 180:
-#            import ipdb;ipdb.set_trace()
-#            idx = col > 180
-#            col[idx] = -(col[idx]-180)
-##            col = col - 180
-#            warn(('0 to 360 longitude variable encountered. simple '
-#                  'remapping to [-180,180] occurred.'))
         return(col,row)
     
     def get_min_bounds(self):

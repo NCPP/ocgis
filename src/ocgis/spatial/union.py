@@ -2,6 +2,8 @@ import numpy as np
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
 from copy import copy
+from shapely.geometry.point import Point
+from shapely.geometry.multipoint import MultiPoint
 
 
 def union(new_id,coll):
@@ -18,17 +20,23 @@ def union(new_id,coll):
 
     ## will hold the unioned geometry
     new_geometry = np.empty((1,1),dtype=object)
-    ## break out the MultiPolygon objects. inextricable geometry errors
-    ## sometimes occur otherwise
-    ugeom = []
-    for geom in coll.geom_masked.compressed():
-        if isinstance(geom,MultiPolygon):
-            for poly in geom:
-                ugeom.append(poly)
-        else:
-            ugeom.append(geom)
-    ## execute the union
-    new_geometry[0,0] = cascaded_union(ugeom)
+    
+    if isinstance(coll.geom[0,0],Point):
+        pts = MultiPoint([pt for pt in coll.geom_masked.compressed().flat])
+        new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
+    else:
+        ## break out the MultiPolygon objects. inextricable geometry errors
+        ## sometimes occur otherwise
+        ugeom = []
+        for geom in coll.geom_masked.compressed():
+            if isinstance(geom,MultiPolygon):
+                for poly in geom:
+                    ugeom.append(poly)
+            else:
+                ugeom.append(geom)
+        ## execute the union
+        new_geometry[0,0] = cascaded_union(ugeom)
+        
     ## update the collection. mask for masked object arrays are kept separate
     ## in case the data needs to be pickled. know bug in numpy
     coll.geom = new_geometry

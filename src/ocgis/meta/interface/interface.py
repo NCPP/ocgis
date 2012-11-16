@@ -264,6 +264,7 @@ class SpatialInterfacePoint(SpatialInterface):
             self.is_360 = True
         else:
             self.is_360 = False
+        self.left_upper_bound = 0.0
         
 #        ## some data uses 360 dynamic range for longitude coordinates. compliance
 #        ## with WGS84 data requires data ranging from -180 to 180.
@@ -303,6 +304,7 @@ class SpatialInterfacePoint(SpatialInterface):
     
     def select(self,polygon):
         self.selection.geom = np.empty(self.shape,dtype=object)
+        self.fill_geom()
         
         if polygon is not None:
 #            include = np.zeros(self.shape,dtype=bool)
@@ -310,20 +312,20 @@ class SpatialInterfacePoint(SpatialInterface):
             for ii,jj in helpers.iter_array(self.col_pt,use_mask=False):
                 pt = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
                 if prep_polygon.intersects(pt):
-                    self.selection.geom[ii,jj] = pt
+#                    self.selection.geom[ii,jj] = pt
                     self.selection.row.append(self.real_row[ii,jj])
                     self.selection.col.append(self.real_col[ii,jj])
                     self.selection.idx.append([self.real_row[ii,jj],
                                                self.real_col[ii,jj]])
                     
         else:
-            self.fill_geom()
+#            self.fill_geom()
             self.selection.row = self.real_row.flatten()
             self.selection.col = self.real_col.flatten()
             for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
                 self.selection.idx.append([self.real_row[ii,jj],
                                            self.real_col[ii,jj]])
-        return(self.selection.geom,self.selection.row,self.selection.col)
+        return(self.selection.geom,np.array(self.selection.row),np.array(self.selection.col))
              
     def extent(self):
         minx = self.longitude.value.min()

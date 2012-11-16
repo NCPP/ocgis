@@ -42,6 +42,13 @@ class OcgOperations(object):
         self.agg_selection = AggregateSelection
         self.select_ugid = SelectUgid
         self.vector_wrap = VectorWrap
+        
+    def __repr__(self):
+        msg = ['<{0}>:'.format(self.__class__.__name__)]
+        for key,value in self.as_dict().iteritems():
+            msg.append(' {0}={1}'.format(key,value))
+        msg = '\n'.join(msg)
+        return(msg)
             
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)

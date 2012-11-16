@@ -176,20 +176,10 @@ def get_collection((so,geom_dict)):
     if so.ops.spatial_operation == 'clip':
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):
             coll = clip(coll,geom_dict['geom'])
+            
     ## data aggregation.
     if so.ops.aggregate:
-        if isinstance(so.spatial_interface,SpatialInterfacePolygon):
-            coll = union(geom_dict['id'],coll)
-        else:
-            raise(NotImplementedError)
-#            coll['geom'] = np.array([[geom_dict['geom']]])
-#            coll['geom_mask'] = np.array([[False]])
-#            coll['gid'] = np.ma.array([[geom_dict['id']]],
-#                                      mask=[[False]],dtype=int)
-#            coll['value_agg'] = OrderedDict()
-#            for key,value in coll['value'].iteritems():
-#                coll['value_agg'].update({key:union_sum(coll['weights'],
-#                                                        value)})
+        coll = union(geom_dict['id'],coll)
 
     ## do the requested calculations.
     if so.cengine is not None:

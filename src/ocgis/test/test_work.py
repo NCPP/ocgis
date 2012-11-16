@@ -5,16 +5,22 @@ from ocgis.api.operations import OcgOperations
 from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 from ocgis.util.shp_cabinet import ShpCabinet
 import sys;sys.argv = ['', 'TestWork.test_get_data']
+import traceback
 
 
 class TestWork(unittest.TestCase):
 
     def test_get_data(self):
-        for ops in self.iter_operations():
-            ret = OcgInterpreter(ops).execute()
+        start = 0
+        for ii,ops in self.iter_operations(start=start):
+            try:
+                ret = OcgInterpreter(ops).execute()
+            except:
+                print traceback.format_exc()
+                import ipdb;ipdb.set_trace()
             print(ret)
 
-    def iter_operations(self):
+    def iter_operations(self,start=0):
         output_format = {'output_format':[
                                           'shp',
                                           'keyed',
@@ -31,7 +37,7 @@ class TestWork(unittest.TestCase):
         geom = {'geom':[
                         None,
                         self.california,
-                        self.state_boundaries
+#                        self.state_boundaries
                         ]}
         aggregate = {'aggregate':[
                                   True,
@@ -45,16 +51,21 @@ class TestWork(unittest.TestCase):
                                       True,
                                       False
                                       ]}
+        interface = {'interface':[
+#                                  {},
+                                  {'s_abstraction':'point'}
+                                  ]}
         
-        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap]
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)
         
-        for ret in itertools.product(*combined.values()):
-            kwds = dict(zip(combined.keys(),ret))
-            ops = OcgOperations(**kwds)
-            yield(ops)
+        for ii,ret in enumerate(itertools.product(*combined.values())):
+            if ii >= start:
+                kwds = dict(zip(combined.keys(),ret))
+                ops = OcgOperations(**kwds)
+                yield(ii,ops)
     
     @property
     def california(self):

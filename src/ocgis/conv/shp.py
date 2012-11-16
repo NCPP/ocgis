@@ -4,6 +4,7 @@ from osgeo import ogr
 import numpy as np
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
+from ocgis.spatial.wrap import wrap_coll
 
     
 class ShpConverter(OcgConverter):
@@ -45,6 +46,11 @@ class ShpConverter(OcgConverter):
         
         build = True
         for coll,geom_dict in self:
+            
+            ## wrap geometries from -180 to 180 if requested
+            if self.ops.vector_wrap:
+                wrap_coll(coll)
+            
             for row,geom in self.get_iter(coll):
                 if build:
                     if isinstance(geom,MultiPolygon):

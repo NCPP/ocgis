@@ -20,6 +20,7 @@ class OcgConverter(object):
     
     def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None,alt_it=None):
         self.so = so
+        self.ops = so.ops
         self.base_name = base_name
         self.wd = wd
         self.use_dir = use_dir

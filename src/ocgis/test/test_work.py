@@ -90,6 +90,7 @@ class TestWork(unittest.TestCase):
         output_format = {'output_format':[
                                           'shp',
 #                                          'keyed',
+#                                          'nc',
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -100,13 +101,21 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
+                        None,
 #                        self.california,
-                        self.state_boundaries
+#                        self.state_boundaries
                         ]}
-        aggregate = {'aggregate':[True]}
-        spatial_operation = {'spatial_operation':['clip']}
+        aggregate = {'aggregate':[
+#                                  True,
+                                  False
+                                  ]}
+        spatial_operation = {'spatial_operation':[
+#                                                  'clip',
+                                                  'intersects',
+                                                  ]}
+        vector_wrap = {'vector_wrap':[True]}
         
-        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation]
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)

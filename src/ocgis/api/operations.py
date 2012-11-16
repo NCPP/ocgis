@@ -20,7 +20,7 @@ class OcgOperations(object):
                  time_range=None,level_range=None,calc=None,calc_grouping=None,
                  calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
-                 select_ugid=None):
+                 select_ugid=None,vector_wrap=None):
         
         self._kwds = locals()
         self.dataset = Dataset
@@ -41,6 +41,7 @@ class OcgOperations(object):
         self.output_grouping = output_grouping
         self.agg_selection = AggregateSelection
         self.select_ugid = SelectUgid
+        self.vector_wrap = VectorWrap
             
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)

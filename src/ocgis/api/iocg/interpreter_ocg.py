@@ -41,6 +41,7 @@ class OcgInterpreter(Interpreter):
             self.ops.aggregate = False
             self.ops.calc_raw = False
             self.ops.mode = 'raw'
+            self.ops.vector_wrap = False
         
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.

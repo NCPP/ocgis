@@ -1,20 +1,49 @@
 import numpy as np
-from ocgis.util.helpers import make_poly
+from ocgis.util.helpers import make_poly, iter_array
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from copy import copy
 
 
+def _get_iter_(geom):
+    try:
+        it = iter(geom)
+    except TypeError:
+        it = [geom]
+    return(it)
+
+def wrap_coll(coll):
+    right_clip = make_poly((-90,90),(180,360))
+    left_clip = make_poly((-90,90),(-180,180))
+    
+    def _shift_(geom):
+        try:
+            coords = np.array(geom.exterior.coords)
+            coords[:,0] = coords[:,0] - 360
+            ret = Polygon(coords)
+        except AttributeError:
+            polygons = np.empty(len(geom),dtype=object)
+            for ii,polygon in enumerate(geom):
+                coords = np.array(polygon.exterior.coords)
+                coords[:,0] = coords[:,0] - 360
+                polygons[ii] = Polygon(coords)
+            ret = MultiPolygon(polygons)
+        return(ret)
+    
+    for idx,geom in iter_array(coll.geom,return_value=True):
+        bounds = np.array(geom.bounds)
+        if np.all([bounds[0] > 180,bounds[2] > 180]):
+            coll.geom[idx] = _shift_(geom)
+        elif bounds[1] <= 180 and bounds[2] > 180:
+            left = [poly for poly in _get_iter_(geom.intersection(left_clip))]
+            right = [poly for poly in _get_iter_(_shift_(geom.intersection(right_clip)))]
+            coll.geom[idx] = MultiPolygon(left+right)
+        else:
+            continue
+
 def wrap_geoms(geoms,left_max_x_bound):
     clip1 = make_poly((-90,90),(-180,left_max_x_bound))
     clip2 = make_poly((-90,90),(left_max_x_bound,180))
-    
-    def _get_iter_(geom):
-        try:
-            it = iter(geom)
-        except TypeError:
-            it = [geom]
-        return(it)
     
     def _shift_(polygon):
         coords = np.array(polygon.exterior.coords)

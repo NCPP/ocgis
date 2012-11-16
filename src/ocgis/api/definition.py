@@ -537,6 +537,13 @@ class Geom(AttributedOcgParameter):
             if geom_dict['id'] in ugids:
                 return(True)
         self.value = filter(_filter_,self.value)
+        
+    def is_empty(self):
+        if self.value[0]['geom'] is None:
+            ret = True
+        else:
+            ret = False
+        return(ret)
     
     
 class Dataset(AttributedOcgParameter):
@@ -607,7 +614,19 @@ class SelectUgid(AttributedOcgParameter):
         else:
             msg = 'The following UGIDs used to limit geometries: {0}'.format(self.value)
         return(msg)
-        
+    
+    
+class VectorWrap(BooleanParameter,AttributedOcgParameter):
+    _name = 'vector_wrap'
+    _nullable = True
+    _default = True
+
+    def message(self):
+        if self.value:
+            msg = 'Geographic coordinates wrapped from -180 to 180 degrees longitude.'
+        else:
+            msg = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
+        return(msg)
 
 
 ## determine the iterator mode for the converters

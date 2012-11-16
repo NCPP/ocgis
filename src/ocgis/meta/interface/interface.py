@@ -107,9 +107,6 @@ class SpatialInterfacePolygon(SpatialInterface):
         self.shape = self.real_col.shape
         self.gid = np.arange(1,self.real_col.shape[0]*
                                self.real_col.shape[1]+1).reshape(self.shape)
-                               
-    def wrap(self,polygon):
-        import ipdb;ipdb.set_trace()
     
     def calc_weights(self,npd,geom):
         weight = np.ma.array(np.zeros((npd.shape[2],npd.shape[3]),dtype=float),

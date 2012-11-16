@@ -24,7 +24,7 @@ class SubsetOperation(object):
         self.nprocs = nprocs
         
         ## update meta entries with OcgDataset objects checking for
-        ## duplicate URIs. if the URI is the same, there is not reason to build
+        ## duplicate URIs. if the URI is the same, there is no reason to build
         ## the interface objects again.
         uri_map = {}
         for dataset in self.ops.dataset:
@@ -35,6 +35,11 @@ class SubsetOperation(object):
                 ods = OcgDataset(dataset['uri'],interface_overload=self.ops.interface)
                 uri_map.update({key:ods})
             dataset.update({'ocg_dataset':ods})
+            
+        ## wrap the geometry dictionary if needed
+        arch = self.ops.dataset[0]
+        if arch.is_360:
+            import ipdb;ipdb.set_trace()
 
         ## create the calculation engine
         if self.ops.calc is None:

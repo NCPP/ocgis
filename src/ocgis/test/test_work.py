@@ -14,8 +14,9 @@ import sys;sys.argv = ['', 'TestWork.test_get_data']
 class TestWork(unittest.TestCase):
 
     def test_get_data(self):
-        ops = self.get_operations()
-        ret = OcgInterpreter(ops).execute()
+        for ops in self.iter_operations():
+            ret = OcgInterpreter(ops).execute()
+            print(ret)
     
     def test_coordinate_shift(self):
         sc = ShpCabinet()
@@ -89,8 +90,8 @@ class TestWork(unittest.TestCase):
     def iter_operations(self):
         output_format = {'output_format':[
                                           'shp',
-#                                          'keyed',
-#                                          'nc',
+                                          'keyed',
+                                          'nc',
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -102,18 +103,21 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
                         None,
-#                        self.california,
-#                        self.state_boundaries
+                        self.california,
+                        self.state_boundaries
                         ]}
         aggregate = {'aggregate':[
-#                                  True,
+                                  True,
                                   False
                                   ]}
         spatial_operation = {'spatial_operation':[
-#                                                  'clip',
+                                                  'clip',
                                                   'intersects',
                                                   ]}
-        vector_wrap = {'vector_wrap':[True]}
+        vector_wrap = {'vector_wrap':[
+                                      True,
+                                      False
+                                      ]}
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap]
         

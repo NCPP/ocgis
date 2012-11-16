@@ -537,7 +537,8 @@ class Geom(AttributedOcgParameter):
             if geom_dict['id'] in ugids:
                 return(True)
         self.value = filter(_filter_,self.value)
-        
+    
+    @property
     def is_empty(self):
         if self.value[0]['geom'] is None:
             ret = True

@@ -4,6 +4,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from copy import copy
 from shapely.geometry.point import Point
+from shapely.geometry.linestring import LineString
 
 
 def _get_iter_(geom):
@@ -39,7 +40,12 @@ def wrap_coll(coll):
             elif bounds[1] <= 180 and bounds[2] > 180:
                 left = [poly for poly in _get_iter_(geom.intersection(left_clip))]
                 right = [poly for poly in _get_iter_(_shift_(geom.intersection(right_clip)))]
-                coll.geom[idx] = MultiPolygon(left+right)
+                try:
+                    coll.geom[idx] = MultiPolygon(left+right)
+                except TypeError:
+                    left = filter(lambda x: type(x) != LineString,left)
+                    right = filter(lambda x: type(x) != LineString,right)
+                    coll.geom[idx] = MultiPolygon(left+right)
             else:
                 continue
     else:

@@ -62,10 +62,17 @@ class OcgDataset(object):
 #        if show: plt.show()
     
     def get_numpy_data(self,var,args):
+        
+        import time
+        t1 = time.time()
+        
         if len(args) == 3:
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
+            
+        t2 = time.time()
+        print 'download_time',t2-t1
         
         ## resize the data to match returned counts
         new_shape = [len(a) for a in args]
@@ -80,7 +87,7 @@ class OcgDataset(object):
                 npd.resize(new_shape)
             except ValueError:
                 npd = np.ma.resize(npd,new_shape)
-            
+        
         return(npd)
     
     def _subset_(self,var_name,polygon=None,time_range=None,level_range=None,
@@ -105,6 +112,8 @@ class OcgDataset(object):
                 
         ## get the time indices
         timeidx = self.i.temporal.subset_timeidx(time_range)
+        if len(timeidx) == 0:
+            raise(IndexError('time range returned no data.'))
 
         ## convert the level indices
         levelidx = self.i.level.levelidx
@@ -117,7 +126,7 @@ class OcgDataset(object):
                 if len(set(level_range)) == 1 and level_range[0] == 1:
                     level_range = None
                 else:
-                    raise ValueError('Target variable has no levels.')
+                    raise IndexError('target variable has no levels.')
             
         ## extract the data ####################################################
         

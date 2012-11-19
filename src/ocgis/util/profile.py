@@ -11,10 +11,11 @@ def run():
     
     
 def main():
-    path = '/tmp/stats.txt'
+    path = '/tmp/stats'
     cProfile.run('run()',path)
     p = pstats.Stats(path)
-    p.sort_stats('time').print_stats(30)
+#    p.sort_stats('time').print_stats(30)
+    p.print_stats('get_numpy_data')
     import ipdb;ipdb.set_trace()
     
     

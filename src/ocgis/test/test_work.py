@@ -4,8 +4,11 @@ from collections import OrderedDict
 from ocgis.api.operations import OcgOperations
 from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 from ocgis.util.shp_cabinet import ShpCabinet
-import sys;sys.argv = ['', 'TestWork.test_get_data']
 import traceback
+import sys;sys.argv = ['', 'TestWork.test_get_data']
+import time
+from ocgis.util.helpers import make_poly #@UnusedImport
+from datetime import datetime
 
 
 class TestWork(unittest.TestCase):
@@ -19,6 +22,25 @@ class TestWork(unittest.TestCase):
                 print traceback.format_exc()
                 import ipdb;ipdb.set_trace()
             print(ret)
+            
+    def test_profile(self):
+        prev = sys.stdout
+        with open('/tmp/out.txt','w') as f:
+            sys.stdout = f
+            start = 0
+            for ii,ops in self.iter_operations(start=start):
+                t1 = time.time()
+                OcgInterpreter(ops).execute()
+                t2 = time.time()
+                if int(ops.geom[0]['geom'].area) == 1096:
+                    geom = 'states'
+                else:
+                    geom = 'bb'
+                prnt = [geom,ops.dataset[0]['uri'],ops.output_format,t2-t1]
+                print ','.join(map(str,prnt))
+                time.sleep(5)
+#                break
+        sys.stdout = prev
 
     def iter_operations(self,start=0):
         output_format = {'output_format':[
@@ -27,36 +49,51 @@ class TestWork(unittest.TestCase):
 #                                          'nc',
                                           ]}
         snippet = {'snippet':[
-                              True,
-#                              False
+#                              True,
+                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-                        None,
-#                        self.california,
-#                        self.state_boundaries
+#                        None,
+                        self.california,
+#                        self.state_boundaries,
+#                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))}
                         ]}
         aggregate = {'aggregate':[
-                                  True,
-#                                  False
+#                                  True,
+                                  False
                                   ]}
         spatial_operation = {'spatial_operation':[
 #                                                  'clip',
                                                   'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
-#                                      True,
-                                      False
+                                      True,
+#                                      False
                                       ]}
         interface = {'interface':[
-#                                  {},
-                                  {'s_abstraction':'point'}
+                                  {},
+#                                  {'s_abstraction':'point'}
                                   ]}
         
-        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface]
+        agg_selection = {'agg_selection':[
+                                          True,
+#                                          False
+                                          ]}
+        
+        level_range = {'level_range':[
+#                                      [10,20],
+                                      None
+                                      ]}
+        time_range = {'time_range':[
+                                    [datetime(2020,1,1),datetime(2020,12,31)],
+#                                    None
+                                    ]}
+        
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface,agg_selection,level_range,time_range]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)

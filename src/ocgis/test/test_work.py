@@ -49,8 +49,8 @@ class TestWork(unittest.TestCase):
 #                                          'nc',
                                           ]}
         snippet = {'snippet':[
-#                              True,
-                              False
+                              True,
+#                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
@@ -58,8 +58,8 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
 #                        None,
-                        self.california,
-#                        self.state_boundaries,
+#                        self.california,
+                        self.state_boundaries,
 #                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))}
                         ]}
         aggregate = {'aggregate':[
@@ -75,13 +75,13 @@ class TestWork(unittest.TestCase):
 #                                      False
                                       ]}
         interface = {'interface':[
-                                  {},
-#                                  {'s_abstraction':'point'}
+#                                  {},
+                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-                                          True,
-#                                          False
+#                                          True,
+                                          False
                                           ]}
         
         level_range = {'level_range':[
@@ -89,11 +89,15 @@ class TestWork(unittest.TestCase):
                                       None
                                       ]}
         time_range = {'time_range':[
-                                    [datetime(2020,1,1),datetime(2020,12,31)],
-#                                    None
+#                                    [datetime(2020,1,1),datetime(2020,12,31)],
+                                    None
                                     ]}
+        allow_empty = {'allow_empty':[
+                                      True,
+#                                      False
+                                      ]}
         
-        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface,agg_selection,level_range,time_range]
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface,agg_selection,level_range,time_range,allow_empty]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)

@@ -110,6 +110,14 @@ class OcgCollection(object):
 #        self.calc_value = OrderedDict()
         self._use_agg = None
         self._vlid_inc = 1
+    
+    @property
+    def is_empty(self):
+        if len(self.gid) == 0:
+            ret = True
+        else:
+            ret = False
+        return(ret)
         
     def get_iter(self,mode):
         if mode == 'raw':

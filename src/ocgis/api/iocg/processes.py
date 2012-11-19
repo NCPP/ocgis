@@ -7,6 +7,7 @@ from ocgis.spatial.union import union
 import copy
 from ocgis.api.iocg.dataset.dataset import OcgDataset
 from ocgis.spatial.wrap import unwrap_geoms, wrap_coll
+from ocgis.exc import ExtentError
 
 
 class SubsetOperation(object):
@@ -149,28 +150,35 @@ def get_collection((so,geom_dict)):
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     return_collection=True
-    for ii,dataset in enumerate(so.ops.dataset,start=1):
+    ctr = 1
+    for dataset in so.ops.dataset:
         ## collection are always returned but only the first one is needed.
         subset_return = \
           dataset['ocg_dataset'].subset(dataset['variable'],
                             polygon=geom_dict['geom'],
                             time_range=so.ops.time_range,
                             level_range=so.ops.level_range,
-                            return_collection=return_collection)
+                            return_collection=return_collection,
+                            allow_empty=so.ops.allow_empty)
         try:
             coll,ocg_variable = subset_return
             coll.geom_dict = geom_dict
         except TypeError:
             ocg_variable = subset_return
             
-        ocg_variable.vid = ii
+        ocg_variable.vid = ctr
         
-        if ii == 1:
+        if ctr == 1:
             return_collection = False
             ## needed for time referencing during conversion.
             coll.cengine = so.cengine
         ## add the variable to the collection
         coll.add_variable(ocg_variable)
+        ctr += 1
+    
+    ## skip other operations if the dataset is empty
+    if coll.is_empty:
+        return(coll,geom_dict)
     
     ## if it is a vector output, wrap the data (if requested).
     arch = so.ops.dataset[0]['ocg_dataset']

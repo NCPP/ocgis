@@ -636,6 +636,19 @@ class Unwrap(BooleanParameter,AttributedOcgParameter):
     _default = False
     
     
+class AllowEmpty(BooleanParameter,AttributedOcgParameter):
+    _name = 'allow_empty'
+    _nullable = True
+    _default = False
+    
+    def message(self):
+        if self.value:
+            msg = 'Empty returns are allowed. Selection geometries not overlapping with dataset geometries are excluded from a return. Empty output data may results for absolutely no overlap.'
+        else:
+            msg = 'Emptry returns NOT allowed. If a selection geometry has no intersecting geometries from the target dataset, an exception is raised.'
+        return(msg)
+    
+    
 class PrimeMeridian(AttributedOcgParameter):
     _name = 'pm'
     _nullable = True

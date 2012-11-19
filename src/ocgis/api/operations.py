@@ -20,7 +20,7 @@ class OcgOperations(object):
                  time_range=None,level_range=None,calc=None,calc_grouping=None,
                  calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
-                 select_ugid=None,vector_wrap=None):
+                 select_ugid=None,vector_wrap=None,allow_empty=None):
         
         self._kwds = locals()
         self.dataset = Dataset
@@ -42,6 +42,7 @@ class OcgOperations(object):
         self.agg_selection = AggregateSelection
         self.select_ugid = SelectUgid
         self.vector_wrap = VectorWrap
+        self.allow_empty = AllowEmpty
         
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]

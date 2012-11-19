@@ -90,22 +90,47 @@ class OcgDataset(object):
         
         return(npd)
     
+    def _make_empty_(self,var_name,return_collection=True):
+        ocg_variable = collection.OcgVariable(
+          var_name,
+          np.empty(0),
+          np.empty(0),
+          np.empty(0),
+          self)
+        
+        if return_collection:
+            coll = collection.OcgCollection(
+              np.empty(0),
+              np.empty(0),
+              np.empty(0),
+              np.empty(0),
+              np.empty(0),
+              np.empty(0))
+            return(coll,ocg_variable)
+        else:
+            return(ocg_variable)
+    
     def _subset_(self,var_name,polygon=None,time_range=None,level_range=None,
-                 return_collection=True): ## intersects + touches
+                 return_collection=True,allow_empty=False): ## intersects + touches
         """
         polygon -- shapely Polygon object
         return -- SubOcgDataset
         """
-        ## do a quick extent check if a polygon is passed
-        if polygon is not None:
-            if not self.check_extent(polygon):
+        try:
+            ## do a quick extent check if a polygon is passed
+            if polygon is not None:
+                if not self.check_extent(polygon):
+                    raise(exc.ExtentError)
+                
+            ## the initial selection
+            geom,row,col = self.i.spatial.select(polygon)
+            if len(row) == 0 and len(col) == 0:
                 raise(exc.ExtentError)
-            
-        ## the initial selection
-#        self.i.spatial.selection.clear()
-        geom,row,col = self.i.spatial.select(polygon)
-        if len(row) == 0 and len(col) == 0:
-            raise(exc.ExtentError)
+        except exc.ExtentError:
+            if allow_empty:
+                return(self._make_empty_(var_name,return_collection))
+            else:
+                raise
         
         ## get the number of dimensions of the target variable
         ndim = len(self.dataset.variables[var_name].dimensions)

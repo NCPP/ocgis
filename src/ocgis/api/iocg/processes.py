@@ -6,7 +6,7 @@ from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
 import copy
 from ocgis.api.iocg.dataset.dataset import OcgDataset
-from ocgis.spatial.wrap import unwrap_geoms
+from ocgis.spatial.wrap import unwrap_geoms, wrap_coll
 
 
 class SubsetOperation(object):
@@ -171,7 +171,12 @@ def get_collection((so,geom_dict)):
             coll.cengine = so.cengine
         ## add the variable to the collection
         coll.add_variable(ocg_variable)
-                    
+    
+    ## if it is a vector output, wrap the data (if requested).
+    arch = so.ops.dataset[0]['ocg_dataset']
+    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+        wrap_coll(coll)
+     
     ## clipping operation.
     if so.ops.spatial_operation == 'clip':
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):

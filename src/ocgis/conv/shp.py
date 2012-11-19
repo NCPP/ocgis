@@ -47,9 +47,9 @@ class ShpConverter(OcgConverter):
         build = True
         for coll,geom_dict in self:
             
-            ## wrap geometries from -180 to 180 if requested
-            if self.ops.vector_wrap:
-                wrap_coll(coll)
+#            ## wrap geometries from -180 to 180 if requested
+#            if self.ops.vector_wrap:
+#                wrap_coll(coll)
             
             for row,geom in self.get_iter(coll):
                 if build:

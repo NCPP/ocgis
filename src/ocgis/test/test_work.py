@@ -23,8 +23,8 @@ class TestWork(unittest.TestCase):
     def iter_operations(self,start=0):
         output_format = {'output_format':[
                                           'shp',
-                                          'keyed',
-                                          'nc',
+#                                          'keyed',
+#                                          'nc',
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -36,19 +36,19 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
                         None,
-                        self.california,
+#                        self.california,
 #                        self.state_boundaries
                         ]}
         aggregate = {'aggregate':[
                                   True,
-                                  False
+#                                  False
                                   ]}
         spatial_operation = {'spatial_operation':[
-                                                  'clip',
+#                                                  'clip',
                                                   'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
-                                      True,
+#                                      True,
                                       False
                                       ]}
         interface = {'interface':[

@@ -160,8 +160,6 @@ class OcgDataset(object):
         ## restructure arrays for fancy indexing in the dataset
         rowidx = sub_range(row)
         colidx = sub_range(col)
-#        rowidx = sub_range(self.i.spatial.selection.row)
-#        colidx = sub_range(self.i.spatial.selection.col)
 
         ## make the subset arguments depending on the number of dimensions
         if ndim == 3:
@@ -178,11 +176,7 @@ class OcgDataset(object):
         rel_mask = np.ones(npd.shape,dtype=bool)
         min_row = row.min()
         min_col = col.min()
-#        min_row = min(self.i.spatial.selection.row)
-#        min_col = min(self.i.spatial.selection.col)
         ## now iterate and remove the data
-#        for ii in self.i.spatial.selection.idx:
-#            rel_mask[:,:,ii[0]-min_row,ii[1]-min_col] = False
         for ii in iter_array(row,use_mask=False):
             rel_mask[:,:,row[ii]-min_row,col[ii]-min_col] = False
         

@@ -8,7 +8,6 @@ from shapely import prepared
 from shapely.geometry.point import Point
 from ocgis.meta.interface.projection import get_projection
 from copy import copy
-from ocgis import env
 from ocgis.util.helpers import vprint, iter_array
 
 
@@ -38,11 +37,11 @@ class SpatialSelection(object):
     def __init__(self):
         self.row = []
         self.col = []
-        self.idx = []
+#        self.idx = []
         
     @property
     def is_empty(self):
-        lens = [bool(len(ii)) for ii in [self.row,self.col,self.idx]]
+        lens = [bool(len(ii)) for ii in [self.row,self.col]]
         if all(lens) == False:
             ret = True
         else:
@@ -52,11 +51,11 @@ class SpatialSelection(object):
     def clear(self):
         self.row = []
         self.col = []
-        self.idx = []
+#        self.idx = []
 
 
 class SpatialInterface(Interface):
-    pass
+#    pass
     
     def __init__(self,*args,**kwds):
         self.selection = SpatialSelection()
@@ -91,13 +90,6 @@ class SpatialInterfacePolygon(SpatialInterface):
                     break
         else:
             self.is_360 = False
-
-#        if self.min_col.max() > 180:
-#            warn('0 to 360 data encountered. coordinate shift occurred.')
-#            idx = self.max_col > 180
-#            self.max_col[idx] = self.max_col[idx] - 360
-#            idx = self.min_col >= 180
-#            self.min_col[idx] = self.min_col[idx] - 360
         
         self.real_col,self.real_row = np.meshgrid(
                                 np.arange(0,len(self.longitude_bounds.value)),
@@ -167,10 +159,8 @@ class SpatialInterfacePolygon(SpatialInterface):
         
         vprint('starting main loop...')
         if polygon is not None:
-            intersects = prep_polygon.intersects
-            touches = polygon.touches
-#            print('total calculations: {0}'.format(include.sum()))
-#            ctr = 0
+#            intersects = prep_polygon.intersects
+#            touches = polygon.touches
             for ii,jj in helpers.iter_array(include,use_mask=False):
                 if include[ii,jj]:
                     test_geom = Polygon(((min_col[ii,jj],min_row[ii,jj]),
@@ -185,9 +175,6 @@ class SpatialInterfacePolygon(SpatialInterface):
                             append(row,real_row[ii,jj])
                             append(col,real_col[ii,jj])
                     ##tdk
-#                    ctr += 1
-#                    if ctr%1000 == 0:
-#                        print(' finished: {0}'.format(ctr))
         elif polygon is None:
             for ii,jj in helpers.iter_array(include,use_mask=False):
                 if include[ii,jj]:
@@ -266,15 +253,6 @@ class SpatialInterfacePoint(SpatialInterface):
             self.is_360 = False
         self.left_upper_bound = 0.0
         
-#        ## some data uses 360 dynamic range for longitude coordinates. compliance
-#        ## with WGS84 data requires data ranging from -180 to 180.
-#        if self.longitude.value.max() > 180:
-#            idx = self.longitude.value > 180
-#            self.longitude.value[idx] = self.longitude.value[idx] - 360
-##            self.longitude.value = self.longitude.value - 180
-##            self.longitude.value = self.longitude.value - 360
-#            warn('0 to 360 data encountered. coordinate shift occurred.')
-        
         ## change how the row and column point variables are created based
         ## on the shape of the incoming coordinates.
         try:
@@ -303,6 +281,7 @@ class SpatialInterfacePoint(SpatialInterface):
             self.selection.geom[ii,jj] = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
     
     def select(self,polygon):
+        self.selection.clear()
         self.selection.geom = np.empty(self.shape,dtype=object)
         self.fill_geom()
         
@@ -315,16 +294,16 @@ class SpatialInterfacePoint(SpatialInterface):
 #                    self.selection.geom[ii,jj] = pt
                     self.selection.row.append(self.real_row[ii,jj])
                     self.selection.col.append(self.real_col[ii,jj])
-                    self.selection.idx.append([self.real_row[ii,jj],
-                                               self.real_col[ii,jj]])
+#                    self.selection.idx.append([self.real_row[ii,jj],
+#                                               self.real_col[ii,jj]])
                     
         else:
 #            self.fill_geom()
             self.selection.row = self.real_row.flatten()
             self.selection.col = self.real_col.flatten()
-            for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
-                self.selection.idx.append([self.real_row[ii,jj],
-                                           self.real_col[ii,jj]])
+#            for ii,jj in helpers.iter_array(self.real_row,use_mask=False):
+#                self.selection.idx.append([self.real_row[ii,jj],
+#                                           self.real_col[ii,jj]])
         return(self.selection.geom,np.array(self.selection.row),np.array(self.selection.col))
              
     def extent(self):

@@ -9,7 +9,7 @@ import sys;sys.argv = ['', 'TestWork.test_get_data']
 import time
 from ocgis.util.helpers import make_poly #@UnusedImport
 from datetime import datetime
-from copy import copy, deepcopy
+from copy import deepcopy
 
 
 class TestWork(unittest.TestCase):
@@ -61,7 +61,7 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-#                        None,
+                        None,
                         self.california,
 #                        self.state_boundaries,
 #                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
@@ -80,8 +80,8 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         interface = {'interface':[
-                                  {},
-#                                  {'s_abstraction':'point'}
+#                                  {},
+                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[

@@ -126,8 +126,6 @@ class OcgConverter(object):
                    'day','variable','level','calc_name','value']
         elif self.mode == 'multi':
             raise(NotImplementedError)
-#            ret = ['tgid','gid','vlid','lid','year','month','day','level']\
-#                   + self.calc_multi.keys()
         else:
             raise(NotImplementedError)
         if upper:

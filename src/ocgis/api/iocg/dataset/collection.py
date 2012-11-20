@@ -69,10 +69,6 @@ class OcgVariable(object):
         self.agg_value = None
         self.calc_value = OrderedDict()
         self.vid = vid
-#        self.vlid = np.array([],dtype=int)
-#        self.cid = np.array([],dtype=int)
-#        self.vlid = Identifier()
-#        self.cid = Identifier()
         
     def __repr__(self):
         msg = '<{0}>:{1}'.format(self.__class__.__name__,self.name)
@@ -105,9 +101,7 @@ class OcgCollection(object):
         self.vlid = VariableLevelIdentifier()
         
         self.variables = {}
-#        self.has_multi = None
         self.calc_multi = OrderedDict()
-#        self.calc_value = OrderedDict()
         self._use_agg = None
         self._vlid_inc = 1
     
@@ -149,109 +143,7 @@ class OcgCollection(object):
         newvar = OcgVariable(name,var.lid,var.levelvec,value,var.ocg_dataset,
                              vid=vid)
         return(newvar)
-    
-#    def _get_ref_(self,mode):
-#        '''Depending on the iterator mode different variables are accessed for
-#        time and data.
-#        
-#        mode :: str
-#        
-#        returns
-#        
-#        str
-#        dict
-#        str'''
-#        
-#        if mode == 'raw':
-#            attr = 'raw_value'
-#            tid = 'tid'
-#        elif mode == 'calc':
-#            attr= 'raw_value'
-#            tid = 'tgid'
-#        elif mode == 'agg':
-#            attr = 'agg_value'
-#            tid = 'tid'
-#        else:
-#            raise(NotImplementedError)
-#        return(attr,tid)
-#        
-#    def iter_rows(self,keys,mode='raw'):
-#        '''The base iterator method for the collection.
-#        
-#        keys :: []str :: The keys to pull.
-#        mode="raw" :: str :: Iterator mode.
-#        
-#        yields
-#        
-#        []<varying>
-#        Shapely Polygon or MultiPolygon'''
-#        
-#        ## the reference attributes
-#        attr,tid = self._get_ref_(mode)
-#        
-#        ## the time data will change if calculations are made.
-#        if self.cengine is None:
-#            def _time_get_(tidx):
-#                return({'tid':self.tid[tidx],'time':self.timevec[tidx]})
-#        else:
-#            def _time_get_(tidx):
-#                return({'tgid':self.tgid[tidx],
-#                        'year':self.year[tidx],
-#                        'month':self.month[tidx],
-#                        'day':self.day[tidx]})
-#        
-##        ## the level index iterator
-##        def _lidx_():
-##            for key,value in self.variables.iteritems():
-##                for lidx in iter_array(value.lid):
-##                    yield(key,lidx)
-#        
-#        ## get variable data based on index locations
-#        def _variable_get_(tidx,gidx,attr):
-#            if mode in ['agg','raw']:
-#                for value in self.variables.itervalues():
-#                    for lidx in iter_array(value.lid):
-#                        yield({
-#                                'lid':value.lid[lidx],
-#                                'level':value.levelvec[lidx],
-#                                'vid':value.vid,
-#                                'vlid':value.vlid[lidx],
-#                                'value':getattr(value,attr)[tidx][lidx][gidx],
-#                                'name':value.name
-#                                })
-#            elif mode == 'calc':
-#                for value in self.variables.itervalues():
-#                    for lidx in iter_array(value.lid):
-#                        for calc_name,calc_value in value.calc_value.iteritems():
-#                            yield({
-#                                'lid':value.lid[lidx],
-#                                'level':value.levelvec[lidx],
-#                                'vid':value.vid,
-#                                'vlid':value.vlid[lidx],
-#                                'value':calc_value[tidx][lidx][gidx],
-#                                'name':value.name,
-#                                'calc_name':calc_name,
-#                                })
-#            else:
-#                raise(NotImplementedError)
-#                
-#        
-#        ## the nested loop
-#        it = itertools.product(
-#         iter_array(getattr(self,tid)),
-#         iter_array(self.gid),
-#         [attr])
-#        
-#        ## final output loop
-#        for ((tidx,),gidx,attr) in it:
-#            base = _time_get_(tidx)
-#            base.update({'gid':self.gid[gidx],'geom':self.geom[gidx]})
-#            for value in _variable_get_(tidx,gidx,attr):
-#                base.update(value)
-#                ## pull the keys from the dictionary
-#                ret = [base[key] for key in keys]
-#                yield(ret,base['geom'])
-        
+
     def __repr__(self):
         msg = ('<OcgCollection> with {n} variable(s): {vars}').\
           format(n=len(self.variables.keys()),
@@ -296,15 +188,6 @@ class OcgCollection(object):
         else:
             ret = self.cengine.dtime[attr]
         return(ret)
-    
-#    @property
-#    def _curr_vlid(self):
-#        '''Increment the current collection-level level identifier.'''
-#        
-#        try:
-#            return(self._vlid_inc)
-#        finally:
-#            self._vlid_inc += 1
         
     def _get_value_(self,var_name):
         return(getattr(self.variables[var_name],self._value_attr))
@@ -326,8 +209,6 @@ class OcgCollection(object):
             self.variables.update({ii.name:ii})
             for lidx in iter_array(ii.lid):
                 self.vlid.add(ii.lid[lidx],ii.levelvec[lidx])
-#                ii.vlid.add()
-#                ii.vlid = np.append(ii.vlid,self._curr_vlid)
             
     def _get_shape_dict_(self,n,raw=False):
         '''Used during calculation to ensure shapes are properly returned.'''
@@ -358,60 +239,3 @@ class OcgCollection(object):
                                      'out_shape':out_shape,
                                      'fweights':fweights}})
         return(shapes)
-    
-#    def _get_keyed_iterators_(self,mode):
-#        '''Iterators used by keyed output.
-#        
-#        mode :: str
-#        
-#        returns
-#        
-#        dict'''
-#        
-#        attr,tid = self._get_ref_(mode)
-#        
-#        def geometry():
-#            for gidx in iter_array(self.gid):
-#                yield([self.gid[gidx]])
-#        
-#        tattr = getattr(self,tid)    
-#        if tid == 'tid':
-#            time_headers = ['TID','TIME']
-#            def time():
-#                for tidx in iter_array(tattr):
-#                    yield(tattr[tidx],self.timevec[tidx])
-#        else:
-#            time_headers = ['TGID','YEAR','MONTH','DAY']
-#            def time():
-#                for tidx in iter_array(tattr):
-#                    tidx = tidx[0]
-#                    yield(tattr[tidx],self.year[tidx],
-#                          self.month[tidx],self.day[tidx])
-#                    
-#        def variable():
-#            for value in self.variables.itervalues():
-#                yield(value.vid,value.name)
-#                
-#        def level():
-#            for value in self.variables.itervalues():
-#                for lidx in iter_array(value.lid):
-#                    yield(value.vlid[lidx],value.lid[lidx],value.levelvec[lidx])
-#        
-#        def value():
-#            for tidx in iter_array(tattr):
-#                tidx = tidx[0]
-#                for gidx in iter_array(self.gid):
-#                    for value in self.variables.itervalues():
-#                        ref = getattr(value,attr)
-#                        for lidx in iter_array(value.lid):
-#                            yield(self.gid[gidx],tattr[tidx],value.vid,
-#                                   value.vlid[lidx],ref[tidx][lidx][gidx])
-#        
-#        ret = {
-#         'geometry':{'it':geometry,'headers':['GID']},
-#         'time':{'it':time,'headers':time_headers},
-#         'variable':{'it':variable,'headers':['VID','NAME']},
-#         'level':{'it':level,'headers':['VLID','LID','LEVEL']},
-#         'value':{'it':value,'headers':['GID',tid.upper(),'VID','VLID','VALUE']}
-#               }
-#        return(ret)

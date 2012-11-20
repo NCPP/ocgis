@@ -7,7 +7,6 @@ from ocgis.spatial.union import union
 import copy
 from ocgis.api.iocg.dataset.dataset import OcgDataset
 from ocgis.spatial.wrap import unwrap_geoms, wrap_coll
-from ocgis.exc import ExtentError
 
 
 class SubsetOperation(object):
@@ -112,28 +111,10 @@ class SubsetOperation(object):
         geom_dict :: dict
         '''
         
-#        ## these functions are for pickling problems of the OcgSpatialReference
-#        ## which is a Swig object not consumable by pickle routines.
-#        def _remove_projection_():
-#            projection = copy(self.ops.meta'][0]['ocg_dataset.i.projection)
-#            for meta in self.ops.meta:
-#                meta['ocg_dataset'].i.projection = None
-#            return(projection)
-#        def _add_projection_(projection):
-#            for meta in self.ops.meta:
-#                meta['ocg_dataset'].i.projection = projection
-        
-#        try:
         ## copy for the iterator to avoid pickling the cache
         so_copy = copy.copy(self)
         for geom_dict in self.ops.geom:
-#            projection = _remove_projection_()
-#            try:
             yield(so_copy,geom_dict)
-#            finally:
-#                _add_projection_(projection)
-#        except TypeError:
-#            yield(self,{'id':1,'geom':None})
             
 def get_collection((so,geom_dict)):
     '''Execute requested operations.

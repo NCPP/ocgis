@@ -2,7 +2,6 @@ import numpy as np
 from ocgis.util.helpers import make_poly, iter_array
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-from copy import copy
 from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
 
@@ -98,10 +97,6 @@ def unwrap_geoms(geoms,left_max_x_bound):
                 left = filter(lambda x: type(x) != LineString,left_polygons)
                 right = filter(lambda x: type(x) != LineString,right_polygons)
                 ret = MultiPolygon(left+right)
-            except:
-                import traceback;traceback.print_exc()
-                import ipdb;ipdb.set_trace()
-                raise
         
         ## if polygon does not need adjustment, just return it.
         else:
@@ -110,5 +105,4 @@ def unwrap_geoms(geoms,left_max_x_bound):
     
     ## update the polygons in place
     for geom in geoms:
-#        geom['_original_geom'] = copy(geom['geom'])
         geom['geom'] = _transform_(geom['geom'],left_max_x_bound)

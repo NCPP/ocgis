@@ -4,7 +4,6 @@ from osgeo import ogr
 import numpy as np
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.spatial.wrap import wrap_coll
 
     
 class ShpConverter(OcgConverter):
@@ -19,20 +18,11 @@ class ShpConverter(OcgConverter):
         ## create shapefile base attributes
         self.fcache = FieldCache()
         self.ogr_fields = []
-#        self._set_ogr_fields_()
         
         ## get the geometry in order
 #        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
 #        self.ogr_geom = 6 ## assumes multipolygon
         self.srs = self.ocg_dataset.i.projection.sr
-        
-#    def get_path(self):
-#        tpath = get_temp_path(suffix='.'+self._ext,
-#                              nest=True,
-#                              wd=self.wd,
-#                              name=self.base_name)
-#        return(tpath)
-#        return(os.path.join(self.wd,'{0}.{1}'.format(self.base_name,self._ext)))
     
     def write(self):
         path = self.get_path()
@@ -41,16 +31,9 @@ class ShpConverter(OcgConverter):
         ds = dr.CreateDataSource(path)
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
-        
-#        layer = ds.CreateLayer(self.layer,srs=self.srs,geom_type=self.ogr_geom)
-        
+                
         build = True
         for coll,geom_dict in self:
-            
-#            ## wrap geometries from -180 to 180 if requested
-#            if self.ops.vector_wrap:
-#                wrap_coll(coll)
-            
             for row,geom in self.get_iter(coll):
                 if build:
                     if isinstance(geom,MultiPolygon):

@@ -9,6 +9,7 @@ import sys;sys.argv = ['', 'TestWork.test_get_data']
 import time
 from ocgis.util.helpers import make_poly #@UnusedImport
 from datetime import datetime
+from copy import copy
 
 
 class TestWork(unittest.TestCase):
@@ -16,6 +17,8 @@ class TestWork(unittest.TestCase):
     def test_get_data(self):
         start = 0
         for ii,ops in self.iter_operations(start=start):
+            print(ii)
+            print(ops)
             try:
                 ret = OcgInterpreter(ops).execute()
             except:
@@ -45,8 +48,8 @@ class TestWork(unittest.TestCase):
     def iter_operations(self,start=0):
         output_format = {'output_format':[
                                           'shp',
-#                                          'keyed',
-#                                          'nc',
+                                          'keyed',
+                                          'nc',
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -59,11 +62,12 @@ class TestWork(unittest.TestCase):
         geom = {'geom':[
 #                        None,
 #                        self.california,
-                        self.state_boundaries,
-#                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))}
+#                        self.state_boundaries,
+#                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
+                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
-#                                  True,
+                                  True,
                                   False
                                   ]}
         spatial_operation = {'spatial_operation':[
@@ -72,15 +76,15 @@ class TestWork(unittest.TestCase):
                                                   ]}
         vector_wrap = {'vector_wrap':[
                                       True,
-#                                      False
+                                      False
                                       ]}
         interface = {'interface':[
-#                                  {},
+                                  {},
                                   {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-#                                          True,
+                                          True,
                                           False
                                           ]}
         
@@ -118,6 +122,12 @@ class TestWork(unittest.TestCase):
     def state_boundaries(self):
         sc = ShpCabinet()
         ret = sc.get_geom_dict('state_boundaries')
+        return(ret)
+    
+    @property
+    def world_countries(self):
+        sc = ShpCabinet()
+        ret = sc.get_geom_dict('world_countries')
         return(ret)
 
 

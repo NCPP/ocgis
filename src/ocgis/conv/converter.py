@@ -1,4 +1,4 @@
-from ocgis.util.helpers import get_temp_path
+from ocgis.util.helpers import get_temp_path, vprint
 from ocgis.meta.interface.projection import UsNationalEqualArea
 from shapely.geometry.point import Point
 from shapely.geometry.multipolygon import MultiPolygon
@@ -104,7 +104,7 @@ class OcgConverter(object):
         for coll,geom_dict in it:
             #tdk
             try:
-                print('geom id processed: {0}'.format(geom_dict['id']))
+                vprint('geom id processed: {0}'.format(geom_dict['id']))
             except TypeError:
                 pass
             #tdk

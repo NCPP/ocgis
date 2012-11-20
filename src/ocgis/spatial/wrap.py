@@ -92,7 +92,16 @@ def unwrap_geoms(geoms,left_max_x_bound):
                     left_polygons.append(_shift_(polygon))
             
             ## merge polygons into single unit
-            ret = MultiPolygon(left_polygons + right_polygons)
+            try:
+                ret = MultiPolygon(left_polygons + right_polygons)
+            except TypeError:
+                left = filter(lambda x: type(x) != LineString,left_polygons)
+                right = filter(lambda x: type(x) != LineString,right_polygons)
+                ret = MultiPolygon(left+right)
+            except:
+                import traceback;traceback.print_exc()
+                import ipdb;ipdb.set_trace()
+                raise
         
         ## if polygon does not need adjustment, just return it.
         else:

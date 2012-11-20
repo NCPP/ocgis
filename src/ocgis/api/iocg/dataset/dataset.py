@@ -63,16 +63,16 @@ class OcgDataset(object):
     
     def get_numpy_data(self,var,args):
         
-        import time
-        t1 = time.time()
+#        import time
+#        t1 = time.time()
         
         if len(args) == 3:
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
             
-        t2 = time.time()
-        print 'download_time',t2-t1
+#        t2 = time.time()
+#        print 'download_time',t2-t1
         
         ## resize the data to match returned counts
         new_shape = [len(a) for a in args]

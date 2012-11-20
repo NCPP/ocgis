@@ -22,7 +22,8 @@ class OcgOperations(object):
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
                  select_ugid=None,vector_wrap=None,allow_empty=None):
         
-        self._kwds = locals()
+        import ipdb;ipdb.set_trace()
+        self._kwds = locals().copy()
         self.dataset = Dataset
         self.spatial_operation = SpatialOperation
         self.geom = Geom
@@ -47,6 +48,8 @@ class OcgOperations(object):
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
         for key,value in self.as_dict().iteritems():
+            if key == 'geom' and len(value) > 1:
+                value = '{0} geometries...'.format(len(value))
             msg.append(' {0}={1}'.format(key,value))
         msg = '\n'.join(msg)
         return(msg)

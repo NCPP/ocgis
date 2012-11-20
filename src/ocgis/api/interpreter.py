@@ -1,9 +1,9 @@
 from ocgis import exc, env
 from ocgis.api import definition
-from ocgis.spatial.union import union_geom_dicts
 from ocgis.conv.meta import MetaConverter
 from ocgis.conv.converter import OcgConverter
 from subset import SubsetOperation
+from ocgis.util.spatial.union import union_geoms
 
 ## TODO: add method to estimate request size
 
@@ -61,7 +61,7 @@ class OcgInterpreter(Interpreter):
         ## also true for the case of the selection geometry being requested as
         ## aggregated.
         if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
-            self.ops.geom = union_geom_dicts(self.ops.geom)
+            self.ops.geom = union_geoms(self.ops.geom)
             
         ## limited operations available for netcdf
         if self.ops.output_format == 'nc':

@@ -1,12 +1,12 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.meta.interface.interface import SpatialInterfacePolygon
-from ocgis.spatial.clip import clip
-from ocgis.spatial.union import union
+from ocgis.interface.interface import SpatialInterfacePolygon
 import copy
-from ocgis.spatial.wrap import unwrap_geoms, wrap_coll
 from ocgis.api.dataset.dataset import OcgDataset
+from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
+from ocgis.util.spatial.clip import clip
+from ocgis.util.spatial.union import union
 
 
 class SubsetOperation(object):

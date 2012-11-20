@@ -80,12 +80,12 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         interface = {'interface':[
-#                                  {},
+                                  {},
                                   {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-                                          True,
+#                                          True,
                                           False
                                           ]}
         
@@ -98,11 +98,17 @@ class TestWork(unittest.TestCase):
                                     None
                                     ]}
         allow_empty = {'allow_empty':[
-                                      True,
+#                                      True,
                                       False
                                       ]}
+        calc = {'calc':[
+                        [{'func':'mean','name':'my_mean'}],
+                        None,
+                        ]}
         
-        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface,agg_selection,level_range,time_range,allow_empty]
+        args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,
+                vector_wrap,interface,agg_selection,level_range,time_range,
+                allow_empty,calc]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)

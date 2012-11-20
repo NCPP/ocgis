@@ -1,6 +1,6 @@
 import netCDF4 as nc
 from shapely import prepared
-from ocgis.meta.interface.interface import GlobalInterface
+from ocgis.interface.interface import GlobalInterface
 from ocgis.util.helpers import keep, sub_range, iter_array
 import numpy as np
 import ocgis.exc as exc

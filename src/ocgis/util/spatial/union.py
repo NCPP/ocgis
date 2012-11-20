@@ -1,7 +1,7 @@
 import numpy as np
 from shapely.ops import cascaded_union
 from shapely.geometry.multipolygon import MultiPolygon
-from copy import copy
+from copy import deepcopy
 from shapely.geometry.point import Point
 from shapely.geometry.multipoint import MultiPoint
 
@@ -72,12 +72,12 @@ def union_sum(weight,value):
             weighted[dim_time,dim_level,0,0] = np.ma.average(value[dim_time,dim_level,:,:],weights=weight)
     return(weighted)
 
-def union_geom_dicts(geom_dicts):
-    if len(geom_dicts) == 1:
-        ret = copy(geom_dicts)
+def union_geoms(geoms):
+    if len(geoms) == 1:
+        ret = deepcopy(geoms)
     else:
         ugeom = []
-        for dct in geom_dicts:
+        for dct in geoms:
             geom = dct['geom']
             if isinstance(geom,MultiPolygon):
                 for poly in geom:

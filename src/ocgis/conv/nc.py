@@ -1,6 +1,6 @@
 from ocgis.conv.converter import OcgConverter
 import netCDF4 as nc
-from ocgis.meta.interface.interface import DummyLevelInterface,\
+from ocgis.interface.interface import DummyLevelInterface,\
     SpatialInterfacePoint
 import numpy as np
 

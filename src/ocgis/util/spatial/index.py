@@ -1,12 +1,6 @@
 import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
-from shapely import prepared
 from ocgis.util.helpers import make_poly
-from ocgis.util.shp_cabinet import ShpCabinet
-from shapely.geometry.point import Point
-import time
-import matplotlib.pyplot as plt
-from ocgis.spatial.union import union_geom_dicts
 
     
 def shapely_grid(dim,rtup,ctup,target=None):

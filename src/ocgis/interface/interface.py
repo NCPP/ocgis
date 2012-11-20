@@ -6,7 +6,7 @@ import ocgis.util.helpers as helpers
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
-from ocgis.meta.interface.projection import get_projection
+from ocgis.interface.projection import get_projection
 from copy import copy
 from ocgis.util.helpers import vprint, iter_array
 
@@ -134,7 +134,7 @@ class SpatialInterfacePolygon(SpatialInterface):
         ##tdk
         if polygon is not None:
             vprint('building spatial index...')
-            from ocgis.util import spatial_index as si
+            from ocgis.util.spatial import index as si
             grid = si.build_index_grid(30.0,polygon)
             index = si.build_index(polygon,grid)
             index_intersects = si.index_intersects

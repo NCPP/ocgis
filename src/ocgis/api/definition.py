@@ -36,7 +36,7 @@ class OcgParameter(object):
     '''
     
     def __init__(self,name,dtype,nullable=False,default=None,length=None,
-                 alias=None):
+                 alias=None,init_value=None):
         self.name = name
         self.nullable = nullable
         self.default = default
@@ -45,7 +45,9 @@ class OcgParameter(object):
         self.alias = alias
         
         self._value = None
-        
+        if init_value is not None:
+            self.value = init_value
+       
     @property
     def value(self):
         return(self.format(self._value))
@@ -122,10 +124,10 @@ class AttributedOcgParameter(OcgParameter):
     _alias = None
     _length = None
     
-    def __init__(self):
+    def __init__(self,init_value=None):
         super(AttributedOcgParameter,self).__init__(
          self._name,self._dtype,nullable=self._nullable,default=self._default,
-         length=self._length,alias=self._alias)
+         length=self._length,alias=self._alias,init_value=init_value)
         
         
 class TimeRange(AttributedOcgParameter):
@@ -211,6 +213,15 @@ class Snippet(BooleanParameter,AttributedOcgParameter):
 
 
 class Prefix(AttributedOcgParameter):
+    '''
+    >>> p = Prefix(init_value='foo')
+    >>> p.value
+    'foo'
+    >>> p = Prefix(init_value=5)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+    '''
     _dtype = str
     _name = 'prefix'
     _nullable = True

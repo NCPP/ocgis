@@ -1,4 +1,4 @@
-from definition import *
+from definition import * #@UnusedWildImport
 
 
 class OcgOperations(object):
@@ -22,28 +22,26 @@ class OcgOperations(object):
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
                  select_ugid=None,vector_wrap=None,allow_empty=None):
         
-        import ipdb;ipdb.set_trace()
-        self._kwds = locals().copy()
-        self.dataset = Dataset
-        self.spatial_operation = SpatialOperation
-        self.geom = Geom
-        self.aggregate = Aggregate
-        self.time_range = TimeRange
-        self.level_range = LevelRange
-        self.calc = Calc
-        self.calc_grouping = CalcGrouping
-        self.calc_raw = CalcRaw
-        self.interface = Interface
-        self.snippet = Snippet
-        self.backend = Backend
-        self.request_url = RequestUrl
-        self.prefix = Prefix
-        self.output_format = OutputFormat
+        self.dataset = Dataset(dataset)
+        self.spatial_operation = SpatialOperation(spatial_operation)
+        self.geom = Geom(geom)
+        self.aggregate = Aggregate(aggregate)
+        self.time_range = TimeRange(time_range)
+        self.level_range = LevelRange(level_range)
+        self.calc = Calc(calc)
+        self.calc_grouping = CalcGrouping(calc_grouping)
+        self.calc_raw = CalcRaw(calc_raw)
+        self.interface = Interface(interface)
+        self.snippet = Snippet(snippet)
+        self.backend = Backend(backend)
+        self.request_url = RequestUrl(request_url)
+        self.prefix = Prefix(prefix)
+        self.output_format = OutputFormat(output_format)
         self.output_grouping = output_grouping
-        self.agg_selection = AggregateSelection
-        self.select_ugid = SelectUgid
-        self.vector_wrap = VectorWrap
-        self.allow_empty = AllowEmpty
+        self.agg_selection = AggregateSelection(agg_selection)
+        self.select_ugid = SelectUgid(select_ugid)
+        self.vector_wrap = VectorWrap(vector_wrap)
+        self.allow_empty = AllowEmpty(allow_empty)
         
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
@@ -63,14 +61,9 @@ class OcgOperations(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        try:
-            if issubclass(value,OcgParameter):
-                value = value()
-                value.value = self._kwds.get(value.name)
-                object.__setattr__(self,name,value)
-            else:
-                raise(NotImplementedError)
-        except TypeError:
+        if isinstance(value,OcgParameter):
+            object.__setattr__(self,name,value)
+        else:
             try:
                 attr = object.__getattribute__(self,name)
                 attr.value = value
@@ -91,5 +84,5 @@ class OcgOperations(object):
     
     
 if __name__ == '__main__':
-    import doctest
+    import doctest #@Reimport
     doctest.testmod()

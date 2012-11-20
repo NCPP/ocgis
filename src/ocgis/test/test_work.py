@@ -9,7 +9,7 @@ import sys;sys.argv = ['', 'TestWork.test_get_data']
 import time
 from ocgis.util.helpers import make_poly #@UnusedImport
 from datetime import datetime
-from copy import copy
+from copy import copy, deepcopy
 
 
 class TestWork(unittest.TestCase):
@@ -18,7 +18,8 @@ class TestWork(unittest.TestCase):
         start = 0
         for ii,ops in self.iter_operations(start=start):
             print(ii)
-            print(ops)
+#            print(ops)
+#            import ipdb;ipdb.set_trace()
             try:
                 ret = OcgInterpreter(ops).execute()
             except:
@@ -61,17 +62,17 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
 #                        None,
-#                        self.california,
+                        self.california,
 #                        self.state_boundaries,
 #                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
-                        self.world_countries
+#                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
                                   True,
                                   False
                                   ]}
         spatial_operation = {'spatial_operation':[
-#                                                  'clip',
+                                                  'clip',
                                                   'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
@@ -80,7 +81,7 @@ class TestWork(unittest.TestCase):
                                       ]}
         interface = {'interface':[
                                   {},
-                                  {'s_abstraction':'point'}
+#                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
@@ -98,7 +99,7 @@ class TestWork(unittest.TestCase):
                                     ]}
         allow_empty = {'allow_empty':[
                                       True,
-#                                      False
+                                      False
                                       ]}
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,vector_wrap,interface,agg_selection,level_range,time_range,allow_empty]
@@ -108,7 +109,7 @@ class TestWork(unittest.TestCase):
         
         for ii,ret in enumerate(itertools.product(*combined.values())):
             if ii >= start:
-                kwds = dict(zip(combined.keys(),ret))
+                kwds = deepcopy(dict(zip(combined.keys(),ret)))
                 ops = OcgOperations(**kwds)
                 yield(ii,ops)
     

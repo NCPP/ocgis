@@ -4,7 +4,7 @@ from ocgis.meta.interface.interface import GlobalInterface
 from ocgis.util.helpers import keep, sub_range, iter_array
 import numpy as np
 import ocgis.exc as exc
-from ocgis.api.iocg.dataset import collection
+import collection
 
 
 class OcgDataset(object):

@@ -7,8 +7,7 @@ import util.parms as parms
 import ocgis.meta.interface.models as imodels
 import exc
 from ocgis.exc import InterpreterNotRecognized
-from ocgis.api.interpreter import Interpreter
-from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
+from ocgis.api.interpreter import Interpreter, OcgInterpreter
 from ocgis.api.operations import OcgOperations
 from ocgis.api.definition import OcgParameter
 

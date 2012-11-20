@@ -5,8 +5,8 @@ from ocgis.meta.interface.interface import SpatialInterfacePolygon
 from ocgis.spatial.clip import clip
 from ocgis.spatial.union import union
 import copy
-from ocgis.api.iocg.dataset.dataset import OcgDataset
 from ocgis.spatial.wrap import unwrap_geoms, wrap_coll
+from ocgis.api.dataset.dataset import OcgDataset
 
 
 class SubsetOperation(object):

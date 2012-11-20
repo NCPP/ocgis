@@ -3,7 +3,7 @@ from copy import copy
 from collections import OrderedDict
 from ocgis.util.helpers import iter_array
 from ocgis import env
-from ocgis.api.iocg.dataset import iterators
+import iterators
 
 
 class CalcIdentifier(OrderedDict):

@@ -1,7 +1,7 @@
 import numpy as np
 import itertools
-from ocgis.calc.wrap.base import OcgFunctionTree, OcgCvArgFunction
-from ocgis.calc.wrap import library
+from base import OcgFunctionTree, OcgCvArgFunction
+import library
 
 
 class OcgCalculationEngine(object):

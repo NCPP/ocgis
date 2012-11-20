@@ -5,7 +5,7 @@ class OcgFunctionGroup(object):
     name = None
     
     def __init__(self):
-        from ocgis.calc.wrap.base import OcgFunction
+        from base import OcgFunction
         
         assert(self.name)
         

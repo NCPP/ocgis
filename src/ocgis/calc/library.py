@@ -1,5 +1,5 @@
-from ocgis.calc.wrap import groups
-from ocgis.calc.wrap.base import OcgFunction, OcgCvArgFunction, OcgArgFunction
+import groups
+from base import OcgFunction, OcgCvArgFunction, OcgArgFunction
 import numpy as np
 from ocgis.util.helpers import iter_array
 

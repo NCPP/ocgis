@@ -160,13 +160,8 @@ def get_collection((so,geom_dict)):
     ## skip other operations if the dataset is empty
     if coll.is_empty:
         return(coll,geom_dict)
-    
-    ## if it is a vector output, wrap the data (if requested).
-    arch = so.ops.dataset[0]['ocg_dataset']
-    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-        wrap_coll(coll)
      
-    ## clipping operation.
+    ## clipping operation
     if so.ops.spatial_operation == 'clip':
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):
             coll = clip(coll,geom_dict['geom'])
@@ -174,6 +169,11 @@ def get_collection((so,geom_dict)):
     ## data aggregation.
     if so.ops.aggregate:
         coll = union(geom_dict['id'],coll)
+        
+    ## if it is a vector output, wrap the data (if requested).
+    arch = so.ops.dataset[0]['ocg_dataset']
+    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+        wrap_coll(coll)
 
     ## do the requested calculations.
     if so.cengine is not None:

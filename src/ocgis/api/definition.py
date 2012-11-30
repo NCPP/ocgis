@@ -1,5 +1,5 @@
 from datetime import datetime
-from copy import copy
+from copy import copy, deepcopy
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
@@ -505,6 +505,7 @@ class Geom(AttributedOcgParameter):
     _dtype = list
     
     def _format_(self,value):
+#        value = deepcopy(value)
         if type(value) not in [list,tuple]:
             value = [value]
         return(value)
@@ -564,6 +565,7 @@ class Dataset(AttributedOcgParameter):
     _dtype = list
     
     def _format_(self,value):
+#        value = deepcopy(value)
         if type(value) not in [list,tuple]:
             value = [value]
         return(value)

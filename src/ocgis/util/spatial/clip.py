@@ -25,7 +25,9 @@ def clip(coll,igeom):
         ## do the spatial operation
         for idx,geom in iter_array(coll.geom_masked,
                                    return_value=True):
+#            import ipdb;ipdb.set_trace()
             if keep(prep_igeom,igeom,geom):
+#                import ipdb;ipdb.set_trace()
                 new_geom = igeom.intersection(geom)
                 weights[idx] = new_geom.area
                 coll.geom[idx] = new_geom

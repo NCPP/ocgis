@@ -70,7 +70,7 @@ def make_simple():
     ## create bounds arrays
     col_bnds = make_bounds(col_coords,RES)
     row_bnds = make_bounds(row_coords,RES)
-    
+
     ## make value array
     if VAL is not None:
         val = np.ones((len(timevec),LEVEL['n'],DIM[0],DIM[1]),dtype=float)*VAL

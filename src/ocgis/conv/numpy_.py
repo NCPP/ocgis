@@ -9,6 +9,5 @@ class NumpyConverter(OcgConverter):
     def write(self):
         ret = {}
         for coll,geom_dict in self:
-            ret.update({geom_dict['id']:{'geom':geom_dict['geom'],
-                                         'coll':coll}})
+            ret.update({geom_dict['id']:coll})
         return(ret)

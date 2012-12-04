@@ -21,8 +21,8 @@ def make_simple():
     DIM = [4,4] #: number of cells [dimx,dimy]
     VAR = 'foo' #: name of the data variable
     ## any relevant variables for the time construction
-    TIME = {'origin':datetime.datetime(2000,1,1,0,0,0),
-            'end':datetime.datetime(2000,12,31,0,0,0),
+    TIME = {'origin':datetime.datetime(2000,3,1,0,0,0),
+            'end':datetime.datetime(2000,4,30,0,0,0),
             'calendar':'proleptic_gregorian',
             'units':'days since 2000-01-01 00:00:00',
             'name':'time'}
@@ -43,6 +43,7 @@ def make_simple():
             [3,3,4,4],
             [3,3,4,4]]
     VAL = np.array(d1l1).reshape(1,1,4,4)
+    VAL_MAN = None
     
     ################################################################################
     

@@ -1,5 +1,5 @@
 import unittest
-from ocgis.test.make_test_data import make_simple
+from ocgis.test.make_test_data import make_simple, make_simple_mask
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 import itertools
@@ -9,13 +9,11 @@ from ocgis.util.helpers import make_poly
 from ocgis import exc
 
 
-class TestSimple(unittest.TestCase):
-    uri = '/tmp/test_simple_spatial_01.nc'
-    var = 'foo'
-    base_value = cmp = np.array([[1.0,1.0,2.0,2.0],
-                                 [1.0,1.0,2.0,2.0],
-                                 [3.0,3.0,4.0,4.0],
-                                 [3.0,3.0,4.0,4.0]])
+class TestBase(unittest.TestCase):
+    uri = None
+    var = None
+    base_value = None
+    return_shp = False
     
     @property
     def dataset(self):
@@ -31,7 +29,7 @@ class TestSimple(unittest.TestCase):
             ops = self.get_ops(kwds)
         ret = OcgInterpreter(ops).execute()
         
-        if shp:
+        if shp or self.return_shp:
             kwds2 = kwds.copy()
             kwds2.update({'output_format':'shp'})
             ops2 = OcgOperations(**kwds2)
@@ -43,6 +41,15 @@ class TestSimple(unittest.TestCase):
         ops = OcgOperations(dataset=self.dataset,
                             output_format='shp')
         OcgInterpreter(ops).execute()
+
+
+class TestSimple(TestBase):
+    uri = '/tmp/test_simple_spatial_01.nc'
+    var = 'foo'
+    base_value = np.array([[1.0,1.0,2.0,2.0],
+                           [1.0,1.0,2.0,2.0],
+                           [3.0,3.0,4.0,4.0],
+                           [3.0,3.0,4.0,4.0]])
     
     def setUp(self):
 #        self.make_shp()
@@ -156,6 +163,40 @@ class TestSimple(unittest.TestCase):
             self.assertEqual(ref['n_foo'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
+
+
+class TestSimpleMask(TestBase):
+    uri = '/tmp/test_simple_mask_spatial_01.nc'
+    var = 'foo'
+    base_value = None
+    
+    def setUp(self):
+        make_simple_mask()
+        
+    def test_spatial(self):
+        self.return_shp = True
+        ret = self.get_ret()
+        ref = ret[1].variables[self.var].raw_value.mask
+        cmp = np.array([[True,False,False,False],
+                        [False,False,False,True],
+                        [False,False,False,False],
+                        [True,True,False,False]])
+        for tidx,lidx in itertools.product(range(0,ref.shape[0]),range(ref.shape[1])):
+            self.assertTrue(np.all(cmp == ref[tidx,lidx,:]))
+            
+        ## aggregation
+        ret = self.get_ret(kwds={'aggregate':True})
+        ref = ret[1].variables[self.var]
+        self.assertEqual(ref.agg_value.mean(),2.583333333333333)
+        self.assertEqual(ret[1].gid.shape,(1,1))
+    
+    def test_empty_mask(self):
+        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+        geom = {'id':1,'geom':geom}
+        with self.assertRaises(exc.MaskedDataError):
+            ret = self.get_ret(kwds={'geom':geom})
+        ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
+        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

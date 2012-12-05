@@ -184,7 +184,10 @@ class OcgDataset(object):
         if hasattr(npd,'mask'):
             ## if all the data values are masked, raise an error.
             if npd.mask.all():
-                raise(exc.MaskedDataError)
+                if allow_empty:
+                    return(self._make_empty_(var_name,return_collection))
+                else:
+                    raise(exc.MaskedDataError)
             else:
                 npd.mask = np.logical_or(npd.mask,rel_mask)
         else:

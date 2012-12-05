@@ -174,7 +174,7 @@ class TestSimpleMask(TestBase):
         make_simple_mask()
         
     def test_spatial(self):
-        self.return_shp = True
+        self.return_shp = False
         ret = self.get_ret()
         ref = ret[1].variables[self.var].raw_value.mask
         cmp = np.array([[True,False,False,False],
@@ -196,7 +196,6 @@ class TestSimpleMask(TestBase):
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
-        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

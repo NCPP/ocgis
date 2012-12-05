@@ -69,8 +69,8 @@ class StandardDeviation(OcgFunction):
     @staticmethod
     def _calculate_(values):
         return(np.std(values,axis=0))
-    
-    
+
+
 class MaxConsecutive(OcgArgFunction):
     name = 'max_cons'
     nargs = 2

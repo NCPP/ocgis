@@ -137,6 +137,25 @@ class TestSimple(unittest.TestCase):
         
     def test_calc(self):
         calc = {'func':'mean','name':'my_mean'}
+        group = ['month','year']
+        
+        ## raw
+        ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
+        ref = ret[1].variables[self.var].calc_value
+        for value in ref.itervalues():
+            self.assertEqual(value.shape,(2,2,4,4))
+        n_foo = ref['n_foo']
+        self.assertEqual(n_foo[0,:].mean(),31)
+        self.assertEqual(n_foo[1,:].mean(),30)
+        
+        ## aggregated
+        for calc_raw in [True,False]:
+            ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
+                                     'aggregate':True,'calc_raw':calc_raw})
+            ref = ret[1].variables[self.var].calc_value
+            self.assertEqual(ref['n_foo'].shape,(2,2,1,1))
+            self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
+            self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
 
 
 if __name__ == "__main__":

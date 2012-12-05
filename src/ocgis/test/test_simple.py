@@ -6,7 +6,7 @@ import itertools
 import numpy as np
 import datetime
 from ocgis.util.helpers import make_poly
-from copy import deepcopy
+from ocgis import exc
 
 
 class TestSimple(unittest.TestCase):
@@ -126,6 +126,18 @@ class TestSimple(unittest.TestCase):
         self.assertEqual(len(ref.gid.flatten()),1)
         self.assertEqual(ref.geom.flatten()[0].area,1.0)
         self.assertEqual(ref.variables[self.var].agg_value.flatten().mean(),2.5)
+        
+    def test_empty_intersection(self):
+        geom = make_poly((20,25),(-90,-80))
+        geom = {'id':1,'geom':geom}
+        with self.assertRaises(exc.ExtentError):
+            self.get_ret(kwds={'geom':geom})
+        ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
+        self.assertEqual(len(ret[1].gid),0)
+        
+    def test_calc(self):
+        calc = {'func':'mean','name':'my_mean'}
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

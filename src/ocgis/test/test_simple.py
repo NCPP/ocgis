@@ -1,5 +1,6 @@
 import unittest
-from ocgis.test.make_test_data import make_simple, make_simple_mask
+from ocgis.test.make_test_data import make_simple, make_simple_mask,\
+    make_simple_360
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 import itertools
@@ -7,17 +8,21 @@ import numpy as np
 import datetime
 from ocgis.util.helpers import make_poly
 from ocgis import exc
+import tempfile
+import os.path
 
 
 class TestBase(unittest.TestCase):
-    uri = None
+    fn = None
+    outdir = tempfile.gettempdir()
     var = None
     base_value = None
     return_shp = False
     
     @property
     def dataset(self):
-        return({'uri':self.uri,'variable':self.var})
+        uri = os.path.join(self.outdir,self.fn)
+        return({'uri':uri,'variable':self.var})
     
     def get_ops(self,kwds={}):
         kwds.update({'dataset':self.dataset,'output_format':'numpy'})
@@ -44,7 +49,7 @@ class TestBase(unittest.TestCase):
 
 
 class TestSimple(TestBase):
-    uri = '/tmp/test_simple_spatial_01.nc'
+    fn = 'test_simple_spatial_01.nc'
     var = 'foo'
     base_value = np.array([[1.0,1.0,2.0,2.0],
                            [1.0,1.0,2.0,2.0],
@@ -166,7 +171,7 @@ class TestSimple(TestBase):
 
 
 class TestSimpleMask(TestBase):
-    uri = '/tmp/test_simple_mask_spatial_01.nc'
+    fn = 'test_simple_mask_spatial_01.nc'
     var = 'foo'
     base_value = None
     
@@ -196,6 +201,44 @@ class TestSimpleMask(TestBase):
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
+        
+        
+class TestSimple360(TestBase):
+    fn = 'test_simple_360_01.nc'
+    var = 'foo'
+#    return_shp = True
+    
+    def setUp(self):
+        make_simple_360()
+        
+    def test_wrap(self):
+        
+        def _get_longs_(geom):
+            ret = np.array([g.centroid.x for g in geom.flat])
+            return(ret)
+        
+        ret = self.get_ret(kwds={'vector_wrap':False})
+        longs_unwrap = _get_longs_(ret[1].geom)
+        self.assertTrue(np.all(longs_unwrap > 180))
+        
+        ret = self.get_ret(kwds={'vector_wrap':True})
+        longs_wrap = _get_longs_(ret[1].geom)
+        self.assertTrue(np.all(np.array(longs_wrap) < 180))
+        
+        self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
+        
+    def test_spatial(self):
+        geom = make_poly((38,39),(-93,-92))
+        geom = {'id':1,'geom':geom}
+        
+        for abstraction in ['poly','point']:
+            interface = {'s_abstraction':abstraction}
+            ret = self.get_ret(kwds={'geom':geom,'interface':interface})
+            self.assertEqual(len(ret[1].gid.compressed()),4)
+            
+            self.get_ret(kwds={'vector_wrap':False})
+            ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'interface':interface})
+            self.assertEqual(len(ret[1].gid.compressed()),4)
 
 
 if __name__ == "__main__":

@@ -6,9 +6,9 @@ from ocgis import env
 import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
 import os.path
-from ocgis.spatial.union import union_geom_dicts
 from ocgis.api.definition import SelectUgid, Prefix, Unwrap, PrimeMeridian
-from ocgis.spatial.wrap import unwrap_geoms
+from ocgis.util.spatial.wrap import unwrap_geoms
+from ocgis.util.spatial.union import union_geoms
 
 
 def get_data(request):
@@ -75,7 +75,7 @@ def get_snippet(request):
             geom = ops._get_object_('geom')
             geom._filter_by_ugid_(ops.select_ugid['ugid'])
             ops.select_ugid = None
-        ops.geom = union_geom_dicts(ops.geom)
+        ops.geom = union_geoms(ops.geom)
     
     ops.level_range = 1
     ops.output_format = 'shp'

@@ -505,7 +505,7 @@ class Geom(AttributedOcgParameter):
     '''
     _name = 'geom'
     _nullable = True
-    _default = [{'geom':None,'id':1}]
+    _default = [{'geom':None,'ugid':1}]
     _dtype = list
     
     def _format_(self,value):
@@ -517,9 +517,9 @@ class Geom(AttributedOcgParameter):
     def validate(self,value):
         for ii in value:
             self._assert_(type(ii) == dict,
-             'list elements must be dictionaries with keys "id" and "geom"')
-            self._assert_('id' in ii,'a geom geom must have an id key')
-            self._assert_('geom' in ii,'a geom dict must have a geom key')
+             'list elements must be dictionaries with keys "ugid" and "geom"')
+            self._assert_('ugid' in ii,'a geom must have a "ugid" key')
+            self._assert_('geom' in ii,'a geom dict must have a "geom" key')
             self._assert_(type(ii['geom']) in [NoneType,Polygon,MultiPolygon],
                           'geometry type not recognized')
     

@@ -10,6 +10,7 @@ from ocgis.util.helpers import make_poly
 from ocgis import exc
 import tempfile
 import os.path
+from ocgis.util.inspect import Inspect
 
 
 class TestBase(unittest.TestCase):
@@ -175,6 +176,11 @@ class TestSimple(TestBase):
             self.assertEqual(ref['n_foo'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
+            
+    def test_inspect(self):
+        ip = Inspect(self.dataset['uri'])
+        ret = ip.__repr__()
+        self.assertTrue(len(ret) > 100)
 
 
 class TestSimpleMask(TestBase):

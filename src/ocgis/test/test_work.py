@@ -12,7 +12,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
 import sys;sys.argv = ['', 'TestWork.test_get_data']
 
-raise SkipTest("too long")
+raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
 

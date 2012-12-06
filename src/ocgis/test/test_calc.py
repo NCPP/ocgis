@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-import ocgis.calc.wrap.library as library
+from ocgis.calc import library
 
 
 class TestCalc(unittest.TestCase):
@@ -21,8 +21,6 @@ class TestCalc(unittest.TestCase):
         
         mean = library.Mean(values=values,agg=agg,weights=weights,groups=groups)
         ret = mean.calculate()
-        
-        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

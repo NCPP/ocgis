@@ -309,7 +309,7 @@ class ShpIterator(object):
             ds.Destroy()
 
 
-def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False):
+def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='ugid'):
     """
     >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
     >>> uid_field = 'objectid'
@@ -323,12 +323,12 @@ def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False):
     shpitr = ShpIterator(path)
     data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
     ## add unique identifier if requested and the passed uid field is none
-    if len(uid_field) == 0 and make_id is True:
-        for ii,dct in enumerate(data,start=1):
-            dct['id'] = ii
-    else:
-        for dct in data:
-            dct[uid_field[0]] = int(dct[uid_field[0]])
+    for ii,gd in enumerate(data,start=1):
+        if len(uid_field) == 0 and make_id is True:
+            gd[id_name] = ii
+        else:
+            geom_id = gd.pop(uid_field[0])
+            gd[id_name] = int(geom_id)
     
 #    ## check the WKT is a polygon and the unique identifier is a unique integer
 #    uids = []

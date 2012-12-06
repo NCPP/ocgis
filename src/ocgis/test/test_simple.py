@@ -114,7 +114,7 @@ class TestSimple(TestBase):
     def test_spatial(self):
         ## intersects
         geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
@@ -125,7 +125,7 @@ class TestSimple(TestBase):
         
         ## intersection
         geom = make_poly((38,39),(-104,-103))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
         self.assertEqual(len(ret[1].gid.compressed()),4)
         self.assertEqual(ret[1].variables[self.var].raw_value.shape,(61,2,2,2))
@@ -139,7 +139,7 @@ class TestSimple(TestBase):
             
         ## intersection + aggregation
         geom = make_poly((38,39),(-104,-103))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
         self.assertEqual(len(ref.gid.flatten()),1)
@@ -148,7 +148,7 @@ class TestSimple(TestBase):
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
@@ -204,7 +204,7 @@ class TestSimpleMask(TestBase):
     
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
@@ -236,7 +236,7 @@ class TestSimple360(TestBase):
         
     def test_spatial(self):
         geom = make_poly((38,39),(-93,-92))
-        geom = {'id':1,'geom':geom}
+        geom = {'ugid':1,'geom':geom}
         
         for abstraction in ['poly','point']:
             interface = {'s_abstraction':abstraction}

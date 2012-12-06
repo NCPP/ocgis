@@ -104,7 +104,7 @@ class OcgConverter(object):
         for coll,geom_dict in it:
             #tdk
             try:
-                vprint('geom id processed: {0}'.format(geom_dict['id']))
+                vprint('geom id processed: {0}'.format(geom_dict['ugid']))
             except TypeError:
                 pass
             #tdk

@@ -43,7 +43,7 @@ class RawIterator(BaseIterator):
                  value=ref.raw_value[tidx][lidx][gidx],
                  vid=ref.vid,
                  variable=ref.name,
-                 ugid=self.coll.geom_dict['id']
+                 ugid=self.coll.geom_dict['ugid']
                            )
                 yield(ret)
                 
@@ -69,7 +69,7 @@ class AggIterator(RawIterator):
                  value=ref.agg_value[tidx][lidx][gidx],
                  vid=ref.vid,
                  variable=ref.name,
-                 ugid=self.coll.geom_dict['id']
+                 ugid=self.coll.geom_dict['ugid']
                            )
                 yield(ret)
                 
@@ -109,7 +109,7 @@ class CalcIterator(BaseIterator):
                      calc_name=key,
 #                     cid=ref.cid[cidx],
                      cid=self.coll.cid.get(key),
-                     ugid=self.coll.geom_dict['id']
+                     ugid=self.coll.geom_dict['ugid']
                                )
                     yield(ret)
                     
@@ -120,7 +120,7 @@ class RawKeyedIterator(BaseIterator):
     def get_iters(self):
         
         def user_geometry():
-            yield([self.coll.geom_dict['id']])
+            yield([self.coll.geom_dict['ugid']])
         
         def geometry():
             for gidx in iter_array(self.coll.gid):
@@ -145,7 +145,7 @@ class RawKeyedIterator(BaseIterator):
                     for value in self.coll.variables.itervalues():
                         vref = getattr(value,self._value_attr)
                         for lidx in iter_array(value.lid):
-                            yield(self.coll.geom_dict['id'],
+                            yield(self.coll.geom_dict['ugid'],
                                   self.coll.gid[gidx],
                                   self.coll.tid[tidx],
                                   value.vid,
@@ -173,7 +173,7 @@ class CalcKeyedIterator(BaseIterator):
     def get_iters(self):
         
         def user_geometry():
-            yield([self.coll.geom_dict['id']])
+            yield([self.coll.geom_dict['ugid']])
         
         def geometry():
             for gidx in iter_array(self.coll.gid):
@@ -211,7 +211,7 @@ class CalcKeyedIterator(BaseIterator):
                     for value in self.coll.variables.itervalues():
                         for lidx in iter_array(value.lid):
                             for calc_name,calc_value in value.calc_value.iteritems():
-                                yield(self.coll.geom_dict['id'],
+                                yield(self.coll.geom_dict['ugid'],
                                       self.coll.gid[gidx],
                                       self.coll.tid[tidx],
                                       value.vid,
@@ -237,7 +237,7 @@ class MultiKeyedIterator(BaseIterator):
     def get_iters(self):
         
         def user_geometry():
-            yield([self.coll.geom_dict['id']])
+            yield([self.coll.geom_dict['ugid']])
         
         def geometry():
             for gidx in iter_array(self.coll.gid):
@@ -282,7 +282,7 @@ class MultiKeyedIterator(BaseIterator):
                                     v = None
                             except AttributeError:
                                 pass
-                            yield(self.coll.geom_dict['id'],
+                            yield(self.coll.geom_dict['ugid'],
                                   self.coll.gid[gidx],
                                   self.coll.tgid[tidx],
                                   self.coll.vlid.get(arch.lid[lidx],arch.levelvec[lidx]),
@@ -292,7 +292,7 @@ class MultiKeyedIterator(BaseIterator):
                         for calc_name,calc_value in variable.calc_value.iteritems():
                             for lidx in iter_array(variable.lid):
                                 v = calc_value[tidx][lidx][gidx]
-                                yield(self.coll.geom_dict['id'],
+                                yield(self.coll.geom_dict['ugid'],
                                       self.coll.gid[gidx],
                                       self.coll.tgid[tidx],
                                       self.coll.vlid.get(variable.lid[lidx],variable.levelvec[lidx]),

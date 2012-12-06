@@ -4,13 +4,15 @@ from collections import OrderedDict
 from ocgis.api.operations import OcgOperations
 from ocgis.util.shp_cabinet import ShpCabinet
 import traceback
-import sys;sys.argv = ['', 'TestWork.test_get_data']
 import time
 from ocgis.util.helpers import make_poly #@UnusedImport
 from datetime import datetime
 from copy import deepcopy
 from ocgis.api.interpreter import OcgInterpreter
+from nose.plugins.skip import SkipTest
+import sys;sys.argv = ['', 'TestWork.test_get_data']
 
+raise SkipTest("too long")
 
 class TestWork(unittest.TestCase):
 

@@ -3,10 +3,10 @@ from datetime import datetime
 import numpy as np
 import netCDF4 as nc
 from ocgis.api.operations import OcgOperations
-from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
 from ocgis import env
+from ocgis.api.interpreter import OcgInterpreter
 
 
 class NcSpatial(object):
@@ -52,7 +52,7 @@ class Test360(unittest.TestCase):
         nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
         
-        env.WORKSPACE = '/tmp/highres'
+#        env.WORKSPACE = '/tmp/highres'
         dataset = {'uri':path,'variable':'foo'}
         output_format = 'nc'
         snippet = True
@@ -60,8 +60,6 @@ class Test360(unittest.TestCase):
         
         ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom,snippet=snippet)
         ret = OcgInterpreter(ops).execute()
-        
-        import ipdb;ipdb.set_trace()
 
     def test_low_res(self):
         nc_spatial = NcSpatial(10.0,(-90.0,90.0),(0.0,360.0))
@@ -75,15 +73,14 @@ class Test360(unittest.TestCase):
 #        geom[0]['geom'] = self.transform_to_360(geom[0]['geom'])
 #        sc = ShpCabinet()
 #        sc.write(geom,'/tmp/transformed_ne.shp')
-        
+
         ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom)
         ret = OcgInterpreter(ops).execute()
-        import ipdb;ipdb.set_trace()
         
     @property
     def nebraska(self):
         sc = ShpCabinet()
-        geom_dict = sc.get_geom_dict('state_boundaries',{'id':[16]})
+        geom_dict = sc.get_geom_dict('state_boundaries',{'ugid':[16]})
         return(geom_dict)
         
     def transform_to_360(self,polygon):
@@ -147,5 +144,5 @@ class Test360(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'Test360.test_high_res']
+#    import sys;sys.argv = ['', 'Test360.test_high_res']
     unittest.main()

@@ -29,13 +29,25 @@ class ShpCabinet(object):
     def __init__(self,path=None):
         self.path = path or env.SHP_DIR
         
+    def keys(self):
+        ret = []
+        for dirpath,dirnames,filenames in os.walk(self.path):
+            for dn in dirnames:
+                for fn in os.listdir(os.path.join(dirpath,dn)):
+                    if fn.endswith('shp'):
+                        ret.append(os.path.splitext(fn)[0])
+        return(ret)
+        
     def get_shp_path(self,key):
         return(os.path.join(self.path,key,'{0}.shp'.format(key)))
     
     def get_cfg_path(self,key):
         return(os.path.join(self.path,key,'{0}.cfg'.format(key)))
     
-    def get_geom_dict(self,key,attr_filter=None):
+    def get_geom_dict(self,*args,**kwds):
+        return(self.get_geoms(*args,**kwds))
+    
+    def get_geoms(self,key,attr_filter=None):
         shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
@@ -43,7 +55,7 @@ class ShpCabinet(object):
         cfg_path = self.get_cfg_path(key)
         config = ConfigParser()
         config.read(cfg_path)
-        id_attr = config.get('mapping','id')
+        id_attr = config.get('mapping','ugid')
         ## adjust the id attribute name for auto-generation in the shapefile
         ## reader.
         if id_attr == 'none':
@@ -56,13 +68,14 @@ class ShpCabinet(object):
                                      uid_field=id_attr,
                                      attr_fields=other_attrs,
                                      make_id=make_id)
+
         ## filter the returned geometries if an attribute filter is passed
         if attr_filter is not None:
             ## get the attribute
             attr = attr_filter.keys()[0].lower()
-            ## rename ugid to id to prevent confusion on the front end.
-            if attr == 'ugid':
-                attr = 'id'
+#            ## rename ugid to id to prevent confusion on the front end.
+#            if attr == 'ugid':
+#                attr = 'id'
             ## get the target attribute data type
             dtype = type(geom_dict[0][attr])
             ## attempt to convert the filter values to that data type

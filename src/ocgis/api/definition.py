@@ -44,6 +44,7 @@ class OcgParameter(object):
         self.length = length
         self.alias = alias
         
+        self._first_set = True
         self._value = None
         if init_value is not None:
             self.value = init_value
@@ -53,6 +54,9 @@ class OcgParameter(object):
         return(self.format(self._value))
     @value.setter
     def value(self,value):
+        if self._first_set:
+            value = deepcopy(value)
+            self._first_set = False
         self._value = self.format(value)
         
     def format(self,value):

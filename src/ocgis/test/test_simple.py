@@ -103,6 +103,13 @@ class TestSimple(TestBase):
                                  'aggregate':True})
         ref = ret[1].variables[self.var].agg_value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
+        
+#    def test_using_ugid(self):
+#        ## swap names of id variable in geometry dictionary
+#        ## intersects
+#        geom = make_poly((37.5,39.5),(-104.5,-102.5))
+#        geom = {'ugid':1,'geom':geom}
+#        ret = self.get_ret(kwds={'geom':geom})
 
     def test_spatial(self):
         ## intersects

@@ -9,6 +9,7 @@ from shapely.geometry.point import Point
 from ocgis.interface.projection import get_projection
 from copy import copy
 from ocgis.util.helpers import vprint, iter_array
+from ocgis.interface.ncmeta import NcMetadata
 
 
 class InterfaceElement(object):
@@ -364,6 +365,8 @@ class DummyLevelVariable(object):
 class GlobalInterface(object):
     
     def __init__(self,dataset,overload={}):
+        ## extract metadata
+        self.meta = NcMetadata(dataset)
 
         ## quick check for not supported overload arguments
         for key in ['s_proj']:

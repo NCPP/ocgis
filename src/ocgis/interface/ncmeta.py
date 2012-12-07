@@ -19,6 +19,7 @@ class NcMetadata(OrderedDict):
         for key,value in rootgrp.variables.iteritems():
             subvar = OrderedDict()
             for attr in value.ncattrs():
+                if attr.startswith('_'): continue
                 subvar.update({attr:getattr(value,attr)})
             variables.update({key:{'dimensions':value.dimensions,
                                    'attrs':subvar}})

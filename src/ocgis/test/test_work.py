@@ -12,7 +12,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
 import sys;sys.argv = ['', 'TestWork.test_get_data']
 
-raise SkipTest(__name__)
+#raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
 
@@ -28,30 +28,11 @@ class TestWork(unittest.TestCase):
                 print traceback.format_exc()
                 import ipdb;ipdb.set_trace()
             print(ret)
-            
-    def test_profile(self):
-        prev = sys.stdout
-        with open('/tmp/out.txt','w') as f:
-            sys.stdout = f
-            start = 0
-            for ii,ops in self.iter_operations(start=start):
-                t1 = time.time()
-                OcgInterpreter(ops).execute()
-                t2 = time.time()
-                if int(ops.geom[0]['geom'].area) == 1096:
-                    geom = 'states'
-                else:
-                    geom = 'bb'
-                prnt = [geom,ops.dataset[0]['uri'],ops.output_format,t2-t1]
-                print ','.join(map(str,prnt))
-                time.sleep(5)
-#                break
-        sys.stdout = prev
 
     def iter_operations(self,start=0):
         output_format = {'output_format':[
-                                          'shp',
-                                          'keyed',
+#                                          'shp',
+#                                          'keyed',
                                           'nc',
                                           ]}
         snippet = {'snippet':[
@@ -63,32 +44,32 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-                        None,
+#                        None,
                         self.california,
 #                        self.state_boundaries,
 #                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
-                                  True,
+#                                  True,
                                   False
                                   ]}
         spatial_operation = {'spatial_operation':[
-                                                  'clip',
+#                                                  'clip',
                                                   'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
-                                      True,
+#                                      True,
                                       False
                                       ]}
         interface = {'interface':[
                                   {},
-                                  {'s_abstraction':'point'}
+#                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-#                                          True,
-                                          False
+                                          True,
+#                                          False
                                           ]}
         
         level_range = {'level_range':[
@@ -104,7 +85,7 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         calc = {'calc':[
-                        [{'func':'mean','name':'my_mean'}],
+#                        [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
         
@@ -124,7 +105,7 @@ class TestWork(unittest.TestCase):
     @property
     def california(self):
         sc = ShpCabinet()
-        ret = sc.get_geom_dict('state_boundaries',{'id':[25]})
+        ret = sc.get_geom_dict('state_boundaries',{'ugid':[25]})
         return(ret)
     
     @property
@@ -138,6 +119,25 @@ class TestWork(unittest.TestCase):
         sc = ShpCabinet()
         ret = sc.get_geom_dict('world_countries')
         return(ret)
+
+    def test_profile(self):
+        prev = sys.stdout
+        with open('/tmp/out.txt','w') as f:
+            sys.stdout = f
+            start = 0
+            for ii,ops in self.iter_operations(start=start):
+                t1 = time.time()
+                OcgInterpreter(ops).execute()
+                t2 = time.time()
+                if int(ops.geom[0]['geom'].area) == 1096:
+                    geom = 'states'
+                else:
+                    geom = 'bb'
+                prnt = [geom,ops.dataset[0]['uri'],ops.output_format,t2-t1]
+                print ','.join(map(str,prnt))
+                time.sleep(5)
+#                break
+        sys.stdout = prev
 
 
 if __name__ == "__main__":

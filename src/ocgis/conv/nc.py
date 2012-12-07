@@ -18,6 +18,7 @@ class NcConverter(OcgConverter):
         return(ret)
     
     def _write_calc_(self):
+        raise(NotImplementedError)
         ## get the collection
         for ii,(coll,geom_dict) in enumerate(self):
             if ii > 0:

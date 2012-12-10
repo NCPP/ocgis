@@ -1,6 +1,6 @@
 import unittest
 import netCDF4 as nc
-from ocgis.interface.dev.interface import Interface
+from ocgis.interface.dev.interface import GlobalInterface
 
 
 class TestInterface(unittest.TestCase):
@@ -13,7 +13,7 @@ class TestInterface(unittest.TestCase):
         self.rootgrp.close()
 
     def test_interface(self):
-        i = Interface(self.rootgrp,self.dataset['variable'])
+        i = GlobalInterface(self.rootgrp,self.dataset['variable'])
 
 
 if __name__ == "__main__":

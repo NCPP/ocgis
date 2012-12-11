@@ -23,6 +23,8 @@ class OcgCalculationEngine(object):
         if self.time_range is not None:
             self.timevec = timevec[(timevec>=time_range[0])*
                                    (timevec<=time_range[1])]
+            if len(self.timevec) == 0:
+                raise(IndexError('time range returned no data.'))
         else:
             self.timevec = timevec
         ## convert solitary grouping arguments to list

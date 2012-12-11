@@ -40,13 +40,13 @@ class GlobalInterface(object):
         s_abstraction = overload.get('s_abstraction')
         if s_abstraction is None:
             if self._row.bounds is None:
+                warn('no bounds found for spatial dimensions. abstracting to point.')
                 s_abstraction = 'point'
             else:
                 s_abstraction = 'polygon'
         if s_abstraction == 'polygon':
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:
-            warn('no bounds found for spatial dimensions. abstracting to point.')
             self.spatial = SpatialInterfacePoint(self._row,self._col,projection)
     
     def _get_axis_(self,dimvar,dims,dim):
@@ -448,7 +448,7 @@ class SpatialInterfacePoint(AbstractSpatialInterface):
             if prep_polygon.intersects(pt):
                 append(row,self.real_row[ii,jj])
                 append(col,self.real_col[ii,jj])
-
+        
         return(geom,row,col)
         
     def _get_all_geoms_(self):

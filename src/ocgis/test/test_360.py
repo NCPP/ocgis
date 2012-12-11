@@ -59,11 +59,14 @@ class Test360(unittest.TestCase):
         snippet = True
         geom = self.nebraska
         
-        ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom,snippet=snippet)
-        ret = OcgInterpreter(ops).execute()
+        for s_abstraction in ['point','polygon']:
+            interface = {'s_abstraction':s_abstraction}
+            ops = OcgOperations(dataset=dataset,output_format=output_format,
+                                geom=geom,snippet=snippet,interface=interface)
+            ret = OcgInterpreter(ops).execute()
 
     def test_low_res(self):
-        nc_spatial = NcSpatial(10.0,(-90.0,90.0),(0.0,360.0))
+        nc_spatial = NcSpatial(5.0,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
         
         dataset = {'uri':path,'variable':'foo'}

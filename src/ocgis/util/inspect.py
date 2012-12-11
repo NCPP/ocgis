@@ -5,9 +5,9 @@ from ocgis.api.dataset.dataset import OcgDataset
 
 class Inspect(object):
     
-    def __init__(self,uri):
-        self.uri = uri
-        self.ds = OcgDataset(uri)
+    def __init__(self,dataset,interface_overload={}):
+        self.uri = dataset['uri']
+        self.ds = OcgDataset(dataset,interface_overload=interface_overload)
         
     def __repr__(self):
         msg = ''
@@ -26,12 +26,12 @@ class Inspect(object):
         return(self.ds.i.level)
         
     def get_temporal_report(self):
-        start_date = self._t.time.value.min()
-        end_date = self._t.time.value.max()
+        start_date = self._t.value.min()
+        end_date = self._t.value.max()
         res = int(self._t.get_approx_res_days())
-        n = len(self._t.time.value)
-        calendar = self._t.time.calendar.value
-        units = self._t.time.units.value
+        n = len(self._t.value)
+        calendar = self._t.calendar
+        units = self._t.units
         
         lines = []
         lines.append('       Start Date = {0}'.format(start_date))
@@ -47,7 +47,7 @@ class Inspect(object):
         res = self._s.resolution
         extent = self._s.extent().bounds
         itype = self._s.__class__.__name__
-        projection = self.ds.i.projection.__class__.__name__
+        projection = self.ds.i.spatial.projection.__class__.__name__
         
         lines = []
         lines.append('Spatial Reference = {0}'.format(projection))
@@ -59,12 +59,12 @@ class Inspect(object):
         return(lines)
     
     def get_level_report(self):
-        if isinstance(self._l,DummyLevelInterface):
+        if self._l.is_dummy:
             lines = ['No level dimension found.']
         else:
             lines = []
-            lines.append('Level Variable = {0}'.format(self._l.level.name))
-            lines.append('         Count = {0}'.format(self._l.level.value.shape[0]))
+            lines.append('Level Variable = {0}'.format(self._l.name))
+            lines.append('         Count = {0}'.format(self._l.value.shape[0]))
         return(lines)
     
     def get_dump_report(self):

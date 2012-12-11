@@ -178,7 +178,7 @@ class TestSimple(TestBase):
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
             
     def test_inspect(self):
-        ip = Inspect(self.dataset['uri'])
+        ip = Inspect(self.dataset)
         ret = ip.__repr__()
         self.assertTrue(len(ret) > 100)
 

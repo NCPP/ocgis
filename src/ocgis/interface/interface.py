@@ -242,7 +242,7 @@ class AbstractSpatialInterface(object):
         if polygon is None:
             return(self._get_all_geoms_())
         else:
-            return(self._subset_(polygon))
+            return(self._select_(polygon))
         
     def _get_resolution_(self):
         return(approx_resolution(self.row.value))
@@ -373,7 +373,7 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         min_col = self.min_col
         max_row = self.max_row
         max_col = self.max_col
-        append = append
+#        append = append
         
         vprint('starting main loop...')
         for ii,jj in iter_array(include,use_mask=False):
@@ -424,7 +424,7 @@ class SpatialInterfacePoint(AbstractSpatialInterface):
         geom = np.empty(self.shape,dtype=object)
         row = np.array([],dtype=int)
         col = np.array([],dtype=int)
-        append = append
+#        append = append
         
         prep_polygon = prepared.prep(polygon)
         for ii,jj in iter_array(self.col_pt,use_mask=False):
@@ -433,8 +433,6 @@ class SpatialInterfacePoint(AbstractSpatialInterface):
             if prep_polygon.intersects(pt):
                 append(row,self.real_row[ii,jj])
                 append(col,self.real_col[ii,jj])
-                self.selection.row.append(self.real_row[ii,jj])
-                self.selection.col.append(self.real_col[ii,jj])
 
         return(geom,row,col)
         

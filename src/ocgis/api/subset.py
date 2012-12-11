@@ -40,7 +40,7 @@ class SubsetOperation(object):
         ## wrap the geometry dictionary if needed
         arch = self.ops.dataset[0]['ocg_dataset']
         if arch.i.spatial.is_360 and self.ops._get_object_('geom').is_empty is False:
-            unwrap_geoms(self.ops.geom,arch.i.spatial.left_upper_bound)
+            unwrap_geoms(self.ops.geom,arch.i.spatial.pm)
 
         ## create the calculation engine
         if self.ops.calc is None:

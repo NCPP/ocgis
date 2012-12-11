@@ -206,7 +206,7 @@ class OcgDataset(object):
         ocg_variable = collection.OcgVariable(
           self.variable,
           self.i.level.lid[levelidx],
-          self.i.level.level.value[levelidx],
+          self.i.level.value[levelidx],
           npd,
           self
                                    )
@@ -217,7 +217,7 @@ class OcgDataset(object):
               gid,
               geom,
               geom_mask,
-              self.i.temporal.time.value[timeidx],
+              self.i.temporal.value[timeidx],
               self.i.spatial.calc_weights(npd,geom),
                                          )
             return(coll,ocg_variable)

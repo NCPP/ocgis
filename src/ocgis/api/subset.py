@@ -47,7 +47,7 @@ class SubsetOperation(object):
             self.cengine = None
         else:
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
-                                           ods.i.temporal.time.value,
+                                           ods.i.temporal.value,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate,

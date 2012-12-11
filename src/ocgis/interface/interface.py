@@ -115,6 +115,8 @@ class AbstractInterface(object):
         else:
             self._ref_var = None
             self._ref_bnds = None
+            
+        self.name = self._ref_var._name
         
     def format(self):
         if self._ref_var is None:

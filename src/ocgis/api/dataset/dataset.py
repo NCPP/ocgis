@@ -12,18 +12,18 @@ class OcgDataset(object):
     Wraps and netCDF4-python Dataset object providing extraction methods by 
     spatial and temporal queries.
     
-    uri -- location of the dataset object.
     interface_overload -- dictionary containing overloaded parameters for interface
         objects
     """
     
-    def __init__(self,uri,interface_overload={}):
-        self.uri = uri
+    def __init__(self,dataset,interface_overload={}):
+        self.uri = dataset['uri']
+        self.variable = dataset['variable']
 
         ## construct interface
-        self.dataset = self.connect(uri)
+        self.dataset = self.connect(self.uri)
         try:
-            self.i = GlobalInterface(self.dataset,overload=interface_overload)
+            self.i = GlobalInterface(self.dataset,self.variable,overload=interface_overload)
         finally:
             self.dataset.close()
     
@@ -110,7 +110,7 @@ class OcgDataset(object):
         else:
             return(ocg_variable)
     
-    def _subset_(self,var_name,polygon=None,time_range=None,level_range=None,
+    def _subset_(self,polygon=None,time_range=None,level_range=None,
                  return_collection=True,allow_empty=False): ## intersects + touches
         """
         polygon -- shapely Polygon object
@@ -128,12 +128,12 @@ class OcgDataset(object):
                 raise(exc.ExtentError)
         except exc.ExtentError:
             if allow_empty:
-                return(self._make_empty_(var_name,return_collection))
+                return(self._make_empty_(self.variable,return_collection))
             else:
                 raise
         
         ## get the number of dimensions of the target variable
-        ndim = len(self.dataset.variables[var_name].dimensions)
+        ndim = len(self.dataset.variables[self.variable].dimensions)
                 
         ## get the time indices
         timeidx = self.i.temporal.subset_timeidx(time_range)
@@ -156,7 +156,7 @@ class OcgDataset(object):
         ## extract the data ####################################################
         
         ## get the variable from the netcdf dataset
-        var = self.dataset.variables[var_name]
+        var = self.dataset.variables[self.variable]
         ## restructure arrays for fancy indexing in the dataset
         rowidx = sub_range(row)
         colidx = sub_range(col)
@@ -185,7 +185,7 @@ class OcgDataset(object):
             ## if all the data values are masked, raise an error.
             if npd.mask.all():
                 if allow_empty:
-                    return(self._make_empty_(var_name,return_collection))
+                    return(self._make_empty_(self.variable,return_collection))
                 else:
                     raise(exc.MaskedDataError)
             else:
@@ -204,7 +204,7 @@ class OcgDataset(object):
         geom_mask = npd.mask[0,0,:,:]
         
         ocg_variable = collection.OcgVariable(
-          var_name,
+          self.variable,
           self.i.level.lid[levelidx],
           self.i.level.level.value[levelidx],
           npd,

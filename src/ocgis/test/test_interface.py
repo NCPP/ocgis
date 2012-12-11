@@ -1,6 +1,6 @@
 import unittest
 import netCDF4 as nc
-from ocgis.interface.dev.interface import GlobalInterface
+from ocgis.interface.interface import GlobalInterface
 
 
 class TestInterface(unittest.TestCase):

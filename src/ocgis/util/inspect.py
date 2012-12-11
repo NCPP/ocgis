@@ -1,6 +1,6 @@
 import netCDF4 as nc
 from ocgis.api.dataset.dataset import OcgDataset
-from ocgis.interface.interface import DummyLevelInterface
+#from ocgis.interface.interface import DummyLevelInterface
 
 
 class Inspect(object):

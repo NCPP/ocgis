@@ -29,11 +29,11 @@ class SubsetOperation(object):
         ## the interface objects again.
         uri_map = {}
         for dataset in self.ops.dataset:
-            key = '+++'.join(dataset['uri'])
+            key = dataset['variable'] + '_' + dataset['uri']
             if key in uri_map:
                 ods = uri_map[key]
             else:
-                ods = OcgDataset(dataset['uri'],interface_overload=self.ops.interface)
+                ods = OcgDataset(dataset,interface_overload=self.ops.interface)
                 uri_map.update({key:ods})
             dataset.update({'ocg_dataset':ods})
             
@@ -60,7 +60,7 @@ class SubsetOperation(object):
             self.ops.level_range = [1]
             ## case of no calculation request
             if self.cengine is None:
-                ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.time.value
+                ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.value
                 self.ops.time_range = [ref[0],ref[0]]
             ## case of a calculation. will need to select data based on temporal
             ## group.
@@ -135,7 +135,7 @@ def get_collection((so,geom_dict)):
     for dataset in so.ops.dataset:
         ## collection are always returned but only the first one is needed.
         subset_return = \
-          dataset['ocg_dataset'].subset(dataset['variable'],
+          dataset['ocg_dataset'].subset(
                             polygon=geom_dict['geom'],
                             time_range=so.ops.time_range,
                             level_range=so.ops.level_range,

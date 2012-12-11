@@ -4,7 +4,7 @@ from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from ocgis.util.shp_cabinet import ShpCabinet
-from ocgis.interface.element import Element
+#from ocgis.interface.element import Element
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 
@@ -595,10 +595,10 @@ class Interface(AttributedOcgParameter):
     
     def validate(self,value):
         for key,val in value.iteritems():
-            try:
-                assert(issubclass(key,Element))
-            except (TypeError,AssertionError):
-                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
+#            try:
+#                assert(issubclass(key,Element))
+#            except (TypeError,AssertionError):
+#                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
             if val is not None:
                 self._assert_(type(val) == str,'interface values must be strings')
     

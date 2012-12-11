@@ -16,8 +16,8 @@ class GlobalInterface(object):
     
     def __init__(self,rootgrp,target_var,overload={}):
         self.target_var = target_var
-        self._dim_map = self._get_dimension_map_(rootgrp)
         self._meta = NcMetadata(rootgrp)
+        self._dim_map = self._get_dimension_map_(rootgrp)
         
         interfaces = [TemporalInterface,LevelInterface,RowInterface,ColumnInterface]
         for interface in interfaces:
@@ -46,8 +46,17 @@ class GlobalInterface(object):
         if s_abstraction == 'polygon':
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:
+            warn('no bounds found for spatial dimensions. abstracting to point.')
             self.spatial = SpatialInterfacePoint(self._row,self._col,projection)
-        
+    
+    def _get_axis_(self,dimvar,dims,dim):
+        try:
+            axis = getattr(dimvar,'axis')
+        except AttributeError:
+            warn('guessing dimension location with "axis" attribute missing')
+            axis = self._guess_by_location_(dims,dim)
+        return(axis)
+    
     def _get_dimension_map_(self,rootgrp):
         var = rootgrp.variables[self.target_var]
         dims = var.dimensions
@@ -57,24 +66,33 @@ class GlobalInterface(object):
         for dim in dims:
             try:
                 dimvar = rootgrp.variables[dim]
-                try:
-                    axis = getattr(dimvar,'axis')
-                except AttributeError:
-                    warn('guessing dimension location with "axis" attribute missing')
-                    axis = self._guess_by_location_(dims,dim)
-                mp[axis] = {'variable':dimvar}
             except KeyError:
-                raise(NotImplementedError)
+                ## search for variable with the matching dimension
+                for key,value in self._meta['variables'].iteritems():
+                    if len(value['dimensions']) == 1 and value['dimensions'][0] == dim:
+                        dimvar = rootgrp.variables[key]
+                        break
+            axis = self._get_axis_(dimvar,dims,dim)
+            mp[axis] = {'variable':dimvar,'dimension':dim}
             
         ## look for bounds variables
-        bounds_names = set(['bounds','bnds'])
+        bounds_names = set(['bounds','bnds','bound','bnd'])
         for key,value in mp.iteritems():
             if value is None:
                 continue
             bounds_var = None
             var = value['variable']
             intersection = list(bounds_names.intersection(set(var.ncattrs())))
-            bounds_var = rootgrp.variables[getattr(var,intersection[0])]
+            try:
+                bounds_var = rootgrp.variables[getattr(var,intersection[0])]
+            except IndexError:
+                warn('no bounds attribute found. searching variable dimensions for bounds information.')
+                bounds_names_copy = bounds_names.copy()
+                bounds_names_copy.update([value['dimension']])
+                for key2,value2 in self._meta['variables'].iteritems():
+                    intersection = bounds_names_copy.intersection(set(value2['dimensions']))
+                    if len(intersection) == 2:
+                        bounds_var = rootgrp.variables[key2]
             value.update({'bounds':bounds_var})
         return(mp)
             

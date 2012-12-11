@@ -117,8 +117,14 @@ class AbstractInterface(object):
             self._ref_bnds = None
         
     def format(self):
-        self.value = self._format_value_()
-        self.bounds = self._format_bounds_()
+        if self._ref_var is None:
+            self.value = None
+        else:
+            self.value = self._format_value_()
+        if self._ref_bnds is None:
+            self.bounds = None
+        else:
+            self.bounds = self._format_bounds_()
         
     def _get_attribute_(self,overloaded,default,target='variable'):
         if overloaded is not None:
@@ -128,17 +134,11 @@ class AbstractInterface(object):
         return(ret)
         
     def _format_value_(self):
-        if self._ref_bnds is not None:
-            ret = self._ref_var[:]
-        else:
-            ret = None
+        ret = self._ref_var[:]
         return(ret)
     
     def _format_bounds_(self):
-        if self._ref_bnds is not None:
-            ret = self._ref_bnds[:]
-        else:
-            ret = None
+        ret = self._ref_bnds[:]
         return(ret)
         
         
@@ -304,11 +304,11 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         ## check for values over 180 in the bounds variables. if higher values
         ## exists, user geometries will need to be wrapped and data may be 
         ## wrapped later in the conversion process.
+        pm = 0.0
         if np.any(self.col.bounds > 180):
             is_360 = True
             ## iterate bounds coordinates to identify upper bound for left
             ## clip polygon for geometry wrapping.
-            pm = 0.0
             ref = self.col.bounds
             for idx in range(ref.shape[0]):
                 if ref[idx,0] < 0 and ref[idx,1] > 0:

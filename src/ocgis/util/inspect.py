@@ -1,17 +1,32 @@
 import netCDF4 as nc
 from ocgis.api.dataset.dataset import OcgDataset
-#from ocgis.interface.interface import DummyLevelInterface
+from ocgis.interface.ncmeta import NcMetadata
 
 
 class Inspect(object):
     
-    def __init__(self,dataset,interface_overload={}):
-        self.uri = dataset['uri']
-        self.ds = OcgDataset(dataset,interface_overload=interface_overload)
+    def __init__(self,uri,variable=None,interface_overload={}):
+        self.uri = uri
+        self.variable = variable
+        if self.variable is None:
+            try:
+                self.ds = None
+                rootgrp = nc.Dataset(uri)
+                self.meta = NcMetadata(rootgrp)
+            finally:
+                rootgrp.close()
+        else:
+            self.ds = OcgDataset({'uri':uri,'variable':variable},
+                                 interface_overload=interface_overload)
+            self.meta = self.ds.i._meta
         
     def __repr__(self):
         msg = ''
-        for line in self.get_report():
+        if self.variable is None:
+            lines = self.get_report_no_variable()
+        else:
+            lines = self.get_report()
+        for line in lines:
             msg += line + '\n'
         return(msg)
         
@@ -68,26 +83,11 @@ class Inspect(object):
         return(lines)
     
     def get_dump_report(self):
-        ds = nc.Dataset(self.uri,'r')
-        try:
-            lines = ['++ GLOBAL ATTRIBUTES ++']
-            template = '   - {0} :: {1}'
-            for attr in ds.ncattrs():
-                lines.append(template.format(attr,getattr(ds,attr)))
-            
-            lines += ['','++ DIMENSIONS ++']
-            for key,value in ds.dimensions.iteritems():
-                lines.append('   - {0} :: {1}'.format(key,len(value)))
-                
-            lines += ['','++ VARIABLES ++']
-            for key,value in ds.variables.iteritems():
-                lines.append('   + {0} :: Dimensions({1})'.format(key,map(str,value.dimensions)))
-                for attr in value.ncattrs():
-                    lines.append('      - {0} :: {1}'.format(attr,getattr(value,attr)))
-#                import ipdb;ipdb.set_trace()
-        finally:
-            ds.close()
-            
+        return(self.meta._get_lines_())
+    
+    def get_report_no_variable(self):
+        lines = ['','URI = {0}'.format(self.uri),'']
+        lines += self.get_dump_report()
         return(lines)
     
     def get_report(self):

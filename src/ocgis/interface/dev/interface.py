@@ -181,6 +181,14 @@ class LevelInterface(AbstractInterface):
         super(LevelInterface,self).__init__(gi)
         self.format()
         
+        if self.value is None:
+            self.value = np.array([1])
+            self.levelidx = np.array([0])
+            self.lid = np.array([1])
+        else:
+            self.levelidx = np.arange(len(self.value))
+            self.lid = self.levelidx + 1
+        
         
 class RowInterface(AbstractInterface):
     _axis = 'Y'

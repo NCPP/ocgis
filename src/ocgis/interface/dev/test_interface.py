@@ -13,7 +13,10 @@ class TestInterface(unittest.TestCase):
         self.rootgrp.close()
 
     def test_interface(self):
-        i = GlobalInterface(self.rootgrp,self.dataset['variable'])
+        s_abstractions = ['polygon','point']
+        for s_abstraction in s_abstractions:
+            overload = {'s_abstraction':s_abstraction}
+            i = GlobalInterface(self.rootgrp,self.dataset['variable'],overload=overload)
 
 
 if __name__ == "__main__":

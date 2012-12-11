@@ -3,11 +3,13 @@ from ocgis.interface.ncmeta import NcMetadata
 import inspect
 import netCDF4 as nc
 import datetime
-from ocgis.util.helpers import iter_array, approx_resolution, vprint, contains
+from ocgis.util.helpers import iter_array, approx_resolution, vprint, contains,\
+    append
 import numpy as np
 from ocgis.interface.projection import WGS84
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
+from shapely.geometry.point import Point
 
 
 class GlobalInterface(object):
@@ -45,8 +47,6 @@ class GlobalInterface(object):
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:
             self.spatial = SpatialInterfacePoint(self._row,self._col,projection)
-        
-        import ipdb;ipdb.set_trace()
         
     def _get_dimension_map_(self,rootgrp):
         var = rootgrp.variables[self.target_var]
@@ -135,6 +135,9 @@ class TemporalInterface(AbstractInterface):
         self.units = self._get_attribute_(t_units,'units')
         
         self.format()
+        
+        self.timeidx = np.arange(0,len(self.value))
+        self.tid = np.arange(1,len(self.value)+1)
                 
     def _format_value_(self):
         ret = nc.num2date(self._ref_var[:],self.units,self.calendar)
@@ -150,6 +153,24 @@ class TemporalInterface(AbstractInterface):
         for idx,t in iter_array(arr,return_value=True):
             arr[idx] = datetime.datetime(t.year,t.month,t.day,
                                          t.hour,t.minute,t.second)
+            
+    def subset_timeidx(self,time_range):
+        if time_range is None:
+            ret = self.timeidx
+        else:
+            ret = self.timeidx[(self.value>=time_range[0])*
+                               (self.value<=time_range[1])]
+        return(ret)
+    
+    def get_approx_res_days(self):
+        diffs = np.array([],dtype=float)
+        for tidx,tval in iter_array(self.value,return_value=True):
+            try:
+                diffs = np.append(diffs,
+                                np.abs((tval-self.value[tidx[0]+1]).days))
+            except IndexError:
+                break
+        return(diffs.mean())
             
             
 class LevelInterface(AbstractInterface):
@@ -186,7 +207,7 @@ class AbstractSpatialInterface(object):
         self.col = col
         self.projection = projection
         
-        self.is_360 = self._get_wrapping_()
+        self.is_360,self.pm = self._get_wrapping_()
         self.resolution = self._get_resolution_()
         
     def select(self,polygon=None):
@@ -226,8 +247,6 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                                .reshape(self.shape),
                                mask=False)
         
-        import ipdb;ipdb.set_trace()
-        
     def get_bounds(self,colidx):
         col,row = np.meshgrid(self.col.bounds[:,colidx],
                               self.row.bounds[:,colidx])
@@ -263,16 +282,16 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
             is_360 = True
             ## iterate bounds coordinates to identify upper bound for left
             ## clip polygon for geometry wrapping.
-            self.left_upper_bound = 0.0
+            pm = 0.0
             ref = self.col.bounds
             for idx in range(ref.shape[0]):
                 if ref[idx,0] < 0 and ref[idx,1] > 0:
-                    self.left_upper_bound = ref[idx,0]
+                    pm = ref[idx,0]
                     break
         else:
             is_360 = False
             
-        return(is_360)
+        return(is_360,pm)
     
     def _get_all_geoms_(self):
         geom = np.empty(self.gid.shape,dtype=object)
@@ -320,16 +339,13 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         row = np.array([],dtype=int)
         col = np.array([],dtype=int)
         
-        def _append_(arr,value):
-            arr.resize(arr.shape[0]+1,refcheck=False)
-            arr[arr.shape[0]-1] = value
-        
         real_row = self.real_row
         real_col = self.real_col
         min_row = self.min_row
         min_col = self.min_col
         max_row = self.max_row
         max_col = self.max_col
+        append = append
         
         vprint('starting main loop...')
         for ii,jj in iter_array(include,use_mask=False):
@@ -340,8 +356,81 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                                      (min_col[ii,jj],max_row[ii,jj])))
                 geom[ii,jj] = test_geom
                 if index_intersects(test_geom,index):
-                    _append_(row,real_row[ii,jj])
-                    _append_(col,real_col[ii,jj])
+                    append(row,real_row[ii,jj])
+                    append(col,real_col[ii,jj])
         vprint('main select loop finished.')
         
         return(geom,row,col)  
+
+
+class SpatialInterfacePoint(AbstractSpatialInterface):
+    
+    def __init__(self,*args,**kwds):
+        super(self.__class__,self).__init__(*args,**kwds)
+        
+        ## change how the row and column point variables are created based
+        ## on the shape of the incoming coordinates.
+        try:
+            self.col_pt,self.row_pt = self.col.value,self.row.value
+            self.real_col,self.real_row = np.meshgrid(
+                                    np.arange(0,self.col.value.shape[1]),
+                                    np.arange(0,self.col.value.shape[0]))
+        except IndexError:
+            self.col_pt,self.row_pt = np.meshgrid(self.col.value,
+                                                  self.row.value)
+            self.real_col,self.real_row = np.meshgrid(
+                                    np.arange(0,len(self.col.value)),
+                                    np.arange(0,len(self.row.value)))
+        self.resolution = approx_resolution(np.ravel(self.col_pt))
+        self.shape = self.real_col.shape
+        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
+                               self.real_col.shape[1]+1).reshape(self.shape),
+                               mask=False)
+        
+    def calc_weights(self,npd,geom):
+        weight = np.ma.array(np.ones((npd.shape[2],npd.shape[3]),dtype=float),
+                             mask=npd.mask[0,0,:,:])
+        return(weight)
+
+    def _select_(self,polygon):
+        geom = np.empty(self.shape,dtype=object)
+        row = np.array([],dtype=int)
+        col = np.array([],dtype=int)
+        append = append
+        
+        prep_polygon = prepared.prep(polygon)
+        for ii,jj in iter_array(self.col_pt,use_mask=False):
+            pt = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
+            geom[ii,jj] = pt
+            if prep_polygon.intersects(pt):
+                append(row,self.real_row[ii,jj])
+                append(col,self.real_col[ii,jj])
+                self.selection.row.append(self.real_row[ii,jj])
+                self.selection.col.append(self.real_col[ii,jj])
+
+        return(geom,row,col)
+        
+    def _get_all_geoms_(self):
+        geom = np.empty(self.col_pt.shape,dtype=object)
+        for ii,jj in iter_array(self.col_pt,use_mask=False):
+            geom[ii,jj] = Point(self.col_pt[ii,jj],self.row_pt[ii,jj])
+            
+        row = self.real_row.reshape(-1)
+        col = self.real_col.reshape(-1)
+        
+        return(geom,row,col)
+        
+    def _get_wrapping_(self):
+        if self.col.value.max() > 180:
+            is_360 = True
+        else:
+            is_360 = False
+        return(is_360,0.0)
+    
+    def extent(self):
+        minx = self.col.value.min()
+        maxx = self.col.value.max()
+        miny = self.row.value.min()
+        maxy = self.row.value.max()
+        poly = Polygon(((minx,miny),(maxx,miny),(maxx,maxy),(minx,maxy)))
+        return(poly)

@@ -11,10 +11,13 @@ from numpy.ma.core import MaskedArray
 from ocgis import env
 
 
+def append(arr,value):
+    arr.resize(arr.shape[0]+1,refcheck=False)
+    arr[arr.shape[0]-1] = value
+            
 def vprint(msg):
     if env.VERBOSE:
         print(msg)
-
 
 def iter_array(a,use_mask=True,return_value=False):
     try:

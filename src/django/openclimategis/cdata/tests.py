@@ -149,7 +149,12 @@ class TestCdata(TestCase):
         url1 = '/inspect?uid='+uid
         url2 = '/inspect?uri='+uri
         
-        for url in [url1,url2]:
+        variables = ['none','tasmin']
+        s_abstraction = ['point','polygon']
+        
+        for url,variable,s_abstraction in itertools.product([url1,url2],variables,s_abstraction):
+            url += '&variable={0}'.format(variable)
+            url += '&s_abstraction={0}'.format(s_abstraction)
             resp = self.c.get(url)
             self.assertTrue(len(resp.content) > 100)
         

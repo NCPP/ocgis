@@ -86,7 +86,9 @@ class Inspect(object):
         return(self.meta._get_lines_())
     
     def get_report_no_variable(self):
-        lines = ['','URI = {0}'.format(self.uri),'']
+        lines = ['','URI = {0}'.format(self.uri)]
+        lines.append('VARIABLE = {0}'.format(self.variable))
+        lines.append('')
         lines += self.get_dump_report()
         return(lines)
     
@@ -99,6 +101,7 @@ class Inspect(object):
               ]
         
         lines = ['','URI = {0}'.format(self.uri)]
+        lines.append('VARIABLE = {0}'.format(self.variable))
         lines.append('')
         for dct in mp:
             for key,value in dct.iteritems():

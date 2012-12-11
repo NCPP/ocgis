@@ -59,7 +59,7 @@ class NcMetadata(OrderedDict):
         lines.append('')
         lines.append('// global attributes:')
         template = '    :{0} = {1} ;'
-        for key,value in self['dataset']:
+        for key,value in self['dataset'].iteritems():
             lines.append(template.format(key,value))
         
         return(lines)

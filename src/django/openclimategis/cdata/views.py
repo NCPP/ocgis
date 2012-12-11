@@ -9,6 +9,8 @@ import os.path
 from ocgis.api.definition import SelectUgid, Prefix, Unwrap, PrimeMeridian
 from ocgis.util.spatial.wrap import unwrap_geoms
 from ocgis.util.spatial.union import union_geoms
+from util.parms import QueryParm
+from util.helpers import _get_interface_overload_
 
 
 def get_data(request):
@@ -28,7 +30,10 @@ def display_inspect(request):
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
     uri = helpers._get_uri_(query,scalar=True)
-    io = Inspect(uri.value)
+    variable = QueryParm(query,'variable',scalar=True)
+    interface_overload = _get_interface_overload_(query)
+    io = Inspect(uri.value,variable=variable.value,
+                 interface_overload=interface_overload)
     report = io.__repr__()
     response = HttpResponse(report,content_type="text/plain")
     return(response)

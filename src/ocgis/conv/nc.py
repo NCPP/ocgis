@@ -1,7 +1,6 @@
 from ocgis.conv.converter import OcgConverter
 import netCDF4 as nc
-from ocgis.interface.interface import DummyLevelInterface,\
-    SpatialInterfacePoint
+from ocgis.interface.interface import SpatialInterfacePoint
 import numpy as np
 
     
@@ -110,7 +109,7 @@ class NcConverter(OcgConverter):
             ## reference leve interface
             level = var_value.ocg_dataset.i.level
             ## if there is no level on the variable no need to build one.
-            if isinstance(level,DummyLevelInterface):
+            if level.is_dummy:
                 dim_level = None
             ## if there is a level, create the dimension and set the variable.
             else:
@@ -232,7 +231,7 @@ class NcConverter(OcgConverter):
             ## reference leve interface
             level = var_value.ocg_dataset.i.level
             ## if there is no level on the variable no need to build one.
-            if isinstance(level,DummyLevelInterface):
+            if level.is_dummy:
                 dim_level = None
             ## if there is a level, create the dimension and set the variable.
             else:

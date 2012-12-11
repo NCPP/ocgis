@@ -4,7 +4,6 @@ from ocgis import env
 from django.http import HttpResponse
 from urlparse import parse_qs
 import util.parms as parms
-import ocgis.meta.interface.models as imodels
 import exc
 from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interpreter import Interpreter, OcgInterpreter
@@ -38,16 +37,10 @@ def _get_uri_(query,scalar=False):
     return(uri)
 
 def _get_interface_overload_(query):
-    mmap = {'s_row':imodels.Row,
-            's_column':imodels.Column,
-            's_row_bounds':imodels.RowBounds,
-            's_column_bounds':imodels.ColumnBounds,
-            's_proj':None,
+    mmap = {'s_proj4':None,
             's_abstraction':None,
-            't_calendar':imodels.Calendar,
-            't_units':imodels.TimeUnits,
-            't_variable':imodels.Time,
-            'l_variable':imodels.Level}
+            't_calendar':None,
+            't_units':None}
     
     name_map = {}
     

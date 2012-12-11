@@ -3,9 +3,9 @@ from django.test.client import Client
 import subprocess
 import itertools
 from ocgis.api.operations import OcgOperations
-from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 from ocgis import env
 import time
+from ocgis.api.interpreter import OcgInterpreter
 
 
 def pause(f):

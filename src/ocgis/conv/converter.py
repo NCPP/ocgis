@@ -31,7 +31,7 @@ class OcgConverter(object):
         self.cengine = self.so.cengine
         ## reference dataset object
         self.ocg_dataset = so.ops.dataset[0]['ocg_dataset']
-        self.projection = self.ocg_dataset.i.projection
+        self.projection = self.ocg_dataset.i.spatial.projection
         ## destination projection for area calculations.
         ## TODO: consider moving this to the "get_collection" method inside the
         ## subset operation.

@@ -7,6 +7,7 @@ from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
 from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
+from ocgis.util.inspect import Inspect
 
 
 class NcSpatial(object):
@@ -68,14 +69,15 @@ class Test360(unittest.TestCase):
         dataset = {'uri':path,'variable':'foo'}
         output_format = 'shp'
         geom = self.nebraska
-#        geom = None
+        ip = Inspect(dataset)
         
-#        geom[0]['geom'] = self.transform_to_360(geom[0]['geom'])
-#        sc = ShpCabinet()
-#        sc.write(geom,'/tmp/transformed_ne.shp')
-
-        ops = OcgOperations(dataset=dataset,output_format=output_format,geom=geom)
-        ret = OcgInterpreter(ops).execute()
+        for s_abstraction in ['point','polygon']:
+            interface = {'s_abstraction':s_abstraction}
+            ops = OcgOperations(dataset=dataset,
+                                output_format=output_format,
+                                geom=geom,
+                                interface=interface)
+            ret = OcgInterpreter(ops).execute()
         
     @property
     def nebraska(self):

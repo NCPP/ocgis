@@ -22,7 +22,7 @@ class ShpConverter(OcgConverter):
         ## get the geometry in order
 #        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
 #        self.ogr_geom = 6 ## assumes multipolygon
-        self.srs = self.ocg_dataset.i.projection.sr
+        self.srs = self.ocg_dataset.i.spatial.projection.sr
     
     def write(self):
         path = self.get_path()

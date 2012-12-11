@@ -144,7 +144,7 @@ class NcConverter(OcgConverter):
         iglobal = self.ocg_dataset.i
         spatial = self.ocg_dataset.i.spatial
         temporal = self.ocg_dataset.i.temporal
-        meta = self.ocg_dataset.i.meta
+        meta = self.ocg_dataset.i._meta
         
         ## add dataset attributes
         for key,value in meta['dataset'].iteritems():
@@ -188,22 +188,22 @@ class NcConverter(OcgConverter):
         ## make dimensions #####################################################
         
         ## time dimensions
-        dim_time = ds.createDimension(temporal.time.name,len(coll.timevec))
+        dim_time = ds.createDimension(temporal.name,len(coll.timevec))
         ## spatial dimensions
-        dim_lat = ds.createDimension(spatial.latitude.name,len(latitude_values))
-        dim_lon = ds.createDimension(spatial.longitude.name,len(longitude_values))
+        dim_lat = ds.createDimension(spatial.row.name,len(latitude_values))
+        dim_lon = ds.createDimension(spatial.col.name,len(longitude_values))
         if is_poly:
             dim_bnds = ds.createDimension('bnds',2)
         
         ## set data + attributes ###############################################
         
         ## time variable
-        time_nc_value = temporal.time.calculate(coll.timevec)
-        times = ds.createVariable(temporal.time.name,time_nc_value.dtype,(dim_time._name,))
+        time_nc_value = temporal.calculate(coll.timevec)
+        times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_time._name,))
         times[:] = time_nc_value
 #        times.calendar = temporal.time.calendar.value
 #        times.units = temporal.time.units.value
-        for key,value in meta['variables'][temporal.time.name]['attrs'].iteritems():
+        for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
             setattr(times,key,value)
         
         ## spatial variables ###################################################
@@ -212,17 +212,17 @@ class NcConverter(OcgConverter):
         def _make_spatial_variable_(ds,name,values,dimension_tuple,meta):
             ret = ds.createVariable(name,values.dtype,[d._name for d in dimension_tuple])
             ret[:] = values
-            ret.proj4_str = iglobal.projection.sr.ExportToProj4()
+            ret.proj4_str = iglobal.spatial.projection.sr.ExportToProj4()
             ## add variable attributes
             for key,value in meta['variables'][name]['attrs'].iteritems():
                 setattr(ret,key,value)
             return(ret)
         ## set the spatial data
-        latitudes = _make_spatial_variable_(ds,spatial.latitude.name,latitude_values,(dim_lat,),meta)
-        longitudes = _make_spatial_variable_(ds,spatial.longitude.name,longitude_values,(dim_lon,),meta)
+        latitudes = _make_spatial_variable_(ds,spatial.row.name,latitude_values,(dim_lat,),meta)
+        longitudes = _make_spatial_variable_(ds,spatial.col.name,longitude_values,(dim_lon,),meta)
         if is_poly:
-            latitude_bounds = _make_spatial_variable_(ds,spatial.latitude_bounds.name,latitude_bounds_values,(dim_lat,dim_bnds),meta)
-            longitude_bounds = _make_spatial_variable_(ds,spatial.longitude_bounds.name,longitude_bounds_values,(dim_lon,dim_bnds),meta)
+            latitude_bounds = _make_spatial_variable_(ds,spatial.row.name_bounds,latitude_bounds_values,(dim_lat,dim_bnds),meta)
+            longitude_bounds = _make_spatial_variable_(ds,spatial.col.name_bounds,longitude_bounds_values,(dim_lon,dim_bnds),meta)
         
         ## set the variable(s) #################################################
         
@@ -235,10 +235,10 @@ class NcConverter(OcgConverter):
                 dim_level = None
             ## if there is a level, create the dimension and set the variable.
             else:
-                dim_level = ds.createDimension(level.level.name,len(var_value.levelvec))
-                levels = ds.createVariable(level.level.name,var_value.levelvec.dtype,(dim_level._name,))
+                dim_level = ds.createDimension(level.name,len(var_value.levelvec))
+                levels = ds.createVariable(level.name,var_value.levelvec.dtype,(dim_level._name,))
                 levels[:] = var_value.levelvec
-                for key,value in meta['variables'][level.level.name]['attrs'].iteritems():
+                for key,value in meta['variables'][level.name]['attrs'].iteritems():
                     setattr(levels,key,value)
             if dim_level is not None:
                 value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)

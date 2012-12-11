@@ -77,6 +77,7 @@ class GlobalInterface(object):
             
         ## look for bounds variables
         bounds_names = set(['bounds','bnds','bound','bnd'])
+        bounds_names.update(['d_'+b for b in bounds_names])
         for key,value in mp.iteritems():
             if value is None:
                 continue
@@ -115,8 +116,16 @@ class AbstractInterface(object):
         else:
             self._ref_var = None
             self._ref_bnds = None
-            
-        self.name = self._ref_var._name
+        
+        try:
+            self.name = self._ref_var._name
+        ## variables without levels will have no attributes
+        except AttributeError:
+            self.name = None
+        try:
+            self.name_bounds = self._ref_bnds._name
+        except AttributeError:
+            self.name_bounds = None
         
     def format(self):
         if self._ref_var is None:
@@ -191,6 +200,10 @@ class TemporalInterface(AbstractInterface):
             except IndexError:
                 break
         return(diffs.mean())
+    
+    def calculate(self,values):
+        ret = nc.date2num(values,self.units,calendar=self.calendar)
+        return(ret)
             
             
 class LevelInterface(AbstractInterface):

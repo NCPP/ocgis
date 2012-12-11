@@ -200,10 +200,12 @@ class LevelInterface(AbstractInterface):
         self.format()
         
         if self.value is None:
+            self.is_dummy = True
             self.value = np.array([1])
             self.levelidx = np.array([0])
             self.lid = np.array([1])
         else:
+            self.is_dummy = False
             self.levelidx = np.arange(len(self.value))
             self.lid = self.levelidx + 1
         

@@ -199,11 +199,17 @@ class NcConverter(OcgConverter):
         
         ## time variable
         time_nc_value = temporal.calculate(coll.timevec)
+        ## if bounds are available for the time vector transform those as well
+        if coll.timevec_bounds is not None:
+            time_bounds_nc_value = temporal.calculate(coll.timevec_bounds)
+            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
+            times_bounds[:] = time_bounds_nc_value
+            for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
+                setattr(times_bounds,key,value)
         times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_time._name,))
         times[:] = time_nc_value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
             setattr(times,key,value)
-        
         ## spatial variables ###################################################
         
         ## create and fill a spatial variable
@@ -248,6 +254,6 @@ class NcConverter(OcgConverter):
 #            value.fill_value = var_value.raw_value.fill_value
             for key,val in meta['variables'][var_name]['attrs'].iteritems():
                 setattr(value,key,val)
-
+        
         ds.close()
         return(path)

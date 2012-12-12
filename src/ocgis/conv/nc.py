@@ -145,7 +145,7 @@ class NcConverter(OcgConverter):
         spatial = self.ocg_dataset.i.spatial
         temporal = self.ocg_dataset.i.temporal
         meta = self.ocg_dataset.i._meta
-        
+                
         ## add dataset attributes
         for key,value in meta['dataset'].iteritems():
             setattr(ds,key,value)
@@ -193,7 +193,7 @@ class NcConverter(OcgConverter):
         dim_lat = ds.createDimension(spatial.row.name,len(latitude_values))
         dim_lon = ds.createDimension(spatial.col.name,len(longitude_values))
         if is_poly:
-            dim_bnds = ds.createDimension('bnds',2)
+            dim_bnds = ds.createDimension('bounds',2)
         
         ## set data + attributes ###############################################
         

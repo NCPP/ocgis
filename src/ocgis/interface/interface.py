@@ -187,8 +187,18 @@ class TemporalInterface(AbstractInterface):
         if time_range is None:
             ret = self.timeidx
         else:
-            ret = self.timeidx[(self.value>=time_range[0])*
-                               (self.value<=time_range[1])]
+            if self.bounds is None:
+                ret = self.timeidx[(self.value>=time_range[0])*
+                                   (self.value<=time_range[1])]
+            else:
+                select = np.empty(self.value.shape,dtype=bool)
+                for idx in np.arange(self.bounds.shape[0]):
+                    bnds = self.bounds[idx,:]
+                    idx1 = (time_range[0]>=bnds[0])*(time_range[0]<=bnds[1])
+                    idx2 = (time_range[0]<=bnds[0])*(time_range[1]>=bnds[1])
+                    idx3 = (time_range[1]>=bnds[0])*(time_range[1]<=bnds[1])
+                    select[idx] = np.logical_or(np.logical_or(idx1,idx2),idx3)
+                ret = self.timeidx[select]
         return(ret)
     
     def get_approx_res_days(self):

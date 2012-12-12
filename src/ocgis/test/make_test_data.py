@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 import os.path
 import netCDF4 as nc
+from ocgis.util.helpers import iter_array
 
 
 ## using points from |coords| adjust by |res| to provide bounds
@@ -21,8 +22,8 @@ def make_simple():
     DIM = [4,4] #: number of cells [dimx,dimy]
     VAR = 'foo' #: name of the data variable
     ## any relevant variables for the time construction
-    TIME = {'origin':datetime.datetime(2000,3,1,0,0,0),
-            'end':datetime.datetime(2000,4,30,0,0,0),
+    TIME = {'origin':datetime.datetime(2000,3,1,12,0,0),
+            'end':datetime.datetime(2000,4,30,12,0,0),
             'calendar':'proleptic_gregorian',
             'units':'days since 2000-01-01 00:00:00',
             'name':'time'}
@@ -57,6 +58,13 @@ def make_simple():
         timevec.append(start)
         start += delta
     timevec = np.array(timevec)
+    ## make vector time bounds
+    timevec_bnds = np.empty((len(timevec),2),dtype=object)
+    delta = datetime.timedelta(hours=12)
+    for idx,tv in iter_array(timevec,return_value=True):
+        timevec_bnds[idx,0] = tv - delta
+        timevec_bnds[idx,1] = tv + delta
+    
     ## make the level vector
     levelvec = np.arange(1,LEVEL['n']+1)*100
 
@@ -98,6 +106,7 @@ def make_simple():
     bound = rootgrp.createDimension('bound',size=2)
     ## create the variables
     times = rootgrp.createVariable(TIME['name'],'f8',('time',))
+    bounds_times = rootgrp.createVariable('time_bnds','f8',('time','bound'))
     levels = rootgrp.createVariable(LEVEL['name'],'i4',('level',))
     cols = rootgrp.createVariable('longitude','f8',('lon',))
     rows = rootgrp.createVariable('latitude','f8',('lat',))
@@ -108,6 +117,7 @@ def make_simple():
     times.units = TIME['units']
     times.calendar = TIME['calendar']
     times[:] = nc.date2num(timevec,units=times.units,calendar=times.calendar)
+    bounds_times[:] = nc.date2num(timevec_bnds,units=times.units,calendar=times.calendar)
     levels[:] = levelvec
     cols[:] = col_coords
     rows[:] = row_coords

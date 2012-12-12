@@ -33,6 +33,7 @@ class TestBase(unittest.TestCase):
     def get_ret(self,ops=None,kwds={},shp=False):
         if ops is None:
             ops = self.get_ops(kwds)
+        self.ops = ops
         ret = OcgInterpreter(ops).execute()
         
         if shp or self.return_shp:
@@ -92,7 +93,7 @@ class TestSimple(TestBase):
         
     def test_time_level_subset(self):
         ret = self.get_ret(kwds={'time_range':[datetime.datetime(2000,3,1),
-                                               datetime.datetime(2000,3,31)],
+                                               datetime.datetime(2000,3,31,23)],
                                  'level_range':1})
         ref = ret[1].variables[self.var].raw_value
         self.assertEqual(ref.shape,(31,1,4,4))
@@ -257,5 +258,5 @@ class TestSimple360(TestBase):
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    import sys;sys.argv = ['', 'TestSimple.test_time_level_subset']
     unittest.main()

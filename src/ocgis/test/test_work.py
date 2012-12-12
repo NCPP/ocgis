@@ -31,9 +31,9 @@ class TestWork(unittest.TestCase):
 
     def iter_operations(self,start=0):
         output_format = {'output_format':[
-                                          'shp',
-                                          'keyed',
-#                                          'nc',
+#                                          'shp',
+#                                          'keyed',
+                                          'nc',
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -51,41 +51,41 @@ class TestWork(unittest.TestCase):
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
-                                  True,
+#                                  True,
                                   False
                                   ]}
         spatial_operation = {'spatial_operation':[
-                                                  'clip',
+#                                                  'clip',
                                                   'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
                                       True,
-                                      False
+#                                      False
                                       ]}
         interface = {'interface':[
                                   {},
-                                  {'s_abstraction':'point'}
+#                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-                                          True,
+#                                          True,
                                           False
                                           ]}
         
         level_range = {'level_range':[
-                                      [10,20],
+#                                      [10,20],
                                       None
                                       ]}
         time_range = {'time_range':[
-                                    [datetime(2001,1,1),datetime(2001,12,31)],
+#                                    [datetime(2001,1,1),datetime(2001,12,31)],
                                     None
                                     ]}
         allow_empty = {'allow_empty':[
-                                      True,
+#                                      True,
                                       False
                                       ]}
         calc = {'calc':[
-                        [{'func':'mean','name':'my_mean'}],
+#                        [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
         

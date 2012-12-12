@@ -72,7 +72,7 @@ class Test360(unittest.TestCase):
         dataset = {'uri':path,'variable':'foo'}
         output_format = 'shp'
         geom = self.nebraska
-        ip = Inspect(dataset)
+        ip = Inspect(dataset['uri'],dataset['variable'])
         
         for s_abstraction in ['point','polygon']:
             interface = {'s_abstraction':s_abstraction}

@@ -244,6 +244,11 @@ class NcConverter(OcgConverter):
                 levels[:] = var_value.levelvec
                 for key,value in meta['variables'][level.name]['attrs'].iteritems():
                     setattr(levels,key,value)
+                if level.bounds is not None:
+                    levels_bounds = ds.createVariable(level.name_bounds,level.bounds.dtype,(dim_level._name,'bounds'))
+                    levels_bounds[:] = level.bounds
+                    for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
+                        setattr(levels,key,value)
             if dim_level is not None:
                 value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
             else:

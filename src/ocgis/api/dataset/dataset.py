@@ -203,12 +203,19 @@ class OcgDataset(object):
         geom = geom[rowidx][:,colidx].reshape((npd.shape[2],npd.shape[3]))
         geom_mask = npd.mask[0,0,:,:]
         
+        ## subset level bounds as
+        if self.i.level.bounds is None:
+            levelvec_bounds = None
+        else:
+            levelvec_bounds = self.i.level.bounds[levelidx]
+        
         ocg_variable = collection.OcgVariable(
           self.variable,
           self.i.level.lid[levelidx],
           self.i.level.value[levelidx],
           npd,
-          self
+          self,
+          levelvec_bounds=levelvec_bounds
                                    )
         
         if return_collection:

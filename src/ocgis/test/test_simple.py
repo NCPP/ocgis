@@ -105,6 +105,8 @@ class TestSimple(TestBase):
                                  'aggregate':True})
         ref = ret[1].variables[self.var].agg_value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
+        ref = ret[1].variables[self.var]
+        self.assertEqual(ref.levelvec.shape[0],ref.levelvec_bounds.shape[0])
         
     def test_using_ugid(self):
         ## swap names of id variable in geometry dictionary
@@ -184,6 +186,10 @@ class TestSimple(TestBase):
             ip = Inspect(uri,variable=variable)
             ret = ip.__repr__()
             self.assertTrue(len(ret) > 100)
+            
+    def test_nc_conversion(self):
+        ops = OcgOperations(dataset=self.dataset,output_format='nc')
+        ret = self.get_ret(ops)
 
 
 class TestSimpleMask(TestBase):

@@ -60,10 +60,12 @@ class OcgVariable(object):
     ocg_dataset=None :: OcgDataset
     vid=None :: int :: Unique variable identifier."""
     
-    def __init__(self,name,lid,levelvec,raw_value,ocg_dataset=None,vid=None):
+    def __init__(self,name,lid,levelvec,raw_value,ocg_dataset=None,vid=None,
+                 levelvec_bounds=None):
         self.name = name
         self.lid = lid
         self.levelvec = levelvec
+        self.levelvec_bounds = levelvec_bounds
         self.raw_value = raw_value
         self.ocg_dataset = ocg_dataset
         self.agg_value = None

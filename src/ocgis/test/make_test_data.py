@@ -66,7 +66,8 @@ def make_simple():
         timevec_bnds[idx,1] = tv + delta
     
     ## make the level vector
-    levelvec = np.arange(1,LEVEL['n']+1)*100
+    levelvec = np.array([50,150])
+    levelvec_bounds = np.array([[0,100],[100,200]])
 
     ## make centroids
     col_coords = -np.arange(abs(ORIGIN.x)-RES*(DIM[0]-1),abs(ORIGIN.x)+RES,RES)
@@ -108,6 +109,7 @@ def make_simple():
     times = rootgrp.createVariable(TIME['name'],'f8',('time',))
     bounds_times = rootgrp.createVariable('time_bnds','f8',('time','bound'))
     levels = rootgrp.createVariable(LEVEL['name'],'i4',('level',))
+    bounds_levels = rootgrp.createVariable('level_bnds','i4',('level','bound'))
     cols = rootgrp.createVariable('longitude','f8',('lon',))
     rows = rootgrp.createVariable('latitude','f8',('lat',))
     bounds_col = rootgrp.createVariable(SPACE['col_bnds'],'f8',('lon','bound'))
@@ -119,6 +121,7 @@ def make_simple():
     times[:] = nc.date2num(timevec,units=times.units,calendar=times.calendar)
     bounds_times[:] = nc.date2num(timevec_bnds,units=times.units,calendar=times.calendar)
     levels[:] = levelvec
+    bounds_levels[:] = levelvec_bounds
     cols[:] = col_coords
     rows[:] = row_coords
     bounds_col[:,:] = col_bnds

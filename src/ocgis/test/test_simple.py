@@ -258,5 +258,5 @@ class TestSimple360(TestBase):
 
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestSimple.test_time_level_subset']
+#    import sys;sys.argv = ['', 'TestSimple.test_time_level_subset']
     unittest.main()

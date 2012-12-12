@@ -212,6 +212,12 @@ class OcgDataset(object):
                                    )
         
         if return_collection:
+            ## get time bounds if available
+            if self.i.temporal.bounds is None:
+                timevec_bounds = None
+            else:
+                timevec_bounds = self.i.temporal.bounds[timeidx,:]
+            
             coll = collection.OcgCollection(
               self.i.temporal.tid[timeidx],
               gid,
@@ -219,6 +225,7 @@ class OcgDataset(object):
               geom_mask,
               self.i.temporal.value[timeidx],
               self.i.spatial.calc_weights(npd,geom),
+              timevec_bounds=timevec_bounds
                                          )
             return(coll,ocg_variable)
         else:

@@ -87,12 +87,13 @@ class OcgCollection(object):
     cengine=None :: OcgCalculationEngine'''
     
     def __init__(self,tid,gid,geom,geom_mask,timevec,weights,cengine=None,
-                 geom_dict=None):
+                 geom_dict=None,timevec_bounds=None):
         self.tid = tid
         self.gid = gid
         self.geom = geom
         self.geom_mask = geom_mask
         self.timevec = timevec
+        self.timevec_bounds = timevec_bounds
         self.weights = weights
         self.cengine = cengine
         self.geom_dict = geom_dict

@@ -201,8 +201,6 @@ class NcConverter(OcgConverter):
         time_nc_value = temporal.calculate(coll.timevec)
         times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_time._name,))
         times[:] = time_nc_value
-#        times.calendar = temporal.time.calendar.value
-#        times.units = temporal.time.units.value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
             setattr(times,key,value)
         

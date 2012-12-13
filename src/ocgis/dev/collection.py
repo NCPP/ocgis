@@ -151,14 +151,10 @@ class TemporalDimension(OcgDimension):
             bounds = dval
         else:
             bounds = self.bounds
-        kwds = {'year':0,'month':1,'day':1}
         for idx,dgrp in enumerate(dgroups):
             sel = bounds[dgrp]
-            min = sel.min()
-            max = sel.max()
-            diff = abs(min - max)
             new_value[idx] = select[idx]
-            new_bounds[idx,:] = [min,max]
+            new_bounds[idx,:] = [sel.min(),sel.max()]
 
         return(new_value,new_bounds,dgroups)
         

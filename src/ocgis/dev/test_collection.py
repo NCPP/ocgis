@@ -62,8 +62,9 @@ class TestCollection(unittest.TestCase):
         tdim = self.get_TemporalDimension()
         
 #        args = ('month',2)
-        args = [['month','year']]
+        args = [['year']]
         tgdim = tdim.group(*args)
+        self.assertEqual(len(tgdim.dgroups),2)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

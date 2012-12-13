@@ -54,9 +54,13 @@ class TemporalDimension(OcgDimension):
         (['month','year'])
         '''
         if len(args) == 2:
-            return(self._group_part_count_(*args))
+            new_value,new_bounds,dgroups = self._group_part_count_(*args)
         else:
-            return(self._group_part_(*args))
+            new_value,new_bounds,dgroups = self._group_part_(*args)
+        
+        uid = np.arange(1,len(new_value)+1)
+        
+        return(TemporalGroupDimension(uid,new_value,new_bounds,dgroups))
     
     def _group_part_count_(self,part,count):
         raise(NotImplementedError)
@@ -102,21 +106,18 @@ class TemporalDimension(OcgDimension):
         
         if self.bounds is None:
             vrshp = self.value.reshape(-1,1)
-            dval = np.hstack((vrshp,vrshp,vrshp))
+            dval = np.hstack((vrshp,vrshp))
         else:
-            dval = np.empty((self.value.shape[0],3),dtype=object)
-            dval[:,0] = self.bounds[:,0]
-            dval[:,1] = self.value
-            dval[:,2] = self.bounds[:,1]
+            dval = self.bounds
         
         date_parts = ('year','month','day','hour','minute','second','microsecond')
         group_map = dict(zip(range(0,7),date_parts,))
+        group_map_rev = dict(zip(date_parts,range(0,7),))
         
-        def _get_attrs_(dt,groups):
-            return([getattr(dt,group) for group in groups])
+        def _get_attrs_(dt):
             return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
         
-        parts = np.empty((len(self.value),3,7),dtype=int)
+        parts = np.empty((len(self.value),2,7),dtype=int)
         for row,col in itertools.product(range(parts.shape[0]),range(parts.shape[1])):
             parts[row,col,:] = _get_attrs_(dval[row,col])
         
@@ -124,8 +125,6 @@ class TemporalDimension(OcgDimension):
         for idx in range(parts.shape[2]):
             if group_map[idx] in groups:
                 fill = np.unique(parts[:,:,idx])
-            elif idx == 2:
-                fill = np.array([1])
             else:
                 fill = np.array([0])
             unique.append(fill)
@@ -133,29 +132,35 @@ class TemporalDimension(OcgDimension):
         select = deque()
         idx2_seq = range(7)
         for idx in itertools.product(*[range(len(u)) for u in unique]):
-            try:
-                select.append(datetime.datetime(*[unique[idx2][idx[idx2]] for idx2 in idx2_seq]))
-            except ValueError:
-                continue
+            select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
+        select = np.array(select)
+        
+        dgroups = deque()
+        idx_cmp = [group_map_rev[group] for group in groups]
+        for idx in range(select.shape[0]):
+            match = select[idx,idx_cmp] == parts[:,:,idx_cmp]
+            dgrp = np.any(np.all(match,axis=2),axis=1)
+            if dgrp.any():
+                dgroups.append(dgrp)
             
-        import ipdb;ipdb.set_trace()
-#            arr = np.empty((len(value),3),dtype=int)
-#            for idx in range(len(value)):
-#                arr[idx,1] = getattr(value[idx],group)
-#                if bounds is None:
-#                    arr[idx,::2] = arr[idx,1]
-#                else:
-#                    arr[idx,0] = getattr(bounds[idx,0],group)
-#                    arr[idx,2] = getattr(bounds[idx,1],group)
-#            arrs[group] = arr
-#        import ipdb;ipdb.set_trace()
+        new_value = np.empty(len(dgroups),dtype=object)
+        new_bounds = np.empty((len(dgroups),2),dtype=object)
+        for idx,dgrp in enumerate(dgroups):
+            sel = dval[dgrp]
+            min = sel.min()
+            max = sel.max()
+            diff = abs(min - max)
+            new_value[idx] = min + (diff/2)
+            new_bounds[idx,:] = [min,max]
+            
+        return(new_value,new_bounds,dgroups)
         
 class TemporalGroupDimension(OcgDimension):
     
-    def __init__(self,uid,value,bounds,groups):
-        super(TemporalDimension,self).__init__('tgid',uid,'time',value,bounds)
+    def __init__(self,uid,value,bounds,dgroups):
+        super(TemporalGroupDimension,self).__init__('tgid',uid,'time',value,bounds)
         
-        self.groups = groups
+        self.dgroups = dgroups
 
 class OcgIdentifier(OrderedDict):
     

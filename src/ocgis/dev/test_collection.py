@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import itertools
-from ocgis.dev.collection import OcgDimension
+from ocgis.dev.collection import *
 
 
 class TestCollection(unittest.TestCase):
@@ -23,7 +23,15 @@ class TestCollection(unittest.TestCase):
                     self.assertTrue('bnds' in row)
                 else:
                     self.assertFalse('bnds' in row)
-
+                    
+    def test_OcgIdentifier(self):
+        oid = OcgIdentifier()
+        oid.add(55)
+        self.assertEqual(oid,{55:1})
+        oid.add(55)
+        self.assertEqual(oid,{55:1})
+        oid.add(56)
+        self.assertEqual(oid,{55:1,56:2})
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

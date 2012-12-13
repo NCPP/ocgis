@@ -194,9 +194,9 @@ class TemporalInterface(AbstractInterface):
                 select = np.empty(self.value.shape,dtype=bool)
                 for idx in np.arange(self.bounds.shape[0]):
                     bnds = self.bounds[idx,:]
-                    idx1 = (time_range[0]>=bnds[0])*(time_range[0]<=bnds[1])
+                    idx1 = (time_range[0]>bnds[0])*(time_range[0]<bnds[1])
                     idx2 = (time_range[0]<=bnds[0])*(time_range[1]>=bnds[1])
-                    idx3 = (time_range[1]>=bnds[0])*(time_range[1]<=bnds[1])
+                    idx3 = (time_range[1]>bnds[0])*(time_range[1]<bnds[1])
                     select[idx] = np.logical_or(np.logical_or(idx1,idx2),idx3)
                 ret = self.timeidx[select]
         return(ret)

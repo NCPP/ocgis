@@ -35,7 +35,7 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(oid,{55:1,56:2})
         
         
-    def test_TemporalDimension(self):
+    def get_TemporalDimension(self):
         start = datetime.datetime(2000,1,1,12)
         end = datetime.datetime(2001,12,31,12)
         delta = datetime.timedelta(1)
@@ -55,7 +55,15 @@ class TestCollection(unittest.TestCase):
         uid = np.arange(1,len(times)+1)
         
         tdim = TemporalDimension(uid,times,bounds=time_bounds)
-        import ipdb;ipdb.set_trace()
+        
+        return(tdim)
+    
+    def test_TemporalGroupDimension(self):
+        tdim = self.get_TemporalDimension()
+        
+#        args = ('month',2)
+        args = [['month','year']]
+        tgdim = tdim.group(*args)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

@@ -64,7 +64,12 @@ class TestCollection(unittest.TestCase):
 #        args = ('month',2)
         args = [['year']]
         tgdim = tdim.group(*args)
+        for dgrp in tgdim.dgroups:
+            print dgrp.sum()
+        for row in tgdim.iter_rows():
+            print row
         self.assertEqual(len(tgdim.dgroups),2)
+        self.assertEqual(np.sum([dgrp.sum() for dgrp in tgdim.dgroups]),len(tdim.value))
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

@@ -134,7 +134,7 @@ class TemporalDimension(OcgDimension):
         for idx in itertools.product(*[range(len(u)) for u in unique]):
             select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
         select = np.array(select)
-        
+
         dgroups = deque()
         idx_cmp = [group_map_rev[group] for group in groups]
         for idx in range(select.shape[0]):

@@ -63,13 +63,17 @@ class TestCollection(unittest.TestCase):
     
     def test_TemporalGroupDimension(self):
         
-        add_bounds_opts = [True,False]
+#        perms = ['year','month','day','hour']
+        perms = ['hour']
+#        add_bounds_opts = [True,False]
+        add_bounds_opts = [True]
         for ii,add_bounds in itertools.product(range(1,4),add_bounds_opts):
-            for perm in itertools.permutations(['year','month','day'],ii):
+            for perm in itertools.permutations(perms,ii):
+                print perm
                 tdim = self.get_TemporalDimension(add_bounds=add_bounds)
                 tgdim = tdim.group(perm)
                 for row in tgdim.iter_rows():
-                    if True and np.random.rand() <= 0.25 and add_bounds is False:
+                    if False and np.random.rand() <= 0.25 and add_bounds is False:
                         print perm
                         print row
                         import ipdb;ipdb.set_trace()

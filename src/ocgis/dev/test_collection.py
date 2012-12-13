@@ -35,7 +35,7 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(oid,{55:1,56:2})
         
         
-    def get_TemporalDimension(self):
+    def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)
         end = datetime.datetime(2001,12,31,12)
         delta = datetime.timedelta(1)
@@ -44,13 +44,16 @@ class TestCollection(unittest.TestCase):
         while check <= end:
             times.append(check)
             check += delta
-            
         times = np.array(times)
-        time_bounds = []
-        delta = datetime.timedelta(hours=12)
-        for t in times.flat:
-            time_bounds.append([t-delta,t+delta])
-        time_bounds = np.array(time_bounds)
+        
+        if add_bounds:
+            time_bounds = []
+            delta = datetime.timedelta(hours=12)
+            for t in times.flat:
+                time_bounds.append([t-delta,t+delta])
+            time_bounds = np.array(time_bounds)
+        else:
+            time_bounds = None
         
         uid = np.arange(1,len(times)+1)
         
@@ -59,17 +62,20 @@ class TestCollection(unittest.TestCase):
         return(tdim)
     
     def test_TemporalGroupDimension(self):
-        tdim = self.get_TemporalDimension()
         
-#        args = ('month',2)
-        args = [['year']]
-        tgdim = tdim.group(*args)
-        for dgrp in tgdim.dgroups:
-            print dgrp.sum()
-        for row in tgdim.iter_rows():
-            print row
-        self.assertEqual(len(tgdim.dgroups),2)
-        self.assertEqual(np.sum([dgrp.sum() for dgrp in tgdim.dgroups]),len(tdim.value))
+        add_bounds_opts = [True,False]
+        for ii,add_bounds in itertools.product(range(1,4),add_bounds_opts):
+            for perm in itertools.permutations(['year','month','day'],ii):
+                tdim = self.get_TemporalDimension(add_bounds=add_bounds)
+                tgdim = tdim.group(perm)
+                for row in tgdim.iter_rows():
+                    if True and np.random.rand() <= 0.25 and add_bounds is False:
+                        print perm
+                        print row
+                        import ipdb;ipdb.set_trace()
+                    else:
+                        continue
+                self.assertEqual(np.sum([dgrp.sum() for dgrp in tgdim.dgroups]),len(tdim.value))
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

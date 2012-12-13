@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import itertools
 from ocgis.dev.collection import *
+import datetime
 
 
 class TestCollection(unittest.TestCase):
@@ -32,6 +33,29 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(oid,{55:1})
         oid.add(56)
         self.assertEqual(oid,{55:1,56:2})
+        
+        
+    def test_TemporalDimension(self):
+        start = datetime.datetime(2000,1,1,12)
+        end = datetime.datetime(2001,12,31,12)
+        delta = datetime.timedelta(1)
+        times = []
+        check = start
+        while check <= end:
+            times.append(check)
+            check += delta
+            
+        times = np.array(times)
+        time_bounds = []
+        delta = datetime.timedelta(hours=12)
+        for t in times.flat:
+            time_bounds.append([t-delta,t+delta])
+        time_bounds = np.array(time_bounds)
+        
+        uid = np.arange(1,len(times)+1)
+        
+        tdim = TemporalDimension(uid,times,bounds=time_bounds)
+        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

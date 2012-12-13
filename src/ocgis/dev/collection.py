@@ -19,7 +19,7 @@ class OcgDimension(object):
                         'bnds':{0:template.format(self._bounds_prefix,0,self.value_name),
                                 1:template.format(self._bounds_prefix,1,self.value_name)}}
         
-    def iter_rows(self,add_bounds=False):
+    def iter_rows(self,add_bounds=True):
         uid = self.uid
         value = self.value
         bounds = self.bounds
@@ -38,6 +38,12 @@ class OcgDimension(object):
                 ret.update({'bnds':{0:bounds[idx,0],
                                     1:bounds[idx,1]}})
             yield(ret)
+            
+            
+class TemporalDimension(OcgDimension):
+    
+    def __init__(self,uid,value,bounds=None):
+        super(TemporalDimension,self).__init__('tid',uid,'time',value,bounds=bounds)
 
 
 class OcgIdentifier(OrderedDict):

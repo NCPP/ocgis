@@ -191,7 +191,8 @@ class TestCollection(unittest.TestCase):
                        False
                        ]
         _add_level = [True,False]
-        _group = [None,['month']]
+#        _group = [None,['month']]
+        _group = [None]
         args = (_add_bounds,_add_level,_group)
         
         for add_bounds,add_level,group in itertools.product(*args):

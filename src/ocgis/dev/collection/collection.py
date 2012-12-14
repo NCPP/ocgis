@@ -11,21 +11,21 @@ class OcgVariable(object):
         assert(np.all(value.shape[2:] == spatial.value.shape))
         
         self.name = name
-        self.raw_value = value
+        self.value = value
         self.temporal = temporal
         self.spatial = spatial
         self.level = level
         self.uri = uri
         
         ## hold aggregated values separate from raw
-        self.agg_value = None
+        self.raw_value = value
         ## hold calculated values
         self.calc_value = OrderedDict()
         
     def group(self,*args,**kwds):
         self.temporal = self.temporal.group(*args,**kwds)
-        
-        
+
+   
 class OcgCollection(object):
     
     def __init__(self,ugeom=None):
@@ -47,7 +47,10 @@ class OcgCollection(object):
         self.did = OcgIdentifier() ## dataset (uri)
         ## variable storage
         self.variables = {}
-        
+        ## calculation storage
+        self.calculations = {}
+
+
     def add_variable(self,var):
         ## add the variable to storage
         self.variables.update({var.name:var})

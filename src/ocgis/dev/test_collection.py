@@ -5,8 +5,9 @@ from ocgis.dev.collection import *
 import datetime
 from shapely.geometry.point import Point
 from ocgis.dev.collection.dimension.dimension import OcgDimension
-from ocgis.dev.collection.collection import OcgIdentifier
+from ocgis.dev.collection.collection import Identifier
 from ocgis.dev.collection.iterators import KeyedIterator, MeltedIterator
+import time
 
 
 class TestCollection(unittest.TestCase):
@@ -27,7 +28,7 @@ class TestCollection(unittest.TestCase):
                     self.assertFalse('bnds' in row)
                     
     def test_OcgIdentifier(self):
-        oid = OcgIdentifier()
+        oid = Identifier()
         oid.add(55)
         self.assertEqual(oid,{55:1})
         oid.add(55)
@@ -192,7 +193,7 @@ class TestCollection(unittest.TestCase):
                        ]
         _add_level = [True,False]
 #        _group = [None,['month']]
-        _group = [None]
+        _group = [['month']]
         args = (_add_bounds,_add_level,_group)
         
         for add_bounds,add_level,group in itertools.product(*args):
@@ -207,10 +208,17 @@ class TestCollection(unittest.TestCase):
             self.assertEqual(lens_original,lens_new)
             
             if group is not None:
-                for var in [var1,var2]:
-                    var.group(group)
-                self.assertTrue(np.all(var1.temporal.bounds == var2.temporal.bounds))
-                import ipdb;ipdb.set_trace()
+                for name in ['my_mean','my_median']:
+                    for var in [var1,var2]:
+                        tgdim = var.group(group)
+                        new_values = np.random.rand(tgdim.value.shape[0],
+                                                    var.value.shape[1],
+                                                    var.spatial.value.shape[0],
+                                                    var.spatial.value.shape[1])
+                        mask = np.empty(new_values.shape,dtype=bool)
+                        mask[:] = var.value.mask[0,0,:]
+                        new_values = np.ma.array(new_values,mask=mask)
+                        coll.add_calculation(var,name,new_values,tgdim)
             
             if len(coll.lid) == 0:
                 m = 1
@@ -223,8 +231,12 @@ class TestCollection(unittest.TestCase):
                     self.assertTrue(row['level'] is not None)
                 else:
                     self.assertTrue(row['level'] is None)
-                self.assertEqual(len(row),11)
-                self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','gid','geom','time','tid'])
+                self.assertEqual(len(row),12)
+                if group is None:
+                    self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid'])
+                else:
+                    self.assertTrue(all([v in row.keys() for v in ['cid','calc_name','calc_value']]))
+                    self.assertFalse('value' in row.keys())
             self.assertEqual(iter_len,ii)
 #                import ipdb;ipdb.set_trace()
                 

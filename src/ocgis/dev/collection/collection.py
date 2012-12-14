@@ -16,6 +16,7 @@ class OcgVariable(object):
         self.spatial = spatial
         self.level = level
         
+        ## hold aggregated values separate from raw
         self.agg_value = None
 
 

@@ -3,6 +3,7 @@ import numpy as np
 import itertools
 from ocgis.dev.collection import *
 import datetime
+from ocgis.dev.collection import OcgDimension
 
 
 class TestCollection(unittest.TestCase):
@@ -127,7 +128,7 @@ class TestCollection(unittest.TestCase):
                 except TypeError:
                     tgdim = tdim.group(*perm)
                 for row in tgdim.iter_rows():
-                    if np.random.rand() <= 0.01:
+                    if np.random.rand() <= -0.01:
                         print (perm,add_bounds)
                         print row
                         import ipdb;ipdb.set_trace()

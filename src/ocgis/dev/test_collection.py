@@ -190,9 +190,10 @@ class TestCollection(unittest.TestCase):
                        False
                        ]
         _add_level = [True,False]
-        args = (_add_bounds,_add_level)
+        _group = [['month']]
+        args = (_add_bounds,_add_level,_group)
         
-        for add_bounds,add_level in itertools.product(*args):
+        for add_bounds,add_level,group in itertools.product(*args):
 #            print add_bounds,add_level
             coll = OcgCollection()
             var = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
@@ -202,6 +203,8 @@ class TestCollection(unittest.TestCase):
             coll.add_variable(var)
             lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
             self.assertEqual(lens_original,lens_new)
+            
+            coll.group(group)
 #            import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":

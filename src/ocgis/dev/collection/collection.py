@@ -27,11 +27,12 @@ class OcgCollection(object):
     
     def __init__(self,ugeom=None):
         self.ugeom = ugeom
+        self._tid_name = 'tid'
+        self._tbid_name = 'tbid'
         
         ## variable level identifiers
         self.tid = OcgIdentifier()
         self.tbid = OcgBoundsIdentifier()
-        self.tgid = OcgIdentifier()
         self.lid = OcgIdentifier()
         self.lbid = OcgBoundsIdentifier() ## level bounds identifier
         self.gid = OcgIdentifier()
@@ -53,18 +54,7 @@ class OcgCollection(object):
         ## update variable identifiers #########################################
         
         ## time & level
-        def _add_(var,uid_attr,bid_attr,dim):
-            tid = getattr(self,uid_attr)
-            tbid = getattr(self,bid_attr)
-            value = getattr(var,dim).value
-            value_bounds = getattr(var,dim).bounds
-            
-            if value_bounds is None:
-                tbid.add(None)
-            for idx in range(len(value)):
-                tid.add(value[idx])
-                if value_bounds is not None:
-                    tbid.add(value_bounds[idx])
+        
                     
         _uid_attr = ['tid','lid']
         _bid_attr = ['tbid','lbid']
@@ -76,13 +66,37 @@ class OcgCollection(object):
         for args in zip(*_args):
             args = list(args)
             args.insert(0,var)
-            _add_(*args)
+            self._add_identifier_(*args)
             
         ## geometry
         masked = var.spatial.get_masked()
         gid = self.gid
         for geom in masked.compressed():
             gid.add(geom.wkb)
+            
+    def group(self,*args,**kwds):
+        self._tid_name = 'tgid'
+        self._tbid_name = 'tgbid'
+        self.tid = OcgTimeGroupIdentifier()
+        self.tbid = OcgBoundsIdentifier()
+        
+        for key,value in self.variables.iteritems():
+            value.temporal = value.temporal.group(*args,**kwds)
+            self._add_identifier_(value,'tid','tbid','temporal')
+            import ipdb;ipdb.set_trace()
+    
+    def _add_identifier_(self,var,uid_attr,bid_attr,dim):
+            tid = getattr(self,uid_attr)
+            tbid = getattr(self,bid_attr)
+            value = getattr(var,dim).value
+            value_bounds = getattr(var,dim).bounds
+            
+            if value_bounds is None:
+                tbid.add(None)
+            for idx in range(len(value)):
+                tid.add(value[idx])
+                if value_bounds is not None:
+                    tbid.add(value_bounds[idx])
 
 
 class OcgIdentifier(OrderedDict):
@@ -124,3 +138,8 @@ class OcgBoundsIdentifier(OcgIdentifier):
                 ref[value[1]]
             except KeyError:
                 ref[value[1]] = self._get_current_identifier_()
+
+class OcgTimeGroupIdentifier(OcgIdentifier):
+    
+    def add(self,value):
+        import ipdb;ipdb.set_trace()

@@ -22,6 +22,9 @@ class OcgVariable(object):
         ## hold calculated values
         self.calc_value = OrderedDict()
         
+    def group(self,*args,**kwds):
+        self.temporal = self.temporal.group(*args,**kwds)
+        
         
 class OcgCollection(object):
     
@@ -74,16 +77,16 @@ class OcgCollection(object):
         for geom in masked.compressed():
             gid.add(geom.wkb)
             
-    def group(self,*args,**kwds):
-        self._tid_name = 'tgid'
-        self._tbid_name = 'tgbid'
-        self.tid = OcgTimeGroupIdentifier()
-        self.tbid = OcgBoundsIdentifier()
-        
-        for key,value in self.variables.iteritems():
-            value.temporal = value.temporal.group(*args,**kwds)
-            self._add_identifier_(value,'tid','tbid','temporal')
-            import ipdb;ipdb.set_trace()
+#    def group(self,*args,**kwds):
+#        self._tid_name = 'tgid'
+#        self._tbid_name = 'tgbid'
+#        self.tid = OcgTimeGroupIdentifier()
+#        self.tbid = OcgBoundsIdentifier()
+#        
+#        for key,value in self.variables.iteritems():
+#            value.temporal = value.temporal.group(*args,**kwds)
+#            self._add_identifier_(value,'tid','tbid','temporal')
+#            import ipdb;ipdb.set_trace()
     
     def _add_identifier_(self,var,uid_attr,bid_attr,dim):
             tid = getattr(self,uid_attr)

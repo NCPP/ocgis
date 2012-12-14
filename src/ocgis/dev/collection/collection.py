@@ -57,8 +57,6 @@ class OcgCollection(object):
         ## update variable identifiers #########################################
         
         ## time & level
-        
-                    
         _uid_attr = ['tid','lid']
         _bid_attr = ['tbid','lbid']
         _dim = ['temporal','level']
@@ -76,17 +74,6 @@ class OcgCollection(object):
         gid = self.gid
         for geom in masked.compressed():
             gid.add(geom.wkb)
-            
-#    def group(self,*args,**kwds):
-#        self._tid_name = 'tgid'
-#        self._tbid_name = 'tgbid'
-#        self.tid = OcgTimeGroupIdentifier()
-#        self.tbid = OcgBoundsIdentifier()
-#        
-#        for key,value in self.variables.iteritems():
-#            value.temporal = value.temporal.group(*args,**kwds)
-#            self._add_identifier_(value,'tid','tbid','temporal')
-#            import ipdb;ipdb.set_trace()
     
     def _add_identifier_(self,var,uid_attr,bid_attr,dim):
             tid = getattr(self,uid_attr)

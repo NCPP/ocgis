@@ -1,5 +1,6 @@
 from dimension import OcgDimension
 import numpy as np
+from ocgis.util.helpers import iter_array
 
 
 class SpatialDimension(OcgDimension):
@@ -11,3 +12,8 @@ class SpatialDimension(OcgDimension):
         
     def get_masked(self):
         return(np.ma.array(self.value,mask=self.value_mask))
+    
+    @staticmethod
+    def _iter_values_idx_(value):
+        for idx in iter_array(value):
+            yield(idx)

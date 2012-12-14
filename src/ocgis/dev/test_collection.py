@@ -154,8 +154,11 @@ class TestCollection(unittest.TestCase):
         
         masked = sdim.get_masked()
         self.assertTrue(np.all(masked.mask == mask))
-        import ipdb;ipdb.set_trace()
+        
+        for row in sdim.iter_rows():
+            continue
+#        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestCollection.test_SpatialDimension']
+#    import sys;sys.argv = ['', 'TestCollection.test_SpatialDimension']
     unittest.main()

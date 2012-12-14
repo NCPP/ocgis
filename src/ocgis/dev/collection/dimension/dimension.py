@@ -1,4 +1,5 @@
 from warnings import warn
+from ocgis.util.helpers import iter_array
 
 
 class OcgDimension(object):
@@ -29,10 +30,15 @@ class OcgDimension(object):
             warn('bounds requested in iteration, but no bounds variable exists.')
             add_bounds = False
         
-        for idx in range(value.shape[0]):
+        for idx in self._iter_values_idx_(value):
             ret = {uid_name:uid[idx],
                    value_name:value[idx]}
             if add_bounds:
                 ret.update({'bnds':{0:bounds[idx,0],
                                     1:bounds[idx,1]}})
             yield(ret)
+    
+    @staticmethod
+    def _iter_values_idx_(value):
+        for idx in range(value.shape[0]):
+            yield(idx)

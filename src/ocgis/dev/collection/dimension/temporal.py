@@ -9,7 +9,7 @@ class TemporalDimension(OcgDimension):
     
     def __init__(self,uid,value,bounds=None):
         super(TemporalDimension,self).__init__('tid',uid,'time',value,bounds=bounds)
-        
+    
     def group(self,*args):
         '''
         ('month',2)

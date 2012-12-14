@@ -5,8 +5,8 @@ from ocgis.util.helpers import iter_array
 
 class SpatialDimension(OcgDimension):
     
-    def __init__(self,uid,value,value_mask):
-        super(SpatialDimension,self).__init__('gid',uid,None,value)
+    def __init__(self,value,value_mask):
+        super(SpatialDimension,self).__init__(value)
         
         self.value_mask = value_mask
         

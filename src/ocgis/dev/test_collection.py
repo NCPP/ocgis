@@ -14,14 +14,11 @@ class TestCollection(unittest.TestCase):
                   np.array([[0,100],[100,200]])]
         add_bounds = [True,False]
         value = np.array([50,150])
-        uid = np.array([1,2])
         
         for bound,add_bounds in itertools.product(bounds,add_bounds):
-            dim = OcgDimension('lid',uid,'level',value,bounds=bound)
-            self.assertEqual(dim.headers,{'bnds':{0:'bnds0_level',
-                                                  1:'bnds1_level'},
-                                          'uid':'lid','value':'level'})
+            dim = OcgDimension(value,bounds=bound)
             for row in dim.iter_rows(add_bounds=add_bounds):
+                self.assertTrue(OcgDimension._value_name in row)
                 if add_bounds and bound is not None:
                     self.assertTrue('bnds' in row)
                 else:
@@ -56,9 +53,7 @@ class TestCollection(unittest.TestCase):
         else:
             time_bounds = None
         
-        uid = np.arange(1,len(times)+1)
-        
-        tdim = TemporalDimension(uid,times,bounds=time_bounds)
+        tdim = TemporalDimension(times,bounds=time_bounds)
         
         return(tdim)
     
@@ -82,9 +77,7 @@ class TestCollection(unittest.TestCase):
         else:
             time_bounds = None
         
-        uid = np.arange(1,len(times)+1)
-        
-        tdim = TemporalDimension(uid,times,bounds=time_bounds)
+        tdim = TemporalDimension(times,bounds=time_bounds)
 
         return(tdim)
     
@@ -103,10 +96,8 @@ class TestCollection(unittest.TestCase):
         
         if not add_bounds:
             time_bounds = None
-        
-        uid = np.arange(1,len(times)+1)
-        
-        tdim = TemporalDimension(uid,times,bounds=time_bounds)
+            
+        tdim = TemporalDimension(times,bounds=time_bounds)
         
         return(tdim)
     
@@ -148,9 +139,9 @@ class TestCollection(unittest.TestCase):
         geoms = np.array(geoms,dtype=object).reshape(5,5)
         np.random.seed(1)
         self._mask = np.random.random_integers(0,1,geoms.shape)
-        gid = np.arange(1,26).reshape(5,5)
-        gid = np.ma.array(gid,mask=self._mask)
-        sdim = SpatialDimension(gid,geoms,self._mask)
+#        gid = np.arange(1,26).reshape(5,5)
+#        gid = np.ma.array(gid,mask=self._mask)
+        sdim = SpatialDimension(geoms,self._mask)
         return(sdim)
     
     def test_SpatialDimension(self):
@@ -163,10 +154,9 @@ class TestCollection(unittest.TestCase):
 #        import ipdb;ipdb.set_trace()
 
     def get_LevelDimension(self):
-        uid = np.array([1,2])
         values = np.array([50,150])
         bounds = np.array([[0,100],[100,200]])
-        ldim = LevelDimension(uid,values,bounds)
+        ldim = LevelDimension(values,bounds)
         return(ldim)
     
     def test_OcgVariable(self):
@@ -181,12 +171,12 @@ class TestCollection(unittest.TestCase):
                                spatial.value.shape[1])
         mask = np.empty(value.shape,dtype=bool)
         for idx in range(mask.shape[0]):
-            mask[idx,:,:] = spatial.uid.mask
+            mask[idx,:,:] = spatial.value_mask
         value = np.ma.array(value,mask=mask)
         
         var = OcgVariable('foo',value,temporal,spatial,level)
         
-        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
     import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']

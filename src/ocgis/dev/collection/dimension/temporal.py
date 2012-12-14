@@ -7,8 +7,8 @@ import itertools
 
 class TemporalDimension(OcgDimension):
     
-    def __init__(self,uid,value,bounds=None):
-        super(TemporalDimension,self).__init__('tid',uid,'time',value,bounds=bounds)
+    def __init__(self,value,bounds=None):
+        super(TemporalDimension,self).__init__(value,bounds=bounds)
     
     def group(self,*args):
         '''
@@ -20,9 +20,7 @@ class TemporalDimension(OcgDimension):
         else:
             new_value,new_bounds,dgroups = self._group_part_(*args)
         
-        uid = np.arange(1,len(new_value)+1)
-        
-        return(TemporalGroupDimension(uid,new_value,new_bounds,dgroups))
+        return(TemporalGroupDimension(new_value,new_bounds,dgroups))
     
     def _group_part_count_(self,part,count):
         raise(NotImplementedError)
@@ -120,7 +118,7 @@ class TemporalDimension(OcgDimension):
 class TemporalGroupDimension(OcgDimension):
     _date_parts = ('year','month','day','hour','minute','second','microsecond')
     
-    def __init__(self,uid,value,bounds,dgroups):
-        super(TemporalGroupDimension,self).__init__('tgid',uid,None,value,bounds)
+    def __init__(self,value,bounds,dgroups):
+        super(TemporalGroupDimension,self).__init__(value,bounds)
         
         self.dgroups = dgroups

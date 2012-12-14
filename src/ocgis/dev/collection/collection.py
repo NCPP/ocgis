@@ -18,6 +18,16 @@ class OcgVariable(object):
         
         ## hold aggregated values separate from raw
         self.agg_value = None
+        ## hold calculated values
+        self.calc_value = OrderedDict()
+        
+        
+class OcgCollection(object):
+    
+    def __init__(self):
+        self.cid = CalcIdentifier()
+        self.vid = VariableIdentifier()
+        self.vlid = VariableLevelIdentifier()
 
 
 class OcgIdentifier(OrderedDict):

@@ -6,6 +6,7 @@ import datetime
 from shapely.geometry.point import Point
 from ocgis.dev.collection.dimension.dimension import OcgDimension
 from ocgis.dev.collection.collection import OcgIdentifier
+from ocgis.dev.collection.iterators import KeyedIterator, MeltedIterator
 
 
 class TestCollection(unittest.TestCase):
@@ -190,18 +191,42 @@ class TestCollection(unittest.TestCase):
                        False
                        ]
         _add_level = [True,False]
-        args = (_add_bounds,_add_level)
+        _group = [None,['month']]
+        args = (_add_bounds,_add_level,_group)
         
-        for add_bounds,add_level in itertools.product(*args):
+        for add_bounds,add_level,group in itertools.product(*args):
 #            print add_bounds,add_level
             coll = OcgCollection()
-            var = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
-            coll.add_variable(var)
+            var1 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
+            coll.add_variable(var1)
             lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
-            var = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
-            coll.add_variable(var)
+            var2 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
+            coll.add_variable(var2)
             lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
             self.assertEqual(lens_original,lens_new)
+            
+            if group is not None:
+                for var in [var1,var2]:
+                    var.group(group)
+                self.assertTrue(np.all(var1.temporal.bounds == var2.temporal.bounds))
+                import ipdb;ipdb.set_trace()
+            
+            if len(coll.lid) == 0:
+                m = 1
+            else:
+                m = len(coll.lid)
+            iter_len = len(coll.tid)*len(coll.gid)*m*2
+            it = MeltedIterator(coll).iter_rows()
+            for ii,row in enumerate(it,start=1):
+                if add_level:
+                    self.assertTrue(row['level'] is not None)
+                else:
+                    self.assertTrue(row['level'] is None)
+                self.assertEqual(len(row),11)
+                self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','gid','geom','time','tid'])
+            self.assertEqual(iter_len,ii)
+#                import ipdb;ipdb.set_trace()
+                
 #            import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":

@@ -29,6 +29,8 @@ class OcgVariable(object):
 class OcgCollection(object):
     
     def __init__(self,ugeom=None):
+        if ugeom is None:
+            ugeom = {'ugid':1,'geom':None}
         self.ugeom = ugeom
         self._tid_name = 'tid'
         self._tbid_name = 'tbid'

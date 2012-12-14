@@ -6,6 +6,7 @@ import itertools
 
 
 class TemporalDimension(OcgDimension):
+    _value_name = 'time'
     
     def __init__(self,value,bounds=None):
         super(TemporalDimension,self).__init__(value,bounds=bounds)

@@ -5,6 +5,7 @@ from shapely.geometry.point import Point
 
 
 class SpatialDimension(OcgDimension):
+    _value_name = 'geom'
     
     def __init__(self,value,value_mask,weights=None):
         super(SpatialDimension,self).__init__(value)
@@ -28,7 +29,6 @@ class SpatialDimension(OcgDimension):
     def get_masked(self):
         return(np.ma.array(self.value,mask=self.value_mask))
     
-    @staticmethod
-    def _iter_values_idx_(value):
-        for idx in iter_array(value):
+    def _iter_values_idx_(self,value):
+        for idx in iter_array(self.get_masked()):
             yield(idx)

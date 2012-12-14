@@ -1,10 +1,22 @@
 from collections import OrderedDict
+import numpy as np
 
 
 class OcgVariable(object):
     
-    def __init__(self,tdim,sdim,ldim=None):
-        pass
+    def __init__(self,name,value,temporal,spatial,level=None):
+        assert(value.shape[0] == len(temporal.value))
+        if level is None:
+            assert(value.shape[1] == 1)
+        assert(np.all(value.shape[2:] == spatial.value.shape))
+        
+        self.name = name
+        self.raw_value = value
+        self.temporal = temporal
+        self.spatial = spatial
+        self.level = level
+        
+        self.agg_value = None
 
 
 class OcgIdentifier(OrderedDict):

@@ -140,25 +140,54 @@ class TestCollection(unittest.TestCase):
 #                except:
 #                    import ipdb;ipdb.set_trace()
 
-    def test_SpatialDimension(self):
+    def get_SpatialDimension(self):
         y = range(40,45)
         x = range(-90,-85)
         x,y = np.meshgrid(x,y)
         geoms = [Point(ix,iy) for ix,iy in zip(x.flat,y.flat)]
         geoms = np.array(geoms,dtype=object).reshape(5,5)
         np.random.seed(1)
-        mask = np.random.random_integers(0,1,geoms.shape)
+        self._mask = np.random.random_integers(0,1,geoms.shape)
         gid = np.arange(1,26).reshape(5,5)
-        gid = np.ma.array(gid,mask=mask)
-        sdim = SpatialDimension(gid,geoms,mask)
-        
+        gid = np.ma.array(gid,mask=self._mask)
+        sdim = SpatialDimension(gid,geoms,self._mask)
+        return(sdim)
+    
+    def test_SpatialDimension(self):
+        sdim = self.get_SpatialDimension()
         masked = sdim.get_masked()
-        self.assertTrue(np.all(masked.mask == mask))
+        self.assertTrue(np.all(masked.mask == self._mask))
         
         for row in sdim.iter_rows():
             continue
 #        import ipdb;ipdb.set_trace()
 
+    def get_LevelDimension(self):
+        uid = np.array([1,2])
+        values = np.array([50,150])
+        bounds = np.array([[0,100],[100,200]])
+        ldim = LevelDimension(uid,values,bounds)
+        return(ldim)
+    
+    def test_OcgVariable(self):
+        add_bounds = True
+        temporal = self.get_TemporalDimension(add_bounds)
+        spatial = self.get_SpatialDimension()
+        level = self.get_LevelDimension()
+        
+        value = np.random.rand(len(temporal.value),
+                               len(level.value),
+                               spatial.value.shape[0],
+                               spatial.value.shape[1])
+        mask = np.empty(value.shape,dtype=bool)
+        for idx in range(mask.shape[0]):
+            mask[idx,:,:] = spatial.uid.mask
+        value = np.ma.array(value,mask=mask)
+        
+        var = OcgVariable('foo',value,temporal,spatial,level)
+        
+        import ipdb;ipdb.set_trace()
+
 if __name__ == "__main__":
-#    import sys;sys.argv = ['', 'TestCollection.test_SpatialDimension']
+    import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']
     unittest.main()

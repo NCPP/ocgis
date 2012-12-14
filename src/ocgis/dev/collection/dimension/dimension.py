@@ -16,7 +16,7 @@ class OcgDimension(object):
                         'value':self.value_name,
                         'bnds':{0:template.format(self._bounds_prefix,0,self.value_name),
                                 1:template.format(self._bounds_prefix,1,self.value_name)}}
-        
+    
     def iter_rows(self,add_bounds=True):
         uid = self.uid
         value = self.value
@@ -41,3 +41,9 @@ class OcgDimension(object):
     def _iter_values_idx_(value):
         for idx in range(value.shape[0]):
             yield(idx)
+            
+            
+class LevelDimension(OcgDimension):
+    
+    def __init__(self,uid,value,bounds=None):
+        super(LevelDimension,self).__init__('lid',uid,'level',value,bounds=bounds)

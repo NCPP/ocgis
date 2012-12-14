@@ -4,7 +4,7 @@ import numpy as np
 
 class OcgVariable(object):
     
-    def __init__(self,name,value,temporal,spatial,level=None):
+    def __init__(self,name,value,temporal,spatial,level=None,uri=None):
         assert(value.shape[0] == len(temporal.value))
         if level is None:
             assert(value.shape[1] == 1)
@@ -15,6 +15,7 @@ class OcgVariable(object):
         self.temporal = temporal
         self.spatial = spatial
         self.level = level
+        self.uri = uri
         
         ## hold aggregated values separate from raw
         self.agg_value = None
@@ -24,10 +25,64 @@ class OcgVariable(object):
         
 class OcgCollection(object):
     
-    def __init__(self):
-        self.cid = CalcIdentifier()
-        self.vid = VariableIdentifier()
-        self.vlid = VariableLevelIdentifier()
+    def __init__(self,ugeom=None):
+        self.ugeom = ugeom
+        
+        ## variable level identifiers
+        self.tid = OcgIdentifier()
+        self.tbid = OcgBoundsIdentifier()
+        self.tgid = OcgIdentifier()
+        self.lid = OcgIdentifier()
+        self.lbid = OcgBoundsIdentifier() ## level bounds identifier
+        self.gid = OcgIdentifier()
+        ## collection level identifiers
+        self.cid = OcgIdentifier() ## calculations
+        self.vid = OcgIdentifier() ## variables
+        self.did = OcgIdentifier() ## dataset (uri)
+        ## variable storage
+        self.variables = {}
+        
+    def add_variable(self,var):
+        ## add the variable to storage
+        self.variables.update({var.name:var})
+        
+        ## update collection identifiers
+        self.vid.add(var.name)
+        self.did.add(var.uri)
+        
+        ## update variable identifiers #########################################
+        
+        ## time & level
+        def _add_(var,uid_attr,bid_attr,dim):
+            tid = getattr(self,uid_attr)
+            tbid = getattr(self,bid_attr)
+            value = getattr(var,dim).value
+            value_bounds = getattr(var,dim).bounds
+            
+            if value_bounds is None:
+                tbid.add(None)
+            for idx in range(len(value)):
+                tid.add(value[idx])
+                if value_bounds is not None:
+                    tbid.add(value_bounds[idx])
+                    
+        _uid_attr = ['tid','lid']
+        _bid_attr = ['tbid','lbid']
+        _dim = ['temporal','level']
+        _args = (_uid_attr,_bid_attr,_dim)
+        if var.level is None:
+            for args in _args:
+                args.pop()
+        for args in zip(*_args):
+            args = list(args)
+            args.insert(0,var)
+            _add_(*args)
+            
+        ## geometry
+        masked = var.spatial.get_masked()
+        gid = self.gid
+        for geom in masked.compressed():
+            gid.add(geom.wkb)
 
 
 class OcgIdentifier(OrderedDict):
@@ -52,3 +107,20 @@ class OcgIdentifier(OrderedDict):
             return(self._curr)
         finally:
             self._curr += 1
+
+
+class OcgBoundsIdentifier(OcgIdentifier):
+    
+    def add(self,value):
+        if value is None:
+            self[value] = self._get_current_identifier_()
+        else:
+            try:
+                ref = self[value[0]]
+            except KeyError:
+                self[value[0]] = {}
+                ref = self[value[0]]
+            try:
+                ref[value[1]]
+            except KeyError:
+                ref[value[1]] = self._get_current_identifier_()

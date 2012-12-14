@@ -3,8 +3,9 @@ import numpy as np
 import itertools
 from ocgis.dev.collection import *
 import datetime
-from ocgis.dev.collection import OcgDimension
 from shapely.geometry.point import Point
+from ocgis.dev.collection.dimension.dimension import OcgDimension
+from ocgis.dev.collection.collection import OcgIdentifier
 
 
 class TestCollection(unittest.TestCase):
@@ -151,22 +152,28 @@ class TestCollection(unittest.TestCase):
         
         for row in sdim.iter_rows():
             continue
-#        import ipdb;ipdb.set_trace()
 
-    def get_LevelDimension(self):
+    def get_LevelDimension(self,add_bounds=True):
         values = np.array([50,150])
-        bounds = np.array([[0,100],[100,200]])
+        if add_bounds:
+            bounds = np.array([[0,100],[100,200]])
+        else:
+            bounds = None
         ldim = LevelDimension(values,bounds)
         return(ldim)
     
-    def test_OcgVariable(self):
-        add_bounds = True
+    def get_OcgVariable(self,add_level=True,add_bounds=True,name='foo'):
         temporal = self.get_TemporalDimension(add_bounds)
         spatial = self.get_SpatialDimension()
-        level = self.get_LevelDimension()
+        if add_level:
+            level = self.get_LevelDimension(add_bounds)
+            level_len = len(level.value)
+        else:
+            level = None
+            level_len = 1
         
         value = np.random.rand(len(temporal.value),
-                               len(level.value),
+                               level_len,
                                spatial.value.shape[0],
                                spatial.value.shape[1])
         mask = np.empty(value.shape,dtype=bool)
@@ -174,10 +181,29 @@ class TestCollection(unittest.TestCase):
             mask[idx,:,:] = spatial.value_mask
         value = np.ma.array(value,mask=mask)
         
-        var = OcgVariable('foo',value,temporal,spatial,level)
+        var = OcgVariable(name,value,temporal,spatial,level)
+        return(var)
         
-#        import ipdb;ipdb.set_trace()
+    def test_OcgCollection(self):
+        _add_bounds = [
+                       True,
+                       False
+                       ]
+        _add_level = [True,False]
+        args = (_add_bounds,_add_level)
+        
+        for add_bounds,add_level in itertools.product(*args):
+#            print add_bounds,add_level
+            coll = OcgCollection()
+            var = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
+            coll.add_variable(var)
+            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
+            var = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
+            coll.add_variable(var)
+            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
+            self.assertEqual(lens_original,lens_new)
+#            import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
-    import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']
+#    import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']
     unittest.main()

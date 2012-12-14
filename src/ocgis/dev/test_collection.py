@@ -4,6 +4,7 @@ import itertools
 from ocgis.dev.collection import *
 import datetime
 from ocgis.dev.collection import OcgDimension
+from shapely.geometry.point import Point
 
 
 class TestCollection(unittest.TestCase):
@@ -139,6 +140,22 @@ class TestCollection(unittest.TestCase):
 #                except:
 #                    import ipdb;ipdb.set_trace()
 
+    def test_SpatialDimension(self):
+        y = range(40,45)
+        x = range(-90,-85)
+        x,y = np.meshgrid(x,y)
+        geoms = [Point(ix,iy) for ix,iy in zip(x.flat,y.flat)]
+        geoms = np.array(geoms,dtype=object).reshape(5,5)
+        np.random.seed(1)
+        mask = np.random.random_integers(0,1,geoms.shape)
+        gid = np.arange(1,26).reshape(5,5)
+        gid = np.ma.array(gid,mask=mask)
+        sdim = SpatialDimension(gid,geoms,mask)
+        
+        masked = sdim.get_masked()
+        self.assertTrue(np.all(masked.mask == mask))
+        import ipdb;ipdb.set_trace()
+
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    import sys;sys.argv = ['', 'TestCollection.test_SpatialDimension']
     unittest.main()

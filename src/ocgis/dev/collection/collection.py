@@ -2,7 +2,9 @@ from collections import OrderedDict
 
 
 class OcgVariable(object):
-    pass
+    
+    def __init__(self,tdim,sdim,ldim=None):
+        pass
 
 
 class OcgIdentifier(OrderedDict):

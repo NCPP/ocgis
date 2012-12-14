@@ -1,5 +1,4 @@
 from warnings import warn
-from ocgis.util.helpers import iter_array
 
 
 class OcgDimension(object):

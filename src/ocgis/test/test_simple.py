@@ -84,7 +84,7 @@ class TestSimple(TestBase):
         ret = self.get_ret(kwds={'aggregate':True})
         
         ## test area-weighting
-        ref = ret[1].variables[self.var].agg_value
+        ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         
         ## test geometry reduction

@@ -4,9 +4,10 @@ from shapely.geometry.multipolygon import MultiPolygon
 from copy import deepcopy
 from shapely.geometry.point import Point
 from shapely.geometry.multipoint import MultiPoint
+from ocgis.api.dataset.collection.collection import Identifier
 
 
-def union(new_id,coll):
+def union(coll):
     """
     Union the object's geometries.
     
@@ -18,37 +19,50 @@ def union(new_id,coll):
     OcgCollection
     """
     
-    ## will hold the unioned geometry
-    new_geometry = np.empty((1,1),dtype=object)
+    ## reset the geometry identifier
+    coll.gid = Identifier(dtype=object)
     
-    if coll.spatial.type == 'point':
-        pts = MultiPoint([pt for pt in coll.geom_masked.compressed().flat])
-        new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
-    else:
-        ## break out the MultiPolygon objects. inextricable geometry errors
-        ## sometimes occur otherwise
-        ugeom = []
-        for geom in coll.get_masked().compressed():
-            if isinstance(geom,MultiPolygon):
-                for poly in geom:
-                    ugeom.append(poly)
-            else:
-                ugeom.append(geom)
-        ## execute the union
-        new_geometry[0,0] = cascaded_union(ugeom)
-        
-    ## update the collection. mask for masked object arrays are kept separate
-    ## in case the data needs to be pickled. know bug in numpy
-    import ipdb;ipdb.set_trace()
-    coll.geom = new_geometry
-    coll.geom_mask = np.array([[False]])
-    coll.gid = np.ma.array([[new_id]],mask=[[False]],dtype=int)
-    ## aggregate the values and store in the aggregated attribute of the
-    ## collection
     for ocg_variable in coll.variables.itervalues():
-        ocg_variable.agg_value = union_sum(coll.weights,
-                                           ocg_variable.raw_value)
-    return(coll)
+        ## will hold the unioned geometry
+        new_geometry = np.empty((1,1),dtype=object)
+        ## get the masked geometries
+        geoms = ocg_variable.spatial.get_masked().compressed()
+        if coll.geomtype == 'point':
+            pts = MultiPoint([pt for pt in geoms.flat])
+            new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
+        else:
+            ## break out the MultiPolygon objects. inextricable geometry errors
+            ## sometimes occur otherwise
+            ugeom = []
+            for geom in geoms:
+                if isinstance(geom,MultiPolygon):
+                    for poly in geom:
+                        ugeom.append(poly)
+                else:
+                    ugeom.append(geom)
+            ## execute the union
+            new_geometry[0,0] = cascaded_union(ugeom)
+        ## overwrite the original geometry
+        ocg_variable.spatial.value = new_geometry
+        ocg_variable.spatial.value_mask = np.array([[False]])
+        coll.gid.add(new_geometry[0,0].wkb)
+        ## aggregate the values
+        ocg_variable.raw_value = ocg_variable.value.copy()
+        ocg_variable.value = union_sum(ocg_variable.spatial.weights,ocg_variable.raw_value)
+#    import ipdb;ipdb.set_trace()
+        
+#    ## update the collection. mask for masked object arrays are kept separate
+#    ## in case the data needs to be pickled. know bug in numpy
+#    import ipdb;ipdb.set_trace()
+#    coll.geom = new_geometry
+#    coll.geom_mask = np.array([[False]])
+#    coll.gid = np.ma.array([[new_id]],mask=[[False]],dtype=int)
+#    ## aggregate the values and store in the aggregated attribute of the
+#    ## collection
+#    for ocg_variable in coll.variables.itervalues():
+#        ocg_variable.agg_value = union_sum(coll.weights,
+#                                           ocg_variable.raw_value)
+#    return(coll)
 
 def union_sum(weight,value):
     ## TODO: this should be replaced with actual aggregation by built-in numpy

@@ -178,7 +178,7 @@ def get_collection((so,geom_dict)):
             
     ## data aggregation.
     if so.ops.aggregate:
-        coll = union(geom_dict['ugid'],coll)
+        union(coll)
         
     ## if it is a vector output, wrap the data (if requested).
     arch = so.ops.dataset[0]['ocg_dataset']

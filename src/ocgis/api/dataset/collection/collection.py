@@ -64,6 +64,17 @@ class OcgCollection(object):
         self.variables = {}
         
     @property
+    def geomtype(self):
+        types = np.array([var.spatial.geomtype for var in self.variables.itervalues()])
+        if np.all(types == 'point'):
+            ret = 'point'
+        elif np.all(types == 'polygon'):
+            ret = 'polygon'
+        else:
+            raise(ValueError)
+        return(ret)
+        
+    @property
     def is_empty(self):
         es = [var._is_empty for var in self.variables.itervalues()]
         if np.all(es):

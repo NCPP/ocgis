@@ -27,7 +27,7 @@ class SpatialDimension(OcgDimension):
         self.weights = weights
         
     @property
-    def type(self):
+    def geomtype(self):
         if isinstance(self.value[0,0],Point):
             ret = 'point'
         else:

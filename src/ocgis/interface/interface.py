@@ -166,7 +166,7 @@ class TemporalInterface(AbstractInterface):
         self.format()
         
         self.timeidx = np.arange(0,len(self.value))
-        self.tid = np.arange(1,len(self.value)+1)
+#        self.tid = np.arange(1,len(self.value)+1)
                 
     def _format_value_(self):
         ret = nc.num2date(self._ref_var[:],self.units,self.calendar)
@@ -228,11 +228,11 @@ class LevelInterface(AbstractInterface):
             self.is_dummy = True
             self.value = np.array([1])
             self.levelidx = np.array([0])
-            self.lid = np.array([1])
+#            self.lid = np.array([1])
         else:
             self.is_dummy = False
             self.levelidx = np.arange(len(self.value))
-            self.lid = self.levelidx + 1
+#            self.lid = self.levelidx + 1
         
         
 class RowInterface(AbstractInterface):
@@ -295,10 +295,10 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                                 np.arange(0,len(self.row.bounds)))
 
         self.shape = self.real_col.shape
-        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
-                                           self.real_col.shape[1]+1)\
-                               .reshape(self.shape),
-                               mask=False)
+#        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
+#                                           self.real_col.shape[1]+1)\
+#                               .reshape(self.shape),
+#                               mask=False)
         
     def get_bounds(self,colidx):
         col,row = np.meshgrid(self.col.bounds[:,colidx],
@@ -436,9 +436,9 @@ class SpatialInterfacePoint(AbstractSpatialInterface):
                                     np.arange(0,len(self.row.value)))
         self.resolution = approx_resolution(np.ravel(self.col_pt))
         self.shape = self.real_col.shape
-        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
-                               self.real_col.shape[1]+1).reshape(self.shape),
-                               mask=False)
+#        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
+#                               self.real_col.shape[1]+1).reshape(self.shape),
+#                               mask=False)
         
     def calc_weights(self,npd,geom):
         weight = np.ma.array(np.ones((npd.shape[2],npd.shape[3]),dtype=float),

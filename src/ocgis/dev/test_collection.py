@@ -142,10 +142,10 @@ class TestCollection(unittest.TestCase):
             for perm in itertools.permutations(perms,ii):
                 tdim = tdim_func(add_bounds=add_bounds)
                 try:
-                    tgdim = tdim.group(perm)
+                    tdim.group(perm)
                 except TypeError:
-                    tgdim = tdim.group(*perm)
-                for row in tgdim.iter_rows():
+                    tdim.group(*perm)
+                for row in tdim.tgdim.iter_rows():
                     if np.random.rand() <= -0.01:
                         print (perm,add_bounds)
                         print row
@@ -153,7 +153,7 @@ class TestCollection(unittest.TestCase):
                     else:
                         continue
 #                try:
-                self.assertEqual(np.sum([dgrp.sum() for dgrp in tgdim.dgroups]),len(tdim.value))
+                self.assertEqual(np.sum([dgrp.sum() for dgrp in tdim.tgdim.dgroups]),len(tdim.value))
 #                except:
 #                    import ipdb;ipdb.set_trace()
 

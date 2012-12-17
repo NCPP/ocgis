@@ -1,11 +1,24 @@
-from itertools import product
 from ocgis.dev.collection.dimension.dimension import LevelDimension
 
 
-class OcgIterator(object):
+class AbstractOcgIterator(object):
     
     def __init__(self,coll):
         self.coll = coll
+        
+    def iter_list(self,*args,**kwds):
+        headers = self.get_headers()
+        for row in self.iter_rows(*args,**kwds):
+            yield([row[h] for h in headers],row['geom'])
+        
+    def get_headers(self,upper=False):
+        headers = self._get_headers_()
+        if upper:
+            headers = [h.upper() for h in headers]
+        return(headers)
+    
+    def _get_headers_(self):
+        raise(NotImplementedError)
         
     def iter_rows(self,*args,**kwds):
         return(self._iter_rows_(*args,**kwds))
@@ -14,7 +27,17 @@ class OcgIterator(object):
         raise(NotImplementedError)
 
 
-class MeltedIterator(OcgIterator):
+class MeltedIterator(AbstractOcgIterator):
+    
+    def _get_headers_(self):
+        if self.coll._mode == 'raw':
+            return(['vid','did','ugid','tid','lid','gid','var_name','uri','time','level','value'])
+        elif self.coll._mode == 'calc':
+            ret = ['vid','did','ugid','tgid','lid','gid','var_name','uri']
+            arch = self.coll.variables[self.coll.variables.keys()[0]]
+            ret += arch.temporal.tgdim.groups
+            ret += ['level','value']
+            return(ret)
     
     def _iter_rows_(self):
         for var in self.coll.variables.itervalues():
@@ -44,7 +67,6 @@ class MeltedIterator(OcgIterator):
             raise(NotImplementedError)
         else:
             raise(NotImplementedError)
-            
     
     def _iter_time_(self,var):
         if self.coll._mode == 'raw':
@@ -89,7 +111,7 @@ class MeltedIterator(OcgIterator):
             yield(ii,row)
 
 
-class KeyedIterator(OcgIterator):
+class KeyedIterator(AbstractOcgIterator):
     
     def iter_rows(self,add_bounds=True):
         import ipdb;ipdb.set_trace()

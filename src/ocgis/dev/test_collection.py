@@ -213,9 +213,13 @@ class TestCollection(unittest.TestCase):
         _add_level = [True,False]
         _group = [None,['month'],['year'],['month','year']]
 #        _group = [['month']]
-        args = (_add_bounds,_add_level,_group)
+        _iter_methods = [
+                         'iter_rows',
+                         'iter_list'
+                         ]
+        args = (_add_bounds,_add_level,_group,_iter_methods)
         
-        for add_bounds,add_level,group in itertools.product(*args):
+        for add_bounds,add_level,group,iter_method in itertools.product(*args):
 #            print add_bounds,add_level
             coll = OcgCollection()
             var1 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
@@ -247,24 +251,32 @@ class TestCollection(unittest.TestCase):
                 m = 1
             else:
                 m = len(coll.lid)
+            it = MeltedIterator(coll)
             if group is None:
                 iter_len = len(coll.tid)*len(coll.gid)*m*2
             else:
                 iter_len = len(coll.tgid)*len(coll.gid)*m*len(cnames)*2
-            it = MeltedIterator(coll).iter_rows()
-            for ii,row in enumerate(it,start=1):
+            it_method = getattr(it,iter_method)
+            headers = it.get_headers()
+            for ii,row in enumerate(it_method(),start=1):
                 if np.random.rand() <= -0.1:
                     import ipdb;ipdb.set_trace()
-                if add_level:
-                    self.assertTrue(row['level'] is not None)
+                if iter_method == 'iter_rows':
+                    if add_level:
+                        self.assertTrue(row['level'] is not None)
+                    else:
+                        self.assertTrue(row['level'] is None)
+                    if group is None:
+                        self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid'])
+                        self.assertEqual(len(row),12)
+                    else:
+                        self.assertTrue(all([v in row.keys() for v in ['cid','calc_name']]))
+                        self.assertEqual(len(row),13+len(group))
                 else:
-                    self.assertTrue(row['level'] is None)
-                if group is None:
-                    self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid'])
-                    self.assertEqual(len(row),12)
-                else:
-                    self.assertTrue(all([v in row.keys() for v in ['cid','calc_name']]))
-                    self.assertEqual(len(row),13+len(group))
+                    self.assertEqual(len(row[0]),len(headers))
+                    self.assertTrue(type(row[1]) == Point)
+                    if group is not None:
+                        for g in group: self.assertTrue(g in headers)
             self.assertEqual(iter_len,ii)
 
 

@@ -1,12 +1,12 @@
 import unittest
 import numpy as np
 import itertools
-from ocgis.dev.collection import *
+from ocgis.api.dataset.collection import *
 import datetime
 from shapely.geometry.point import Point
-from ocgis.dev.collection.dimension.dimension import OcgDimension
-from ocgis.dev.collection.collection import Identifier
-from ocgis.dev.collection.iterators import KeyedIterator, MeltedIterator
+from ocgis.api.dataset.collection.dimension.dimension import OcgDimension
+from ocgis.api.dataset.collection.collection import Identifier
+from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 
 
 class TestCollection(unittest.TestCase):

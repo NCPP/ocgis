@@ -347,7 +347,7 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         return(is_360,pm)
     
     def _get_all_geoms_(self):
-        geom = np.empty(self.gid.shape,dtype=object)
+        geom = np.empty(self.shape,dtype=object)
         min_col,max_col,min_row,max_row = self.min_col,self.max_col,self.min_row,self.max_row
         
         for ii,jj in iter_array(geom,use_mask=False):

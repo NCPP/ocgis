@@ -11,6 +11,7 @@ from ocgis import exc
 import tempfile
 import os.path
 from ocgis.util.inspect import Inspect
+from warnings import warn
 
 
 class TestBase(unittest.TestCase):
@@ -63,17 +64,18 @@ class TestSimple(TestBase):
         make_simple()
 
     def test_return_all(self):
-        ops = self.get_ops()
+        warn('fix output format')
+        ops = self.get_ops(kwds={'output_format':'shp'})
         ret = self.get_ret(ops)
         
         ## confirm size of geometry array
-        ref = ret[1]
-        attrs = ['gid','geom','geom_masked']
+        ref = ret[1].variables[self.var].spatial
+        attrs = ['value','value_mask']
         for attr in attrs:
             self.assertEqual(getattr(ref,attr).shape,(4,4))
         
         ## confirm value array
-        ref = ret[1].variables[self.var].raw_value
+        ref = ret[1].variables[self.var].value
         self.assertEqual(ref.shape,(61,2,4,4))
         for tidx,lidx in itertools.product(range(0,61),range(0,2)):
             slice = ref[tidx,lidx,:,:]

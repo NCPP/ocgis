@@ -1,5 +1,8 @@
 from collections import OrderedDict
 import numpy as np
+from ocgis.api.dataset.collection.dimension.temporal import TemporalDimension
+from ocgis.api.dataset.collection.dimension.dimension import LevelDimension
+from ocgis.api.dataset.collection.dimension.spatial import SpatialDimension
 
 
 class OcgVariable(object):
@@ -21,6 +24,16 @@ class OcgVariable(object):
         self.raw_value = None
         ## hold calculated values
         self.calc_value = OrderedDict()
+        
+        self._is_empty = False
+        
+    @classmethod
+    def get_empty(cls,name,uri=None):
+        temporal = TemporalDimension(np.empty(0))
+        spatial = SpatialDimension(np.empty(0))
+        value = np.empty(0)
+        ret = cls(name,value,temporal,spatial,uri=uri)
+        ret._is_empty = True
 
    
 class OcgCollection(object):
@@ -49,6 +62,17 @@ class OcgCollection(object):
         self.did = Identifier(dtype=object) ## dataset (uri)
         ## variable storage
         self.variables = {}
+        
+    @property
+    def is_empty(self):
+        es = [var._is_empty for var in self.variables.itervalues()]
+        if np.all(es):
+            ret = True
+            if np.any(es):
+                raise(ValueError)
+        else:
+            ret = False
+        return(ret)
     
     def add_calculation(self,var):
         self._mode = 'calc'

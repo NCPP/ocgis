@@ -90,28 +90,28 @@ class OcgDataset(object):
         
         return(npd)
     
-    def _make_empty_(self,var_name,return_collection=True):
-        ocg_variable = collection.OcgVariable(
-          var_name,
-          np.empty(0),
-          np.empty(0),
-          np.empty(0),
-          self)
-        
-        if return_collection:
-            coll = collection.OcgCollection(
-              np.empty(0),
-              np.empty(0),
-              np.empty(0),
-              np.empty(0),
-              np.empty(0),
-              np.empty(0))
-            return(coll,ocg_variable)
-        else:
-            return(ocg_variable)
+#    def _make_empty_(self,var_name):
+#        ocg_variable = collection.OcgVariable(
+#          var_name,
+#          np.empty(0),
+#          np.empty(0),
+#          np.empty(0),
+#          self)
+#        
+#        if return_collection:
+#            coll = collection.OcgCollection(
+#              np.empty(0),
+#              np.empty(0),
+#              np.empty(0),
+#              np.empty(0),
+#              np.empty(0),
+#              np.empty(0))
+#            return(coll,ocg_variable)
+#        else:
+#            return(ocg_variable)
     
     def _subset_(self,polygon=None,time_range=None,level_range=None,
-                 return_collection=True,allow_empty=False): ## intersects + touches
+                 allow_empty=False): ## intersects + touches
         """
         polygon -- shapely Polygon object
         return -- SubOcgDataset
@@ -128,7 +128,8 @@ class OcgDataset(object):
                 raise(exc.ExtentError)
         except exc.ExtentError:
             if allow_empty:
-                return(self._make_empty_(self.variable,return_collection))
+                return(collection.OcgVariable.get_empty(self.variable,self.uri))
+#                return(self._make_empty_(self.variable,return_collection))
             else:
                 raise
         
@@ -185,7 +186,8 @@ class OcgDataset(object):
             ## if all the data values are masked, raise an error.
             if npd.mask.all():
                 if allow_empty:
-                    return(self._make_empty_(self.variable,return_collection))
+                    return(collection.OcgVariable.get_empty(self.variable,self.uri))
+#                    return(self._make_empty_(self.variable,return_collection))
                 else:
                     raise(exc.MaskedDataError)
             else:
@@ -193,50 +195,74 @@ class OcgDataset(object):
         else:
             npd = np.ma.array(npd,mask=rel_mask)
         
-        ## create masked arrays for other relevant variables
-        gid = self.i.spatial.gid[rowidx][:,colidx].\
-              reshape((npd.shape[2],npd.shape[3]))
-        gid = np.ma.array(gid,mask=npd.mask[0,0,:,:])
+#        ## create masked arrays for other relevant variables
+#        gid = self.i.spatial.gid[rowidx][:,colidx].\
+#              reshape((npd.shape[2],npd.shape[3]))
+#        gid = np.ma.array(gid,mask=npd.mask[0,0,:,:])
         
         ## keeping the geometry mask separate is necessary related to this error:
         ## http://projects.scipy.org/numpy/ticket/897
         geom = geom[rowidx][:,colidx].reshape((npd.shape[2],npd.shape[3]))
         geom_mask = npd.mask[0,0,:,:]
         
-        ## subset level bounds as
-        if self.i.level.bounds is None:
-            levelvec_bounds = None
+        ## make dimensions #####################################################
+        
+        if self.i.temporal.bounds is None:
+            timevec_bounds = None
         else:
-            levelvec_bounds = self.i.level.bounds[levelidx]
+            timevec_bounds = self.i.temporal.bounds[timeidx,:]
+        d_temporal = collection.TemporalDimension(
+                                       self.i.temporal.value[timeidx],
+                                       timevec_bounds)
         
-        ocg_variable = collection.OcgVariable(
-          self.variable,
-          self.i.level.lid[levelidx],
-          self.i.level.value[levelidx],
-          npd,
-          self,
-          levelvec_bounds=levelvec_bounds
-                                   )
-        
-        if return_collection:
-            ## get time bounds if available
-            if self.i.temporal.bounds is None:
-                timevec_bounds = None
+        if self.i.level is None:
+            d_level = collection.LevelDimension()
+        else:
+            if self.i.level.bounds is None:
+                levelvec_bounds = None
             else:
-                timevec_bounds = self.i.temporal.bounds[timeidx,:]
+                levelvec_bounds = self.i.level.bounds[levelidx]
+            d_level = collection.LevelDimension(self.i.level.value[levelidx],
+                                                levelvec_bounds)
             
-            coll = collection.OcgCollection(
-              self.i.temporal.tid[timeidx],
-              gid,
-              geom,
-              geom_mask,
-              self.i.temporal.value[timeidx],
-              self.i.spatial.calc_weights(npd,geom),
-              timevec_bounds=timevec_bounds
-                                         )
-            return(coll,ocg_variable)
-        else:
-            return(ocg_variable)
+        d_spatial = collection.SpatialDimension(geom,geom_mask,weights=None)
+        
+        ########################################################################
+        
+        ocg_variable = collection.OcgVariable(self.variable,npd,d_temporal,
+                                        d_spatial,level=d_level,uri=self.uri)
+        
+        return(ocg_variable)
+#        import ipdb;ipdb.set_trace()
+        
+#        ocg_variable = collection.OcgVariable(
+#          self.variable,
+##          self.i.level.lid[levelidx],
+#          self.i.level.value[levelidx],
+#          npd,
+#          self,
+#          levelvec_bounds=levelvec_bounds
+#                                   )
+#        
+#        if return_collection:
+#            ## get time bounds if available
+#            if self.i.temporal.bounds is None:
+#                timevec_bounds = None
+#            else:
+#                timevec_bounds = self.i.temporal.bounds[timeidx,:]
+#            
+#            coll = collection.OcgCollection(
+#              self.i.temporal.tid[timeidx],
+#              gid,
+#              geom,
+#              geom_mask,
+#              self.i.temporal.value[timeidx],
+#              self.i.spatial.calc_weights(npd,geom),
+#              timevec_bounds=timevec_bounds
+#                                         )
+#            return(coll,ocg_variable)
+#        else:
+#            return(ocg_variable)
     
     def subset(self,*args,**kwds):
         try:

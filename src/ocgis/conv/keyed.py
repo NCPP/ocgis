@@ -4,7 +4,6 @@ from ocgis.conv.csv_ import OcgDialect
 from ocgis.util.helpers import get_temp_path
 from ocgis.conv.shpidx import ShpIdxConverter
 import os.path
-import ocgis.api.dataset.iterators as kits
 from collections import namedtuple
 
 
@@ -26,6 +25,7 @@ class KeyedConverter(OcgConverter):
             ## save the variable for the shape index writing
             shpidx_cache.append((DummyColl(coll.gid,coll.geom),None))
             ## get the proper iterator for iterator mode
+            raise(NotImplementedError)
             if self.mode == 'raw':
                 its = kits.RawKeyedIterator(coll).get_iters()
             elif self.mode == 'agg':

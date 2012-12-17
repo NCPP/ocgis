@@ -21,9 +21,6 @@ class OcgVariable(object):
         self.raw_value = value
         ## hold calculated values
         self.calc_value = OrderedDict()
-        
-    def group(self,*args,**kwds):
-        return(self.temporal.group(*args,**kwds))
 
    
 class OcgCollection(object):
@@ -43,8 +40,8 @@ class OcgCollection(object):
         self.tbid = Identifier()
         self.tgid = Identifier()
         self.tgbid = Identifier()
-        self.lid = Identifier()
-        self.lbid = Identifier() ## level bounds identifier
+        self.lid = Identifier(dtype=object)
+        self.lbid = Identifier(dtype=object) ## level bounds identifier
         self.gid = Identifier(dtype=object)
         ## collection level identifiers
         self.cid = Identifier(dtype=object) ## calculations
@@ -52,23 +49,14 @@ class OcgCollection(object):
         self.did = Identifier(dtype=object) ## dataset (uri)
         ## variable storage
         self.variables = {}
-        ## calculation storage
-        self.calculations = {}
     
-    def add_calculation(self,var,name,values,tgdim):
+    def add_calculation(self,var):
         self._mode = 'calc'
-        self.cid.add(np.array(name))
-        
+        for key in var.calc_value.keys():
+            self.cid.add(key)
         ## update time group identifiers
-        self.tgid.add(tgdim.value)
-        self.tgbid.add(tgdim.bounds)
-        
-        try:
-            ref = self.calculations[var.name]
-        except KeyError:
-            self.calculations.update({var.name:{}})
-            ref = self.calculations[var.name]
-        ref.update({name:values})
+        self.tgid.add(var.temporal.tgdim.value)
+        self.tgbid.add(var.temporal.tgdim.bounds)
 
     def add_variable(self,var):
         ## add the variable to storage
@@ -125,8 +113,11 @@ class Identifier(object):
         return(self.storage[:,0].astype(int))
     
     def add(self,value):
-        if value.ndim <= 1:
-            value = value.reshape(-1,1)
+        try:
+            if value.ndim <= 1:
+                value = value.reshape(-1,1)
+        except AttributeError:
+            value = np.array([[value]])
         if self.storage is None:
             self._init_storage_(value)
         else:
@@ -144,7 +135,11 @@ class Identifier(object):
                 self.storage[-new_values.shape[0]:,1:] = new_values
             
     def get(self,value):
-        cmp = (self.storage[:,1:] == value).all(axis=1)
+        try:
+            cmp = (self.storage[:,1:] == value).all(axis=1)
+        except AttributeError:
+            value = np.array([[value]])
+            cmp = (self.storage[:,1:] == value).all(axis=1)
         return(int(self.storage[cmp,[0]]))
     
     def _get_curr_(self,n):

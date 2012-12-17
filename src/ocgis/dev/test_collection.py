@@ -215,8 +215,8 @@ class TestCollection(unittest.TestCase):
                        False
                        ]
         _add_level = [True,False]
-#        _group = [None,['month']]
-        _group = [['month']]
+        _group = [None,['month'],['year'],['month','year']]
+#        _group = [['month']]
         args = (_add_bounds,_add_level,_group)
         
         for add_bounds,add_level,group in itertools.product(*args):
@@ -234,39 +234,43 @@ class TestCollection(unittest.TestCase):
                 cnames = ['my_mean','my_median']
                 for name in cnames:
                     for var in [var1,var2]:
-                        tgdim = var.group(group)
-                        new_values = np.random.rand(tgdim.value.shape[0],
+                        var.temporal.group(group)
+                        new_values = np.random.rand(var.temporal.tgdim.value.shape[0],
                                                     var.value.shape[1],
                                                     var.spatial.value.shape[0],
                                                     var.spatial.value.shape[1])
                         mask = np.empty(new_values.shape,dtype=bool)
                         mask[:] = var.value.mask[0,0,:]
                         new_values = np.ma.array(new_values,mask=mask)
-                        coll.add_calculation(var,name,new_values,tgdim)
-                self.assertEqual(len(coll.calculations),2)
+                        var.calc_value.update({name:new_values})
+                        coll.add_calculation(var)
+                for var in [var1,var2]: self.assertEqual(len(var.calc_value),2)
                 self.assertTrue(np.all([c in coll.cid.storage[:,1] for c in cnames]))
             
             if len(coll.lid) == 0:
                 m = 1
             else:
                 m = len(coll.lid)
-            iter_len = len(coll.tid)*len(coll.gid)*m*2
+            if group is None:
+                iter_len = len(coll.tid)*len(coll.gid)*m*2
+            else:
+                iter_len = len(coll.tgid)*len(coll.gid)*m*len(cnames)*2
             it = MeltedIterator(coll).iter_rows()
             for ii,row in enumerate(it,start=1):
+                if np.random.rand() <= -0.1:
+                    import ipdb;ipdb.set_trace()
                 if add_level:
                     self.assertTrue(row['level'] is not None)
                 else:
                     self.assertTrue(row['level'] is None)
-                self.assertEqual(len(row),12)
                 if group is None:
                     self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid'])
+                    self.assertEqual(len(row),12)
                 else:
-                    self.assertTrue(all([v in row.keys() for v in ['cid','calc_name','calc_value']]))
-                    self.assertFalse('value' in row.keys())
+                    self.assertTrue(all([v in row.keys() for v in ['cid','calc_name']]))
+                    self.assertEqual(len(row),13+len(group))
             self.assertEqual(iter_len,ii)
-#                import ipdb;ipdb.set_trace()
-                
-#            import ipdb;ipdb.set_trace()
+
 
 if __name__ == "__main__":
 #    import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']

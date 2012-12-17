@@ -3,6 +3,7 @@ from dimension import OcgDimension
 import numpy as np
 from collections import deque
 import itertools
+from warnings import warn
 
 
 class TemporalDimension(OcgDimension):
@@ -10,6 +11,8 @@ class TemporalDimension(OcgDimension):
     
     def __init__(self,value,bounds=None):
         super(TemporalDimension,self).__init__(value,bounds=bounds)
+        
+        self.tgdim = None
     
     def group(self,*args):
         '''
@@ -21,7 +24,7 @@ class TemporalDimension(OcgDimension):
         else:
             new_value,new_bounds,dgroups = self._group_part_(*args)
         
-        return(TemporalGroupDimension(new_value,new_bounds,dgroups))
+        self.tgdim = TemporalGroupDimension(new_value,new_bounds,dgroups,args[0])
     
     def _group_part_count_(self,part,count):
         raise(NotImplementedError)
@@ -119,7 +122,25 @@ class TemporalDimension(OcgDimension):
 class TemporalGroupDimension(OcgDimension):
     _date_parts = ('year','month','day','hour','minute','second','microsecond')
     
-    def __init__(self,value,bounds,dgroups):
+    def __init__(self,value,bounds,dgroups,groups):
         super(TemporalGroupDimension,self).__init__(value,bounds)
         
+        self.groups = groups
         self.dgroups = dgroups
+        
+    def iter_rows(self,add_bounds=True,yield_idx=False):
+        value = self.value
+        bounds = self.bounds
+        get_idx = [self._date_parts.index(g) for g in self.groups]
+        groups = self.groups
+        
+        for idx in range(value.shape[0]):
+            ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
+            if add_bounds:
+                ret.update({'bnds':{0:bounds[idx,0],
+                                    1:bounds[idx,1]}})
+            if yield_idx:
+                yld = (idx,ret)
+            else:
+                yld = ret
+            yield(yld)

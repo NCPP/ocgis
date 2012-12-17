@@ -231,7 +231,8 @@ class TestCollection(unittest.TestCase):
             self.assertEqual(lens_original,lens_new)
             
             if group is not None:
-                for name in ['my_mean','my_median']:
+                cnames = ['my_mean','my_median']
+                for name in cnames:
                     for var in [var1,var2]:
                         tgdim = var.group(group)
                         new_values = np.random.rand(tgdim.value.shape[0],
@@ -242,6 +243,8 @@ class TestCollection(unittest.TestCase):
                         mask[:] = var.value.mask[0,0,:]
                         new_values = np.ma.array(new_values,mask=mask)
                         coll.add_calculation(var,name,new_values,tgdim)
+                self.assertEqual(len(coll.calculations),2)
+                self.assertTrue(np.all([c in coll.cid.storage[:,1] for c in cnames]))
             
             if len(coll.lid) == 0:
                 m = 1

@@ -39,44 +39,29 @@ class OcgCollection(object):
         self._mode = 'raw'
         
         ## variable level identifiers
-        self.tid = None
-        self.tbid = None
-        self.tgid = None
-        self.tgbid = None
-        self.lid = None
-        self.lbid = None ## level bounds identifier
-        self.gid = None
+        self.tid = Identifier()
+        self.tbid = Identifier()
+        self.tgid = Identifier()
+        self.tgbid = Identifier()
+        self.lid = Identifier()
+        self.lbid = Identifier() ## level bounds identifier
+        self.gid = Identifier(dtype=object)
         ## collection level identifiers
-        self.cid = None ## calculations
-        self.vid = None ## variables
-        self.did = None ## dataset (uri)
+        self.cid = Identifier(dtype=object) ## calculations
+        self.vid = Identifier(dtype=object) ## variables
+        self.did = Identifier(dtype=object) ## dataset (uri)
         ## variable storage
         self.variables = {}
         ## calculation storage
         self.calculations = {}
-        
-    def _uid_(self,attr,init_vals,add=False):
-        if getattr(self,attr) is None:
-            setattr(self,attr,Identifier(init_vals))
-        if add:
-            getattr(self,attr).add(init_vals)
-            
-        return(getattr(self,attr))
     
     def add_calculation(self,var,name,values,tgdim):
         self._mode = 'calc'
-        self.cid.add(name)
+        self.cid.add(np.array(name))
         
         ## update time group identifiers
-        _value = tgdim.value
-        _bounds = tgdim.bounds
-        _tgbid = self.tgbid
-        if self.tgid is None:
-            self.tgid = TimeGroupIdentifier(tgdim)
-        _tgid = self.tgid
-        for idx in range(_value.shape[0]):
-            _tgid.add(_value[idx,:])
-            _tgbid.add(_bounds[idx,:])
+        self.tgid.add(tgdim.value)
+        self.tgbid.add(tgdim.bounds)
         
         try:
             ref = self.calculations[var.name]
@@ -85,62 +70,52 @@ class OcgCollection(object):
             ref = self.calculations[var.name]
         ref.update({name:values})
 
-
     def add_variable(self,var):
         ## add the variable to storage
         self.variables.update({var.name:var})
         
         ## update collection identifiers
-        vid = self._uid_('vid',var.name,add=True)
-        self.vid.add(var.name)
-        self.did.add(var.uri)
+        self.vid.add(np.array([var.name]))
+        self.did.add(np.array([var.uri]))
         
         ## update variable identifiers #########################################
         
-        ## time & level
-        _uid_attr = ['tid','lid']
-        _bid_attr = ['tbid','lbid']
-        _dim = ['temporal','level']
-        _args = (_uid_attr,_bid_attr,_dim)
+        ## time
+        self.tid.add(var.temporal.value)
+        if var.temporal.bounds is not None:
+            self.tbid.add(var.temporal.bounds)
+        else:
+            self.tbid.add(np.array([[None,None]]))
+        
+        ## level
+        add_lbid = True
         if var.level is None:
-            for args in _args:
-                args.pop()
-        for args in zip(*_args):
-            args = list(args)
-            args.insert(0,var)
-            self._add_identifier_(*args)
+            self.lid.add(np.array([None]))
+            add_lbid = False
+        else:
+            self.lid.add(var.level.value)
+            if var.level.bounds is None:
+                add_lbid = False
+        if add_lbid:
+            self.lbid.add(var.level.bounds)
+        else:
+            self.lbid.add(np.array([[None,None]]))
             
         ## geometry
         masked = var.spatial.get_masked()
         gid = self.gid
         for geom in masked.compressed():
-            gid.add(geom.wkb)
-    
-    def _add_identifier_(self,var,uid_attr,bid_attr,dim):
-            tid = getattr(self,uid_attr)
-            tbid = getattr(self,bid_attr)
-            value = getattr(var,dim).value
-            value_bounds = getattr(var,dim).bounds
-            
-            if value_bounds is None:
-                tbid.add(None)
-            for idx in range(len(value)):
-                tid.add(value[idx])
-                if value_bounds is not None:
-                    tbid.add(value_bounds[idx])
+            gid.add(np.array([[geom.wkb]]))
 
 
 class Identifier(object):
     
-    def __init__(self,init_vals):
-        if len(init_vals.shape) == 1:
-            init_vals = init_vals.reshape(-1,1)
-        shape = list(init_vals.shape)
-        shape[1] += 1
-        self.storage = np.empty(shape,dtype=init_vals.dtype)
-        self.storage[:,1:] = init_vals
-        self._curr = self.storage.shape[0]+1
-        self.storage[:,0] = np.arange(1,self._curr,dtype=init_vals.dtype)
+    def __init__(self,init_vals=None,dtype=None):
+        self.dtype = dtype
+        if init_vals is None:
+            self.storage = None
+        else:
+            self._init_storage_(init_vals)
         
     def __len__(self):
         return(self.storage.shape[0])
@@ -152,18 +127,21 @@ class Identifier(object):
     def add(self,value):
         if value.ndim <= 1:
             value = value.reshape(-1,1)
-        adds = np.zeros(value.shape[0],dtype=bool)
-        for idx in range(adds.shape[0]):
-            cmp = self.storage[:,1:] == value[idx,:]
-            cmp2 = cmp.all(axis=1)
-            if not np.any(cmp2):
-                adds[idx] = True
-        if adds.any():
-            new_values = value[adds,:]
-            shape = self.storage.shape
-            self.storage.resize(shape[0]+new_values.shape[0],shape[1])
-            self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
-            self.storage[-new_values.shape[0]:,1:] = new_values
+        if self.storage is None:
+            self._init_storage_(value)
+        else:
+            adds = np.zeros(value.shape[0],dtype=bool)
+            for idx in range(adds.shape[0]):
+                cmp = self.storage[:,1:] == value[idx,:]
+                cmp2 = cmp.all(axis=1)
+                if not np.any(cmp2):
+                    adds[idx] = True
+            if adds.any():
+                new_values = value[adds,:]
+                shape = self.storage.shape
+                self.storage.resize(shape[0]+new_values.shape[0],shape[1])
+                self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
+                self.storage[-new_values.shape[0]:,1:] = new_values
             
     def get(self,value):
         cmp = (self.storage[:,1:] == value).all(axis=1)
@@ -173,3 +151,15 @@ class Identifier(object):
         ret = np.arange(self._curr,self._curr+n,dtype=self.storage.dtype)
         self._curr = self._curr + n
         return(ret)
+    
+    def _init_storage_(self,init_vals):
+        if len(init_vals.shape) == 1:
+            init_vals = init_vals.reshape(-1,1)
+        shape = list(init_vals.shape)
+        shape[1] += 1
+        if self.dtype is None:
+            self.dtype = init_vals.dtype
+        self.storage = np.empty(shape,dtype=self.dtype)
+        self.storage[:,1:] = init_vals
+        self._curr = self.storage.shape[0]+1
+        self.storage[:,0] = np.arange(1,self._curr,dtype=self.dtype)

@@ -17,18 +17,18 @@ def union(new_id,coll):
     
     OcgCollection
     """
-
+    
     ## will hold the unioned geometry
     new_geometry = np.empty((1,1),dtype=object)
     
-    if isinstance(coll.geom[0,0],Point):
+    if coll.spatial.type == 'point':
         pts = MultiPoint([pt for pt in coll.geom_masked.compressed().flat])
         new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
     else:
         ## break out the MultiPolygon objects. inextricable geometry errors
         ## sometimes occur otherwise
         ugeom = []
-        for geom in coll.geom_masked.compressed():
+        for geom in coll.get_masked().compressed():
             if isinstance(geom,MultiPolygon):
                 for poly in geom:
                     ugeom.append(poly)
@@ -39,6 +39,7 @@ def union(new_id,coll):
         
     ## update the collection. mask for masked object arrays are kept separate
     ## in case the data needs to be pickled. know bug in numpy
+    import ipdb;ipdb.set_trace()
     coll.geom = new_geometry
     coll.geom_mask = np.array([[False]])
     coll.gid = np.ma.array([[new_id]],mask=[[False]],dtype=int)

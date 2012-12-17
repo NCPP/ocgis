@@ -26,6 +26,14 @@ class SpatialDimension(OcgDimension):
             assert(weights.shape == value.shape)
         self.weights = weights
         
+    @property
+    def type(self):
+        if isinstance(self.value[0,0],Point):
+            ret = 'point'
+        else:
+            ret = 'polygon'
+        return(ret)
+        
     def get_masked(self):
         return(np.ma.array(self.value,mask=self.value_mask))
     

@@ -18,7 +18,7 @@ class OcgVariable(object):
         self.uri = uri
         
         ## hold aggregated values separate from raw
-        self.raw_value = value
+        self.raw_value = None
         ## hold calculated values
         self.calc_value = OrderedDict()
 

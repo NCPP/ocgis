@@ -7,7 +7,6 @@ from shapely.geometry.point import Point
 from ocgis.dev.collection.dimension.dimension import OcgDimension
 from ocgis.dev.collection.collection import Identifier
 from ocgis.dev.collection.iterators import KeyedIterator, MeltedIterator
-import time
 
 
 class TestCollection(unittest.TestCase):
@@ -152,10 +151,7 @@ class TestCollection(unittest.TestCase):
                         import ipdb;ipdb.set_trace()
                     else:
                         continue
-#                try:
                 self.assertEqual(np.sum([dgrp.sum() for dgrp in tdim.tgdim.dgroups]),len(tdim.value))
-#                except:
-#                    import ipdb;ipdb.set_trace()
 
     def get_SpatialDimension(self):
         y = range(40,45)

@@ -163,10 +163,7 @@ class Identifier(object):
             shape = self.storage.shape
             self.storage.resize(shape[0]+new_values.shape[0],shape[1])
             self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
-#            try:
             self.storage[-new_values.shape[0]:,1:] = new_values
-#            except ValueError:
-#                self.storage[-new_values.shape[0]:,1:] = new_values.reshape(-1,1)
             
     def get(self,value):
         cmp = (self.storage[:,1:] == value).all(axis=1)
@@ -176,39 +173,3 @@ class Identifier(object):
         ret = np.arange(self._curr,self._curr+n,dtype=self.storage.dtype)
         self._curr = self._curr + n
         return(ret)
-
-
-#class BoundsIdentifier(Identifier):
-#    
-#    def add(self,value):
-#        if value is None:
-#            self[value] = self._get_current_identifier_()
-#        else:
-#            try:
-#                ref = self[value[0]]
-#            except KeyError:
-#                self[value[0]] = {}
-#                ref = self[value[0]]
-#            try:
-#                ref[value[1]]
-#            except KeyError:
-#                ref[value[1]] = self._get_current_identifier_()
-#
-#class TimeGroupIdentifier(object):
-#    
-#    def __init__(self,tgdim):
-#        self.storage = np.empty((tgdim.value.shape[0],tgdim.value.shape[1]+1),dtype=int)
-#        self.storage[:,1:] = tgdim.value
-#        self.storage[:,0] = np.arange(1,self.storage.shape[0]+1)
-#    
-#    def add(self,value):
-#        cmp = (self.storage[:,1:] == value).all(axis=1)
-#        if not cmp.any():
-#            shape = self.storage.shape
-#            self.storage.resize(shape[0]+1,shape[1])
-#            self.storage[-1,0] = self.storage[-2,0] + 1
-#            self.storage[-1,1:] = value
-#            
-#    def get(self,value):
-#        cmp = (self.storage[:,1:] == value).all(axis=1)
-#        return(self.storage[cmp,:])

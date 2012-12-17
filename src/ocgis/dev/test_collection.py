@@ -161,8 +161,6 @@ class TestCollection(unittest.TestCase):
         geoms = np.array(geoms,dtype=object).reshape(5,5)
         np.random.seed(1)
         self._mask = np.random.random_integers(0,1,geoms.shape)
-#        gid = np.arange(1,26).reshape(5,5)
-#        gid = np.ma.array(gid,mask=self._mask)
         sdim = SpatialDimension(geoms,self._mask)
         return(sdim)
     

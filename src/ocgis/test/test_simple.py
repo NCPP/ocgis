@@ -64,9 +64,7 @@ class TestSimple(TestBase):
         make_simple()
 
     def test_return_all(self):
-        warn('fix output format')
-        ops = self.get_ops(kwds={'output_format':'shp'})
-        ret = self.get_ret(ops)
+        ret = self.get_ret()
         
         ## confirm size of geometry array
         ref = ret[1].variables[self.var].spatial

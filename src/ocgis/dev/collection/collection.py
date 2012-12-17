@@ -39,22 +39,29 @@ class OcgCollection(object):
         self._mode = 'raw'
         
         ## variable level identifiers
-        self.tid = Identifier()
-        self.tbid = BoundsIdentifier()
+        self.tid = None
+        self.tbid = None
         self.tgid = None
-        self.tgbid = BoundsIdentifier()
-        self.lid = Identifier()
-        self.lbid = BoundsIdentifier() ## level bounds identifier
-        self.gid = Identifier()
+        self.tgbid = None
+        self.lid = None
+        self.lbid = None ## level bounds identifier
+        self.gid = None
         ## collection level identifiers
-        self.cid = Identifier() ## calculations
-        self.vid = Identifier() ## variables
-        self.did = Identifier() ## dataset (uri)
+        self.cid = None ## calculations
+        self.vid = None ## variables
+        self.did = None ## dataset (uri)
         ## variable storage
         self.variables = {}
         ## calculation storage
         self.calculations = {}
         
+    def _uid_(self,attr,init_vals,add=False):
+        if getattr(self,attr) is None:
+            setattr(self,attr,Identifier(init_vals))
+        if add:
+            getattr(self,attr).add(init_vals)
+            
+        return(getattr(self,attr))
     
     def add_calculation(self,var,name,values,tgdim):
         self._mode = 'calc'
@@ -84,6 +91,7 @@ class OcgCollection(object):
         self.variables.update({var.name:var})
         
         ## update collection identifiers
+        vid = self._uid_('vid',var.name,add=True)
         self.vid.add(var.name)
         self.did.add(var.uri)
         
@@ -122,61 +130,85 @@ class OcgCollection(object):
                     tbid.add(value_bounds[idx])
 
 
-class Identifier(OrderedDict):
+class Identifier(object):
     
-    def __init__(self,*args,**kwds):
-        self._curr = 1
-        super(Identifier,self).__init__(*args,**kwds)
-    
-    def add(self,value):
-        if self._get_is_unique_(value):
-            self.update({value:self._get_current_identifier_()})
+    def __init__(self,init_vals):
+        if len(init_vals.shape) == 1:
+            init_vals = init_vals.reshape(-1,1)
+        shape = list(init_vals.shape)
+        shape[1] += 1
+        self.storage = np.empty(shape,dtype=init_vals.dtype)
+        self.storage[:,1:] = init_vals
+        self._curr = self.storage.shape[0]+1
+        self.storage[:,0] = np.arange(1,self._curr,dtype=init_vals.dtype)
         
-    def _get_is_unique_(self,value):
-        if value in self:
-            ret = False
-        else:
-            ret = True
-        return(ret)
+    def __len__(self):
+        return(self.storage.shape[0])
     
-    def _get_current_identifier_(self):
-        try:
-            return(self._curr)
-        finally:
-            self._curr += 1
-
-
-class BoundsIdentifier(Identifier):
+    @property
+    def uid(self):
+        return(self.storage[:,0].astype(int))
     
     def add(self,value):
-        if value is None:
-            self[value] = self._get_current_identifier_()
-        else:
-            try:
-                ref = self[value[0]]
-            except KeyError:
-                self[value[0]] = {}
-                ref = self[value[0]]
-            try:
-                ref[value[1]]
-            except KeyError:
-                ref[value[1]] = self._get_current_identifier_()
-
-class TimeGroupIdentifier(object):
-    
-    def __init__(self,tgdim):
-        self.storage = np.empty((tgdim.value.shape[0],tgdim.value.shape[1]+1),dtype=int)
-        self.storage[:,1:] = tgdim.value
-        self.storage[:,0] = np.arange(1,self.storage.shape[0]+1)
-    
-    def add(self,value):
-        cmp = (self.storage[:,1:] == value).all(axis=1)
-        if not cmp.any():
+        if value.ndim <= 1:
+            value = value.reshape(-1,1)
+        adds = np.zeros(value.shape[0],dtype=bool)
+        for idx in range(adds.shape[0]):
+            cmp = self.storage[:,1:] == value[idx,:]
+            cmp2 = cmp.all(axis=1)
+            if not np.any(cmp2):
+                adds[idx] = True
+        if adds.any():
+            new_values = value[adds,:]
             shape = self.storage.shape
-            self.storage.resize(shape[0]+1,shape[1])
-            self.storage[-1,0] = self.storage[-2,0] + 1
-            self.storage[-1,1:] = value
+            self.storage.resize(shape[0]+new_values.shape[0],shape[1])
+            self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
+#            try:
+            self.storage[-new_values.shape[0]:,1:] = new_values
+#            except ValueError:
+#                self.storage[-new_values.shape[0]:,1:] = new_values.reshape(-1,1)
             
     def get(self,value):
         cmp = (self.storage[:,1:] == value).all(axis=1)
-        return(self.storage[cmp,:])
+        return(int(self.storage[cmp,[0]]))
+    
+    def _get_curr_(self,n):
+        ret = np.arange(self._curr,self._curr+n,dtype=self.storage.dtype)
+        self._curr = self._curr + n
+        return(ret)
+
+
+#class BoundsIdentifier(Identifier):
+#    
+#    def add(self,value):
+#        if value is None:
+#            self[value] = self._get_current_identifier_()
+#        else:
+#            try:
+#                ref = self[value[0]]
+#            except KeyError:
+#                self[value[0]] = {}
+#                ref = self[value[0]]
+#            try:
+#                ref[value[1]]
+#            except KeyError:
+#                ref[value[1]] = self._get_current_identifier_()
+#
+#class TimeGroupIdentifier(object):
+#    
+#    def __init__(self,tgdim):
+#        self.storage = np.empty((tgdim.value.shape[0],tgdim.value.shape[1]+1),dtype=int)
+#        self.storage[:,1:] = tgdim.value
+#        self.storage[:,0] = np.arange(1,self.storage.shape[0]+1)
+#    
+#    def add(self,value):
+#        cmp = (self.storage[:,1:] == value).all(axis=1)
+#        if not cmp.any():
+#            shape = self.storage.shape
+#            self.storage.resize(shape[0]+1,shape[1])
+#            self.storage[-1,0] = self.storage[-2,0] + 1
+#            self.storage[-1,1:] = value
+#            
+#    def get(self,value):
+#        cmp = (self.storage[:,1:] == value).all(axis=1)
+#        return(self.storage[cmp,:])

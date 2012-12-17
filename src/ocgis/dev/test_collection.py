@@ -27,14 +27,37 @@ class TestCollection(unittest.TestCase):
                 else:
                     self.assertFalse('bnds' in row)
                     
-    def test_OcgIdentifier(self):
-        oid = Identifier()
-        oid.add(55)
-        self.assertEqual(oid,{55:1})
-        oid.add(55)
-        self.assertEqual(oid,{55:1})
-        oid.add(56)
-        self.assertEqual(oid,{55:1,56:2})
+    def test_Identifier(self):
+        init_vals = np.array([50,55])
+        oid = Identifier(init_vals)
+        oid.add(np.array(55))
+        self.assertEqual(2,len(oid))
+        oid.add(np.array([55,56]))
+        self.assertEqual(3,len(oid))
+        self.assertEqual(3,oid.uid[-1])
+        self.assertEqual(oid.get(55),2)
+        oid.add(np.array([50,55,58,60]))
+        self.assertEqual(len(oid),5)
+        
+        init_vals = np.array([datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)])
+        oid = Identifier(init_vals)
+        self.assertEqual(2,len(oid))
+        oid.add(np.array(datetime.datetime(2000,2,3)))
+        self.assertEqual(3,len(oid))
+        self.assertEqual(oid.get(datetime.datetime(2000,2,3)),3)
+        
+        init_vals = np.array([[datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)],
+                              [datetime.datetime(2004,1,1,12),datetime.datetime(2005,12,31,12)]])
+        oid = Identifier(init_vals)
+        self.assertEqual(len(oid),2)
+        oid.add(np.array([[datetime.datetime(2004,1,1,12),datetime.datetime(2005,12,31,12)]]))
+        self.assertEqual(len(oid),2)
+        oid.add(np.array([[datetime.datetime(2008,1,1,12),datetime.datetime(2005,12,31,12)]]))
+        self.assertEqual(len(oid),3)
+        uid = oid.get(np.array([[datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)]]))
+        self.assertEqual(1,uid)
+        uid = oid.get(np.array([[datetime.datetime(2008,1,1,12),datetime.datetime(2005,12,31,12)]]))
+        self.assertEqual(3,uid)
         
     def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)

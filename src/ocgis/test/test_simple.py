@@ -95,7 +95,7 @@ class TestSimple(TestBase):
         ret = self.get_ret(kwds={'time_range':[datetime.datetime(2000,3,1),
                                                datetime.datetime(2000,3,31,23)],
                                  'level_range':1})
-        ref = ret[1].variables[self.var].raw_value
+        ref = ret[1].variables[self.var].value
         self.assertEqual(ref.shape,(31,1,4,4))
     
     def test_time_level_subset_aggregate(self):
@@ -103,10 +103,10 @@ class TestSimple(TestBase):
                                                datetime.datetime(2000,3,31)],
                                  'level_range':1,
                                  'aggregate':True})
-        ref = ret[1].variables[self.var].agg_value
+        ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.levelvec.shape[0],ref.levelvec_bounds.shape[0])
+        self.assertEqual(ref.level.value.shape[0],ref.level.bounds.shape[0])
         
     def test_using_ugid(self):
         ## swap names of id variable in geometry dictionary
@@ -122,7 +122,8 @@ class TestSimple(TestBase):
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
-        ret_gids = set(ref.gid.compressed())
+        ret_gids = set(ref.gid.uid)
+        import ipdb;ipdb.set_trace()
         intersection = gids.intersection(ret_gids)
         self.assertEqual(len(intersection),4)
         self.assertTrue(np.all(ref.variables['foo'].raw_value[0,0,:,:] == np.array([[1.0,2.0],[3.0,4.0]])))

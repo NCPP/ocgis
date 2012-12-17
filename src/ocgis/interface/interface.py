@@ -388,7 +388,7 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         index_intersects = si.index_intersects
         
         ## construct the reference matrices
-        geom = np.empty(self.gid.shape,dtype=object)
+        geom = np.empty(self.shape,dtype=object)
         row = np.array([],dtype=int)
         col = np.array([],dtype=int)
         

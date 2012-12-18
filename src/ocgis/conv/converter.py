@@ -3,6 +3,7 @@ from shapely.geometry.point import Point
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import wkb
 from ocgis.interface.projection import UsNationalEqualArea
+from ocgis.api.dataset.collection.iterators import MeltedIterator
 
 
 class OcgConverter(object):
@@ -18,24 +19,24 @@ class OcgConverter(object):
     '''
     _ext = None
     
-    def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None,alt_it=None):
+    def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None):#,alt_it=None):
         self.so = so
         self.ops = so.ops
         self.base_name = base_name
         self.wd = wd
         self.use_dir = use_dir
         self.mode = mode
-        self.alt_it = alt_it
+#        self.alt_it = alt_it
         
-        ## reference to calculation engine for convenience
-        self.cengine = self.so.cengine
+#        ## reference to calculation engine for convenience
+#        self.cengine = self.so.cengine
         ## reference dataset object
-        self.ocg_dataset = so.ops.dataset[0]['ocg_dataset']
-        self.projection = self.ocg_dataset.i.spatial.projection
+#        self.ocg_dataset = so.ops.dataset[0]['ocg_dataset']
+#        self.projection = self.ocg_dataset.i.spatial.projection
         ## destination projection for area calculations.
         ## TODO: consider moving this to the "get_collection" method inside the
         ## subset operation.
-        self.to_sr = UsNationalEqualArea().sr
+#        self.to_sr = UsNationalEqualArea().sr
     
     def write(self):
         raise(NotImplementedError)
@@ -96,83 +97,73 @@ class OcgConverter(object):
         OcgCollection
         dict'''
         
-        if self.alt_it is not None:
-            it = self.alt_it()
-        else:
-            it = self.so
-        
-        for coll,geom_dict in it:
+        for coll in self.so:
             #tdk
             try:
-                vprint('geom id processed: {0}'.format(geom_dict['ugid']))
+                vprint('geom id processed: {0}'.format(coll.ugeom['ugid']))
             except TypeError:
                 pass
             #tdk
-            yield(coll,geom_dict)
+            yield(coll)
             
-    def get_headers(self,upper=False):
-        '''Return headers depending on iterator mode.
-        
-        upper=False :: bool :: Set to True to make the headers uppercase.
-        
-        returns
-        
-        []str'''
-        
-        if self.mode in ['raw','agg']:
-            ret = ['tid','ugid','gid','vid','vlid','lid','time','variable','level','value']
-        elif self.mode == 'calc':
-            ret = ['tgid','ugid','gid','vid','vlid','lid','cid','year','month',
-                   'day','variable','level','calc_name','value']
-        elif self.mode == 'multi':
-            raise(NotImplementedError)
-        else:
-            raise(NotImplementedError)
-        if upper:
-            ret = [ii.upper() for ii in ret]
-        return(ret)
-        
-    def get_iter(self,coll):
-        '''Get the row iterator.
-        
-        coll :: OcgCollection
-        
-        yields
-        
-        []str
-        Shapely Polygon or MultiPolygon'''
-        
-        headers = self.get_headers(upper=False)
-        it = coll.get_iter(self.mode)
-        for row,geom in it.iter_rows(headers):
-            geom,area_km2 = self._process_geom_(geom)
-            yield(row,geom)
-            
-    def _process_geom_(self,geom):
-        '''Geometry conversion and area calculation.
-        
-        geom :: Shapely Polygon or MultiPolygon
-        
-        returns
-        
-        Shapely Polygon or MultiPolygon
-        float
-        '''
-        
-        geom = self._conv_to_multi_(geom)
-        area_km2 = self.projection.get_area_km2(self.to_sr,geom)
-        return(geom,area_km2)
+    def get_headers(self,coll):
+        it = MeltedIterator(coll,mode=self.mode)
+        return(it.get_headers(upper=True))
     
-    def _conv_to_multi_(self,geom):
-        '''Geometry conversion to single type.'''
+    def get_iter(self,coll):
+        return(MeltedIterator(coll,mode=self.mode).iter_list())
+            
+#    def get_headers(self,upper=False):
+#        '''Return headers depending on iterator mode.
+#        
+#        upper=False :: bool :: Set to True to make the headers uppercase.
+#        
+#        returns
+#        
+#        []str'''
+#        
+#        if self.mode in ['raw','agg']:
+#            ret = ['tid','ugid','gid','vid','vlid','lid','time','variable','level','value']
+#        elif self.mode == 'calc':
+#            ret = ['tgid','ugid','gid','vid','vlid','lid','cid','year','month',
+#                   'day','variable','level','calc_name','value']
+#        elif self.mode == 'multi':
+#            raise(NotImplementedError)
+#        else:
+#            raise(NotImplementedError)
+#        if upper:
+#            ret = [ii.upper() for ii in ret]
+#        return(ret)
         
-        if isinstance(geom,Point):
-            pass
-        else:
-            try:
-                geom = MultiPolygon(geom)
-            except TypeError:
-                geom = MultiPolygon([geom])
-            except AssertionError:
-                geom = wkb.loads(geom.wkb)
-        return(geom)
+#    def get_iter(self,coll):
+#        '''Get the row iterator.
+#        
+#        coll :: OcgCollection
+#        
+#        yields
+#        
+#        []str
+#        Shapely Polygon or MultiPolygon'''
+#        it = MeltedIterator(coll,mode=self.mode)
+#        headers = self.get_headers(upper=True)
+#        it = coll.get_iter(self.mode)
+#        for row,geom in it.iter_rows(headers):
+#            geom,area_km2 = self._process_geom_(geom)
+#            yield(row,geom)
+            
+#    def _process_geom_(self,geom):
+#        '''Geometry conversion and area calculation.
+#        
+#        geom :: Shapely Polygon or MultiPolygon
+#        
+#        returns
+#        
+#        Shapely Polygon or MultiPolygon
+#        float
+#        '''
+#        
+#        geom = self._conv_to_multi_(geom)
+#        area_km2 = self.projection.get_area_km2(self.to_sr,geom)
+#        return(geom,area_km2)
+    
+    

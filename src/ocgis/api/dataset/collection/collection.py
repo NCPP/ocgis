@@ -113,7 +113,7 @@ class OcgVariable(object):
    
 class OcgCollection(object):
     
-    def __init__(self,ugeom=None):
+    def __init__(self,ugeom=None,projection=None):
         if ugeom is None:
             ugeom = {'ugid':1,'geom':None}
         self.ugeom = ugeom
@@ -122,6 +122,7 @@ class OcgCollection(object):
 #        self._tgid_name = 'tgid'
 #        self._tgbid_name = 'tgbid'
         self._mode = 'raw'
+        self.projection = projection
         
 #        ## variable level identifiers
 #        self.tid = Identifier()

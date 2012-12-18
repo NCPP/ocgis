@@ -132,11 +132,13 @@ def get_collection((so,geom_dict)):
     
     coll = OcgCollection(ugeom=geom_dict)
     for dataset in so.ops.dataset:
-        ocg_variable = dataset['ocg_dataset'].subset(
+        ref = dataset['ocg_dataset']
+        ocg_variable = ref.subset(
                             polygon=geom_dict['geom'],
                             time_range=so.ops.time_range,
                             level_range=so.ops.level_range,
                             allow_empty=so.ops.allow_empty)
+        coll.projection = ref.i.spatial.projection
         coll.add_variable(ocg_variable)
     
 #    return_collection=True
@@ -167,7 +169,7 @@ def get_collection((so,geom_dict)):
 
     ## skip other operations if the dataset is empty
     if coll.is_empty:
-        return(coll,geom_dict)
+        return(coll)
      
     ## clipping operation
     if so.ops.spatial_operation == 'clip':
@@ -181,6 +183,7 @@ def get_collection((so,geom_dict)):
     ## if it is a vector output, wrap the data (if requested).
     arch = so.ops.dataset[0]['ocg_dataset']
     if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+        raise(NotImplementedError)
         wrap_coll(coll)
 
     ## do the requested calculations.
@@ -190,5 +193,5 @@ def get_collection((so,geom_dict)):
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)
     else:
-        return(coll,geom_dict)
+        return(coll)
     

@@ -3,6 +3,8 @@ import numpy as np
 from shapely.geometry.point import Point
 from collections import deque
 import itertools
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely import wkb
 
 
 class OcgDimension(object):
@@ -113,10 +115,11 @@ class SpatialDimension(OcgDimension):
         _name_uid = self._name_uid
         _name_value = self._name_value
         uid = self.uid
+        _conv_to_multi_ = self._conv_to_multi_
         
         for idx,geom in iter_array(self.value,return_value=True):
             row = {_name_uid:uid[idx],
-                   _name_value:geom}
+                   _name_value:_conv_to_multi_(geom)}
             yield(idx,row)
             
     def _get_weights_(self):
@@ -134,6 +137,21 @@ class SpatialDimension(OcgDimension):
             weights = weights/weights.max()
             weights = np.ma.array(weights,mask=value_mask)
         return(weights)
+    
+    @staticmethod
+    def _conv_to_multi_(geom):
+        '''Geometry conversion to single type.'''
+        
+        if isinstance(geom,Point):
+            pass
+        else:
+            try:
+                geom = MultiPolygon(geom)
+            except TypeError:
+                geom = MultiPolygon([geom])
+            except AssertionError:
+                geom = wkb.loads(geom.wkb)
+        return(geom)
             
         
 #    def get_masked(self):

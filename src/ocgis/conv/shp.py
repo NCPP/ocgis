@@ -22,7 +22,7 @@ class ShpConverter(OcgConverter):
         ## get the geometry in order
 #        self.ogr_geom = OGRGeomType(self.sub_ocg_dataset.geometry[0].geometryType()).num
 #        self.ogr_geom = 6 ## assumes multipolygon
-        self.srs = self.ocg_dataset.i.spatial.projection.sr
+#        self.srs = self.ocg_dataset.i.spatial.projection.sr
     
     def write(self):
         path = self.get_path()
@@ -33,15 +33,15 @@ class ShpConverter(OcgConverter):
             raise IOError('Could not create file on disk. Does it already exist?')
                 
         build = True
-        for coll,geom_dict in self:
+        for coll in self:
             for row,geom in self.get_iter(coll):
                 if build:
                     if isinstance(geom,MultiPolygon):
                         geom_type = ogr.wkbMultiPolygon
                     else:
                         geom_type = ogr.wkbPoint
-                    layer = ds.CreateLayer(self.layer,srs=self.srs,geom_type=geom_type)
-                    headers = self.get_headers(upper=True)
+                    layer = ds.CreateLayer(self.layer,srs=coll.projection.sr,geom_type=geom_type)
+                    headers = self.get_headers(coll)
                     self._set_ogr_fields_(headers,row)
                     for ogr_field in self.ogr_fields:
                         layer.CreateField(ogr_field.ogr_field)

@@ -3,8 +3,12 @@ from ocgis.api.dataset.collection.dimension import LevelDimension
 
 class AbstractOcgIterator(object):
     
-    def __init__(self,coll):
+    def __init__(self,coll,mode=None):
         self.coll = coll
+        if mode is None:
+            self.mode = self.coll._mode
+        else:
+            self.mode = mode
         
     def iter_list(self,*args,**kwds):
         headers = self.get_headers()
@@ -30,9 +34,9 @@ class AbstractOcgIterator(object):
 class MeltedIterator(AbstractOcgIterator):
     
     def _get_headers_(self):
-        if self.coll._mode == 'raw':
+        if self.mode == 'raw':
             return(['vid','did','ugid','tid','lid','gid','var_name','uri','time','level','value'])
-        elif self.coll._mode == 'calc':
+        elif self.mode == 'calc':
             ret = ['vid','did','ugid','tgid','lid','gid','var_name','uri']
             arch = self.coll.variables[self.coll.variables.keys()[0]]
             ret += arch.temporal_group.groups
@@ -57,25 +61,25 @@ class MeltedIterator(AbstractOcgIterator):
                             yield(row)
                         
     def _iter_value_(self,var,row):
-        if self.coll._mode == 'raw':
+        if self.mode == 'raw':
             yield(var.value,row)
-        elif self.coll._mode == 'calc':
+        elif self.mode == 'calc':
             for calc_name,calc_value in var.calc_value.iteritems():
                 row.update({'cid':self.coll.cid.get(calc_name),'calc_name':calc_name})
                 yield(calc_value,row)
-        elif self.coll._mode == 'multi':
+        elif self.mode == 'multi':
             raise(NotImplementedError)
         else:
             raise(NotImplementedError)
 
     def _iter_time_(self,var):
-        if self.coll._mode == 'raw':
+        if self.mode == 'raw':
             for row in var.temporal:
                 yield(row)
-        elif self.coll._mode == 'calc':
+        elif self.mode == 'calc':
             for row in var.temporal_group:
                 yield(row)
-        elif self.coll._mode == 'multi':
+        elif self.mode == 'multi':
             raise(NotImplementedError)
         else:
             raise(NotImplementedError)

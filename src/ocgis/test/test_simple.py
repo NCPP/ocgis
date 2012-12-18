@@ -191,6 +191,10 @@ class TestSimple(TestBase):
     def test_nc_conversion(self):
         ops = OcgOperations(dataset=self.dataset,output_format='nc')
         ret = self.get_ret(ops)
+        
+    def test_shp_conversion(self):
+        ops = OcgOperations(dataset=self.dataset,output_format='shp')
+        ret = self.get_ret(ops)
 
 
 class TestSimpleMask(TestBase):

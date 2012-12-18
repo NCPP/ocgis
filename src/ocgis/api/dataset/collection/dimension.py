@@ -23,6 +23,9 @@ class OcgDimension(object):
     def value(self):
         return(self.storage[self._name_value])
     
+    def __len__(self):
+        return(self.storage.shape[0])
+    
     def __iter__(self):
         _name_uid = self._name_uid
         _name_value = self._name_value
@@ -31,9 +34,7 @@ class OcgDimension(object):
         
         for idx in range(value.shape[0]):
             row = {_name_uid:uid[idx],
-                   _name_value:value[idx,0],
-                   'lower':value[idx,0],
-                   'upper':value[idx,2]}
+                   _name_value:value[idx,0]}
             yield(idx,row)
         
 #    def __iter__(self):
@@ -108,6 +109,9 @@ class SpatialDimension(OcgDimension):
             ret = 'polygon'
         return(ret)
     
+    def __len__(self):
+        return(self.value.compressed().shape[0])
+    
     def __iter__(self):
         _name_uid = self._name_uid
         _name_value = self._name_value
@@ -127,10 +131,11 @@ class SpatialDimension(OcgDimension):
 
 
 class TemporalDimension(OcgDimension):
-    _value_name = 'time'
+    _name_value = 'time'
+    _name_uid = 'tid'
     
-    def __init__(self,uid,value,bounds=None):
-        super(TemporalDimension,self).__init__(uid,value,bounds=bounds)
+#    def __init__(self,uid,value,bounds=None):
+#        super(TemporalDimension,self).__init__(uid,value,bounds=bounds)
         
 #        self.tgdim = None
     
@@ -260,10 +265,13 @@ class TemporalGroupDimension(OcgDimension):
     @property
     def shape(self):
         return(self._value.shape)
+    
+    def __len__(self):
+        return(self.value.shape[0])
         
     def __iter__(self):
         value = self.value
-        bounds = self.bounds
+#        bounds = self.bounds
         get_idx = [self._date_parts.index(g) for g in self.groups]
         groups = self.groups
         uid = self.uid
@@ -271,6 +279,6 @@ class TemporalGroupDimension(OcgDimension):
         for idx in range(value.shape[0]):
             ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
             ret.update({'tgid':uid[idx]})
-            ret.update({'lower':bounds[idx,0],
-                        'upper':bounds[idx,1]})
+#            ret.update({'lower':bounds[idx,0],
+#                        'upper':bounds[idx,1]})
             yield(idx,ret)

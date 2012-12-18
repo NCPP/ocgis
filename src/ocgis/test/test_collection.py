@@ -3,7 +3,8 @@ import numpy as np
 import itertools
 import datetime
 from shapely.geometry.point import Point
-from ocgis.api.dataset.collection.collection import Identifier
+from ocgis.api.dataset.collection.collection import Identifier, OcgCollection,\
+    OcgVariable
 from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
     SpatialDimension, TemporalDimension
@@ -207,7 +208,7 @@ class TestCollection(unittest.TestCase):
                                spatial.value.shape[1])
         mask = np.empty(value.shape,dtype=bool)
         for idx in range(mask.shape[0]):
-            mask[idx,:,:] = spatial.value_mask
+            mask[idx,:,:] = spatial._value_mask
         value = np.ma.array(value,mask=mask)
         
         var = OcgVariable(name,value,temporal,spatial,level)
@@ -232,18 +233,19 @@ class TestCollection(unittest.TestCase):
             coll = OcgCollection()
             var1 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
             coll.add_variable(var1)
-            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
+#            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
             var2 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
             coll.add_variable(var2)
-            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
-            self.assertEqual(lens_original,lens_new)
+            self.assertEqual(len(coll.variables),2)
+#            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
+#            self.assertEqual(lens_original,lens_new)
             
             if group is not None:
                 cnames = ['my_mean','my_median']
                 for name in cnames:
                     for var in [var1,var2]:
-                        var.temporal.group(group)
-                        new_values = np.random.rand(var.temporal.tgdim.value.shape[0],
+                        var.group(group)
+                        new_values = np.random.rand(var.temporal_group.shape[0],
                                                     var.value.shape[1],
                                                     var.spatial.value.shape[0],
                                                     var.spatial.value.shape[1])
@@ -255,15 +257,15 @@ class TestCollection(unittest.TestCase):
                 for var in [var1,var2]: self.assertEqual(len(var.calc_value),2)
                 self.assertTrue(np.all([c in coll.cid.storage[:,1] for c in cnames]))
             
-            if len(coll.lid) == 0:
-                m = 1
+            if add_level:
+                m = 2
             else:
-                m = len(coll.lid)
+                m = 1
             it = MeltedIterator(coll)
             if group is None:
-                iter_len = len(coll.tid)*len(coll.gid)*m*2
+                iter_len = len(var1.temporal)*len(var1.spatial)*m*2
             else:
-                iter_len = len(coll.tgid)*len(coll.gid)*m*len(cnames)*2
+                iter_len = len(var1.temporal_group)*len(var1.spatial)*m*len(cnames)*2
             it_method = getattr(it,iter_method)
             headers = it.get_headers()
             for ii,row in enumerate(it_method(),start=1):
@@ -275,7 +277,8 @@ class TestCollection(unittest.TestCase):
                     else:
                         self.assertTrue(row['level'] is None)
                     if group is None:
-                        self.assertEqual(row.keys(),['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid'])
+                        assert_keys = ['lid','ugid','vid','level','did','var_name','uri','value','gid','geom','time','tid']
+                        self.assertEqual(len(set(row.keys()).difference(assert_keys)),0)
                         self.assertEqual(len(row),12)
                     else:
                         self.assertTrue(all([v in row.keys() for v in ['cid','calc_name']]))

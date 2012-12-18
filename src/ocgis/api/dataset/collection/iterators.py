@@ -1,3 +1,4 @@
+from ocgis.api.dataset.collection.dimension import LevelDimension
 
 
 class AbstractOcgIterator(object):
@@ -34,7 +35,7 @@ class MeltedIterator(AbstractOcgIterator):
         elif self.coll._mode == 'calc':
             ret = ['vid','did','ugid','tgid','lid','gid','var_name','uri']
             arch = self.coll.variables[self.coll.variables.keys()[0]]
-            ret += arch.temporal.tgdim.groups
+            ret += arch.temporal_group.groups
             ret += ['level','value']
             return(ret)
     
@@ -46,7 +47,7 @@ class MeltedIterator(AbstractOcgIterator):
                    'uri':var.uri,
                    'ugid':self.coll.ugeom['ugid']}
             for value,row in self._iter_value_(var,row):
-                for gidx,geom in self._iter_spatial_(var):
+                for gidx,geom in var.spatial:
                     row.update(geom)
                     for tidx,time in self._iter_time_(var):
                         row.update(time)
@@ -66,48 +67,48 @@ class MeltedIterator(AbstractOcgIterator):
             raise(NotImplementedError)
         else:
             raise(NotImplementedError)
-    
+
     def _iter_time_(self,var):
         if self.coll._mode == 'raw':
-            uid_name = self.coll._tid_name
-            value_name = var.temporal._value_name
-            get = self.coll.tid.get
-            for ii,row in enumerate(var.temporal.iter_rows(add_bounds=False)):
-                row.update({uid_name:get(row[value_name])})
-                yield(ii,row)
+            for row in var.temporal:
+                yield(row)
         elif self.coll._mode == 'calc':
-            get = self.coll.tgid.get
-            value = var.temporal.tgdim.value
-            for ii,row in var.temporal.tgdim.iter_rows(add_bounds=False,yield_idx=True):
-                row.update({'tgid':get(value[ii,:])})
-                yield(ii,row)
+            for row in var.temporal_group:
+                yield(row)
         elif self.coll._mode == 'multi':
             raise(NotImplementedError)
         else:
             raise(NotImplementedError)
-            
+        
     def _iter_level_(self,var):
         if var.level is None:
-            yield(0,{'lid':None,LevelDimension._value_name:None})
+            yield(0,{LevelDimension._name_uid:None,LevelDimension._name_value:None})
         else:
-            coll = self.coll
-            uid_name = 'lid'
-            value_name = var.level._value_name
-            get = coll.lid.get
+            for lidx,level in var.level:
+                yield(lidx,level)
             
-            for ii,row in enumerate(var.level.iter_rows(add_bounds=False)):
-                row.update({uid_name:get(row[value_name])})
-                yield(ii,row)
-            
-    def _iter_spatial_(self,var):
-        coll = self.coll
-        uid_name = 'gid'
-        value_name = var.spatial._value_name
-        get = coll.gid.get
-        
-        for ii,row in var.spatial.iter_rows(add_bounds=False,yield_idx=True):
-            row.update({uid_name:get(row[value_name].wkb)})
-            yield(ii,row)
+#    def _iter_level_(self,var):
+#        if var.level is None:
+#            yield(0,{'lid':None,LevelDimension._value_name:None})
+#        else:
+#            coll = self.coll
+#            uid_name = 'lid'
+#            value_name = var.level._value_name
+#            get = coll.lid.get
+#            
+#            for ii,row in enumerate(var.level.iter_rows(add_bounds=False)):
+#                row.update({uid_name:get(row[value_name])})
+#                yield(ii,row)
+#            
+#    def _iter_spatial_(self,var):
+#        coll = self.coll
+#        uid_name = 'gid'
+#        value_name = var.spatial._value_name
+#        get = coll.gid.get
+#        
+#        for ii,row in var.spatial.iter_rows(add_bounds=False,yield_idx=True):
+#            row.update({uid_name:get(row[value_name].wkb)})
+#            yield(ii,row)
 
 
 class KeyedIterator(AbstractOcgIterator):

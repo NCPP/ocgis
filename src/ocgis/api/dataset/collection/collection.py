@@ -1,5 +1,7 @@
 from collections import OrderedDict
 import numpy as np
+from ocgis.api.dataset.collection.dimension import TemporalDimension,\
+    SpatialDimension
 
 
 class OcgVariable(object):
@@ -16,6 +18,7 @@ class OcgVariable(object):
         self.spatial = spatial
         self.level = level
         self.uri = uri
+        self.temporal_group = None
         
         ## hold aggregated values separate from raw
         self.raw_value = None
@@ -31,6 +34,9 @@ class OcgVariable(object):
         value = np.empty(0)
         ret = cls(name,value,temporal,spatial,uri=uri)
         ret._is_empty = True
+        
+    def group(self,*args,**kwds):
+        self.temporal_group = self.temporal.group(*args,**kwds)
 
    
 class OcgCollection(object):
@@ -39,10 +45,10 @@ class OcgCollection(object):
         if ugeom is None:
             ugeom = {'ugid':1,'geom':None}
         self.ugeom = ugeom
-        self._tid_name = 'tid'
-        self._tbid_name = 'tbid'
-        self._tgid_name = 'tgid'
-        self._tgbid_name = 'tgbid'
+#        self._tid_name = 'tid'
+#        self._tbid_name = 'tbid'
+#        self._tgid_name = 'tgid'
+#        self._tgbid_name = 'tgbid'
         self._mode = 'raw'
         
 #        ## variable level identifiers

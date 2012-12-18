@@ -20,6 +20,8 @@ class TestCollection(unittest.TestCase):
         for bounds in _bounds:
             dim = OcgDimension(uid,value,bounds=bounds)
             self.assertEqual(dim.shape,(2,))
+            for row in dim:
+                pass
             
                     
     def test_Identifier(self):
@@ -143,7 +145,7 @@ class TestCollection(unittest.TestCase):
                     tgdim = tdim.group(perm)
                 except TypeError:
                     tgdim = tdim.group(*perm)
-                for row in tgdim.iter_rows():
+                for row in tgdim:
                     if np.random.rand() <= -0.01:
                         print (perm,add_bounds)
                         print row
@@ -170,6 +172,8 @@ class TestCollection(unittest.TestCase):
         masked = sdim.value.copy()
         self.assertTrue(np.all(masked.mask == self._mask))
         self.assertTrue(np.all(sdim.weights.mask == sdim.uid.mask))
+        for row in sdim:
+            pass
 
     def get_LevelDimension(self,add_bounds=True):
         values = np.array([50,150])

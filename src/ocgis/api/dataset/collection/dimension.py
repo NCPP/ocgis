@@ -22,6 +22,19 @@ class OcgDimension(object):
     @property
     def value(self):
         return(self.storage[self._name_value])
+    
+    def __iter__(self):
+        _name_uid = self._name_uid
+        _name_value = self._name_value
+        value = self.value
+        uid = self.uid
+        
+        for idx in range(value.shape[0]):
+            row = {_name_uid:uid[idx],
+                   _name_value:value[idx,0],
+                   'lower':value[idx,0],
+                   'upper':value[idx,2]}
+            yield(idx,row)
         
 #    def __iter__(self):
 #        storage = self.storage
@@ -87,7 +100,6 @@ class SpatialDimension(OcgDimension):
     @property
     def bounds(self):
         raise(NotImplementedError)
-        
     @property
     def geomtype(self):
         if isinstance(self.value[0,0],Point):
@@ -95,6 +107,16 @@ class SpatialDimension(OcgDimension):
         else:
             ret = 'polygon'
         return(ret)
+    
+    def __iter__(self):
+        _name_uid = self._name_uid
+        _name_value = self._name_value
+        uid = self.uid
+        
+        for idx,geom in iter_array(self.value,return_value=True):
+            row = {_name_uid:uid[idx],
+                   _name_value:geom}
+            yield(idx,row)
         
 #    def get_masked(self):
 #        return(np.ma.array(self.value,mask=self.value_mask))
@@ -124,45 +146,45 @@ class TemporalDimension(OcgDimension):
         
         return(TemporalGroupDimension(new_value,new_bounds,dgroups,args[0]))
     
-    def _group_part_count_(self,part,count):
-        raise(NotImplementedError)
-        if part not in ['year','month']:
-            raise(NotImplementedError)
-            try:
-                delta = datetime.timedelta(**{part:count})
-            except TypeError:
-                delta = datetime.timedelta(**{part+'s':count})
-#            lower = value[0]
-#            upper = lower + delta
-                
-        value = self.value
-        bounds = self.bounds
-        
-        if self.bounds is None:
-            raise(NotImplementedError)
-        else:
-            ## get exclusive lower and upper bounds
-            lower = getattr(value[0],part)
-            upper = lower + count
-            import ipdb;ipdb.set_trace()
-        
-    def _subset_timeidx_(self,time_range):
-        if time_range is None:
-            ret = self.timeidx
-        else:
-            if self.bounds is None:
-                ret = self.timeidx[(self.value>=time_range[0])*
-                                   (self.value<=time_range[1])]
-            else:
-                select = np.empty(self.value.shape,dtype=bool)
-                for idx in np.arange(self.bounds.shape[0]):
-                    bnds = self.bounds[idx,:]
-                    idx1 = (time_range[0]>=bnds[0])*(time_range[0]<=bnds[1])
-                    idx2 = (time_range[0]<=bnds[0])*(time_range[1]>=bnds[1])
-                    idx3 = (time_range[1]>=bnds[0])*(time_range[1]<=bnds[1])
-                    select[idx] = np.logical_or(np.logical_or(idx1,idx2),idx3)
-                ret = self.timeidx[select]
-        return(ret)
+#    def _group_part_count_(self,part,count):
+#        raise(NotImplementedError)
+#        if part not in ['year','month']:
+#            raise(NotImplementedError)
+#            try:
+#                delta = datetime.timedelta(**{part:count})
+#            except TypeError:
+#                delta = datetime.timedelta(**{part+'s':count})
+##            lower = value[0]
+##            upper = lower + delta
+#                
+#        value = self.value
+#        bounds = self.bounds
+#        
+#        if self.bounds is None:
+#            raise(NotImplementedError)
+#        else:
+#            ## get exclusive lower and upper bounds
+#            lower = getattr(value[0],part)
+#            upper = lower + count
+#            import ipdb;ipdb.set_trace()
+#        
+#    def _subset_timeidx_(self,time_range):
+#        if time_range is None:
+#            ret = self.timeidx
+#        else:
+#            if self.bounds is None:
+#                ret = self.timeidx[(self.value>=time_range[0])*
+#                                   (self.value<=time_range[1])]
+#            else:
+#                select = np.empty(self.value.shape,dtype=bool)
+#                for idx in np.arange(self.bounds.shape[0]):
+#                    bnds = self.bounds[idx,:]
+#                    idx1 = (time_range[0]>=bnds[0])*(time_range[0]<=bnds[1])
+#                    idx2 = (time_range[0]<=bnds[0])*(time_range[1]>=bnds[1])
+#                    idx3 = (time_range[1]>=bnds[0])*(time_range[1]<=bnds[1])
+#                    select[idx] = np.logical_or(np.logical_or(idx1,idx2),idx3)
+#                ret = self.timeidx[select]
+#        return(ret)
     
     def _group_part_(self,groups):
         
@@ -239,22 +261,16 @@ class TemporalGroupDimension(OcgDimension):
     def shape(self):
         return(self._value.shape)
         
-#    def iter_rows(self,add_bounds=True,yield_idx=False):
-#        value = self.value
-#        bounds = self.bounds
-#        get_idx = [self._date_parts.index(g) for g in self.groups]
-#        groups = self.groups
-#        name_bounds = self._name_bounds
-#        uid = self.uid
-#        
-#        for idx in range(value.shape[0]):
-#            ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
-#            ret.update({'tgid':uid[idx]})
-#            if add_bounds:
-#                ret.update({name_bounds:{0:bounds[idx,0],
-#                                         1:bounds[idx,1]}})
-#            if yield_idx:
-#                yld = (idx,ret)
-#            else:
-#                yld = ret
-#            yield(yld)
+    def __iter__(self):
+        value = self.value
+        bounds = self.bounds
+        get_idx = [self._date_parts.index(g) for g in self.groups]
+        groups = self.groups
+        uid = self.uid
+        
+        for idx in range(value.shape[0]):
+            ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
+            ret.update({'tgid':uid[idx]})
+            ret.update({'lower':bounds[idx,0],
+                        'upper':bounds[idx,1]})
+            yield(idx,ret)

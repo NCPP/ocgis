@@ -15,8 +15,8 @@ def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
     if uid is None:
         uid = np.arange(1,value.shape[0]+1,dtype=int)
     ret = np.empty(value.shape[0],dtype=[(names['uid'],int),(names['value'],value.dtype,3)])
-    ret['uid'] = uid
-    ref = ret['value']
+    ret[names['uid']] = uid
+    ref = ret[names['value']]
     ref[:,1] = value
     if bounds is None:
         ref[:,0] = ref[:,1]

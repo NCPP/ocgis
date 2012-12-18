@@ -1,4 +1,3 @@
-from ocgis.api.dataset.collection.dimension.dimension import LevelDimension
 
 
 class AbstractOcgIterator(object):

@@ -1,12 +1,12 @@
 import unittest
 import numpy as np
 import itertools
-from ocgis.api.dataset.collection import *
 import datetime
 from shapely.geometry.point import Point
-from ocgis.api.dataset.collection.dimension.dimension import OcgDimension
 from ocgis.api.dataset.collection.collection import Identifier
 from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
+from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
+    SpatialDimension
 
 
 class TestCollection(unittest.TestCase):
@@ -14,20 +14,13 @@ class TestCollection(unittest.TestCase):
     def test_OcgDimension(self):
         _bounds = [None,
                   np.array([[0,100],[100,200]])]
-#        add_bounds = [True,False]
         value = np.array([50,150])
         uid = np.arange(1,value.shape[0]+1)
         
         for bounds in _bounds:
             dim = OcgDimension(uid,value,bounds=bounds)
-            for row in dim:
-                import ipdb;ipdb.set_trace()
-            for row in dim.iter_rows(add_bounds=add_bounds):
-                self.assertTrue(OcgDimension._name_value in row)
-                if add_bounds and bound is not None:
-                    self.assertTrue('bnds' in row)
-                else:
-                    self.assertFalse('bnds' in row)
+            self.assertEqual(dim.shape,(2,))
+            
                     
     def test_Identifier(self):
         init_vals = np.array([50,55])
@@ -168,16 +161,15 @@ class TestCollection(unittest.TestCase):
         np.random.seed(1)
         self._mask = np.array(np.random.random_integers(0,1,geoms.shape),dtype=bool)
         gid = np.arange(1,(self._mask.shape[0]*self._mask.shape[1])+1).reshape(self._mask.shape)
+        gid = np.ma.array(gid,mask=self._mask)
         sdim = SpatialDimension(gid,geoms,self._mask)
         return(sdim)
     
     def test_SpatialDimension(self):
         sdim = self.get_SpatialDimension()
-        masked = sdim.get_masked()
+        masked = sdim.value.copy()
         self.assertTrue(np.all(masked.mask == self._mask))
-        
-        for row in sdim.iter_rows():
-            continue
+        self.assertTrue(np.all(sdim.weights.mask == sdim.uid.mask))
 
     def get_LevelDimension(self,add_bounds=True):
         values = np.array([50,150])
@@ -187,6 +179,13 @@ class TestCollection(unittest.TestCase):
             bounds = None
         ldim = LevelDimension(np.arange(1,values.shape[0]+1),values,bounds)
         return(ldim)
+    
+    def test_LevelDimension(self):
+        _add_bounds = [True,False]
+        for add_bounds in _add_bounds:
+            dim = self.get_LevelDimension(add_bounds)
+            self.assertEqual(dim.shape,(2,))
+            self.assertEqual(dim.storage.dtype.names,(dim._name_uid,dim._name_value))
     
     def get_OcgVariable(self,add_level=True,add_bounds=True,name='foo'):
         temporal = self.get_TemporalDimension(add_bounds)

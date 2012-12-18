@@ -1,8 +1,5 @@
 from collections import OrderedDict
 import numpy as np
-from ocgis.api.dataset.collection.dimension.temporal import TemporalDimension
-from ocgis.api.dataset.collection.dimension.dimension import LevelDimension
-from ocgis.api.dataset.collection.dimension.spatial import SpatialDimension
 
 
 class OcgVariable(object):

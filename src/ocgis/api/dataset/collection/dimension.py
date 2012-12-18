@@ -1,5 +1,7 @@
-from warnings import warn
-from ocgis.util.helpers import get_bounded
+from ocgis.util.helpers import get_bounded, iter_array
+import numpy as np
+from shapely.geometry.point import Point
+from collections import deque
 
 
 class OcgDimension(object):
@@ -9,6 +11,16 @@ class OcgDimension(object):
     def __init__(self,uid,value,bounds=None):
         self.storage = get_bounded(value,bounds,uid,
                         names={'uid':self._name_uid,'value':self._name_value})
+        
+    @property
+    def shape(self):
+        return(self.storage.shape)
+    @property
+    def uid(self):
+        return(self.storage[self._name_uid])
+    @property
+    def value(self):
+        return(self.storage[self._name_value])
         
 #    def __iter__(self):
 #        storage = self.storage
@@ -42,20 +54,21 @@ class LevelDimension(OcgDimension):
     
 
 class SpatialDimension(OcgDimension):
-    _value_name = 'geom'
+    _name_value = 'geom'
+    _name_uid = 'gid'
     
     def __init__(self,uid,value,value_mask,weights=None):
-        super(SpatialDimension,self).__init__(uid,value)
-
-        self.value_mask = value_mask
+        self._uid = uid
+        self._value = value
+        self._value_mask = value_mask
         
         if weights is None:
-            if isinstance(self.value[0,0],Point):
+            if isinstance(self._value[0,0],Point):
                 weights = np.ones(value.shape,dtype=float)
                 weights = np.ma.array(weights,mask=value_mask)
             else:
                 weights = np.empty(value.shape,dtype=float)
-                masked = self.get_masked()
+                masked = self.value
                 for idx,geom in iter_array(masked,return_value=True):
                     weights[idx] = geom.area
                 weights = weights/weights.max()
@@ -63,6 +76,13 @@ class SpatialDimension(OcgDimension):
         else:
             assert(weights.shape == value.shape)
         self.weights = weights
+    
+    @property
+    def uid(self):
+        return(self._uid)
+    @property
+    def value(self):
+        return(np.ma.array(self._value,mask=self._value_mask))
         
     @property
     def geomtype(self):
@@ -72,12 +92,12 @@ class SpatialDimension(OcgDimension):
             ret = 'polygon'
         return(ret)
         
-    def get_masked(self):
-        return(np.ma.array(self.value,mask=self.value_mask))
-    
-    def _iter_values_idx_(self,value):
-        for idx in iter_array(self.get_masked()):
-            yield(idx)
+#    def get_masked(self):
+#        return(np.ma.array(self.value,mask=self.value_mask))
+#    
+#    def _iter_values_idx_(self,value):
+#        for idx in iter_array(self.get_masked()):
+#            yield(idx)
 
 
 class TemporalDimension(OcgDimension):

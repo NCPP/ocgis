@@ -9,6 +9,26 @@ from osgeo import ogr, osr
 from shapely import wkt, wkb
 from numpy.ma.core import MaskedArray
 from ocgis import env
+from copy import deepcopy
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.ops import cascaded_union
+
+
+def union_geoms(ugeoms,new_id=1):
+    if len(ugeoms) == 1:
+        ret = deepcopy(ugeoms)
+    else:
+        to_union = []
+        for dct in ugeoms:
+            geom = dct['geom']
+            if isinstance(geom,MultiPolygon):
+                for poly in geom:
+                    to_union.append(poly)
+            else:
+                to_union.append(geom)
+        ugeom = cascaded_union(to_union)
+        ret = [{'id':new_id,'geom':ugeom}]
+    return(ret)
 
 
 def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):

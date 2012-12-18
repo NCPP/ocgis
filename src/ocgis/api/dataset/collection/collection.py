@@ -48,14 +48,14 @@ class OcgCollection(object):
         self._tgbid_name = 'tgbid'
         self._mode = 'raw'
         
-        ## variable level identifiers
-        self.tid = Identifier()
-        self.tbid = Identifier()
-        self.tgid = Identifier()
-        self.tgbid = Identifier()
-        self.lid = Identifier(dtype=object)
-        self.lbid = Identifier(dtype=object) ## level bounds identifier
-        self.gid = Identifier(dtype=object)
+#        ## variable level identifiers
+#        self.tid = Identifier()
+#        self.tbid = Identifier()
+#        self.tgid = Identifier()
+#        self.tgbid = Identifier()
+#        self.lid = Identifier(dtype=object)
+#        self.lbid = Identifier(dtype=object) ## level bounds identifier
+#        self.gid = Identifier(dtype=object)
         ## collection level identifiers
         self.cid = Identifier(dtype=object) ## calculations
         self.vid = Identifier(dtype=object) ## variables
@@ -89,9 +89,9 @@ class OcgCollection(object):
         self._mode = 'calc'
         for key in var.calc_value.keys():
             self.cid.add(key)
-        ## update time group identifiers
-        self.tgid.add(var.temporal.tgdim.value)
-        self.tgbid.add(var.temporal.tgdim.bounds)
+#        ## update time group identifiers
+#        self.tgid.add(var.temporal.tgdim.value)
+#        self.tgbid.add(var.temporal.tgdim.bounds)
 
     def add_variable(self,var):
         ## add the variable to storage
@@ -101,34 +101,34 @@ class OcgCollection(object):
         self.vid.add(np.array([var.name]))
         self.did.add(np.array([var.uri]))
         
-        ## update variable identifiers #########################################
-        
-        ## time
-        self.tid.add(var.temporal.value)
-        if var.temporal.bounds is not None:
-            self.tbid.add(var.temporal.bounds)
-        else:
-            self.tbid.add(np.array([[None,None]]))
-        
-        ## level
-        add_lbid = True
-        if var.level is None:
-            self.lid.add(np.array([None]))
-            add_lbid = False
-        else:
-            self.lid.add(var.level.value)
-            if var.level.bounds is None:
-                add_lbid = False
-        if add_lbid:
-            self.lbid.add(var.level.bounds)
-        else:
-            self.lbid.add(np.array([[None,None]]))
+#        ## update variable identifiers #########################################
+#        
+#        ## time
+#        self.tid.add(var.temporal.value)
+#        if var.temporal.bounds is not None:
+#            self.tbid.add(var.temporal.bounds)
+#        else:
+#            self.tbid.add(np.array([[None,None]]))
+#        
+#        ## level
+#        add_lbid = True
+#        if var.level is None:
+#            self.lid.add(np.array([None]))
+#            add_lbid = False
+#        else:
+#            self.lid.add(var.level.value)
+#            if var.level.bounds is None:
+#                add_lbid = False
+#        if add_lbid:
+#            self.lbid.add(var.level.bounds)
+#        else:
+#            self.lbid.add(np.array([[None,None]]))
             
-        ## geometry
-        masked = var.spatial.get_masked()
-        gid = self.gid
-        for geom in masked.compressed():
-            gid.add(np.array([[geom.wkb]]))
+#        ## geometry
+#        masked = var.spatial.get_masked()
+#        gid = self.gid
+#        for geom in masked.compressed():
+#            gid.add(np.array([[geom.wkb]]))
 
 
 class Identifier(object):

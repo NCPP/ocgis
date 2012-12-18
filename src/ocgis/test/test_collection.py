@@ -12,15 +12,18 @@ from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 class TestCollection(unittest.TestCase):
 
     def test_OcgDimension(self):
-        bounds = [None,
+        _bounds = [None,
                   np.array([[0,100],[100,200]])]
-        add_bounds = [True,False]
+#        add_bounds = [True,False]
         value = np.array([50,150])
+        uid = np.arange(1,value.shape[0]+1)
         
-        for bound,add_bounds in itertools.product(bounds,add_bounds):
-            dim = OcgDimension(value,bounds=bound)
+        for bounds in _bounds:
+            dim = OcgDimension(uid,value,bounds=bounds)
+            for row in dim:
+                import ipdb;ipdb.set_trace()
             for row in dim.iter_rows(add_bounds=add_bounds):
-                self.assertTrue(OcgDimension._value_name in row)
+                self.assertTrue(OcgDimension._name_value in row)
                 if add_bounds and bound is not None:
                     self.assertTrue('bnds' in row)
                 else:
@@ -78,7 +81,8 @@ class TestCollection(unittest.TestCase):
         else:
             time_bounds = None
         
-        tdim = TemporalDimension(times,bounds=time_bounds)
+        uid = np.arange(1,times.shape[0]+1)
+        tdim = TemporalDimension(uid,times,bounds=time_bounds)
         
         return(tdim)
     
@@ -102,7 +106,8 @@ class TestCollection(unittest.TestCase):
         else:
             time_bounds = None
         
-        tdim = TemporalDimension(times,bounds=time_bounds)
+        uid = np.arange(1,times.shape[0]+1)
+        tdim = TemporalDimension(uid,times,bounds=time_bounds)
 
         return(tdim)
     
@@ -122,7 +127,8 @@ class TestCollection(unittest.TestCase):
         if not add_bounds:
             time_bounds = None
             
-        tdim = TemporalDimension(times,bounds=time_bounds)
+        uid = np.arange(1,times.shape[0]+1)
+        tdim = TemporalDimension(uid,times,bounds=time_bounds)
         
         return(tdim)
     
@@ -141,17 +147,17 @@ class TestCollection(unittest.TestCase):
             for perm in itertools.permutations(perms,ii):
                 tdim = tdim_func(add_bounds=add_bounds)
                 try:
-                    tdim.group(perm)
+                    tgdim = tdim.group(perm)
                 except TypeError:
-                    tdim.group(*perm)
-                for row in tdim.tgdim.iter_rows():
+                    tgdim = tdim.group(*perm)
+                for row in tgdim.iter_rows():
                     if np.random.rand() <= -0.01:
                         print (perm,add_bounds)
                         print row
                         import ipdb;ipdb.set_trace()
                     else:
                         continue
-                self.assertEqual(np.sum([dgrp.sum() for dgrp in tdim.tgdim.dgroups]),len(tdim.value))
+                self.assertEqual(np.sum([dgrp.sum() for dgrp in tgdim.dgroups]),len(tdim.value))
 
     def get_SpatialDimension(self):
         y = range(40,45)
@@ -160,8 +166,9 @@ class TestCollection(unittest.TestCase):
         geoms = [Point(ix,iy) for ix,iy in zip(x.flat,y.flat)]
         geoms = np.array(geoms,dtype=object).reshape(5,5)
         np.random.seed(1)
-        self._mask = np.random.random_integers(0,1,geoms.shape)
-        sdim = SpatialDimension(geoms,self._mask)
+        self._mask = np.array(np.random.random_integers(0,1,geoms.shape),dtype=bool)
+        gid = np.arange(1,(self._mask.shape[0]*self._mask.shape[1])+1).reshape(self._mask.shape)
+        sdim = SpatialDimension(gid,geoms,self._mask)
         return(sdim)
     
     def test_SpatialDimension(self):
@@ -178,7 +185,7 @@ class TestCollection(unittest.TestCase):
             bounds = np.array([[0,100],[100,200]])
         else:
             bounds = None
-        ldim = LevelDimension(values,bounds)
+        ldim = LevelDimension(np.arange(1,values.shape[0]+1),values,bounds)
         return(ldim)
     
     def get_OcgVariable(self,add_level=True,add_bounds=True,name='foo'):
@@ -222,10 +229,10 @@ class TestCollection(unittest.TestCase):
             coll = OcgCollection()
             var1 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
             coll.add_variable(var1)
-            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
+            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
             var2 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
             coll.add_variable(var2)
-            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','gid','tbid','lbid']]
+            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
             self.assertEqual(lens_original,lens_new)
             
             if group is not None:

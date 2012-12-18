@@ -295,10 +295,10 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                                 np.arange(0,len(self.row.bounds)))
 
         self.shape = self.real_col.shape
-#        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
-#                                           self.real_col.shape[1]+1)\
-#                               .reshape(self.shape),
-#                               mask=False)
+        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
+                                           self.real_col.shape[1]+1)\
+                               .reshape(self.shape),
+                               mask=False)
         
     def get_bounds(self,colidx):
         col,row = np.meshgrid(self.col.bounds[:,colidx],
@@ -436,9 +436,9 @@ class SpatialInterfacePoint(AbstractSpatialInterface):
                                     np.arange(0,len(self.row.value)))
         self.resolution = approx_resolution(np.ravel(self.col_pt))
         self.shape = self.real_col.shape
-#        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
-#                               self.real_col.shape[1]+1).reshape(self.shape),
-#                               mask=False)
+        self.gid = np.ma.array(np.arange(1,self.real_col.shape[0]*
+                               self.real_col.shape[1]+1).reshape(self.shape),
+                               mask=False)
         
     def calc_weights(self,npd,geom):
         weight = np.ma.array(np.ones((npd.shape[2],npd.shape[3]),dtype=float),

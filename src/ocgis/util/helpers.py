@@ -11,6 +11,21 @@ from numpy.ma.core import MaskedArray
 from ocgis import env
 
 
+def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
+    if uid is None:
+        uid = np.arange(1,value.shape[0]+1,dtype=int)
+    ret = np.empty(value.shape[0],dtype=[(names['uid'],int),(names['value'],value.dtype,3)])
+    ret['uid'] = uid
+    ref = ret['value']
+    ref[:,1] = value
+    if bounds is None:
+        ref[:,0] = ref[:,1]
+        ref[:,2] = ref[:,1]
+    else:
+        ref[:,0] = bounds[:,0]
+        ref[:,2] = bounds[:,1]
+    return(ret)
+
 def append(arr,value):
     arr.resize(arr.shape[0]+1,refcheck=False)
     arr[arr.shape[0]-1] = value

@@ -2,6 +2,7 @@ from ocgis.util.helpers import get_bounded, iter_array
 import numpy as np
 from shapely.geometry.point import Point
 from collections import deque
+import itertools
 
 
 class OcgDimension(object):
@@ -83,6 +84,9 @@ class SpatialDimension(OcgDimension):
     @property
     def value(self):
         return(np.ma.array(self._value,mask=self._value_mask))
+    @property
+    def bounds(self):
+        raise(NotImplementedError)
         
     @property
     def geomtype(self):
@@ -171,7 +175,7 @@ class TemporalDimension(OcgDimension):
             return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
         parts = np.empty((len(self.value),len(date_parts)),dtype=int)
         for row in range(parts.shape[0]):
-            parts[row,:] = _get_attrs_(value[row])
+            parts[row,:] = _get_attrs_(value[row,1])
         
         unique = deque()
         for idx in range(parts.shape[1]):
@@ -198,47 +202,59 @@ class TemporalDimension(OcgDimension):
                 dgroups.append(dgrp)
         select = select[keep_select,:]
         assert(len(dgroups) == select.shape[0])
-
+        
         new_value = np.empty((len(dgroups),len(date_parts)),dtype=int)
         new_bounds = np.empty((len(dgroups),2),dtype=object)
-        if self.bounds is None:
-            bounds = value
-        else:
-            bounds = self.bounds
+#        if self.bounds is None:
+#            bounds = value
+#        else:
+#            bounds = self.bounds
         for idx,dgrp in enumerate(dgroups):
             new_value[idx] = select[idx]
-            sel = bounds[dgrp,:]
+            sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
 
         return(new_value,new_bounds,dgroups)
     
 
 class TemporalGroupDimension(OcgDimension):
+    _name_value = None
+    _name_uid = 'tgid'
     _date_parts = ('year','month','day','hour','minute','second','microsecond')
     
     def __init__(self,value,bounds,dgroups,groups):
-        uid = np.arange(1,value.shape[0]+1)
-        super(TemporalGroupDimension,self).__init__(uid,value,bounds)
-        
+        self._uid = np.arange(1,value.shape[0]+1)
+        self._value = value
+        self.bounds = bounds
         self.groups = groups
         self.dgroups = dgroups
         
-    def iter_rows(self,add_bounds=True,yield_idx=False):
-        value = self.value
-        bounds = self.bounds
-        get_idx = [self._date_parts.index(g) for g in self.groups]
-        groups = self.groups
-        name_bounds = self._name_bounds
-        uid = self.uid
+    @property
+    def uid(self):
+        return(self._uid)
+    @property
+    def value(self):
+        return(self._value)
+    @property
+    def shape(self):
+        return(self._value.shape)
         
-        for idx in range(value.shape[0]):
-            ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
-            ret.update({'tgid':uid[idx]})
-            if add_bounds:
-                ret.update({name_bounds:{0:bounds[idx,0],
-                                         1:bounds[idx,1]}})
-            if yield_idx:
-                yld = (idx,ret)
-            else:
-                yld = ret
-            yield(yld)
+#    def iter_rows(self,add_bounds=True,yield_idx=False):
+#        value = self.value
+#        bounds = self.bounds
+#        get_idx = [self._date_parts.index(g) for g in self.groups]
+#        groups = self.groups
+#        name_bounds = self._name_bounds
+#        uid = self.uid
+#        
+#        for idx in range(value.shape[0]):
+#            ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
+#            ret.update({'tgid':uid[idx]})
+#            if add_bounds:
+#                ret.update({name_bounds:{0:bounds[idx,0],
+#                                         1:bounds[idx,1]}})
+#            if yield_idx:
+#                yld = (idx,ret)
+#            else:
+#                yld = ret
+#            yield(yld)

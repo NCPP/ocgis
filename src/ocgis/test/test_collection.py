@@ -6,7 +6,7 @@ from shapely.geometry.point import Point
 from ocgis.api.dataset.collection.collection import Identifier
 from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
-    SpatialDimension
+    SpatialDimension, TemporalDimension
 
 
 class TestCollection(unittest.TestCase):

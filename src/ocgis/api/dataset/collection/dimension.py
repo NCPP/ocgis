@@ -103,11 +103,14 @@ class SpatialDimension(OcgDimension):
         raise(NotImplementedError)
     @property
     def geomtype(self):
-        if isinstance(self.value[0,0],Point):
+        if isinstance(self._value[0,0],Point):
             ret = 'point'
         else:
             ret = 'polygon'
         return(ret)
+    @property
+    def shape(self):
+        return(self._value.shape)
     
     def __len__(self):
         return(self.value.compressed().shape[0])

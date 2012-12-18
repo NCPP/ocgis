@@ -226,19 +226,29 @@ class TestCollection(unittest.TestCase):
                          'iter_rows',
                          'iter_list'
                          ]
-        args = (_add_bounds,_add_level,_group,_iter_methods)
+        _aggregate = [
+                      True,
+                      False
+                      ]
+        args = (_add_bounds,_add_level,_group,_iter_methods,_aggregate)
         
-        for add_bounds,add_level,group,iter_method in itertools.product(*args):
+        for add_bounds,add_level,group,iter_method,aggregate in itertools.product(*args):
 #            print add_bounds,add_level
             coll = OcgCollection()
             var1 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds)
             coll.add_variable(var1)
-#            lens_original = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
             var2 = self.get_OcgVariable(add_level=add_level,add_bounds=add_bounds,name='foo2')
             coll.add_variable(var2)
             self.assertEqual(len(coll.variables),2)
-#            lens_new = [len(getattr(coll,attr)) for attr in ['tid','lid','tbid','lbid']]
-#            self.assertEqual(lens_original,lens_new)
+            
+            if aggregate:
+                for var in [var1,var2]:
+                    prev_len = len(var.spatial)
+                    var.aggregate()
+                    self.assertEqual(len(var.spatial),1)
+                    self.assertTrue(prev_len > len(var.spatial))
+#                    import ipdb;ipdb.set_trace()
+                    self.assertAlmostEqual(var.value.mean(),var.raw_value.mean(),delta=1e-5)
             
             if group is not None:
                 cnames = ['my_mean','my_median']

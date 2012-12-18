@@ -87,18 +87,18 @@ def union_sum(weight,value):
             weighted[dim_time,dim_level,0,0] = np.ma.average(value[dim_time,dim_level,:,:],weights=weight)
     return(weighted)
 
-def union_geoms(geoms):
-    if len(geoms) == 1:
-        ret = deepcopy(geoms)
+def union_geoms(ugeoms,new_id=1):
+    if len(ugeoms) == 1:
+        ret = deepcopy(ugeoms)
     else:
-        ugeom = []
-        for dct in geoms:
+        to_union = []
+        for dct in ugeoms:
             geom = dct['geom']
             if isinstance(geom,MultiPolygon):
                 for poly in geom:
-                    ugeom.append(poly)
+                    to_union.append(poly)
             else:
-                ugeom.append(geom)
-        ugeom = cascaded_union(ugeom)
-        ret = [{'id':1,'geom':ugeom}]
+                to_union.append(geom)
+        ugeom = cascaded_union(to_union)
+        ret = [{'id':new_id,'geom':ugeom}]
     return(ret)

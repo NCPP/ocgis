@@ -2,6 +2,12 @@ from collections import OrderedDict
 import numpy as np
 from ocgis.api.dataset.collection.dimension import TemporalDimension,\
     SpatialDimension
+from shapely.geometry.multipoint import MultiPoint
+from shapely.geometry.point import Point
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.ops import cascaded_union
+from shapely import prepared
+from ocgis.util.helpers import iter_array, keep
 
 
 class OcgVariable(object):
@@ -37,6 +43,70 @@ class OcgVariable(object):
         
     def group(self,*args,**kwds):
         self.temporal_group = self.temporal.group(*args,**kwds)
+        
+    def aggregate(self,new_id=1):
+        ## will hold the unioned geometry
+        new_geometry = np.empty((1,1),dtype=object)
+        ## get the masked geometries
+        geoms = self.spatial.value.compressed()
+        if self.spatial.geomtype == 'point':
+            pts = MultiPoint([pt for pt in geoms.flat])
+            new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
+        else:
+            ## break out the MultiPolygon objects. inextricable geometry errors
+            ## sometimes occur otherwise
+            ugeom = []
+            for geom in geoms:
+                if isinstance(geom,MultiPolygon):
+                    for poly in geom:
+                        ugeom.append(poly)
+                else:
+                    ugeom.append(geom)
+            ## execute the union
+            new_geometry[0,0] = cascaded_union(ugeom)
+        ## overwrite the original geometry
+        self.spatial._value = new_geometry
+        self.spatial._value_mask = np.array([[False]])
+        self.spatial._uid = np.ma.array([[new_id]],mask=False)
+        ## aggregate the values
+        self.raw_value = self.value.copy()
+        self.value = self._union_sum_()
+            
+    def _union_sum_(self):
+        value = self.raw_value
+        weight = self.spatial.weights
+        
+        ## make the output array
+        wshape = (value.shape[0],value.shape[1],1,1)
+        weighted = np.ma.array(np.empty(wshape,dtype=float),
+                                mask=np.zeros(wshape,dtype=bool))
+        ## next, weight and sum the data accordingly
+        for dim_time in range(value.shape[0]):
+            for dim_level in range(value.shape[1]):
+                weighted[dim_time,dim_level,0,0] = np.ma.average(value[dim_time,dim_level,:,:],weights=weight)
+        return(weighted)
+    
+    def clip(self,igeom):
+        ## logic for convenience. just return the provided collection if a NoneType
+        ## is passed for the 'igeom' arugment
+        if igeom is not None:
+            ## take advange of shapely speedups
+            prep_igeom = prepared.prep(igeom)
+            ## the weight array
+            weights = np.empty(self.spatial.shape,dtype=float)
+            weights = np.ma.array(weights,mask=self.spatial._value_mask)
+            ## do the spatial operation
+            for idx,geom in iter_array(self.spatial.value,
+                                       return_value=True):
+    #            import ipdb;ipdb.set_trace()
+                if keep(prep_igeom,igeom,geom):
+    #                import ipdb;ipdb.set_trace()
+                    new_geom = igeom.intersection(geom)
+                    weights[idx] = new_geom.area
+                    self.spatial._value[idx] = new_geom
+            ## set maximum weight to one
+            self.spatial.weights = weights/weights.max()
+#        return(coll)
 
    
 class OcgCollection(object):

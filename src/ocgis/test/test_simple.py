@@ -156,7 +156,8 @@ class TestSimple(TestBase):
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
-        self.assertEqual(len(ret[1].gid),0)
+        ref = ret[1].variables[self.var].spatial.uid
+        self.assertEqual(len(ref),0)
         
     def test_calc(self):
         calc = {'func':'mean','name':'my_mean'}

@@ -78,16 +78,10 @@ class SpatialDimension(OcgDimension):
         self._value_mask = value_mask
         
         if weights is None:
-            if isinstance(self._value[0,0],Point):
-                weights = np.ones(value.shape,dtype=float)
-                weights = np.ma.array(weights,mask=value_mask)
+            if len(value) > 0:
+                weights = self._get_weights_()
             else:
-                weights = np.empty(value.shape,dtype=float)
-                masked = self.value
-                for idx,geom in iter_array(masked,return_value=True):
-                    weights[idx] = geom.area
-                weights = weights/weights.max()
-                weights = np.ma.array(weights,mask=value_mask)
+                weights = None
         else:
             assert(weights.shape == value.shape)
         self.weights = weights
@@ -124,6 +118,23 @@ class SpatialDimension(OcgDimension):
             row = {_name_uid:uid[idx],
                    _name_value:geom}
             yield(idx,row)
+            
+    def _get_weights_(self):
+        value = self._value
+        value_mask = self._value_mask
+        
+        if isinstance(self._value[0,0],Point):
+            weights = np.ones(value.shape,dtype=float)
+            weights = np.ma.array(weights,mask=value_mask)
+        else:
+            weights = np.empty(value.shape,dtype=float)
+            masked = self.value
+            for idx,geom in iter_array(masked,return_value=True):
+                weights[idx] = geom.area
+            weights = weights/weights.max()
+            weights = np.ma.array(weights,mask=value_mask)
+        return(weights)
+            
         
 #    def get_masked(self):
 #        return(np.ma.array(self.value,mask=self.value_mask))

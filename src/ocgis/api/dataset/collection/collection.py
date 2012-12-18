@@ -14,9 +14,10 @@ class OcgVariable(object):
     
     def __init__(self,name,value,temporal,spatial,level=None,uri=None):
         assert(value.shape[0] == len(temporal.value))
-        if level is None:
-            assert(value.shape[1] == 1)
-        assert(np.all(value.shape[2:] == spatial.value.shape))
+        if len(value) > 0:
+            if level is None:
+                assert(value.shape[1] == 1)
+            assert(np.all(value.shape[2:] == spatial.value.shape))
         
         self.name = name
         self.value = value
@@ -35,11 +36,12 @@ class OcgVariable(object):
         
     @classmethod
     def get_empty(cls,name,uri=None):
-        temporal = TemporalDimension(np.empty(0))
-        spatial = SpatialDimension(np.empty(0))
+        temporal = TemporalDimension(np.empty(0),np.empty(0))
+        spatial = SpatialDimension(np.empty(0),np.empty(0),np.empty(0))
         value = np.empty(0)
         ret = cls(name,value,temporal,spatial,uri=uri)
         ret._is_empty = True
+        return(ret)
         
     def group(self,*args,**kwds):
         self.temporal_group = self.temporal.group(*args,**kwds)
@@ -151,7 +153,7 @@ class OcgCollection(object):
         es = [var._is_empty for var in self.variables.itervalues()]
         if np.all(es):
             ret = True
-            if np.any(es):
+            if np.any(np.invert(es)):
                 raise(ValueError)
         else:
             ret = False

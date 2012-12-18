@@ -300,6 +300,12 @@ class TestCollection(unittest.TestCase):
                         for g in group: self.assertTrue(g in headers)
             self.assertEqual(iter_len,ii)
 
+    def test_OcgVariable_get_empty(self):
+        empty = OcgVariable.get_empty('foo')
+        self.assertTrue(empty.level is None)
+        self.assertEqual(empty.spatial.shape,(0,))
+        self.assertEqual(empty.temporal.shape,(0,))
+
 
 if __name__ == "__main__":
 #    import sys;sys.argv = ['', 'TestCollection.test_OcgVariable']

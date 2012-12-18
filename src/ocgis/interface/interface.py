@@ -166,7 +166,7 @@ class TemporalInterface(AbstractInterface):
         self.format()
         
         self.timeidx = np.arange(0,len(self.value))
-#        self.tid = np.arange(1,len(self.value)+1)
+        self.tid = np.arange(1,len(self.value)+1)
                 
     def _format_value_(self):
         ret = nc.num2date(self._ref_var[:],self.units,self.calendar)
@@ -228,11 +228,11 @@ class LevelInterface(AbstractInterface):
             self.is_dummy = True
             self.value = np.array([1])
             self.levelidx = np.array([0])
-#            self.lid = np.array([1])
+            self.lid = np.array([1])
         else:
             self.is_dummy = False
             self.levelidx = np.arange(len(self.value))
-#            self.lid = self.levelidx + 1
+            self.lid = self.levelidx + 1
         
         
 class RowInterface(AbstractInterface):

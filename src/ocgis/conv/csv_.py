@@ -29,9 +29,9 @@ class CsvConverter(OcgConverter):
         build = True
         with open(path,'w') as f:
             writer = csv.writer(f,dialect=OcgDialect)
-            for coll,geom_dict in self:
+            for coll in self:
                 if build:
-                    headers = self.get_headers(upper=True)
+                    headers = self.get_headers(coll)
                     writer.writerow(headers)
                     build = False
                 for row,geom in self.get_iter(coll):

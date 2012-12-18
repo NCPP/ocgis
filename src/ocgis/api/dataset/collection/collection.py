@@ -146,7 +146,6 @@ class OcgCollection(object):
         else:
             raise(ValueError)
         return(ret)
-        
     @property
     def is_empty(self):
         es = [var._is_empty for var in self.variables.itervalues()]
@@ -157,6 +156,14 @@ class OcgCollection(object):
         else:
             ret = False
         return(ret)
+    
+    def aggregate(self,*args,**kwds):
+        for var in self.variables.itervalues():
+            var.aggregate(*args,**kwds)
+            
+    def clip(self,*args,**kwds):
+        for var in self.variables.itervalues():
+            var.clip(*args,**kwds)
     
     def add_calculation(self,var):
         self._mode = 'calc'

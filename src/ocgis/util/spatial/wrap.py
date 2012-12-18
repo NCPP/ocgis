@@ -44,13 +44,13 @@ def wrap_coll(coll):
                 except TypeError:
                     left = filter(lambda x: type(x) != LineString,left)
                     right = filter(lambda x: type(x) != LineString,right)
-                    coll.geom[idx] = MultiPolygon(left+right)
+                    coll.spatial._value[idx] = MultiPolygon(left+right)
             else:
                 continue
     else:
         for idx,geom in iter_array(coll.geom,return_value=True):
             if geom.x > 180:
-                coll.geom[idx] = Point(geom.x-360,geom.y)
+                coll.spatial._value[idx] = Point(geom.x-360,geom.y)
 
 def unwrap_geoms(geoms,left_max_x_bound):
     clip1 = make_poly((-90,90),(-180,left_max_x_bound))

@@ -3,7 +3,7 @@ from ocgis.api import definition
 from ocgis.conv.meta import MetaConverter
 from ocgis.conv.converter import OcgConverter
 from subset import SubsetOperation
-from ocgis.util.spatial.union import union_geoms
+from ocgis.util.helpers import union_geoms
 
 ## TODO: add method to estimate request size
 

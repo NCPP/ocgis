@@ -5,8 +5,6 @@ from ocgis.interface.interface import SpatialInterfacePolygon
 import copy
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
-from ocgis.util.spatial.clip import clip
-from ocgis.util.spatial.union import union
 from ocgis.api.dataset.collection.collection import OcgCollection
 
 
@@ -174,11 +172,11 @@ def get_collection((so,geom_dict)):
     ## clipping operation
     if so.ops.spatial_operation == 'clip':
         if isinstance(so.spatial_interface,SpatialInterfacePolygon):
-            coll = clip(coll,geom_dict['geom'])
+            coll.clip(geom_dict['geom'])
             
     ## data aggregation.
     if so.ops.aggregate:
-        union(coll)
+        coll.aggregate(new_id=coll.ugeom['ugid'])
         
     ## if it is a vector output, wrap the data (if requested).
     arch = so.ops.dataset[0]['ocg_dataset']

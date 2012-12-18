@@ -5,6 +5,9 @@ from ocgis.util.helpers import keep, sub_range, iter_array
 import numpy as np
 import ocgis.exc as exc
 import collection
+from ocgis.api.dataset.collection.collection import OcgVariable
+from ocgis.api.dataset.collection.dimension import TemporalDimension,\
+    LevelDimension, SpatialDimension
 
 
 class OcgDataset(object):
@@ -128,7 +131,7 @@ class OcgDataset(object):
                 raise(exc.ExtentError)
         except exc.ExtentError:
             if allow_empty:
-                return(collection.OcgVariable.get_empty(self.variable,self.uri))
+                return(OcgVariable.get_empty(self.variable,self.uri))
 #                return(self._make_empty_(self.variable,return_collection))
             else:
                 raise
@@ -186,7 +189,7 @@ class OcgDataset(object):
             ## if all the data values are masked, raise an error.
             if npd.mask.all():
                 if allow_empty:
-                    return(collection.OcgVariable.get_empty(self.variable,self.uri))
+                    return(OcgVariable.get_empty(self.variable,self.uri))
 #                    return(self._make_empty_(self.variable,return_collection))
                 else:
                     raise(exc.MaskedDataError)
@@ -195,10 +198,10 @@ class OcgDataset(object):
         else:
             npd = np.ma.array(npd,mask=rel_mask)
         
-#        ## create masked arrays for other relevant variables
-#        gid = self.i.spatial.gid[rowidx][:,colidx].\
-#              reshape((npd.shape[2],npd.shape[3]))
-#        gid = np.ma.array(gid,mask=npd.mask[0,0,:,:])
+        ## create geometry identifier
+        gid = self.i.spatial.gid[rowidx][:,colidx].\
+              reshape((npd.shape[2],npd.shape[3]))
+        gid = np.ma.array(gid,mask=npd.mask[0,0,:,:])
         
         ## keeping the geometry mask separate is necessary related to this error:
         ## http://projects.scipy.org/numpy/ticket/897
@@ -211,25 +214,26 @@ class OcgDataset(object):
             timevec_bounds = None
         else:
             timevec_bounds = self.i.temporal.bounds[timeidx,:]
-        d_temporal = collection.TemporalDimension(
+        d_temporal = TemporalDimension(self.i.temporal.tid[timeidx],
                                        self.i.temporal.value[timeidx],
                                        timevec_bounds)
         
         if self.i.level is None:
-            d_level = collection.LevelDimension()
+            d_level = LevelDimension()
         else:
             if self.i.level.bounds is None:
                 levelvec_bounds = None
             else:
                 levelvec_bounds = self.i.level.bounds[levelidx]
-            d_level = collection.LevelDimension(self.i.level.value[levelidx],
+            d_level = LevelDimension(self.i.level.lid[levelidx],
+                                     self.i.level.value[levelidx],
                                                 levelvec_bounds)
             
-        d_spatial = collection.SpatialDimension(geom,geom_mask,weights=None)
+        d_spatial = SpatialDimension(gid,geom,geom_mask,weights=None)
         
         ########################################################################
         
-        ocg_variable = collection.OcgVariable(self.variable,npd,d_temporal,
+        ocg_variable = OcgVariable(self.variable,npd,d_temporal,
                                         d_spatial,level=d_level,uri=self.uri)
         
         return(ocg_variable)

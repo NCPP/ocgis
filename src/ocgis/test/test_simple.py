@@ -68,7 +68,7 @@ class TestSimple(TestBase):
         
         ## confirm size of geometry array
         ref = ret[1].variables[self.var].spatial
-        attrs = ['value','value_mask']
+        attrs = ['value','uid']
         for attr in attrs:
             self.assertEqual(getattr(ref,attr).shape,(4,4))
         
@@ -88,8 +88,8 @@ class TestSimple(TestBase):
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         
         ## test geometry reduction
-        ref = ret[1]
-        self.assertEqual(len(ref.gid),1)
+        ref = ret[1].variables[self.var]
+        self.assertEqual(ref.spatial.shape,(1,1))
         
     def test_time_level_subset(self):
         ret = self.get_ret(kwds={'time_range':[datetime.datetime(2000,3,1),
@@ -106,7 +106,7 @@ class TestSimple(TestBase):
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.level.value.shape[0],ref.level.bounds.shape[0])
+        self.assertEqual(ref.level.value.shape,(1,3))
         
     def test_using_ugid(self):
         ## swap names of id variable in geometry dictionary
@@ -122,23 +122,22 @@ class TestSimple(TestBase):
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
-        ret_gids = set(ref.gid.uid)
-        import ipdb;ipdb.set_trace()
+        ret_gids = set(ref.variables[self.var].spatial.uid.compressed())
         intersection = gids.intersection(ret_gids)
         self.assertEqual(len(intersection),4)
-        self.assertTrue(np.all(ref.variables['foo'].raw_value[0,0,:,:] == np.array([[1.0,2.0],[3.0,4.0]])))
+        self.assertTrue(np.all(ref.variables[self.var].value[0,0,:,:] == np.array([[1.0,2.0],[3.0,4.0]])))
         
         ## intersection
         geom = make_poly((38,39),(-104,-103))
         geom = {'ugid':1,'geom':geom}
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
-        self.assertEqual(len(ret[1].gid.compressed()),4)
-        self.assertEqual(ret[1].variables[self.var].raw_value.shape,(61,2,2,2))
-        ref = ret[1].variables[self.var].raw_value
+        self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+        self.assertEqual(ret[1].variables[self.var].value.shape,(61,2,2,2))
+        ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref[0,0,:,:] == np.array([[1,2],[3,4]],dtype=float)))
         ## compare areas to intersects returns
-        ref = ret[1]
-        intersection_areas = [g.area for g in ref.geom.flat]
+        ref = ret[1].variables[self.var]
+        intersection_areas = [g.area for g in ref.spatial._value.flat]
         for ii in intersection_areas:
             self.assertEqual(ii,0.25)
             
@@ -147,9 +146,9 @@ class TestSimple(TestBase):
         geom = {'ugid':1,'geom':geom}
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
-        self.assertEqual(len(ref.gid.flatten()),1)
-        self.assertEqual(ref.geom.flatten()[0].area,1.0)
-        self.assertEqual(ref.variables[self.var].agg_value.flatten().mean(),2.5)
+        self.assertEqual(len(ref.variables[self.var].spatial.uid.flatten()),1)
+        self.assertEqual(ref.variables[self.var].spatial._value.flatten()[0].area,1.0)
+        self.assertEqual(ref.variables[self.var].value.flatten().mean(),2.5)
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))

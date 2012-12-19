@@ -144,7 +144,7 @@ class KeyedIterator(AbstractOcgIterator):
             for tidx,lidx,gidx0,gidx1,value,cid,tgid in self._iter_value_(var):
                 tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
-                gid = self.gid.get(var.spatial._value[gidx0,gidx1])
+                gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
                        'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)
@@ -166,7 +166,11 @@ class KeyedIterator(AbstractOcgIterator):
                 self.tgid.add(var.temporal_group.value[:,1],var.temporal_group.uid)
                 self.tgid_bounds.add(var.temporal_group.bounds,var.temporal_group.uid)
             self.lid.add(var.level.value,var.level.uid)
-            self.gid.add(var.spatial.value.compressed(),var.spatial.uid.compressed())
+            geoms = var.spatial.value.compressed()
+            init_values = np.empty((len(geoms),2),dtype=object)
+            init_values[:,1] = geoms
+            init_values[:,0] = coll.ugeom['ugid']
+            self.gid.add(init_values,var.spatial.uid.compressed())
     
     def get_request_iters(self):
         ret = {}

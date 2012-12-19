@@ -40,7 +40,11 @@ class ShpConverter(OcgConverter):
                         geom_type = ogr.wkbMultiPolygon
                     else:
                         geom_type = ogr.wkbPoint
-                    layer = ds.CreateLayer(self.layer,srs=coll.projection.sr,geom_type=geom_type)
+                    try:
+                        srs = coll.projection.sr
+                    except AttributeError:
+                        srs = self.projection.sr
+                    layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
                     headers = self.get_headers(coll)
                     self._set_ogr_fields_(headers,row)
                     for ogr_field in self.ogr_fields:

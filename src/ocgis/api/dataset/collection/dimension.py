@@ -131,7 +131,7 @@ class SpatialDimension(OcgDimension):
         value = self._value
         value_mask = self._value_mask
         
-        if isinstance(self._value[0,0],Point):
+        if isinstance(self._value[0],Point):
             weights = np.ones(value.shape,dtype=float)
             weights = np.ma.array(weights,mask=value_mask)
         else:

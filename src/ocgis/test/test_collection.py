@@ -8,6 +8,8 @@ from ocgis.api.dataset.collection.collection import Identifier, OcgCollection,\
 from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
     SpatialDimension, TemporalDimension
+import netCDF4 as nc
+from ocgis.util.helpers import get_temp_path
 
 
 class TestCollection(unittest.TestCase):
@@ -23,7 +25,6 @@ class TestCollection(unittest.TestCase):
             self.assertEqual(dim.shape,(2,))
             for row in dim:
                 pass
-            
                     
     def test_Identifier(self):
         init_vals = np.array([50,55])

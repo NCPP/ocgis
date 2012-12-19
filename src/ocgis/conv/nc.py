@@ -145,6 +145,7 @@ class NcConverter(OcgConverter):
         iglobal = arch._i
         spatial = iglobal.spatial
         temporal = iglobal.temporal
+        level = iglobal.level
         meta = iglobal._meta
                 
         ## add dataset attributes
@@ -201,16 +202,38 @@ class NcConverter(OcgConverter):
         ## time variable
         time_nc_value = temporal.calculate(arch.temporal.value[:,1])
         ## if bounds are available for the time vector transform those as well
-        if coll.timevec_bounds is not None:
-            time_bounds_nc_value = temporal.calculate(coll.timevec_bounds)
-            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
-            times_bounds[:] = time_bounds_nc_value
-            for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
-                setattr(times_bounds,key,value)
+#        if coll.timevec_bounds is not None:
+        time_bounds_nc_value = temporal.calculate(arch.temporal.value[:,(0,2)])
+        times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
+        times_bounds[:] = time_bounds_nc_value
+        for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
+            setattr(times_bounds,key,value)
         times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_time._name,))
         times[:] = time_nc_value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
             setattr(times,key,value)
+            
+        ## level variable
+        ## if there is no level on the variable no need to build one.
+        if level.is_dummy:
+            dim_level = None
+        ## if there is a level, create the dimension and set the variable.
+        else:
+            dim_level = ds.createDimension(level.name,len(arch.level))
+            levels = ds.createVariable(level.name,arch.level.value.dtype,(dim_level._name,))
+            levels[:] = arch.level.value[:,1]
+            for key,value in meta['variables'][level.name]['attrs'].iteritems():
+                setattr(levels,key,value)
+#            if level.bounds is not None:
+            levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,'bounds'))
+            levels_bounds[:] = arch.level.value[:,(0,2)]
+            for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
+                setattr(levels,key,value)
+        if dim_level is not None:
+            value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
+        else:
+            value_dims = (dim_time._name,dim_lat._name,dim_lon._name)
+            
         ## spatial variables ###################################################
         
         ## create and fill a spatial variable
@@ -233,30 +256,11 @@ class NcConverter(OcgConverter):
         
         ## loop through variables
         for var_name,var_value in coll.variables.iteritems():
-            ## reference leve interface
-            level = var_value.ocg_dataset.i.level
-            ## if there is no level on the variable no need to build one.
-            if level.is_dummy:
-                dim_level = None
-            ## if there is a level, create the dimension and set the variable.
-            else:
-                dim_level = ds.createDimension(level.name,len(var_value.levelvec))
-                levels = ds.createVariable(level.name,var_value.levelvec.dtype,(dim_level._name,))
-                levels[:] = var_value.levelvec
-                for key,value in meta['variables'][level.name]['attrs'].iteritems():
-                    setattr(levels,key,value)
-                if level.bounds is not None:
-                    levels_bounds = ds.createVariable(level.name_bounds,level.bounds.dtype,(dim_level._name,'bounds'))
-                    levels_bounds[:] = level.bounds
-                    for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
-                        setattr(levels,key,value)
-            if dim_level is not None:
-                value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
-            else:
-                value_dims = (dim_time._name,dim_lat._name,dim_lon._name)
+            ## reference level interface
+#            level = var_value.ocg_dataset.i.level
             ## create the value variable.
-            value = ds.createVariable(var_name,var_value.raw_value.dtype,value_dims,fill_value=var_value.raw_value.fill_value)
-            value[:] = var_value.raw_value
+            value = ds.createVariable(var_name,var_value.value.dtype,value_dims,fill_value=var_value.value.fill_value)
+            value[:] = var_value.value
 #            value.fill_value = var_value.raw_value.fill_value
             for key,val in meta['variables'][var_name]['attrs'].iteritems():
                 setattr(value,key,val)

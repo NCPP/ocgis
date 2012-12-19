@@ -5,6 +5,7 @@ from collections import deque
 import itertools
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import wkb
+import netCDF4 as nc
 
 
 class OcgDimension(object):
@@ -38,6 +39,10 @@ class OcgDimension(object):
             row = {_name_uid:uid[idx],
                    _name_value:value[idx,0]}
             yield(idx,row)
+            
+#    def get_nc_dimension(self,rootgrp,name=None):
+#        ret = rootgrp.createDimension()
+#        import ipdb;ipdb.set_trace()
         
 #    def __iter__(self):
 #        storage = self.storage

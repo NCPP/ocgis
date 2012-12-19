@@ -138,6 +138,7 @@ def get_collection((so,geom_dict)):
                             time_range=so.ops.time_range,
                             level_range=so.ops.level_range,
                             allow_empty=so.ops.allow_empty)
+        ocg_variable._i = ref.i
         coll.projection = ref.i.spatial.projection
         coll.add_variable(ocg_variable)
     

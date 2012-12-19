@@ -33,6 +33,7 @@ class OcgVariable(object):
         self.calc_value = OrderedDict()
         
         self._is_empty = False
+        self._i = None
         
     @classmethod
     def get_empty(cls,name,uri=None):
@@ -159,6 +160,9 @@ class OcgCollection(object):
         else:
             ret = False
         return(ret)
+    @property
+    def _arch(self):
+        return(self.variables[self.variables.keys()[0]])
     
     def aggregate(self,*args,**kwds):
         for var in self.variables.itervalues():

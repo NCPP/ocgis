@@ -133,7 +133,7 @@ class NcConverter(OcgConverter):
     
     def _write_raw_(self):
         ## get the collection
-        for ii,(coll,geom_dict) in enumerate(self):
+        for ii,coll in enumerate(self):
             if ii > 0:
                 raise(ValueError('only one collection should be returned for NC conversion'))
         ## output file location
@@ -141,10 +141,11 @@ class NcConverter(OcgConverter):
         ## dataset object to write to
         ds = nc.Dataset(path,'w')
         ## reference the interfaces
-        iglobal = self.ocg_dataset.i
-        spatial = self.ocg_dataset.i.spatial
-        temporal = self.ocg_dataset.i.temporal
-        meta = self.ocg_dataset.i._meta
+        arch = coll._arch
+        iglobal = arch._i
+        spatial = iglobal.spatial
+        temporal = iglobal.temporal
+        meta = iglobal._meta
                 
         ## add dataset attributes
         for key,value in meta['dataset'].iteritems():
@@ -158,7 +159,7 @@ class NcConverter(OcgConverter):
         ## spatial variable calculation ########################################
         
         ## first construct values from the stored geometry array
-        geom = coll.geom
+        geom = arch.spatial._value
         
 #        ##tdk
 #        from ocgis.util.helpers import iter_array
@@ -188,7 +189,7 @@ class NcConverter(OcgConverter):
         ## make dimensions #####################################################
         
         ## time dimensions
-        dim_time = ds.createDimension(temporal.name,len(coll.timevec))
+        dim_time = ds.createDimension(temporal.name,len(arch.temporal))
         ## spatial dimensions
         dim_lat = ds.createDimension(spatial.row.name,len(latitude_values))
         dim_lon = ds.createDimension(spatial.col.name,len(longitude_values))
@@ -198,7 +199,7 @@ class NcConverter(OcgConverter):
         ## set data + attributes ###############################################
         
         ## time variable
-        time_nc_value = temporal.calculate(coll.timevec)
+        time_nc_value = temporal.calculate(arch.temporal.value[:,1])
         ## if bounds are available for the time vector transform those as well
         if coll.timevec_bounds is not None:
             time_bounds_nc_value = temporal.calculate(coll.timevec_bounds)

@@ -199,6 +199,10 @@ class TestSimple(TestBase):
     def test_csv_conversion(self):
         ops = OcgOperations(dataset=self.dataset,output_format='csv')
         ret = self.get_ret(ops)
+        
+    def test_keyed_conversion(self):
+        ops = OcgOperations(dataset=self.dataset,output_format='keyed')
+        ret = self.get_ret(ops)
 
 
 class TestSimpleMask(TestBase):

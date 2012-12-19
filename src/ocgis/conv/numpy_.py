@@ -8,6 +8,6 @@ class NumpyConverter(OcgConverter):
     
     def write(self):
         ret = {}
-        for coll,geom_dict in self:
-            ret.update({geom_dict['ugid']:coll})
+        for coll in self:
+            ret.update({coll.ugeom['ugid']:coll})
         return(ret)

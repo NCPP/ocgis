@@ -212,7 +212,7 @@ class TestSimpleMask(TestBase):
     def test_spatial(self):
         self.return_shp = False
         ret = self.get_ret()
-        ref = ret[1].variables[self.var].raw_value.mask
+        ref = ret[1].variables[self.var].value.mask
         cmp = np.array([[True,False,False,False],
                         [False,False,False,True],
                         [False,False,False,False],
@@ -223,8 +223,8 @@ class TestSimpleMask(TestBase):
         ## aggregation
         ret = self.get_ret(kwds={'aggregate':True})
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.agg_value.mean(),2.583333333333333)
-        self.assertEqual(ret[1].gid.shape,(1,1))
+        self.assertEqual(ref.value.mean(),2.583333333333333)
+        self.assertEqual(ref.spatial.uid.shape,(1,1))
     
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
@@ -249,11 +249,11 @@ class TestSimple360(TestBase):
             return(ret)
         
         ret = self.get_ret(kwds={'vector_wrap':False})
-        longs_unwrap = _get_longs_(ret[1].geom)
+        longs_unwrap = _get_longs_(ret[1].variables[self.var].spatial._value)
         self.assertTrue(np.all(longs_unwrap > 180))
         
         ret = self.get_ret(kwds={'vector_wrap':True})
-        longs_wrap = _get_longs_(ret[1].geom)
+        longs_wrap = _get_longs_(ret[1].variables[self.var].spatial._value)
         self.assertTrue(np.all(np.array(longs_wrap) < 180))
         
         self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
@@ -265,11 +265,11 @@ class TestSimple360(TestBase):
         for abstraction in ['poly','point']:
             interface = {'s_abstraction':abstraction}
             ret = self.get_ret(kwds={'geom':geom,'interface':interface})
-            self.assertEqual(len(ret[1].gid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
             
             self.get_ret(kwds={'vector_wrap':False})
             ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'interface':interface})
-            self.assertEqual(len(ret[1].gid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
 
 
 if __name__ == "__main__":

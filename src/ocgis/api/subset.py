@@ -46,11 +46,13 @@ class SubsetOperation(object):
             self.cengine = None
         else:
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
-                                           ods.i.temporal.value,
+#                                           ods.i.temporal.value,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate,
-                                           time_range=self.ops.time_range)
+                                           snippet=self.ops.snippet
+#                                           time_range=self.ops.time_range
+                                           )
             
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
@@ -61,16 +63,16 @@ class SubsetOperation(object):
             if self.cengine is None:
                 ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.value
                 self.ops.time_range = [ref[0],ref[0]]
-            ## case of a calculation. will need to select data based on temporal
-            ## group.
-            else:
-                ## subset the calc engine time groups
-                self.cengine.dgroups = [self.cengine.dgroups[0]]
-                for key,value in self.cengine.dtime.iteritems():
-                    self.cengine.dtime[key] = [value[0]]
-                ## modify the time range to only pull a single group
-                sub_time = self.cengine.timevec[self.cengine.dgroups[0]]
-                self.ops.time_range = [sub_time.min(),sub_time.max()]
+#            ## case of a calculation. will need to select data based on temporal
+#            ## group.
+#            else:
+#                ## subset the calc engine time groups
+#                self.cengine.dgroups = [self.cengine.dgroups[0]]
+#                for key,value in self.cengine.dtime.iteritems():
+#                    self.cengine.dtime[key] = [value[0]]
+#                ## modify the time range to only pull a single group
+#                sub_time = self.cengine.timevec[self.cengine.dgroups[0]]
+#                self.ops.time_range = [sub_time.min(),sub_time.max()]
             
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial
@@ -184,12 +186,11 @@ def get_collection((so,geom_dict)):
     ## if it is a vector output, wrap the data (if requested).
     arch = so.ops.dataset[0]['ocg_dataset']
     if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-        raise(NotImplementedError)
         wrap_coll(coll)
 
     ## do the requested calculations.
     if so.cengine is not None:
-        coll = so.cengine.execute(coll)
+        so.cengine.execute(coll)
     ## conversion of groups.
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)

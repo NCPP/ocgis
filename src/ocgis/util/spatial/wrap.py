@@ -14,6 +14,10 @@ def _get_iter_(geom):
     return(it)
 
 def wrap_coll(coll):
+    for var in coll.variables.itervalues():
+        wrap_var(var)
+
+def wrap_var(var):
     right_clip = make_poly((-90,90),(180,360))
     left_clip = make_poly((-90,90),(-180,180))
     
@@ -31,26 +35,27 @@ def wrap_coll(coll):
             ret = MultiPolygon(polygons)
         return(ret)
     
-    if not isinstance(coll.geom[0,0],Point):
-        for idx,geom in iter_array(coll.geom,return_value=True):
+    geoms = var.spatial._value
+    if not isinstance(geoms[0,0],Point):
+        for idx,geom in iter_array(geoms,return_value=True):
             bounds = np.array(geom.bounds)
             if np.all([bounds[0] > 180,bounds[2] > 180]):
-                coll.geom[idx] = _shift_(geom)
+                geoms[idx] = _shift_(geom)
             elif bounds[1] <= 180 and bounds[2] > 180:
                 left = [poly for poly in _get_iter_(geom.intersection(left_clip))]
                 right = [poly for poly in _get_iter_(_shift_(geom.intersection(right_clip)))]
                 try:
-                    coll.geom[idx] = MultiPolygon(left+right)
+                    geoms[idx] = MultiPolygon(left+right)
                 except TypeError:
                     left = filter(lambda x: type(x) != LineString,left)
                     right = filter(lambda x: type(x) != LineString,right)
-                    coll.spatial._value[idx] = MultiPolygon(left+right)
+                    geoms[idx] = MultiPolygon(left+right)
             else:
                 continue
     else:
-        for idx,geom in iter_array(coll.geom,return_value=True):
+        for idx,geom in iter_array(geoms,return_value=True):
             if geom.x > 180:
-                coll.spatial._value[idx] = Point(geom.x-360,geom.y)
+                geoms[idx] = Point(geom.x-360,geom.y)
 
 def unwrap_geoms(geoms,left_max_x_bound):
     clip1 = make_poly((-90,90),(-180,left_max_x_bound))

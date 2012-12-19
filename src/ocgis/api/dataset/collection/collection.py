@@ -235,7 +235,11 @@ class Identifier(object):
             self._init_storage_(init_vals,init_uids=init_uids)
         
     def __len__(self):
-        return(self.storage.shape[0])
+        try:
+            return(self.storage.shape[0])
+        except AttributeError:
+            if self.storage is None:
+                return(0)
     
     @property
     def uid(self):

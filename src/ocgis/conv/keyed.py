@@ -6,6 +6,7 @@ from ocgis.conv.shpidx import ShpIdxConverter
 import os.path
 from collections import namedtuple
 from ocgis.api.dataset.collection.iterators import KeyedIterator
+from ocgis.api.dataset.collection.collection import Identifier
 
 
 class KeyedConverter(OcgConverter):
@@ -18,8 +19,34 @@ class KeyedConverter(OcgConverter):
     def write(self):
         build = True
         for coll in self:
-            iters = KeyedIterator(coll,mode=self.mode).get_iters()
-            import ipdb;ipdb.set_trace()
+            if build:
+                kit = KeyedIterator(coll,mode=self.mode)
+                ## init the value file
+                f_value = self._get_file_object_('value')
+                f_writer = csv.writer(f_value)
+                f_writer.writerow(kit.get_headers(upper=True))
+                
+                ## write request level identifier files ########################
+                rits = kit.get_request_iters()
+                for k,v in rits.iteritems():
+                    with open(self._get_path_(k),'w') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(self._upper_(v['headers']))
+                        for row in v['it']:
+                            writer.writerow(row)
+                ################################################################
+                            
+                build = False
+            for row in kit.iter_list(coll):
+                f_writer.writerow(row)    
+        f_value.close()
+        
+        ## write dimension identifiers #########################################
+        
+        ########################################################################
+        
+        
+        import ipdb;ipdb.set_trace()
         
         ## these variables are here for the shpidx. tricking the iterators at
         ## this time. stripping out unnecessary data to conserve memory.
@@ -72,3 +99,12 @@ class KeyedConverter(OcgConverter):
         shpidx.write()
             
         return(self.wd)
+    
+    def _get_file_object_(self,prefix):
+        return(open(self._get_path_(prefix),'w'))
+    
+    def _get_path_(self,prefix):
+        return(os.path.join(self.wd,prefix+'.csv'))
+    
+    def _upper_(self,seq):
+        return([s.upper() for s in seq])

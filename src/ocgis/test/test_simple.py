@@ -201,8 +201,14 @@ class TestSimple(TestBase):
         ret = self.get_ret(ops)
         
     def test_keyed_conversion(self):
-        ops = OcgOperations(dataset=self.dataset,output_format='keyed')
-        ret = self.get_ret(ops)
+        calc = [None,{'func':'mean','name':'my_mean'}]
+        group = ['month','year']
+        for c in calc:
+            ops = OcgOperations(dataset=self.dataset,
+                                output_format='keyed',
+                                calc=c,
+                                calc_grouping=group)
+            ret = self.get_ret(ops)
         
     def test_shpidx_conversion(self):
         ops = OcgOperations(dataset=self.dataset,output_format='shpidx')

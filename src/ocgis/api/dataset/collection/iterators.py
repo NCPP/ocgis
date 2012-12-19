@@ -1,4 +1,7 @@
 from ocgis.api.dataset.collection.dimension import LevelDimension
+from ocgis.api.dataset.collection.collection import Identifier
+import numpy as np
+from ocgis.util.helpers import iter_array
 
 
 class AbstractOcgIterator(object):
@@ -117,6 +120,46 @@ class MeltedIterator(AbstractOcgIterator):
 
 class KeyedIterator(AbstractOcgIterator):
     
+    def __init__(self,*args,**kwds):
+        super(self.__class__,self).__init__(*args,**kwds)
+        
+        self.tid = Identifier(dtype=object)
+        self.tgid = Identifier(dtype=object)
+        self.lid = Identifier(dtype=object)
+        self.gid = Identifier(dtype=object)
+        self.ugid = Identifier()
+        
+    def iter_list(self,*args,**kwds):
+        headers = self.get_headers()
+        for row in self.iter_rows(*args,**kwds):
+            yield([row[h] for h in headers])
+        
+    def iter_rows(self,coll):
+        ## TODO: optimize
+        self._add_collection_(coll)
+        ugid = coll.ugeom['ugid']
+        for var in coll.variables.itervalues():
+            did = coll.did.get(var.uri)
+            vid = coll.vid.get(var.name)
+            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
+                tid = self.tid.get(var.temporal.value[tidx])
+                lid = self.lid.get(var.level.value[lidx])
+                gid = self.gid.get(var.spatial._value[gidx0,gidx1])
+                yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
+                       'value':value,'ugid':ugid}
+                yield(yld)
+        
+    def _add_collection_(self,coll):
+        self.ugid.add(coll.ugeom['ugid'],np.array([coll.ugeom['ugid']]))
+        for var in coll.variables.itervalues():
+            self.tid.add(var.temporal.value,var.temporal.uid)
+            if var.temporal_group is not None:
+                raise(NotImplementedError)
+                self.tgid.add(var.temporal_group.value[:,1],var.temporal_group.uid)
+                self.tgid_bounds.add(var.temporal_group.bounds,var.temporal_group.uid)
+            self.lid.add(var.level.value,var.level.uid)
+            self.gid.add(var.spatial.value.compressed(),var.spatial.uid.compressed())
+    
     def get_request_iters(self):
         ret = {}
         identifier = {'did':['uri'],
@@ -132,4 +175,14 @@ class KeyedIterator(AbstractOcgIterator):
         storage = ref.storage
         for idx in range(len(ref)):
             yield(storage[idx].tolist())
+            
+    def _get_headers_(self):
+        if self.mode == 'raw':
+            return(['vid','did','ugid','tid','lid','gid','value'])
+        elif self.mode == 'calc':
+            ret = ['vid','did','ugid','tgid','lid','gid',]
+            arch = self.coll.variables[self.coll.variables.keys()[0]]
+            ret += arch.temporal_group.groups
+            ret += ['value']
+            return(ret)
         

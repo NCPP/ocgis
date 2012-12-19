@@ -16,11 +16,22 @@ class KeyedConverter(OcgConverter):
         super(KeyedConverter,self).__init__(*args,**kwds)
         self.wd = get_temp_path(only_dir=True,wd=self.wd,nest=True)
     
+    def _write_iter_dict_(self,dct):
+        for k,v in dct.iteritems():
+            with open(self._get_path_(k),'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(self._upper_(v['headers']))
+                for row in v['it']:
+                    try:
+                        writer.writerow(row)
+                    except:
+                        import ipdb;ipdb.set_trace()
+
     def write(self):
         build = True
         for coll in self:
             if build:
-                kit = KeyedIterator(coll,mode=self.mode)
+                kit = KeyedIterator(coll)
                 ## init the value file
                 f_value = self._get_file_object_('value')
                 f_writer = csv.writer(f_value)
@@ -28,12 +39,7 @@ class KeyedConverter(OcgConverter):
                 
                 ## write request level identifier files ########################
                 rits = kit.get_request_iters()
-                for k,v in rits.iteritems():
-                    with open(self._get_path_(k),'w') as f:
-                        writer = csv.writer(f)
-                        writer.writerow(self._upper_(v['headers']))
-                        for row in v['it']:
-                            writer.writerow(row)
+                self._write_iter_dict_(rits)
                 ################################################################
                             
                 build = False
@@ -42,7 +48,8 @@ class KeyedConverter(OcgConverter):
         f_value.close()
         
         ## write dimension identifiers #########################################
-        
+        dits = kit.get_dimension_iters()
+        self._write_iter_dict_(dits)
         ########################################################################
         
         

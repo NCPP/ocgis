@@ -141,13 +141,21 @@ class KeyedIterator(AbstractOcgIterator):
         for var in coll.variables.itervalues():
             did = coll.did.get(var.uri)
             vid = coll.vid.get(var.name)
-            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
+            for tidx,lidx,gidx0,gidx1,value,cid,tgid in self._iter_value_(var):
                 tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
                 gid = self.gid.get(var.spatial._value[gidx0,gidx1])
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
-                       'value':value,'ugid':ugid}
+                       'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)
+                
+    def _iter_value_(self,var):
+        ## TODO: optimize
+        if len(var.calc_value) > 0:
+            raise(NotImplementedError)
+        else:
+            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
+                yield(tidx,lidx,gidx0,gidx1,value,None,None)
         
     def _add_collection_(self,coll):
         self.ugid.add(coll.ugeom['ugid'],np.array([coll.ugeom['ugid']]))
@@ -169,6 +177,38 @@ class KeyedIterator(AbstractOcgIterator):
             ret.update({key:{'it':self._get_identifier_(key),
                              'headers':[key]+value}})
         return(ret)
+    
+    def get_dimension_iters(self):
+        ret = {}
+
+        def _time_():
+            for idx in range(len(self.tid)):
+                yield(self.tid.storage[idx,:].tolist())
+        ret.update({'tid':{'it':_time_(),
+                           'headers':['tid','time_lower','time','time_upper']}})
+        def _time_group_():
+            for idx in range(len(self.tgid)):
+                yield(None)
+        ret.update({'tgid':{'it':_time_group_(),
+                           'headers':['tgid','time_group_lower',
+                                      'time_group_upper','year','month','day',
+                                      'hour','minute','second','microsecond']}})
+        def _level_():
+            for idx in range(len(self.lid)):
+                yield(self.lid.storage[idx,:].tolist())
+        ret.update({'lid':{'it':_level_(),
+                           'headers':['lid','level_lower','level','level_upper']}})
+        def _spatial_():
+            for uid in self.gid.uid:
+                yield([uid])
+        ret.update({'gid':{'it':_spatial_(),'headers':['gid']}})
+        
+        def _ugid_():
+            for uid in self.ugid.uid:
+                yield([uid])
+        ret.update({'ugid':{'it':_ugid_(),'headers':['ugid']}})
+        
+        return(ret)
             
     def _get_identifier_(self,attr):
         ref = getattr(self.coll,attr)
@@ -177,12 +217,13 @@ class KeyedIterator(AbstractOcgIterator):
             yield(storage[idx].tolist())
             
     def _get_headers_(self):
-        if self.mode == 'raw':
-            return(['vid','did','ugid','tid','lid','gid','value'])
-        elif self.mode == 'calc':
-            ret = ['vid','did','ugid','tgid','lid','gid',]
-            arch = self.coll.variables[self.coll.variables.keys()[0]]
-            ret += arch.temporal_group.groups
-            ret += ['value']
-            return(ret)
+        return(['vid','did','cid','ugid','tid','tgid','lid','gid','value'])
+#        if self.mode == 'raw':
+#            return(['vid','did','ugid','tid','lid','gid','value'])
+#        elif self.mode == 'calc':
+#            ret = ['vid','did','ugid','tgid','lid','gid',]
+#            arch = self.coll.variables[self.coll.variables.keys()[0]]
+#            ret += arch.temporal_group.groups
+#            ret += ['value']
+#            return(ret)
         

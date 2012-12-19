@@ -203,6 +203,10 @@ class TestSimple(TestBase):
     def test_keyed_conversion(self):
         ops = OcgOperations(dataset=self.dataset,output_format='keyed')
         ret = self.get_ret(ops)
+        
+    def test_shpidx_conversion(self):
+        ops = OcgOperations(dataset=self.dataset,output_format='shpidx')
+        ret = self.get_ret(ops)
 
 
 class TestSimpleMask(TestBase):

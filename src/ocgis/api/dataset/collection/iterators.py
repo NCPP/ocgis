@@ -117,5 +117,19 @@ class MeltedIterator(AbstractOcgIterator):
 
 class KeyedIterator(AbstractOcgIterator):
     
-    def iter_rows(self,add_bounds=True):
-        import ipdb;ipdb.set_trace()
+    def get_request_iters(self):
+        ret = {}
+        identifier = {'did':['uri'],
+                      'cid':['calc_name'],
+                      'vid':['var_name']}
+        for key,value in identifier.iteritems():
+            ret.update({key:{'it':self._get_identifier_(key),
+                             'headers':[key]+value}})
+        return(ret)
+            
+    def _get_identifier_(self,attr):
+        ref = getattr(self.coll,attr)
+        storage = ref.storage
+        for idx in range(len(ref)):
+            yield(storage[idx].tolist())
+        

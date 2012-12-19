@@ -5,6 +5,7 @@ from ocgis.util.helpers import get_temp_path
 from ocgis.conv.shpidx import ShpIdxConverter
 import os.path
 from collections import namedtuple
+from ocgis.api.dataset.collection.iterators import KeyedIterator
 
 
 class KeyedConverter(OcgConverter):
@@ -15,6 +16,11 @@ class KeyedConverter(OcgConverter):
         self.wd = get_temp_path(only_dir=True,wd=self.wd,nest=True)
     
     def write(self):
+        build = True
+        for coll in self:
+            iters = KeyedIterator(coll,mode=self.mode).get_iters()
+            import ipdb;ipdb.set_trace()
+        
         ## these variables are here for the shpidx. tricking the iterators at
         ## this time. stripping out unnecessary data to conserve memory.
         DummyColl = namedtuple('DummyColl',['gid','geom'])

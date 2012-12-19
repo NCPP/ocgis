@@ -181,6 +181,11 @@ class OcgCollection(object):
 #        self.tgbid.add(var.temporal.tgdim.bounds)
 
     def add_variable(self,var):
+        ## check if the variable is already present. it is possible to request
+        ## variables from different datasets with the same name. do not want to
+        ## overwrite.
+        if var.name in self.variables:
+            raise(KeyError('variable is already present in the collection.'))
         ## add the variable to storage
         self.variables.update({var.name:var})
         
@@ -220,12 +225,14 @@ class OcgCollection(object):
 
 class Identifier(object):
     
-    def __init__(self,init_vals=None,dtype=None):
+    def __init__(self,init_vals=None,dtype=None,init_uids=None):
+        if init_uids is not None:
+            self._check_unique_uids_(init_uids)
         self.dtype = dtype
         if init_vals is None:
             self.storage = None
         else:
-            self._init_storage_(init_vals)
+            self._init_storage_(init_vals,init_uids=init_uids)
         
     def __len__(self):
         return(self.storage.shape[0])
@@ -234,14 +241,16 @@ class Identifier(object):
     def uid(self):
         return(self.storage[:,0].astype(int))
     
-    def add(self,value):
+    def add(self,value,uids=None):
+        if uids is not None:
+            self._check_unique_uids_(uids)
         try:
             if value.ndim <= 1:
                 value = value.reshape(-1,1)
         except AttributeError:
             value = np.array([[value]])
         if self.storage is None:
-            self._init_storage_(value)
+            self._init_storage_(value,init_uids=uids)
         else:
             adds = np.zeros(value.shape[0],dtype=bool)
             for idx in range(adds.shape[0]):
@@ -252,9 +261,21 @@ class Identifier(object):
             if adds.any():
                 new_values = value[adds,:]
                 shape = self.storage.shape
+#                self.storage.resize(shape[0]+new_values.shape[0],shape[1])
+                if uids is None:
+                    new_uids = self._get_curr_(new_values.shape[0])
+#                    self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
+                else:
+                    new_uids = uids[adds]
+                    if len(set(new_uids).intersection(set(self.uid))) > 0:
+                        raise(ValueError('uids already exist in storage.'))
+#                    if np.all(uids == 100): import ipdb;ipdb.set_trace()
+#                    fill = new_uids
+#                    self.storage[-new_values.shape[0]:,0] = uids
                 self.storage.resize(shape[0]+new_values.shape[0],shape[1])
-                self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
+                self.storage[-new_values.shape[0]:,0] = new_uids
                 self.storage[-new_values.shape[0]:,1:] = new_values
+                self._curr = self.uid.max()+1
             
     def get(self,value):
         try:
@@ -264,12 +285,16 @@ class Identifier(object):
             cmp = (self.storage[:,1:] == value).all(axis=1)
         return(int(self.storage[cmp,[0]]))
     
+    def _check_unique_uids_(self,uids):
+        if len(np.unique(uids)) != len(uids):
+            raise(ValueError)
+    
     def _get_curr_(self,n):
         ret = np.arange(self._curr,self._curr+n,dtype=self.storage.dtype)
         self._curr = self._curr + n
         return(ret)
     
-    def _init_storage_(self,init_vals):
+    def _init_storage_(self,init_vals,init_uids=None):
         if len(init_vals.shape) == 1:
             init_vals = init_vals.reshape(-1,1)
         shape = list(init_vals.shape)
@@ -278,5 +303,9 @@ class Identifier(object):
             self.dtype = init_vals.dtype
         self.storage = np.empty(shape,dtype=self.dtype)
         self.storage[:,1:] = init_vals
-        self._curr = self.storage.shape[0]+1
-        self.storage[:,0] = np.arange(1,self._curr,dtype=self.dtype)
+        if init_uids is None:
+            self._curr = self.storage.shape[0]+1
+            self.storage[:,0] = np.arange(1,self._curr,dtype=self.dtype)
+        else:
+            self.storage[:,0] = init_uids
+            self._curr = init_uids.max()+1

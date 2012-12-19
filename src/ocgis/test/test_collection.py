@@ -58,6 +58,27 @@ class TestCollection(unittest.TestCase):
         uid = oid.get(np.array([[datetime.datetime(2008,1,1,12),datetime.datetime(2005,12,31,12)]]))
         self.assertEqual(3,uid)
         
+        ## test initializing with uids
+        init_vals = np.array([50,55])
+        init_uids = np.array([25,26])
+        oid = Identifier(init_vals,init_uids=init_uids)
+        self.assertTrue((oid.uid == init_uids).all())
+        oid.add(np.array([60,61]),uids=np.array([100,101]))
+        self.assertEqual(oid.get(60),100)
+        ## override initialized unique ids but they are not unique
+        with self.assertRaises(ValueError):
+            Identifier(np.array([1,2]),init_uids=np.array([55,55]))
+        ## override uids, but do not provide unique values
+        with self.assertRaises(ValueError):
+            oid.add(np.array([60,61]),uids=np.array([101,101]))
+        prev_len = len(oid)
+        oid.add(np.array([60,61]),uids=np.array([100,101]))
+        self.assertEqual(prev_len,len(oid))
+        with self.assertRaises(ValueError):
+            oid.add(62,uids=np.array([100]))
+        oid.add(np.array([60,201]),uids=np.array([100,102]))
+        self.assertEqual(len(oid),5)
+        
     def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)
         end = datetime.datetime(2001,12,31,12)

@@ -48,8 +48,7 @@ class SubsetOperation(object):
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
-                                           agg=self.ops.aggregate,
-                                           snippet=self.ops.snippet
+                                           agg=self.ops.aggregate
                                            )
             
         ## check for snippet request in the operations dictionary. if there is
@@ -61,6 +60,8 @@ class SubsetOperation(object):
             if self.cengine is None:
                 ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.value
                 self.ops.time_range = [ref[0],ref[0]]
+            else:
+                import ipdb;ipdb.set_trace()
             
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial

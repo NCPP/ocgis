@@ -14,10 +14,10 @@ class OcgCalculationEngine(object):
     time_range : list of datetime.datetime : bounding range for time selection
     '''
     
-    def __init__(self,grouping,funcs,raw=False,agg=False,snippet=False):
+    def __init__(self,grouping,funcs,raw=False,agg=False):
         self.raw = raw
         self.agg = agg
-        self.snippet = snippet
+#        self.snippet = snippet
 #        self.time_range = time_range
 #        ## subset timevec if time_range is passed
 #        if self.time_range is not None:
@@ -118,8 +118,6 @@ class OcgCalculationEngine(object):
         ## group the variables
         for ocg_variable in coll.variables.itervalues():
             ocg_variable.group(self.grouping)
-            if self.snippet:
-                ocg_variable.snippet()
         
 #        ## tell collection which data to return
 #        coll._use_agg = self.use_agg

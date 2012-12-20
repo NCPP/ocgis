@@ -44,15 +44,15 @@ class OcgVariable(object):
         ret._is_empty = True
         return(ret)
     
-    def snippet(self):
-        self.temporal_group._value = self.temporal_group.value[0,:].reshape(1,-1)
-        self.temporal_group.bounds = self.temporal_group.bounds[0,:].reshape(1,-1)
-        self.temporal_group._uid = self.temporal_group.uid[0].reshape(-1)
-        self.temporal_group.dgroups = self.temporal_group.dgroups[0]
-        
-        idx1 = self.temporal.value >= self.temporal_group.bounds[0,0]
-        idx2 = self.temporal.value <= self.temporal_group.bounds[0,1]
-        self.temporal.storage = self.temporal.storage[np.all(idx1*idx2,axis=1)]
+#    def snippet(self):
+#        self.temporal_group._value = self.temporal_group.value[0,:].reshape(1,-1)
+#        self.temporal_group.bounds = self.temporal_group.bounds[0,:].reshape(1,-1)
+#        self.temporal_group._uid = self.temporal_group.uid[0].reshape(-1)
+#        self.temporal_group.dgroups = self.temporal_group.dgroups[0]
+#        
+#        idx1 = self.temporal.value >= self.temporal_group.bounds[0,0]
+#        idx2 = self.temporal.value <= self.temporal_group.bounds[0,1]
+#        self.temporal.storage = self.temporal.storage[np.all(idx1*idx2,axis=1)]
         
     def group(self,*args,**kwds):
         self.temporal_group = self.temporal.group(*args,**kwds)

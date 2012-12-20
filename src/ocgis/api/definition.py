@@ -6,6 +6,7 @@ from shapely.geometry.polygon import Polygon
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
+import numpy as np
 
 
 class OcgParameter(object):
@@ -166,17 +167,25 @@ class TimeRange(AttributedOcgParameter):
     _name = 'time_range'
     _dtype = list
     _nullable = True
-    _length = 2
+    _length = None
     
     def validate(self,value):
-        self._assert_(value[0] <= value[1])
+        for v in value:
+            self._assert_(v[0] <= v[1])
+            
+    def _format_(self,value):
+        if type(value[0]) == datetime:
+            ret = [value]
+        else:
+            ret = value
+        return(ret)
         
     def _format_string_(self,value):
         ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
         ## ensure the time range is inclusive
         d = ret[1]
         ret[1] = datetime(d.year,d.month,d.day,23,59,59)
-        return(ret)
+        return([ret])
     
     def message(self):
         if self.value is None:
@@ -309,27 +318,27 @@ class LevelRange(AttributedOcgParameter):
     [1, 1]
     '''
     _name = 'level_range'
-    _default = None
+    _default = [[1,1]]
     _dtype = list
     _nullable = True
-    _length = 2
+    _length = None
     
     def _format_(self,value):
-        if type(value) not in [list,tuple]:
-            value = [value]
-        if len(value) > 2:
-            value = [min(value),max(value)]
-        if len(value) == 1:
-            value = [value[0],value[0]]
-        value = [int(ii) for ii in value]
-        return(value)
+        try:
+            v = int(value)
+            ret = [[v,v]]
+        except TypeError:
+            ret = value
+        ret = np.array(ret,dtype=int).tolist()
+        return(ret)
     
     def _format_string_(self,value):
         values = [int(ii) for ii in value.split('|')]
         return(values)
     
     def validate(self,value):
-        self._assert_(value[0] <= value[1])
+        for v in value:
+            self._assert_(v[0] <= v[1])
 
     def message(self):
         if self.value is None:

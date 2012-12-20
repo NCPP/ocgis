@@ -1,4 +1,5 @@
 from definition import * #@UnusedWildImport
+from ocgis.exc import DefinitionValidationError
 
 
 class OcgOperations(object):
@@ -22,6 +23,8 @@ class OcgOperations(object):
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
                  select_ugid=None,vector_wrap=None,allow_empty=None):
         
+        self._is_init = True
+        
         self.dataset = Dataset(dataset)
         self.spatial_operation = SpatialOperation(spatial_operation)
         self.geom = Geom(geom)
@@ -42,6 +45,9 @@ class OcgOperations(object):
         self.select_ugid = SelectUgid(select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
+        
+        self._is_init = False
+        self._validate_()
         
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
@@ -69,6 +75,8 @@ class OcgOperations(object):
                 attr.value = value
             except AttributeError:
                 object.__setattr__(self,name,value)
+        if self._is_init is False:
+            self._validate_()
         
     def as_dict(self):
         ret = {}
@@ -81,6 +89,16 @@ class OcgOperations(object):
     
     def _get_object_(self,name):
         return(object.__getattribute__(self,name))
+    
+    def _validate_(self):
+        for attr in ['time_range','level_range']:
+            parm = getattr(self,attr)
+            if len(parm) < len(self.dataset):
+                if len(parm) == 1:
+                    setattr(self,attr,[parm[0] for ii in range(len(self.dataset))])
+                else:
+                    raise(DefinitionValidationError(self._get_object_(attr),
+                          'range must have length equal to the number of requested datasets or a length of one.'))
     
     
 if __name__ == '__main__':

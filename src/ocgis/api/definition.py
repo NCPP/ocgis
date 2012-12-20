@@ -4,7 +4,6 @@ from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from ocgis.util.shp_cabinet import ShpCabinet
-#from ocgis.interface.element import Element
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 

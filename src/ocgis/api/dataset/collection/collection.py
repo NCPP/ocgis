@@ -101,15 +101,12 @@ class OcgVariable(object):
             ## do the spatial operation
             for idx,geom in iter_array(self.spatial.value,
                                        return_value=True):
-    #            import ipdb;ipdb.set_trace()
                 if keep(prep_igeom,igeom,geom):
-    #                import ipdb;ipdb.set_trace()
                     new_geom = igeom.intersection(geom)
                     weights[idx] = new_geom.area
                     self.spatial._value[idx] = new_geom
             ## set maximum weight to one
             self.spatial.weights = weights/weights.max()
-#        return(coll)
 
    
 class OcgCollection(object):
@@ -118,21 +115,8 @@ class OcgCollection(object):
         if ugeom is None:
             ugeom = {'ugid':1,'geom':None}
         self.ugeom = ugeom
-#        self._tid_name = 'tid'
-#        self._tbid_name = 'tbid'
-#        self._tgid_name = 'tgid'
-#        self._tgbid_name = 'tgbid'
         self._mode = 'raw'
         self.projection = projection
-        
-#        ## variable level identifiers
-#        self.tid = Identifier()
-#        self.tbid = Identifier()
-#        self.tgid = Identifier()
-#        self.tgbid = Identifier()
-#        self.lid = Identifier(dtype=object)
-#        self.lbid = Identifier(dtype=object) ## level bounds identifier
-#        self.gid = Identifier(dtype=object)
         ## collection level identifiers
         self.cid = Identifier(dtype=object) ## calculations
         self.vid = Identifier(dtype=object) ## variables
@@ -176,9 +160,6 @@ class OcgCollection(object):
         self._mode = 'calc'
         for key in var.calc_value.keys():
             self.cid.add(key)
-#        ## update time group identifiers
-#        self.tgid.add(var.temporal.tgdim.value)
-#        self.tgbid.add(var.temporal.tgdim.bounds)
 
     def add_variable(self,var):
         ## check if the variable is already present. it is possible to request
@@ -192,35 +173,6 @@ class OcgCollection(object):
         ## update collection identifiers
         self.vid.add(np.array([var.name]))
         self.did.add(np.array([var.uri]))
-        
-#        ## update variable identifiers #########################################
-#        
-#        ## time
-#        self.tid.add(var.temporal.value)
-#        if var.temporal.bounds is not None:
-#            self.tbid.add(var.temporal.bounds)
-#        else:
-#            self.tbid.add(np.array([[None,None]]))
-#        
-#        ## level
-#        add_lbid = True
-#        if var.level is None:
-#            self.lid.add(np.array([None]))
-#            add_lbid = False
-#        else:
-#            self.lid.add(var.level.value)
-#            if var.level.bounds is None:
-#                add_lbid = False
-#        if add_lbid:
-#            self.lbid.add(var.level.bounds)
-#        else:
-#            self.lbid.add(np.array([[None,None]]))
-            
-#        ## geometry
-#        masked = var.spatial.get_masked()
-#        gid = self.gid
-#        for geom in masked.compressed():
-#            gid.add(np.array([[geom.wkb]]))
 
 
 class Identifier(object):
@@ -265,17 +217,12 @@ class Identifier(object):
             if adds.any():
                 new_values = value[adds,:]
                 shape = self.storage.shape
-#                self.storage.resize(shape[0]+new_values.shape[0],shape[1])
                 if uids is None:
                     new_uids = self._get_curr_(new_values.shape[0])
-#                    self.storage[-new_values.shape[0]:,0] = self._get_curr_(new_values.shape[0])
                 else:
                     new_uids = uids[adds]
                     if len(set(new_uids).intersection(set(self.uid))) > 0:
                         raise(ValueError('uids already exist in storage.'))
-#                    if np.all(uids == 100): import ipdb;ipdb.set_trace()
-#                    fill = new_uids
-#                    self.storage[-new_values.shape[0]:,0] = uids
                 self.storage.resize(shape[0]+new_values.shape[0],shape[1])
                 self.storage[-new_values.shape[0]:,0] = new_uids
                 self.storage[-new_values.shape[0]:,1:] = new_values

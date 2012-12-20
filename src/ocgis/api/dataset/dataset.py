@@ -4,7 +4,6 @@ from ocgis.interface.interface import GlobalInterface
 from ocgis.util.helpers import keep, sub_range, iter_array
 import numpy as np
 import ocgis.exc as exc
-import collection
 from ocgis.api.dataset.collection.collection import OcgVariable
 from ocgis.api.dataset.collection.dimension import TemporalDimension,\
     LevelDimension, SpatialDimension
@@ -65,17 +64,10 @@ class OcgDataset(object):
 #        if show: plt.show()
     
     def get_numpy_data(self,var,args):
-        
-#        import time
-#        t1 = time.time()
-        
         if len(args) == 3:
             npd = var[args[0],args[1],args[2]]
         if len(args) == 4:
             npd = var[args[0],args[1],args[2],args[3]]
-            
-#        t2 = time.time()
-#        print 'download_time',t2-t1
         
         ## resize the data to match returned counts
         new_shape = [len(a) for a in args]
@@ -92,26 +84,6 @@ class OcgDataset(object):
                 npd = np.ma.resize(npd,new_shape)
         
         return(npd)
-    
-#    def _make_empty_(self,var_name):
-#        ocg_variable = collection.OcgVariable(
-#          var_name,
-#          np.empty(0),
-#          np.empty(0),
-#          np.empty(0),
-#          self)
-#        
-#        if return_collection:
-#            coll = collection.OcgCollection(
-#              np.empty(0),
-#              np.empty(0),
-#              np.empty(0),
-#              np.empty(0),
-#              np.empty(0),
-#              np.empty(0))
-#            return(coll,ocg_variable)
-#        else:
-#            return(ocg_variable)
     
     def _subset_(self,polygon=None,time_range=None,level_range=None,
                  allow_empty=False): ## intersects + touches
@@ -132,7 +104,6 @@ class OcgDataset(object):
         except exc.ExtentError:
             if allow_empty:
                 return(OcgVariable.get_empty(self.variable,self.uri))
-#                return(self._make_empty_(self.variable,return_collection))
             else:
                 raise
         
@@ -190,7 +161,6 @@ class OcgDataset(object):
             if npd.mask.all():
                 if allow_empty:
                     return(OcgVariable.get_empty(self.variable,self.uri))
-#                    return(self._make_empty_(self.variable,return_collection))
                 else:
                     raise(exc.MaskedDataError)
             else:
@@ -237,36 +207,6 @@ class OcgDataset(object):
                                         d_spatial,level=d_level,uri=self.uri)
         
         return(ocg_variable)
-#        import ipdb;ipdb.set_trace()
-        
-#        ocg_variable = collection.OcgVariable(
-#          self.variable,
-##          self.i.level.lid[levelidx],
-#          self.i.level.value[levelidx],
-#          npd,
-#          self,
-#          levelvec_bounds=levelvec_bounds
-#                                   )
-#        
-#        if return_collection:
-#            ## get time bounds if available
-#            if self.i.temporal.bounds is None:
-#                timevec_bounds = None
-#            else:
-#                timevec_bounds = self.i.temporal.bounds[timeidx,:]
-#            
-#            coll = collection.OcgCollection(
-#              self.i.temporal.tid[timeidx],
-#              gid,
-#              geom,
-#              geom_mask,
-#              self.i.temporal.value[timeidx],
-#              self.i.spatial.calc_weights(npd,geom),
-#              timevec_bounds=timevec_bounds
-#                                         )
-#            return(coll,ocg_variable)
-#        else:
-#            return(ocg_variable)
     
     def subset(self,*args,**kwds):
         try:

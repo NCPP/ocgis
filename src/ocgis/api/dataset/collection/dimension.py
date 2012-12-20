@@ -5,7 +5,6 @@ from collections import deque
 import itertools
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import wkb
-import netCDF4 as nc
 
 
 class OcgDimension(object):
@@ -39,35 +38,6 @@ class OcgDimension(object):
             row = {_name_uid:uid[idx],
                    _name_value:value[idx,0]}
             yield(idx,row)
-            
-#    def get_nc_dimension(self,rootgrp,name=None):
-#        ret = rootgrp.createDimension()
-#        import ipdb;ipdb.set_trace()
-        
-#    def __iter__(self):
-#        storage = self.storage
-#        for idx in range(storage.shape[0]):
-#            yield(idx,storage[idx])
-    
-#    def iter_rows(self,add_bounds=True):
-##        name_value = self._name_value
-##        name_bounds = self._name_bounds
-##        name_uid = self._name_uid
-##        
-##        if add_bounds and bounds is None:
-##            warn('bounds requested in iteration, but no bounds variable exists.')
-##            add_bounds = False
-#        
-#        for idx in self._iter_values_idx_(value):
-#            ret = {name_value:value[idx],name_uid:uid[idx]}
-#            if add_bounds:
-#                ret.update({name_bounds:{0:bounds[idx,0],
-#                                         1:bounds[idx,1]}})
-#            yield(yld)
-#    
-#    def _iter_values_idx_(self,value):
-#        for idx in range(value.shape[0]):
-#            yield(idx)
             
             
 class LevelDimension(OcgDimension):
@@ -157,24 +127,11 @@ class SpatialDimension(OcgDimension):
             except AssertionError:
                 geom = wkb.loads(geom.wkb)
         return(geom)
-            
-        
-#    def get_masked(self):
-#        return(np.ma.array(self.value,mask=self.value_mask))
-#    
-#    def _iter_values_idx_(self,value):
-#        for idx in iter_array(self.get_masked()):
-#            yield(idx)
 
 
 class TemporalDimension(OcgDimension):
     _name_value = 'time'
     _name_uid = 'tid'
-    
-#    def __init__(self,uid,value,bounds=None):
-#        super(TemporalDimension,self).__init__(uid,value,bounds=bounds)
-        
-#        self.tgdim = None
     
     def group(self,*args):
         '''
@@ -187,46 +144,6 @@ class TemporalDimension(OcgDimension):
             new_value,new_bounds,dgroups = self._group_part_(*args)
         
         return(TemporalGroupDimension(new_value,new_bounds,dgroups,args[0]))
-    
-#    def _group_part_count_(self,part,count):
-#        raise(NotImplementedError)
-#        if part not in ['year','month']:
-#            raise(NotImplementedError)
-#            try:
-#                delta = datetime.timedelta(**{part:count})
-#            except TypeError:
-#                delta = datetime.timedelta(**{part+'s':count})
-##            lower = value[0]
-##            upper = lower + delta
-#                
-#        value = self.value
-#        bounds = self.bounds
-#        
-#        if self.bounds is None:
-#            raise(NotImplementedError)
-#        else:
-#            ## get exclusive lower and upper bounds
-#            lower = getattr(value[0],part)
-#            upper = lower + count
-#            import ipdb;ipdb.set_trace()
-#        
-#    def _subset_timeidx_(self,time_range):
-#        if time_range is None:
-#            ret = self.timeidx
-#        else:
-#            if self.bounds is None:
-#                ret = self.timeidx[(self.value>=time_range[0])*
-#                                   (self.value<=time_range[1])]
-#            else:
-#                select = np.empty(self.value.shape,dtype=bool)
-#                for idx in np.arange(self.bounds.shape[0]):
-#                    bnds = self.bounds[idx,:]
-#                    idx1 = (time_range[0]>=bnds[0])*(time_range[0]<=bnds[1])
-#                    idx2 = (time_range[0]<=bnds[0])*(time_range[1]>=bnds[1])
-#                    idx3 = (time_range[1]>=bnds[0])*(time_range[1]<=bnds[1])
-#                    select[idx] = np.logical_or(np.logical_or(idx1,idx2),idx3)
-#                ret = self.timeidx[select]
-#        return(ret)
     
     def _group_part_(self,groups):
         
@@ -269,10 +186,7 @@ class TemporalDimension(OcgDimension):
         
         new_value = np.empty((len(dgroups),len(date_parts)),dtype=int)
         new_bounds = np.empty((len(dgroups),2),dtype=object)
-#        if self.bounds is None:
-#            bounds = value
-#        else:
-#            bounds = self.bounds
+
         for idx,dgrp in enumerate(dgroups):
             new_value[idx] = select[idx]
             sel = value[dgrp][:,(0,2)]
@@ -316,6 +230,4 @@ class TemporalGroupDimension(OcgDimension):
         for idx in range(value.shape[0]):
             ret = dict(zip(groups,[value[idx,gi] for gi in get_idx]))
             ret.update({'tgid':uid[idx]})
-#            ret.update({'lower':bounds[idx,0],
-#                        'upper':bounds[idx,1]})
             yield(idx,ret)

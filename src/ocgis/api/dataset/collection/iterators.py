@@ -89,29 +89,6 @@ class MeltedIterator(AbstractOcgIterator):
         else:
             for lidx,level in var.level:
                 yield(lidx,level)
-            
-#    def _iter_level_(self,var):
-#        if var.level is None:
-#            yield(0,{'lid':None,LevelDimension._value_name:None})
-#        else:
-#            coll = self.coll
-#            uid_name = 'lid'
-#            value_name = var.level._value_name
-#            get = coll.lid.get
-#            
-#            for ii,row in enumerate(var.level.iter_rows(add_bounds=False)):
-#                row.update({uid_name:get(row[value_name])})
-#                yield(ii,row)
-#            
-#    def _iter_spatial_(self,var):
-#        coll = self.coll
-#        uid_name = 'gid'
-#        value_name = var.spatial._value_name
-#        get = coll.gid.get
-#        
-#        for ii,row in var.spatial.iter_rows(add_bounds=False,yield_idx=True):
-#            row.update({uid_name:get(row[value_name].wkb)})
-#            yield(ii,row)
 
 
 class KeyedIterator(AbstractOcgIterator):
@@ -231,12 +208,3 @@ class KeyedIterator(AbstractOcgIterator):
             
     def _get_headers_(self):
         return(['vid','did','cid','ugid','tid','tgid','lid','gid','value'])
-#        if self.mode == 'raw':
-#            return(['vid','did','ugid','tid','lid','gid','value'])
-#        elif self.mode == 'calc':
-#            ret = ['vid','did','ugid','tgid','lid','gid',]
-#            arch = self.coll.variables[self.coll.variables.keys()[0]]
-#            ret += arch.temporal_group.groups
-#            ret += ['value']
-#            return(ret)
-        

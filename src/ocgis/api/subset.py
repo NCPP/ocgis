@@ -46,12 +46,10 @@ class SubsetOperation(object):
             self.cengine = None
         else:
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
-#                                           ods.i.temporal.value,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate,
                                            snippet=self.ops.snippet
-#                                           time_range=self.ops.time_range
                                            )
             
         ## check for snippet request in the operations dictionary. if there is
@@ -63,16 +61,6 @@ class SubsetOperation(object):
             if self.cengine is None:
                 ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.value
                 self.ops.time_range = [ref[0],ref[0]]
-#            ## case of a calculation. will need to select data based on temporal
-#            ## group.
-#            else:
-#                ## subset the calc engine time groups
-#                self.cengine.dgroups = [self.cengine.dgroups[0]]
-#                for key,value in self.cengine.dtime.iteritems():
-#                    self.cengine.dtime[key] = [value[0]]
-#                ## modify the time range to only pull a single group
-#                sub_time = self.cengine.timevec[self.cengine.dgroups[0]]
-#                self.ops.time_range = [sub_time.min(),sub_time.max()]
             
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial
@@ -143,32 +131,6 @@ def get_collection((so,geom_dict)):
         ocg_variable._i = ref.i
         coll.projection = ref.i.spatial.projection
         coll.add_variable(ocg_variable)
-    
-#    return_collection=True
-#    ctr = 1
-#    for dataset in so.ops.dataset:
-#        ## collection are always returned but only the first one is needed.
-#        subset_return = \
-#          dataset['ocg_dataset'].subset(
-#                            polygon=geom_dict['geom'],
-#                            time_range=so.ops.time_range,
-#                            level_range=so.ops.level_range,
-#                            allow_empty=so.ops.allow_empty)
-#        try:
-#            coll,ocg_variable = subset_return
-#            coll.geom_dict = geom_dict
-#        except TypeError:
-#            ocg_variable = subset_return
-#            
-#        ocg_variable.vid = ctr
-#        
-#        if ctr == 1:
-#            return_collection = False
-#            ## needed for time referencing during conversion.
-#            coll.cengine = so.cengine
-#        ## add the variable to the collection
-#        coll.add_variable(ocg_variable)
-#        ctr += 1
 
     ## skip other operations if the dataset is empty
     if coll.is_empty:
@@ -196,4 +158,3 @@ def get_collection((so,geom_dict)):
         raise(NotImplementedError)
     else:
         return(coll)
-    

@@ -70,8 +70,6 @@ class MeltedIterator(AbstractOcgIterator):
             for calc_name,calc_value in var.calc_value.iteritems():
                 row.update({'cid':self.coll.cid.get(calc_name),'calc_name':calc_name})
                 yield(calc_value,row)
-        elif self.mode == 'multi':
-            raise(NotImplementedError)
         else:
             raise(NotImplementedError)
 
@@ -82,8 +80,6 @@ class MeltedIterator(AbstractOcgIterator):
         elif self.mode == 'calc':
             for row in var.temporal_group:
                 yield(row)
-        elif self.mode == 'multi':
-            raise(NotImplementedError)
         else:
             raise(NotImplementedError)
         

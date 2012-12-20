@@ -27,7 +27,7 @@ def union_geoms(ugeoms,new_id=1):
             else:
                 to_union.append(geom)
         ugeom = cascaded_union(to_union)
-        ret = [{'id':new_id,'geom':ugeom}]
+        ret = [{'ugid':new_id,'geom':ugeom}]
     return(ret)
 
 

@@ -12,7 +12,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
 import sys;sys.argv = ['', 'TestWork.test_get_data']
 
-#raise SkipTest(__name__)
+raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
 
@@ -32,12 +32,13 @@ class TestWork(unittest.TestCase):
     def iter_operations(self,start=0):
         output_format = {'output_format':[
 #                                          'shp',
-#                                          'keyed',
-                                          'nc',
+                                          'keyed',
+#                                          'nc',
+#                                          'csv'
                                           ]}
         snippet = {'snippet':[
-                              True,
-#                              False
+#                              True,
+                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
@@ -45,18 +46,18 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
 #                        None,
-                        self.california,
-#                        self.state_boundaries,
-#                        {'id':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
+#                        self.california,
+                        self.state_boundaries,
+#                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
-#                                  True,
-                                  False
+                                  True,
+#                                  False
                                   ]}
         spatial_operation = {'spatial_operation':[
-#                                                  'clip',
-                                                  'intersects',
+                                                  'clip',
+#                                                  'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
                                       True,
@@ -68,7 +69,7 @@ class TestWork(unittest.TestCase):
                                   ]}
         
         agg_selection = {'agg_selection':[
-#                                          True,
+                                          True,
                                           False
                                           ]}
         
@@ -85,13 +86,14 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         calc = {'calc':[
-#                        [{'func':'mean','name':'my_mean'}],
-                        None,
+                        [{'func':'mean','name':'my_mean'}],
+#                        None,
                         ]}
+        calc_grouping = {'calc_grouping':[['month','year']]}
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,
                 vector_wrap,interface,agg_selection,level_range,time_range,
-                allow_empty,calc]
+                allow_empty,calc,calc_grouping]
         
         combined = OrderedDict()
         for arg in args: combined.update(arg)

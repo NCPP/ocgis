@@ -196,18 +196,22 @@ class NcConverter(OcgConverter):
         dim_lon = ds.createDimension(spatial.col.name,len(longitude_values))
         if is_poly:
             dim_bnds = ds.createDimension('bounds',2)
+        else:
+            dim_bnds = None
         
         ## set data + attributes ###############################################
         
         ## time variable
         time_nc_value = temporal.calculate(arch.temporal.value[:,1])
         ## if bounds are available for the time vector transform those as well
-#        if coll.timevec_bounds is not None:
-        time_bounds_nc_value = temporal.calculate(arch.temporal.value[:,(0,2)])
-        times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
-        times_bounds[:] = time_bounds_nc_value
-        for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
-            setattr(times_bounds,key,value)
+        if temporal.bounds is not None:
+            if dim_bnds is None:
+                dim_bnds = ds.createDimension('bounds',2)
+            time_bounds_nc_value = temporal.calculate(arch.temporal.value[:,(0,2)])
+            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
+            times_bounds[:] = time_bounds_nc_value
+            for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
+                setattr(times_bounds,key,value)
         times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_time._name,))
         times[:] = time_nc_value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
@@ -224,11 +228,13 @@ class NcConverter(OcgConverter):
             levels[:] = arch.level.value[:,1]
             for key,value in meta['variables'][level.name]['attrs'].iteritems():
                 setattr(levels,key,value)
-#            if level.bounds is not None:
-            levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,'bounds'))
-            levels_bounds[:] = arch.level.value[:,(0,2)]
-            for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
-                setattr(levels,key,value)
+            if level.bounds is not None:
+                if dim_bnds is None:
+                    dim_bnds = ds.createDimension('bounds',2)
+                levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,'bounds'))
+                levels_bounds[:] = arch.level.value[:,(0,2)]
+                for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
+                    setattr(levels,key,value)
         if dim_level is not None:
             value_dims = (dim_time._name,dim_level._name,dim_lat._name,dim_lon._name)
         else:

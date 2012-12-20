@@ -680,8 +680,6 @@ class PrimeMeridian(AttributedOcgParameter):
 def identify_iterator_mode(ops):
     '''raw,agg,calc,multi'''
     mode = 'raw'
-    if ops.aggregate:
-        mode = 'agg'
     if ops.calc is not None:
         mode = 'calc'
         for f in ops.calc:

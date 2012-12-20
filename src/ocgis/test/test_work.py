@@ -12,7 +12,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
 import sys;sys.argv = ['', 'TestWork.test_get_data']
 
-raise SkipTest(__name__)
+#raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
 
@@ -37,8 +37,8 @@ class TestWork(unittest.TestCase):
 #                                          'csv'
                                           ]}
         snippet = {'snippet':[
-#                              True,
-                              False
+                              True,
+#                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
@@ -46,8 +46,8 @@ class TestWork(unittest.TestCase):
                               ]}
         geom = {'geom':[
 #                        None,
-#                        self.california,
-                        self.state_boundaries,
+                        self.california,
+#                        self.state_boundaries,
 #                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
 #                        self.world_countries
                         ]}
@@ -69,7 +69,7 @@ class TestWork(unittest.TestCase):
                                   ]}
         
         agg_selection = {'agg_selection':[
-                                          True,
+#                                          True,
                                           False
                                           ]}
         

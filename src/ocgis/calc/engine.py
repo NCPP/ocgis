@@ -118,6 +118,8 @@ class OcgCalculationEngine(object):
         ## group the variables
         for ocg_variable in coll.variables.itervalues():
             ocg_variable.group(self.grouping)
+            if self.snippet:
+                ocg_variable.snippet()
         
 #        ## tell collection which data to return
 #        coll._use_agg = self.use_agg

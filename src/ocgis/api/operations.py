@@ -100,6 +100,8 @@ class OcgOperations(object):
     def _validate_(self):
         for attr in ['time_range','level_range']:
             parm = getattr(self,attr)
+            if parm is None:
+                parm = [None]
             if len(parm) < len(self.dataset):
                 if len(parm) == 1:
                     setattr(self,attr,[parm[0] for ii in range(len(self.dataset))])

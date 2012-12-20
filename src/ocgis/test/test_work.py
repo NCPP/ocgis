@@ -37,8 +37,8 @@ class TestWork(unittest.TestCase):
 #                                          'csv'
                                           ]}
         snippet = {'snippet':[
-                              True,
-#                              False
+#                              True,
+                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
@@ -86,8 +86,8 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         calc = {'calc':[
-                        [{'func':'mean','name':'my_mean'}],
-#                        None,
+#                        [{'func':'mean','name':'my_mean'}],
+                        None,
                         ]}
         calc_grouping = {'calc_grouping':[['month','year']]}
         

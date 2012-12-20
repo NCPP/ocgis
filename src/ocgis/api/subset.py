@@ -54,6 +54,7 @@ class SubsetOperation(object):
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
+            raise(NotImplementedError)
             ## only select the first level
             self.ops.level_range = [1]
             ## case of no calculation request
@@ -122,12 +123,12 @@ def get_collection((so,geom_dict)):
     ## do the spatial and temporal subsetting.
     
     coll = OcgCollection(ugeom=geom_dict)
-    for dataset in so.ops.dataset:
-        ref = dataset['ocg_dataset']
+    for dataset in so.ops:
+        ref = dataset['dataset']['ocg_dataset']
         ocg_variable = ref.subset(
                             polygon=geom_dict['geom'],
-                            time_range=so.ops.time_range,
-                            level_range=so.ops.level_range,
+                            time_range=dataset['time_range'],
+                            level_range=dataset['level_range'],
                             allow_empty=so.ops.allow_empty)
         ocg_variable._i = ref.i
         coll.projection = ref.i.spatial.projection

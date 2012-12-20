@@ -168,10 +168,17 @@ class TimeRange(AttributedOcgParameter):
     _dtype = list
     _nullable = True
     _length = None
+    _default = [None]
     
     def validate(self,value):
         for v in value:
-            self._assert_(v[0] <= v[1])
+            try:
+                self._assert_(v[0] <= v[1])
+            except TypeError:
+                if v is None:
+                    pass
+                else:
+                    raise
             
     def _format_(self,value):
         if type(value[0]) == datetime:

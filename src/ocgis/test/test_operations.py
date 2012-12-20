@@ -38,6 +38,15 @@ class TestOperations(unittest.TestCase):
             self.assertEqual(row['time_range'],self.time_range)
             self.assertEqual(row['level_range'],[self.level_range,self.level_range])
 
+    def test_null_parms(self):
+        ops = OcgOperations(dataset=self.datasets)
+        self.assertEqual(ops.time_range,[None]*3)
+        for row in ops:
+            self.assertEqual(row['time_range'],None)
+            
+        ops = OcgOperations(dataset=self.datasets[0])
+        self.assertEqual(ops.time_range,[None])
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

@@ -201,7 +201,10 @@ class TestSimple(TestBase):
         ret = self.get_ret(ops)
         
     def test_keyed_conversion(self):
-        calc = [None,{'func':'mean','name':'my_mean'}]
+        calc = [
+                None,
+                {'func':'mean','name':'my_mean'}
+                ]
         group = ['month','year']
         for c in calc:
             ops = OcgOperations(dataset=self.dataset,

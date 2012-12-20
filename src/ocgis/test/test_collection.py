@@ -270,7 +270,10 @@ class TestCollection(unittest.TestCase):
                     self.assertEqual(len(var.spatial),1)
                     self.assertTrue(prev_len > len(var.spatial))
 #                    import ipdb;ipdb.set_trace()
-                    self.assertAlmostEqual(var.value.mean(),var.raw_value.mean(),delta=1e-5)
+                    try:
+                        self.assertAlmostEqual(var.value.mean(),var.raw_value.mean(),delta=1e-5)
+                    except:
+                        import ipdb;ipdb.set_trace()
             
             if group is not None:
                 cnames = ['my_mean','my_median']

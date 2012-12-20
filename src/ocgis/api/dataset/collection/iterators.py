@@ -141,8 +141,13 @@ class KeyedIterator(AbstractOcgIterator):
         for var in coll.variables.itervalues():
             did = coll.did.get(var.uri)
             vid = coll.vid.get(var.name)
-            for tidx,lidx,gidx0,gidx1,value,cid,tgid in self._iter_value_(var):
-                tid = self.tid.get(var.temporal.value[tidx])
+            for tidx,lidx,gidx0,gidx1,value,calc_name,tgid in self._iter_value_(var):
+                if calc_name is not None:
+                    cid = coll.cid.get(calc_name)
+                    tid = None
+                else:
+                    cid = None
+                    tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
                 gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
@@ -152,7 +157,13 @@ class KeyedIterator(AbstractOcgIterator):
     def _iter_value_(self,var):
         ## TODO: optimize
         if len(var.calc_value) > 0:
-            raise(NotImplementedError)
+            for k,v in var.calc_value.iteritems():
+                for (tidx,lidx,gidx0,gidx1),value in iter_array(v,return_value=True):
+                    to_get = np.empty((1,var.temporal_group.value.shape[1]+2),dtype=object)
+                    to_get[:,0:-2] = var.temporal_group.value[tidx,:]
+                    to_get[:,-2:] = var.temporal_group.bounds[tidx,:]
+                    tgid = self.tgid.get(to_get)
+                    yield(tidx,lidx,gidx0,gidx1,value,k,tgid)
         else:
             for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
                 yield(tidx,lidx,gidx0,gidx1,value,None,None)
@@ -162,9 +173,11 @@ class KeyedIterator(AbstractOcgIterator):
         for var in coll.variables.itervalues():
             self.tid.add(var.temporal.value,var.temporal.uid)
             if var.temporal_group is not None:
-                raise(NotImplementedError)
-                self.tgid.add(var.temporal_group.value[:,1],var.temporal_group.uid)
-                self.tgid_bounds.add(var.temporal_group.bounds,var.temporal_group.uid)
+                init_vals = np.empty((var.temporal_group.value.shape[0],
+                                      var.temporal_group.value.shape[1]+2),dtype=object)
+                init_vals[:,-2:] = var.temporal_group.bounds
+                init_vals[:,0:-2] = var.temporal_group.value
+                self.tgid.add(init_vals,var.temporal_group.uid)
             self.lid.add(var.level.value,var.level.uid)
             geoms = var.spatial.value.compressed()
             init_values = np.empty((len(geoms),2),dtype=object)
@@ -192,11 +205,11 @@ class KeyedIterator(AbstractOcgIterator):
                            'headers':['tid','time_lower','time','time_upper']}})
         def _time_group_():
             for idx in range(len(self.tgid)):
-                yield(None)
+                yield(self.tgid.storage[idx,:].tolist())
         ret.update({'tgid':{'it':_time_group_(),
-                           'headers':['tgid','time_group_lower',
-                                      'time_group_upper','year','month','day',
-                                      'hour','minute','second','microsecond']}})
+                           'headers':['tgid','year','month','day','hour',
+                                      'minute','second','microsecond',
+                                      'time_group_lower','time_group_upper',]}})
         def _level_():
             for idx in range(len(self.lid)):
                 yield(self.lid.storage[idx,:].tolist())

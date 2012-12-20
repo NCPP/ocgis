@@ -6,6 +6,7 @@ import copy
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
 from ocgis.api.dataset.collection.collection import OcgCollection
+from ocgis.api.dataset.collection.dimension import TemporalDimension
 
 
 class SubsetOperation(object):
@@ -54,15 +55,19 @@ class SubsetOperation(object):
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
-            raise(NotImplementedError)
             ## only select the first level
-            self.ops.level_range = [1]
-            ## case of no calculation request
-            if self.cengine is None:
-                ref = self.ops.dataset[0]['ocg_dataset'].i.temporal.value
-                self.ops.time_range = [ref[0],ref[0]]
-            else:
-                import ipdb;ipdb.set_trace()
+            self.ops.level_range = 1
+            ## alter time ranges for the datasets
+            for i,ds in enumerate(self.ops.dataset):
+                ref = ds['ocg_dataset'].i.temporal
+                if self.cengine is None:
+                    self.ops.time_range[i] = [ref.value[0],ref.value[0]]
+                else:
+                    tgdim = TemporalDimension(ref.tid,ref.value,
+                                              bounds=ref.bounds).\
+                                              group(self.cengine.grouping)
+                    times = ref.value[tgdim.dgroups[0]]
+                    self.ops.time_range[i] = [times.min(),times.max()]
             
         ## set the spatial_interface
         self.spatial_interface = ods.i.spatial

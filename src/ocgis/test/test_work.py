@@ -17,7 +17,7 @@ import sys;sys.argv = ['', 'TestWork.test_get_data']
 class TestWork(unittest.TestCase):
 
     def test_get_data(self):
-        start = 0
+        start = 64
         for ii,ops in self.iter_operations(start=start):
             print(ii)
 #            print(ops)
@@ -37,8 +37,8 @@ class TestWork(unittest.TestCase):
 #                                          'csv'
                                           ]}
         snippet = {'snippet':[
-#                              True,
-                              False
+                              True,
+#                              False
                               ]}
         dataset = {'dataset':[
                               {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
@@ -47,29 +47,29 @@ class TestWork(unittest.TestCase):
         geom = {'geom':[
 #                        None,
                         self.california,
-#                        self.state_boundaries,
+                        self.state_boundaries,
 #                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[
                                   True,
-#                                  False
+                                  False
                                   ]}
         spatial_operation = {'spatial_operation':[
                                                   'clip',
-#                                                  'intersects',
+                                                  'intersects',
                                                   ]}
         vector_wrap = {'vector_wrap':[
                                       True,
-#                                      False
+                                      False
                                       ]}
         interface = {'interface':[
                                   {},
-#                                  {'s_abstraction':'point'}
+                                  {'s_abstraction':'point'}
                                   ]}
         
         agg_selection = {'agg_selection':[
-#                                          True,
+                                          True,
                                           False
                                           ]}
         
@@ -82,11 +82,11 @@ class TestWork(unittest.TestCase):
                                     None
                                     ]}
         allow_empty = {'allow_empty':[
-#                                      True,
+                                      True,
                                       False
                                       ]}
         calc = {'calc':[
-#                        [{'func':'mean','name':'my_mean'}],
+                        [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
         calc_grouping = {'calc_grouping':[['month','year']]}

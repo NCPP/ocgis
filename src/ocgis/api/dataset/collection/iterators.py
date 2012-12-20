@@ -122,7 +122,19 @@ class KeyedIterator(AbstractOcgIterator):
                     cid = None
                     tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
+                
+                ##tdk
+#                centroids = []
+#                for i in range(self.gid.storage.shape[0]):
+#                    geom = self.gid.storage[i,2]
+#                    centroids.append([geom.centroid.x,geom.centroid.y])
+#                try:
                 gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
+#                except:
+#                    ref = var.spatial._value[gidx0,gidx1]
+#                    ct = ref.centroid.x,ref.centroid.y
+#                    import ipdb;ipdb.set_trace()
+                ##tdk
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
                        'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)

@@ -49,6 +49,13 @@ class OcgOperations(object):
         self._is_init = False
         self._validate_()
         
+    def __iter__(self):
+        for ii in range(len(self.dataset)):
+            ret = {'dataset':self.dataset[ii],
+                   'time_range':self.time_range[ii],
+                   'level_range':self.level_range[ii]}
+            yield(ret)
+        
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
         for key,value in self.as_dict().iteritems():
@@ -100,7 +107,7 @@ class OcgOperations(object):
                     raise(DefinitionValidationError(self._get_object_(attr),
                           'range must have length equal to the number of requested datasets or a length of one.'))
     
-    
+
 if __name__ == '__main__':
     import doctest #@Reimport
     doctest.testmod()

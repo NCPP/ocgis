@@ -28,18 +28,11 @@ class AbstractOcgIterator(object):
         raise(NotImplementedError)
         
     def iter_rows(self,*args,**kwds):
-        if self.coll.is_empty:
-            ret = self._get_empty_iter_()
-        else:
-            ret = self._iter_rows_(*args,**kwds)
+        ret = self._iter_rows_(*args,**kwds)
         return(ret)
     
     def _iter_rows_(self,*args,**kwds):
         raise(NotImplementedError)
-    
-    def _get_empty_iter_(self):
-        for ii in range(0):
-            yield(ii)
 
 
 class MeltedIterator(AbstractOcgIterator):
@@ -130,19 +123,7 @@ class KeyedIterator(AbstractOcgIterator):
                     cid = None
                     tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
-                
-                ##tdk
-#                centroids = []
-#                for i in range(self.gid.storage.shape[0]):
-#                    geom = self.gid.storage[i,2]
-#                    centroids.append([geom.centroid.x,geom.centroid.y])
-#                try:
                 gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
-#                except:
-#                    ref = var.spatial._value[gidx0,gidx1]
-#                    ct = ref.centroid.x,ref.centroid.y
-#                    import ipdb;ipdb.set_trace()
-                ##tdk
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
                        'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)

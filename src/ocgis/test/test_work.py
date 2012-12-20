@@ -11,27 +11,35 @@ from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
 import shutil
 import tempfile
+from ocgis.exc import ExtentError
 
 #raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
+    
+    def _allowed_exception_(self,ops,e):
+        ret = False
+        if ops.allow_empty is False and type(e) == ExtentError:
+            if len(ops.geom) == 51:
+                ret = True
+        return(ret)
 
     def test_get_data(self):
-        start = 268
+        start = 324
         for ii,ops in self.iter_operations(start=start):
             print(ii)
-#            print(ops)
-#            import ipdb;ipdb.set_trace()
+            ret = None
             try:
                 ret = OcgInterpreter(ops).execute()
-            except:
-                print traceback.format_exc()
-                import ipdb;ipdb.set_trace()
+            except Exception as e:
+                if self._allowed_exception_(ops,e) is False:
+                    print traceback.format_exc()
+                    import ipdb;ipdb.set_trace()
             finally:
-                import ipdb;ipdb.set_trace()
-                if ret.startswith(tempfile.gettempdir()):
+                if ret is not None and ret.startswith(tempfile.gettempdir()):
+                    print(ret)
                     shutil.rmtree(ret)
-            print(ret)
+                    
 
     def iter_operations(self,start=0):
         output_format = {'output_format':[

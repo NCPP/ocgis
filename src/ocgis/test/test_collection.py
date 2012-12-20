@@ -79,6 +79,25 @@ class TestCollection(unittest.TestCase):
         oid.add(np.array([60,201]),uids=np.array([100,102]))
         self.assertEqual(len(oid),5)
         
+#    def test_Identifier_ugid(self):
+#        oid = Identifier(dtype=object)
+#        x = (-123,-124)
+#        y = (40,50)
+#        pts = [Point(ix,iy) for ix,iy in zip(x,y)]
+#        adds = np.empty((2,2),dtype=object)
+#        uids = np.array([1,2])
+#        
+#        adds1 = adds.copy()
+#        adds1[:,0] = 4
+#        adds1[:,1] = pts
+#        oid.add(adds1,uids)
+#        
+#        adds2 = adds.copy()
+#        adds2[:,0] = 5
+#        adds2[:,1] = pts
+#        oid.add(adds2,uids)
+#        import ipdb;ipdb.set_trace()
+        
     def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)
         end = datetime.datetime(2001,12,31,12)

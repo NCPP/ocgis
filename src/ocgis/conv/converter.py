@@ -101,6 +101,12 @@ class OcgConverter(object):
         dict'''
         
         for coll in self.so:
+            try:
+                if coll.is_empty:
+                    continue
+            except AttributeError:
+                if type(coll) == dict:
+                    pass
             #tdk
             try:
                 vprint('geom id processed: {0}'.format(coll.ugeom['ugid']))

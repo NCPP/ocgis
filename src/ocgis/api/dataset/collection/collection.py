@@ -8,6 +8,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 from shapely import prepared
 from ocgis.util.helpers import iter_array, keep
+from shapely.geometry.base import BaseGeometry
 
 
 class OcgVariable(object):

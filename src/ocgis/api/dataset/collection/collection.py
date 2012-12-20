@@ -205,7 +205,13 @@ class Identifier(object):
     
     @property
     def uid(self):
-        return(self.storage[:,0].astype(int))
+        try:
+            return(self.storage[:,0].astype(int))
+        except TypeError:
+            if self.storage is None:
+                return(np.empty(0,dtype=int))
+            else:
+                raise
     
     def add(self,value,uids=None):
         if uids is not None:

@@ -12,12 +12,14 @@ class SampleSize(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        ret = np.sum(~values.mask,axis=0)
+        ret = np.empty(values.shape[-2:],dtype=int)
+        ret[:] = values.shape[0]
+        ret = np.ma.array(ret,mask=values.mask[0,0,:])
         return(ret)
     
     @staticmethod
     def _aggregate_(values,weights):
-        return(np.sum(values))
+        return(np.ma.sum(values))
 
 
 class Median(OcgFunction):

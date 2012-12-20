@@ -28,10 +28,18 @@ class AbstractOcgIterator(object):
         raise(NotImplementedError)
         
     def iter_rows(self,*args,**kwds):
-        return(self._iter_rows_(*args,**kwds))
+        if self.coll.is_empty:
+            ret = self._get_empty_iter_()
+        else:
+            ret = self._iter_rows_(*args,**kwds)
+        return(ret)
     
     def _iter_rows_(self,*args,**kwds):
         raise(NotImplementedError)
+    
+    def _get_empty_iter_(self):
+        for ii in range(0):
+            yield(ii)
 
 
 class MeltedIterator(AbstractOcgIterator):
@@ -107,7 +115,7 @@ class KeyedIterator(AbstractOcgIterator):
         for row in self.iter_rows(*args,**kwds):
             yield([row[h] for h in headers])
         
-    def iter_rows(self,coll):
+    def _iter_rows_(self,coll):
         ## TODO: optimize
         self._add_collection_(coll)
         ugid = coll.ugeom['ugid']

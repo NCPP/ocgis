@@ -6,18 +6,18 @@ from ocgis.util.shp_cabinet import ShpCabinet
 import traceback
 import time
 from ocgis.util.helpers import make_poly #@UnusedImport
-from datetime import datetime
 from copy import deepcopy
 from ocgis.api.interpreter import OcgInterpreter
 from nose.plugins.skip import SkipTest
-import sys;sys.argv = ['', 'TestWork.test_get_data']
+import shutil
+import tempfile
 
 #raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
 
     def test_get_data(self):
-        start = 64
+        start = 268
         for ii,ops in self.iter_operations(start=start):
             print(ii)
 #            print(ops)
@@ -27,6 +27,10 @@ class TestWork(unittest.TestCase):
             except:
                 print traceback.format_exc()
                 import ipdb;ipdb.set_trace()
+            finally:
+                import ipdb;ipdb.set_trace()
+                if ret.startswith(tempfile.gettempdir()):
+                    shutil.rmtree(ret)
             print(ret)
 
     def iter_operations(self,start=0):
@@ -45,10 +49,10 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-#                        None,
+                        None,
                         self.california,
                         self.state_boundaries,
-#                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
+                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[

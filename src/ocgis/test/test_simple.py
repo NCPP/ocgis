@@ -193,8 +193,17 @@ class TestSimple(TestBase):
         ret = self.get_ret(ops)
         
     def test_shp_conversion(self):
-        ops = OcgOperations(dataset=self.dataset,output_format='shp')
-        ret = self.get_ret(ops)
+        calc = [
+                None,
+                {'func':'mean','name':'my_mean'}
+                ]
+        group = ['month','year']
+        for c in calc:
+            ops = OcgOperations(dataset=self.dataset,
+                                output_format='shp',
+                                calc_grouping=group,
+                                calc=c)
+            ret = self.get_ret(ops)
         
     def test_csv_conversion(self):
         ops = OcgOperations(dataset=self.dataset,output_format='csv')

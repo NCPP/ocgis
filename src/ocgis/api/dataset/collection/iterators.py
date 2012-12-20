@@ -40,7 +40,7 @@ class MeltedIterator(AbstractOcgIterator):
         if self.mode == 'raw':
             return(['vid','did','ugid','tid','lid','gid','var_name','uri','time','level','value'])
         elif self.mode == 'calc':
-            ret = ['vid','did','ugid','tgid','lid','gid','var_name','uri']
+            ret = ['vid','did','ugid','cid','tgid','lid','gid','var_name','uri','calc_name']
             arch = self.coll.variables[self.coll.variables.keys()[0]]
             ret += arch.temporal_group.groups
             ret += ['level','value']

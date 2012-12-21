@@ -186,9 +186,106 @@ class OcgCollection(object):
         self.did.add(np.array([var.uri]))
 
 
+
 class Identifier(object):
     
-    def __init__(self,init_vals=None,init_uids=None):
+    def __init__(self,dtype,ncol):
+        self.dtype = dtype
+        self.ncol = ncol
+        self.storage = None
+        
+    def __len__(self):
+        if self.storage is None:
+            return(0)
+        else:
+            return(self.storage.shape[0])
+        
+    def add(self,values,uids=None):
+        values = self._format_(values)
+        uids = self._format_uids_(uids)
+        if self.storage is None:
+            self.storage = self._make_storage_(values,uids)
+        else:
+            adds = self._get_adds_(values)
+            if adds.any():
+                new_values = values[adds]
+                if uids is None:
+                    new_uids = None
+                else:
+                    new_uids = self._format_uids_(uids)[adds]
+                new_storage = self._make_storage_(new_values,new_uids)
+                self.storage = np.concatenate((self.storage,new_storage))
+                
+    def get(self,value):
+        value = self._format_(value)
+        idx = (self.storage['value'] == value).squeeze()
+        if idx.ndim == 1:
+            idx.resize(idx.shape[0],1)
+        idx2 = idx.all(axis=1)
+        idx2.resize(idx2.shape[0])
+        uid = self.storage['uid'][idx2,:]
+        assert(uid.shape[0] == 1)
+        return(int(uid))
+                
+    def populate(self):
+        emptys = self.storage['uid'] == -1
+        filled = np.invert(emptys)
+        start = 1
+        if filled.any():
+            ref = self.storage['uid'][filled]
+            if len(ref) > len(np.unique(ref)):
+                raise(ValueError)
+            start = self.storage['uid'][filled].max()+1
+        uids = np.arange(start,start+emptys.sum()+1)
+        self.storage['uid'][emptys] = uids
+        
+    def _format_(self,arr):
+        arr = np.array(arr).reshape(-1,self.ncol)
+        return(arr)
+    
+    def _format_uids_(self,uids):
+        if uids is None:
+            return(None)
+        else:
+            return(np.array(uids).flatten())
+    
+    def _get_adds_(self,values):
+#        print values
+#        import ipdb;ipdb.set_trace()
+        
+        adds = np.zeros(values.shape[0],dtype=bool)
+        for idx in range(values.shape[0]):
+            cmp1 = (self.storage['value'] == values[idx]).squeeze()
+#            try:
+            try:
+                cmp2 = cmp1.all(axis=1)
+            except ValueError:
+                if cmp1.ndim == 1:
+                    cmp2 = cmp1
+                else:
+                    raise
+#            except ValueError:
+#                cmp2 = cmp1
+            if not cmp2.any():
+                adds[idx] = True
+        return(adds)
+            
+    def _make_storage_(self,values,uids):
+        ret = np.empty(values.shape[0],dtype=[('uid',int,1),
+                                              ('value',self.dtype,(1,self.ncol))])
+        ret['value'] = values.reshape(ret['value'].shape)
+        if uids is None:
+            ret['uid'] = -1
+        else:
+            ret['uid'] = uids
+        return(ret)
+        
+
+
+class Old2Identifier(object):
+    
+    def __init__(self,init_vals=None,init_uids=None,dtype=None):
+        self.dtype = dtype
         self._curr = 1
         if init_vals is None:
             self.storage = None
@@ -216,8 +313,12 @@ class Identifier(object):
         values = self._reshape_(values)
         adds = np.zeros(values.shape[0],dtype=bool)
         for idx in range(values.shape[0]):
-            cmp = self.storage['value'] == values[idx,:]
-            if not cmp.any():
+            cmp1 = self.storage['value'] == values[idx,:]
+            try:
+                cmp2 = cmp1.all(axis=1)
+            except ValueError:
+                cmp2 = cmp1
+            if not cmp2.any():
                 adds[idx] = True
         if adds.any():
             if uids is not None:
@@ -226,21 +327,21 @@ class Identifier(object):
             shp = new_values.shape[0]
             new_uids = self._get_curr_(shp)
             self._resize_(shp)
-            try:
-                self.storage['value'][-shp:,:] = new_values
-            except Exception as e:
-                import ipdb;ipdb.set_trace()
+            self.storage['value'][-shp:] = new_values
             self.storage['uid'][-shp:] = new_uids
     
     def get(self,value):
         value = self._reshape_(value)
-        cmp = self.storage['value'] == value
+        cmp = (self.storage['value'] == value).all(axis=1)
         cmp.resize(cmp.shape[0])
         if not cmp.any():
             raise(ValueError('the requested value was not found in storage.'))
         else:
             uid = self.storage['uid'][cmp]
-            assert(uid.shape[0] == 1)
+            try:
+                assert(uid.shape[0] == 1)
+            except:
+                import ipdb;ipdb.set_trace()
             ret = int(uid)
         return(ret)
     
@@ -253,16 +354,20 @@ class Identifier(object):
         return(arr)
     
     def _resize_(self,n):
-        shp = self.storage.shape
-        self.storage.resize(shp[0]+n)
+        self.storage = np.resize(self.storage,self.storage.shape[0]+n)
     
     def _init_storage_(self,init_vals,init_uids):
         init_vals = self._reshape_(init_vals)
-        ret = np.empty(init_vals.shape[0],dtype=[('uid',int,1),('value',init_vals.dtype,(1,init_vals.shape[1]))])
+        if self.dtype is None:
+            self.dtype = init_vals.dtype
+        ret = np.empty(init_vals.shape[0],dtype=[('uid',int,1),('value',self.dtype,init_vals.shape[1])])
         if init_uids is None:
             init_uids = self._get_curr_(init_vals.shape[0])
         ret['uid'][:] = init_uids
-        ret['value'][:,0] = init_vals
+        try:
+            ret['value'][:] = init_vals
+        except:
+            ret['value'][:] = init_vals.reshape(-1)
         return(ret)
         
     def _get_curr_(self,n):

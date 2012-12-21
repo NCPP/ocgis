@@ -1,5 +1,4 @@
 from ocgis.api.dataset.collection.dimension import LevelDimension
-from ocgis.api.dataset.collection.collection import Identifier
 import numpy as np
 from ocgis.util.helpers import iter_array
 

@@ -186,10 +186,80 @@ class OcgCollection(object):
         self.did.add(np.array([var.uri]))
 
 
-class Identifier(object):
+class StringIdentifier(object):
     
-    def __init__(self,dtype):
+    def __init__(self):
+        self._curr = 1
+        self.storage = np.empty(0,dtype=[('uid',int,1),
+                                         ('value',object,1)])
+        
+    def add(self,value):
+        idx = self.storage['value'] == value
+        if not idx.any():
+            self.storage.resize(self.storage.shape[0]+1)
+            self.storage['uid'][-1] = self._get_curr_(1)
+            self.storage['value'][-1] = value
+    
+    def get(self,value):
+        idx = self.storage['value'] == value
+        return(int(self.storage['uid'][idx]))
+    
+    def _get_curr_(self,n):
+        ret = np.arange(self._curr,self._curr+n,dtype=int)
+        self._curr = self._curr + n
+        return(ret)
+    
+    
+class ArrayIdentifier(StringIdentifier):
+    
+    def __init__(self,ncol,dtype=object):
         self.dtype = dtype
+        self._curr = 1
+        self.storage = None
+        self.ncol = ncol
+        
+    def add(self,values,uids):
+        values = np.array(values)
+        uids = np.array(uids)
+        if self.storage is None:
+            self._init_storage_(values,uids)
+        else:
+            adds = np.zeros(len(values),dtype=bool)
+            for idx in range(adds.shape[0]):
+                eq = (self.storage['value'] == values[idx,:]).all(axis=1)
+                if not eq.any():
+                    adds[idx] = True
+            if adds.any():
+                new_values = values[adds,:]
+                new_uids = uids[adds]
+                shp = new_values.shape[0]
+                self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
+                self.storage['uid'][-shp:] = new_uids
+                self.storage['value'][-shp:] = new_values
+        self._update_()
+                
+    def get(self,value):
+        value = np.array(value)
+        idx = (self.storage['value'] == value).all(axis=1)
+        return(int(self.storage['uid'][idx]))
+    
+    def _update_(self):
+        uid = self.storage['uid']
+        if uid.shape[0] > np.unique(uid).shape[0]:
+            idxs = np.arange(uid.shape[0])
+            for ii in uid.flat:
+                eq = uid == ii
+                if eq.sum() > 1:
+                    umax = uid.max()
+                    new_uids = np.arange(umax+1,umax+eq.sum())
+                    uid[idxs[eq][1:]] = new_uids
+        
+    def _init_storage_(self,values,uids):
+        self.storage = np.empty(len(values),dtype=[('uid',int,1),
+                                                   ('value',self.dtype,self.ncol)])
+        self.storage['uid'] = uids
+        self.storage['value'] = values
+    
 
 
 #class Identifier(object):

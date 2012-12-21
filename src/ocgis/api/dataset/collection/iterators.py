@@ -97,12 +97,12 @@ class KeyedIterator(AbstractOcgIterator):
     def __init__(self,*args,**kwds):
         super(self.__class__,self).__init__(*args,**kwds)
         
-        self.tid = Identifier(dtype=object)
-        self.tgid = Identifier(dtype=object)
-        self.lid = Identifier(dtype=object)
-        self.gid = Identifier(dtype=object)
-        self.ugid = Identifier()
-        self.ugid_gid = Identifier()
+        self.tid = Identifier(object,3)
+        self.tgid = Identifier(object,7)
+        self.lid = Identifier(object,3)
+        self.gid = Identifier(object,1)
+        self.ugid = Identifier(int,1)
+        self.ugid_gid = Identifier(int,2)
         
     def iter_list(self,*args,**kwds):
         headers = self.get_headers()

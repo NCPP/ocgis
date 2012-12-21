@@ -188,6 +188,91 @@ class OcgCollection(object):
 
 class Identifier(object):
     
+    def __init__(self,init_vals=None,init_uids=None):
+        self._curr = 1
+        if init_vals is None:
+            self.storage = None
+        else:
+            self.storage = self._init_storage_(init_vals,init_uids)
+            
+    def __len__(self):
+        if self.storage is None:
+            ret = 0
+        else:
+            ret = self.storage.shape[0]
+        return(ret)
+    
+    @property
+    def uid(self):
+        try:
+            return(self.storage['uid'])
+        except TypeError:
+            if self.storage is None:
+                return(np.empty(0,dtype=int))
+            else:
+                raise
+            
+    def add(self,values,uids=None):
+        values = self._reshape_(values)
+        adds = np.zeros(values.shape[0],dtype=bool)
+        for idx in range(values.shape[0]):
+            cmp = self.storage['value'] == values[idx,:]
+            if not cmp.any():
+                adds[idx] = True
+        if adds.any():
+            if uids is not None:
+                import ipdb;ipdb.set_trace()
+            new_values = values[adds,:]
+            shp = new_values.shape[0]
+            new_uids = self._get_curr_(shp)
+            self._resize_(shp)
+            try:
+                self.storage['value'][-shp:,:] = new_values
+            except Exception as e:
+                import ipdb;ipdb.set_trace()
+            self.storage['uid'][-shp:] = new_uids
+    
+    def get(self,value):
+        value = self._reshape_(value)
+        cmp = self.storage['value'] == value
+        cmp.resize(cmp.shape[0])
+        if not cmp.any():
+            raise(ValueError('the requested value was not found in storage.'))
+        else:
+            uid = self.storage['uid'][cmp]
+            assert(uid.shape[0] == 1)
+            ret = int(uid)
+        return(ret)
+    
+    def _reshape_(self,arr):
+        try:
+            if arr.ndim <= 1:
+                arr = arr.reshape(-1,1)
+        except AttributeError:
+            arr = np.array(arr).reshape(-1,1)
+        return(arr)
+    
+    def _resize_(self,n):
+        shp = self.storage.shape
+        self.storage.resize(shp[0]+n)
+    
+    def _init_storage_(self,init_vals,init_uids):
+        init_vals = self._reshape_(init_vals)
+        ret = np.empty(init_vals.shape[0],dtype=[('uid',int,1),('value',init_vals.dtype,(1,init_vals.shape[1]))])
+        if init_uids is None:
+            init_uids = self._get_curr_(init_vals.shape[0])
+        ret['uid'][:] = init_uids
+        ret['value'][:,0] = init_vals
+        return(ret)
+        
+    def _get_curr_(self,n):
+        ret = np.arange(self._curr,self._curr+n,dtype=int)
+        self._curr = self._curr + n
+        return(ret)
+        
+
+class OldIdentifier(object):
+    
     def __init__(self,init_vals=None,dtype=None,init_uids=None):
         if init_uids is not None:
             self._check_unique_uids_(init_uids)
@@ -251,7 +336,10 @@ class Identifier(object):
         except AttributeError:
             value = np.array([[value]])
             cmp = (self.storage[:,1:] == value).all(axis=1)
-        return(int(self.storage[cmp,[0]]))
+        try:
+            return(int(self.storage[cmp,[0]]))
+        except Exception as e:
+            import ipdb;ipdb.set_trace()
     
     def _check_unique_uids_(self,uids):
         if len(np.unique(uids)) != len(uids):

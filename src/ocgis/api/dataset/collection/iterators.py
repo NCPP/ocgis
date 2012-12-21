@@ -102,6 +102,7 @@ class KeyedIterator(AbstractOcgIterator):
         self.lid = Identifier(dtype=object)
         self.gid = Identifier(dtype=object)
         self.ugid = Identifier()
+        self.ugid_gid = Identifier()
         
     def iter_list(self,*args,**kwds):
         headers = self.get_headers()
@@ -123,7 +124,10 @@ class KeyedIterator(AbstractOcgIterator):
                     cid = None
                     tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
-                gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
+#                gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
+                get_geom = np.empty((1,1),dtype=object)
+                get_geom[0,0] = var.spatial._value[gidx0,gidx1]
+                gid = self.gid.get(get_geom[:])
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
                        'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)
@@ -153,11 +157,11 @@ class KeyedIterator(AbstractOcgIterator):
                 init_vals[:,0:-2] = var.temporal_group.value
                 self.tgid.add(init_vals,var.temporal_group.uid)
             self.lid.add(var.level.value,var.level.uid)
-            geoms = var.spatial.value.compressed()
-            init_values = np.empty((len(geoms),2),dtype=object)
-            init_values[:,1] = geoms
-            init_values[:,0] = coll.ugeom['ugid']
-            self.gid.add(init_values,var.spatial.uid.compressed())
+#            geoms = var.spatial.value.compressed()
+#            init_values = np.empty((len(geoms),2),dtype=object)
+#            init_values[:,1] = geoms
+#            init_values[:,0] = coll.ugeom['ugid']
+            self.gid.add(var.spatial.value.compressed(),var.spatial.uid.compressed())
     
     def get_request_iters(self):
         ret = {}

@@ -19,5 +19,6 @@ class ShpIdxIdentifierConverter(ShpIdxConverter):
         self.projection = dct['projection']
         coll = dct['data']
         for idx in range(coll.shape[0]):
+            import ipdb;ipdb.set_trace()
             yield([coll[idx,1],coll[idx,0]],
                   SpatialDimension._conv_to_multi_(coll[idx,2]))

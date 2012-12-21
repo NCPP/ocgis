@@ -1,6 +1,9 @@
 from ocgis.api.dataset.collection.dimension import LevelDimension
 import numpy as np
 from ocgis.util.helpers import iter_array
+from ocgis.api.dataset.collection.collection import ArrayIdentifier,\
+    GeometryIdentifier
+from collections import deque
 
 
 class AbstractOcgIterator(object):
@@ -96,12 +99,12 @@ class KeyedIterator(AbstractOcgIterator):
     def __init__(self,*args,**kwds):
         super(self.__class__,self).__init__(*args,**kwds)
         
-        self.tid = Identifier(object,3)
-        self.tgid = Identifier(object,7)
-        self.lid = Identifier(object,3)
-        self.gid = Identifier(object,1)
-        self.ugid = Identifier(int,1)
-        self.ugid_gid = Identifier(int,2)
+        self.tid = ArrayIdentifier(3)
+        self.tgid = ArrayIdentifier(9)
+        self.lid = ArrayIdentifier(3)
+        self.gid = GeometryIdentifier()
+        self.ugid = deque()
+#        self.ugid_gid = Identifier(int,2)
         
     def iter_list(self,*args,**kwds):
         headers = self.get_headers()
@@ -124,9 +127,9 @@ class KeyedIterator(AbstractOcgIterator):
                     tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
 #                gid = self.gid.get([[ugid,var.spatial._value[gidx0,gidx1]]])
-                get_geom = np.empty((1,1),dtype=object)
-                get_geom[0,0] = var.spatial._value[gidx0,gidx1]
-                gid = self.gid.get(get_geom[:])
+#                get_geom = np.empty(1,dtype=object)
+#                get_geom[0] = var.spatial._value[gidx0,gidx1]
+                gid = self.gid.get(var.spatial._value[gidx0,gidx1])
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
                        'value':value,'ugid':ugid,'cid':cid,'tgid':tgid}
                 yield(yld)
@@ -146,7 +149,7 @@ class KeyedIterator(AbstractOcgIterator):
                 yield(tidx,lidx,gidx0,gidx1,value,None,None)
         
     def _add_collection_(self,coll):
-        self.ugid.add(coll.ugeom['ugid'],np.array([coll.ugeom['ugid']]))
+        self.ugid.append(coll.ugeom['ugid'])
         for var in coll.variables.itervalues():
             self.tid.add(var.temporal.value,var.temporal.uid)
             if var.temporal_group is not None:
@@ -160,6 +163,9 @@ class KeyedIterator(AbstractOcgIterator):
 #            init_values = np.empty((len(geoms),2),dtype=object)
 #            init_values[:,1] = geoms
 #            init_values[:,0] = coll.ugeom['ugid']
+#            wkbs = np.empty(geoms.shape[0],dtype=object)
+#            for idx in range(geoms.shape[0]):
+#                wkbs[idx] = geoms[idx].wkb
             self.gid.add(var.spatial.value.compressed(),var.spatial.uid.compressed())
     
     def get_request_iters(self):
@@ -177,19 +183,19 @@ class KeyedIterator(AbstractOcgIterator):
 
         def _time_():
             for idx in range(len(self.tid)):
-                yield(self.tid.storage[idx,:].tolist())
+                yield(self.tid.storage[idx].tolist())
         ret.update({'tid':{'it':_time_(),
                            'headers':['tid','time_lower','time','time_upper']}})
         def _time_group_():
             for idx in range(len(self.tgid)):
-                yield(self.tgid.storage[idx,:].tolist())
+                yield(self.tgid.storage[idx].tolist())
         ret.update({'tgid':{'it':_time_group_(),
                            'headers':['tgid','year','month','day','hour',
                                       'minute','second','microsecond',
                                       'time_group_lower','time_group_upper',]}})
         def _level_():
             for idx in range(len(self.lid)):
-                yield(self.lid.storage[idx,:].tolist())
+                yield(self.lid.storage[idx].tolist())
         ret.update({'lid':{'it':_level_(),
                            'headers':['lid','level_lower','level','level_upper']}})
         def _spatial_():
@@ -198,7 +204,7 @@ class KeyedIterator(AbstractOcgIterator):
         ret.update({'gid':{'it':_spatial_(),'headers':['gid']}})
         
         def _ugid_():
-            for uid in self.ugid.uid:
+            for uid in self.ugid:
                 yield([uid])
         ret.update({'ugid':{'it':_ugid_(),'headers':['ugid']}})
         

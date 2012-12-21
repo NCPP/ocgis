@@ -129,9 +129,9 @@ class OcgCollection(object):
         self._mode = 'raw'
         self.projection = projection
         ## collection level identifiers
-        self.cid = Identifier(object,1) ## calculations
-        self.vid = Identifier(object,1) ## variables
-        self.did = Identifier(object,1) ## dataset (uri)
+        self.cid = StringIdentifier() ## calculations
+        self.vid = StringIdentifier() ## variables
+        self.did = StringIdentifier() ## dataset (uri)
         ## variable storage
         self.variables = {}
         
@@ -193,6 +193,13 @@ class StringIdentifier(object):
         self.storage = np.empty(0,dtype=[('uid',int,1),
                                          ('value',object,1)])
         
+    def __len__(self):
+        return(self.storage.shape[0])
+    
+    @property
+    def uid(self):
+        return(self.storage['uid'])
+        
     def add(self,value):
         idx = self.storage['value'] == value
         if not idx.any():
@@ -208,6 +215,14 @@ class StringIdentifier(object):
         ret = np.arange(self._curr,self._curr+n,dtype=int)
         self._curr = self._curr + n
         return(ret)
+    
+
+#class IntIdentifier(StringIdentifier):
+#    
+#    def __init__(self):
+#        self._curr = 1
+#        self.storage = np.empty(0,dtype=[('uid',int,1),
+#                                         ('value',int,1)])
     
     
 class ArrayIdentifier(StringIdentifier):
@@ -259,6 +274,49 @@ class ArrayIdentifier(StringIdentifier):
                                                    ('value',self.dtype,self.ncol)])
         self.storage['uid'] = uids
         self.storage['value'] = values
+        
+        
+class GeometryIdentifier(ArrayIdentifier):
+    
+    def __init__(self):
+        super(self.__class__,self).__init__(1)
+        
+    def add(self,values,uids):
+        values = np.array(values)
+        uids = np.array(uids)
+        if self.storage is None:
+            self._init_storage_(values,uids)
+        else:
+            adds = np.zeros(len(values),dtype=bool)
+            equals = self._equals_
+            for idx in range(adds.shape[0]):
+#                eq = (self.storage['value'] == values[idx,:]).all(axis=1)
+                eq = equals(values[idx])
+                if not eq.any():
+                    adds[idx] = True
+            if adds.any():
+                new_values = values[adds,:]
+                new_uids = uids[adds]
+                shp = new_values.shape[0]
+                self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
+                self.storage['uid'][-shp:] = new_uids
+                self.storage['value'][-shp:] = new_values
+        self._update_()
+
+    def get(self,value):
+        idx = self.storage['value'] == value
+        try:
+            return(int(self.storage['uid'][idx]))
+        except TypeError:
+            return(int(self.storage['uid'][self._equals_(value)]))
+            
+    def _equals_(self,value):
+        geoms = self.storage['value']
+        eq = np.zeros(self.storage.shape[0],dtype=bool)
+        for idx in range(eq.shape[0]):
+            if geoms[idx].equals(value):
+                eq[idx] = True
+        return(eq)
     
 
 

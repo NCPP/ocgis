@@ -36,6 +36,7 @@ class TestWork(unittest.TestCase):
                     print traceback.format_exc()
                     import ipdb;ipdb.set_trace()
             finally:
+                import ipdb;ipdb.set_trace()
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
                     shutil.rmtree(ret)

@@ -233,6 +233,12 @@ class ArrayIdentifier(StringIdentifier):
         self.storage = None
         self.ncol = ncol
         
+    def __iter__(self):
+        ref = self.storage
+        for idx in range(ref.shape[0]):
+            row = ref[idx]
+            yield([row[0]] + row[1].tolist())
+        
     def add(self,values,uids):
         values = np.array(values)
         uids = np.array(uids)
@@ -279,47 +285,45 @@ class ArrayIdentifier(StringIdentifier):
 class GeometryIdentifier(ArrayIdentifier):
     
     def __init__(self):
-        super(self.__class__,self).__init__(1)
+        self.storage = None
         
-    def add(self,values,uids):
-        values = np.array(values)
-        uids = np.array(uids)
+    def _make_storage_(self,values,uids,ugid):
+        ret = np.empty(values.shape[0],dtype=[('uid',int,1),('ugid',int,1),('value',object,1)])
+        ret['uid'] = uids
+        ret['value'] = values
+        ret['ugid'] = ugid
+        return(ret)
+        
+    def add(self,values,uids,ugid):
         if self.storage is None:
-            self._init_storage_(values,uids)
+            self.storage = self._make_storage_(values,uids,ugid)
         else:
-            adds = np.zeros(len(values),dtype=bool)
+            adds = np.zeros(values.shape[0],dtype=bool)
             equals = self._equals_
             for idx in range(adds.shape[0]):
-#                eq = (self.storage['value'] == values[idx,:]).all(axis=1)
-                eq = equals(values[idx])
+                eq = equals(values[idx],ugid)
                 if not eq.any():
                     adds[idx] = True
             if adds.any():
-                new_values = values[adds,:]
-                new_uids = uids[adds]
-                shp = new_values.shape[0]
-                self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
-                self.storage['uid'][-shp:] = new_uids
-                self.storage['value'][-shp:] = new_values
+                new_storage = self._make_storage_(values[adds],uids[adds],ugid)
+                self.storage = np.concatenate((self.storage,new_storage))
         self._update_()
 
-    def get(self,value):
-        idx = self.storage['value'] == value
-        try:
-            return(int(self.storage['uid'][idx]))
-        except TypeError:
-            return(int(self.storage['uid'][self._equals_(value)]))
+    def get(self,value,ugid):
+        idx = self._equals_(value,ugid)
+        return(int(self.storage['uid'][idx]))
             
-    def _equals_(self,value):
-        geoms = self.storage['value']
+    def _equals_(self,value,ugid):
         eq = np.zeros(self.storage.shape[0],dtype=bool)
-        for idx in range(eq.shape[0]):
-            if geoms[idx].equals(value):
-                eq[idx] = True
+        ## first see if the user geometry is stored
+        eq_ugid = self.storage['ugid'] == ugid
+        if eq_ugid.any():
+            geoms = self.storage['value']
+            for idx in range(eq.shape[0]):
+                if geoms[idx].equals(value):
+                    eq[idx] = True
         return(eq)
     
-
-
 #class Identifier(object):
 #    
 #    def __init__(self,dtype,ncol):

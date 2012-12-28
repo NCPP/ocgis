@@ -142,9 +142,14 @@ def get_collection((so,geom_dict)):
     ## do the spatial and temporal subsetting.
     
     coll = OcgCollection(ugeom=geom_dict)
+    ## store geoms for later clipping. needed because some may be wrapped while
+    ## others unwrapped.
+    geom_copys = []
     for dataset in so.ops:
         ## use a copy of the geometry dictionary, since it may be modified
         geom_copy = deepcopy(geom_dict)
+        geom_copys.append(geom_copy)
+        
         ref = dataset['dataset']['ocg_dataset']
         ## wrap the geometry dictionary if needed
         if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
@@ -158,19 +163,22 @@ def get_collection((so,geom_dict)):
         ## maintain the interface for use by nc converter
         ## TODO: i don't think this is required by other converters
         ocg_variable._i = ref.i
-        ## TODO: projection is set multiple times. what happends with multiple
+        ## TODO: projection is set multiple times. what happens with multiple
         ## projections?
         coll.projection = ref.i.spatial.projection
+        
         coll.add_variable(ocg_variable)
 
     ## skip other operations if the dataset is empty
     if coll.is_empty:
         return(coll)
-     
+    
     ## clipping operation
     if so.ops.spatial_operation == 'clip':
         if so.itype == SpatialInterfacePolygon:
-            coll.clip(geom_copy['geom'])
+            for geom_copy,var in itertools.izip(geom_copys,
+                                                coll.variables.itervalues()):
+                var.clip(geom_copy['geom'])
             
     ## data aggregation.
     if so.ops.aggregate:

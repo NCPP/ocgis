@@ -122,7 +122,7 @@ class OcgCollection(object):
         self.vid = StringIdentifier() ## variables
         self.did = StringIdentifier() ## dataset (uri)
         ## variable storage
-        self.variables = {}
+        self.variables = OrderedDict()
         
     @property
     def geomtype(self):

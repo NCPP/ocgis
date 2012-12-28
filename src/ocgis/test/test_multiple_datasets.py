@@ -17,7 +17,7 @@ class Test(unittest.TestCase):
                    cancm4
                    ]
         geom = self.california
-        ops = OcgOperations(dataset=dataset,snippet=True,geom=geom)
+        ops = OcgOperations(dataset=dataset,snippet=True,geom=geom,aggregate=True,spatial_operation='clip')
         ret = OcgInterpreter(ops).execute()
         import ipdb;ipdb.set_trace()
         

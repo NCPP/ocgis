@@ -1,12 +1,14 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.interface.interface import SpatialInterfacePolygon
+from ocgis.interface.interface import SpatialInterfacePolygon,\
+    SpatialInterfacePoint
 import copy
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
 from ocgis.api.dataset.collection.collection import OcgCollection
 from ocgis.api.dataset.collection.dimension import TemporalDimension
+from copy import deepcopy
 
 
 class SubsetOperation(object):
@@ -37,10 +39,20 @@ class SubsetOperation(object):
                 uri_map.update({key:ods})
             dataset.update({'ocg_dataset':ods})
             
-        ## wrap the geometry dictionary if needed
-        arch = self.ops.dataset[0]['ocg_dataset']
-        if arch.i.spatial.is_360 and self.ops._get_object_('geom').is_empty is False:
-            unwrap_geoms(self.ops.geom,arch.i.spatial.pm)
+        ## ensure they are all the same type of interfaces. raise an error
+        ## otherwise.
+        types = [type(ods['ocg_dataset'].i.spatial) for ods in self.ops.dataset]
+        if all([t == SpatialInterfacePolygon for t in types]):
+            self.itype = SpatialInterfacePolygon
+        elif all([t == SpatialInterfacePoint for t in types]):
+            self.itype = SpatialInterfacePoint
+        else:
+            raise(ValueError('input datasets must have same geometries. perhaps overload "s_abstraction"?'))
+            
+#        ## wrap the geometry dictionary if needed
+#        arch = self.ops.dataset[0]['ocg_dataset']
+#        if arch.i.spatial.is_360 and self.ops._get_object_('geom').is_empty is False:
+#            unwrap_geoms(self.ops.geom,arch.i.spatial.pm)
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -109,10 +121,10 @@ class SubsetOperation(object):
         geom_dict :: dict
         '''
         
-        ## copy for the iterator to avoid pickling the cache
-        so_copy = copy.copy(self)
+#        ## copy for the iterator to avoid pickling the cache
+#        so_copy = copy.copy(self)
         for geom_dict in self.ops.geom:
-            yield(so_copy,geom_dict)
+            yield(self,geom_dict)
             
 def get_collection((so,geom_dict)):
     '''Execute requested operations.
@@ -131,13 +143,23 @@ def get_collection((so,geom_dict)):
     
     coll = OcgCollection(ugeom=geom_dict)
     for dataset in so.ops:
+        ## use a copy of the geometry dictionary, since it may be modified
+        geom_copy = deepcopy(geom_dict)
         ref = dataset['dataset']['ocg_dataset']
+        ## wrap the geometry dictionary if needed
+        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
+            unwrap_geoms([geom_copy],ref.i.spatial.pm)
+        ## perform the data subset
         ocg_variable = ref.subset(
-                            polygon=geom_dict['geom'],
+                            polygon=geom_copy['geom'],
                             time_range=dataset['time_range'],
                             level_range=dataset['level_range'],
                             allow_empty=so.ops.allow_empty)
+        ## maintain the interface for use by nc converter
+        ## TODO: i don't think this is required by other converters
         ocg_variable._i = ref.i
+        ## TODO: projection is set multiple times. what happends with multiple
+        ## projections?
         coll.projection = ref.i.spatial.projection
         coll.add_variable(ocg_variable)
 
@@ -147,17 +169,23 @@ def get_collection((so,geom_dict)):
      
     ## clipping operation
     if so.ops.spatial_operation == 'clip':
-        if isinstance(so.spatial_interface,SpatialInterfacePolygon):
-            coll.clip(geom_dict['geom'])
+        if so.itype == SpatialInterfacePolygon:
+            coll.clip(geom_copy['geom'])
             
     ## data aggregation.
     if so.ops.aggregate:
         coll.aggregate(new_id=coll.ugeom['ugid'])
         
     ## if it is a vector output, wrap the data (if requested).
-    arch = so.ops.dataset[0]['ocg_dataset']
-    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-        wrap_coll(coll)
+    ## TODO: every variable may not need to be wrapped
+    for dataset in so.ops.dataset:
+        ref = dataset['ocg_dataset']
+        if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+            wrap_coll(coll)
+            break
+#    arch = so.ops.dataset[0]['ocg_dataset']
+#    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+#        wrap_coll(coll)
 
     ## do the requested calculations.
     if so.cengine is not None:

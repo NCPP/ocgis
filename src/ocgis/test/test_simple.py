@@ -156,6 +156,7 @@ class TestSimple(TestBase):
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
+        import ipdb;ipdb.set_trace()
         ref = ret[1].variables[self.var].spatial.uid
         self.assertEqual(len(ref),0)
         

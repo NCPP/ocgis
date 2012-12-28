@@ -325,7 +325,7 @@ class LevelRange(AttributedOcgParameter):
     [1, 1]
     '''
     _name = 'level_range'
-    _default = [[1,1]]
+    _default = [None]
     _dtype = list
     _nullable = True
     _length = None
@@ -336,7 +336,13 @@ class LevelRange(AttributedOcgParameter):
             ret = [[v,v]]
         except TypeError:
             ret = value
-        ret = np.array(ret,dtype=int).tolist()
+        try:
+            ret = np.array(ret,dtype=int).tolist()
+        except TypeError:
+            if all([ii is None for ii in value]):
+                ret = value
+            else:
+                raise
         return(ret)
     
     def _format_string_(self,value):
@@ -344,8 +350,12 @@ class LevelRange(AttributedOcgParameter):
         return(values)
     
     def validate(self,value):
-        for v in value:
-            self._assert_(v[0] <= v[1])
+        try:
+            for v in value:
+                self._assert_(v[0] <= v[1])
+        except TypeError:
+            if not all([ii is None for ii in value]):
+                raise
 
     def message(self):
         if self.value is None:

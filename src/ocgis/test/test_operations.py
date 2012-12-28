@@ -43,9 +43,11 @@ class TestOperations(unittest.TestCase):
         self.assertEqual(ops.time_range,[None]*3)
         for row in ops:
             self.assertEqual(row['time_range'],None)
+            self.assertEqual(row['level_range'],None)
             
         ops = OcgOperations(dataset=self.datasets[0])
         self.assertEqual(ops.time_range,[None])
+        self.assertEqual(ops.level_range,[None])
 
 
 if __name__ == "__main__":

@@ -4,6 +4,8 @@ from datetime import datetime as dt
 import numpy as np
 from ocgis.exc import DefinitionValidationError
 
+#from nose.plugins.skip import SkipTest
+#raise SkipTest(__name__)
 
 class TestOperations(unittest.TestCase):
     uris = ['/tmp/foo1.nc','/tmp/foo2.nc','/tmp/foo3.nc']

@@ -192,9 +192,14 @@ class StringIdentifier(object):
     def add(self,value):
         idx = self.storage['value'] == value
         if not idx.any():
-            self.storage.resize(self.storage.shape[0]+1)
-            self.storage['uid'][-1] = self._get_curr_(1)
-            self.storage['value'][-1] = value
+            new_storage = np.empty(1,dtype=[('uid',int,1),
+                                            ('value',object,1)])
+            new_storage['uid'] = self._get_curr_(1)
+            new_storage['value'] = value
+            self.storage = np.concatenate((self.storage,new_storage))
+#            self.storage.resize(self.storage.shape[0]+1)
+#            self.storage['uid'][-1] = self._get_curr_(1)
+#            self.storage['value'][-1] = value
     
     def get(self,value):
         idx = self.storage['value'] == value

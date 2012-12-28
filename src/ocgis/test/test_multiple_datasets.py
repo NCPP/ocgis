@@ -58,11 +58,12 @@ class Test(unittest.TestCase):
         calc_grouping = ['year']
         kwds = {'aggregate':True,
                 'spatial_operation':'clip',
-                'calc':calc,
+                'calc':None,
                 'calc_grouping':calc_grouping,
-                'output_format':'csv',
+                'output_format':'keyed',
                 'geom':self.california,
-                'dataset':self.dataset}
+                'dataset':self.dataset,
+                'snippet':False}
         ops = OcgOperations(**kwds)
         ret = ops.execute()
         import ipdb;ipdb.set_trace()

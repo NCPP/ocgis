@@ -249,7 +249,7 @@ class TestSimpleMask(TestBase):
         ## aggregation
         ret = self.get_ret(kwds={'aggregate':True})
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.value.mean(),2.583333333333333)
+        self.assertAlmostEqual(ref.value.mean(),2.58333333333,5)
         self.assertEqual(ref.spatial.uid.shape,(1,1))
     
     def test_empty_mask(self):

@@ -60,17 +60,19 @@ class SubsetOperation(object):
             ## alter time ranges for the datasets
             for i,ds in enumerate(self.ops.dataset):
                 ref = ds['ocg_dataset'].i.temporal
+                ## use standard time bounds if no calculation present
                 if self.cengine is None:
                     self.ops.time_range[i] = [ref.value[0],ref.value[0]]
+                ## if there are calculations, select the first time group
                 else:
                     tgdim = TemporalDimension(ref.tid,ref.value,
                                               bounds=ref.bounds).\
                                               group(self.cengine.grouping)
                     times = ref.value[tgdim.dgroups[0]]
                     self.ops.time_range[i] = [times.min(),times.max()]
-            
-        ## set the spatial_interface
-        self.spatial_interface = ods.i.spatial
+
+#        ## set the spatial_interface
+#        self.spatial_interface = ods.i.spatial
         
     def __iter__(self):
         '''Return OcgCollection objects from the cache or directly from

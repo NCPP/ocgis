@@ -14,9 +14,8 @@ class Test(unittest.TestCase):
         
         dataset = [
                    maurer,
-#                   cancm4
+                   cancm4
                    ]
-        snippet = True
         geom = self.california
         ops = OcgOperations(dataset=dataset,snippet=True,geom=geom)
         ret = OcgInterpreter(ops).execute()

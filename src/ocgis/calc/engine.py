@@ -158,10 +158,10 @@ class OcgCalculationEngine(object):
                     calc = ref.calculate()
                     ## update calculation identifier
 #                    coll.variables[var_name].cid = np.append(coll.variables[var_name].cid,cid)
-                    if f['name'] == 'n':
-                        add_name = f['name'] + '_' + var_name
-                    else:
-                        add_name = f['name']
+#                    if f['name'] == 'n':
+#                        add_name = f['name'] + '_' + var_name
+#                    else:
+                    add_name = f['name']
                     ## store the values
                     var.calc_value.update({add_name:calc})
 #                    coll.cid.add(add_name)

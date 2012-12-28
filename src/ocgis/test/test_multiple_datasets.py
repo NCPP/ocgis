@@ -60,7 +60,7 @@ class Test(unittest.TestCase):
                 'spatial_operation':'clip',
                 'calc':calc,
                 'calc_grouping':calc_grouping,
-                'output_format':'keyed',
+                'output_format':'csv',
                 'geom':self.california,
                 'dataset':self.dataset}
         ops = OcgOperations(**kwds)

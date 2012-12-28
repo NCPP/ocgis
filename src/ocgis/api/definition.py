@@ -134,7 +134,7 @@ class AttributedOcgParameter(OcgParameter):
          length=self._length,alias=self._alias,init_value=init_value)
         
         
-class TimeRange(AttributedOcgParameter):
+class TimeRange(OcgParameter):
     '''
     >>> time_range = TimeRange()
     >>> time_range.value = 4
@@ -164,11 +164,15 @@ class TimeRange(AttributedOcgParameter):
     >>> time_range.message()
     'All time points returned.'
     '''
-    _name = 'time_range'
-    _dtype = list
-    _nullable = True
-    _length = None
-    _default = [None]
+#    _name = 'time_range'
+#    _dtype = list
+#    _nullable = True
+#    _length = None
+#    _default = [None]
+    
+    def __init__(self,init_value=None):
+        super(self.__class__,self).__init__('time_range',list,init_value=init_value,
+                                            nullable=True,default=[None])
     
     def validate(self,value):
         for v in value:

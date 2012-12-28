@@ -33,10 +33,10 @@ class KeyedConverter(OcgConverter):
                     f_writer = csv.writer(f_value,dialect=OcgDialect)
                     f_writer.writerow(kit.get_headers(upper=True))
                     
-                    ## write request level identifier files ########################
+                    ## write request level identifier files ####################
                     rits = kit.get_request_iters()
                     self._write_iter_dict_(rits)
-                    ################################################################
+                    ############################################################
                                 
                     build = False
                 for row in kit.iter_list(coll):

@@ -25,7 +25,7 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 324
+        start = 767
         for ii,ops in self.iter_operations(start=start):
             print(ii)
             ret = None
@@ -36,7 +36,7 @@ class TestWork(unittest.TestCase):
                     print traceback.format_exc()
                     import ipdb;ipdb.set_trace()
             finally:
-                import ipdb;ipdb.set_trace()
+#                import ipdb;ipdb.set_trace()
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
                     shutil.rmtree(ret)
@@ -58,7 +58,7 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-                        None,
+#                        None,
                         self.california,
                         self.state_boundaries,
                         {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
@@ -102,7 +102,8 @@ class TestWork(unittest.TestCase):
                         [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
-        calc_grouping = {'calc_grouping':[['month','year']]}
+        calc_grouping = {'calc_grouping':[['month','year'],
+                                          ['year']]}
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,
                 vector_wrap,interface,agg_selection,level_range,time_range,
@@ -135,7 +136,7 @@ class TestWork(unittest.TestCase):
         ret = sc.get_geom_dict('world_countries')
         return(ret)
 
-    def test_profile(self):
+    def no_test_profile(self):
         prev = sys.stdout
         with open('/tmp/out.txt','w') as f:
             sys.stdout = f

@@ -216,9 +216,13 @@ class ArrayIdentifier(StringIdentifier):
         
     def __iter__(self):
         ref = self.storage
-        for idx in range(ref.shape[0]):
-            row = ref[idx]
-            yield([row[0]] + row[1].tolist())
+        if ref is None:
+            for ii in range(0):
+                yield(ii)
+        else:
+            for idx in range(ref.shape[0]):
+                row = ref[idx]
+                yield([row[0]] + row[1].tolist())
         
     def add(self,values,uids):
         values = np.array(values)
@@ -295,12 +299,16 @@ class GeometryIdentifier(ArrayIdentifier):
         return(int(self.storage['uid'][idx]))
             
     def _equals_(self,value,ugid):
+        ## stores equal geometry logical
         eq = np.zeros(self.storage.shape[0],dtype=bool)
+        ## index array used for iteration
+        idxs = np.arange(0,eq.shape[0])
+        ## reference to geometries
+        geoms = self.storage['value']
         ## first see if the user geometry is stored
         eq_ugid = self.storage['ugid'] == ugid
         if eq_ugid.any():
-            geoms = self.storage['value']
-            for idx in range(eq.shape[0]):
+            for idx in idxs[eq_ugid]:
                 if geoms[idx].equals(value):
                     eq[idx] = True
         return(eq)

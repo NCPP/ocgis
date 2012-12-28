@@ -1,8 +1,8 @@
 from ocgis.util.helpers import get_temp_path, vprint
-from shapely.geometry.point import Point
-from shapely.geometry.multipolygon import MultiPolygon
-from shapely import wkb
-from ocgis.interface.projection import UsNationalEqualArea
+#from shapely.geometry.point import Point
+#from shapely.geometry.multipolygon import MultiPolygon
+#from shapely import wkb
+#from ocgis.interface.projection import UsNationalEqualArea
 from ocgis.api.dataset.collection.iterators import MeltedIterator
 
 

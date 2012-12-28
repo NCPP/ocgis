@@ -153,12 +153,15 @@ class TestSimple(TestBase):
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
         geom = {'ugid':1,'geom':geom}
+        
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
+            
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
-        import ipdb;ipdb.set_trace()
         ref = ret[1].variables[self.var].spatial.uid
         self.assertEqual(len(ref),0)
+        ref = ret[1]
+        self.assertTrue(ref.is_empty)
         
     def test_calc(self):
         calc = {'func':'mean','name':'my_mean'}

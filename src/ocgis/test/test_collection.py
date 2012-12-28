@@ -321,7 +321,7 @@ class TestCollection(unittest.TestCase):
                         var.calc_value.update({name:new_values})
                         coll.add_calculation(var)
                 for var in [var1,var2]: self.assertEqual(len(var.calc_value),2)
-                self.assertTrue(np.all([c in coll.cid.storage[:,1] for c in cnames]))
+                self.assertTrue(np.all([c in coll.cid.storage['value'] for c in cnames]))
             
             if add_level:
                 m = 2

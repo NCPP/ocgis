@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from ocgis.exc import ExtentError
 
-#raise SkipTest(__name__)
+raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
     
@@ -25,7 +25,7 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 767
+        start = 750
         for ii,ops in self.iter_operations(start=start):
             print(ii)
             ret = None

@@ -5,9 +5,7 @@ from ocgis.util.helpers import get_shp_as_multi
 import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.conv.shp import OgrField, FieldCache
 import csv
-from ocgis.conv.csv_ import OcgDialect
 
 
 class ShpCabinet(object):
@@ -121,6 +119,7 @@ class ShpCabinet(object):
             yield(dct,geom)
             
     def write(self,geom_dict,path):
+        from ocgis.conv.csv_ import OcgDialect
 #        path = self.get_path()
 
         ##tdk
@@ -191,6 +190,7 @@ class ShpCabinet(object):
         return(ret)
 
     def _get_ogr_fields_(self,headers,row):
+        from ocgis.conv.shp import OgrField, FieldCache
         ## do not want to have a geometry field
         ogr_fields = []
         fcache = FieldCache()

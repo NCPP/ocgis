@@ -3,7 +3,6 @@ from copy import copy, deepcopy
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 import numpy as np
@@ -573,6 +572,7 @@ class Geom(AttributedOcgParameter):
             self._assert_(geom.is_valid)
             ret = [{'id':1,'geom':geom}]
         except ValueError:
+            from ocgis.util.shp_cabinet import ShpCabinet
             sc = ShpCabinet()
             ret = sc.get_geom_dict(value)
         return(ret)

@@ -1,5 +1,6 @@
 from definition import * #@UnusedWildImport
 from ocgis.exc import DefinitionValidationError
+from ocgis.api.interpreter import OcgInterpreter
 
 
 class OcgOperations(object):
@@ -93,6 +94,10 @@ class OcgOperations(object):
             except AttributeError:
                 pass
         return(ret)
+    
+    def execute(self):
+        interp = OcgInterpreter(self)
+        return(interp.execute())
     
     def _get_object_(self,name):
         return(object.__getattribute__(self,name))

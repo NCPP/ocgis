@@ -56,59 +56,7 @@ class TestCollection(unittest.TestCase):
                  [0,2,0,0,0,0,0],
                  [0,3,0,0,0,0,0],],[1,2,3])
         self.assertEqual(oid.storage['uid'].tolist(),[1,2,3,4,5,6])
-#        import ipdb;ipdb.set_trace()
-        
-        
-#        oid = Identifier(int,1)
-#        oid.add([50,55])
-#        oid.add(55)
-#        self.assertEqual(2,len(oid))
-#        oid.add(np.array([55,56]))
-#        self.assertEqual(3,len(oid))
-#        oid.add(np.array([50,55,58,60]))
-#        self.assertEqual(len(oid),5)
-#        oid.populate()
-#        self.assertEqual(oid.get(55),2)
-#        self.assertEqual([1, 2, 3, 4, 5],oid.storage['uid'].tolist())
-#        
-#        oid = Identifier(object,1)
-#        init_vals = [datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)]
-#        oid.add(init_vals)
-#        self.assertEqual(2,len(oid))
-#        oid.add(datetime.datetime(2000,2,3))
-#        self.assertEqual(3,len(oid))
-#        oid.populate()
-#        self.assertEqual(oid.get(datetime.datetime(2000,2,3)),3)
-#        
-#        oid = Identifier(object,2)
-#        init_vals = np.array([[datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)],
-#                              [datetime.datetime(2004,1,1,12),datetime.datetime(2005,12,31,12)]])
-#        oid.add(init_vals)
-#        self.assertEqual(len(oid),2)
-#        oid.add([datetime.datetime(2004,1,1,12),datetime.datetime(2005,12,31,12)])
-#        self.assertEqual(len(oid),2)
-#        oid.add([datetime.datetime(2008,1,1,12),datetime.datetime(2005,12,31,12)])
-#        self.assertEqual(len(oid),3)
-#        oid.populate()
-#        uid = oid.get(np.array([[datetime.datetime(2000,1,1,12),datetime.datetime(2001,12,31,12)]]))
-#        self.assertEqual(1,uid)
-#        uid = oid.get(np.array([[datetime.datetime(2008,1,1,12),datetime.datetime(2005,12,31,12)]]))
-#        self.assertEqual(3,uid)
-#
-#        ## test initializing with uids
-#        oid = Identifier(int,1)
-#        init_vals = np.array([50,55])
-#        init_uids = np.array([25,26])
-#        oid.add(init_vals,init_uids)
-#        self.assertTrue((oid.storage['uid'] == init_uids).all())
-#        oid.add(np.array([60,61]),uids=np.array([100,101]))
-#        self.assertEqual(oid.get(60),100)
-#        oid.add(70)
-#        oid.populate()
-#        self.assertEqual(oid.get(70),102)
-#        oid.add(70,102)
-#        oid.populate()
-#        self.assertEqual(oid.get(70),102)
+
         
     def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)

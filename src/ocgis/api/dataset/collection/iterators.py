@@ -118,7 +118,7 @@ class KeyedIterator(AbstractOcgIterator):
         for var in coll.variables.itervalues():
             did = coll.did.get(var.uri)
             vid = coll.vid.get(var.name)
-            for tidx,lidx,gidx0,gidx1,value,calc_name,tgid in self._iter_value_(var):
+            for tidx,lidx,gidx0,gidx1,value,calc_name,tgid in self._iter_value_(var):       
                 if calc_name is not None:
                     cid = coll.cid.get(calc_name)
                     tid = None
@@ -142,6 +142,7 @@ class KeyedIterator(AbstractOcgIterator):
                     tgid = self.tgid.get(to_get)
                     yield(tidx,lidx,gidx0,gidx1,value,k,tgid)
         else:
+            print 'here'
             for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
                 yield(tidx,lidx,gidx0,gidx1,value,None,None)
         

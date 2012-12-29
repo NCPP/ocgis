@@ -220,48 +220,64 @@ class StringIdentifier(object):
 class ArrayIdentifier(StringIdentifier):
     
     def __init__(self,ncol,dtype=object):
-        self.dtype = dtype
+#        self.dtype = dtype
         self._curr = 1
-        self.storage = None
-        self.ncol = ncol
+        self.uid = np.empty(0,dtype=int)
+        self.value = np.empty((0,ncol),dtype=dtype)
+#        self.storage = None
+#        self.ncol = ncol
         
     def __iter__(self):
-        ref = self.storage
-        if ref is None:
-            for ii in range(0):
-                yield(ii)
-        else:
-            for idx in range(ref.shape[0]):
-                row = ref[idx]
-                yield([row[0]] + row[1].tolist())
+        uid = self.uid
+        value = self.value
+#        ref = self.storage
+#        if ref is None:
+#            for ii in range(0):
+#                yield(ii)
+#        else:
+        template = [None]*(value.shape[1]+1)
+        for idx in range(uid.shape[0]):
+            template[0] = uid[idx]
+            template[1:] = value[idx,:]
+            yield(template)
+#        import ipdb;ipdb.set_trace()
+#        for idx in range(ref.shape[0]):
+#            row = ref[idx]
+#            yield([row[0]] + row[1].tolist())
         
     def add(self,values,uids):
         values = np.array(values)
         uids = np.array(uids)
-        if self.storage is None:
-            self._init_storage_(values,uids)
-        else:
-            adds = np.zeros(len(values),dtype=bool)
-            for idx in range(adds.shape[0]):
-                eq = (self.storage['value'] == values[idx,:]).all(axis=1)
-                if not eq.any():
-                    adds[idx] = True
-            if adds.any():
-                new_values = values[adds,:]
-                new_uids = uids[adds]
-                shp = new_values.shape[0]
-                self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
-                self.storage['uid'][-shp:] = new_uids
-                self.storage['value'][-shp:] = new_values
+#        if self.storage is None:
+#            self._init_storage_(values,uids)
+#        else:
+        adds = np.zeros(values.shape[0],dtype=bool)
+        for idx in range(adds.shape[0]):
+            eq = (self.value == values[idx,:]).all(axis=1)
+            if not eq.any():
+                adds[idx] = True
+        if adds.any():
+            new_values = values[adds,:]
+            new_uids = uids[adds]
+            shp = new_values.shape[0]
+            self.uid = np.resize(self.uid,self.uid.shape[0]+shp)
+            self.value = np.resize(self.value,(self.value.shape[0]+shp,self.value.shape[1]))
+            self.uid[-shp:] = new_uids
+            self.value[-shp:] = new_values
+#            self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
+#            self.storage['uid'][-shp:] = new_uids
+#            self.storage['value'][-shp:] = new_values
         self._update_()
                 
     def get(self,value):
         value = np.array(value)
-        idx = (self.storage['value'] == value).all(axis=1)
-        return(int(self.storage['uid'][idx]))
+        idx = (self.value == value).all(axis=1)
+#        idx = (self.storage['value'] == value).all(axis=1)
+        return(int(self.uid[idx]))
+#        return(int(self.storage['uid'][idx]))
     
     def _update_(self):
-        uid = self.storage['uid']
+        uid = self.uid
         if uid.shape[0] > np.unique(uid).shape[0]:
             idxs = np.arange(uid.shape[0])
             for ii in uid.flat:
@@ -271,11 +287,11 @@ class ArrayIdentifier(StringIdentifier):
                     new_uids = np.arange(umax+1,umax+eq.sum())
                     uid[idxs[eq][1:]] = new_uids
         
-    def _init_storage_(self,values,uids):
-        self.storage = np.empty(len(values),dtype=[('uid',int,1),
-                                                   ('value',self.dtype,self.ncol)])
-        self.storage['uid'] = uids
-        self.storage['value'] = values
+#    def _init_storage_(self,values,uids):
+#        self.storage = np.empty(len(values),dtype=[('uid',int,1),
+#                                                   ('value',self.dtype,self.ncol)])
+#        self.storage['uid'] = uids
+#        self.storage['value'] = values
         
         
 class GeometryIdentifier(ArrayIdentifier):

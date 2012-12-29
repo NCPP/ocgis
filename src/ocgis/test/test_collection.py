@@ -55,7 +55,13 @@ class TestCollection(unittest.TestCase):
         oid.add([[0,1,0,0,0,0,0],
                  [0,2,0,0,0,0,0],
                  [0,3,0,0,0,0,0],],[1,2,3])
-        self.assertEqual(oid.storage['uid'].tolist(),[1,2,3,4,5,6])
+        self.assertEqual(oid.uid.tolist(),[1,2,3,4,5,6])
+        for row in oid:
+            self.assertEqual(len(row),8)
+            
+        oid = ArrayIdentifier(2,dtype=float)
+        for row in oid:
+            self.assertTrue(False)
 
         
     def get_TemporalDimension(self,add_bounds=True):

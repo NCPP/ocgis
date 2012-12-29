@@ -179,31 +179,37 @@ class StringIdentifier(object):
     
     def __init__(self):
         self._curr = 1
-        self.storage = np.empty(0,dtype=[('uid',int,1),
-                                         ('value',object,1)])
+        self.uid = np.empty(0,dtype=int)
+        self.value = np.empty(0,dtype=object)
+#        self.storage = np.empty(0,dtype=[('uid',int,1),
+#                                         ('value',object,1)])
         
     def __len__(self):
-        return(self.storage.shape[0])
+        return(self.uid.shape[0])
+#        return(self.storage.shape[0])
     
-    @property
-    def uid(self):
-        return(self.storage['uid'])
+#    @property
+#    def uid(self):
+#        return(self.storage['uid'])
         
     def add(self,value):
-        idx = self.storage['value'] == value
+        idx = self.value == value
+#        idx = self.storage['value'] == value
         if not idx.any():
-            new_storage = np.empty(1,dtype=[('uid',int,1),
-                                            ('value',object,1)])
-            new_storage['uid'] = self._get_curr_(1)
-            new_storage['value'] = value
-            self.storage = np.concatenate((self.storage,new_storage))
+            self.uid = np.concatenate((self.uid,np.array(self._get_curr_(1))))
+            self.value = np.concatenate((self.value,[value]))
+#            new_storage = np.empty(1,dtype=[('uid',int,1),
+#                                            ('value',object,1)])
+#            new_storage['uid'] = self._get_curr_(1)
+#            new_storage['value'] = value
+#            self.storage = np.concatenate((self.storage,new_storage))
 #            self.storage.resize(self.storage.shape[0]+1)
 #            self.storage['uid'][-1] = self._get_curr_(1)
 #            self.storage['value'][-1] = value
     
     def get(self,value):
-        idx = self.storage['value'] == value
-        return(int(self.storage['uid'][idx]))
+        idx = self.value == value
+        return(int(self.uid[idx]))
     
     def _get_curr_(self,n):
         ret = np.arange(self._curr,self._curr+n,dtype=int)

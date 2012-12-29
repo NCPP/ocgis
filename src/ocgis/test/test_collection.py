@@ -32,9 +32,9 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(oid.get('tasmax'),1)
         oid.add('tas')
         self.assertEqual(oid.get('tas'),2)
-        self.assertEqual(len(oid.storage['uid']),2)
+        self.assertEqual(len(oid),2)
         oid.add('tas')
-        self.assertEqual(len(oid.storage['uid']),2)
+        self.assertEqual(len(oid),2)
         
         oid = ArrayIdentifier(3)
         oid.add([[0,1,2],[0,1,3]],[1,2])

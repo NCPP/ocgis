@@ -48,7 +48,8 @@ class KeyedConverter(OcgConverter):
         self._write_iter_dict_(kit.get_dimension_iters())
         
         ## write the shape idx #################################################
-        dct = {'projection':coll.projection,'data':kit.gid.storage}
+        dct = {'projection':coll.projection,'data':kit.gid}
+#        dct = {'projection':coll.projection,'data':kit.gid.storage}
         shpidx_path = os.path.join(self.wd,'shp')
         os.mkdir(shpidx_path)
         shpidx = ShpIdxIdentifierConverter([dct],base_name='shpidx',use_dir=shpidx_path)

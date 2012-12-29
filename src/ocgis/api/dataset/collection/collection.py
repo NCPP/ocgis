@@ -171,8 +171,10 @@ class OcgCollection(object):
         self.variables.update({var.name:var})
         
         ## update collection identifiers
-        self.vid.add(np.array([var.name]))
-        self.did.add(np.array([var.uri]))
+        self.vid.add(var.name)
+#        self.vid.add(np.array([var.name]))
+        self.did.add(var.uri)
+#        self.did.add(np.array([var.uri]))
 
 
 class StringIdentifier(object):
@@ -297,18 +299,28 @@ class ArrayIdentifier(StringIdentifier):
 class GeometryIdentifier(ArrayIdentifier):
     
     def __init__(self):
-        self.storage = None
+        self.uid = None
+        self.ugid = None
+        self.value = None
+#        self.storage = None
         
-    def _make_storage_(self,values,uids,ugid):
-        ret = np.empty(values.shape[0],dtype=[('uid',int,1),('ugid',int,1),('value',object,1)])
-        ret['uid'] = uids
-        ret['value'] = values
-        ret['ugid'] = ugid
-        return(ret)
+#    def _make_storage_(self,values,uids,ugid):
+#        import ipdb;ipdb.set_trace()
+#        ret = np.empty(values.shape[0],dtype=[('uid',int,1),('ugid',int,1),('value',object,1)])
+#        ret['uid'] = uids
+#        ret['value'] = values
+#        ret['ugid'] = ugid
+#        return(ret)
         
     def add(self,values,uids,ugid):
-        if self.storage is None:
-            self.storage = self._make_storage_(values,uids,ugid)
+        ugid = np.array([ugid],dtype=int)
+        if self.uid is None:
+            self.value = values
+            self.uid = uids
+            self.ugid = ugid
+#            self.value,self.uid,self.ugid = self._make_storage_(values,uids,ugid)
+#        if self.storage is None:
+#            self.storage = self._make_storage_(values,uids,ugid)
         else:
             adds = np.zeros(values.shape[0],dtype=bool)
             equals = self._equals_
@@ -317,23 +329,30 @@ class GeometryIdentifier(ArrayIdentifier):
                 if not eq.any():
                     adds[idx] = True
             if adds.any():
-                new_storage = self._make_storage_(values[adds],uids[adds],ugid)
-                self.storage = np.concatenate((self.storage,new_storage))
+                self.value = np.concatenate((self.value,values[adds]))
+                self.uid = np.concatenate((self.uid,uids[adds]))
+                self.ugid = np.concatenate((self.ugid,ugid))
+#                new_storage = self._make_storage_(values[adds],uids[adds],ugid)
+#                self.storage = np.concatenate((self.storage,new_storage))
         self._update_()
 
     def get(self,value,ugid):
         idx = self._equals_(value,ugid)
-        return(int(self.storage['uid'][idx]))
+        return(int(self.uid[idx]))
+#        return(int(self.storage['uid'][idx]))
             
     def _equals_(self,value,ugid):
         ## stores equal geometry logical
-        eq = np.zeros(self.storage.shape[0],dtype=bool)
+        eq = np.zeros(self.uid.shape[0],dtype=bool)
+#        eq = np.zeros(self.storage.shape[0],dtype=bool)
         ## index array used for iteration
         idxs = np.arange(0,eq.shape[0])
         ## reference to geometries
-        geoms = self.storage['value']
+        geoms = self.value
+#        geoms = self.storage['value']
         ## first see if the user geometry is stored
-        eq_ugid = self.storage['ugid'] == ugid
+        eq_ugid = self.ugid == ugid
+#        eq_ugid = self.storage['ugid'] == ugid
         if eq_ugid.any():
             for idx in idxs[eq_ugid]:
                 if geoms[idx].equals(value):

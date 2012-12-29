@@ -142,7 +142,6 @@ class KeyedIterator(AbstractOcgIterator):
                     tgid = self.tgid.get(to_get)
                     yield(tidx,lidx,gidx0,gidx1,value,k,tgid)
         else:
-            print 'here'
             for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
                 yield(tidx,lidx,gidx0,gidx1,value,None,None)
         
@@ -205,9 +204,10 @@ class KeyedIterator(AbstractOcgIterator):
             
     def _get_identifier_(self,attr):
         ref = getattr(self.coll,attr)
-        storage = ref.storage
+#        storage = ref.storage
         for idx in range(len(ref)):
-            yield(storage[idx][0],storage[idx][1][0])
+            yield(ref.uid[idx],ref.value[idx])
+#            yield(storage[idx][0],storage[idx][1][0])
             
     def _get_headers_(self):
         return(['vid','did','cid','ugid','tid','tgid','lid','gid','value'])

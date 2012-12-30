@@ -54,6 +54,7 @@ class TestWork(unittest.TestCase):
         output_format = {'output_format':[
 #                                          'shp',
                                           'keyed',
+                                          'meta',
 #                                          'nc',
 #                                          'csv'
                                           ]}

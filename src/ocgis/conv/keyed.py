@@ -57,59 +57,6 @@ class KeyedConverter(OcgConverter):
         ########################################################################
         
         return(self.wd)
-#        
-#        import ipdb;ipdb.set_trace()
-#        ## these variables are here for the shpidx. tricking the iterators at
-#        ## this time. stripping out unnecessary data to conserve memory.
-#        DummyColl = namedtuple('DummyColl',['gid','geom'])
-#        shpidx_cache = []
-#        ## indicate this is the first time through the iteration.
-#        build = True
-#        for coll,geom_dict in self:
-#            ## save the variable for the shape index writing
-#            shpidx_cache.append((DummyColl(coll.gid,coll.geom),None))
-#            ## get the proper iterator for iterator mode
-#            raise(NotImplementedError)
-#            if self.mode == 'raw':
-#                its = kits.RawKeyedIterator(coll).get_iters()
-#            elif self.mode == 'agg':
-#                its = kits.AggKeyedIterator(coll).get_iters()
-#            elif self.mode == 'calc':
-#                its = kits.CalcKeyedIterator(coll).get_iters()
-#            elif self.mode == 'multi':
-#                its = kits.MultiKeyedIterator(coll).get_iters()
-#            ## perform operations on first iteration
-#            if build:
-#                ## make file objects
-#                files = {}
-#                for key,value in its.iteritems():
-#                    path = os.path.join(self.wd,'{0}.csv'.format(key))
-#                    f = open(path,'w')
-#                    writer = csv.writer(f,dialect=OcgDialect)
-#                    writer.writerow(value['headers'])
-#                    files.update({key:{'w':writer,'f':f}})
-#            ## write the data
-#            for key,value in its.iteritems():
-#                if not build:
-#                    if key in ['tid','tgid','vid','vlid','cid']:
-#                        continue
-#                writer = files[key]['w']
-#                for row in value['it']():
-#                    writer.writerow(row)
-#            build = False
-#        ## close file objects
-#        for value in files.itervalues():
-#            value['f'].close()
-#        
-#        ## write the shape index. this generator overloads the standard
-#        ## generator in the converter.
-#        def _alt_it_():
-#            for ii in shpidx_cache:
-#                yield(ii)
-#        shpidx = ShpIdxConverter(self.so,base_name='shpidx',use_dir=self.wd,alt_it=_alt_it_)
-#        shpidx.write()
-#            
-#        return(self.wd)
     
     def _get_file_object_(self,prefix):
         return(open(self._get_path_(prefix),'w'))

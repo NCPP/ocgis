@@ -14,15 +14,6 @@ class CsvConverter(OcgConverter):
 #        self.wkb = kwds.pop('wkb')
         
         super(CsvConverter,self).__init__(*args,**kwds)
-        
-#    def _get_headers_raw_(self):
-#        raise(NotImplementedError)
-#    
-#    def _get_headers_attr_(self):
-#        raise(NotImplementedError)
-#    
-#    def _write_(self,headers):
-#        raise(NotImplementedError)
     
     def write(self):
         path = self.get_path()
@@ -35,8 +26,5 @@ class CsvConverter(OcgConverter):
                     writer.writerow(headers)
                     build = False
                 for row,geom in self.get_iter(coll):
-#                    row.pop()
-#                    if self.wkt or self.wkb:
-#                        raise(NotImplementedError)
                     writer.writerow(row)
         return(path)

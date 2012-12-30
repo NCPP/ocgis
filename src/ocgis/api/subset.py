@@ -3,7 +3,6 @@ from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.interface.interface import SpatialInterfacePolygon,\
     SpatialInterfacePoint
-import copy
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
 from ocgis.api.dataset.collection.collection import OcgCollection
@@ -48,11 +47,6 @@ class SubsetOperation(object):
             self.itype = SpatialInterfacePoint
         else:
             raise(ValueError('input datasets must have same geometries. perhaps overload "s_abstraction"?'))
-            
-#        ## wrap the geometry dictionary if needed
-#        arch = self.ops.dataset[0]['ocg_dataset']
-#        if arch.i.spatial.is_360 and self.ops._get_object_('geom').is_empty is False:
-#            unwrap_geoms(self.ops.geom,arch.i.spatial.pm)
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -191,9 +185,6 @@ def get_collection((so,geom_dict)):
         if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
             wrap_coll(coll)
             break
-#    arch = so.ops.dataset[0]['ocg_dataset']
-#    if arch.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-#        wrap_coll(coll)
 
     ## do the requested calculations.
     if so.cengine is not None:

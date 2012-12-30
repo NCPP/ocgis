@@ -173,9 +173,7 @@ class OcgCollection(object):
         
         ## update collection identifiers
         self.vid.add(var.name)
-#        self.vid.add(np.array([var.name]))
         self.did.add(var.uri)
-#        self.did.add(np.array([var.uri]))
 
 
 class StringIdentifier(object):
@@ -184,8 +182,6 @@ class StringIdentifier(object):
         self._curr = 1
         self.uid = np.empty(0,dtype=int)
         self.value = np.empty(0,dtype=object)
-#        self.storage = np.empty(0,dtype=[('uid',int,1),
-#                                         ('value',object,1)])
 
     def __repr__(self):
         msg = ('  uid={0}\n'
@@ -194,38 +190,16 @@ class StringIdentifier(object):
         
     def __len__(self):
         return(self.uid.shape[0])
-#        return(self.storage.shape[0])
-    
-#    @property
-#    def uid(self):
-#        return(self.storage['uid'])
         
     def add(self,value):
         idx = self.value == [value]
-#        idx = self.storage['value'] == value
         try:
             should_add = not idx.any()
         except AttributeError:
             should_add = not idx
-#        import ipdb;ipdb.set_trace()
-#        if self.value.shape[0] == 0:
-#            should_add = True
-#        elif not idx.any():
-#            should_add = True
-#        else:
-#            should_add = False
         if should_add:
-#        if self.value.shape[0] == 0 or not idx.any():
             self.uid = np.concatenate((self.uid,np.array(self._get_curr_(1))))
             self.value = np.concatenate((self.value,[value]))
-#            new_storage = np.empty(1,dtype=[('uid',int,1),
-#                                            ('value',object,1)])
-#            new_storage['uid'] = self._get_curr_(1)
-#            new_storage['value'] = value
-#            self.storage = np.concatenate((self.storage,new_storage))
-#            self.storage.resize(self.storage.shape[0]+1)
-#            self.storage['uid'][-1] = self._get_curr_(1)
-#            self.storage['value'][-1] = value
     
     def get(self,value):
         idx = self.value == [value]
@@ -244,37 +218,22 @@ class StringIdentifier(object):
 class ArrayIdentifier(StringIdentifier):
     
     def __init__(self,ncol,dtype=object):
-#        self.dtype = dtype
         self._curr = 1
         self.uid = np.empty(0,dtype=int)
         self.value = np.empty((0,ncol),dtype=dtype)
-#        self.storage = None
-#        self.ncol = ncol
         
     def __iter__(self):
         uid = self.uid
         value = self.value
-#        ref = self.storage
-#        if ref is None:
-#            for ii in range(0):
-#                yield(ii)
-#        else:
         template = [None]*(value.shape[1]+1)
         for idx in range(uid.shape[0]):
             template[0] = uid[idx]
             template[1:] = value[idx,:]
             yield(template)
-#        import ipdb;ipdb.set_trace()
-#        for idx in range(ref.shape[0]):
-#            row = ref[idx]
-#            yield([row[0]] + row[1].tolist())
         
     def add(self,values,uids):
         values = np.array(values)
         uids = np.array(uids)
-#        if self.storage is None:
-#            self._init_storage_(values,uids)
-#        else:
         adds = np.zeros(values.shape[0],dtype=bool)
         for idx in range(adds.shape[0]):
             eq = (self.value == values[idx,:]).all(axis=1)
@@ -288,17 +247,12 @@ class ArrayIdentifier(StringIdentifier):
             self.value = np.resize(self.value,(self.value.shape[0]+shp,self.value.shape[1]))
             self.uid[-shp:] = new_uids
             self.value[-shp:] = new_values
-#            self.storage = np.resize(self.storage,(self.storage.shape[0]+shp))
-#            self.storage['uid'][-shp:] = new_uids
-#            self.storage['value'][-shp:] = new_values
         self._update_()
                 
     def get(self,value):
         value = np.array(value)
         idx = (self.value == value).all(axis=1)
-#        idx = (self.storage['value'] == value).all(axis=1)
         return(int(self.uid[idx]))
-#        return(int(self.storage['uid'][idx]))
     
     def _update_(self):
         uid = self.uid
@@ -311,12 +265,6 @@ class ArrayIdentifier(StringIdentifier):
                     new_uids = np.arange(umax+1,umax+eq.sum())
                     uid[idxs[eq][1:]] = new_uids
         
-#    def _init_storage_(self,values,uids):
-#        self.storage = np.empty(len(values),dtype=[('uid',int,1),
-#                                                   ('value',self.dtype,self.ncol)])
-#        self.storage['uid'] = uids
-#        self.storage['value'] = values
-        
         
 class GeometryIdentifier(ArrayIdentifier):
     
@@ -324,25 +272,12 @@ class GeometryIdentifier(ArrayIdentifier):
         self.uid = None
         self.ugid = None
         self.value = None
-#        self.storage = None
-        
-#    def _make_storage_(self,values,uids,ugid):
-#        import ipdb;ipdb.set_trace()
-#        ret = np.empty(values.shape[0],dtype=[('uid',int,1),('ugid',int,1),('value',object,1)])
-#        ret['uid'] = uids
-#        ret['value'] = values
-#        ret['ugid'] = ugid
-#        return(ret)
         
     def add(self,values,uids,ugid):
-#        ugid = np.array([ugid],dtype=int)
         if self.uid is None:
             self.value = values
             self.uid = uids
             self.ugid = np.repeat(ugid,self.uid.shape[0])
-#            self.value,self.uid,self.ugid = self._make_storage_(values,uids,ugid)
-#        if self.storage is None:
-#            self.storage = self._make_storage_(values,uids,ugid)
         else:
             adds = np.zeros(values.shape[0],dtype=bool)
             equals = self._equals_
@@ -355,28 +290,21 @@ class GeometryIdentifier(ArrayIdentifier):
                 self.value = np.concatenate((self.value,values[adds]))
                 self.uid = np.concatenate((self.uid,uid_adds))
                 self.ugid = np.concatenate((self.ugid,np.repeat(ugid,uid_adds.shape[0])))
-#                self.ugid = np.concatenate((self.ugid,ugid))
-#                new_storage = self._make_storage_(values[adds],uids[adds],ugid)
-#                self.storage = np.concatenate((self.storage,new_storage))
         self._update_()
 
     def get(self,value,ugid):
         idx = self._equals_(value,ugid)
         return(int(self.uid[idx]))
-#        return(int(self.storage['uid'][idx]))
             
     def _equals_(self,value,ugid):
         ## stores equal geometry logical
         eq = np.zeros(self.uid.shape[0],dtype=bool)
-#        eq = np.zeros(self.storage.shape[0],dtype=bool)
         ## index array used for iteration
         idxs = np.arange(0,eq.shape[0])
         ## reference to geometries
         geoms = self.value
-#        geoms = self.storage['value']
         ## first see if the user geometry is stored
         eq_ugid = self.ugid == ugid
-#        eq_ugid = self.storage['ugid'] == ugid
         if eq_ugid.any():
             for idx in idxs[eq_ugid]:
                 if geoms[idx].equals(value):

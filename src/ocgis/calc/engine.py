@@ -1,5 +1,3 @@
-import numpy as np
-import itertools
 from base import OcgFunctionTree, OcgCvArgFunction
 import library
 
@@ -17,16 +15,6 @@ class OcgCalculationEngine(object):
     def __init__(self,grouping,funcs,raw=False,agg=False):
         self.raw = raw
         self.agg = agg
-#        self.snippet = snippet
-#        self.time_range = time_range
-#        ## subset timevec if time_range is passed
-#        if self.time_range is not None:
-#            self.timevec = timevec[(timevec>=time_range[0])*
-#                                   (timevec<=time_range[1])]
-#            if len(self.timevec) == 0:
-#                raise(IndexError('time range returned no data.'))
-#        else:
-#            self.timevec = timevec
         ## convert solitary grouping arguments to list
         if type(grouping) == str: grouping = [grouping]
         self.grouping = grouping or ['day']
@@ -36,8 +24,6 @@ class OcgCalculationEngine(object):
 #        funcs_copy.insert(0,{'func':'n'})
         self.funcs = self.set_funcs(funcs)
         self.funcs = funcs
-        ## get the time groups
-#        self.dgroups,self.dtime = self.get_distinct_groups()
         ## select which value data to pull based on raw and agg arguments
         if self.raw:
             self.use_agg = False
@@ -58,60 +44,6 @@ class OcgCalculationEngine(object):
             if 'kwds' not in f:
                 f['kwds'] = {}
         return(funcs)
-        
-#    def get_distinct_groups(self):
-#        ## holds date components
-#        dparts = {'year':[],'month':[],'day':[],'idx':[]}
-#        ## pull date parts from date objects and append to date part dictionary
-#        for ii,dt in enumerate(self.timevec):
-#            for grp in self.grouping:
-#                dparts[grp].append(getattr(dt,grp))
-#            dparts['idx'].append(ii)
-#        ## convert to numpy arrays
-#        for key in dparts.keys(): dparts[key] = np.array(dparts[key],dtype=int)
-#        ## replace empty list with a list containing NoneType for nested
-#        ## iterator and find unique combinations.
-#        duni = {}
-#        for key in dparts.keys():
-#            if key is 'idx':
-#                continue
-#            elif len(dparts[key]) is 0:
-#                duni[key] = np.array([None])
-#            else:
-#                duni[key] = np.unique(dparts[key]).astype(int)
-#                
-#        ## make the unique group combinations
-#        
-#        ## will hold idx to groups
-#        dgroups = []
-#        dtime = {'tgid':[],'month':[],'day':[],'year':[]}
-#        ## the default select all array
-#        bidx = np.ones(len(dparts['idx']),dtype=bool)
-#        ## loop for combinations
-#        tgid = 1
-#        for year,month,day in itertools.product(duni['year'],duni['month'],duni['day']):
-#            ## idx arrays that when combined provide a group set
-#            check = dict(zip(['year','month','day'],[year,month,day]))
-#            yidx,midx,didx = [self._get_date_idx_(bidx,dparts,part,value) 
-#                              for part,value in check.iteritems()]
-#            idx = yidx*midx*didx
-#            ## if dates are drilling down to day, it is possible to return date
-#            ## combinations that are unreasonable.
-#            if idx.sum() == 0:
-#                continue
-#            for key,value in check.iteritems():
-#                dtime[key].append(value)
-#            dgroups.append(idx)
-#            dtime['tgid'].append(tgid)
-#            tgid += 1
-#        return(dgroups,dtime)
-#            
-#    def _get_date_idx_(self,bidx,dparts,part,value):
-#        if part in self.grouping:
-#            idx = dparts[part] == value
-#        else:
-#            idx = bidx
-#        return(idx)
     
     def execute(self,coll):
         
@@ -157,10 +89,6 @@ class OcgCalculationEngine(object):
                     ## calculate the values
                     calc = ref.calculate()
                     ## update calculation identifier
-#                    coll.variables[var_name].cid = np.append(coll.variables[var_name].cid,cid)
-#                    if f['name'] == 'n':
-#                        add_name = f['name'] + '_' + var_name
-#                    else:
                     add_name = f['name']
                     ## store the values
                     var.calc_value.update({add_name:calc})
@@ -175,4 +103,3 @@ class OcgCalculationEngine(object):
                     n += value.calc_value['n_'+key]
             coll.calc_multi['n_multi'] = n
             coll.cid.add('n_multi')
-#        return(coll)

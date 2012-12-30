@@ -23,11 +23,77 @@ class OcgOperations(object):
         parameter values from internal objects.
     """
     
-    def __init__(self,dataset=None,spatial_operation=None,geom=None,aggregate=None,
-                 time_range=None,level_range=None,calc=None,calc_grouping=None,
-                 calc_raw=None,interface=None,snippet=None,backend=None,request_url=None,
-                 prefix=None,output_format=None,output_grouping=None,agg_selection=None,
-                 select_ugid=None,vector_wrap=None,allow_empty=None):
+    def __init__(self,dataset=None,spatial_operation='intersects',geom=None,aggregate=False,
+                 time_range=None,level_range=None,calc=None,calc_grouping=['month','year'],
+                 calc_raw=False,interface=None,snippet=False,backend='ocg',request_url=None,
+                 prefix=None,output_format='keyed',output_grouping=None,agg_selection=False,
+                 select_ugid=None,vector_wrap=True,allow_empty=False):
+        """The only required argument is "dataset". All others are provided
+        defaults.
+        
+        Args:
+          dataset: Sequence of dictionaries having keys "uri" and "variable". It
+            is possible to request data from multiple locations. Multiple time
+            and level ranges may also be specified (see their docstrings). For
+            example:
+            
+            Request for a single local dataset:
+            dataset=[{'uri':'/some/local/dataset','variable':'foo'}]
+            
+            Request for a local and remote dataset:
+            dataset=[{'uri':'/some/local/dataset','variable':'foo'},
+                     {'uri':'http://some.opendap.dataset','variable':'foo2'}]
+                     
+          snippet: If True, it will return the first time point or time group
+            (in the case of calculations) for each requested dataset. Best to
+            set to True for any initial request or data inspections.
+            
+          output_format: String indicating the desired output format. Available
+            options are: 'keyed' (default), 'nc', 'shp', or 'csv'.
+                     
+          time_range: Sequence of Python datetime object sequences. The default 
+            returns all time points. If only a single range is provided but 
+            multiple datasets are requested, the range is repeated for the 
+            length of the dataset sequence. For example:
+            
+            time_range=[[lower,upper]]
+            time_range=[[lower_dataset1,upper_dataset1],
+                        [lower_dataset2,upper_dataset2]]
+                        
+          level_range: Sequence of integer sequences. The same mapping applies
+            as "time_range". A value of 1 represents and index of 0 in the
+            value array index (i.e. the first returned level). For example:
+            
+            level_range=[[1,1]]
+            level_range=[[1,1],[10,10]]
+        
+          geom: Sequence of dictionaries composed of an identifier "ugid" and a
+            Shapely Polygon/MultiPolygon geometry object "geom". Geometries 
+            should always be provided with a WGS84 geographic coordinate system 
+            on a -180 to 180 longitudinal spatial domain. The default None will 
+            return the entire spatial domain. For example:
+            
+            geom=[{'ugid':25,'geom':<Shapely Polygon object>},
+                  {'ugid':26,'geom':<Shapely MultiPolygon object>}]
+        
+          vector_wrap: Set to False to return vector geometries in the dataset's
+            native longitudinal spatial domain (e.g. -180 to 180 or 0 to 360).
+            If True, the default, vector outputs will always be returned on the
+            -180 to 180 longitudinal domain.
+            
+          spatial_operation: There are two options: 'intersects' or 'clip'.
+          
+          aggregate: If True, geometries coincident with a selection geometry
+            are aggregated and the associated values area-weighted to single
+            value. Raw values are maintained.
+            
+          allow_empty: If True, geometric operations returning no data or all
+            masked values will be written as empty returns. 
+            
+          agg_selection: If True, selection geometries are aggregated to a
+            single geometry. This is automatically set to True if the requested
+            output format is 'nc'.
+        """
         
         ## Tells "__setattr__" to not perform global validation until all
         ## values are set initially.
@@ -122,8 +188,3 @@ class OcgOperations(object):
                 else:
                     raise(DefinitionValidationError(self._get_object_(attr),
                           'range must have length equal to the number of requested datasets or a length of one.'))
-    
-
-if __name__ == '__main__':
-    import doctest #@Reimport
-    doctest.testmod()

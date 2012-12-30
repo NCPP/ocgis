@@ -8,6 +8,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 from shapely import prepared
 from ocgis.util.helpers import iter_array, keep
+from ocgis.exc import UniqueIdNotFound
 
 
 class OcgVariable(object):
@@ -185,6 +186,11 @@ class StringIdentifier(object):
         self.value = np.empty(0,dtype=object)
 #        self.storage = np.empty(0,dtype=[('uid',int,1),
 #                                         ('value',object,1)])
+
+    def __repr__(self):
+        msg = ('  uid={0}\n'
+               'value={1}').format(self.uid,self.value)
+        return(msg)
         
     def __len__(self):
         return(self.uid.shape[0])
@@ -195,9 +201,21 @@ class StringIdentifier(object):
 #        return(self.storage['uid'])
         
     def add(self,value):
-        idx = self.value == value
+        idx = self.value == [value]
 #        idx = self.storage['value'] == value
-        if not idx.any():
+        try:
+            should_add = not idx.any()
+        except AttributeError:
+            should_add = not idx
+#        import ipdb;ipdb.set_trace()
+#        if self.value.shape[0] == 0:
+#            should_add = True
+#        elif not idx.any():
+#            should_add = True
+#        else:
+#            should_add = False
+        if should_add:
+#        if self.value.shape[0] == 0 or not idx.any():
             self.uid = np.concatenate((self.uid,np.array(self._get_curr_(1))))
             self.value = np.concatenate((self.value,[value]))
 #            new_storage = np.empty(1,dtype=[('uid',int,1),
@@ -210,8 +228,12 @@ class StringIdentifier(object):
 #            self.storage['value'][-1] = value
     
     def get(self,value):
-        idx = self.value == value
-        return(int(self.uid[idx]))
+        idx = self.value == [value]
+        try:
+            return(int(self.uid[idx]))
+        except TypeError:
+            if not idx.any():
+                raise(UniqueIdNotFound)
     
     def _get_curr_(self,n):
         ret = np.arange(self._curr,self._curr+n,dtype=int)
@@ -313,11 +335,11 @@ class GeometryIdentifier(ArrayIdentifier):
 #        return(ret)
         
     def add(self,values,uids,ugid):
-        ugid = np.array([ugid],dtype=int)
+#        ugid = np.array([ugid],dtype=int)
         if self.uid is None:
             self.value = values
             self.uid = uids
-            self.ugid = ugid
+            self.ugid = np.repeat(ugid,self.uid.shape[0])
 #            self.value,self.uid,self.ugid = self._make_storage_(values,uids,ugid)
 #        if self.storage is None:
 #            self.storage = self._make_storage_(values,uids,ugid)
@@ -329,9 +351,11 @@ class GeometryIdentifier(ArrayIdentifier):
                 if not eq.any():
                     adds[idx] = True
             if adds.any():
+                uid_adds = uids[adds]
                 self.value = np.concatenate((self.value,values[adds]))
-                self.uid = np.concatenate((self.uid,uids[adds]))
-                self.ugid = np.concatenate((self.ugid,ugid))
+                self.uid = np.concatenate((self.uid,uid_adds))
+                self.ugid = np.concatenate((self.ugid,np.repeat(ugid,uid_adds.shape[0])))
+#                self.ugid = np.concatenate((self.ugid,ugid))
 #                new_storage = self._make_storage_(values[adds],uids[adds],ugid)
 #                self.storage = np.concatenate((self.storage,new_storage))
         self._update_()

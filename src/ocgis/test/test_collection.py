@@ -4,15 +4,17 @@ import itertools
 import datetime
 from shapely.geometry.point import Point
 from ocgis.api.dataset.collection.collection import OcgCollection,\
-    OcgVariable, StringIdentifier, ArrayIdentifier
+    OcgVariable, StringIdentifier, ArrayIdentifier, GeometryIdentifier
 from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
 from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
     SpatialDimension, TemporalDimension
 import netCDF4 as nc
 from ocgis.util.helpers import get_temp_path
+from ocgis.util.spatial.index import shapely_grid
+from ocgis.exc import UniqueIdNotFound
 
 
-class TestCollection(unittest.TestCase):
+class Test(unittest.TestCase):
 
     def test_OcgDimension(self):
         _bounds = [None,
@@ -25,8 +27,8 @@ class TestCollection(unittest.TestCase):
             self.assertEqual(dim.shape,(2,))
             for row in dim:
                 pass
-                    
-    def test_Identifier(self):
+            
+    def test_StringIdentifier(self):
         oid = StringIdentifier()
         oid.add('tasmax')
         self.assertEqual(oid.get('tasmax'),1)
@@ -35,7 +37,16 @@ class TestCollection(unittest.TestCase):
         self.assertEqual(len(oid),2)
         oid.add('tas')
         self.assertEqual(len(oid),2)
+        with self.assertRaises(UniqueIdNotFound):
+            oid.get('t')
         
+        did = StringIdentifier()
+        did.add(None)
+        did.add(None)
+        self.assertEqual(len(did),1)
+        self.assertEqual(did.get(None),1)
+                    
+    def test_ArrayIdentifier(self):
         oid = ArrayIdentifier(3)
         oid.add([[0,1,2],[0,1,3]],[1,2])
         oid.add([[22,33,44],[55,66,77]],[5,6])
@@ -63,6 +74,25 @@ class TestCollection(unittest.TestCase):
         for row in oid:
             self.assertTrue(False)
 
+    def test_GeometryIdentifier(self):
+        
+        def _test_shapes_(oid):
+            for comb in itertools.combinations(['ugid','uid','value'],2):
+                shapes = [getattr(oid,attr).shape for attr in comb]
+                self.assertEqual(*shapes)
+        
+        rtup = (40.0,50.0)
+        ctup = (-120.0,-110.0)
+        dim = 5.0
+        polygons = np.array(list(shapely_grid(dim,rtup,ctup)))
+        uids = np.arange(1,len(polygons)+1)
+        ugid = 1
+        oid = GeometryIdentifier()
+        oid.add(polygons,uids,ugid)
+        _test_shapes_(oid)
+        oid.add(polygons,uids,ugid)
+        _test_shapes_(oid)
+        self.assertEqual(len(oid),4)
         
     def get_TemporalDimension(self,add_bounds=True):
         start = datetime.datetime(2000,1,1,12)
@@ -275,7 +305,7 @@ class TestCollection(unittest.TestCase):
                         var.calc_value.update({name:new_values})
                         coll.add_calculation(var)
                 for var in [var1,var2]: self.assertEqual(len(var.calc_value),2)
-                self.assertTrue(np.all([c in coll.cid.storage['value'] for c in cnames]))
+                self.assertTrue(np.all([c in coll.cid.value for c in cnames]))
             
             if add_level:
                 m = 2

@@ -20,6 +20,8 @@ def shapely_grid(dim,rtup,ctup,target=None):
             polygon = make_poly(rtup,ctup)
             if target is not None and keep(target,polygon):
                 polygons.append(polygon)
+            elif target is None:
+                polygons.append(polygon)
     return(MultiPolygon(polygons))
 
 

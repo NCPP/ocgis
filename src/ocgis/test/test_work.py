@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from ocgis.exc import ExtentError
 
-raise SkipTest(__name__)
+#raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
     
@@ -25,10 +25,19 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 750
+        start = 0
+        allow_none_geom = True
+        
         for ii,ops in self.iter_operations(start=start):
+            
+            ref_geom = ops.geom[0]['geom']
+            if ref_geom is None and allow_none_geom:
+                allow_none_geom = False
+            elif ref_geom is None and not allow_none_geom:
+                continue
             print(ii)
             ret = None
+            
             try:
                 ret = OcgInterpreter(ops).execute()
             except Exception as e:
@@ -41,7 +50,6 @@ class TestWork(unittest.TestCase):
                     print(ret)
                     shutil.rmtree(ret)
                     
-
     def iter_operations(self,start=0):
         output_format = {'output_format':[
 #                                          'shp',
@@ -58,7 +66,7 @@ class TestWork(unittest.TestCase):
 #                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
                               ]}
         geom = {'geom':[
-#                        None,
+                        None,
                         self.california,
                         self.state_boundaries,
                         {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
@@ -136,7 +144,8 @@ class TestWork(unittest.TestCase):
         ret = sc.get_geom_dict('world_countries')
         return(ret)
 
-    def no_test_profile(self):
+    def test_profile(self):
+        raise(SkipTest)
         prev = sys.stdout
         with open('/tmp/out.txt','w') as f:
             sys.stdout = f

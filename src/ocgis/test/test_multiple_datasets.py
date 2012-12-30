@@ -58,15 +58,24 @@ class Test(unittest.TestCase):
         calc_grouping = ['year']
         kwds = {'aggregate':True,
                 'spatial_operation':'clip',
-                'calc':None,
+                'calc':calc,
                 'calc_grouping':calc_grouping,
-                'output_format':'keyed',
+                'output_format':'numpy',
                 'geom':self.california,
                 'dataset':self.dataset,
                 'snippet':False}
         ops = OcgOperations(**kwds)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        
+        ref = ret[25].variables['Prcp'].calc_value
+        self.assertEquals(ref.keys(),['n','mean','std'])
+        for value in ref.itervalues():
+            self.assertEqual(value.shape,(1,1,1,1))
+            
+        ref = ret[25].variables['tasmax'].calc_value
+        self.assertEquals(ref.keys(),['n','mean','std'])
+        for value in ref.itervalues():
+            self.assertEqual(value.shape,(10,1,1,1))
 
 
 if __name__ == "__main__":

@@ -4,18 +4,23 @@ from ocgis.api.interpreter import OcgInterpreter
 
 
 class OcgOperations(object):
-    """
-    >>> dataset = [{'uri':'some.path','variable':'foo'}]
-    >>> oo = OcgOperations(dataset=[{'uri':'some.path','variable':'foo'}],spatial_operation='clip')
-    >>> oo.spatial_operation
-    'clip'
-    >>> oo.spatial_operation = 'intersects'
-    >>> oo.as_dict()
-    {'calc_grouping': ['year', 'day', 'month'], 'level_range': None, 'calc_raw': False, 'agg_selection': False, 'output_format': 'keyed', 'spatial_operation': 'intersects', 'dataset': [{'variable': 'foo', 'uri': 'some.path'}], 'snippet': False, 'aggregate': True, 'prefix': None, 'time_range': None, 'geom': [{'geom': None, 'id': 1}], 'interface': None, 'request_url': None, 'calc': None, 'backend': 'ocg'}
-    >>> kwds = {'dataset':dataset,'spatial_operation':'clip','aggregate':False}
-    >>> oo = OcgOperations(**kwds)
-    >>> oo.spatial_operation,oo.aggregate
-    ('clip', False)
+    """Entry point for OCGIS operations. Parameters may be modified before an
+    execution. However, the object SHOULD NOT be reused following an execution
+    as the software may add/modify attribute contents. Instantiate a new object
+    following an execution.
+    
+    The only required argument is "dataset".
+    
+    Attributes:
+      All keyword arguments are exposed as public attributes which can be
+        arbitrarily set using standard syntax:
+        
+        ops = OcgOperations(dataset={'uri':'/some/dataset','variable':'foo'})
+        ops.aggregate = True
+        
+        The builtins "__getattribute__" and "__setattr__" are overloaded to
+        perform validation and formatting upon assignment and to properly return
+        parameter values from internal objects.
     """
     
     def __init__(self,dataset=None,spatial_operation=None,geom=None,aggregate=None,
@@ -24,6 +29,8 @@ class OcgOperations(object):
                  prefix=None,output_format=None,output_grouping=None,agg_selection=None,
                  select_ugid=None,vector_wrap=None,allow_empty=None):
         
+        ## Tells "__setattr__" to not perform global validation until all
+        ## values are set initially.
         self._is_init = True
         
         self.dataset = Dataset(dataset)
@@ -47,6 +54,8 @@ class OcgOperations(object):
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         
+        ## Initial values have been set and global validation should now occur
+        ## when any parameters are updated.
         self._is_init = False
         self._validate_()
         

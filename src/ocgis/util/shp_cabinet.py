@@ -124,13 +124,14 @@ class ShpCabinet(object):
                 geom = MultiPolygon([geom])
             yield(dct_copy,geom)
             
-    def write(self,geom_dict,path):
+    def write(self,geom_dict,path,sr=None):
         from ocgis.conv.csv_ import OcgDialect
 #        path = self.get_path()
 
         ##tdk
-        sr = osr.SpatialReference()
-        sr.ImportFromEPSG(4326)
+        if sr is None:
+            sr = osr.SpatialReference()
+            sr.ImportFromEPSG(4326)
 #        sr = osr.SpatialReference()
 #        sr.ImportFromProj4('+proj=longlat +datum=WGS84 +pm=180dW ')
         ##tdk

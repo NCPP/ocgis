@@ -3,6 +3,8 @@ from osgeo.osr import SpatialReference
 from ocgis.util.helpers import itersubclasses
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.point import Point
+from osgeo import osr
+from shapely import wkb
 
 
 def get_projection(dataset):
@@ -49,15 +51,35 @@ class OcgSpatialReference(object):
             ret = geom.GetArea()*1e-6
         return(ret)
     
-    def project(self,to_sr,geom):
-        try:
-            if self._srid == to_sr._srid:
-                ret = geom.wkb
-        except AttributeError:
-            geom = CreateGeometryFromWkb(geom.wkb)
-            geom.AssignSpatialReference(self.sr)
-            geom.TransformTo(to_sr)
-            ret = geom.ExportToWkb()
+    def project_to_match(self,geoms,in_sr=None):
+        """
+        Args:
+          geoms: A sequence of geometry dictionaries.
+          
+        Returns:
+          A projected copy of the input geometry sequence.
+        """
+        if in_sr is None:
+            in_sr = osr.SpatialReference()
+            in_sr.ImportFromEPSG(4326)
+        
+        ret = [None]*len(geoms)
+        for idx in range(len(geoms)):
+            gc = geoms[idx].copy()
+            geom = CreateGeometryFromWkb(gc['geom'].wkb)
+            geom.AssignSpatialReference(in_sr)
+            geom.TransformTo(self.sr)
+            gc['geom'] = wkb.loads(geom.ExportToWkb())
+            ret[idx] = gc
+#            import ipdb;ipdb.set_trace()
+#        try:
+#            if self._srid == to_sr._srid:
+#                ret = geom.wkb
+#        except AttributeError:
+#            geom = CreateGeometryFromWkb(geom.wkb)
+#            geom.AssignSpatialReference(self.sr)
+#            geom.TransformTo(to_sr)
+#            ret = geom.ExportToWkb()
         return(ret)
     
     def get_sr(self,*args,**kwds):

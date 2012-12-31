@@ -26,7 +26,7 @@ class OcgOperations(object):
     def __init__(self,dataset=None,spatial_operation='intersects',geom=None,aggregate=False,
                  time_range=None,level_range=None,calc=None,calc_grouping=['month','year'],
                  calc_raw=False,interface=None,snippet=False,backend='ocg',request_url=None,
-                 prefix=None,output_format='keyed',output_grouping=None,agg_selection=False,
+                 prefix=None,output_format='numpy',output_grouping=None,agg_selection=False,
                  select_ugid=None,vector_wrap=True,allow_empty=False):
         """The only required argument is "dataset". All others are provided
         defaults.

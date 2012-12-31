@@ -1,13 +1,12 @@
 import cProfile
 from ocgis.api.operations import OcgOperations
-from ocgis.api.iocg.interpreter_ocg import OcgInterpreter
 import pstats
 
 
 def run():
     dataset = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
-    ops = OcgOperations(dataset=dataset,snippet=True)
-    ret = OcgInterpreter(ops).execute()
+    ops = OcgOperations(dataset=dataset,output_format='keyed')
+    ret = ops.execute()
     
     
 def main():

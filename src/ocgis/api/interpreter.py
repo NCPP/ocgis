@@ -57,6 +57,12 @@ class OcgInterpreter(Interpreter):
             geom = self.ops._get_object_('geom')
             geom._filter_by_ugid_(self.ops.select_ugid['ugid'])
             
+        ## determine if data is remote or local. if the data is remote, it needs
+        ## to be downloaded to a temporary location then the calculations
+        ## performed on the local data. the downloaded data should be removed
+        ## when computations have finished.
+        ## TODO: add single download
+            
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
         ## aggregated.

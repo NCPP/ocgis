@@ -537,10 +537,20 @@ class Geom(AttributedOcgParameter):
     _dtype = list
     
     def _format_(self,value):
-#        value = deepcopy(value)
-        if type(value) not in [list,tuple]:
-            value = [value]
-        return(value)
+        ## first try to format using the string. geometry names can be passed
+        ## this way.
+        try:
+            ret = self._format_string_(value)
+        except AttributeError:
+            try:
+                concat = '|'.join(map(str,value))
+                ret = self._format_string_(concat)
+            except:
+                if type(value) not in [list,tuple]:
+                    ret = [value]
+                else:
+                    ret = value
+        return(ret)
     
     def validate(self,value):
         for ii in value:
@@ -570,7 +580,7 @@ class Geom(AttributedOcgParameter):
                             (maxx,maxy),
                             (maxx,miny)))
             self._assert_(geom.is_valid)
-            ret = [{'id':1,'geom':geom}]
+            ret = [{'ugid':1,'geom':geom}]
         except ValueError:
             from ocgis.util.shp_cabinet import ShpCabinet
             sc = ShpCabinet()

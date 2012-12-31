@@ -7,7 +7,7 @@ from ocgis.exc import DefinitionValidationError
 #from nose.plugins.skip import SkipTest
 #raise SkipTest(__name__)
 
-class TestOperations(unittest.TestCase):
+class Test(unittest.TestCase):
     uris = ['/tmp/foo1.nc','/tmp/foo2.nc','/tmp/foo3.nc']
     vars = ['tasmin','tasmax','tas']
     time_range = [dt(2000,1,1),dt(2000,12,31)]
@@ -50,7 +50,18 @@ class TestOperations(unittest.TestCase):
         ops = OcgOperations(dataset=self.datasets[0])
         self.assertEqual(ops.time_range,[None])
         self.assertEqual(ops.level_range,[None])
-
+        
+    def test_geom_string(self):
+        ops = OcgOperations(dataset=self.datasets,geom='state_boundaries')
+        self.assertEqual(len(ops.geom),51)
+        ops.geom = None
+        self.assertEqual(ops.geom,[{'ugid': 1,'geom': None}])
+        ops.geom = 'mi_watersheds'
+        self.assertEqual(len(ops.geom),60)
+        ops.geom = '-120|40|-110|50'
+        self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
+        ops.geom = [-120,40,-110,50]
+        self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

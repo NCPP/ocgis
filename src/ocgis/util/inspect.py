@@ -62,10 +62,11 @@ class Inspect(object):
         res = self._s.resolution
         extent = self._s.extent().bounds
         itype = self._s.__class__.__name__
-        projection = self.ds.i.spatial.projection.__class__.__name__
+        projection = self.ds.i.spatial.projection
         
         lines = []
-        lines.append('Spatial Reference = {0}'.format(projection))
+        lines.append('Spatial Reference = {0}'.format(projection.__class__.__name__))
+        lines.append('     Proj4 String = {0}'.format(projection.sr.ExportToProj4()))
         lines.append('           Extent = {0}'.format(extent))
         lines.append('   Interface Type = {0}'.format(itype))
         lines.append('       Resolution = {0}'.format(res))

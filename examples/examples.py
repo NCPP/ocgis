@@ -24,7 +24,7 @@ ret = ops.execute()
 ## collection.
 ugeom = ret[1].ugeom
 
-## load a geometry from disk and access it's coordinates
+## load a selection geometry from disk.
 sc = ShpCabinet()
 geoms = sc.get_geoms('state_boundaries')
 ## load only a particular state

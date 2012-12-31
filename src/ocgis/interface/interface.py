@@ -6,7 +6,7 @@ import datetime
 from ocgis.util.helpers import iter_array, approx_resolution, vprint, contains,\
     append
 import numpy as np
-from ocgis.interface.projection import WGS84
+from ocgis.interface.projection import get_projection
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
@@ -32,7 +32,8 @@ class GlobalInterface(object):
         ## check for proj4 string to initialize a projection
         s_proj4 = overload.get('s_proj4')
         if s_proj4 is None:
-            projection = WGS84()
+            projection = get_projection(rootgrp)
+#            projection = WGS84()
         else:
             raise(NotImplementedError)
         

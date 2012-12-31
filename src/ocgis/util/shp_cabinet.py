@@ -6,6 +6,7 @@ import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
 import csv
+from ocgis.util.spatial.wrap import unwrap_geoms
 
 
 class ShpCabinet(object):
@@ -45,7 +46,7 @@ class ShpCabinet(object):
     def get_geom_dict(self,*args,**kwds):
         return(self.get_geoms(*args,**kwds))
     
-    def get_geoms(self,key,attr_filter=None):
+    def get_geoms(self,key,attr_filter=None,unwrap=False,pm=0.0):
         shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
@@ -62,7 +63,7 @@ class ShpCabinet(object):
         else:
             make_id = False
         other_attrs = config.get('mapping','attributes').split(',')
-        geom_dict = get_shp_as_multi(shp_path,
+        geoms = get_shp_as_multi(shp_path,
                                      uid_field=id_attr,
                                      attr_fields=other_attrs,
                                      make_id=make_id)
@@ -75,7 +76,7 @@ class ShpCabinet(object):
 #            if attr == 'ugid':
 #                attr = 'id'
             ## get the target attribute data type
-            dtype = type(geom_dict[0][attr])
+            dtype = type(geoms[0][attr])
             ## attempt to convert the filter values to that data type
             fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
             ## if the filter data type is a string, do a conversion
@@ -91,17 +92,25 @@ class ShpCabinet(object):
                     pass
                 if ref in fvalues: return(True)
             ## filter the geometry dictionary
-            geom_dict = filter(_filter_,geom_dict)
-        return(geom_dict)
+            geoms = filter(_filter_,geoms)
+            
+        ## unwrap the geometries if requested
+        if unwrap:
+            unwrap_geoms(geoms,pm)
+            
+        return(geoms)
     
-    def get_headers(self,geom_dict):
+    def get_headers(self,geoms):
         ret = ['ugid']
-        keys = geom_dict[0].keys()
-        for key in ['id','geom']:
+        keys = geoms[0].keys()
+        for key in ['ugid','id','geom']:
             try:
                 keys.remove(key)
             except ValueError:
-                keys.remove(key.upper())
+                try:
+                    keys.remove(key.upper())
+                except ValueError:
+                    pass
         keys.sort()
         ret += keys
         ret = [h.upper() for h in ret]
@@ -109,14 +118,11 @@ class ShpCabinet(object):
     
     def get_converter_iterator(self,geom_dict):
         for dct in geom_dict:
-            geom = dct.pop('geom')
+            dct_copy = dct.copy()
+            geom = dct_copy.pop('geom')
             if not isinstance(geom,MultiPolygon):
                 geom = MultiPolygon([geom])
-            try:
-                dct['ugid'] = dct.pop('id')
-            except KeyError:
-                dct['ugid'] = dct.pop('ID')
-            yield(dct,geom)
+            yield(dct_copy,geom)
             
     def write(self,geom_dict,path):
         from ocgis.conv.csv_ import OcgDialect

@@ -74,7 +74,7 @@ def unwrap_geoms(geoms,left_max_x_bound):
         adjust = False
         for polygon in it:
             coords = np.array(polygon.exterior.coords)
-            if np.any(coords[0,:] < lon_cutoff):
+            if np.any(coords[:,0] < lon_cutoff):
                 adjust = True
                 break
 

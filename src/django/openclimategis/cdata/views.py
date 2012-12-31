@@ -1,14 +1,13 @@
 from urlparse import parse_qs
 from django.http import HttpResponse
 from ocgis.util.inspect import Inspect
-from ocgis.util.helpers import get_temp_path
+from ocgis.util.helpers import get_temp_path, union_geoms
 from ocgis import env
 import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
 import os.path
 from ocgis.api.definition import SelectUgid, Prefix, Unwrap, PrimeMeridian
 from ocgis.util.spatial.wrap import unwrap_geoms
-from ocgis.util.spatial.union import union_geoms
 from util.parms import QueryParm
 from util.helpers import _get_interface_overload_
 

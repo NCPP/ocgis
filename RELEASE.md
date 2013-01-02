@@ -15,6 +15,7 @@
 1. NetCDF output for calculations not working.
 2. Multivariate calculations currently broken.
 3. Code optimization is behind the multi-dataset implementation.
+4. Datasets with projections currently require customizations.
 
 # Previous Release Notes #
 

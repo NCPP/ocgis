@@ -137,8 +137,8 @@ class HostetlerProjection(DatasetSpatialReference):
         try:
             var = dataset.variables['Lambert_Conformal']
             proj = ('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '
-                    '+lon_0={lon0} +x_0=0 +y_0=0 +datum=WGS84 +units=m '
-                    '+no_defs')
+                    '+lon_0={lon0} +x_0=0 +y_0=0 +datum=WGS84 '
+                    '+to_meter=1000.0 +no_defs')
             lat1,lat2 = var.standard_parallel[0],var.standard_parallel[1]
             lat0 = var.latitude_of_projection_origin
             lon0 = var.longitude_of_central_meridian

@@ -204,9 +204,3 @@ class ShpCabinet(object):
         for header in headers:
             ogr_fields.append(OgrField(fcache,header,type(self._get_(row,header))))
         return(ogr_fields)
-        
-        
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
-    print 'doctest success'

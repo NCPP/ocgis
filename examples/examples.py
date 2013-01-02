@@ -32,20 +32,3 @@ geoms = sc.get_geoms('state_boundaries',attr_filter={'state_name':['California']
 ## use california to subset
 ret = OcgOperations(dataset=DATASET,geom=geoms,spatial_operation='clip',
                     aggregate=True).execute()
-
-#env.WORKSPACE = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/image/agu_for_luca'
-#
-#sc = ShpCabinet()
-#gd = sc.get_geom_dict('state_boundaries')
-#
-#dataset = {'variable':'clt',
-#           'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc'}
-#
-#ops = OcgOperations(geom=gd,dataset=dataset,snippet=True,output_format='shp',agg_selection=True,vector_wrap=True)
-#ret1 = OcgInterpreter(ops).execute()
-#print ret1
-#
-#ops = OcgOperations(geom=gd,dataset=dataset,snippet=True,output_format='shp',
-#                    aggregate=True,spatial_operation='clip')
-#ret2 = OcgInterpreter(ops).execute()
-#print ret2

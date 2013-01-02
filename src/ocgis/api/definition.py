@@ -6,6 +6,7 @@ from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 import numpy as np
+from ocgis.exc import DefinitionValidationError
 
 
 class OcgParameter(object):
@@ -99,7 +100,10 @@ class OcgParameter(object):
         raise(NotImplementedError)
     
     def _assert_(self,test,msg=None):
-        assert(test)
+        try:
+            assert(test)
+        except AssertionError:
+            raise(DefinitionValidationError(self,msg))
     
     def _format_(self,value):
         return(value)
@@ -608,16 +612,42 @@ class Dataset(AttributedOcgParameter):
     _dtype = list
     
     def _format_(self,value):
-#        value = deepcopy(value)
         if type(value) not in [list,tuple]:
             value = [value]
         return(value)
     
     def validate(self,value):
         for ii in value:
-            self._assert_(type(ii) == dict,'meta list elements must be dicts')
-            self._assert_('uri' in ii,'a uri must be provided')
-            self._assert_('variable' in ii,'a variable must be provided')
+            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
+            self._assert_('uri' in ii,'A URI must be provided.')
+            self._assert_('variable' in ii,'A variable name must be provided.')
+            ## add alias key if not present.
+            if 'alias' not in ii:
+                ii['alias'] = None
+        ## check that variable names are unique. if not, then an alias must be
+        ## provided by the user.
+        def _test_(var_names,value):
+            assert(len(set(var_names)) == len(value))
+        var_names = [ii['variable'] for ii in value]
+        msg = ('Variable names must be unique. If variables with the same name '
+               'are requested from multiple datasets. Supply an "alias" '
+               'keyword to the dataset dictionaries such that the names and '
+               'aliases are unique.')
+        try:
+            _test_(var_names,value)
+        except AssertionError:
+            ## determine if alias names make the request unique.
+            var_names = []
+            for v in value:
+                if v['alias'] is None:
+                    var_names.append(v['variable'])
+                else:
+                    var_names.append(v['alias'])
+            try:
+                _test_(var_names,value)
+            except AssertionError:
+                raise(DefinitionValidationError(self,msg))
+        
     
     def message(self):
         lines = []

@@ -2,6 +2,8 @@ import unittest
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.api.operations import OcgOperations
 from itertools import izip
+from ocgis.exc import DefinitionValidationError
+import numpy as np
 
 
 class Test(unittest.TestCase):
@@ -78,12 +80,20 @@ class Test(unittest.TestCase):
             self.assertEqual(value.shape,(10,1,1,1))
             
     def test_same_variable_name(self):
-        ds = [self.cancm4,self.cancm4]
+        ds = [self.cancm4.copy(),self.cancm4.copy()]
+        
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=ds)
+        ds[0]['alias'] = 'foo'
+        ds[1]['alias'] = 'foo'
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=ds)
+        
+        ds = [self.cancm4.copy(),self.cancm4.copy()]
+        ds[0]['alias'] = 'foo_var'
         ops = OcgOperations(dataset=ds,snippet=True)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        self.assertEqual(ret[1].variables.keys(),['foo_var','tasmax'])
+        values = ret[1].variables.values()
+        self.assertTrue(np.all(values[0].value == values[1].value))
 
-
-if __name__ == "__main__":
-    import sys;sys.argv = ['', 'Test.test_calculation']
-    unittest.main()

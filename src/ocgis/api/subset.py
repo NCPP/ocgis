@@ -154,6 +154,8 @@ def get_collection((so,geom_dict)):
                             time_range=dataset['time_range'],
                             level_range=dataset['level_range'],
                             allow_empty=so.ops.allow_empty)
+        ## update the variable's alias
+        ocg_variable.alias = dataset['dataset']['alias']
         ## maintain the interface for use by nc converter
         ## TODO: i don't think this is required by other converters
         ocg_variable._i = ref.i

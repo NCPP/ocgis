@@ -13,14 +13,15 @@ from ocgis.exc import UniqueIdNotFound
 
 class OcgVariable(object):
     
-    def __init__(self,name,value,temporal,spatial,level=None,uri=None):
+    def __init__(self,name,value,temporal,spatial,level=None,uri=None,alias=None):
         assert(value.shape[0] == len(temporal.value))
         if len(value) > 0:
             if level is None:
                 assert(value.shape[1] == 1)
             assert(np.all(value.shape[2:] == spatial.value.shape))
         
-        self.name = name
+        self._name = name
+        self.alias = alias
         self.value = value
         self.temporal = temporal
         self.spatial = spatial
@@ -35,6 +36,14 @@ class OcgVariable(object):
         
         self._is_empty = False
         self._i = None
+        
+    @property
+    def name(self):
+        if self.alias is None:
+            ret = self._name
+        else:
+            ret = self.alias
+        return(ret)
         
     @classmethod
     def get_empty(cls,name,uri=None):

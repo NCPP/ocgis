@@ -5,14 +5,14 @@ from itertools import izip
 
 
 class Test(unittest.TestCase):
+    maurer = {'uri':'/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc','variable':'Prcp'}
+    cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
     
     @property
     def dataset(self):
-        maurer = {'uri':'/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc','variable':'Prcp'}
-        cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
         dataset = [
-                   maurer,
-                   cancm4
+                   self.maurer,
+                   self.cancm4
                    ]
         return(dataset)
     @property
@@ -76,6 +76,12 @@ class Test(unittest.TestCase):
         self.assertEquals(ref.keys(),['n','mean','std'])
         for value in ref.itervalues():
             self.assertEqual(value.shape,(10,1,1,1))
+            
+    def test_same_variable_name(self):
+        ds = [self.cancm4,self.cancm4]
+        ops = OcgOperations(dataset=ds,snippet=True)
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

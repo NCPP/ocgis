@@ -753,10 +753,6 @@ def identify_iterator_mode(ops):
     mode = 'raw'
     if ops.calc is not None:
         mode = 'calc'
-        for f in ops.calc:
-            if issubclass(f['ref'],OcgCvArgFunction):
-                mode = 'multi'
-                break
     ops.mode = mode
         
 if __name__ == '__main__':

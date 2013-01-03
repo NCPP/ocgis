@@ -48,6 +48,8 @@ class MeltedIterator(AbstractOcgIterator):
             ret += arch.temporal_group.groups
             ret += ['level','value']
             return(ret)
+        else:
+            raise(NotImplementedError)
     
     def _iter_rows_(self):
         for var in self.coll.variables.itervalues():

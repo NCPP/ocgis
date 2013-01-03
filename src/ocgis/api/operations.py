@@ -24,7 +24,7 @@ class OcgOperations(object):
     """
     
     def __init__(self,dataset=None,spatial_operation='intersects',geom=None,aggregate=False,
-                 time_range=None,level_range=None,calc=None,calc_grouping=['month','year'],
+                 time_range=None,level_range=None,calc=None,calc_grouping=None,
                  calc_raw=False,interface=None,snippet=False,backend='ocg',request_url=None,
                  prefix=None,output_format='numpy',output_grouping=None,agg_selection=False,
                  select_ugid=None,vector_wrap=True,allow_empty=False):

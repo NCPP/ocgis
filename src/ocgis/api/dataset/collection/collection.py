@@ -133,6 +133,8 @@ class OcgCollection(object):
         self.did = StringIdentifier() ## dataset (uri)
         ## variable storage
         self.variables = OrderedDict()
+        ## storage for multivariate calculations
+        self.calc_multi = OrderedDict()
         
     @property
     def geomtype(self):

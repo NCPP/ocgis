@@ -305,12 +305,12 @@ class CalcGrouping(AttributedOcgParameter):
     '''
     _name = 'calc_grouping'
     _nullable = True
-    _default = ['day','month','year']
+#    _default = ['day','month','year']
     _dtype = list
     
     def validate(self,value):
         for ii in value:
-            self._assert_(ii in ['day','month','year'])
+            self._assert_(ii in ['day','month','year','hour','minute','second'])
             
     def _format_(self,value):
         return(list(set(value)))
@@ -508,10 +508,12 @@ class Calc(AttributedOcgParameter):
     
     def validate(self,value):
         for ii in value:
-            self._assert_('func' in ii,('at least the function name is '
+            self._assert_('func' in ii,('The function name is '
                                         'required using the key "func"'))
             if ii['func'] != 'n':
-                self._assert_('name' in ii,'a custom function name is required.')
+                self._assert_('name' in ii,'A custom function name is required.')
+        names = [ii['name'] for ii in value]
+        self._assert_(len(set(names)) == len(names),'Function names must be unique.')
             
     def message(self):
         if self.value is None:

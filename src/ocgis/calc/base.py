@@ -98,11 +98,12 @@ class OcgFunction(object):
             fill[idx] = calc
         ## if data is calculated on raw values, but area-weighting is required
         ## aggregate the data using provided weights.
-        ret = self.aggregate(fill)
+        ret = self.aggregate_spatial(fill)
         return(ret)
     
-    def aggregate(self,fill):
+    def aggregate_spatial(self,fill):
         if self.agg:
+            ##TODO: possible speed-up with array operations
             aw = np.empty((fill.shape[0],fill.shape[1],1,1),dtype=fill.dtype)
             aw = np.ma.array(aw,mask=False)
             for tidx,lidx in itertools.product(range(fill.shape[0]),range(fill.shape[1])):
@@ -117,7 +118,7 @@ class OcgFunction(object):
         raise(NotImplementedError)
     
     @staticmethod
-    def _aggregate_(values,weights):
+    def _aggregate_spatial_(values,weights):
         return(np.ma.average(values,weights=weights))
     
     def _get_fill_(self,values):
@@ -153,14 +154,26 @@ class OcgCvArgFunction(OcgArgFunction):
         super(OcgCvArgFunction,self).__init__(values=kwds,groups=groups,agg=agg,weights=weights,kwds=kwds)
     
     def calculate(self):
-        arch = self.kwds[self.keys[0]]
-        fill = self._get_fill_(arch)
-        ## iterate over temporal groups and levels
-        for idx,group in enumerate(self.groups):
-            kwds = self._subset_kwds_(group,self.kwds)
-            fill[idx]= self._calculate_(**kwds)
-        ret = self.aggregate(fill)
+        if self.groups is None:
+            fill = self._calculate_(**self.kwds)
+        else:
+            arch = self.kwds[self.keys[0]]
+            fill = self._get_fill_(arch)
+            ## iterate over temporal groups and levels
+            for idx,group in enumerate(self.groups):
+                kwds = self._subset_kwds_(group,self.kwds)
+                calc = self._calculate_(**kwds)
+                calc = self.aggregate_temporal(calc)
+                fill[idx] = calc
+        ret = self.aggregate_spatial(fill)
         return(ret)
+    
+    def aggregate_temporal(self,values):
+        return(self._aggregate_temporal_(values))
+    
+    @staticmethod
+    def _aggregate_temporal_(values):
+        return(np.mean(values,axis=0))
     
     def _subset_kwds_(self,group,kwds):
         ret = {}

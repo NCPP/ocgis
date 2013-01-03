@@ -18,7 +18,7 @@ class SampleSize(OcgFunction):
         return(ret)
     
     @staticmethod
-    def _aggregate_(values,weights):
+    def _aggregate_spatial_(values,weights):
         return(np.ma.sum(values))
 
 
@@ -186,7 +186,5 @@ class HeatIndex(OcgCvArgFunction):
         
         hi = c1 + c2*tas + c3*rhs + c4*tas*rhs + c5*tas_sq + c6*rhs_sq + \
              c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
-        
-        hi = np.mean(hi,axis=0)
         
         return(hi)

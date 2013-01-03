@@ -133,8 +133,6 @@ class OcgCollection(object):
         self.did = StringIdentifier() ## dataset (uri)
         ## variable storage
         self.variables = OrderedDict()
-        ## storage for multivariate calculations
-        self.calc_multi = OrderedDict()
         
     @property
     def geomtype(self):
@@ -185,6 +183,16 @@ class OcgCollection(object):
         ## update collection identifiers
         self.vid.add(var.name)
         self.did.add(var.uri)
+        
+    def add_multivariate_calculation_variable(self,var):
+        ## check if the variable is already present. it is possible to request
+        ## variables from different datasets with the same name. do not want to
+        ## overwrite.
+        if var.name in self.variables:
+            raise(KeyError('variable is already present in the collection.'))
+        ## add the variable to storage
+        self.variables.update({var.name:var})
+        self.cid.add(var.name)
 
 
 class StringIdentifier(object):

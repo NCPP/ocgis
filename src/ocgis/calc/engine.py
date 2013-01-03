@@ -1,6 +1,7 @@
 from base import OcgFunctionTree, OcgCvArgFunction
 import library
 from ocgis.calc.library import SampleSize
+from ocgis.api.dataset.collection.collection import OcgVariable
 
 
 class OcgCalculationEngine(object):
@@ -60,13 +61,13 @@ class OcgCalculationEngine(object):
             for ocg_variable in coll.variables.itervalues():
                 ocg_variable.group(self.grouping)
         
-        ## flag used for sample size calculation for multivariate calculations
-        has_multi = False
+#        ## flag used for sample size calculation for multivariate calculations
+#        has_multi = False
         ## iterate over functions
         for f in self.funcs:
             ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction):
-                has_multi = True
+#                has_multi = True
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
                 kwds = f['kwds'].copy()
@@ -79,6 +80,7 @@ class OcgCalculationEngine(object):
                     value = self._get_value_(dref)
                     ## get the calculation groups and weights.
                     if ii == 0:
+                        arch = dref
                         weights = dref.spatial.weights
                         if self.grouping is None:
                             dgroups = None
@@ -90,8 +92,9 @@ class OcgCalculationEngine(object):
                 ref = f['ref'](agg=self.agg,groups=dgroups,kwds=kwds,weights=weights)
                 calc = ref.calculate()
                 ## store calculation value
-                coll.calc_multi[f['name']] = calc
-                coll.cid.add(f['name'])
+                var = OcgVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
+                var.temporal_group = arch.temporal_group
+                coll.add_multivariate_calculation_variable(var)
             else:
                 ## perform calculation on each variable
                 for var in coll.variables.itervalues():

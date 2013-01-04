@@ -2,8 +2,10 @@ from ocgis.api.dataset.collection.dimension import LevelDimension
 import numpy as np
 from ocgis.util.helpers import iter_array
 from ocgis.api.dataset.collection.collection import ArrayIdentifier,\
-    GeometryIdentifier
+    GeometryIdentifier, OcgMultivariateCalculationVariable
 from collections import deque
+from ocgis.exc import UniqueIdNotFound
+from numpy.ma.core import MaskedConstant
 
 
 class AbstractOcgIterator(object):
@@ -31,7 +33,10 @@ class AbstractOcgIterator(object):
         
     def iter_rows(self,*args,**kwds):
         ret = self._iter_rows_(*args,**kwds)
-        return(ret)
+        for row in ret:
+            if type(row['value']) == MaskedConstant:
+                row['value'] = None
+            yield(row)
     
     def _iter_rows_(self,*args,**kwds):
         raise(NotImplementedError)
@@ -53,11 +58,18 @@ class MeltedIterator(AbstractOcgIterator):
     
     def _iter_rows_(self):
         for var in self.coll.variables.itervalues():
-            row = {'vid':self.coll.vid.get(var.name),
-                   'did':self.coll.did.get(var.uri),
-                   'var_name':var.name,
-                   'uri':var.uri,
-                   'ugid':self.coll.ugeom['ugid']}
+            try:
+                row = {'vid':self.coll.vid.get(var.name),
+                       'did':self.coll.did.get(var.uri),
+                       'var_name':var.name,
+                       'uri':var.uri,
+                       'ugid':self.coll.ugeom['ugid']}
+            except UniqueIdNotFound:
+                row = {'vid':None,
+                       'did':None,
+                       'var_name':None,
+                       'uri':None,
+                       'ugid':self.coll.ugeom['ugid']}
             for value,row in self._iter_value_(var,row):
                 for gidx,geom in var.spatial:
                     row.update(geom)
@@ -72,9 +84,13 @@ class MeltedIterator(AbstractOcgIterator):
         if self.mode == 'raw':
             yield(var.value,row)
         elif self.mode == 'calc':
-            for calc_name,calc_value in var.calc_value.iteritems():
-                row.update({'cid':self.coll.cid.get(calc_name),'calc_name':calc_name})
-                yield(calc_value,row)
+            if type(var) == OcgMultivariateCalculationVariable:
+                row.update({'cid':self.coll.cid.get(var.name),'calc_name':var.name})
+                yield(var.value,row)
+            else:
+                for calc_name,calc_value in var.calc_value.iteritems():
+                    row.update({'cid':self.coll.cid.get(calc_name),'calc_name':calc_name})
+                    yield(calc_value,row)
         else:
             raise(NotImplementedError)
 
@@ -83,8 +99,12 @@ class MeltedIterator(AbstractOcgIterator):
             for row in var.temporal:
                 yield(row)
         elif self.mode == 'calc':
-            for row in var.temporal_group:
-                yield(row)
+            if var.temporal_group is None:
+                for row in var.temporal:
+                    yield(row)
+            else:
+                for row in var.temporal_group:
+                    yield(row)
         else:
             raise(NotImplementedError)
         

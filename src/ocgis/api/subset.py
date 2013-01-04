@@ -71,11 +71,14 @@ class SubsetOperation(object):
                     self.ops.time_range[i] = [ref.value[0],ref.value[0]]
                 ## if there are calculations, select the first time group
                 else:
-                    tgdim = TemporalDimension(ref.tid,ref.value,
-                                              bounds=ref.bounds).\
-                                              group(self.cengine.grouping)
-                    times = ref.value[tgdim.dgroups[0]]
-                    self.ops.time_range[i] = [times.min(),times.max()]
+                    if self.cengine.grouping is None:
+                        self.ops.time_range[i] = [ref.value[0],ref.value[0]]
+                    else:
+                        tgdim = TemporalDimension(ref.tid,ref.value,
+                                                  bounds=ref.bounds).\
+                                                  group(self.cengine.grouping)
+                        times = ref.value[tgdim.dgroups[0]]
+                        self.ops.time_range[i] = [times.min(),times.max()]
 
 #        ## set the spatial_interface
 #        self.spatial_interface = ods.i.spatial

@@ -1,7 +1,6 @@
-from base import OcgFunctionTree, OcgCvArgFunction
-import library
+from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
-from ocgis.api.dataset.collection.collection import OcgVariable
+from ocgis.api.dataset.collection.collection import OcgMultivariateCalculationVariable
 
 
 class OcgCalculationEngine(object):
@@ -92,7 +91,7 @@ class OcgCalculationEngine(object):
                 ref = f['ref'](agg=self.agg,groups=dgroups,kwds=kwds,weights=weights)
                 calc = ref.calculate()
                 ## store calculation value
-                var = OcgVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
+                var = OcgMultivariateCalculationVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
                 var.temporal_group = arch.temporal_group
                 coll.add_multivariate_calculation_variable(var)
             else:

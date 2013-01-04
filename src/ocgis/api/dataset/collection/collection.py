@@ -118,6 +118,10 @@ class OcgVariable(object):
             ## set maximum weight to one
             self.spatial.weights = weights/weights.max()
 
+
+class OcgMultivariateCalculationVariable(OcgVariable):
+    pass
+
    
 class OcgCollection(object):
     

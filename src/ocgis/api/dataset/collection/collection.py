@@ -138,6 +138,9 @@ class OcgCollection(object):
         ## variable storage
         self.variables = OrderedDict()
         
+        ## tell the keyed iterator if this should be used for geometry identifer
+        self._use_for_gid = False
+        
     @property
     def geomtype(self):
         types = np.array([var.spatial.geomtype for var in self.variables.itervalues()])
@@ -254,9 +257,12 @@ class ArrayIdentifier(StringIdentifier):
             template[1:] = value[idx,:]
             yield(template)
         
-    def add(self,values,uids):
+    def add(self,values,uids=None):
         values = np.array(values)
-        uids = np.array(uids)
+        if uids is None:
+            uids = np.arange(1,values.shape[0]+1,dtype=int)
+        else:
+            uids = np.array(uids)
         adds = np.zeros(values.shape[0],dtype=bool)
         for idx in range(adds.shape[0]):
             eq = (self.value == values[idx,:]).all(axis=1)

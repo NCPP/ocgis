@@ -9,12 +9,14 @@ import numpy as np
 class Test(unittest.TestCase):
     maurer = {'uri':'/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc','variable':'Prcp'}
     cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
+    tasmin = {'uri':'/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmin'}
+    albisccp = {'uri':'/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp'}
     
     @property
     def dataset(self):
         dataset = [
-                   self.maurer,
-                   self.cancm4
+                   self.maurer.copy(),
+                   self.cancm4.copy()
                    ]
         return(dataset)
     @property
@@ -39,7 +41,10 @@ class Test(unittest.TestCase):
         return(ret[25])
     
     def test_keyed(self):
-        ops = self.get_ops(kwds={'output_format':'keyed','geom':None})
+        ds = self.dataset
+        ds.append(self.albisccp.copy())
+        ds.append(self.tasmin.copy())
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed')
         ret = ops.execute()
         import ipdb;ipdb.set_trace()
     

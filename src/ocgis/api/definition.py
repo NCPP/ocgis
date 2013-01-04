@@ -650,6 +650,10 @@ class Dataset(AttributedOcgParameter):
             except AssertionError:
                 raise(DefinitionValidationError(self,msg))
         
+        ## set the alias to match variables
+        for ii in value:
+            if ii['alias'] is None:
+                ii['alias'] = ii['variable']
     
     def message(self):
         lines = []

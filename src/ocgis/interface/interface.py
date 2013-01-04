@@ -264,6 +264,14 @@ class AbstractSpatialInterface(object):
         self.is_360,self.pm = self._get_wrapping_()
         self.resolution = self._get_resolution_()
         
+        self._count = None
+        
+    @property
+    def count(self):
+        if self._count is None:
+            self._count = self.gid.shape[0]*self.gid.shape[1]
+        return(self._count)
+        
     def select(self,polygon=None):
         if polygon is None:
             return(self._get_all_geoms_())

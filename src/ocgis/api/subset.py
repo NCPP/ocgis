@@ -5,9 +5,11 @@ from ocgis.interface.interface import SpatialInterfacePolygon,\
     SpatialInterfacePoint
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
-from ocgis.api.dataset.collection.collection import OcgCollection
+from ocgis.api.dataset.collection.collection import OcgCollection,\
+    ArrayIdentifier
 from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
+import numpy as np
 
 
 class SubsetOperation(object):
@@ -30,15 +32,38 @@ class SubsetOperation(object):
         ## the interface objects again.
         uri_map = {}
         for dataset in self.ops.dataset:
-            key = dataset['variable'] + '_' + dataset['uri']
+            key = dataset['uri']
             if key in uri_map:
                 ods = uri_map[key]
             else:
                 ods = OcgDataset(dataset,interface_overload=self.ops.interface)
                 uri_map.update({key:ods})
             dataset.update({'ocg_dataset':ods})
+        
+        ## determine if spatial dimensions are equivalent. this is used only
+        ## for the keyed output which attempts to perform reductions to limit
+        ## output quantity.
+        if self.ops.output_format in ['keyed','nc']:
+            spatial_map = {}
+            spatial_id = ArrayIdentifier(6,dtype=float)
+            for check in self.ops.dataset:
+                ref = check['ocg_dataset'].i.spatial
+                add = np.empty((1,6),dtype=float)
+                add[0,0:4] = ref.extent().bounds
+                add[0,4] = ref.resolution
+                add[0,5] = ref.count
+                spatial_id.add(add)
+                spatial_map[check['alias']] = spatial_id.get(add)
+            for uid in spatial_id.uid:
+                for k,v in spatial_map.iteritems():
+                    if v == uid:
+                        for ds in self.ops.dataset:
+                            if ds['alias'] == k:
+                                ds['_use_for_gid'] = True
+                                break
+                        break
             
-        ## ensure they are all the same type of interfaces. raise an error
+        ## ensure they are all the same type of spatial interfaces. raise an error
         ## otherwise.
         types = [type(ods['ocg_dataset'].i.spatial) for ods in self.ops.dataset]
         if all([t == SpatialInterfacePolygon for t in types]):

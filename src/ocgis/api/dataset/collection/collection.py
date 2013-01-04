@@ -36,6 +36,8 @@ class OcgVariable(object):
         
         self._is_empty = False
         self._i = None
+        ## tell the keyed iterator if this should be used for geometry identifer
+        self._use_for_gid = False
         
     @property
     def name(self):
@@ -137,9 +139,6 @@ class OcgCollection(object):
         self.did = StringIdentifier() ## dataset (uri)
         ## variable storage
         self.variables = OrderedDict()
-        
-        ## tell the keyed iterator if this should be used for geometry identifer
-        self._use_for_gid = False
         
     @property
     def geomtype(self):

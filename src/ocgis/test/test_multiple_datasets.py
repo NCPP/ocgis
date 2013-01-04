@@ -38,6 +38,11 @@ class Test(unittest.TestCase):
         ret = ops.execute()
         return(ret[25])
     
+    def test_keyed(self):
+        ops = self.get_ops(kwds={'output_format':'keyed','geom':None})
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
+    
     def test_default(self):
         ops = self.get_ops()
         ret = ops.execute()

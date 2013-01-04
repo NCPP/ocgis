@@ -301,24 +301,28 @@ class GeometryIdentifier(ArrayIdentifier):
         self.ugid = None
         self.value = None
         
-    def add(self,values,uids,ugid):
+    def add(self,values,uids,ugid,check_unique=False):
         if self.uid is None:
             self.value = values
             self.uid = uids
             self.ugid = np.repeat(ugid,self.uid.shape[0])
         else:
-            adds = np.zeros(values.shape[0],dtype=bool)
-            equals = self._equals_
-            for idx in range(adds.shape[0]):
-                eq = equals(values[idx],ugid)
-                if not eq.any():
-                    adds[idx] = True
+            if check_unique:
+                adds = np.zeros(values.shape[0],dtype=bool)
+                equals = self._equals_
+                for idx in range(adds.shape[0]):
+                    eq = equals(values[idx],ugid)
+                    if not eq.any():
+                        adds[idx] = True
+            else:
+                adds = np.ones(values.shape[0],dtype=bool)
             if adds.any():
                 uid_adds = uids[adds]
                 self.value = np.concatenate((self.value,values[adds]))
                 self.uid = np.concatenate((self.uid,uid_adds))
                 self.ugid = np.concatenate((self.ugid,np.repeat(ugid,uid_adds.shape[0])))
-        self._update_()
+        if check_unique:
+            self._update_()
 
     def get(self,value,ugid):
         idx = self._equals_(value,ugid)

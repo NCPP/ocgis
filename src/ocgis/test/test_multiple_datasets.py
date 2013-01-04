@@ -45,16 +45,15 @@ class Test(unittest.TestCase):
         ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())
         
-#        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
-#        ret = ops.execute()
-#        gid_flags = [ret[25].variables[var]._use_for_gid for var in ['tasmax','tasmin']]
-#        self.assertEqual(np.sum(gid_flags),1)
-#        for key in ['albisccp','Prcp']:
-#            self.assertTrue(ret[25].variables[key]._use_for_gid)
-            
-        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed')
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        gid_flags = [ret[25].variables[var]._use_for_gid for var in ['tasmax','tasmin']]
+        self.assertEqual(np.sum(gid_flags),1)
+        for key in ['albisccp','Prcp']:
+            self.assertTrue(ret[25].variables[key]._use_for_gid)
+            
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=True)
+        ret = ops.execute()
     
     def test_default(self):
         ops = self.get_ops()
@@ -114,4 +113,3 @@ class Test(unittest.TestCase):
         self.assertEqual(ret[1].variables.keys(),['foo_var','tasmax'])
         values = ret[1].variables.values()
         self.assertTrue(np.all(values[0].value == values[1].value))
-

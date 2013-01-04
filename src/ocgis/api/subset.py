@@ -46,7 +46,7 @@ class SubsetOperation(object):
         elif all([t == SpatialInterfacePoint for t in types]):
             self.itype = SpatialInterfacePoint
         else:
-            raise(ValueError('input datasets must have same geometries. perhaps overload "s_abstraction"?'))
+            raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
 
         ## create the calculation engine
         if self.ops.calc is None:

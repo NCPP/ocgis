@@ -10,6 +10,8 @@ from ocgis.api.dataset.collection.collection import OcgCollection,\
 from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
 import numpy as np
+from ocgis.api.dataset.mappers import EqualSpatialDimensionMapper,\
+    EqualTemporalDimensionMapper
 
 
 class SubsetOperation(object):
@@ -40,54 +42,12 @@ class SubsetOperation(object):
                 uri_map.update({key:ods})
             dataset.update({'ocg_dataset':ods})
         
-        ## determine if spatial dimensions are equivalent. this is used only
-        ## for the keyed output which attempts to perform reductions to limit
-        ## output quantity.
+        ## determine if dimensions are equivalent.
+        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper]
+        for mapper in mappers:
+            mapper(self.ops.dataset)
         
-        class EqualSpatialDimensionMapper(object):
-            _ncol = 6
-            _dtype = float
-            _key = 'gid'
-            _id_key = '_use_for_id'
-            
-            def __init__(self):
-                self.map = {}
-                self.id = self.get_identifier()
-                
-            def update(self,iface,alias):
-                self.map[alias] = self.get_id(iface)
-                
-            def reduce(self,datasets):
-                for uid in self.id.uid:
-                    for k,v in self.map.iteritems():
-                        if v == uid:
-                            for ds in datasets:
-                                if ds['alias'] == k:
-                                    if not self._id_key in ds:
-                                        ds[self._id_key] = []
-                                    ds[self._id_key].append(self._key)
-                                    break
-                            break
-                
-            def get_identifier(self):
-                return(ArrayIdentifier(self._ncol,dtype=self._dtype))
-            
-            def get_add(self,iface):
-                add = self.get_empty()
-                add[0,0:4] = iface.extent().bounds
-                add[0,4] = iface.resolution
-                add[0,5] = iface.count
-                return(add)
-            
-            def get_id(self,iface):
-                add = self.get_add(iface)
-                self.id.add(add)
-                return(self.id.get(add))
-                
-            def get_empty(self):
-                return(np.empty((1,self._ncol),dtype=float))
-        
-        spatial_mapper = EqualSpatialDimensionMapper()
+        import ipdb;ipdb.set_trace()
         for dataset in self.ops.dataset:
             spatial_mapper.update(dataset['ocg_dataset'].i.spatial,
                                   dataset['alias'])

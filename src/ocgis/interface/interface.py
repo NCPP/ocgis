@@ -168,6 +168,7 @@ class TemporalInterface(AbstractInterface):
         
         self.timeidx = np.arange(0,len(self.value))
         self.tid = np.arange(1,len(self.value)+1)
+        self.resolution = self.get_approx_res_days()
                 
     def _format_value_(self):
         ret = nc.num2date(self._ref_var[:],self.units,self.calendar)

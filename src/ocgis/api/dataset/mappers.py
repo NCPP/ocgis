@@ -1,5 +1,6 @@
 from ocgis.api.dataset.collection.collection import ArrayIdentifier
 import numpy as np
+from ocgis.exc import DummyLevelEncountered
 
 
 class EqualSpatialDimensionMapper(object):
@@ -19,7 +20,10 @@ class EqualSpatialDimensionMapper(object):
     def update(self):
         for ds in self.datasets:
             iface = getattr(ds['ocg_dataset'].i,self._iface_name)
-            self.map[ds['alias']] = self.get_id(iface)
+            try:
+                self.map[ds['alias']] = self.get_id(iface)
+            except DummyLevelEncountered:
+                pass
         
     def reduce(self):
         for uid in self.id.uid:
@@ -66,3 +70,20 @@ class EqualTemporalDimensionMapper(EqualSpatialDimensionMapper):
         add[0,3] = iface.tid.shape[0]
         add[0,4:6] = [iface.value.min(),iface.value.max()]
         return(add)
+    
+    
+class EqualLevelDimensionMapper(EqualSpatialDimensionMapper):
+    _ncol = 4
+    _dtype = float
+    _key = 'lid'
+    _iface_name = 'level'
+    
+    def get_add(self,iface):
+        if iface is None:
+            raise(DummyLevelEncountered)
+        else:            
+            add = self.get_empty()
+            add[0,0] = iface.lid.shape[0]
+            add[0,1:3] = [iface.value.min(),iface.value.max()]
+            add[0,3] = iface.value.sum()
+            return(add)

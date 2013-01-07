@@ -11,7 +11,7 @@ from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
 import numpy as np
 from ocgis.api.dataset.mappers import EqualSpatialDimensionMapper,\
-    EqualTemporalDimensionMapper
+    EqualTemporalDimensionMapper, EqualLevelDimensionMapper
 
 
 class SubsetOperation(object):
@@ -43,7 +43,7 @@ class SubsetOperation(object):
             dataset.update({'ocg_dataset':ods})
         
         ## determine if dimensions are equivalent.
-        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper]
+        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
         for mapper in mappers:
             mapper(self.ops.dataset)
             

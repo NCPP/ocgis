@@ -31,6 +31,10 @@ class UniqueIdNotFound(OcgException):
     def __str__(self):
         return('No unique ids found.')
     
+    
+class DummyLevelEncountered(OcgException):
+    pass
+    
 
 class SubsetException(OcgException):
     pass

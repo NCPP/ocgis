@@ -116,17 +116,24 @@ class OcgDataset(object):
             raise(IndexError('time range returned no data.'))
 
         ## convert the level indices
-        levelidx = self.i.level.levelidx
-        if ndim == 4:
-            if level_range is not None:
-                level_range = np.array([ii-1 for ii in level_range])
-                levelidx = sub_range(level_range)
-        else:
-            if level_range is not None:
-                if len(set(level_range)) == 1 and level_range[0] == 1:
-                    level_range = None
-                else:
-                    raise IndexError('target variable has no levels.')
+        try:
+            levelidx = self.i.level.levelidx
+            if ndim == 4:
+                if level_range is not None:
+                    level_range = np.array([ii-1 for ii in level_range])
+                    levelidx = sub_range(level_range)
+            else:
+                if level_range is not None:
+                    if len(set(level_range)) == 1 and level_range[0] == 1:
+                        level_range = None
+                    else:
+                        raise IndexError('target variable has no levels.')
+        except AttributeError:
+            if self.i.level is None:
+                pass
+            else:
+                raise
+
             
         ## extract the data ####################################################
         
@@ -189,7 +196,8 @@ class OcgDataset(object):
                                        timevec_bounds)
         
         if self.i.level is None:
-            d_level = LevelDimension()
+            d_level = None
+#            d_level = LevelDimension(is_dummy=True)
         else:
             if self.i.level.bounds is None:
                 levelvec_bounds = None

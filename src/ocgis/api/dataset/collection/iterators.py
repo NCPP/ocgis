@@ -125,7 +125,8 @@ class KeyedIterator(AbstractOcgIterator):
 #        self.tgid = ArrayIdentifier(9)
         self.tid = DequeIdentifier()
         self.tgid = DequeIdentifier()
-        self.lid = ArrayIdentifier(3)
+        self.lid = DequeIdentifier()
+#        self.lid = ArrayIdentifier(3)
         self.gid = GeometryIdentifier()
         self.ugid = deque()
 #        self.ugid_gid = Identifier(int,2)
@@ -154,7 +155,11 @@ class KeyedIterator(AbstractOcgIterator):
                     cid = None
                     tid = var.temporal.uid[tidx]
 #                    tid = self.tid.get(var.temporal.value[tidx])
-                lid = self.lid.get(var.level.value[lidx])
+#                lid = self.lid.get(var.level.value[lidx])
+                if var.level is None:
+                    lid = None
+                else:
+                    lid = var.level.uid[lidx]
                 gid = var.spatial.uid[gidx0,gidx1]
 #                gid = self.gid.get(var.spatial._value[gidx0,gidx1],ugid)
                 yld = {'did':did,'vid':vid,'tid':tid,'lid':lid,'gid':gid,
@@ -191,6 +196,8 @@ class KeyedIterator(AbstractOcgIterator):
                 self.gid.add(var.spatial.value.compressed(),
                              var.spatial.uid.compressed(),
                              coll.ugeom['ugid'])
+            if 'lid' in var._use_for_id:
+                self.lid.add(var.level.value,var.level.uid)
 #            self.tid.add(var.temporal.value,var.temporal.uid)
             if var.temporal_group is not None:
                 import ipdb;ipdb.set_trace()
@@ -199,7 +206,7 @@ class KeyedIterator(AbstractOcgIterator):
                 init_vals[:,-2:] = var.temporal_group.bounds
                 init_vals[:,0:-2] = var.temporal_group.value
                 self.tgid.add(init_vals,var.temporal_group.uid)
-            self.lid.add(var.level.value,var.level.uid)
+#            self.lid.add(var.level.value,var.level.uid)
 #            if var._use_for_gid:
 #                self.gid.add(var.spatial.value.compressed(),
 #                             var.spatial.uid.compressed(),

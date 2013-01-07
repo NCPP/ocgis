@@ -10,6 +10,7 @@ from ocgis.interface.projection import get_projection
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
+from ocgis.exc import DummyLevelEncountered
 
 
 class GlobalInterface(object):
@@ -19,7 +20,7 @@ class GlobalInterface(object):
         self._meta = NcMetadata(rootgrp)
         self._dim_map = self._get_dimension_map_(rootgrp)
         
-        interfaces = [TemporalInterface,LevelInterface,RowInterface,ColumnInterface]
+        interfaces = [LevelInterface,TemporalInterface,RowInterface,ColumnInterface]
         for interface in interfaces:
             try:
                 argspec = inspect.getargspec(interface.__init__)
@@ -27,7 +28,10 @@ class GlobalInterface(object):
                 kwds = dict(zip(overloads,[overload.get(o) for o in overloads]))
             except TypeError:
                 kwds = {}
-            setattr(self,interface._name,interface(self,**kwds))
+            try:
+                setattr(self,interface._name,interface(self,**kwds))
+            except DummyLevelEncountered:
+                setattr(self,interface._name,None)
         
         ## check for proj4 string to initialize a projection
         s_proj4 = overload.get('s_proj4')
@@ -115,8 +119,11 @@ class AbstractInterface(object):
             self._ref_var = self._ref.get('variable')
             self._ref_bnds = self._ref.get('bounds')
         else:
-            self._ref_var = None
-            self._ref_bnds = None
+            if type(self) == LevelInterface:
+                raise(DummyLevelEncountered)
+            else:
+                self._ref_var = None
+                self._ref_bnds = None
         
         try:
             self.name = self._ref_var._name

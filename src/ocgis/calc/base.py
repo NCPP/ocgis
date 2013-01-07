@@ -107,7 +107,7 @@ class OcgFunction(object):
             aw = np.empty((fill.shape[0],fill.shape[1],1,1),dtype=fill.dtype)
             aw = np.ma.array(aw,mask=False)
             for tidx,lidx in itertools.product(range(fill.shape[0]),range(fill.shape[1])):
-                aw[tidx,lidx,:] = self._aggregate_(fill[tidx,lidx,:],self.weights)
+                aw[tidx,lidx,:] = self._aggregate_spatial_(fill[tidx,lidx,:],self.weights)
             ret = aw
         else:
             ret = fill

@@ -46,13 +46,20 @@ class Test(unittest.TestCase):
     def test_HeatIndex_keyed_output(self):
         ds = [self.tasmax,self.rhsmax]
         calc = {'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}
-#        time_range = [dt(2011,1,1),dt(2011,12,31)]
-        ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='keyed')
+        ops = OcgOperations(dataset=ds,calc=calc,snippet=False,output_format='numpy')
         self.assertEqual(ops.calc_grouping,None)
         ret = ops.execute()
-#        it = KeyedIterator(ret[1],mode='calc')
-#        for row in it.iter_rows(ret[1]):
-#            import ipdb;ipdb.set_trace()
+        it = KeyedIterator(ret[1],mode='calc')
+        for ii,row in enumerate(it.iter_rows(ret[1])):
+            if ii < 1000:
+                self.assertEqual(row['cid'],1)
+                self.assertEqual(row['tgid'],None)
+                self.assertNotEqual(row['tid'],None)
+            else:
+                break
+            
+        ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='keyed')
+        ops.execute()
 
     def test_Mean(self):
         agg = True

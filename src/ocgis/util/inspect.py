@@ -75,7 +75,7 @@ class Inspect(object):
         return(lines)
     
     def get_level_report(self):
-        if self._l.is_dummy:
+        if self._l is None:
             lines = ['No level dimension found.']
         else:
             lines = []

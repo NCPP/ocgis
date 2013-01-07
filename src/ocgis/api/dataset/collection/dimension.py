@@ -184,7 +184,7 @@ class TemporalDimension(OcgDimension):
         select = select[keep_select,:]
         assert(len(dgroups) == select.shape[0])
         
-        new_value = np.empty((len(dgroups),len(date_parts)),dtype=int)
+        new_value = np.empty((len(dgroups),len(date_parts)),dtype=object)
         new_bounds = np.empty((len(dgroups),2),dtype=object)
 
         for idx,dgrp in enumerate(dgroups):

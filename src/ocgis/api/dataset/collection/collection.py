@@ -251,7 +251,8 @@ class DequeIdentifier(object):
     def __iter__(self):
         for u,v in itertools.izip(self.uid,self.value):
             for idx in range(len(u)):
-                yield(u[idx],v[idx][0],v[idx][1],v[idx][2])
+                yld = [u[idx]] + v[idx,:].tolist()
+                yield(yld)
         
     def add(self,values,uids):
         self.value.append(values)

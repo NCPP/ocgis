@@ -88,9 +88,9 @@ class Test(unittest.TestCase):
         uids = np.arange(1,len(polygons)+1)
         ugid = 1
         oid = GeometryIdentifier()
-        oid.add(polygons,uids,ugid)
+        oid.add(polygons,uids,ugid,check_unique=True)
         _test_shapes_(oid)
-        oid.add(polygons,uids,ugid)
+        oid.add(polygons,uids,ugid,check_unique=True)
         _test_shapes_(oid)
         self.assertEqual(len(oid),4)
         

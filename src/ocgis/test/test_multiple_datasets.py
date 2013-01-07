@@ -46,15 +46,15 @@ class Test(unittest.TestCase):
         ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())
         
-#        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
-#        ret = ops.execute()
-#        ref = ret[25].variables
-#        self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
-#        self.assertEqual(ref['tasmin']._use_for_id,[])
-#        for key in ['albisccp','Prcp']:
-#            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
+        ret = ops.execute()
+        ref = ret[25].variables
+        self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
+        self.assertEqual(ref['tasmin']._use_for_id,[])
+        for key in ['albisccp','Prcp']:
+            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
         
-        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=False)
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=True)
         ret = ops.execute()
     
     def test_default(self):

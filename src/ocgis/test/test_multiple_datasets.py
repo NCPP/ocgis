@@ -4,6 +4,7 @@ from ocgis.api.operations import OcgOperations
 from itertools import izip
 from ocgis.exc import DefinitionValidationError
 import numpy as np
+from copy import deepcopy
 
 
 class Test(unittest.TestCase):
@@ -45,15 +46,15 @@ class Test(unittest.TestCase):
         ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())
         
-        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
-        ret = ops.execute()
-        ref = ret[25].variables
-        self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
-        self.assertEqual(ref['tasmin']._use_for_id,[])
-        for key in ['albisccp','Prcp']:
-            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
-            
-        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=True)
+#        ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
+#        ret = ops.execute()
+#        ref = ret[25].variables
+#        self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
+#        self.assertEqual(ref['tasmin']._use_for_id,[])
+#        for key in ['albisccp','Prcp']:
+#            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
+        
+        ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=False)
         ret = ops.execute()
     
     def test_default(self):

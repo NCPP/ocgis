@@ -6,6 +6,7 @@ from ocgis.api.dataset.collection.collection import ArrayIdentifier,\
 from collections import deque
 from ocgis.exc import UniqueIdNotFound
 from numpy.ma.core import MaskedConstant
+import itertools
 
 
 class AbstractOcgIterator(object):
@@ -181,7 +182,7 @@ class KeyedIterator(AbstractOcgIterator):
             import ipdb;ipdb.set_trace()
         else:
             for gidx0,gidx1 in iter_array(var.spatial.value):
-                for tidx,lidx in zip(range(var.value.shape[0]),range(var.value.shape[1])):
+                for tidx,lidx in itertools.product(range(var.value.shape[0]),range(var.value.shape[1])):
                     value = var.value[tidx,lidx,gidx0,gidx1]
                     yield(tidx,lidx,gidx0,gidx1,value,None,None)
 #            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):

@@ -47,10 +47,11 @@ class Test(unittest.TestCase):
         
         ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
         ret = ops.execute()
-        gid_flags = [ret[25].variables[var]._use_for_gid for var in ['tasmax','tasmin']]
-        self.assertEqual(np.sum(gid_flags),1)
+        ref = ret[25].variables
+        self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
+        self.assertEqual(ref['tasmin']._use_for_id,[])
         for key in ['albisccp','Prcp']:
-            self.assertTrue(ret[25].variables[key]._use_for_gid)
+            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
             
         ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=True)
         ret = ops.execute()

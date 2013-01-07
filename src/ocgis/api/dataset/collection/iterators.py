@@ -2,7 +2,7 @@ from ocgis.api.dataset.collection.dimension import LevelDimension
 import numpy as np
 from ocgis.util.helpers import iter_array
 from ocgis.api.dataset.collection.collection import ArrayIdentifier,\
-    GeometryIdentifier, OcgMultivariateCalculationVariable
+    GeometryIdentifier, OcgMultivariateCalculationVariable, DequeIdentifier
 from collections import deque
 from ocgis.exc import UniqueIdNotFound
 from numpy.ma.core import MaskedConstant
@@ -121,8 +121,10 @@ class KeyedIterator(AbstractOcgIterator):
     def __init__(self,*args,**kwds):
         super(self.__class__,self).__init__(*args,**kwds)
         
-        self.tid = ArrayIdentifier(3)
-        self.tgid = ArrayIdentifier(9)
+#        self.tid = ArrayIdentifier(3)
+#        self.tgid = ArrayIdentifier(9)
+        self.tid = DequeIdentifier()
+        self.tgid = DequeIdentifier()
         self.lid = ArrayIdentifier(3)
         self.gid = GeometryIdentifier()
         self.ugid = deque()
@@ -150,7 +152,8 @@ class KeyedIterator(AbstractOcgIterator):
                     tid = None
                 else:
                     cid = None
-                    tid = self.tid.get(var.temporal.value[tidx])
+                    tid = var.temporal.uid[tidx]
+#                    tid = self.tid.get(var.temporal.value[tidx])
                 lid = self.lid.get(var.level.value[lidx])
                 gid = var.spatial.uid[gidx0,gidx1]
 #                gid = self.gid.get(var.spatial._value[gidx0,gidx1],ugid)
@@ -161,6 +164,7 @@ class KeyedIterator(AbstractOcgIterator):
     def _iter_value_(self,var):
         ## TODO: optimize
         if len(var.calc_value) > 0:
+            import ipdb;ipdb.set_trace()
             for k,v in var.calc_value.iteritems():
                 for (tidx,lidx,gidx0,gidx1),value in iter_array(v,return_value=True):
                     to_get = np.empty((1,var.temporal_group.value.shape[1]+2),dtype=object)
@@ -171,24 +175,35 @@ class KeyedIterator(AbstractOcgIterator):
         elif type(var) == OcgMultivariateCalculationVariable:
             import ipdb;ipdb.set_trace()
         else:
-            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
-                yield(tidx,lidx,gidx0,gidx1,value,None,None)
+            for gidx0,gidx1 in iter_array(var.spatial.value):
+                for tidx,lidx in zip(range(var.value.shape[0]),range(var.value.shape[1])):
+                    value = var.value[tidx,lidx,gidx0,gidx1]
+                    yield(tidx,lidx,gidx0,gidx1,value,None,None)
+#            for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
+#                yield(tidx,lidx,gidx0,gidx1,value,None,None)
         
     def _add_collection_(self,coll):
         self.ugid.append(coll.ugeom['ugid'])
         for var in coll.variables.itervalues():
-            self.tid.add(var.temporal.value,var.temporal.uid)
+            if 'tid' in var._use_for_id:
+                self.tid.add(var.temporal.value,var.temporal.uid)
+            if 'gid' in var._use_for_id:
+                self.gid.add(var.spatial.value.compressed(),
+                             var.spatial.uid.compressed(),
+                             coll.ugeom['ugid'])
+#            self.tid.add(var.temporal.value,var.temporal.uid)
             if var.temporal_group is not None:
+                import ipdb;ipdb.set_trace()
                 init_vals = np.empty((var.temporal_group.value.shape[0],
                                       var.temporal_group.value.shape[1]+2),dtype=object)
                 init_vals[:,-2:] = var.temporal_group.bounds
                 init_vals[:,0:-2] = var.temporal_group.value
                 self.tgid.add(init_vals,var.temporal_group.uid)
             self.lid.add(var.level.value,var.level.uid)
-            if var._use_for_gid:
-                self.gid.add(var.spatial.value.compressed(),
-                             var.spatial.uid.compressed(),
-                             coll.ugeom['ugid'])
+#            if var._use_for_gid:
+#                self.gid.add(var.spatial.value.compressed(),
+#                             var.spatial.uid.compressed(),
+#                             coll.ugeom['ugid'])
     
     def get_request_iters(self):
         ret = {}

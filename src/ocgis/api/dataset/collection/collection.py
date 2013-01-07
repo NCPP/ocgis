@@ -9,6 +9,8 @@ from shapely.ops import cascaded_union
 from shapely import prepared
 from ocgis.util.helpers import iter_array, keep
 from ocgis.exc import UniqueIdNotFound
+from collections import deque
+import itertools
 
 
 class OcgVariable(object):
@@ -36,8 +38,8 @@ class OcgVariable(object):
         
         self._is_empty = False
         self._i = None
-        ## tell the keyed iterator if this should be used for geometry identifer
-        self._use_for_gid = False
+        ## tell the keyed iterator which ids should be pulled
+        self._use_for_id = []
         
     @property
     def name(self):
@@ -238,7 +240,23 @@ class StringIdentifier(object):
         ret = np.arange(self._curr,self._curr+n,dtype=int)
         self._curr = self._curr + n
         return(ret)
+
+
+class DequeIdentifier(object):
     
+    def __init__(self):
+        self.uid = deque()
+        self.value = deque()
+        
+    def __iter__(self):
+        for u,v in itertools.izip(self.uid,self.value):
+            for idx in range(len(u)):
+                yield(u[idx],v[idx][0],v[idx][1],v[idx][2])
+        
+    def add(self,values,uids):
+        self.value.append(values)
+        self.uid.append(uids)
+
  
 class ArrayIdentifier(StringIdentifier):
     

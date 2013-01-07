@@ -46,32 +46,6 @@ class SubsetOperation(object):
         mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper]
         for mapper in mappers:
             mapper(self.ops.dataset)
-        
-        import ipdb;ipdb.set_trace()
-        for dataset in self.ops.dataset:
-            spatial_mapper.update(dataset['ocg_dataset'].i.spatial,
-                                  dataset['alias'])
-        spatial_mapper.reduce(self.ops.dataset)
-        import ipdb;ipdb.set_trace()
-        
-        spatial_map = {}
-        spatial_id = ArrayIdentifier(6,dtype=float)
-        for check in self.ops.dataset:
-            ref = check['ocg_dataset'].i.spatial
-            add = np.empty((1,6),dtype=float)
-            add[0,0:4] = ref.extent().bounds
-            add[0,4] = ref.resolution
-            add[0,5] = ref.count
-            spatial_id.add(add)
-            spatial_map[check['alias']] = spatial_id.get(add)
-        for uid in spatial_id.uid:
-            for k,v in spatial_map.iteritems():
-                if v == uid:
-                    for ds in self.ops.dataset:
-                        if ds['alias'] == k:
-                            ds['_use_for_gid'] = True
-                            break
-                    break
             
         ## ensure they are all the same type of spatial interfaces. raise an error
         ## otherwise.
@@ -192,8 +166,8 @@ def get_collection((so,geom_dict)):
                             time_range=dataset['time_range'],
                             level_range=dataset['level_range'],
                             allow_empty=so.ops.allow_empty)
-        ## tell the keyed iterator if this should be used for gid.
-        ocg_variable._use_for_gid = dataset['dataset'].get('_use_for_gid',False)
+        ## tell the keyed iterator if this should be used for identifiers.
+        ocg_variable._use_for_id = dataset['dataset'].get('_use_for_id',[])
         ## update the variable's alias
         ocg_variable.alias = dataset['dataset']['alias']
         ## maintain the interface for use by nc converter

@@ -138,8 +138,12 @@ class KeyedIterator(AbstractOcgIterator):
         self._add_collection_(coll)
         ugid = coll.ugeom['ugid']
         for var in coll.variables.itervalues():
-            did = coll.did.get(var.uri)
-            vid = coll.vid.get(var.name)
+            try:
+                did = coll.did.get(var.uri)
+                vid = coll.vid.get(var.name)
+            except UniqueIdNotFound:
+                did = None
+                vid = None
             for tidx,lidx,gidx0,gidx1,value,calc_name,tgid in self._iter_value_(var):       
                 if calc_name is not None:
                     cid = coll.cid.get(calc_name)
@@ -164,6 +168,8 @@ class KeyedIterator(AbstractOcgIterator):
                     to_get[:,-2:] = var.temporal_group.bounds[tidx,:]
                     tgid = self.tgid.get(to_get)
                     yield(tidx,lidx,gidx0,gidx1,value,k,tgid)
+        elif type(var) == OcgMultivariateCalculationVariable:
+            import ipdb;ipdb.set_trace()
         else:
             for (tidx,lidx,gidx0,gidx1),value in iter_array(var.value,return_value=True):
                 yield(tidx,lidx,gidx0,gidx1,value,None,None)

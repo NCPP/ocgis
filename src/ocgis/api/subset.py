@@ -43,6 +43,18 @@ class SubsetOperation(object):
         ## determine if spatial dimensions are equivalent. this is used only
         ## for the keyed output which attempts to perform reductions to limit
         ## output quantity.
+        
+        class EqualSpatialDimensionMapper(object):
+            _ncol = 6
+            _dtype = float
+            
+            def __init__(self):
+                self.map = {}
+                self.id = self.get_identifier()
+                
+            def get_identifier(self):
+                return(ArrayIdentifier(self._ncol,dtype=self._dtype))
+        
         spatial_map = {}
         spatial_id = ArrayIdentifier(6,dtype=float)
         for check in self.ops.dataset:

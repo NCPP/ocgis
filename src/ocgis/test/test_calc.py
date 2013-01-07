@@ -4,7 +4,7 @@ from ocgis.calc import library
 from ocgis.api.operations import OcgOperations
 from nose.plugins.skip import SkipTest
 from datetime import datetime as dt
-from ocgis.api.dataset.collection.iterators import MeltedIterator
+from ocgis.api.dataset.collection.iterators import MeltedIterator, KeyedIterator
 
 
 class Test(unittest.TestCase):
@@ -46,11 +46,13 @@ class Test(unittest.TestCase):
     def test_HeatIndex_keyed_output(self):
         ds = [self.tasmax,self.rhsmax]
         calc = {'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}
-        time_range = [dt(2011,1,1),dt(2011,12,31)]
-        ops = OcgOperations(dataset=ds,calc=calc,time_range=time_range,output_format='keyed')
+#        time_range = [dt(2011,1,1),dt(2011,12,31)]
+        ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='keyed')
         self.assertEqual(ops.calc_grouping,None)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+#        it = KeyedIterator(ret[1],mode='calc')
+#        for row in it.iter_rows(ret[1]):
+#            import ipdb;ipdb.set_trace()
 
     def test_Mean(self):
         agg = True

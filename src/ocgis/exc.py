@@ -17,13 +17,16 @@ class DefinitionValidationError(OcgException):
         self.msg = msg
         
     def __str__(self):
-        msg = ('Operations validation raised an exception on the argument '
+        msg = ('Operations validation raised an exception on the argument or operation'
                '"{0}" with the message: "{1}"')
         try:
             msg = msg.format(self.ocg_argument.name,self.msg)
         except AttributeError:
-            msg = msg.format(self.ocg_argument._name,self.msg)
-        return(msg.format(self.ocg_argument.name,self.msg))
+            try:
+                msg = msg.format(self.ocg_argument._name,self.msg)
+            except AttributeError:
+                msg = msg.format(self.ocg_argument,self.msg)
+        return(msg)
     
     
 class UniqueIdNotFound(OcgException):

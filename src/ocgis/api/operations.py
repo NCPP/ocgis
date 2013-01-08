@@ -160,6 +160,12 @@ class OcgOperations(object):
                 object.__setattr__(self,name,value)
         if self._is_init is False:
             self._validate_()
+            
+    @property
+    def url(self):
+        ds = self._get_object_('dataset')
+        parm = ds.get_query_parm()
+        import ipdb;ipdb.set_trace()
         
     def as_dict(self):
         ret = {}

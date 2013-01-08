@@ -12,8 +12,48 @@ from ocgis import env
 from copy import deepcopy
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
+import re
+from ocgis.exc import DefinitionValidationError
 
 
+def reduce_query(query):
+    ## parse keys into groups.
+    groups = {}
+    ungrouped = {}
+    exp_key = re.compile('^(\D+)\d+$')
+    exp_number = re.compile('^\D+(\d+)$')
+    for key,value in query.iteritems():
+        try:
+            m_key = re.match(exp_key,key).groups()[0]
+            m_number = int(re.match(exp_number,key).groups()[0])
+            if m_key not in groups:
+                groups[m_key] = []
+            groups[m_key].append(m_number)
+        except AttributeError:
+            ungrouped[key] = value
+    ## sort the groups
+    for value in groups.itervalues():
+        value.sort()
+    ## ensure the groups are the same. only applicable if there are any
+    ## grouped variables.
+    if len(groups) > 0:
+        arch = set(groups[groups.keys()[0]])
+        for key,value in groups.iteritems():
+            compare = set(value)
+            try:
+                assert(arch == compare)
+            except AssertionError:
+                raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
+    ## replace integers with actual values
+    for key,value in groups.iteritems():
+        for idx in range(len(value)):
+            pull_key = key + str(value[idx])
+            value[idx] = query[pull_key][0]
+        groups[key] = [value]
+    ## merge the grouped and ungrouped parameters
+    groups.update(ungrouped)
+    return(groups)
+        
 def union_geoms(ugeoms,new_id=1):
     if len(ugeoms) == 1:
         ret = deepcopy(ugeoms)

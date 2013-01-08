@@ -99,6 +99,12 @@ class OcgParameter(object):
     def message(self):
         raise(NotImplementedError)
     
+    def get_query_parm(self):
+        return(self._get_query_parm_())
+    
+    def _get_query_parm_(self):
+        raise(NotImplementedError)
+    
     def _assert_(self,test,msg=None):
         try:
             assert(test)
@@ -613,10 +619,30 @@ class Dataset(AttributedOcgParameter):
     _nullable = False
     _dtype = list
     
+    @classmethod
+    def parse_query(cls,query):
+        ref_uri = query['uri'][0]
+        ret = []
+        for idx in range(len(ref_uri)):
+            app = {'uri':ref_uri[idx],
+                   'variable':query['variable'][0][idx]}
+            import ipdb;ipdb.set_trace()
+            ret.append(app)
+        return(cls(ret))
+    
     def _format_(self,value):
         if type(value) not in [list,tuple]:
             value = [value]
         return(value)
+    
+    def _get_query_parm_(self):
+        import ipdb;ipdb.set_trace()
+        msg = 'uri={0}&variable={1}'
+        store = []
+        for ds in self.value:
+            store.append(msg.format(ds['uri'],ds['variable']))
+        ret = '&'.join(store)
+        return(ret)
     
     def validate(self,value):
         for ii in value:

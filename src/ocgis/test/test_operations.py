@@ -3,6 +3,9 @@ from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 import numpy as np
 from ocgis.exc import DefinitionValidationError
+from ocgis.api import definition
+from urlparse import parse_qs
+from ocgis.util.helpers import reduce_query
 
 #from nose.plugins.skip import SkipTest
 #raise SkipTest(__name__)
@@ -62,6 +65,43 @@ class Test(unittest.TestCase):
         self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
         ops.geom = [-120,40,-110,50]
         self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
+        
+        
+class TestUrl(unittest.TestCase):
+    url_single = 'uri=http://www.dataset.com&variable=foo&spatial_operation=intersects'
+    url_multi = 'uri3=http://www.dataset.com&variable3=foo&uri5=http://www.dataset2.com&variable5=foo2&aggregate=true'
+    url_bad = 'uri2=http://www.dataset.com&variable3=foo'
+    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31'
+    
+    def test_dataset_from_query(self):
+        query = parse_qs(self.url_long)
+        query = reduce_query(query)
+        ds = definition.Dataset.parse_query(query)
+        import ipdb;ipdb.set_trace()
+        
+    def test_url_generation(self):
+        ds = {'uri':'/path/to/foo','variable':'tas'}
+        ops = OcgOperations(ds)
+        url = ops.url
+        import ipdb;ipdb.set_trace()
+        
+    def test_url_parsing(self):
+        query = parse_qs(self.url_multi)
+        reduced = reduce_query(query)
+        self.assertEqual({'variable': [['foo', 'foo2']], 'aggregate': ['true'], 'uri': [['http://www.dataset.com', 'http://www.dataset2.com']]},reduced)
+
+        query = parse_qs(self.url_single)
+        reduced = reduce_query(query)
+        self.assertEqual(reduced,{'variable': ['foo'], 'spatial_operation': ['intersects'], 'uri': ['http://www.dataset.com']})
+        
+        query = parse_qs(self.url_bad)
+        with self.assertRaises(DefinitionValidationError):
+            reduce_query(query)
+            
+        query = parse_qs(self.url_long)
+        reduced = reduce_query(query)
+        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

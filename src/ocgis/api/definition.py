@@ -621,13 +621,28 @@ class Dataset(AttributedOcgParameter):
     
     @classmethod
     def parse_query(cls,query):
-        ref_uri = query['uri'][0]
+        
+        def _get_ref_(query,key):
+            ref = query[key]
+            if not isinstance(ref[0],basestring):
+                ref = ref[0]
+            return(ref)
+        
+        ref_uri = _get_ref_(query,'uri')
+        ref_variable = _get_ref_(query,'variable')
+        if 'alias' in query:
+            ref_alias = _get_ref_(query,'alias')
+        else:
+            ref_alias = None
+            
         ret = []
         for idx in range(len(ref_uri)):
             app = {'uri':ref_uri[idx],
-                   'variable':query['variable'][0][idx]}
-            import ipdb;ipdb.set_trace()
+                   'variable':ref_variable[idx]}
+            if ref_alias is not None:
+                app.update({'alias':ref_alias[idx]})
             ret.append(app)
+
         return(cls(ret))
     
     def _format_(self,value):

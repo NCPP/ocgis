@@ -71,23 +71,26 @@ class SubsetOperation(object):
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
             ## only select the first level
-            self.ops.level_range = 1
+            self.ops.level_range = [1]*len(self.ops.dataset)
             ## alter time ranges for the datasets
+            time_ranges = []
             for i,ds in enumerate(self.ops.dataset):
                 ref = ds['ocg_dataset'].i.temporal
                 ## use standard time bounds if no calculation present
                 if self.cengine is None:
-                    self.ops.time_range[i] = [ref.value[0],ref.value[0]]
+                    app = [ref.value[0],ref.value[0]]
                 ## if there are calculations, select the first time group
                 else:
                     if self.cengine.grouping is None:
-                        self.ops.time_range[i] = [ref.value[0],ref.value[0]]
+                        app = [ref.value[0],ref.value[0]]
                     else:
                         tgdim = TemporalDimension(ref.tid,ref.value,
                                                   bounds=ref.bounds).\
                                                   group(self.cengine.grouping)
                         times = ref.value[tgdim.dgroups[0]]
-                        self.ops.time_range[i] = [times.min(),times.max()]
+                        app = [times.min(),times.max()]
+                time_ranges.append(app)
+            self.ops.time_range = time_ranges
 
 #        ## set the spatial_interface
 #        self.spatial_interface = ods.i.spatial

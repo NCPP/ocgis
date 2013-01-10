@@ -36,45 +36,103 @@ class OcgParameter(object):
     '''
     
     def __init__(self,name,dtype,nullable=False,default=None,length=None,
-                 alias=None,init_value=None):
+                 alias=None,init_value=None,scalar=True):
         self.name = name
         self.nullable = nullable
         self.default = default
         self.dtype = dtype
         self.length = length
         self.alias = alias
+        self.scalar = scalar
         
-        self._first_set = True
+#        self._first_set = True
         self._value = None
         if init_value is not None:
             self.value = init_value
+        else:
+            self.value = None
        
     @property
     def value(self):
-        return(self.format(self._value))
+        if self._value is None or self._value == [None]:
+            ret = None
+        elif self.scalar:
+            ret = self._value[0]
+        else:
+            ret = self._value
+        return(ret)
     @value.setter
     def value(self,value):
-        if self._first_set:
-            value = deepcopy(value)
-            self._first_set = False
+        value = deepcopy(value)
+#        if self._first_set:
+#            value = deepcopy(value)
+#            self._first_set = False
         self._value = self.format(value)
         
     def format(self,value):
-        if value is None:
-            if self.default is None and self.nullable is False:
-                raise(ValueError('"{0}" is not nullable.'.format(self.name)))
-            else:
-                ret = self.default
+        if value is None or isinstance(value,basestring) or isinstance(value,dict):
+            it = [value]
         else:
-            ret = self._format_(value)
-            self._assert_(type(ret) == self.dtype)
-            if self.length is not None:
-                self._assert_(len(ret) == self.length)
-            self.validate(ret)
+            it = self._get_iter_(value)
+
+        ret = []
+        for val in it:
+            if val is None:
+                if self.default is None and self.nullable is False:
+                    raise(ValueError('"{0}" is not nullable.'.format(self.name)))
+                else:
+                    app = self.default
+            else:
+                app = self._format_element_(val)
+            ret.append(app)
+        if not all([ii == None for ii in ret]):
+            ret = self.format_all(ret)
+            self.validate_all(ret)
+        return(ret)
+    
+    def format_all(self,values):
+        return(values)
+    
+    def _format_all_(self,values):
+        return(values)
+    
+    def _get_iter_(self,value):
+        try:
+            it = iter(value)
+        except TypeError:
+            it = [value]
+        return(it)
+    
+    def _format_element_(self,element):
+        ret = self._format_(element)
+        self._assert_(type(ret) == self.dtype,'Data types do not match.')
+        if self.length is not None:
+            self._assert_(len(ret) == self.length,'Lengths do not match.')
+        self.validate(ret)
         return(ret)
     
     def format_string(self,value):
-        return(self._format_string_(value.lower()))
+        
+        def _format_(value):
+            if value == 'none':
+                ret = None
+            else:
+                ret = value
+            return(ret)
+        
+        try:
+            lowered = _format_(value.lower())
+        except AttributeError:
+            lowered = map(_format_,[v.lower() for v in value])
+        
+        ret = []
+        for val in lowered:
+            if val is None:
+                app = val
+            else:
+                app = self._format_string_(val)
+            ret.append(app)
+        return(ret)
     
     def parse_query(self,query):
         try:
@@ -94,6 +152,9 @@ class OcgParameter(object):
             self.value = None
         
     def validate(self,value):
+        pass
+    
+    def validate_all(self,values):
         pass
     
     def message(self):
@@ -136,11 +197,12 @@ class AttributedOcgParameter(OcgParameter):
     _default = None
     _alias = None
     _length = None
+    _scalar = True
     
     def __init__(self,init_value=None):
         super(AttributedOcgParameter,self).__init__(
          self._name,self._dtype,nullable=self._nullable,default=self._default,
-         length=self._length,alias=self._alias,init_value=init_value)
+         length=self._length,alias=self._alias,init_value=init_value,scalar=self._scalar)
         
         
 class TimeRange(OcgParameter):
@@ -181,31 +243,25 @@ class TimeRange(OcgParameter):
     
     def __init__(self,init_value=None):
         super(self.__class__,self).__init__('time_range',list,init_value=init_value,
-                                            nullable=True,default=[None])
+                                            nullable=True,default=None,scalar=False)
     
     def validate(self,value):
-        for v in value:
-            try:
-                self._assert_(v[0] <= v[1])
-            except TypeError:
-                if v is None:
-                    pass
-                else:
-                    raise
+        self._assert_(value[0] <= value[1],'Time ordination incorrect.')
             
-    def _format_(self,value):
-        if type(value[0]) == datetime:
-            ret = [value]
-        else:
-            ret = value
-        return(ret)
+#    def _format_(self,value):
+#        import ipdb;ipdb.set_trace()
+#        if type(value[0]) == datetime:
+#            ret = [value]
+#        else:
+#            ret = value
+#        import ipdb;ipdb.set_trace()
+#        return(ret)
         
     def _format_string_(self,value):
         ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
-        ## ensure the time range is inclusive
-        d = ret[1]
-        ret[1] = datetime(d.year,d.month,d.day,23,59,59)
-        return([ret])
+        ref = ret[1]
+        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
+        return(ret)
     
     def message(self):
         if self.value is None:
@@ -213,6 +269,16 @@ class TimeRange(OcgParameter):
         else:
             msg = 'Inclusive time selection range is: {0}'.format([str(v) for v in self.value])
         return(msg)
+    
+    def _get_iter_(self,value):
+        if type(value) in (list,tuple):
+            if type(value[0]) == datetime:
+                ret = [value]
+            else:
+                ret = value
+        else:
+            ret = value
+        return(ret)
     
     
 class RequestUrl(AttributedOcgParameter):
@@ -312,14 +378,14 @@ class CalcGrouping(AttributedOcgParameter):
     _name = 'calc_grouping'
     _nullable = True
 #    _default = ['day','month','year']
-    _dtype = list
+    _dtype = str
+    _scalar = False
     
     def validate(self,value):
-        for ii in value:
-            self._assert_(ii in ['day','month','year','hour','minute','second'])
+        self._assert_(value in ['day','month','year','hour','minute','second'],'"{0}" is not a valid group.'.format(value))
             
-    def _format_(self,value):
-        return(list(set(value)))
+#    def _format_(self,value):
+#        return(list(set(value)))
     
     def _format_string_(self,value):
         grouping = value.split('|')
@@ -330,6 +396,9 @@ class CalcGrouping(AttributedOcgParameter):
         msg = msg.format(self.value)
         return(msg)
     
+#    def _get_iter_(self,values):
+#        return([values])
+    
     
 class LevelRange(AttributedOcgParameter):
     '''
@@ -338,37 +407,29 @@ class LevelRange(AttributedOcgParameter):
     [1, 1]
     '''
     _name = 'level_range'
-    _default = [None]
+    _default = None
     _dtype = list
     _nullable = True
     _length = None
+    _scalar = False
     
     def _format_(self,value):
-        try:
-            v = int(value)
-            ret = [[v,v]]
-        except TypeError:
-            ret = value
-        try:
-            ret = np.array(ret,dtype=int).tolist()
-        except TypeError:
-            if all([ii is None for ii in value]):
-                ret = value
+        if type(value) in (list,tuple):
+            if len(value) == 1:
+                ret = [value[0],value[0]]
             else:
-                raise
+                ret = value
+        else:
+            ret = [value,value]
+        ret = map(int,ret)
         return(ret)
     
     def _format_string_(self,value):
-        values = [int(ii) for ii in value.split('|')]
-        return(values)
+        ret = [int(ii) for ii in value.split('|')]
+        return(ret)
     
     def validate(self,value):
-        try:
-            for v in value:
-                self._assert_(v[0] <= v[1])
-        except TypeError:
-            if not all([ii is None for ii in value]):
-                raise
+        self._assert_(value[0] <= value[1],'Level ordination incorrect.')
 
     def message(self):
         if self.value is None:
@@ -445,97 +506,6 @@ class Aggregate(BooleanParameter,AttributedOcgParameter):
         return(msg)
     
     
-class Calc(AttributedOcgParameter):
-    '''
-    >>> calc = Calc()
-    >>> calc.value = {'func':'n','name':'some_n'}; calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'some_n', 'func': 'n', 'kwds': {}}]
-    >>> calc.value = {'func':'mean'}
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> calc.value = [{'func':'mean','name':'my_mean'}]; calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Mean'>, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}]
-    >>> calc.format_string('mean~my_mean|max~my_max')
-    [{'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'name': 'my_max', 'func': 'max', 'kwds': {}}]
-    >>> calc.value = calc.format_string('min~my_min|between~btw5_10!lower~5!upper~10')
-    >>> calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Min'>, 'name': 'my_min', 'func': 'min', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Between'>, 'name': 'btw5_10', 'func': 'between', 'kwds': {'upper': 10.0, 'lower': 5.0}}]
-    '''
-    _name = 'calc'
-    _nullable = True
-    _dtype = list
-    
-    def _format_(self,value):
-        if type(value) not in [list,tuple]:
-            value = [value]
-        funcs_copy = copy(value)
-        if not any([ii['func'] == 'n' for ii in value]):
-            funcs_copy.insert(0,{'func':'n'})
-        
-        potentials = OcgFunctionTree.get_potentials()
-        for f in funcs_copy:
-            for p in potentials:
-                if p[0] == f['func']:
-                    f['ref'] = getattr(library,p[1])
-                    break
-            if 'name' not in f and f['func'] == 'n':
-                f['name'] = f['func']
-            if 'kwds' not in f:
-                f['kwds'] = {}
-            else:
-                for key,value in f['kwds'].iteritems():
-                    try:
-                        f['kwds'][key] = value.lower()
-                    except AttributeError:
-                        pass
-        return(funcs_copy)
-    
-    def _format_string_(self,value):
-        ret = []
-        funcs = value.split('|')
-        for func in funcs:
-            key,uname = func.split('~',1)
-            try:
-                uname,kwds_raw = uname.split('!',1)
-                kwds_raw = kwds_raw.split('!')
-                kwds = {}
-                for kwd in kwds_raw:
-                    kwd_name,kwd_value = kwd.split('~')
-                    try:
-                        kwds.update({kwd_name:float(kwd_value)})
-                    except ValueError:
-                        kwds.update({kwd_name:str(kwd_value)})
-            except ValueError:
-                kwds = {}
-            dct = {'func':key,'name':uname,'kwds':kwds}
-            ret.append(dct)
-        return(ret)
-    
-    def validate(self,value):
-        for ii in value:
-            self._assert_('func' in ii,('The function name is '
-                                        'required using the key "func"'))
-            if ii['func'] != 'n':
-                self._assert_('name' in ii,'A custom function name is required.')
-        names = [ii['name'] for ii in value]
-        self._assert_(len(set(names)) == len(names),'Function names must be unique.')
-            
-    def message(self):
-        if self.value is None:
-            msg = 'No calculations requested.'
-        else:
-            msg = ''
-            for ii in self.value:
-                msg += '* {0} :: {1}\n'.format(ii['name'],ii['ref'].description)
-                if len(ii['kwds']) > 0:
-                    msg += '** Parameters:\n'
-                    for key,value in ii['kwds'].iteritems():
-                        msg += '*** {0}={1}\n'.format(key,value)
-                msg += '\n'
-        return(msg[:-2])
-    
-    
 class Geom(AttributedOcgParameter):
     '''
     >>> geom = Geom()
@@ -570,8 +540,7 @@ class Geom(AttributedOcgParameter):
              'list elements must be dictionaries with keys "ugid" and "geom"')
             self._assert_('ugid' in ii,'a geom must have a "ugid" key')
             self._assert_('geom' in ii,'a geom dict must have a "geom" key')
-            self._assert_(type(ii['geom']) in [NoneType,Polygon,MultiPolygon],
-                          'geometry type not recognized')
+            self._assert_(type(ii['geom']) in [NoneType,Polygon,MultiPolygon])
     
     def message(self):
         for ii in self.value:
@@ -613,11 +582,124 @@ class Geom(AttributedOcgParameter):
             ret = False
         return(ret)
     
+    def _get_iter_(self,value):
+        ret = value
+        if isinstance(value,basestring) or value is None or isinstance(value,dict):
+            ret = [value]
+        else:
+            try:
+                if all([type(ii) == int for ii in value]):
+                    ret = [value]
+            except:
+                pass
+        return(ret)
+
+
+class Calc(AttributedOcgParameter):
+    '''
+    >>> calc = Calc()
+    >>> calc.value = {'func':'n','name':'some_n'}; calc.value
+    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'some_n', 'func': 'n', 'kwds': {}}]
+    >>> calc.value = {'func':'mean'}
+    Traceback (most recent call last):
+    ...
+    AssertionError
+    >>> calc.value = [{'func':'mean','name':'my_mean'}]; calc.value
+    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Mean'>, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}]
+    >>> calc.format_string('mean~my_mean|max~my_max')
+    [{'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'name': 'my_max', 'func': 'max', 'kwds': {}}]
+    >>> calc.value = calc.format_string('min~my_min|between~btw5_10!lower~5!upper~10')
+    >>> calc.value
+    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Min'>, 'name': 'my_min', 'func': 'min', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Between'>, 'name': 'btw5_10', 'func': 'between', 'kwds': {'upper': 10.0, 'lower': 5.0}}]
+    '''
+    _name = 'calc'
+    _nullable = True
+    _dtype = dict
+    _default = None
+    _scalar = False
     
+    def _format_(self,value):
+#        funcs_copy = copy(value)
+        potentials = OcgFunctionTree.get_potentials()
+        for p in potentials:
+            if p[0] == value['func']:
+                value['ref'] = getattr(library,p[1])
+                break
+#        if 'name' not in f and f['func'] == 'n':
+#            f['name'] = f['func']
+        if 'kwds' not in value:
+            value['kwds'] = {}
+        else:
+            for k,v in value['kwds'].iteritems():
+                try:
+                    value['kwds'][k] = v.lower()
+                except AttributeError:
+                    pass
+        return(value)
+    
+    def format_all(self,values):
+        values.append(self._format_({'func':'n','name':'n'}))
+        return(values)
+    
+    def _get_iter_(self,values):
+        if values == None:
+            ret = [values]
+        elif isinstance(values,dict):
+            ret = [values]
+        else:
+            ret = values
+        return(ret)
+    
+    def _format_string_(self,value):
+        ret = []
+        funcs = value.split('|')
+        for func in funcs:
+            key,uname = func.split('~',1)
+            try:
+                uname,kwds_raw = uname.split('!',1)
+                kwds_raw = kwds_raw.split('!')
+                kwds = {}
+                for kwd in kwds_raw:
+                    kwd_name,kwd_value = kwd.split('~')
+                    try:
+                        kwds.update({kwd_name:float(kwd_value)})
+                    except ValueError:
+                        kwds.update({kwd_name:str(kwd_value)})
+            except ValueError:
+                kwds = {}
+            dct = {'func':key,'name':uname,'kwds':kwds}
+            ret.append(dct)
+        return(ret)
+    
+    def validate(self,value):
+        self._assert_('func' in value,('The function name is '
+                                       'required using the key "func"'))
+        self._assert_('name' in value,'A custom function "name" is required.')
+            
+    def validate_all(self,values):
+        names = [ii['name'] for ii in values]
+        self._assert_(len(set(names)) == len(names),'Function names must be unique.')
+            
+    def message(self):
+        if self.value is None:
+            msg = 'No calculations requested.'
+        else:
+            msg = ''
+            for ii in self.value:
+                msg += '* {0} :: {1}\n'.format(ii['name'],ii['ref'].description)
+                if len(ii['kwds']) > 0:
+                    msg += '** Parameters:\n'
+                    for key,value in ii['kwds'].iteritems():
+                        msg += '*** {0}={1}\n'.format(key,value)
+                msg += '\n'
+        return(msg[:-2])
+
+
 class Dataset(AttributedOcgParameter):
     _name = 'dataset'
     _nullable = False
-    _dtype = list
+    _dtype = dict
+    _scalar = False
     
     @classmethod
     def parse_query(cls,query):
@@ -642,12 +724,11 @@ class Dataset(AttributedOcgParameter):
             if ref_alias is not None:
                 app.update({'alias':ref_alias[idx]})
             ret.append(app)
-
         return(cls(ret))
     
     def _format_(self,value):
-        if type(value) not in [list,tuple]:
-            value = [value]
+        if 'alias' not in value:
+            value['alias'] = None
         return(value)
     
     def _get_query_parm_(self):
@@ -660,39 +741,42 @@ class Dataset(AttributedOcgParameter):
         return(ret)
     
     def validate(self,value):
-        for ii in value:
-            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
-            self._assert_('uri' in ii,'A URI must be provided.')
-            self._assert_('variable' in ii,'A variable name must be provided.')
-            ## add alias key if not present.
-            if 'alias' not in ii:
-                ii['alias'] = None
+#        import ipdb;ipdb.set_trace()
+#        for ii in value:
+#            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
+        self._assert_('uri' in value,'A URI must be provided.')
+        self._assert_('variable' in value,'A variable name must be provided.')
+        
+    def validate_all(self,values):
+        ## add alias key if not present.
+#        if 'alias' not in ii:
+#            ii['alias'] = None
         ## check that variable names are unique. if not, then an alias must be
         ## provided by the user.
         def _test_(var_names,value):
             assert(len(set(var_names)) == len(value))
-        var_names = [ii['variable'] for ii in value]
+        var_names = [ii['variable'] for ii in values]
         msg = ('Variable names must be unique. If variables with the same name '
                'are requested from multiple datasets. Supply an "alias" '
                'keyword to the dataset dictionaries such that the names and '
                'aliases are unique.')
         try:
-            _test_(var_names,value)
+            _test_(var_names,values)
         except AssertionError:
             ## determine if alias names make the request unique.
             var_names = []
-            for v in value:
+            for v in values:
                 if v['alias'] is None:
                     var_names.append(v['variable'])
                 else:
                     var_names.append(v['alias'])
             try:
-                _test_(var_names,value)
+                _test_(var_names,values)
             except AssertionError:
                 raise(DefinitionValidationError(self,msg))
         
         ## set the alias to match variables
-        for ii in value:
+        for ii in values:
             if ii['alias'] is None:
                 ii['alias'] = ii['variable']
     

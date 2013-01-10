@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from ocgis.exc import ExtentError
 
-#raise SkipTest(__name__)
+raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
     

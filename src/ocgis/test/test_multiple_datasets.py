@@ -89,12 +89,12 @@ class Test(unittest.TestCase):
         ret = ops.execute()
         
         ref = ret[25].variables['Prcp'].calc_value
-        self.assertEquals(ref.keys(),['n','mean','std'])
+        self.assertEquals(ref.keys(),['mean', 'std', 'n'])
         for value in ref.itervalues():
             self.assertEqual(value.shape,(1,1,1,1))
             
         ref = ret[25].variables['tasmax'].calc_value
-        self.assertEquals(ref.keys(),['n','mean','std'])
+        self.assertEquals(ref.keys(),['mean', 'std', 'n'])
         for value in ref.itervalues():
             self.assertEqual(value.shape,(10,1,1,1))
             

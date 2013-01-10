@@ -17,7 +17,7 @@ class DefinitionValidationError(OcgException):
         self.msg = msg
         
     def __str__(self):
-        msg = ('Operations validation raised an exception on the argument or operation'
+        msg = ('Operations validation raised an exception on the argument or operation '
                '"{0}" with the message: "{1}"')
         try:
             msg = msg.format(self.ocg_argument.name,self.msg)

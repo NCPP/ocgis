@@ -25,7 +25,7 @@ class OcgOperations(object):
     
     def __init__(self,dataset=None,spatial_operation='intersects',geom=None,aggregate=False,
                  time_range=None,level_range=None,calc=None,calc_grouping=None,
-                 calc_raw=False,interface=None,snippet=False,backend='ocg',request_url=None,
+                 calc_raw=False,interface={},snippet=False,backend='ocg',request_url=None,
                  prefix=None,output_format='numpy',output_grouping=None,agg_selection=False,
                  select_ugid=None,vector_wrap=True,allow_empty=False):
         """The only required argument is "dataset". All others are provided
@@ -126,10 +126,18 @@ class OcgOperations(object):
         self._validate_()
         
     def __iter__(self):
+        
+        def _get_(idx,attr):
+            if attr is None:
+                ret = None
+            else:
+                ret = attr[idx]
+            return(ret)
+        
         for ii in range(len(self.dataset)):
             ret = {'dataset':self.dataset[ii],
-                   'time_range':self.time_range[ii],
-                   'level_range':self.level_range[ii]}
+                   'time_range':_get_(ii,self.time_range),
+                   'level_range':_get_(ii,self.level_range)}
             yield(ret)
         
     def __repr__(self):

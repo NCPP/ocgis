@@ -37,16 +37,24 @@ def reduce_query(query):
     ## ensure the groups are the same. only applicable if there are any
     ## grouped variables.
     if len(groups) > 0:
-        arch = set(groups[groups.keys()[0]])
+        arch = groups['uri']
         for key,value in groups.iteritems():
-            compare = set(value)
             try:
-                assert(arch == compare)
+                assert(arch == value)
             except AssertionError:
-                raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
+                if key in ['uri','variable']:
+                    raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
+                else:
+                    fill = [None]*len(arch)
+                    for integer in value:
+                        idx = arch.index(integer)
+                        fill[idx] = integer
+                    groups[key] = fill
     ## replace integers with actual values
     for key,value in groups.iteritems():
         for idx in range(len(value)):
+            if value[idx] is None:
+                continue
             pull_key = key + str(value[idx])
             value[idx] = query[pull_key][0]
         groups[key] = [value]

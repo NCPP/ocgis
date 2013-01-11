@@ -139,7 +139,16 @@ class OcgParameter(object):
         try:
             lowered = _format_(value.lower())
         except AttributeError:
-            lowered = map(_format_,[v.lower() for v in value])
+            lowered = []
+            for v in value:
+                try:
+                    lowered.append(v.lower())
+                except AttributeError:
+                    if v is None:
+                        lowered.append(v)
+                    else:
+                        raise
+#            lowered = map(_format_,[v.lower() for v in value])
         
         ret = []
         for val in lowered:
@@ -738,8 +747,11 @@ class Dataset(AttributedOcgParameter):
         out_str = []
         template = '{0}{1}={2}'
         for ds,es in zip(self.value,end_integer_strings):
-            for key in ['uri','variable','alias']:
-                app = template.format(key,es,ds[key])
+            for key in ['uri','variable','alias','t_units','t_calendar','s_proj']:
+                app_value = ds[key]
+                if app_value is None:
+                    app_value = 'none'
+                app = template.format(key,es,app_value)
                 out_str.append(app)
         out_str = '&'.join(out_str)
         return(out_str)
@@ -770,8 +782,10 @@ class Dataset(AttributedOcgParameter):
         return(cls(ret))
     
     def _format_(self,value):
-        if 'alias' not in value:
-            value['alias'] = None
+        additional_keys = ['alias','t_units','t_calendar','s_proj']
+        for key in additional_keys:
+            if key not in value:
+                value[key] = None
         return(value)
     
 #    def _get_query_parm_(self):
@@ -830,43 +844,47 @@ class Dataset(AttributedOcgParameter):
         return('\n'.join(lines))
     
     
-class Interface(AttributedOcgParameter):
-    _name = 'interface'
+class Abstraction(AttributedOcgParameter):
+    _name = 'abstraction'
     _nullable = True
-    _dtype = dict
-    _default = {}
+    _dtype = str
+    _default = 'polygon'
+    _scalar = True
     
-    def __str__(self):
-        if self.value == {}:
-            ret = 'none'
-        else:
-            template = '{0}={1}'
-            parts = []
-            for k,v in self.value.iteritems():
-                parts.append(template.format(k,v))
-            ret = '&'.join(parts)
-        return(ret)
+#    def __str__(self):
+#        if self.value == {}:
+#            ret = 'none'
+#        else:
+#            template = '{0}={1}'
+#            parts = []
+#            for k,v in self.value.iteritems():
+#                parts.append(template.format(k,v))
+#            ret = '&'.join(parts)
+#        return(ret)
     
     def validate(self,value):
-        for key,val in value.iteritems():
-#            try:
-#                assert(issubclass(key,Element))
-#            except (TypeError,AssertionError):
-#                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
-            if val is not None:
-                self._assert_(type(val) == str,'interface values must be strings')
+        self._assert_(value in ['point','polygon'])
+#        for key,val in value.iteritems():
+##            try:
+##                assert(issubclass(key,Element))
+##            except (TypeError,AssertionError):
+##                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
+#            if val is not None:
+#                self._assert_(type(val) == str,'interface values must be strings')
     
     def message(self):
-        msg = ['Interface parameter arguments:']
-        for key,value in self.value.iteritems():
-            try:
-                name = key._iname
-            except AttributeError:
-                name = key
-            msg2 = ' {0} :: {1}'.format(name,value)
-            msg.append(msg2)
-        msg = '\n'.join(msg)
+        msg = 'Spatial dimension abstracted to {0}.'.format(self.value)
         return(msg)
+#        msg = ['Interface parameter arguments:']
+#        for key,value in self.value.iteritems():
+#            try:
+#                name = key._iname
+#            except AttributeError:
+#                name = key
+#            msg2 = ' {0} :: {1}'.format(name,value)
+#            msg.append(msg2)
+#        msg = '\n'.join(msg)
+#        return(msg)
     
     
 class SelectUgid(AttributedOcgParameter):

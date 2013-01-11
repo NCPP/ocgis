@@ -49,7 +49,6 @@ class Test(unittest.TestCase):
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets)
         self.assertNotEqual(ops.geom,None)
-        self.assertEqual(ops.interface,{})
         self.assertEqual(ops.time_range,[None]*3)
         for row in ops:
             self.assertEqual(row['time_range'],None)
@@ -62,7 +61,7 @@ class Test(unittest.TestCase):
         for row in ops:
             for attr in ['level_range','time_range']:
                 self.assertEqual(row[attr],None)
-            self.assertEqual(set(['variable','alias','uri']),set(row['dataset'].keys()))
+            self.assertEqual(set(['uri','alias','s_proj','t_units','variable','t_calendar']),set(row['dataset'].keys()))
         
     def test_geom_string(self):
         ops = OcgOperations(dataset=self.datasets,geom='state_boundaries')
@@ -123,11 +122,11 @@ class Test(unittest.TestCase):
     def test_dataset(self):
         dsa = {'uri':'/path/foo','variable':'foo_variable'}
         ds = definition.Dataset(dsa)
-        self.assertEqual(str(ds),'uri=/path/foo&variable=foo_variable&alias=foo_variable')
+        self.assertEqual(str(ds),'uri=/path/foo&variable=foo_variable&alias=foo_variable&t_units=none&t_calendar=none&s_proj=none')
         
         dsb = [dsa,{'uri':'/some/other/path','variable':'foo_variable','alias':'knight'}]
         ds = definition.Dataset(dsb)
-        str_cmp = 'uri1=/path/foo&variable1=foo_variable&alias1=foo_variable&uri2=/some/other/path&variable2=foo_variable&alias2=knight'
+        str_cmp = 'uri1=/path/foo&variable1=foo_variable&alias1=foo_variable&t_units1=none&t_calendar1=none&s_proj1=none&uri2=/some/other/path&variable2=foo_variable&alias2=knight&t_units2=none&t_calendar2=none&s_proj2=none'
         self.assertEqual(str(ds),str_cmp)
         
         query = parse_qs(str_cmp)
@@ -135,11 +134,18 @@ class Test(unittest.TestCase):
         ds = definition.Dataset.parse_query(query)
         self.assertEqual(str(ds),str_cmp)
         
-    def test_interface(self):
-        ic = definition.Interface
+    def test_abstraction(self):
+        K = definition.Abstraction
         
-        ii = ic({'s_abstraction':'point'})
-        self.assertEqual(str(ii),'s_abstraction=point')
+        k = K()
+        self.assertEqual(k.value,'polygon')
+        self.assertEqual(str(k),'abstraction=polygon')
+        
+        k = K('point')
+        self.assertEqual(k.value,'point')
+        
+        with self.assertRaises(DefinitionValidationError):
+            K('pt')
 
 #    def test_time_range(self):
 #        valid = [
@@ -156,7 +162,8 @@ class TestUrl(unittest.TestCase):
     url_alias = url_single + '&alias=my_alias'
     url_multi = 'uri3=http://www.dataset.com&variable3=foo&uri5=http://www.dataset2.com&variable5=foo2&aggregate=true'
     url_bad = 'uri2=http://www.dataset.com&variable3=foo'
-    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31&level_range1=none&level_range2=1'
+    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31&level_range2=1'
+    url_interface = url_long + '&t_units1=noleap'
     
     def get_reduced_query(self,attr):
         ref = getattr(self,attr)
@@ -180,14 +187,14 @@ class TestUrl(unittest.TestCase):
         query = parse_qs(self.url_long)
         query = reduce_query(query)
         ds = definition.Dataset.parse_query(query)
-        self.assertEqual(ds.value,[{'variable': 'there', 'alias': 'there', 'uri': 'hi'}, {'variable': 'there2', 'alias': 'there2', 'uri': 'hi2'}])
+        self.assertEqual(ds.value,[{'uri': 'hi', 'alias': 'there', 's_proj': None, 't_units': None, 'variable': 'there', 't_calendar': None}, {'uri': 'hi2', 'alias': 'there2', 's_proj': None, 't_units': None, 'variable': 'there2', 't_calendar': None}])
         
         query = self.get_reduced_query('url_alias')
         ds = definition.Dataset.parse_query(query)
-        self.assertEqual(ds.value,[{'variable': 'foo', 'alias': 'my_alias', 'uri': 'http://www.dataset.com'}])
+        self.assertEqual(ds.value,[{'uri': 'http://www.dataset.com', 'alias': 'my_alias', 's_proj': None, 't_units': None, 'variable': 'foo', 't_calendar': None}])
         
     def test_url_generation(self):
-#        raise(SkipTest('url not implemented'))
+        raise(SkipTest('url not implemented'))
         ds = {'uri':'/path/to/foo','variable':'tas'}
         ops = OcgOperations(ds)
         url = ops.as_url()
@@ -208,7 +215,7 @@ class TestUrl(unittest.TestCase):
             
         query = parse_qs(self.url_long)
         reduced = reduce_query(query)
-        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [['none', '1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
+        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [[None, '1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
 
 
 if __name__ == "__main__":

@@ -51,6 +51,16 @@ class OcgParameter(object):
             self.value = init_value
         else:
             self.value = None
+            
+    def __str__(self):
+        msg = '{0}={1}'
+        ret = self._to_str_()
+        ret = ret.lower()
+        msg = msg.format(self.name,ret)
+        return(msg)
+    
+    def _to_str_(self):
+        return(str(self.value))
        
     @property
     def value(self):
@@ -158,12 +168,6 @@ class OcgParameter(object):
         pass
     
     def message(self):
-        raise(NotImplementedError)
-    
-    def get_query_parm(self):
-        return(self._get_query_parm_())
-    
-    def _get_query_parm_(self):
         raise(NotImplementedError)
     
     def _assert_(self,test,msg=None):
@@ -701,6 +705,20 @@ class Dataset(AttributedOcgParameter):
     _dtype = dict
     _scalar = False
     
+    def __str__(self):
+        if len(self.value) == 1:
+            end_integer_strings = ['']
+        else:
+            end_integer_strings = range(1,len(self.value)+1)
+        out_str = []
+        template = '{0}{1}={2}'
+        for ds,es in zip(self.value,end_integer_strings):
+            for key in ['uri','variable','alias']:
+                app = template.format(key,es,ds[key])
+                out_str.append(app)
+        out_str = '&'.join(out_str)
+        return(out_str)
+    
     @classmethod
     def parse_query(cls,query):
         
@@ -731,14 +749,14 @@ class Dataset(AttributedOcgParameter):
             value['alias'] = None
         return(value)
     
-    def _get_query_parm_(self):
-        import ipdb;ipdb.set_trace()
-        msg = 'uri={0}&variable={1}'
-        store = []
-        for ds in self.value:
-            store.append(msg.format(ds['uri'],ds['variable']))
-        ret = '&'.join(store)
-        return(ret)
+#    def _get_query_parm_(self):
+#        import ipdb;ipdb.set_trace()
+#        msg = 'uri={0}&variable={1}'
+#        store = []
+#        for ds in self.value:
+#            store.append(msg.format(ds['uri'],ds['variable']))
+#        ret = '&'.join(store)
+#        return(ret)
     
     def validate(self,value):
 #        import ipdb;ipdb.set_trace()

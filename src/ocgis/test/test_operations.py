@@ -91,6 +91,8 @@ class Test(unittest.TestCase):
     def test_geom(self):
         g = definition.Geom(None)
         self.assertNotEqual(g.value,None)
+        self.assertEqual(str(g),'geom=none')
+        import ipdb;ipdb.set_trace()
         
     def test_calc_grouping(self):
         _cg = [
@@ -105,6 +107,21 @@ class Test(unittest.TestCase):
                 self.assertEqual(obj.value,cg)
             except AssertionError:
                 self.assertEqual(obj.value,['day'])
+                
+    def test_dataset(self):
+        dsa = {'uri':'/path/foo','variable':'foo_variable'}
+        ds = definition.Dataset(dsa)
+        self.assertEqual(str(ds),'uri=/path/foo&variable=foo_variable&alias=foo_variable')
+        
+        dsb = [dsa,{'uri':'/some/other/path','variable':'foo_variable','alias':'knight'}]
+        ds = definition.Dataset(dsb)
+        str_cmp = 'uri1=/path/foo&variable1=foo_variable&alias1=foo_variable&uri2=/some/other/path&variable2=foo_variable&alias2=knight'
+        self.assertEqual(str(ds),str_cmp)
+        
+        query = parse_qs(str_cmp)
+        query = reduce_query(query)
+        ds = definition.Dataset.parse_query(query)
+        self.assertEqual(str(ds),str_cmp)
 
 #    def test_time_range(self):
 #        valid = [
@@ -152,10 +169,10 @@ class TestUrl(unittest.TestCase):
         self.assertEqual(ds.value,[{'variable': 'foo', 'alias': 'my_alias', 'uri': 'http://www.dataset.com'}])
         
     def test_url_generation(self):
-        raise(SkipTest('url not implemented'))
+#        raise(SkipTest('url not implemented'))
         ds = {'uri':'/path/to/foo','variable':'tas'}
         ops = OcgOperations(ds)
-        url = ops.url
+        url = ops.as_url()
         import ipdb;ipdb.set_trace()
         
     def test_url_parsing(self):

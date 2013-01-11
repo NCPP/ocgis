@@ -27,6 +27,10 @@ class DefinitionValidationError(OcgException):
             except AttributeError:
                 msg = msg.format(self.ocg_argument,self.msg)
         return(msg)
+
+
+class CannotEncodeUrl(OcgException):
+    pass
     
     
 class UniqueIdNotFound(OcgException):

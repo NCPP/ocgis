@@ -2,12 +2,13 @@ import unittest
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 import numpy as np
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.api import definition
 from urlparse import parse_qs
 from ocgis.util.helpers import reduce_query
 from nose.plugins.skip import SkipTest
 from ocgis.calc.library import SampleSize
+from ocgis.util.shp_cabinet import ShpCabinet
 
 #from nose.plugins.skip import SkipTest
 #raise SkipTest(__name__)
@@ -92,7 +93,18 @@ class Test(unittest.TestCase):
         g = definition.Geom(None)
         self.assertNotEqual(g.value,None)
         self.assertEqual(str(g),'geom=none')
-        import ipdb;ipdb.set_trace()
+        
+        g = definition.Geom('-120|40|-110|50')
+        self.assertEqual(str(g),'geom=-120|40|-110|50')
+        
+        g = definition.Geom('mi_watersheds')
+        self.assertEqual(str(g),'geom=mi_watersheds')
+        
+        geoms = ShpCabinet().get_geoms('mi_watersheds')
+        g = definition.Geom(geoms)
+        self.assertEqual(len(g.value),60)
+        with self.assertRaises(CannotEncodeUrl):
+            str(g)
         
     def test_calc_grouping(self):
         _cg = [
@@ -122,6 +134,12 @@ class Test(unittest.TestCase):
         query = reduce_query(query)
         ds = definition.Dataset.parse_query(query)
         self.assertEqual(str(ds),str_cmp)
+        
+    def test_interface(self):
+        ic = definition.Interface
+        
+        ii = ic({'s_abstraction':'point'})
+        self.assertEqual(str(ii),'s_abstraction=point')
 
 #    def test_time_range(self):
 #        valid = [

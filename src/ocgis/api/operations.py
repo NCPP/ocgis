@@ -169,8 +169,13 @@ class OcgOperations(object):
         if self._is_init is False:
             self._validate_()
             
-    def as_url(self):
-        ds = self._get_object_('dataset')
+    def as_url(self,slug=''):
+        parts = []
+        for key,value in self.__dict__.iteritems():
+            if key in ['request_url']:
+                continue
+            if isinstance(value,OcgParameter):
+                parts.append(str(value))
         import ipdb;ipdb.set_trace()
         
     def as_dict(self):

@@ -6,7 +6,7 @@ from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 import numpy as np
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 
 
 class OcgParameter(object):
@@ -115,7 +115,13 @@ class OcgParameter(object):
     
     def _format_element_(self,element):
         ret = self._format_(element)
-        self._assert_(type(ret) == self.dtype,'Data types do not match.')
+        try:
+            self._assert_(type(ret) == self.dtype,'Data types do not match.')
+        except:
+            try:
+                self._assert_(type(ret) in self.dtype,'Data types do not match.')
+            except:
+                raise
         if self.length is not None:
             self._assert_(len(ret) == self.length,'Lengths do not match.')
         self.validate(ret)
@@ -510,41 +516,59 @@ class Aggregate(BooleanParameter,AttributedOcgParameter):
         return(msg)
     
     
-class Geom(AttributedOcgParameter):
+class Geom(OcgParameter):
     '''
     >>> geom = Geom()
     >>> formatted = geom.format_string('-123.4|45.67|-156.5|48.25')
     >>> formatted[0]['geom'].bounds
     (-156.5, 45.67, -123.4, 48.25)
     '''
-    _name = 'geom'
-    _nullable = True
-    _default = [{'geom':None,'ugid':1}]
-    _dtype = list
+#    _name = 'geom'
+#    _nullable = True
+#    _default = [{'geom':None,'ugid':1}]
+#    _dtype = list
+    
+    def __init__(self,init_value=None):
+        self._default = [{'geom':None,'ugid':1}]
+        self._shp_key = None
+        self._bounds = None
+        super(self.__class__,self).__init__('geom',(dict,list),init_value=init_value,
+                                            nullable=True,default=self._default,scalar=True)
+        
+    def _to_str_(self):
+        if self.value == self._default:
+            ret = 'none'
+        elif self._shp_key is not None:
+            ret = self._shp_key
+        elif self._bounds is not None:
+            ret = '|'.join(self._bounds)
+        else:
+            raise(CannotEncodeUrl('Too many geometries to encode.'))
+        return(ret)
     
     def _format_(self,value):
         ## first try to format using the string. geometry names can be passed
         ## this way.
         try:
             ret = self._format_string_(value)
+            self._shp_key = value
         except AttributeError:
             try:
                 concat = '|'.join(map(str,value))
                 ret = self._format_string_(concat)
             except:
-                if type(value) not in [list,tuple]:
-                    ret = [value]
-                else:
-                    ret = value
+                ret = value
         return(ret)
     
     def validate(self,value):
-        for ii in value:
-            self._assert_(type(ii) == dict,
+        if isinstance(value,dict):
+           value = [value]
+        for v in value: 
+            self._assert_(type(v) == dict,
              'list elements must be dictionaries with keys "ugid" and "geom"')
-            self._assert_('ugid' in ii,'a geom must have a "ugid" key')
-            self._assert_('geom' in ii,'a geom dict must have a "geom" key')
-            self._assert_(type(ii['geom']) in [NoneType,Polygon,MultiPolygon])
+            self._assert_('ugid' in v,'a geom must have a "ugid" key')
+            self._assert_('geom' in v,'a geom dict must have a "geom" key')
+            self._assert_(type(v['geom']) in [NoneType,Polygon,MultiPolygon])
     
     def message(self):
         for ii in self.value:
@@ -566,6 +590,7 @@ class Geom(AttributedOcgParameter):
                             (maxx,miny)))
             self._assert_(geom.is_valid)
             ret = [{'ugid':1,'geom':geom}]
+            self._bounds = elements
         except ValueError:
             from ocgis.util.shp_cabinet import ShpCabinet
             sc = ShpCabinet()
@@ -588,11 +613,11 @@ class Geom(AttributedOcgParameter):
     
     def _get_iter_(self,value):
         ret = value
-        if isinstance(value,basestring) or value is None or isinstance(value,dict):
+        if type(value) in (list,tuple) and isinstance(value[0],dict):
             ret = [value]
         else:
             try:
-                if all([type(ii) == int for ii in value]):
+                if all([type(ii) in (float,int) for ii in value]):
                     ret = [value]
             except:
                 pass
@@ -810,6 +835,17 @@ class Interface(AttributedOcgParameter):
     _nullable = True
     _dtype = dict
     _default = {}
+    
+    def __str__(self):
+        if self.value == {}:
+            ret = 'none'
+        else:
+            template = '{0}={1}'
+            parts = []
+            for k,v in self.value.iteritems():
+                parts.append(template.format(k,v))
+            ret = '&'.join(parts)
+        return(ret)
     
     def validate(self,value):
         for key,val in value.iteritems():

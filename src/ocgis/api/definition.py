@@ -84,20 +84,21 @@ class OcgParameter(object):
             it = [value]
         else:
             it = self._get_iter_(value)
-
-        ret = []
-        for val in it:
-            if val is None:
-                if self.default is None and self.nullable is False:
-                    raise(ValueError('"{0}" is not nullable.'.format(self.name)))
+        
+        try:
+            ret = []
+            for val in it:
+                if val is None:
+                    if self.default is None and self.nullable is False:
+                        raise(ValueError('"{0}" is not nullable.'.format(self.name)))
+                    else:
+                        app = self.default
                 else:
-                    app = self.default
-            else:
-                try:
                     app = self._format_element_(val)
-                except:
-                    app = self.format_string(val)
-            ret.append(app)
+                ret.append(app)
+        except:
+            ret = self.format_string(value)
+            self.value = ret
         if not all([ii == None for ii in ret]):
             ret = self.format_all(ret)
             self.validate_all(ret)
@@ -131,8 +132,9 @@ class OcgParameter(object):
         return(ret)
     
     def format_string(self,value):
-        
+
         def _format_(value):
+            value = value.lower()
             if value == 'none':
                 ret = None
             else:
@@ -140,7 +142,15 @@ class OcgParameter(object):
             return(ret)
         
 #        try:
-        lowered = _format_(value.lower())
+        try:
+            it = value.split('|')
+        except AttributeError:
+            if isinstance(value[0],basestring):
+                it = value
+            else:
+                raise
+        lowered = map(_format_,it)
+#        lowered = _format_(value.lower())
 #        except AttributeError:
 #            lowered = []
 #            for v in value:
@@ -153,14 +163,15 @@ class OcgParameter(object):
 #                        raise
 #            lowered = map(_format_,[v.lower() for v in value])
         
-#        ret = []
-#        for val in lowered:
-        if lowered is None:
-            ret = lowered
-        else:
-            ret = self._format_string_element_(lowered)
-            self.validate(ret)
-#            ret.append(app)
+        ret = []
+        for val in lowered:
+            if val is None:
+                app = val
+            else:
+                app = self._format_string_element_(val)
+                app = self._format_element_(app)
+                self.validate(app)
+            ret.append(app)
         return(ret)
     
     def parse_query(self,query):
@@ -207,7 +218,7 @@ class OcgParameter(object):
 class BooleanParameter(OcgParameter):
     _dtype = bool
     
-    def format_string(self,value):
+    def _format_string_element_(self,value):
         if value in ['t','true','1']:
             ret = True
         elif value in ['f','false','0']:
@@ -695,25 +706,25 @@ class Calc(AttributedOcgParameter):
         return(ret)
     
     def _format_string_element_(self,value):
-        ret = []
-        funcs = value.split('|')
-        for func in funcs:
-            key,uname = func.split('~',1)
-            try:
-                uname,kwds_raw = uname.split('!',1)
-                kwds_raw = kwds_raw.split('!')
-                kwds = {}
-                for kwd in kwds_raw:
-                    kwd_name,kwd_value = kwd.split('~')
-                    try:
-                        kwds.update({kwd_name:float(kwd_value)})
-                    except ValueError:
-                        kwds.update({kwd_name:str(kwd_value)})
-            except ValueError:
-                kwds = {}
-            dct = {'func':key,'name':uname,'kwds':kwds}
-            ret.append(dct)
-        return(ret)
+#        ret = []
+#        funcs = value.split('|')
+#        for func in funcs:
+        key,uname = value.split('~',1)
+        try:
+            uname,kwds_raw = uname.split('!',1)
+            kwds_raw = kwds_raw.split('!')
+            kwds = {}
+            for kwd in kwds_raw:
+                kwd_name,kwd_value = kwd.split('~')
+                try:
+                    kwds.update({kwd_name:float(kwd_value)})
+                except ValueError:
+                    kwds.update({kwd_name:str(kwd_value)})
+        except ValueError:
+            kwds = {}
+        dct = {'func':key,'name':uname,'kwds':kwds}
+#            ret.append(dct)
+        return(dct)
     
     def validate(self,value):
         self._assert_('func' in value,('The function name is '

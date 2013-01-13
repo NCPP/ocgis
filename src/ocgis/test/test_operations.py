@@ -7,7 +7,7 @@ from ocgis.api import definition
 from urlparse import parse_qs
 from ocgis.util.helpers import reduce_query
 from nose.plugins.skip import SkipTest
-from ocgis.calc.library import SampleSize
+from ocgis.calc.library import SampleSize, Mean, StandardDeviation
 from ocgis.util.shp_cabinet import ShpCabinet
 import inspect
 import traceback
@@ -64,7 +64,19 @@ class Test(unittest.TestCase):
             for attr in ['level_range','time_range']:
                 self.assertEqual(row[attr],None)
             self.assertEqual(set(['uri','alias','s_proj','t_units','variable','t_calendar']),set(row['dataset'].keys()))
+    
+    def test_aggregate(self):
+        A = definition.Aggregate
         
+        a = A(True)
+        self.assertEqual(a.value,True)
+        
+        a = A(False)
+        self.assertEqual(a.value,False)
+        
+        a = A('True')
+        self.assertEqual(a.value,True)
+    
     def test_geom_string(self):
         ops = OcgOperations(dataset=self.datasets,geom='state_boundaries')
         self.assertEqual(len(ops.geom),51)
@@ -78,20 +90,25 @@ class Test(unittest.TestCase):
         self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
         
     def test_calc(self):
-#        str_version = "[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"
-#        _calc = [
-#                [{'func':'mean','name':'mean'},str_version],
-#                [[{'func':'mean','name':'mean'}],str_version],
-#                [None,'None'],
-#                [[{'func':'mean','name':'mean'},{'func':'std','name':'my_std'}],"[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.StandardDeviation'>, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"]
-#                ]
-#        
-#        for calc in _calc:
-#            cd = definition.Calc(calc[0])
-#            self.assertEqual(str(cd.value),calc[1])
+        str_version = "[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"
+        _calc = [
+                [{'func':'mean','name':'mean'},str_version],
+                [[{'func':'mean','name':'mean'}],str_version],
+                [None,'None'],
+                [[{'func':'mean','name':'mean'},{'func':'std','name':'my_std'}],"[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.StandardDeviation'>, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"]
+                ]
+        
+        for calc in _calc:
+            cd = definition.Calc(calc[0])
+            self.assertEqual(str(cd.value),calc[1])
             
         url_str = 'mean~my_mean'
         cd = definition.Calc(url_str)
+        self.assertEqual(cd.value,[{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref': SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}])
+        
+        url_str = 'mean~my_mean|std~my_std'
+        cd = definition.Calc(url_str)
+        self.assertEqual(cd.value,[{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref': StandardDeviation, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}])
             
     def test_geom(self):
         g = definition.Geom(None)

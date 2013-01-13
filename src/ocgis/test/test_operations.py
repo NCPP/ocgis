@@ -78,17 +78,20 @@ class Test(unittest.TestCase):
         self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
         
     def test_calc(self):
-        str_version = "[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"
-        _calc = [
-                [{'func':'mean','name':'mean'},str_version],
-                [[{'func':'mean','name':'mean'}],str_version],
-                [None,'None'],
-                [[{'func':'mean','name':'mean'},{'func':'std','name':'my_std'}],"[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.StandardDeviation'>, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"]
-                ]
-        
-        for calc in _calc:
-            cd = definition.Calc(calc[0])
-            self.assertEqual(str(cd.value),calc[1])
+#        str_version = "[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"
+#        _calc = [
+#                [{'func':'mean','name':'mean'},str_version],
+#                [[{'func':'mean','name':'mean'}],str_version],
+#                [None,'None'],
+#                [[{'func':'mean','name':'mean'},{'func':'std','name':'my_std'}],"[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.StandardDeviation'>, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"]
+#                ]
+#        
+#        for calc in _calc:
+#            cd = definition.Calc(calc[0])
+#            self.assertEqual(str(cd.value),calc[1])
+            
+        url_str = 'mean~my_mean'
+        cd = definition.Calc(url_str)
             
     def test_geom(self):
         g = definition.Geom(None)
@@ -139,15 +142,13 @@ class Test(unittest.TestCase):
     def test_abstraction(self):
         K = definition.Abstraction
         
-#        k = K()
-#        self.assertEqual(k.value,'polygon')
-#        self.assertEqual(str(k),'abstraction=polygon')
-#        
-#        k = K('point')
-#        self.assertEqual(k.value,'point')
+        k = K()
+        self.assertEqual(k.value,'polygon')
+        self.assertEqual(str(k),'abstraction=polygon')
         
-        k = K('pt')
-        import ipdb;ipdb.set_trace()
+        k = K('point')
+        self.assertEqual(k.value,'point')
+        
         with self.assertRaises(DefinitionValidationError):
             K('pt')
             

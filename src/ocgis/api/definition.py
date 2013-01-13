@@ -96,7 +96,7 @@ class OcgParameter(object):
                 try:
                     app = self._format_element_(val)
                 except:
-                    app = self._format_string_(val)
+                    app = self.format_string(val)
             ret.append(app)
         if not all([ii == None for ii in ret]):
             ret = self.format_all(ret)
@@ -139,27 +139,28 @@ class OcgParameter(object):
                 ret = value
             return(ret)
         
-        try:
-            lowered = _format_(value.lower())
-        except AttributeError:
-            lowered = []
-            for v in value:
-                try:
-                    lowered.append(v.lower())
-                except AttributeError:
-                    if v is None:
-                        lowered.append(v)
-                    else:
-                        raise
+#        try:
+        lowered = _format_(value.lower())
+#        except AttributeError:
+#            lowered = []
+#            for v in value:
+#                try:
+#                    lowered.append(v.lower())
+#                except AttributeError:
+#                    if v is None:
+#                        lowered.append(v)
+#                    else:
+#                        raise
 #            lowered = map(_format_,[v.lower() for v in value])
         
-        ret = []
-        for val in lowered:
-            if val is None:
-                app = val
-            else:
-                app = self._format_string_(val)
-            ret.append(app)
+#        ret = []
+#        for val in lowered:
+        if lowered is None:
+            ret = lowered
+        else:
+            ret = self._format_string_element_(lowered)
+            self.validate(ret)
+#            ret.append(app)
         return(ret)
     
     def parse_query(self,query):
@@ -199,7 +200,7 @@ class OcgParameter(object):
     def _format_(self,value):
         return(value)
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         return(value)
     
     
@@ -281,7 +282,7 @@ class TimeRange(OcgParameter):
 #        import ipdb;ipdb.set_trace()
 #        return(ret)
         
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
         ref = ret[1]
         ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
@@ -411,7 +412,7 @@ class CalcGrouping(AttributedOcgParameter):
 #    def _format_(self,value):
 #        return(list(set(value)))
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         grouping = value.split('|')
         return(list(grouping))
     
@@ -448,7 +449,7 @@ class LevelRange(AttributedOcgParameter):
         ret = map(int,ret)
         return(ret)
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         ret = [int(ii) for ii in value.split('|')]
         return(ret)
     
@@ -564,12 +565,12 @@ class Geom(OcgParameter):
         ## first try to format using the string. geometry names can be passed
         ## this way.
         try:
-            ret = self._format_string_(value)
+            ret = self._format_string_element_(value)
             self._shp_key = value
         except AttributeError:
             try:
                 concat = '|'.join(map(str,value))
-                ret = self._format_string_(concat)
+                ret = self._format_string_element_(concat)
             except:
                 ret = value
         return(ret)
@@ -593,7 +594,7 @@ class Geom(OcgParameter):
                 msg = '{0} user geometries provided.'.format(len(self.value))
                 return(msg)
             
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         elements = value.split('|')
         try:
             elements = [float(e) for e in elements]
@@ -693,7 +694,7 @@ class Calc(AttributedOcgParameter):
             ret = values
         return(ret)
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         ret = []
         funcs = value.split('|')
         for func in funcs:
@@ -875,7 +876,8 @@ class Abstraction(AttributedOcgParameter):
 #        return(ret)
     
     def validate(self,value):
-        self._assert_(value in ['point','polygon'])
+        valid = ['point','polygon']
+        self._assert_(value in valid,"'{0}' not in {1}".format(value,valid))
 #        for key,val in value.iteritems():
 ##            try:
 ##                assert(issubclass(key,Element))
@@ -905,7 +907,7 @@ class SelectUgid(AttributedOcgParameter):
     _default = None
     _dtype = dict
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         elements = value.split('|')
         elements = [int(ii) for ii in elements]
         return({'ugid':elements})
@@ -956,7 +958,7 @@ class PrimeMeridian(AttributedOcgParameter):
     _default = 0.0
     _dtype = float
     
-    def _format_string_(self,value):
+    def _format_string_element_(self,value):
         return(float(value))
 
 

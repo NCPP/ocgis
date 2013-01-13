@@ -93,7 +93,10 @@ class OcgParameter(object):
                 else:
                     app = self.default
             else:
-                app = self._format_element_(val)
+                try:
+                    app = self._format_element_(val)
+                except:
+                    app = self._format_string_(val)
             ret.append(app)
         if not all([ii == None for ii in ret]):
             ret = self.format_all(ret)
@@ -164,17 +167,19 @@ class OcgParameter(object):
             value = query[self.name]
         except KeyError:
             value = query.get(self.alias)
-        if value is not None:
-            value = value[0]
-            try:
-                self.value = self.format_string(value)
-            except:
-                if value == 'none':
-                    self.value = None
-                else:
-                    raise
+        if value is None:
+            to_set = None
         else:
-            self.value = None
+            value = value[0]
+            to_set = value
+#            try:
+#                self.value = self.format_string(value)
+#            except:
+#                if value == 'none':
+#                    self.value = None
+#                else:
+#                    raise
+        self.value = to_set
         
     def validate(self,value):
         pass
@@ -463,7 +468,7 @@ class OutputFormat(AttributedOcgParameter):
     _possible = ['numpy','shpidx','shp','csv','nc','keyed','meta']
     _name = 'output_format'
     _nullable = True
-    _default = 'keyed'
+    _default = 'numpy'
     _dtype = str
     
     def message(self):
@@ -760,24 +765,31 @@ class Dataset(AttributedOcgParameter):
     def parse_query(cls,query):
         
         def _get_ref_(query,key):
-            ref = query[key]
-            if not isinstance(ref[0],basestring):
-                ref = ref[0]
-            return(ref)
+            ret = query.get(key)
+            if ret is not None:
+                if not isinstance(ret[0],basestring):
+                    ret = ret[0]
+            return(ret)
+#            if ref is None:
+#                ret = None
+#            else:
+#                ret = ref[0]
+#            return(ret)
         
-        ref_uri = _get_ref_(query,'uri')
-        ref_variable = _get_ref_(query,'variable')
-        if 'alias' in query:
-            ref_alias = _get_ref_(query,'alias')
-        else:
-            ref_alias = None
+        refs = {}
+        keys = ['uri','variable','alias','t_units','t_calendar','s_proj']
+        for key in keys:
+            refs.update({key:_get_ref_(query,key)})
             
         ret = []
-        for idx in range(len(ref_uri)):
-            app = {'uri':ref_uri[idx],
-                   'variable':ref_variable[idx]}
-            if ref_alias is not None:
-                app.update({'alias':ref_alias[idx]})
+        for idx in range(len(refs['uri'])):
+            app = {}
+            for key in keys:
+                try:
+                    ref = refs[key][idx]
+                except TypeError:
+                    ref = None
+                app.update({key:ref})
             ret.append(app)
         return(cls(ret))
     

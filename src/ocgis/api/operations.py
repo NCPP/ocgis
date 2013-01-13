@@ -1,6 +1,8 @@
 from definition import * #@UnusedWildImport
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.interpreter import OcgInterpreter
+import inspect
+import definition
 
 
 class OcgOperations(object):
@@ -168,6 +170,26 @@ class OcgOperations(object):
                 object.__setattr__(self,name,value)
         if self._is_init is False:
             self._validate_()
+            
+    @classmethod
+    def parse_query(cls,query):
+        ## TODO: hack
+        parms = [SpatialOperation,Geom,Aggregate,TimeRange,LevelRange,
+                 Calc,CalcGrouping,CalcRaw,Abstraction,Snippet,Backend,
+                 Prefix,OutputFormat,AggregateSelection,SelectUgid,VectorWrap,
+                 AllowEmpty]
+        
+        kwds = {}
+        ds = Dataset.parse_query(query)
+        kwds.update({ds.name:ds.value})
+        
+        for parm in parms:
+            obj = parm()
+            obj.parse_query(query)
+            kwds.update({obj.name:obj.value})
+            
+        ops = OcgOperations(**kwds)
+        return(ops)
             
     def as_url(self,slug=''):
         parts = []

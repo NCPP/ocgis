@@ -31,6 +31,10 @@ class DefinitionValidationError(OcgException):
 
 class CannotEncodeUrl(OcgException):
     pass
+
+
+class ParameterFormattingError(OcgException):
+    pass
     
     
 class UniqueIdNotFound(OcgException):

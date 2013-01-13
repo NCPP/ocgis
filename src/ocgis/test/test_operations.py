@@ -9,6 +9,8 @@ from ocgis.util.helpers import reduce_query
 from nose.plugins.skip import SkipTest
 from ocgis.calc.library import SampleSize
 from ocgis.util.shp_cabinet import ShpCabinet
+import inspect
+import traceback
 
 #from nose.plugins.skip import SkipTest
 #raise SkipTest(__name__)
@@ -137,15 +139,30 @@ class Test(unittest.TestCase):
     def test_abstraction(self):
         K = definition.Abstraction
         
-        k = K()
-        self.assertEqual(k.value,'polygon')
-        self.assertEqual(str(k),'abstraction=polygon')
+#        k = K()
+#        self.assertEqual(k.value,'polygon')
+#        self.assertEqual(str(k),'abstraction=polygon')
+#        
+#        k = K('point')
+#        self.assertEqual(k.value,'point')
         
-        k = K('point')
-        self.assertEqual(k.value,'point')
-        
+        k = K('pt')
+        import ipdb;ipdb.set_trace()
         with self.assertRaises(DefinitionValidationError):
             K('pt')
+            
+    def test_spatial_operation(self):
+        values = (None,'clip','intersects')
+        ast = ('intersects','clip','intersects')
+        
+        klass = definition.SpatialOperation
+        for v,a in zip(values,ast):
+            obj = klass(v)
+            self.assertEqual(obj.value,a)
+            
+        query = {'spatial_operation':['intersects']}
+        obj = klass()
+        obj.parse_query(query)
 
 #    def test_time_range(self):
 #        valid = [
@@ -170,6 +187,18 @@ class TestUrl(unittest.TestCase):
         query = parse_qs(ref)
         query = reduce_query(query)
         return(query)
+    
+    def test_all_urls(self):
+        members = inspect.getmembers(self)
+        for member in members:
+            ref = member[0]
+            if ref.startswith('url_') and ref != 'url_bad':
+                query = self.get_reduced_query(ref)
+                try:
+                    ops = OcgOperations.parse_query(query)
+                except Exception as e:
+                    print traceback.format_exc()
+                    import ipdb;ipdb.set_trace()
     
     def test_time_range_parsing(self):
         query = self.get_reduced_query('url_long')
@@ -216,6 +245,11 @@ class TestUrl(unittest.TestCase):
         query = parse_qs(self.url_long)
         reduced = reduce_query(query)
         self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [[None, '1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
+        
+        query = self.get_reduced_query('url_interface')
+        self.assertEqual(query,{'variable': [['there', 'there2']], 'level_range': [[None, '1']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']], 'uri': [['hi', 'hi2']], 't_units': [['noleap', None]]})
+        ds = definition.Dataset.parse_query(query)
+        self.assertEqual(ds.value,[{'uri': 'hi', 'alias': 'there', 's_proj': None, 't_units': 'noleap', 'variable': 'there', 't_calendar': None}, {'uri': 'hi2', 'alias': 'there2', 's_proj': None, 't_units': None, 'variable': 'there2', 't_calendar': None}])
 
 
 if __name__ == "__main__":

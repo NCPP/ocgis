@@ -212,11 +212,11 @@ class TestUrl(unittest.TestCase):
             ref = member[0]
             if ref.startswith('url_') and ref != 'url_bad':
                 query = self.get_reduced_query(ref)
-                try:
-                    ops = OcgOperations.parse_query(query)
-                except Exception as e:
-                    print traceback.format_exc()
-                    import ipdb;ipdb.set_trace()
+#                try:
+                ops = OcgOperations.parse_query(query)
+#                except Exception as e:
+#                    print traceback.format_exc()
+#                    import ipdb;ipdb.set_trace()
     
     def test_time_range_parsing(self):
         query = self.get_reduced_query('url_long')

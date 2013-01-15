@@ -5,7 +5,7 @@ import numpy as np
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.api import definition
 from urlparse import parse_qs
-from ocgis.util.helpers import reduce_query
+from ocgis.util.helpers import reduce_query, make_poly
 from nose.plugins.skip import SkipTest
 from ocgis.calc.library import SampleSize, Mean, StandardDeviation
 from ocgis.util.shp_cabinet import ShpCabinet
@@ -78,6 +78,11 @@ class Test(unittest.TestCase):
         self.assertEqual(cd.value,[{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref': StandardDeviation, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}])
             
     def test_geom(self):
+        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+        geom = [{'ugid':1,'geom':geom}]
+        g = definition.Geom(geom)
+        self.assertEqual(type(g.value),list)
+        
         g = definition.Geom(None)
         self.assertNotEqual(g.value,None)
         self.assertEqual(str(g),'geom=none')

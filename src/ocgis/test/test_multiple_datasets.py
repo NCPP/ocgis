@@ -101,11 +101,11 @@ class Test(unittest.TestCase):
     def test_same_variable_name(self):
         ds = [self.cancm4.copy(),self.cancm4.copy()]
         
-        with self.assertRaises(DefinitionValidationError):
+        with self.assertRaises(KeyError):
             OcgOperations(dataset=ds)
         ds[0]['alias'] = 'foo'
         ds[1]['alias'] = 'foo'
-        with self.assertRaises(DefinitionValidationError):
+        with self.assertRaises(KeyError):
             OcgOperations(dataset=ds)
         
         ds = [self.cancm4.copy(),self.cancm4.copy()]

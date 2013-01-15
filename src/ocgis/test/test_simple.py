@@ -21,19 +21,20 @@ class TestBase(unittest.TestCase):
     base_value = None
     return_shp = False
     
-    @property
-    def dataset(self):
+    def get_dataset(self,time_range=None,level_range=None):
         uri = os.path.join(self.outdir,self.fn)
-        return({'uri':uri,'variable':self.var})
+        return({'uri':uri,'variable':self.var,
+                'time_range':time_range,'level_range':level_range})
     
-    def get_ops(self,kwds={}):
-        kwds.update({'dataset':self.dataset,'output_format':'numpy'})
+    def get_ops(self,kwds={},time_range=None,level_range=None):
+        dataset = self.get_dataset(time_range,level_range)
+        kwds.update({'dataset':dataset,'output_format':'numpy'})
         ops = OcgOperations(**kwds)
         return(ops)
     
-    def get_ret(self,ops=None,kwds={},shp=False):
+    def get_ret(self,ops=None,kwds={},shp=False,time_range=None,level_range=None):
         if ops is None:
-            ops = self.get_ops(kwds)
+            ops = self.get_ops(kwds,time_range=time_range,level_range=level_range)
         self.ops = ops
         ret = OcgInterpreter(ops).execute()
         
@@ -92,17 +93,16 @@ class TestSimple(TestBase):
         self.assertEqual(ref.spatial.shape,(1,1))
         
     def test_time_level_subset(self):
-        ret = self.get_ret(kwds={'time_range':[datetime.datetime(2000,3,1),
-                                               datetime.datetime(2000,3,31,23)],
-                                 'level_range':1})
+        ret = self.get_ret(time_range=[datetime.datetime(2000,3,1),
+                                       datetime.datetime(2000,3,31,23)],
+                           level_range=[1,1])
         ref = ret[1].variables[self.var].value
         self.assertEqual(ref.shape,(31,1,4,4))
     
     def test_time_level_subset_aggregate(self):
-        ret = self.get_ret(kwds={'time_range':[datetime.datetime(2000,3,1),
-                                               datetime.datetime(2000,3,31)],
-                                 'level_range':1,
-                                 'aggregate':True})
+        ret = self.get_ret(kwds={'aggregate':True},
+                           time_range=[datetime.datetime(2000,3,1),datetime.datetime(2000,3,31)],
+                           level_range=[1,1],)
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
@@ -112,13 +112,13 @@ class TestSimple(TestBase):
         ## swap names of id variable in geometry dictionary
         ## intersects
         geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom})
 
     def test_spatial(self):
         ## intersects
         geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
@@ -129,7 +129,7 @@ class TestSimple(TestBase):
         
         ## intersection
         geom = make_poly((38,39),(-104,-103))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
         self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
         self.assertEqual(ret[1].variables[self.var].value.shape,(61,2,2,2))
@@ -143,7 +143,7 @@ class TestSimple(TestBase):
             
         ## intersection + aggregation
         geom = make_poly((38,39),(-104,-103))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
         self.assertEqual(len(ref.variables[self.var].spatial.uid.flatten()),1)
@@ -152,7 +152,7 @@ class TestSimple(TestBase):
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
@@ -186,14 +186,14 @@ class TestSimple(TestBase):
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
             
     def test_inspect(self):
-        uri = self.dataset['uri']
-        for variable in [self.dataset['variable'],None]:
+        uri = self.get_dataset()['uri']
+        for variable in [self.get_dataset()['variable'],None]:
             ip = Inspect(uri,variable=variable)
             ret = ip.__repr__()
             self.assertTrue(len(ret) > 100)
             
     def test_nc_conversion(self):
-        ops = OcgOperations(dataset=self.dataset,output_format='nc')
+        ops = OcgOperations(dataset=self.get_dataset(),output_format='nc')
         ret = self.get_ret(ops)
         
     def test_shp_conversion(self):
@@ -203,14 +203,14 @@ class TestSimple(TestBase):
                 ]
         group = ['month','year']
         for c in calc:
-            ops = OcgOperations(dataset=self.dataset,
+            ops = OcgOperations(dataset=self.get_dataset(),
                                 output_format='shp',
                                 calc_grouping=group,
                                 calc=c)
             ret = self.get_ret(ops)
         
     def test_csv_conversion(self):
-        ops = OcgOperations(dataset=self.dataset,output_format='csv')
+        ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)
         
     def test_keyed_conversion(self):
@@ -220,14 +220,14 @@ class TestSimple(TestBase):
                 ]
         group = ['month','year']
         for c in calc:
-            ops = OcgOperations(dataset=self.dataset,
+            ops = OcgOperations(dataset=self.get_dataset(),
                                 output_format='keyed',
                                 calc=c,
                                 calc_grouping=group)
             ret = self.get_ret(ops)
         
     def test_shpidx_conversion(self):
-        ops = OcgOperations(dataset=self.dataset,output_format='shpidx')
+        ops = OcgOperations(dataset=self.get_dataset(),output_format='shpidx')
         ret = self.get_ret(ops)
 
 
@@ -258,7 +258,7 @@ class TestSimpleMask(TestBase):
     
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
@@ -290,15 +290,14 @@ class TestSimple360(TestBase):
         
     def test_spatial(self):
         geom = make_poly((38,39),(-93,-92))
-        geom = {'ugid':1,'geom':geom}
+        geom = [{'ugid':1,'geom':geom}]
         
-        for abstraction in ['poly','point']:
-            interface = {'s_abstraction':abstraction}
-            ret = self.get_ret(kwds={'geom':geom,'interface':interface})
+        for abstraction in ['polygon','point']:
+            ret = self.get_ret(kwds={'geom':geom,'abstraction':abstraction})
             self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
             
             self.get_ret(kwds={'vector_wrap':False})
-            ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'interface':interface})
+            ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'abstraction':abstraction})
             self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
 
 

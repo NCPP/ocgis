@@ -31,8 +31,6 @@ class EqualSpatialDimensionMapper(object):
                 if v == uid:
                     for ds in self.datasets:
                         if ds['alias'] == k:
-                            if not self._id_key in ds:
-                                ds[self._id_key] = []
                             ds[self._id_key].append(self._key)
                             break
                     break

@@ -5,11 +5,9 @@ from ocgis.interface.interface import SpatialInterfacePolygon,\
     SpatialInterfacePoint
 from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
-from ocgis.api.dataset.collection.collection import OcgCollection,\
-    ArrayIdentifier
+from ocgis.api.dataset.collection.collection import OcgCollection
 from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
-import numpy as np
 from ocgis.api.dataset.mappers import EqualSpatialDimensionMapper,\
     EqualTemporalDimensionMapper, EqualLevelDimensionMapper
 
@@ -29,18 +27,16 @@ class SubsetOperation(object):
         self.serial = serial
         self.nprocs = nprocs
         
-        ## update meta entries with OcgDataset objects checking for
-        ## duplicate URIs. if the URI is the same, there is no reason to build
-        ## the interface objects again.
-        uri_map = {}
+        ## construct OcgDataset objects
+#        uri_map = {}
         for dataset in self.ops.dataset:
-            key = dataset['uri']
-            if key in uri_map:
-                ods = uri_map[key]
-            else:
-                ods = OcgDataset(dataset,interface_overload=self.ops.interface)
-                uri_map.update({key:ods})
-            dataset.update({'ocg_dataset':ods})
+#            key = dataset['uri']
+#            if key in uri_map:
+#                ods = uri_map[key]
+#            else:
+            ods = OcgDataset(dataset,interface_overload=dataset.interface)
+#                uri_map.update({key:ods})
+            dataset.ocg_dataset = ods
         
         ## determine if dimensions are equivalent.
         mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
@@ -70,27 +66,40 @@ class SubsetOperation(object):
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
-            ## only select the first level
-            self.ops.level_range = [1]*len(self.ops.dataset)
-            ## alter time ranges for the datasets
-            time_ranges = []
-            for i,ds in enumerate(self.ops.dataset):
-                ref = ds['ocg_dataset'].i.temporal
-                ## use standard time bounds if no calculation present
-                if self.cengine is None:
-                    app = [ref.value[0],ref.value[0]]
-                ## if there are calculations, select the first time group
+            for dataset in self.ops.dataset:
+                dataset.level_range = [1,1]
+                ref = dataset.ocg_dataset.i.temporal
+                if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
+                    dataset.time_range = [ref.value[0],ref.value[0]]
                 else:
-                    if self.cengine.grouping is None:
-                        app = [ref.value[0],ref.value[0]]
-                    else:
-                        tgdim = TemporalDimension(ref.tid,ref.value,
-                                                  bounds=ref.bounds).\
-                                                  group(self.cengine.grouping)
-                        times = ref.value[tgdim.dgroups[0]]
-                        app = [times.min(),times.max()]
-                time_ranges.append(app)
-            self.ops.time_range = time_ranges
+                    tgdim = TemporalDimension(ref.tid,ref.value,
+                                              bounds=ref.bounds).\
+                                              group(self.cengine.grouping)
+                    times = ref.value[tgdim.dgroups[0]]
+                    dataset.time_range = [times.min(),times.max()]
+            
+#            import ipdb;ipdb.set_trace()
+#            ## only select the first level
+#            self.ops.level_range = [1]*len(self.ops.dataset)
+#            ## alter time ranges for the datasets
+#            time_ranges = []
+#            for i,ds in enumerate(self.ops.dataset):
+#                ref = ds['ocg_dataset'].i.temporal
+#                ## use standard time bounds if no calculation present
+#                if self.cengine is None:
+#                    app = [ref.value[0],ref.value[0]]
+#                ## if there are calculations, select the first time group
+#                else:
+#                    if self.cengine.grouping is None:
+#                        app = [ref.value[0],ref.value[0]]
+#                    else:
+#                        tgdim = TemporalDimension(ref.tid,ref.value,
+#                                                  bounds=ref.bounds).\
+#                                                  group(self.cengine.grouping)
+#                        times = ref.value[tgdim.dgroups[0]]
+#                        app = [times.min(),times.max()]
+#                time_ranges.append(app)
+#            self.ops.time_range = time_ranges
 
 #        ## set the spatial_interface
 #        self.spatial_interface = ods.i.spatial
@@ -154,25 +163,25 @@ def get_collection((so,geom_dict)):
     ## store geoms for later clipping. needed because some may be wrapped while
     ## others unwrapped.
     geom_copys = []
-    for dataset in so.ops:
+    for dataset in so.ops.dataset:
         ## use a copy of the geometry dictionary, since it may be modified
         geom_copy = deepcopy(geom_dict)
         geom_copys.append(geom_copy)
         
-        ref = dataset['dataset']['ocg_dataset']
+        ref = dataset.ocg_dataset
         ## wrap the geometry dictionary if needed
         if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
             unwrap_geoms([geom_copy],ref.i.spatial.pm)
         ## perform the data subset
         ocg_variable = ref.subset(
                             polygon=geom_copy['geom'],
-                            time_range=dataset['time_range'],
-                            level_range=dataset['level_range'],
+                            time_range=dataset.time_range,
+                            level_range=dataset.level_range,
                             allow_empty=so.ops.allow_empty)
         ## tell the keyed iterator if this should be used for identifiers.
-        ocg_variable._use_for_id = dataset['dataset'].get('_use_for_id',[])
+        ocg_variable._use_for_id = dataset._use_for_id
         ## update the variable's alias
-        ocg_variable.alias = dataset['dataset']['alias']
+        ocg_variable.alias = dataset.alias
         ## maintain the interface for use by nc converter
         ## TODO: i don't think this is required by other converters
         ocg_variable._i = ref.i

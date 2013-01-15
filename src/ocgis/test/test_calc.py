@@ -20,16 +20,17 @@ class Test(unittest.TestCase):
     
     def test_HeatIndex(self):
         ds = [self.tasmax,self.rhsmax]
-        calc = {'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}
+        calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
         
         time_range = [dt(2011,1,1),dt(2011,12,31)]
-        ops = OcgOperations(dataset=ds,calc=calc,time_range=time_range)
+        for d in ds: d['time_range'] = time_range
+        ops = OcgOperations(dataset=ds,calc=calc)
         self.assertEqual(ops.calc_grouping,None)
         ret = ops.execute()
         ref = ret[1]
         self.assertEqual(ref.variables.keys(),['tasmax','rhsmax','heat_index'])
         hi = ref.variables['heat_index']
-        self.assertEqual(hi.value.shape,(364,1,64,128))
+        self.assertEqual(hi.value.shape,(365,1,64,128))
         it = MeltedIterator(ret[1],mode='calc')
         for ii,row in enumerate(it.iter_rows()):
             if ii == 0:

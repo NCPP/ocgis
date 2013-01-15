@@ -34,8 +34,8 @@ class GlobalInterface(object):
                 setattr(self,interface._name,None)
         
         ## check for proj4 string to initialize a projection
-        s_proj4 = overload.get('s_proj4')
-        if s_proj4 is None:
+        s_proj = overload.get('s_proj')
+        if s_proj is None:
             projection = get_projection(rootgrp)
 #            projection = WGS84()
         else:

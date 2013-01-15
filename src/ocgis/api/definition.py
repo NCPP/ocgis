@@ -706,7 +706,15 @@ class RequestDataset(object):
         self.t_units = t_units
         self.t_calendar = t_calendar
         
+        self.ocg_dataset = None
+        self._use_for_id = []
         self._format_()
+        
+    @property
+    def interface(self):
+        attrs = ['s_proj','t_units','t_calendar']
+        ret = {attr:getattr(self,attr) for attr in attrs}
+        return(ret)
         
     def __eq__(self,other):
         if isinstance(other,self.__class__):

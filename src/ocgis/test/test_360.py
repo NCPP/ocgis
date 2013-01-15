@@ -62,7 +62,7 @@ class Test360(unittest.TestCase):
         for s_abstraction in ['point','polygon']:
             interface = {'s_abstraction':s_abstraction}
             ops = OcgOperations(dataset=dataset,output_format=output_format,
-                                geom=geom,snippet=snippet,interface=interface)
+                                geom=geom,snippet=snippet,abstraction=s_abstraction)
             ret = OcgInterpreter(ops).execute()
 
     def test_low_res(self):
@@ -79,7 +79,7 @@ class Test360(unittest.TestCase):
             ops = OcgOperations(dataset=dataset,
                                 output_format=output_format,
                                 geom=geom,
-                                interface=interface)
+                                abstraction=s_abstraction)
             ret = OcgInterpreter(ops).execute()
         
     @property

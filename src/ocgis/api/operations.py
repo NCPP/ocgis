@@ -190,14 +190,14 @@ class OcgOperations(object):
         ops = OcgOperations(**kwds)
         return(ops)
             
-    def as_url(self,slug=''):
+    def as_qs(self,slug=''):
         parts = []
         for key,value in self.__dict__.iteritems():
             if key in ['request_url']:
                 continue
             if isinstance(value,OcgParameter):
                 parts.append(str(value))
-        import ipdb;ipdb.set_trace()
+        return('&'.join(parts))
         
     def as_dict(self):
         ret = {}

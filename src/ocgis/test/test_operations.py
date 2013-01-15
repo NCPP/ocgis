@@ -268,11 +268,10 @@ class TestUrl(unittest.TestCase):
         ds = definition.Dataset.parse_query(query)
         self.assertEqual(ds.value,rdc)
         
-    def test_url_generation(self):
-        raise(SkipTest('url not implemented'))
+    def test_qs_generation(self):
         ds = {'uri':'/path/to/foo','variable':'tas'}
         ops = OcgOperations(ds)
-        url = ops.as_url()
+        qs = ops.as_qs()
         import ipdb;ipdb.set_trace()
         
     def test_url_parsing(self):

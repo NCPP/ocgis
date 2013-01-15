@@ -11,6 +11,7 @@ from ocgis.calc.library import SampleSize, Mean, StandardDeviation
 from ocgis.util.shp_cabinet import ShpCabinet
 import inspect
 import traceback
+from ocgis.api.definition import RequestDataset, RequestDatasetCollection
 
 #from nose.plugins.skip import SkipTest
 #raise SkipTest(__name__)
@@ -19,51 +20,17 @@ class Test(unittest.TestCase):
     uris = ['/tmp/foo1.nc','/tmp/foo2.nc','/tmp/foo3.nc']
     vars = ['tasmin','tasmax','tas']
     time_range = [dt(2000,1,1),dt(2000,12,31)]
-    level_range = 2
-    datasets = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
-
-    def test_equal_length_level_range(self):
-        
-        ## check that parms come out equal lengths and level range is correctly
-        ## set.
-        ops = OcgOperations(dataset=self.datasets,
-                            time_range=self.time_range,
-                            level_range=self.level_range)
-        self.assertEqual(len(ops.dataset),len(ops.time_range))
-        self.assertEqual(len(ops.dataset),len(ops.level_range))
-        self.assertEqual(np.array(ops.level_range,dtype=int).max(),self.level_range)
-        
-        ## assert error is raised with arguments of differing lengths
-        level_range = [[2,2],[3,3]]
-        with self.assertRaises(DefinitionValidationError):
-            ops = OcgOperations(dataset=self.datasets,
-                                time_range=self.time_range,
-                                level_range=level_range)
-
-    def test_iter(self):
-        ops = OcgOperations(dataset=self.datasets,
-                            time_range=self.time_range,
-                            level_range=self.level_range)
-        for row in ops:
-            self.assertEqual(row['time_range'],self.time_range)
-            self.assertEqual(row['level_range'],[self.level_range,self.level_range])
+    level_range = [2,2]
+    datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
+    datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
     def test_null_parms(self):
-        ops = OcgOperations(dataset=self.datasets)
+        ops = OcgOperations(dataset=self.datasets_no_range)
         self.assertNotEqual(ops.geom,None)
-        self.assertEqual(ops.time_range,[None]*3)
-        for row in ops:
-            self.assertEqual(row['time_range'],None)
-            self.assertEqual(row['level_range'],None)
-            
-        ops = OcgOperations(dataset=self.datasets[0])
-        self.assertEqual(ops.time_range,None)
-        self.assertEqual(ops.level_range,None)
-        
-        for row in ops:
-            for attr in ['level_range','time_range']:
-                self.assertEqual(row[attr],None)
-            self.assertEqual(set(['uri','alias','s_proj','t_units','variable','t_calendar']),set(row['dataset'].keys()))
+        self.assertEqual(len(ops.dataset),3)
+        for ds in ops.dataset:
+            self.assertEqual(ds.time_range,None)
+            self.assertEqual(ds.level_range,None)
     
     def test_aggregate(self):
         A = definition.Aggregate
@@ -142,6 +109,10 @@ class Test(unittest.TestCase):
                 self.assertEqual(obj.value,['day'])
                 
     def test_dataset(self):
+        rd = RequestDataset('/path/foo','hi')
+        ds = definition.Dataset(rd)
+        self.assertEqual(ds.value,RequestDatasetCollection([rd]))
+        
         dsa = {'uri':'/path/foo','variable':'foo_variable'}
         ds = definition.Dataset(dsa)
         self.assertEqual(str(ds),'uri=/path/foo&variable=foo_variable&alias=foo_variable&t_units=none&t_calendar=none&s_proj=none')
@@ -191,14 +162,79 @@ class Test(unittest.TestCase):
 #            tr = definition.TimeRange(v)
 #            import ipdb;ipdb.set_trace()
         
+class TestRequestDatasets(unittest.TestCase):
+    uri = '/foo/path'
+    variable = 'foo_you'
+    
+    def test_RequestDataset(self):
+        uri = '/foo/path'
+        variable = 'foo_you'
+        
+        rd = RequestDataset(uri,variable)
+        self.assertEqual(rd['uri'],uri)
+        self.assertEqual(rd['alias'],variable)
+        
+        rd = RequestDataset(uri,variable,alias='an_alias')
+        self.assertEqual(rd.alias,'an_alias')
+        
+    def test_RequestDataset_time_range(self):
+        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31, 23, 59, 59)]
+        
+        tr = [dt(2000,1,1),dt(2000,12,31)]
+        rd = RequestDataset(self.uri,self.variable,time_range=tr)
+        self.assertEqual(rd.time_range,out)
+        
+        tr = '2000-1-1|2000-12-31'
+        rd = RequestDataset(self.uri,self.variable,time_range=tr)
+        self.assertEqual(rd.time_range,out)
+        
+        tr = '2000-12-31|2000-1-1'
+        with self.assertRaises(DefinitionValidationError):
+            rd = RequestDataset(self.uri,self.variable,time_range=tr)
+            
+    def test_RequestDataset_level_range(self):
+        lr = '1|1'
+        rd = RequestDataset(self.uri,self.variable,level_range=lr)
+        self.assertEqual(rd.level_range,[1,1])
+        
+        with self.assertRaises(DefinitionValidationError):
+            rd = RequestDataset(self.uri,self.variable,level_range=[2,1])
+    
+    def test_RequestDatasetCollection(self):
+        uris = ['/path/uri1','/path/uri2']
+        variables = ['foo1','foo2']
+        rdc = RequestDatasetCollection()
+        for uri,variable in zip(uris,variables):
+            rd = RequestDataset(uri,variable)
+            rdc.update(rd)
+        
+        variables = ['foo1','foo1']
+        rdc = RequestDatasetCollection()
+        for ii,(uri,variable) in enumerate(zip(uris,variables)):
+            rd = RequestDataset(uri,variable)
+            if ii == 1:
+                with self.assertRaises(KeyError):
+                    rdc.update(rd)
+            else:
+                rdc.update(rd)
+                
+        aliases = ['a1','a2']
+        for uri,variable,alias in zip(uris,variables,aliases):
+            rd = RequestDataset(uri,variable,alias=alias)
+            rdc.update(rd)
+        for row in rdc:
+            self.assertIsInstance(row,RequestDataset)
+        self.assertIsInstance(rdc[0],RequestDataset)
+        self.assertIsInstance(rdc['a2'],RequestDataset)
+        
         
 class TestUrl(unittest.TestCase):
     url_single = 'uri=http://www.dataset.com&variable=foo&spatial_operation=intersects'
     url_alias = url_single + '&alias=my_alias'
     url_multi = 'uri3=http://www.dataset.com&variable3=foo&uri5=http://www.dataset2.com&variable5=foo2&aggregate=true'
     url_bad = 'uri2=http://www.dataset.com&variable3=foo'
-    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31&level_range2=1'
-    url_interface = url_long + '&t_units1=noleap'
+    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31&level_range2=1|1'
+    url_interface = url_long + '&t_calendar1=noleap'
     
     def get_reduced_query(self,attr):
         ref = getattr(self,attr)
@@ -218,27 +254,19 @@ class TestUrl(unittest.TestCase):
 #                    print traceback.format_exc()
 #                    import ipdb;ipdb.set_trace()
     
-    def test_time_range_parsing(self):
-        query = self.get_reduced_query('url_long')
-        tr = definition.TimeRange()
-        tr.parse_query(query)
-        self.assertEqual(tr.value,[[dt(2001,1,2,0,0),dt(2001,1,5,23,59,59)],[dt(2012,1,1,0,0),dt(2012,12,31,23,59,59)]])
-        
-    def test_level_range_parsing(self):
-        query = self.get_reduced_query('url_long')
-        lr = definition.LevelRange()
-        lr.parse_query(query)
-        self.assertEqual(lr.value,[None,[1, 1]])
-    
     def test_dataset_from_query(self):
         query = parse_qs(self.url_long)
         query = reduce_query(query)
         ds = definition.Dataset.parse_query(query)
-        self.assertEqual(ds.value,[{'uri': 'hi', 'alias': 'there', 's_proj': None, 't_units': None, 'variable': 'there', 't_calendar': None}, {'uri': 'hi2', 'alias': 'there2', 's_proj': None, 't_units': None, 'variable': 'there2', 't_calendar': None}])
+        rds = [RequestDataset('hi','there',time_range='2001-1-2|2001-1-5'),
+               RequestDataset('hi2','there2',time_range='2012-1-1|2012-12-31',level_range='1|1')]
+        rdc = RequestDatasetCollection(rds)
+        self.assertEqual(ds.value,rdc)
         
         query = self.get_reduced_query('url_alias')
+        rdc = RequestDatasetCollection([RequestDataset('http://www.dataset.com','foo',alias='my_alias')])
         ds = definition.Dataset.parse_query(query)
-        self.assertEqual(ds.value,[{'uri': 'http://www.dataset.com', 'alias': 'my_alias', 's_proj': None, 't_units': None, 'variable': 'foo', 't_calendar': None}])
+        self.assertEqual(ds.value,rdc)
         
     def test_url_generation(self):
         raise(SkipTest('url not implemented'))
@@ -262,12 +290,10 @@ class TestUrl(unittest.TestCase):
             
         query = parse_qs(self.url_long)
         reduced = reduce_query(query)
-        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [[None, '1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
+        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [[None, '1|1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
         
         query = self.get_reduced_query('url_interface')
-        self.assertEqual(query,{'variable': [['there', 'there2']], 'level_range': [[None, '1']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']], 'uri': [['hi', 'hi2']], 't_units': [['noleap', None]]})
-        ds = definition.Dataset.parse_query(query)
-        self.assertEqual(ds.value,[{'uri': 'hi', 'alias': 'there', 's_proj': None, 't_units': 'noleap', 'variable': 'there', 't_calendar': None}, {'uri': 'hi2', 'alias': 'there2', 's_proj': None, 't_units': None, 'variable': 'there2', 't_calendar': None}])
+        self.assertEqual(query,{'variable': [['there', 'there2']], 'level_range': [[None, '1|1']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']], 'uri': [['hi', 'hi2']], 't_calendar': [['noleap', None]]})
 
 
 if __name__ == "__main__":

@@ -7,33 +7,10 @@ from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
 from ocgis.calc import library
 import numpy as np
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from collections import OrderedDict
 
 
 class OcgParameter(object):
-    '''
-    >>> op = OcgParameter('aggregate',bool,nullable=True,default=True)
-    >>> op.value = False
-    >>> op = OcgParameter('output_format',str,nullable=False,default='keyed')
-    >>> op.value
-    'keyed'
-    >>> op.value = None; op.value
-    'keyed'
-    >>> op.value = 'shp'
-    >>> op.value
-    'shp'
-    >>> query = {'output_format':['nc']}
-    >>> op.parse_query(query)
-    >>> op.value
-    'nc'
-    >>> op.parse_query({'output_format':[5]})
-    Traceback (most recent call last):
-    ...
-    AttributeError: 'int' object has no attribute 'lower'
-    >>> op = OcgParameter('foo',str).parse_query(query)
-    Traceback (most recent call last):
-    ...
-    ValueError: "foo" is not nullable.
-    '''
     
     def __init__(self,name,dtype,nullable=False,default=None,length=None,
                  alias=None,init_value=None,scalar=True):
@@ -241,80 +218,46 @@ class AttributedOcgParameter(OcgParameter):
          length=self._length,alias=self._alias,init_value=init_value,scalar=self._scalar)
         
         
-class TimeRange(OcgParameter):
-    '''
-    >>> time_range = TimeRange()
-    >>> time_range.value = 4
-    Traceback (most recent call last):
-    ....
-    AssertionError
-    >>> time_range.value = [datetime(2000,1,1),datetime(1999,1,1)]
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> time_range.parse_query({'time_range':['2000-1-1|1999-1-1']})
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> time_range.parse_query({'time_range':['2000-1-1|2000-1-1']})
-    >>> time_range.value
-    [datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2000, 1, 1, 23, 59, 59)]
-    >>> time_range.message()
-    "Inclusive time selection range is: ['2000-01-01 00:00:00', '2000-01-01 23:59:59']"
-    >>> time_range.parse_query({'time_range':['2000-1-1|2000-100-1']})
-    Traceback (most recent call last):
-    ...
-    ValueError: time data '2000-100-1' does not match format '%Y-%m-%d'
-    >>> time_range.parse_query({'time_range':['none']})
-    >>> time_range.value
-    >>> time_range.value = None
-    >>> time_range.message()
-    'All time points returned.'
-    '''
-#    _name = 'time_range'
-#    _dtype = list
-#    _nullable = True
-#    _length = None
-#    _default = [None]
+#class TimeRange(OcgParameter):
+#    
+#    def __init__(self,init_value=None):
+#        super(self.__class__,self).__init__('time_range',list,init_value=init_value,
+#                                            nullable=True,default=None,scalar=False)
+#    
+#    def validate(self,value):
+#        self._assert_(value[0] <= value[1],'Time ordination incorrect.')
+#            
+##    def _format_(self,value):
+##        import ipdb;ipdb.set_trace()
+##        if type(value[0]) == datetime:
+##            ret = [value]
+##        else:
+##            ret = value
+##        import ipdb;ipdb.set_trace()
+##        return(ret)
+#        
+#    def _format_string_element_(self,value):
+#        ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
+#        ref = ret[1]
+#        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
+#        return(ret)
+#    
+#    def message(self):
+#        if self.value is None:
+#            msg = 'All time points returned.'
+#        else:
+#            msg = 'Inclusive time selection range is: {0}'.format([str(v) for v in self.value])
+#        return(msg)
     
-    def __init__(self,init_value=None):
-        super(self.__class__,self).__init__('time_range',list,init_value=init_value,
-                                            nullable=True,default=None,scalar=False)
-    
-    def validate(self,value):
-        self._assert_(value[0] <= value[1],'Time ordination incorrect.')
-            
-#    def _format_(self,value):
-#        import ipdb;ipdb.set_trace()
-#        if type(value[0]) == datetime:
-#            ret = [value]
+#    def _get_iter_(self,value):
+#        if type(value) in (list,tuple):
+#            if type(value[0]) == datetime:
+#                ret = [value]
+#            else:
+#                ret = value
 #        else:
 #            ret = value
-#        import ipdb;ipdb.set_trace()
 #        return(ret)
-        
-    def _format_string_element_(self,value):
-        ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
-        ref = ret[1]
-        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
-        return(ret)
-    
-    def message(self):
-        if self.value is None:
-            msg = 'All time points returned.'
-        else:
-            msg = 'Inclusive time selection range is: {0}'.format([str(v) for v in self.value])
-        return(msg)
-    
-    def _get_iter_(self,value):
-        if type(value) in (list,tuple):
-            if type(value[0]) == datetime:
-                ret = [value]
-            else:
-                ret = value
-        else:
-            ret = value
-        return(ret)
     
     
 class RequestUrl(AttributedOcgParameter):
@@ -436,44 +379,44 @@ class CalcGrouping(AttributedOcgParameter):
 #        return([values])
     
     
-class LevelRange(AttributedOcgParameter):
-    '''
-    >>> level_range = LevelRange()
-    >>> level_range.value = 1; level_range.value
-    [1, 1]
-    '''
-    _name = 'level_range'
-    _default = None
-    _dtype = list
-    _nullable = True
-    _length = None
-    _scalar = False
-    
-    def _format_(self,value):
-        if type(value) in (list,tuple):
-            if len(value) == 1:
-                ret = [value[0],value[0]]
-            else:
-                ret = value
-        else:
-            ret = [value,value]
-        ret = map(int,ret)
-        return(ret)
-    
-    def _format_string_element_(self,value):
-        ret = [int(ii) for ii in value.split('|')]
-        return(ret)
-    
-    def validate(self,value):
-        self._assert_(value[0] <= value[1],'Level ordination incorrect.')
-
-    def message(self):
-        if self.value is None:
-            msg = ('No level range provided. If variable(s) has/have a level dimesion,'
-                   ' all levels will be returned.')
-        else:
-            msg = 'Inclusive level range returned is: {0}.'.format(self.value)
-        return(msg)
+#class LevelRange(AttributedOcgParameter):
+#    '''
+#    >>> level_range = LevelRange()
+#    >>> level_range.value = 1; level_range.value
+#    [1, 1]
+#    '''
+#    _name = 'level_range'
+#    _default = None
+#    _dtype = list
+#    _nullable = True
+#    _length = None
+#    _scalar = False
+#    
+#    def _format_(self,value):
+#        if type(value) in (list,tuple):
+#            if len(value) == 1:
+#                ret = [value[0],value[0]]
+#            else:
+#                ret = value
+#        else:
+#            ret = [value,value]
+#        ret = map(int,ret)
+#        return(ret)
+#    
+#    def _format_string_element_(self,value):
+#        ret = [int(ii) for ii in value.split('|')]
+#        return(ret)
+#    
+#    def validate(self,value):
+#        self._assert_(value[0] <= value[1],'Level ordination incorrect.')
+#
+#    def message(self):
+#        if self.value is None:
+#            msg = ('No level range provided. If variable(s) has/have a level dimesion,'
+#                   ' all levels will be returned.')
+#        else:
+#            msg = 'Inclusive level range returned is: {0}.'.format(self.value)
+#        return(msg)
     
     
 class OutputFormat(AttributedOcgParameter):
@@ -750,11 +693,122 @@ class Calc(AttributedOcgParameter):
         return(msg[:-2])
 
 
-class Dataset(AttributedOcgParameter):
-    _name = 'dataset'
-    _nullable = False
-    _dtype = dict
-    _scalar = False
+class RequestDataset(object):
+    
+    def __init__(self,uri,variable,alias=None,time_range=None,level_range=None,
+                 s_proj=None,t_units=None,t_calendar=None):
+        self.uri = uri
+        self.variable = variable
+        self.alias = alias or variable
+        self.time_range = deepcopy(time_range)
+        self.level_range = deepcopy(level_range)
+        self.s_proj = s_proj
+        self.t_units = t_units
+        self.t_calendar = t_calendar
+        
+        self._format_()
+        
+    def __eq__(self,other):
+        if isinstance(other,self.__class__):
+            return(self.__dict__ == other.__dict__)
+        else:
+            return(False)
+        
+    def __repr__(self):
+        msg = '<{0} ({1})>'.format(self.__class__.__name__,self.alias)
+        return(msg)
+    
+    def __getitem__(self,item):
+        ret = getattr(self,item)
+        return(ret)
+    
+    def _format_(self):
+        if self.time_range is not None:
+            self._format_time_range_()
+        if self.level_range is not None:
+            self._format_level_range_()
+    
+    def _format_time_range_(self):
+        try:
+            ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
+        except AttributeError:
+            ret = self.time_range
+        ref = ret[1]
+        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
+        if ret[0] > ret[1]:
+            raise(DefinitionValidationError('dataset','Time ordination incorrect.'))
+        self.time_range = ret
+        
+    def _format_level_range_(self):
+        try:
+            ret = [int(v) for v in self.level_range.split('|')]
+        except AttributeError:
+            ret = self.level_range
+        if ret[0] > ret[1]:
+            raise(DefinitionValidationError('dataset','Level ordination incorrect.'))
+        self.level_range = ret
+    
+    
+class RequestDatasetCollection(object):
+    
+    def __init__(self,request_datasets=[]):
+        self._s = OrderedDict()
+        for rd in request_datasets:
+            self.update(rd)
+            
+    def __eq__(self,other):
+        if isinstance(other,self.__class__):
+            return(self.__dict__ == other.__dict__)
+        else:
+            return(False)
+        
+    def __len__(self):
+        return(len(self._s))
+        
+    def __repr__(self):
+        msg = ['{0} RequestDataset(s) in collection:'.format(len(self))]
+        for rd in self:
+            msg.append('  {0}'.format(rd.__repr__()))
+        return('\n'.join(msg))
+        
+    def __iter__(self):
+        for value in self._s.itervalues():
+            yield(value)
+            
+    def __getitem__(self,index):
+        try:
+            ret = self._s[index]
+        except KeyError:
+            key = self._s.keys()[index]
+            ret = self._s[key]
+        return(ret)
+    
+    def update(self,request_dataset):
+        if request_dataset.alias in self._s:
+            raise(KeyError('Alias "{0}" already in collection.'\
+                           .format(request_dataset.alias)))
+        else:
+            self._s.update({request_dataset.alias:request_dataset})
+            
+    
+class Dataset(OcgParameter):
+    
+    def __init__(self,init_value=None):
+        self._coll = RequestDatasetCollection()
+        super(self.__class__,self).__init__('dataset',RequestDataset,
+                 nullable=False,default=None,length=None,
+                 alias=None,init_value=init_value,scalar=False)
+    
+    def format(self,value):
+        value = deepcopy(value)
+        if isinstance(value,RequestDataset):
+            self._coll.update(value)
+            ret = self._coll
+        elif isinstance(value,RequestDatasetCollection):
+            ret = value
+        else:
+            ret = super(self.__class__,self).format(value)
+        return(ret)    
     
     def __str__(self):
         if len(self.value) == 1:
@@ -789,10 +843,9 @@ class Dataset(AttributedOcgParameter):
 #            return(ret)
         
         refs = {}
-        keys = ['uri','variable','alias','t_units','t_calendar','s_proj']
+        keys = ['uri','variable','alias','t_units','t_calendar','s_proj','time_range','level_range']
         for key in keys:
             refs.update({key:_get_ref_(query,key)})
-            
         ret = []
         for idx in range(len(refs['uri'])):
             app = {}
@@ -806,11 +859,20 @@ class Dataset(AttributedOcgParameter):
         return(cls(ret))
     
     def _format_(self,value):
-        additional_keys = ['alias','t_units','t_calendar','s_proj']
-        for key in additional_keys:
-            if key not in value:
-                value[key] = None
-        return(value)
+        rd = RequestDataset(**value)
+        return(rd)
+    
+    def format_all(self,values):
+        for rd in values:
+            self._coll.update(rd)
+        return(self._coll)
+#        import ipdb;ipdb.set_trace()
+#        import ipdb;ipdb.set_trace()
+#        additional_keys = ['alias','t_units','t_calendar','s_proj']
+#        for key in additional_keys:
+#            if key not in value:
+#                value[key] = None
+#        return(value)
     
 #    def _get_query_parm_(self):
 #        import ipdb;ipdb.set_trace()
@@ -821,45 +883,45 @@ class Dataset(AttributedOcgParameter):
 #        ret = '&'.join(store)
 #        return(ret)
     
-    def validate(self,value):
-#        import ipdb;ipdb.set_trace()
-#        for ii in value:
-#            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
-        self._assert_('uri' in value,'A URI must be provided.')
-        self._assert_('variable' in value,'A variable name must be provided.')
+#    def validate(self,value):
+##        import ipdb;ipdb.set_trace()
+##        for ii in value:
+##            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
+#        self._assert_('uri' in value,'A URI must be provided.')
+#        self._assert_('variable' in value,'A variable name must be provided.')
         
-    def validate_all(self,values):
-        ## add alias key if not present.
-#        if 'alias' not in ii:
-#            ii['alias'] = None
-        ## check that variable names are unique. if not, then an alias must be
-        ## provided by the user.
-        def _test_(var_names,value):
-            assert(len(set(var_names)) == len(value))
-        var_names = [ii['variable'] for ii in values]
-        msg = ('Variable names must be unique. If variables with the same name '
-               'are requested from multiple datasets. Supply an "alias" '
-               'keyword to the dataset dictionaries such that the names and '
-               'aliases are unique.')
-        try:
-            _test_(var_names,values)
-        except AssertionError:
-            ## determine if alias names make the request unique.
-            var_names = []
-            for v in values:
-                if v['alias'] is None:
-                    var_names.append(v['variable'])
-                else:
-                    var_names.append(v['alias'])
-            try:
-                _test_(var_names,values)
-            except AssertionError:
-                raise(DefinitionValidationError(self,msg))
-        
-        ## set the alias to match variables
-        for ii in values:
-            if ii['alias'] is None:
-                ii['alias'] = ii['variable']
+#    def validate_all(self,values):
+#        ## add alias key if not present.
+##        if 'alias' not in ii:
+##            ii['alias'] = None
+#        ## check that variable names are unique. if not, then an alias must be
+#        ## provided by the user.
+#        def _test_(var_names,value):
+#            assert(len(set(var_names)) == len(value))
+#        var_names = [ii['variable'] for ii in values]
+#        msg = ('Variable names must be unique. If variables with the same name '
+#               'are requested from multiple datasets. Supply an "alias" '
+#               'keyword to the dataset dictionaries such that the names and '
+#               'aliases are unique.')
+#        try:
+#            _test_(var_names,values)
+#        except AssertionError:
+#            ## determine if alias names make the request unique.
+#            var_names = []
+#            for v in values:
+#                if v['alias'] is None:
+#                    var_names.append(v['variable'])
+#                else:
+#                    var_names.append(v['alias'])
+#            try:
+#                _test_(var_names,values)
+#            except AssertionError:
+#                raise(DefinitionValidationError(self,msg))
+#        
+#        ## set the alias to match variables
+#        for ii in values:
+#            if ii['alias'] is None:
+#                ii['alias'] = ii['variable']
     
     def message(self):
         lines = []

@@ -272,7 +272,7 @@ class TestUrl(unittest.TestCase):
         ds = {'uri':'/path/to/foo','variable':'tas'}
         ops = OcgOperations(ds)
         qs = ops.as_qs()
-        import ipdb;ipdb.set_trace()
+        self.assertEqual(qs,'snippet=false&abstraction=polygon&calc_raw=false&agg_selection=false&output_format=numpy&spatial_operation=intersects&uri=/path/to/foo&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none&calc_grouping=none&prefix=none&geom=none&allow_empty=false&vector_wrap=true&aggregate=false&calc=none&select_ugid=none&backend=ocg')
         
     def test_url_parsing(self):
         query = parse_qs(self.url_multi)

@@ -106,8 +106,6 @@ class OcgOperations(object):
         self.spatial_operation = SpatialOperation(spatial_operation)
         self.geom = Geom(geom)
         self.aggregate = Aggregate(aggregate)
-#        self.time_range = TimeRange(time_range)
-#        self.level_range = LevelRange(level_range)
         self.calc = Calc(calc)
         self.calc_grouping = CalcGrouping(calc_grouping)
         self.calc_raw = CalcRaw(calc_raw)
@@ -127,21 +125,6 @@ class OcgOperations(object):
         ## when any parameters are updated.
         self._is_init = False
         self._validate_()
-        
-#    def __iter__(self):
-#        for ds in self.da
-#        def _get_(idx,attr):
-#            if attr is None:
-#                ret = None
-#            else:
-#                ret = attr[idx]
-#            return(ret)
-#        
-#        for ii in range(len(self.dataset)):
-#            ret = {'dataset':self.dataset[ii],
-#                   'time_range':_get_(ii,self.time_range),
-#                   'level_range':_get_(ii,self.level_range)}
-#            yield(ret)
         
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
@@ -223,13 +206,3 @@ class OcgOperations(object):
     
     def _validate_(self):
         pass
-#        for attr in ['time_range','level_range']:
-#            parm = getattr(self,attr)
-#            if parm is None:
-#                parm = [None]
-#            if len(parm) < len(self.dataset):
-#                if len(parm) == 1:
-#                    setattr(self,attr,[parm[0] for ii in range(len(self.dataset))])
-#                else:
-#                    raise(DefinitionValidationError(self._get_object_(attr),
-#                          'range must have length equal to the number of requested datasets or a length of one.'))

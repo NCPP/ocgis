@@ -8,7 +8,6 @@ urlpatterns = patterns('',
     url(r'^subset$','cdata.views.get_data'),
     url(r'^inspect$','cdata.views.display_inspect'),
     url(r'^shp/(?P<key>.*)$','cdata.views.get_shp'),
-#    url(r'^snippet$','cdata.views.get_snippet'),
     # Examples:
     # url(r'^$', 'ocgis.views.home', name='home'),
     # url(r'^ocgis/', include('ocgis.foo.urls')),

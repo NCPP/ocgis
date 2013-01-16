@@ -699,12 +699,12 @@ class RequestDataset(object):
                  s_proj=None,t_units=None,t_calendar=None):
         self.uri = uri
         self.variable = variable
-        self.alias = alias or variable
+        self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)
         self.level_range = deepcopy(level_range)
-        self.s_proj = s_proj
-        self.t_units = t_units
-        self.t_calendar = t_calendar
+        self.s_proj = self._str_format_(s_proj)
+        self.t_units = self._str_format_(t_units)
+        self.t_calendar = self._str_format_(t_calendar)
         
         self.ocg_dataset = None
         self._use_for_id = []
@@ -728,6 +728,16 @@ class RequestDataset(object):
     
     def __getitem__(self,item):
         ret = getattr(self,item)
+        return(ret)
+    
+    def _str_format_(self,value):
+        ret = value
+        if isinstance(value,basestring):
+            value = value.lower()
+            if value == 'none':
+                ret = None
+        else:
+            ret = value
         return(ret)
     
     def _format_(self):
@@ -844,11 +854,6 @@ class Dataset(OcgParameter):
                 if not isinstance(ret[0],basestring):
                     ret = ret[0]
             return(ret)
-#            if ref is None:
-#                ret = None
-#            else:
-#                ret = ref[0]
-#            return(ret)
         
         refs = {}
         keys = ['uri','variable','alias','t_units','t_calendar','s_proj','time_range','level_range']
@@ -866,7 +871,7 @@ class Dataset(OcgParameter):
             ret.append(app)
         return(cls(ret))
     
-    def _format_(self,value):
+    def _format_element_(self,value):
         rd = RequestDataset(**value)
         return(rd)
     

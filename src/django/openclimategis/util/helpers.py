@@ -9,6 +9,7 @@ from ocgis.exc import InterpreterNotRecognized
 from ocgis.api.interpreter import Interpreter, OcgInterpreter
 from ocgis.api.operations import OcgOperations
 from ocgis.api.definition import OcgParameter
+from ocgis.util.helpers import reduce_query
 
 
 def _zip_response_(path,filename=None):
@@ -63,36 +64,42 @@ def _get_interpreter_return_(ops):
 def _get_operations_(request):
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
+    ## reduce to pull together possible multiple arguments for dataset request
+    query = reduce_query(query)
+    ## construction the operations objects
+    ops = OcgOperations.parse_query(query)
     
-    ## get dataset information
-    uri = _get_uri_(query)
-    variable = parms.OcgQueryParm(query,'variable',nullable=False)
-    dataset = []
-    if len(uri.value) < len(variable.value):
-        for u in uri:
-            for v in variable:
-                dataset.append({'uri':u,'variable':v})
-    elif len(variable.value) < len(uri.value):
-        if len(variable.value) > 1:
-            raise(NotImplementedError)
-        else:
-            dataset.append({'uri':uri.value,'variable':variable.value[0]})
-    else:
-        for u,v in zip(uri,variable):
-            dataset.append({'uri':u,'variable':v})
-    
-    ## initialize initial operations object
-    ops = OcgOperations(dataset=dataset)
-    
-    ## iterate objects parsing the query dictionary
-    for value in ops.__dict__.itervalues():
-        if isinstance(value,OcgParameter) and value.name != 'dataset':
-            value.parse_query(query)
-            
-    ## pull interface overload information
-    ops.interface = _get_interface_overload_(query)
-    
-    ## add request specific values
-    ops.request_url = request.build_absolute_uri()
-
     return(ops)
+    
+#    ## get dataset information
+#    uri = _get_uri_(query)
+#    variable = parms.OcgQueryParm(query,'variable',nullable=False)
+#    dataset = []
+#    if len(uri.value) < len(variable.value):
+#        for u in uri:
+#            for v in variable:
+#                dataset.append({'uri':u,'variable':v})
+#    elif len(variable.value) < len(uri.value):
+#        if len(variable.value) > 1:
+#            raise(NotImplementedError)
+#        else:
+#            dataset.append({'uri':uri.value,'variable':variable.value[0]})
+#    else:
+#        for u,v in zip(uri,variable):
+#            dataset.append({'uri':u,'variable':v})
+#    
+#    ## initialize initial operations object
+#    ops = OcgOperations(dataset=dataset)
+#    
+#    ## iterate objects parsing the query dictionary
+#    for value in ops.__dict__.itervalues():
+#        if isinstance(value,OcgParameter) and value.name != 'dataset':
+#            value.parse_query(query)
+#            
+#    ## pull interface overload information
+#    ops.interface = _get_interface_overload_(query)
+#    
+#    ## add request specific values
+#    ops.request_url = request.build_absolute_uri()
+#
+#    return(ops)

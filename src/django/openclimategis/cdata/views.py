@@ -22,10 +22,11 @@ def get_data(request):
         resp = HttpResponse(ret,content_type="text/plain")
     else:
         resp = helpers._zip_response_(ret)
-    
+
     return(resp)
     
 def display_inspect(request):
+    import ipdb;ipdb.set_trace()
     ## parse the query string
     query = parse_qs(request.META['QUERY_STRING'])
     uri = helpers._get_uri_(query,scalar=True)
@@ -38,6 +39,7 @@ def display_inspect(request):
     return(response)
 
 def get_shp(request,key=None):
+    import ipdb;ipdb.set_trace()
     query = helpers.parse_qs(request.META['QUERY_STRING'])
     
     select_ugid = SelectUgid()
@@ -73,6 +75,7 @@ def get_shp(request,key=None):
     return(resp)
 
 def get_snippet(request):
+    import ipdb;ipdb.set_trace()
     ops = helpers._get_operations_(request)
     if ops.geom is not None:
         if ops.select_ugid is not None:

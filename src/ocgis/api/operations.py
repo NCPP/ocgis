@@ -3,6 +3,7 @@ from ocgis.exc import DefinitionValidationError
 from ocgis.api.interpreter import OcgInterpreter
 import inspect
 import definition
+import warnings
 
 
 class OcgOperations(object):
@@ -189,15 +190,20 @@ class OcgOperations(object):
             
         ops = OcgOperations(**kwds)
         return(ops)
-            
-    def as_qs(self,slug=''):
+    
+    def as_qs(self):
+        warnings.warn('use "as_url"',DeprecationWarning)
+        return(self.as_url())
+    
+    def as_url(self):
         parts = []
         for key,value in self.__dict__.iteritems():
             if key in ['request_url']:
                 continue
             if isinstance(value,OcgParameter):
                 parts.append(str(value))
-        return('&'.join(parts))
+        ret = '/subset?' + '&'.join(parts)
+        return(ret)
         
     def as_dict(self):
         ret = {}

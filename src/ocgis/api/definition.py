@@ -1,11 +1,10 @@
 from datetime import datetime
-from copy import copy, deepcopy
+from copy import deepcopy
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-from ocgis.calc.base import OcgFunctionTree, OcgCvArgFunction
+from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
-import numpy as np
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from collections import OrderedDict
 
@@ -22,7 +21,6 @@ class OcgParameter(object):
         self.alias = alias
         self.scalar = scalar
         
-#        self._first_set = True
         self._value = None
         if init_value is not None:
             self.value = init_value
@@ -51,9 +49,6 @@ class OcgParameter(object):
     @value.setter
     def value(self,value):
         value = deepcopy(value)
-#        if self._first_set:
-#            value = deepcopy(value)
-#            self._first_set = False
         self._value = self.format(value)
         
     def format(self,value):
@@ -118,7 +113,6 @@ class OcgParameter(object):
                 ret = value
             return(ret)
         
-#        try:
         try:
             it = value.split('|')
         except AttributeError:
@@ -127,18 +121,6 @@ class OcgParameter(object):
             else:
                 raise
         lowered = map(_format_,it)
-#        lowered = _format_(value.lower())
-#        except AttributeError:
-#            lowered = []
-#            for v in value:
-#                try:
-#                    lowered.append(v.lower())
-#                except AttributeError:
-#                    if v is None:
-#                        lowered.append(v)
-#                    else:
-#                        raise
-#            lowered = map(_format_,[v.lower() for v in value])
         
         ret = []
         for val in lowered:
@@ -161,13 +143,6 @@ class OcgParameter(object):
         else:
             value = value[0]
             to_set = value
-#            try:
-#                self.value = self.format_string(value)
-#            except:
-#                if value == 'none':
-#                    self.value = None
-#                else:
-#                    raise
         self.value = to_set
         
     def validate(self,value):
@@ -216,48 +191,6 @@ class AttributedOcgParameter(OcgParameter):
         super(AttributedOcgParameter,self).__init__(
          self._name,self._dtype,nullable=self._nullable,default=self._default,
          length=self._length,alias=self._alias,init_value=init_value,scalar=self._scalar)
-        
-        
-#class TimeRange(OcgParameter):
-#    
-#    def __init__(self,init_value=None):
-#        super(self.__class__,self).__init__('time_range',list,init_value=init_value,
-#                                            nullable=True,default=None,scalar=False)
-#    
-#    def validate(self,value):
-#        self._assert_(value[0] <= value[1],'Time ordination incorrect.')
-#            
-##    def _format_(self,value):
-##        import ipdb;ipdb.set_trace()
-##        if type(value[0]) == datetime:
-##            ret = [value]
-##        else:
-##            ret = value
-##        import ipdb;ipdb.set_trace()
-##        return(ret)
-#        
-#    def _format_string_element_(self,value):
-#        ret = [datetime.strptime(v,'%Y-%m-%d') for v in value.split('|')]
-#        ref = ret[1]
-#        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
-#        return(ret)
-#    
-#    def message(self):
-#        if self.value is None:
-#            msg = 'All time points returned.'
-#        else:
-#            msg = 'Inclusive time selection range is: {0}'.format([str(v) for v in self.value])
-#        return(msg)
-    
-#    def _get_iter_(self,value):
-#        if type(value) in (list,tuple):
-#            if type(value[0]) == datetime:
-#                ret = [value]
-#            else:
-#                ret = value
-#        else:
-#            ret = value
-#        return(ret)
     
     
 class RequestUrl(AttributedOcgParameter):
@@ -271,12 +204,6 @@ class RequestUrl(AttributedOcgParameter):
     
     
 class Snippet(BooleanParameter,AttributedOcgParameter):
-    '''
-    >>> snippet = Snippet(); snippet.value
-    False
-    >>> snippet.value = snippet.format_string('true'); snippet.value
-    True
-    '''
     _name = 'snippet'
     _nullable = True
     _default = False
@@ -290,15 +217,6 @@ class Snippet(BooleanParameter,AttributedOcgParameter):
 
 
 class Prefix(AttributedOcgParameter):
-    '''
-    >>> p = Prefix(init_value='foo')
-    >>> p.value
-    'foo'
-    >>> p = Prefix(init_value=5)
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    '''
     _dtype = str
     _name = 'prefix'
     _nullable = True
@@ -340,31 +258,13 @@ class Backend(AttributedOcgParameter):
     
     
 class CalcGrouping(AttributedOcgParameter):
-    '''
-    >>> cg = CalcGrouping(); cg.value
-    ['day', 'month', 'year']
-    >>> cg.value = 'forever'
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> cg.value = cg.format_string('day|month'); cg.value
-    ['day', 'month']
-    >>> cg.value = cg.format_string('day|forever'); cg.value
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    '''
     _name = 'calc_grouping'
     _nullable = True
-#    _default = ['day','month','year']
     _dtype = str
     _scalar = False
     
     def validate(self,value):
         self._assert_(value in ['day','month','year','hour','minute','second'],'"{0}" is not a valid group.'.format(value))
-            
-#    def _format_(self,value):
-#        return(list(set(value)))
     
     def _format_string_element_(self,value):
         grouping = value.split('|')
@@ -374,49 +274,6 @@ class CalcGrouping(AttributedOcgParameter):
         msg = ('Temporal aggregation determined by the following group(s): {0}')
         msg = msg.format(self.value)
         return(msg)
-    
-#    def _get_iter_(self,values):
-#        return([values])
-    
-    
-#class LevelRange(AttributedOcgParameter):
-#    '''
-#    >>> level_range = LevelRange()
-#    >>> level_range.value = 1; level_range.value
-#    [1, 1]
-#    '''
-#    _name = 'level_range'
-#    _default = None
-#    _dtype = list
-#    _nullable = True
-#    _length = None
-#    _scalar = False
-#    
-#    def _format_(self,value):
-#        if type(value) in (list,tuple):
-#            if len(value) == 1:
-#                ret = [value[0],value[0]]
-#            else:
-#                ret = value
-#        else:
-#            ret = [value,value]
-#        ret = map(int,ret)
-#        return(ret)
-#    
-#    def _format_string_element_(self,value):
-#        ret = [int(ii) for ii in value.split('|')]
-#        return(ret)
-#    
-#    def validate(self,value):
-#        self._assert_(value[0] <= value[1],'Level ordination incorrect.')
-#
-#    def message(self):
-#        if self.value is None:
-#            msg = ('No level range provided. If variable(s) has/have a level dimesion,'
-#                   ' all levels will be returned.')
-#        else:
-#            msg = 'Inclusive level range returned is: {0}.'.format(self.value)
-#        return(msg)
     
     
 class OutputFormat(AttributedOcgParameter):
@@ -486,16 +343,6 @@ class Aggregate(BooleanParameter,AttributedOcgParameter):
     
     
 class Geom(OcgParameter):
-    '''
-    >>> geom = Geom()
-    >>> formatted = geom.format_string('-123.4|45.67|-156.5|48.25')
-    >>> formatted[0]['geom'].bounds
-    (-156.5, 45.67, -123.4, 48.25)
-    '''
-#    _name = 'geom'
-#    _nullable = True
-#    _default = [{'geom':None,'ugid':1}]
-#    _dtype = list
     
     def __init__(self,init_value=None):
         self._default = [{'geom':None,'ugid':1}]
@@ -531,7 +378,7 @@ class Geom(OcgParameter):
     
     def validate(self,value):
         if isinstance(value,dict):
-           value = [value]
+            value = [value]
         for v in value: 
             self._assert_(type(v) == dict,
              'list elements must be dictionaries with keys "ugid" and "geom"')
@@ -594,22 +441,6 @@ class Geom(OcgParameter):
 
 
 class Calc(AttributedOcgParameter):
-    '''
-    >>> calc = Calc()
-    >>> calc.value = {'func':'n','name':'some_n'}; calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'some_n', 'func': 'n', 'kwds': {}}]
-    >>> calc.value = {'func':'mean'}
-    Traceback (most recent call last):
-    ...
-    AssertionError
-    >>> calc.value = [{'func':'mean','name':'my_mean'}]; calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Mean'>, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}]
-    >>> calc.format_string('mean~my_mean|max~my_max')
-    [{'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'name': 'my_max', 'func': 'max', 'kwds': {}}]
-    >>> calc.value = calc.format_string('min~my_min|between~btw5_10!lower~5!upper~10')
-    >>> calc.value
-    [{'ref': <class 'ocgis.calc.wrap.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Min'>, 'name': 'my_min', 'func': 'min', 'kwds': {}}, {'ref': <class 'ocgis.calc.wrap.library.Between'>, 'name': 'btw5_10', 'func': 'between', 'kwds': {'upper': 10.0, 'lower': 5.0}}]
-    '''
     _name = 'calc'
     _nullable = True
     _dtype = dict
@@ -617,14 +448,11 @@ class Calc(AttributedOcgParameter):
     _scalar = False
     
     def _format_(self,value):
-#        funcs_copy = copy(value)
         potentials = OcgFunctionTree.get_potentials()
         for p in potentials:
             if p[0] == value['func']:
                 value['ref'] = getattr(library,p[1])
                 break
-#        if 'name' not in f and f['func'] == 'n':
-#            f['name'] = f['func']
         if 'kwds' not in value:
             value['kwds'] = {}
         else:
@@ -649,9 +477,6 @@ class Calc(AttributedOcgParameter):
         return(ret)
     
     def _format_string_element_(self,value):
-#        ret = []
-#        funcs = value.split('|')
-#        for func in funcs:
         key,uname = value.split('~',1)
         try:
             uname,kwds_raw = uname.split('!',1)
@@ -666,7 +491,6 @@ class Calc(AttributedOcgParameter):
         except ValueError:
             kwds = {}
         dct = {'func':key,'name':uname,'kwds':kwds}
-#            ret.append(dct)
         return(dct)
     
     def validate(self,value):
@@ -879,62 +703,6 @@ class Dataset(OcgParameter):
         for rd in values:
             self._coll.update(rd)
         return(self._coll)
-#        import ipdb;ipdb.set_trace()
-#        import ipdb;ipdb.set_trace()
-#        additional_keys = ['alias','t_units','t_calendar','s_proj']
-#        for key in additional_keys:
-#            if key not in value:
-#                value[key] = None
-#        return(value)
-    
-#    def _get_query_parm_(self):
-#        import ipdb;ipdb.set_trace()
-#        msg = 'uri={0}&variable={1}'
-#        store = []
-#        for ds in self.value:
-#            store.append(msg.format(ds['uri'],ds['variable']))
-#        ret = '&'.join(store)
-#        return(ret)
-    
-#    def validate(self,value):
-##        import ipdb;ipdb.set_trace()
-##        for ii in value:
-##            self._assert_(type(ii) == dict,'Dataset list elements must be dictionaries.')
-#        self._assert_('uri' in value,'A URI must be provided.')
-#        self._assert_('variable' in value,'A variable name must be provided.')
-        
-#    def validate_all(self,values):
-#        ## add alias key if not present.
-##        if 'alias' not in ii:
-##            ii['alias'] = None
-#        ## check that variable names are unique. if not, then an alias must be
-#        ## provided by the user.
-#        def _test_(var_names,value):
-#            assert(len(set(var_names)) == len(value))
-#        var_names = [ii['variable'] for ii in values]
-#        msg = ('Variable names must be unique. If variables with the same name '
-#               'are requested from multiple datasets. Supply an "alias" '
-#               'keyword to the dataset dictionaries such that the names and '
-#               'aliases are unique.')
-#        try:
-#            _test_(var_names,values)
-#        except AssertionError:
-#            ## determine if alias names make the request unique.
-#            var_names = []
-#            for v in values:
-#                if v['alias'] is None:
-#                    var_names.append(v['variable'])
-#                else:
-#                    var_names.append(v['alias'])
-#            try:
-#                _test_(var_names,values)
-#            except AssertionError:
-#                raise(DefinitionValidationError(self,msg))
-#        
-#        ## set the alias to match variables
-#        for ii in values:
-#            if ii['alias'] is None:
-#                ii['alias'] = ii['variable']
     
     def message(self):
         lines = []
@@ -950,41 +718,13 @@ class Abstraction(AttributedOcgParameter):
     _default = 'polygon'
     _scalar = True
     
-#    def __str__(self):
-#        if self.value == {}:
-#            ret = 'none'
-#        else:
-#            template = '{0}={1}'
-#            parts = []
-#            for k,v in self.value.iteritems():
-#                parts.append(template.format(k,v))
-#            ret = '&'.join(parts)
-#        return(ret)
-    
     def validate(self,value):
         valid = ['point','polygon']
         self._assert_(value in valid,"'{0}' not in {1}".format(value,valid))
-#        for key,val in value.iteritems():
-##            try:
-##                assert(issubclass(key,Element))
-##            except (TypeError,AssertionError):
-##                self._assert_(key in ['s_proj','s_abstraction'],'interface key not a subclass of "Element"')
-#            if val is not None:
-#                self._assert_(type(val) == str,'interface values must be strings')
     
     def message(self):
         msg = 'Spatial dimension abstracted to {0}.'.format(self.value)
         return(msg)
-#        msg = ['Interface parameter arguments:']
-#        for key,value in self.value.iteritems():
-#            try:
-#                name = key._iname
-#            except AttributeError:
-#                name = key
-#            msg2 = ' {0} :: {1}'.format(name,value)
-#            msg.append(msg2)
-#        msg = '\n'.join(msg)
-#        return(msg)
     
     
 class SelectUgid(AttributedOcgParameter):
@@ -1055,7 +795,3 @@ def identify_iterator_mode(ops):
     if ops.calc is not None:
         mode = 'calc'
     ops.mode = mode
-        
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()

@@ -1,7 +1,7 @@
 from urlparse import parse_qs
 from django.http import HttpResponse
 from ocgis.util.inspect import Inspect
-from ocgis.util.helpers import get_temp_path, union_geoms
+from ocgis.util.helpers import get_temp_path
 from ocgis import env
 import util.helpers as helpers
 from ocgis.util.shp_cabinet import ShpCabinet
@@ -71,23 +71,3 @@ def get_shp(request,key=None):
     
     resp = helpers._zip_response_(path,filename=filename.replace('shp','zip'))
     return(resp)
-
-#def get_snippet(request):
-#    import ipdb;ipdb.set_trace()
-#    ops = helpers._get_operations_(request)
-#    if ops.geom is not None:
-#        if ops.select_ugid is not None:
-#            geom = ops._get_object_('geom')
-#            geom._filter_by_ugid_(ops.select_ugid['ugid'])
-#            ops.select_ugid = None
-#        ops.geom = union_geoms(ops.geom)
-#    
-#    ops.level_range = 1
-#    ops.output_format = 'shp'
-#    ops.snippet = True
-#    ops.aggregate = False
-#    ops.spatial_operation = 'intersects'
-#
-#    ret = helpers._get_interpreter_return_(ops)
-#    resp = helpers._zip_response_(os.path.split(ret)[0])
-#    return(resp)

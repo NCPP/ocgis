@@ -21,20 +21,20 @@ HEADERS = {
 'value':'Value associated with a variable or calculation.'
 }
 
+
 class MetaConverter(object):
+    _meta_filename = 'meta.txt'
     
-    def __init__(self,ops,request_url=None):
+    def __init__(self,ops):
         self.ops = ops
-        self.request_url = request_url
         
     def write(self):
-#        from ocgis.api.interp.definition import DEF_ARGS
         
         lines = ['== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)]
         lines.append('')
-        if self.request_url is not None:
+        if self.ops.request_url is not None:
             lines.append('Requested URL:')
-            lines.append(self.request_url)
+            lines.append(self.ops.request_url)
             lines.append('')
         lines.append('++++ Parameter and Slug Definitions ++++')
         lines.append('')

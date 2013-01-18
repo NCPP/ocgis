@@ -80,9 +80,7 @@ class OcgInterpreter(Interpreter):
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
         if self.ops.output_format == 'meta':
-            ## attempt to pull the request url
-            request_url = self.ops.request_url
-            ret = MetaConverter(self.ops,request_url=request_url).write()
+            ret = MetaConverter(self.ops).write()
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations
@@ -91,8 +89,8 @@ class OcgInterpreter(Interpreter):
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
-                conv = Conv(so,wd=env.WORKSPACE,base_name=env.BASE_NAME,
-                            mode=self.ops.mode)
+                conv = Conv(so,wd=env.WORKSPACE,prefix=env.BASE_NAME,
+                            mode=self.ops.mode,ops=self.ops)
                 ret = conv.write()
             else:
                 raise(NotImplementedError)

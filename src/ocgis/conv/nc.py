@@ -7,7 +7,7 @@ import numpy as np
 class NcConverter(OcgConverter):
     _ext = 'nc'
 
-    def write(self):
+    def _write_(self):
         if self.mode == 'raw':
             ret = self._write_raw_()
         elif self.mode == 'agg':
@@ -136,10 +136,8 @@ class NcConverter(OcgConverter):
         for ii,coll in enumerate(self):
             if ii > 0:
                 raise(ValueError('only one collection should be returned for NC conversion'))
-        ## output file location
-        path = self.get_path()
         ## dataset object to write to
-        ds = nc.Dataset(path,'w')
+        ds = nc.Dataset(self.path,'w')
         ## reference the interfaces
         arch = coll._arch
         iglobal = arch._i
@@ -272,4 +270,3 @@ class NcConverter(OcgConverter):
                 setattr(value,key,val)
         
         ds.close()
-        return(path)

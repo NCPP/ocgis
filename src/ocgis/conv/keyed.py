@@ -10,9 +10,9 @@ from ocgis.api.dataset.collection.iterators import KeyedIterator
 class KeyedConverter(OcgConverter):
     _ext = 'csv'
     
-    def __init__(self,*args,**kwds):
-        super(KeyedConverter,self).__init__(*args,**kwds)
-        self.wd = get_temp_path(only_dir=True,wd=self.wd,nest=True)
+#    def __init__(self,*args,**kwds):
+#        super(KeyedConverter,self).__init__(*args,**kwds)
+#        self.wd = get_temp_path(only_dir=True,wd=self.wd,nest=True)
     
     def _write_iter_dict_(self,dct):
         for k,v in dct.iteritems():
@@ -22,7 +22,7 @@ class KeyedConverter(OcgConverter):
                 for row in v['it']:
                     writer.writerow(row)
 
-    def write(self):
+    def _write_(self):
         ## init the value file
         f_value = self._get_file_object_('value')
         try:
@@ -52,7 +52,7 @@ class KeyedConverter(OcgConverter):
 #        dct = {'projection':coll.projection,'data':kit.gid.storage}
         shpidx_path = os.path.join(self.wd,'shp')
         os.mkdir(shpidx_path)
-        shpidx = ShpIdxIdentifierConverter([dct],base_name='shpidx',use_dir=shpidx_path)
+        shpidx = ShpIdxIdentifierConverter([dct],prefix='shpidx',wd=shpidx_path,add_meta=False)
         shpidx.write()
         ########################################################################
         

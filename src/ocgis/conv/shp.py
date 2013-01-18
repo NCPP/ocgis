@@ -24,11 +24,9 @@ class ShpConverter(OcgConverter):
 #        self.ogr_geom = 6 ## assumes multipolygon
 #        self.srs = self.ocg_dataset.i.spatial.projection.sr
     
-    def write(self):
-        path = self.get_path()
-        
+    def _write_(self):
         dr = ogr.GetDriverByName('ESRI Shapefile')
-        ds = dr.CreateDataSource(path)
+        ds = dr.CreateDataSource(self.path)
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
                 
@@ -65,8 +63,6 @@ class ShpConverter(OcgConverter):
         
         ds = None
         
-        return(path)
-
     def _set_ogr_fields_(self,headers,row):
         ## do not want to have a geometry field
         for h,r in zip(headers,row):

@@ -1,7 +1,4 @@
-import tempfile
-
-
-WORKSPACE = tempfile.gettempdir()
+WORKSPACE = None
 CORES = 6
 MODE = 'raw'
 BASE_NAME = 'ocg'

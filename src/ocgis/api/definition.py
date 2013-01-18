@@ -289,7 +289,8 @@ class OutputFormat(AttributedOcgParameter):
                 'shp':'an ESRI Shapefile containing all output data.',
                 'csv':'a Comma Separated Value files containing all output data.',
                 'keyed':'a group of keyed files linking to the "value" file. Files are named after the unique key for which they contain data. A geometry index is also included.',
-                'meta':'a description of the operations performed or to be performed given provided parameters. No data is touched during the operation. Hence, operations may fail if dataset and/or parameters are somehow noncompliant.'
+                'meta':'a description of the operations performed or to be performed given provided parameters. No data is touched during the operation. Hence, operations may fail if dataset and/or parameters are somehow noncompliant.',
+                'nc':'a NetCDF4 file.'
                 }
         msg = 'Output format is "{0}" which is {1}'.format(self.value,mmap[self.value])
         return(msg)

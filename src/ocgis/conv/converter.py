@@ -1,5 +1,8 @@
 from ocgis.util.helpers import get_temp_path, vprint
 from ocgis.api.dataset.collection.iterators import MeltedIterator
+from ocgis.conv.meta import MetaConverter
+import os.path
+import tempfile
 
 
 class OcgConverter(object):
@@ -11,26 +14,35 @@ class OcgConverter(object):
     wd="/tmp" :: str :: Working directory for data outputs. Outputs are nested
         in temporary folders creating in this directory.
     use_dir=None :: str :: If provided, forces outputs into this directory.
-    alt_it :: iterator :: Yields same as so iterator. Used for caching.
     '''
     _ext = None
     
-    def __init__(self,so,mode='raw',base_name='ocg',wd='/tmp',use_dir=None):#,alt_it=None):
+    def __init__(self,so,mode='raw',prefix='ocg',wd=None,ops=None,add_meta=True):
         self.so = so
-        try:
-            self.ops = so.ops
-        except AttributeError:
-            self.ops = None
-        self.base_name = base_name
-        self.wd = wd
-        self.use_dir = use_dir
+        self.ops = ops
+        self.wd = wd or get_temp_path(wd=tempfile.gettempdir(),nest=True,only_dir=True)
         self.mode = mode
+        self.add_meta = add_meta
+        
+        if self._ext is None:
+            self.path = self.wd
+        else:
+            self.path = os.path.join(self.wd,prefix+'.'+self._ext)
     
     def write(self):
+        if self.add_meta:
+            lines = MetaConverter(self.ops).write()
+            out_path = os.path.join(self.wd,MetaConverter._meta_filename)
+            with open(out_path,'w') as f:
+                f.write(lines)
+        self._write_()
+        return(self.path)
+    
+    def _write_(self):
         raise(NotImplementedError)
     
-    def run(self):
-        return(self.write())
+#    def run(self):
+#        return(self.write())
         
     @classmethod
     def get_converter(cls,output_format):
@@ -57,25 +69,6 @@ class OcgConverter(object):
                 'nc':NcConverter}
         
         return(mmap[output_format])
-    
-    def get_path(self):
-        '''Generate the output path.
-        
-        returns
-        
-        str'''
-        
-        if self.use_dir is not None:
-            nest = False
-            wd = self.use_dir
-        else:
-            nest = True
-            wd = self.wd
-        tpath = get_temp_path(suffix='.'+self._ext,
-                              nest=nest,
-                              wd=wd,
-                              name=self.base_name)
-        return(tpath)
 
     def __iter__(self):
         '''Iterator over collections stored in the SubsetOperation object.

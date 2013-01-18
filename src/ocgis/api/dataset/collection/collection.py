@@ -113,9 +113,9 @@ class OcgVariable(object):
             weights = np.empty(self.spatial.shape,dtype=float)
             weights = np.ma.array(weights,mask=self.spatial._value_mask)
             ## do the spatial operation
-            for idx,geom in iter_array(self.spatial.value,
-                                       return_value=True):
-                if keep(prep_igeom,igeom,geom):
+            for idx,geom in iter_array(self.spatial.value,return_value=True):
+                if not prep_igeom.contains(geom):
+#                if keep(prep_igeom,igeom,geom):
                     new_geom = igeom.intersection(geom)
                     weights[idx] = new_geom.area
                     self.spatial._value[idx] = new_geom

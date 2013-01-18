@@ -56,6 +56,13 @@ class Inspect(object):
         lines.append('Resolution (Days) = {0}'.format(res))
         lines.append('            Count = {0}'.format(n))
         
+        ## append information on bounds
+        if self._t.bounds is not None:
+            has_bounds = True
+        else:
+            has_bounds = False
+        lines.append('       Has Bounds = {0}'.format(has_bounds))
+        
         return(lines)
     
     def get_spatial_report(self):
@@ -81,6 +88,14 @@ class Inspect(object):
             lines = []
             lines.append('Level Variable = {0}'.format(self._l.name))
             lines.append('         Count = {0}'.format(self._l.value.shape[0]))
+            
+            ## append information on bounds
+            if self._l.bounds is not None:
+                has_bounds = True
+            else:
+                has_bounds = False
+            lines.append('    Has Bounds = {0}'.format(has_bounds))
+            
         return(lines)
     
     def get_dump_report(self):

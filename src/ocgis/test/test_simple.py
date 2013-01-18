@@ -213,6 +213,10 @@ class TestSimple(TestBase):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)
         
+    def test_meta_conversion(self):
+        ops = OcgOperations(dataset=self.get_dataset(),output_format='meta')
+        ret = self.get_ret(ops)
+            
     def test_keyed_conversion(self):
         calc = [
                 None,

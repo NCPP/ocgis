@@ -1,14 +1,28 @@
-.. _manual:
+.. _python_api:
 
 ================
-Using the API(s)
+Python API
 ================
 
-The documentation is structured such that the Python and RESTful APIs may be collapsed into a single explanation.
+Additional information on keyword arguments can be found below the initial documentation in the `Detailed Argument Information`_ section.
 
-.. _foo:
+The :class:`OcgOperations` Object
+========================
 
-A Headline
-==========
+.. autoclass:: ocgis.OcgOperations
+   :members: execute, as_dict, as_qs
 
-.. automodule:: ocgis.api.operations
+Detailed Argument Information
+-----------------------------
+
+Additional information on arguments are found in their respective sections.
+
+dataset
+~~~~~~~
+
+some info
+
+spatial_operation
+~~~~~~~~~~~~~~~~~
+
+some more info

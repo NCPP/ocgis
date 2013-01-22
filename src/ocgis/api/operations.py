@@ -1,4 +1,4 @@
-from definition import * #@UnusedWildImport
+from definition import *  # @UnusedWildImport
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.interpreter import OcgInterpreter
 import inspect
@@ -8,98 +8,64 @@ import warnings
 
 class OcgOperations(object):
     """Entry point for OCGIS operations. Parameters may be modified before an
-    execution. However, the object SHOULD NOT be reused following an execution
-    as the software may add/modify attribute contents. Instantiate a new object
-    following an execution.
+    execution.
     
-    The only required argument is "dataset".
+    .. warning:: The object SHOULD NOT be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution.
     
-    Attributes:
-      All keyword arguments are exposed as public attributes which can be
-        arbitrarily set using standard syntax:
+    .. note:: The only required argument is `dataset`.
+    
+    All keyword arguments are exposed as public attributes which may be 
+    arbitrarily set using standard syntax:
+
+    >>> ops = OcgOperations(dataset={'uri':'/some/dataset','variable':'foo'})
+    >>> ops.aggregate = True
         
-        ops = OcgOperations(dataset={'uri':'/some/dataset','variable':'foo'})
-        ops.aggregate = True
+    The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
+    validation and formatting upon assignment and to properly return parameter 
+    values from internal objects.
         
-        The builtins "__getattribute__" and "__setattr__" are overloaded to
-        perform validation and formatting upon assignment and to properly return
-        parameter values from internal objects.
+    :param dataset: The target dataset(s) for the request. This is the only required parameter.
+    :type dataset: :class:`ocgis.RequestCollection`
+    :param spatial_operation: The geometric operation to be performed.
+    :type spatial_operation: str
+    :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial domain.
+    :type geom: list of dictionaries
+    :param aggregate: If `True`, dataset geometries are aggregated to coincident selection geometries.
+    :type aggregate: bool
+    :param calc: Calculations to be performed on the dataset subset.
+    :type calc: list of dictionaries
+    :param calc_grouping: Temporal grouping to apply during calculation.
+    :type calc_grouping: list of strings
+    :param calc_raw: If `True`, perform calculations on the "raw" data regardless of `aggregation` flag.
+    :type calc_raw: bool
+    :param abstraction: The geometric abstraction to use for the dataset geometries.
+    :type abstraction: str
+    :param snippet: If `True`, return a data "snippet" composed of the first time point/group, first level (if applicable), and the entire spatial domain.
+    :type snippet: bool
+    :param backend: The processing backend to use.
+    :type backend: str
+    :param prefix: The output prefix to prepend to any output data.
+    :type prefix: str
+    :param output_format: The desired output format.
+    :type output_format: str
+    :param agg_selection: If `True`, the selection geometry will be aggregated prior to any spatial operations.
+    :type agg_selection: bool
+    :param select_ugid: The unique identifiers of specific geometries contained in canned geometry datasets. These unique identifiers will be selected and used for spatial operations.
+    :type select_ugid: list of integers
+    :param vector_wrap: If `True`, keep any vector output on a -180 to 180 longitudinal domain.
+    :type vector_wrap: bool
+    :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
+    :type allow_empty: bool
     """
     
-    def __init__(self,dataset=None,spatial_operation='intersects',geom=None,aggregate=False,
-                 calc=None,calc_grouping=None,calc_raw=False,abstraction='polygon',
-                 snippet=False,backend='ocg',request_url=None,prefix=None,
-                 output_format='numpy',output_grouping=None,agg_selection=False,
-                 select_ugid=None,vector_wrap=True,allow_empty=False):
-        """The only required argument is "dataset". All others are provided
-        defaults.
+    def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
+                 calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
+                 snippet=False, backend='ocg', request_url=None, prefix='ocgis',
+                 output_format='numpy', output_grouping=None, agg_selection=False,
+                 select_ugid=None, vector_wrap=True, allow_empty=False):
         
-        Args:
-          dataset: Sequence of dictionaries having keys "uri" and "variable". It
-            is possible to request data from multiple locations. Multiple time
-            and level ranges may also be specified (see their docstrings). For
-            example:
-            
-            Request for a single local dataset:
-            dataset=[{'uri':'/some/local/dataset','variable':'foo'}]
-            
-            Request for a local and remote dataset:
-            dataset=[{'uri':'/some/local/dataset','variable':'foo'},
-                     {'uri':'http://some.opendap.dataset','variable':'foo2'}]
-                     
-          snippet: If True, it will return the first time point or time group
-            (in the case of calculations) for each requested dataset. Best to
-            set to True for any initial request or data inspections.
-            
-          output_format: String indicating the desired output format. Available
-            options are: 'keyed' (default), 'nc', 'shp', or 'csv'.
-                     
-          time_range: Sequence of Python datetime object sequences. The default 
-            returns all time points. If only a single range is provided but 
-            multiple datasets are requested, the range is repeated for the 
-            length of the dataset sequence. For example:
-            
-            time_range=[[lower,upper]]
-            time_range=[[lower_dataset1,upper_dataset1],
-                        [lower_dataset2,upper_dataset2]]
-                        
-          level_range: Sequence of integer sequences. The same mapping applies
-            as "time_range". A value of 1 represents and index of 0 in the
-            value array index (i.e. the first returned level). For example:
-            
-            level_range=[[1,1]]
-            level_range=[[1,1],[10,10]]
-        
-          geom: Sequence of dictionaries composed of an identifier "ugid" and a
-            Shapely Polygon/MultiPolygon geometry object "geom". Geometries 
-            should always be provided with a WGS84 geographic coordinate system 
-            on a -180 to 180 longitudinal spatial domain. The default None will 
-            return the entire spatial domain. For example:
-            
-            geom=[{'ugid':25,'geom':<Shapely Polygon object>},
-                  {'ugid':26,'geom':<Shapely MultiPolygon object>}]
-        
-          vector_wrap: Set to False to return vector geometries in the dataset's
-            native longitudinal spatial domain (e.g. -180 to 180 or 0 to 360).
-            If True, the default, vector outputs will always be returned on the
-            -180 to 180 longitudinal domain.
-            
-          spatial_operation: There are two options: 'intersects' or 'clip'.
-          
-          aggregate: If True, geometries coincident with a selection geometry
-            are aggregated and the associated values area-weighted to single
-            value. Raw values are maintained.
-            
-          allow_empty: If True, geometric operations returning no data or all
-            masked values will be written as empty returns. 
-            
-          agg_selection: If True, selection geometries are aggregated to a
-            single geometry. This is automatically set to True if the requested
-            output format is 'nc'.
-        """
-        
-        ## Tells "__setattr__" to not perform global validation until all
-        ## values are set initially.
+        # # Tells "__setattr__" to not perform global validation until all
+        # # values are set initially.
         self._is_init = True
         
         self.dataset = Dataset(dataset)
@@ -121,46 +87,46 @@ class OcgOperations(object):
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         
-        ## Initial values have been set and global validation should now occur
-        ## when any parameters are updated.
+        # # Initial values have been set and global validation should now occur
+        # # when any parameters are updated.
         self._is_init = False
         self._validate_()
         
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
-        for key,value in self.as_dict().iteritems():
+        for key, value in self.as_dict().iteritems():
             if key == 'geom' and len(value) > 1:
                 value = '{0} geometries...'.format(len(value))
-            msg.append(' {0}={1}'.format(key,value))
+            msg.append(' {0}={1}'.format(key, value))
         msg = '\n'.join(msg)
         return(msg)
             
-    def __getattribute__(self,name):
-        attr = object.__getattribute__(self,name)
-        if isinstance(attr,OcgParameter):
+    def __getattribute__(self, name):
+        attr = object.__getattribute__(self, name)
+        if isinstance(attr, OcgParameter):
             ret = attr.value
         else:
             ret = attr
         return(ret)
     
-    def __setattr__(self,name,value):
-        if isinstance(value,OcgParameter):
-            object.__setattr__(self,name,value)
+    def __setattr__(self, name, value):
+        if isinstance(value, OcgParameter):
+            object.__setattr__(self, name, value)
         else:
             try:
-                attr = object.__getattribute__(self,name)
+                attr = object.__getattribute__(self, name)
                 attr.value = value
             except AttributeError:
-                object.__setattr__(self,name,value)
+                object.__setattr__(self, name, value)
         if self._is_init is False:
             self._validate_()
             
     @classmethod
-    def parse_query(cls,query):
-        ## TODO: hack
-        parms = [SpatialOperation,Geom,Aggregate,Calc,CalcGrouping,CalcRaw,
-                 Abstraction,Snippet,Backend,Prefix,OutputFormat,
-                 AggregateSelection,SelectUgid,VectorWrap,AllowEmpty]
+    def parse_query(cls, query):
+        # # TODO: hack
+        parms = [SpatialOperation, Geom, Aggregate, Calc, CalcGrouping, CalcRaw,
+                 Abstraction, Snippet, Backend, Prefix, OutputFormat,
+                 AggregateSelection, SelectUgid, VectorWrap, AllowEmpty]
         
         kwds = {}
         ds = Dataset.parse_query(query)
@@ -175,20 +141,24 @@ class OcgOperations(object):
         return(ops)
     
     def as_qs(self):
-        warnings.warn('use "as_url"',DeprecationWarning)
+        """Return a query string representation of the request.
+        
+        :rtype: str"""
+        warnings.warn('use "as_url"', DeprecationWarning)
         return(self.as_url())
     
     def as_url(self):
         parts = []
-        for key,value in self.__dict__.iteritems():
+        for key, value in self.__dict__.iteritems():
             if key in ['request_url']:
                 continue
-            if isinstance(value,OcgParameter):
+            if isinstance(value, OcgParameter):
                 parts.append(str(value))
         ret = '/subset?' + '&'.join(parts)
         return(ret)
         
     def as_dict(self):
+        """:rtype: dictionary"""
         ret = {}
         for value in self.__dict__.itervalues():
             try:
@@ -198,11 +168,15 @@ class OcgOperations(object):
         return(ret)
     
     def execute(self):
+        """Execute the request using the selected backend.
+        
+        :rtype: Path to an output file/folder or :class:`ocgis.OcgCollection`
+        """
         interp = OcgInterpreter(self)
         return(interp.execute())
     
-    def _get_object_(self,name):
-        return(object.__getattribute__(self,name))
+    def _get_object_(self, name):
+        return(object.__getattribute__(self, name))
     
     def _validate_(self):
         pass

@@ -17,8 +17,12 @@
 *.settings
 
 # Django #
-############
+##########
 *settings.py
 *.sqlite
 *wsgi.py
 *.json
+
+# Sphinx #
+##########
+*_build*

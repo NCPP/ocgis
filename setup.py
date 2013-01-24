@@ -33,9 +33,19 @@ if arg == 'install':
           package_dir = {'': 'src'}
           )
 elif arg == 'uninstall':
+    raise(NotImplementedError)
     try:
-        import ocgis
-        raise(NotImplementedError)
+        first = True
+        while True:
+            try:
+                __import__('ocgis')
+                #TODO: the actual uninstall work
+                first = False
+            except ImportError:
+                if first:
+                    raise
+                else:
+                    break
     except ImportError:
         raise(ImportError("Either OpenClimateGIS is not installed or not available on the Python PATH."))
 else:

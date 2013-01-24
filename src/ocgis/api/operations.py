@@ -17,7 +17,7 @@ class OcgOperations(object):
     All keyword arguments are exposed as public attributes which may be 
     arbitrarily set using standard syntax:
 
-    >>> ops = OcgOperations(dataset={'uri':'/some/dataset','variable':'foo'})
+    >>> ops = OcgOperations(RequestDataset('/path/to/some/dataset','foo'))
     >>> ops.aggregate = True
         
     The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
@@ -25,7 +25,7 @@ class OcgOperations(object):
     values from internal objects.
         
     :param dataset: The target dataset(s) for the request. This is the only required parameter.
-    :type dataset: :class:`ocgis.RequestCollection`
+    :type dataset: :class:`RequestDatasetCollection` or :class:`RequestDataset`
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
     :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial domain.

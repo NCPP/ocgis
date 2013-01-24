@@ -48,6 +48,15 @@ OpenClimateGIS Installation
 
 >>> import ocgis
 
+Uninstalling OpenClimateGIS
+---------------------------
+
+Uninstalling will remove every OpenClimateGIS package exposed on the Python path.
+
+.. code-block:: sh
+
+   [sudo] python setup.py uninstall
+
 .. _Python 2.7: http://www.python.org/download/releases/2.7/
 .. _netcdf4-python: http://code.google.com/p/netcdf4-python/
 .. _bash script: https://github.com/NCPP/ocgis/blob/master/sh/install_geospatial.sh

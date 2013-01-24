@@ -519,6 +519,31 @@ class Calc(AttributedOcgParameter):
 
 
 class RequestDataset(object):
+    '''A :class:`RequestDataset` contains all the information necessary to find
+    and subset a variable (by time and/or level) contained in a local or 
+    OpenDAP-hosted CF dataset.
+    
+    :param uri: The absolute path (URLs included) to the dataset's location.
+    :type uri: str
+    :param variable: The target variable.
+    :type variable: str
+    :param alias: An alternative name to identify the returned variable's data. If `None`, this defaults to `variable`. If variables having the same name occur in a request, this value will be required.
+    :type alias: str
+    :param time_range: Upper and lower bounds for time dimension subsetting. If `None`, return all time points.
+    :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
+    :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
+    :type level_range: [int, int]
+    :param s_proj: A `PROJ4 string`_ describing the dataset's spatial reference.
+    :type s_proj: str
+    :param t_units: Overload the autodiscover `time units`_.
+    :type t_units: str
+    :param t_calendar: Overload the autodiscover `time calendar`_.
+    :type t_calendar: str
+    
+    .. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
+    .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
+    .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
+    '''
     
     def __init__(self,uri,variable,alias=None,time_range=None,level_range=None,
                  s_proj=None,t_units=None,t_calendar=None):
@@ -593,6 +618,12 @@ class RequestDataset(object):
     
     
 class RequestDatasetCollection(object):
+    '''Contains business logic ensuring multi-:class:`RequestDataset` objects are
+    compatible.
+    
+    :param request_datasets: A sequence of :class:`RequestDataset` objects.
+    :type request_datasets: sequence of :class:`RequestDataset` objects
+    '''
     
     def __init__(self,request_datasets=[]):
         self._s = OrderedDict()
@@ -627,6 +658,11 @@ class RequestDatasetCollection(object):
         return(ret)
     
     def update(self,request_dataset):
+        """Add a :class:`RequestDataset` to the collection.
+        
+        :param request_dataset: The :class:`RequestDataset` to add.
+        :type request_dataset: :class:`RequestDataset`
+        """
         if request_dataset.alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\
                            .format(request_dataset.alias)))

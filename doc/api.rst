@@ -20,9 +20,21 @@ Additional information on arguments are found in their respective sections.
 dataset
 ~~~~~~~
 
-some info
+A `dataset` is the target file(s) where data is stored. A `dataset` may be on the local machine or network location accessible by the software. Unsecured OpenDAP datasets may also be accessed.
+
+.. autoclass:: ocgis.RequestDataset
+
+.. autoclass:: ocgis.RequestDatasetCollection
+   :members: update
 
 spatial_operation
 ~~~~~~~~~~~~~~~~~
 
-some more info
+====================== ===================================================================================================================
+Value                  Description
+====================== ===================================================================================================================
+`intersects` (default) Source geometries touching or overlapping selection geometries are returned.
+`clip`                 A full geometric intersection is performed between source and selection geometries. New geometries may be created.
+====================== ===================================================================================================================
+
+.. _PROJ4 string:: http://trac.osgeo.org/proj/wiki/FAQ

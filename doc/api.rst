@@ -37,4 +37,4 @@ Value                  Description
 `clip`                 A full geometric intersection is performed between source and selection geometries. New geometries may be created.
 ====================== ===================================================================================================================
 
-.. _PROJ4 string:: http://trac.osgeo.org/proj/wiki/FAQ
+.. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ

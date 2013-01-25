@@ -1,4 +1,5 @@
 class OcgException(Exception):
+    """Base class for all OCGIS exceptions."""
     pass
 
 
@@ -11,6 +12,13 @@ class InterpreterNotRecognized(InterpreterException):
 
 
 class DefinitionValidationError(OcgException):
+    """Raised when validation fails on :class:`~ocgis.OcgOperations`.
+    
+    :param ocg_argument: The origin of the exception.
+    :type ocg_argument: :class:`ocgis.api.definition.OcgParameter`, str
+    :param msg: The message related to the exception to display in the exception's template.
+    :type msg: str
+    """
     
     def __init__(self,ocg_argument,msg):
         self.ocg_argument = ocg_argument
@@ -30,6 +38,7 @@ class DefinitionValidationError(OcgException):
 
 
 class CannotEncodeUrl(OcgException):
+    """Raised when a URL may not be encoded from an :func:`~ocgis.OcgOperations.as_qs` call."""
     pass
 
 
@@ -48,6 +57,7 @@ class DummyLevelEncountered(OcgException):
     
 
 class SubsetException(OcgException):
+    """Base class for all subset exceptions."""
     pass
 
 
@@ -62,8 +72,9 @@ class ExtentError(SubsetException):
     
     
 class EmptyDataNotAllowed(SubsetException):
+    """Raised when the empty set for a geometry is returned and `allow_empty`_ is `False`."""
     def __str__(self):
-        return('Interesection returned empty, but empty data not allowed.')
+        return('Intersection returned empty, but empty data not allowed.')
     
     
 class EmptyData(SubsetException):

@@ -124,10 +124,18 @@ class OcgVariable(object):
 
 
 class OcgMultivariateCalculationVariable(OcgVariable):
+    """Identifier class for variables originating from multivariate calculations."""
     pass
 
    
 class OcgCollection(object):
+    """Holds extracted data as :mod:`numpy` arrays in memory.
+    
+    :param ugeom: The selection geometry used to spatially subset the data.
+    :type ugeom: dict
+    :param projection: The data's spatial reference.
+    :type projection: :class:`ocgis.interface.projection.OcgSpatialReference`
+    """
     
     def __init__(self,ugeom=None,projection=None):
         if ugeom is None:
@@ -139,7 +147,7 @@ class OcgCollection(object):
         self.cid = StringIdentifier() ## calculations
         self.vid = StringIdentifier() ## variables
         self.did = StringIdentifier() ## dataset (uri)
-        ## variable storage
+        ## holds variables
         self.variables = OrderedDict()
         
     @property

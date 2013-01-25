@@ -10,25 +10,32 @@ from ocgis.util.spatial.wrap import unwrap_geoms
 
 
 class ShpCabinet(object):
-    '''
+    '''A utility object designed for accessing shapefiles stored in a locally
+    accessible location.
+    
+    >>> # Adjust location of :class:`ocgis.ShpCabinet` search directory.
+    >>> import ocgis
+    ...
+    >>> ocgis.env.SHP_DIR = '/path/to/local/shapefile/directory'
     >>> sc = ShpCabinet()
-    >>> path = sc.get_shp_path('mi_watersheds')
-    >>> assert(path.endswith('mi_watersheds.shp'))
-    >>> geom_dict = sc.get_geom_dict('mi_watersheds')
-    >>> len(geom_dict)
-    60
-    >>> sc.get_headers(geom_dict)
-    ['UGID', 'HUC', 'HUCCODE', 'HUCNAME']
-    >>> attr_filter = {'ugid':['1','2']}
-    >>> filtered = sc.get_geom_dict('mi_watersheds',attr_filter=attr_filter)
-    >>> len(filtered)
-    2
+    >>> # List the shapefiles available.
+    >>> sc.keys()
+    ['state_boundaries', 'mi_watersheds', 'world_countries']
+    >>> # Load geometries from the shapefile.
+    >>> geoms = sc.get_geoms('state_boundaries')
+    
+    :param path: Absolute path the directory holding shapefile folders. Defaults to :attr:`ocgis.env.SHP_DIR`.
+    :type path: str
     '''
     
     def __init__(self,path=None):
         self.path = path or env.SHP_DIR
         
     def keys(self):
+        """Return a list of the shapefile keys contained in the search directory.
+        
+        :rtype: list of str
+        """
         ret = []
         for dirpath,dirnames,filenames in os.walk(self.path):
             for dn in dirnames:
@@ -47,6 +54,19 @@ class ShpCabinet(object):
         return(self.get_geoms(*args,**kwds))
     
     def get_geoms(self,key,attr_filter=None,unwrap=False,pm=0.0):
+        """Return geometries from a shapefile specified by `key`.
+        
+        :param key: The shapefile identifier.
+        :type key: str
+        :param attr_filter: A dict containing attribute filters. Keys indicate attribute fields and values should be lists that will match attribute values `exactly`.
+        :type attr_filter: dict
+        :param unwrap: If `True`, unwrap the geometries to 0 to 360 longitudinal domain.
+        :type unwrap: bool
+        :param pm: If `unwrap` is `True`, this value sets the prime meridian.
+        :type pm: float
+        :rtype: list of dict
+        """
+        
         shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
@@ -125,6 +145,17 @@ class ShpCabinet(object):
             yield(dct_copy,geom)
             
     def write(self,geom_dict,path,sr=None):
+        """Write a list of geometry dictionaries (similar to that returned by :func:`~ocgis.ShpCabinet.get_geoms`) to disk.
+        
+        :param geom_dict: The list of geometry dictionaries.
+        :type geom_dict: list of dict
+        :param path: The absolute path to the output file.
+        :type path: str
+        :param sr: The spatial reference for the output. Defaults to WGS84.
+        :type sr: :class:`osgeo.osr.SpatialReference`
+        :rtype: str path to output file.
+        """
+        
         from ocgis.conv.csv_ import OcgDialect
 #        path = self.get_path()
 

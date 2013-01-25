@@ -29,13 +29,13 @@ class OcgOperations(object):
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
     :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial domain.
-    :type geom: list of dictionaries, list of floats, str
+    :type geom: list of dict, list of float, str
     :param aggregate: If `True`, dataset geometries are aggregated to coincident selection geometries.
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.
     :type calc: list of dictionaries
     :param calc_grouping: Temporal grouping to apply during calculation.
-    :type calc_grouping: list of strings
+    :type calc_grouping: list of str
     :param calc_raw: If `True`, perform calculations on the "raw" data regardless of `aggregation` flag.
     :type calc_raw: bool
     :param abstraction: The geometric abstraction to use for the dataset geometries.
@@ -44,7 +44,7 @@ class OcgOperations(object):
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
-    :param prefix: The output prefix to prepend to any output data.
+    :param prefix: The output prefix to prepend to any output data filename.
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str

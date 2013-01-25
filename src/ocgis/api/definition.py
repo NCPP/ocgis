@@ -519,7 +519,7 @@ class Calc(AttributedOcgParameter):
 
 
 class RequestDataset(object):
-    '''A :class:`RequestDataset` contains all the information necessary to find
+    '''A :class:`ocgis.RequestDataset` contains all the information necessary to find
     and subset a variable (by time and/or level) contained in a local or 
     OpenDAP-hosted CF dataset.
     
@@ -631,8 +631,8 @@ class RequestDatasetCollection(object):
     >>> variables = ['tasmax', 'tasmin']
     >>> request_datasets = [RequestDatset(uri,variable) for uri,variable in zip(uris,variables)]
     >>> rdc = RequestDatasetCollection(request_datasets)
-    
-    ## Update object in place.
+    ...
+    >>> # Update object in place.
     >>> rdc = RequestDatasetCollection()
     >>> for rd in request_datasets:
     ...     rdc.update(rd)

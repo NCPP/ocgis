@@ -8,7 +8,7 @@ Introduction
 
 OpenClimateGIS is a Python package designed for geoprocessing and computation on CF_-compliant climate datasets. It is "request-based" in its current release meaning an operation is entirely defined prior to execution. This approach allows the software to have nearly equivalent functionality from its Python and RESTful APIs.
 
-Currently, there is a single point of entry to OpenClimateGIS: the OcgOperations object. This documentation will describe the Python syntax as well as the equivalent RESTful form of its argumentation.
+Currently, there is a single point of entry to OpenClimateGIS: the :class:`~ocgis.OcgOperations` object. This documentation will describe the Python syntax as well as the equivalent RESTful form of its argumentation.
 
 There is additional project content for OpenClimateGIS hosted on it's `CoG Site`_. Please contact ben.koziol@noaa.gov for information, help, or other general inquiries.
 

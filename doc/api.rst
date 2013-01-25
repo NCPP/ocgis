@@ -208,6 +208,12 @@ In the :attr:`~ocgis.env.SHP_DIR`, create a folder with the name you would like 
    ugid=id
    attributes=state_name,population
 
+:class:`ocgis.Inspect`
+=========================
+
+.. autoclass:: ocgis.Inspect
+   :members:
+
 Data Collections
 ================
 
@@ -236,6 +242,18 @@ When the default output format (i.e. `numpy`) is returned by OpenClimateGIS, the
 
 .. autoclass:: ocgis.OcgVariable
    :members:
+   
+   .. attribute:: name
+
+   .. attribute:: value
+
+   .. attribute:: temporal
+
+   .. attribute:: level
+
+   .. attribute:: geom
+
+
 
 :mod:`ocgis.exc`
 ================

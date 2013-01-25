@@ -4,6 +4,28 @@ from ocgis.interface.ncmeta import NcMetadata
 
 
 class Inspect(object):
+    """
+    Inspect a local or remote dataset returning a printout similar to `ncdump`_.
+    
+    >>> from ocgis import Inspect
+    ...
+    >>> # Just do an dataset attribute dump.
+    >>> ip = Inspect('/my/local/dataset')
+    >>> print(ip)
+    ...
+    >>> # Get variable-specific info.
+    >>> ip = Inspect('/my/local/dataset',variable='tas')
+    >>> print(ip)
+    
+    :param uri: Absolute path to data's location.
+    :type uri: str
+    :param variable: Specific variable to inspect.
+    :type variable: str
+    :param interface_overload: Overloads for autodiscover.
+    :type interface_overload: dict
+    
+    .. _ncdump: http://www.unidata.ucar.edu/software/netcdf/docs/netcdf/ncdump.html
+    """
     
     def __init__(self,uri,variable=None,interface_overload={}):
         self.uri = uri

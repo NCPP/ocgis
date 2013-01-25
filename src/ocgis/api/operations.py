@@ -25,11 +25,11 @@ class OcgOperations(object):
     values from internal objects.
         
     :param dataset: The target dataset(s) for the request. This is the only required parameter.
-    :type dataset: :class:`RequestDatasetCollection` or :class:`RequestDataset`
+    :type dataset: :class:`ocgis.RequestDatasetCollection` or :class:`ocgis.RequestDataset`
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
     :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial domain.
-    :type geom: list of dictionaries
+    :type geom: list of dictionaries, list of floats, str
     :param aggregate: If `True`, dataset geometries are aggregated to coincident selection geometries.
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.

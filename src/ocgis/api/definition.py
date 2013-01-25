@@ -523,6 +523,11 @@ class RequestDataset(object):
     and subset a variable (by time and/or level) contained in a local or 
     OpenDAP-hosted CF dataset.
     
+    >>> from ocgis import RequestDataset
+    >>> uri = 'http://some.opendap.dataset
+    >>> variable = 'tasmax'
+    >>> rd = RequestDataset(uri,variable)
+    
     :param uri: The absolute path (URLs included) to the dataset's location.
     :type uri: str
     :param variable: The target variable.
@@ -618,11 +623,22 @@ class RequestDataset(object):
     
     
 class RequestDatasetCollection(object):
-    '''Contains business logic ensuring multi-:class:`RequestDataset` objects are
+    '''Contains business logic ensuring multi-:class:`ocgis.RequestDataset` objects are
     compatible.
     
-    :param request_datasets: A sequence of :class:`RequestDataset` objects.
-    :type request_datasets: sequence of :class:`RequestDataset` objects
+    >>> from ocgis import RequestDatasetCollection, RequestDataset
+    >>> uris = ['http://some.opendap.dataset1', 'http://some.opendap.dataset2']
+    >>> variables = ['tasmax', 'tasmin']
+    >>> request_datasets = [RequestDatset(uri,variable) for uri,variable in zip(uris,variables)]
+    >>> rdc = RequestDatasetCollection(request_datasets)
+    
+    ## Update object in place.
+    >>> rdc = RequestDatasetCollection()
+    >>> for rd in request_datasets:
+    ...     rdc.update(rd)
+    
+    :param request_datasets: A sequence of :class:`ocgis.RequestDataset` objects.
+    :type request_datasets: sequence of :class:`ocgis.RequestDataset` objects
     '''
     
     def __init__(self,request_datasets=[]):
@@ -658,10 +674,10 @@ class RequestDatasetCollection(object):
         return(ret)
     
     def update(self,request_dataset):
-        """Add a :class:`RequestDataset` to the collection.
+        """Add a :class:`ocgis.RequestDataset` to the collection.
         
-        :param request_dataset: The :class:`RequestDataset` to add.
-        :type request_dataset: :class:`RequestDataset`
+        :param request_dataset: The :class:`ocgis.RequestDataset` to add.
+        :type request_dataset: :class:`ocgis.RequestDataset`
         """
         if request_dataset.alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\

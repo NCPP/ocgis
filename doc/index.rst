@@ -24,7 +24,7 @@ Contents:
    links
    install
    api
-   tutorial
+   examples
 
 .. Indices and tables
 ..  ==================

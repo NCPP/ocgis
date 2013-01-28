@@ -1,12 +1,10 @@
 ========
-Tutorial
+Examples
 ========
 
 These tutorials will introduce basic subsetting, formatting, and computation in OpenClimateGIS. The datasets used in this tutorial were downloaded from the Earth System Grid Federation.
 
 .. note:: Shapefile data is currently not distributed with OpenClimateGIS. Please contact the maintainer for information on acquiring shapefile datasets.
-
-.. .. literalinclude:: examples.py
 
 Inspection
 ----------
@@ -70,6 +68,10 @@ The :ref:`snippet_headline` argument is important when testing and developing an
 
 Simple Subset
 -------------
+
+This example will introduce simple subsetting by a bounding box with conversion to in-memory NumPy arrays, shapefile, and keyed formats.
+
+.. literalinclude:: sphinx_examples/simple_subset.py
 
 Advanced Subsetting
 -------------------

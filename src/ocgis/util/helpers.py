@@ -286,8 +286,14 @@ def shapely_to_shp(obj,outname):
         
 
 
-def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None):
+def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_prefix=None):
     """Return absolute path to a temporary file."""
+
+    if dir_prefix is not None:
+        if not dir_prefix.endswith('_'):
+            dir_prefix = dir_prefix + '_'
+    else:
+        dir_prefix = ''
 
     def _get_wd_():
         if wd is None:
@@ -298,7 +304,7 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None):
     if nest:
         f = tempfile.NamedTemporaryFile()
         f.close()
-        dir = os.path.join(_get_wd_(),os.path.split(f.name)[-1])
+        dir = os.path.join(_get_wd_(),dir_prefix+os.path.split(f.name)[-1])
         os.mkdir(dir)
     else:
         dir = _get_wd_()

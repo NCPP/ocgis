@@ -16,11 +16,17 @@ class OcgConverter(object):
     use_dir=None :: str :: If provided, forces outputs into this directory.
     '''
     _ext = None
+    _create_directory = True
     
     def __init__(self,so,mode='raw',prefix='ocg',wd=None,ops=None,add_meta=True):
         self.so = so
         self.ops = ops
-        self.wd = wd or get_temp_path(wd=tempfile.gettempdir(),nest=True,only_dir=True)
+        if self._create_directory:
+            if wd is None:
+                wd = tempfile.gettempdir()
+            self.wd = get_temp_path(wd=wd,nest=True,only_dir=True)
+        else:
+            self.wd = None
         self.mode = mode
         self.add_meta = add_meta
         

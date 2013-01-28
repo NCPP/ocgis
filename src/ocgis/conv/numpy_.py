@@ -3,9 +3,7 @@ from ocgis.util.helpers import vprint
 
     
 class NumpyConverter(OcgConverter):
-    
-#    def __init__(self,*args,**kwds):
-#        super(NumpyConverter,self).__init__(*args,**kwds)
+    _create_directory = False
         
     def __iter__(self):
         for coll in self.so:

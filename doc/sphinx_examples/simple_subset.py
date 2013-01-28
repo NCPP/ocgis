@@ -38,6 +38,7 @@ ret = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
 ## depending on the requested format.
 output_formats = ['shp','keyed']
 for output_format in output_formats:
+    prefix = 'my_' + output_format
     ops = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET,
-                        output_format=output_format)
+                        output_format=output_format,prefix=prefix)
     ret = ops.execute()

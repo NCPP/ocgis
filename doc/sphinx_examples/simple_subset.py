@@ -36,9 +36,9 @@ ret = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
 ## etc. The support for managing output files will be improved in future 
 ## releases. The returned value is the absolute path to the file or folder
 ## depending on the requested format.
-output_formats = ['shp','keyed']
+output_formats = ['shp','csv','keyed']
 for output_format in output_formats:
-    prefix = 'my_' + output_format
+    prefix = output_format
     ops = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET,
                         output_format=output_format,prefix=prefix)
     ret = ops.execute()

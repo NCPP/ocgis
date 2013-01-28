@@ -125,6 +125,8 @@ Value                  Description
 `point`                Represent cells as :class:`shapely.geometry.Point` objects.
 ====================== =============================================================
 
+.. _snippet_headline:
+
 snippet
 ~~~~~~~
 

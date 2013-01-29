@@ -66,8 +66,10 @@ Use of `snippet`
 
 The :ref:`snippet_headline` argument is important when testing and developing an OpenClimateGIS call. It should generally be set to `True` until the final data request is ready. This is for your benefit (requests are faster) as well as for the benefit of any remote storage server (not transferring excessive data).
 
-Simple Subset
--------------
+Simple Subsetting
+-----------------
+
+.. warning:: The `keyed` :ref:`output_format_headline` is highly recommended as writing data to shapefiles may result in large file sizes. For each record, a shapefile repeats the geometry storage.
 
 This example will introduce simple subsetting by a bounding box with conversion to in-memory NumPy arrays, shapefile, CSV, and keyed formats.
 
@@ -109,6 +111,45 @@ Now, the directory structure for `/tmp/foo` will look like (temporary directory 
 
 Advanced Subsetting
 -------------------
+
+In this example, a U.S. state boundary shapefile will be used to subset and aggregate three climate datasets. The aggregation will occur on a per-geometry + dataset basis. Hence, we will end up with daily aggregated "statewide" temperatures for the three climate variables. We also want to clip the climate data cells to the boundary of the selection geometry to take advantage of area-weighting and avoid data duplication.
+
+.. literalinclude:: sphinx_examples/advanced_subset.py
+
+The shapefile attribute table would like something like:
+
+.. figure:: _static/examples/advanced_subset_shapefile.png
+   :scale: 50%
+   :align: center
+   :figwidth: 75%
+   
+   An example shapefile output attribute table. Note how repeated elements may lead to large filesizes. This is a good output format when making an initial pass at a data request. Again the `keyed` output is recommended for data requests in general unless writing to NetCDF which is remains the most efficient format.
+
+For the `keyed` output, the output folder will contain a number of CSV files with unique identifiers that may be linked via the `ocgis_value.csv` table. The `ocgis_shp` folder will contain a shapefile representing the data geometries -- perfect for joining.
+
+.. figure:: _static/examples/advanced_subset_keyed_folder_contents.png
+   :scale: 50%
+   :align: center
+   :figwidth: 75%
+
+   Folder contents for the `keyed` output.
+
+.. figure:: _static/examples/advanced_subset_value_csv.png
+   :scale: 50%
+   :align: center
+   :figwidth: 75%
+
+   A peak inside the `ocgis_value.csv` file.
+
+.. figure:: _static/examples/advanced_subset_vid_csv.png
+   :scale: 50%
+   :align: center
+   :figwidth: 75%
+
+   A peak inside the `ocgis_vid.csv` file which links to the `VID` attribute of the value file.
+
+Subsetting with a Time Range
+----------------------------
 
 Computation
 -----------

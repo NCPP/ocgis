@@ -139,6 +139,8 @@ Value                  Description
 `False` (default)      Return all data.
 ====================== ========================================================================================
 
+.. _output_format_headline:
+
 output_format
 ~~~~~~~~~~~~~
 

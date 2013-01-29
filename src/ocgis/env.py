@@ -12,7 +12,8 @@ MODE = 'raw'
 #: The default prefix to apply to output files.
 BASE_NAME = 'ocg'
 #: Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
-SHP_DIR = '~/links/project/ocg/bin/shp'
+import os.path
+SHP_DIR = os.path.expanduser('~/links/ocgis/bin/shp')
 #: The fill value for masked data in NetCDF output.
 FILL_VALUE = 1e20
 #: Indicate if additional output information should be printed to terminal. (Currently not very useful.)

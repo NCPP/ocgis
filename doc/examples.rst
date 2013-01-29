@@ -118,7 +118,7 @@ In this example, a U.S. state boundary shapefile will be used to subset and aggr
 
 The shapefile attribute table would like something like:
 
-.. figure:: _static/examples/advanced_subset_shapefile.png
+.. figure:: _images/examples/advanced_subset_shapefile.png
    :scale: 50%
    :align: center
    :figwidth: 75%
@@ -127,21 +127,21 @@ The shapefile attribute table would like something like:
 
 For the `keyed` output, the output folder will contain a number of CSV files with unique identifiers that may be linked via the `ocgis_value.csv` table. The `ocgis_shp` folder will contain a shapefile representing the data geometries -- perfect for joining.
 
-.. figure:: _static/examples/advanced_subset_keyed_folder_contents.png
+.. figure:: _images/examples/advanced_subset_keyed_folder_contents.png
    :scale: 50%
    :align: center
    :figwidth: 75%
 
    Folder contents for the `keyed` output.
 
-.. figure:: _static/examples/advanced_subset_value_csv.png
+.. figure:: _images/examples/advanced_subset_value_csv.png
    :scale: 50%
    :align: center
    :figwidth: 75%
 
    A peak inside the `ocgis_value.csv` file.
 
-.. figure:: _static/examples/advanced_subset_vid_csv.png
+.. figure:: _images/examples/advanced_subset_vid_csv.png
    :scale: 50%
    :align: center
    :figwidth: 75%

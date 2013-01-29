@@ -89,10 +89,14 @@ Value                  Description
 `False` (default)      Selected geometries are not combined.
 ====================== ========================================================
 
+.. _calc_headline:
+
 calc
 ~~~~
 
 tdk: a lot of work to be done here
+
+.. _calc_grouping_headline:
 
 calc_grouping
 ~~~~~~~~~~~~~
@@ -102,6 +106,8 @@ Any combination of :class:`datetime.datetime` attribute strings.
 >>> calc_grouping = ['year']
 >>> calc_grouping = ['month','year']
 >>> calc_grouping = ['day','second']
+
+.. _calc_raw_headline:
 
 calc_raw
 ~~~~~~~~

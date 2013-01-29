@@ -69,7 +69,7 @@ The :ref:`snippet_headline` argument is important when testing and developing an
 Simple Subsetting
 -----------------
 
-.. warning:: The `keyed` :ref:`output_format_headline` is highly recommended as writing data to shapefiles may result in large file sizes. For each record, a shapefile repeats the geometry storage.
+.. warning:: The `keyed` :ref:`output_format_headline` is highly recommended as writing data to shapefiles/CSV may result in large file sizes. For each record, a shapefile repeats the geometry storage.
 
 This example will introduce simple subsetting by a bounding box with conversion to in-memory NumPy arrays, shapefile, CSV, and keyed formats.
 

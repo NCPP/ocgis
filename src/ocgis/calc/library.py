@@ -5,9 +5,14 @@ from ocgis.util.helpers import iter_array
 
 
 class SampleSize(OcgFunction):
+    '''
+    .. note:: Automatically added by OpenClimateGIS. This should generally not be invoked manually.
+    
+    n: Statistical sample size.
+    '''
+    name = 'n'
     description = 'Statistical sample size.'
     Group = groups.BasicStatistics
-    name = 'n'
     dtype = int
     
     @staticmethod

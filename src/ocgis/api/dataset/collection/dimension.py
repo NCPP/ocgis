@@ -8,6 +8,15 @@ from shapely import wkb
 
 
 class OcgDimension(object):
+    '''Base class for dimension objects.
+    
+    :param uid: Unique identifiers for `value`.
+    :type uid: int, :class:`numpy.ndarray`
+    :param value: Data values.
+    :type value: float/int/object, :class:`numpy.ndarray`
+    :param bounds: Upper and lower bounds for `value`.
+    :type bounds: float/int/object, :class:`numpy.ndarray`
+    '''
     _name_value = 'value'
     _name_uid = 'uid'
     

@@ -1,3 +1,5 @@
+.. _computation_headline:
+
 Computation
 ===========
 
@@ -22,6 +24,10 @@ For example to calculate a monthly mean and median on a hypothetical daily clima
 >>> calc = [{'func':'mean','name':'monthly_mean'},{'func':'median','name':'monthly_median'}]
 >>> ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=['month'],output_format='nc',prefix='my_calculation')
 >>> path = ops.execute()
+
+A calculation with arguments includes a `kwds` key in the function dictionary:
+
+>>> calc = [{'func':'between','name':'between_5_10','kwds':{'lower':5,'upper':10}}]
 
 Available Functions
 -------------------

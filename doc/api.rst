@@ -94,7 +94,7 @@ Value                  Description
 calc
 ~~~~
 
-tdk: a lot of work to be done here
+See the :ref:`computation_headline` page for more details.
 
 .. _calc_grouping_headline:
 

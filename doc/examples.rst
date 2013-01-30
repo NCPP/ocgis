@@ -148,8 +148,23 @@ For the `keyed` output, the output folder will contain a number of CSV files wit
 
    A peak inside the `ocgis_vid.csv` file which links to the `VID` attribute of the value file.
 
-Subsetting with a Time Range
-----------------------------
+Subsetting with a Time/Level Range
+----------------------------------
+
+Adding a time or level range subset is done at the :class:`~ocgis.RequestDataset` level.
+
+.. warning:: Datetime ranges are absolute and inclusive.
+
+For example, the code below will return all data from the year 2000 for the first two levels. Level indexing originates at 1.
+
+>>> from ocgis import OcgOperations, RequestDataset
+>>> import datetime
+...
+>>> ## Depending on your data's time resolution, the hour/minute/second/etc.
+>>> ## may be important for capturing all the data within the range.
+>>> tr = [datetime.datetime(2000,1,1),datetime.datetime(2000,12,31,23,59,59)]
+>>> rd = RequestDataset('/my/leveled/data','tas',time_range=tr,level_range=[1,2])
+>>> ret = OcgOperations(dataset=rd).execute()
 
 Computation
 -----------

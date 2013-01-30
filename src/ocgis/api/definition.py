@@ -604,10 +604,10 @@ class RequestDataset(object):
     def _format_time_range_(self):
         try:
             ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
+            ref = ret[1]
+            ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
         except AttributeError:
             ret = self.time_range
-        ref = ret[1]
-        ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
         if ret[0] > ret[1]:
             raise(DefinitionValidationError('dataset','Time ordination incorrect.'))
         self.time_range = ret

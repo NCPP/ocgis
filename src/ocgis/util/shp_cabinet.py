@@ -77,16 +77,20 @@ class ShpCabinet(object):
         id_attr = config.get('mapping','ugid')
         ## adjust the id attribute name for auto-generation in the shapefile
         ## reader.
-        if id_attr == 'none':
+        if id_attr.lower() == 'none':
             id_attr = None
             make_id = True
         else:
             make_id = False
         other_attrs = config.get('mapping','attributes').split(',')
+        ## allow for no attributes to be loaded.
+        if len(other_attrs) == 1 and other_attrs[0].lower() == 'none':
+            other_attrs = []
+        ## get the geometry objects.
         geoms = get_shp_as_multi(shp_path,
-                                     uid_field=id_attr,
-                                     attr_fields=other_attrs,
-                                     make_id=make_id)
+                                 uid_field=id_attr,
+                                 attr_fields=other_attrs,
+                                 make_id=make_id)
 
         ## filter the returned geometries if an attribute filter is passed
         if attr_filter is not None:

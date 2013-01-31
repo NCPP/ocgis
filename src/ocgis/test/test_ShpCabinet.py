@@ -1,6 +1,10 @@
 import unittest
 from ocgis.util.shp_cabinet import ShpCabinet
 import time
+from ocgis.util.helpers import get_temp_path
+import shutil
+import ConfigParser
+import os.path
 
 
 class Test(unittest.TestCase):
@@ -35,6 +39,34 @@ class Test(unittest.TestCase):
             for geom in geoms:
                 bounds = geom['geom'].bounds
                 self.assertTrue(bounds[0] >= pm)
+                
+    def test_none_for_attributes(self):
+        ## make temporary directory
+        path = get_temp_path(only_dir=True,nest=True)
+        try:
+            ## the shapefile key to use
+            key = 'state_boundaries'
+            ## get path to shapefile and copy directory to temporary location
+            sc = ShpCabinet()
+            origin = os.path.split(sc.get_shp_path(key))[0]
+            shutil.copytree(origin,os.path.join(path,key))
+            ## remove original config file
+            os.remove(os.path.join(path,key,key+'.cfg'))
+            ## write config file
+            config = ConfigParser.ConfigParser()
+            config.add_section('mapping')
+            config.set('mapping','ugid','none')
+            config.set('mapping','attributes','none')
+            with open(os.path.join(path,key,key+'.cfg'),'w') as f:
+                config.write(f)
+            ## load data
+            sc = ShpCabinet(path)
+            geoms = sc.get_geoms(key)
+            
+            for geom in geoms:
+                self.assertEqual(set(['ugid','geom']),set(geom.keys()))
+        finally:
+            shutil.rmtree(path)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

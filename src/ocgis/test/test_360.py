@@ -53,7 +53,6 @@ class Test360(unittest.TestCase):
         nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
         
-#        env.WORKSPACE = '/tmp/highres'
         dataset = {'uri':path,'variable':'foo'}
         output_format = 'nc'
         snippet = True

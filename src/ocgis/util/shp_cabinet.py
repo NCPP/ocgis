@@ -16,7 +16,7 @@ class ShpCabinet(object):
     >>> # Adjust location of :class:`ocgis.ShpCabinet` search directory.
     >>> import ocgis
     ...
-    >>> ocgis.env.SHP_DIR = '/path/to/local/shapefile/directory'
+    >>> ocgis.env.DIR_SHPCABINET = '/path/to/local/shapefile/directory'
     >>> sc = ShpCabinet()
     >>> # List the shapefiles available.
     >>> sc.keys()
@@ -24,12 +24,12 @@ class ShpCabinet(object):
     >>> # Load geometries from the shapefile.
     >>> geoms = sc.get_geoms('state_boundaries')
     
-    :param path: Absolute path the directory holding shapefile folders. Defaults to :attr:`ocgis.env.SHP_DIR`.
+    :param path: Absolute path the directory holding shapefile folders. Defaults to :attr:`ocgis.env.DIR_SHPCABINET`.
     :type path: str
     '''
     
     def __init__(self,path=None):
-        self.path = path or env.SHP_DIR
+        self.path = path or env.DIR_SHPCABINET
         
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.

@@ -51,7 +51,7 @@ OpenClimateGIS Installation
 Configuring the :class:`~ocgis.ShpCabinet`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set the path to the folder containing the shapefile folders in :attr:`ocgis.env.SHP_DIR`.
+Set the path to the folder containing the shapefile folders in :attr:`ocgis.env.DIR_SHPCABINET`.
 
 Uninstalling OpenClimateGIS
 ---------------------------

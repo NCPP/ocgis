@@ -59,7 +59,7 @@ def get_shp(request,key=None):
     if unwrap.value:
         unwrap_geoms(geom_dict,pm.value)
     
-    dir_path = get_temp_path(nest=True,only_dir=True,wd=env.WORKSPACE)
+    dir_path = get_temp_path(nest=True,only_dir=True,wd=env.DIR_OUTPUT)
     if prefix.value is None:
         out_name = key
     else:

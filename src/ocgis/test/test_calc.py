@@ -22,7 +22,7 @@ class Test(unittest.TestCase):
         ds = [self.tasmax,self.rhsmax]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
         
-        time_range = [dt(2011,1,1),dt(2011,12,31)]
+        time_range = [dt(2011,1,1),dt(2011,12,31,23,59,59)]
         for d in ds: d['time_range'] = time_range
         ops = OcgOperations(dataset=ds,calc=calc)
         self.assertEqual(ops.calc_grouping,None)

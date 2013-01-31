@@ -60,9 +60,9 @@ class OcgOperations(object):
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
-                 snippet=False, backend='ocg', request_url=None, prefix='ocgis',
-                 output_format='numpy', output_grouping=None, agg_selection=False,
-                 select_ugid=None, vector_wrap=True, allow_empty=False):
+                 snippet=False, backend='ocg', prefix='ocgis',
+                 output_format='numpy', agg_selection=False, select_ugid=None, 
+                 vector_wrap=True, allow_empty=False):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -78,14 +78,16 @@ class OcgOperations(object):
         self.abstraction = Abstraction(abstraction)
         self.snippet = Snippet(snippet)
         self.backend = Backend(backend)
-        self.request_url = RequestUrl(request_url)
         self.prefix = Prefix(prefix)
         self.output_format = OutputFormat(output_format)
-        self.output_grouping = output_grouping
         self.agg_selection = AggregateSelection(agg_selection)
         self.select_ugid = SelectUgid(select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
+        
+        ## these values are left in to perhaps be added back in at a later date.
+        self.output_grouping = None
+        self.request_url = RequestUrl(None)
         
         # # Initial values have been set and global validation should now occur
         # # when any parameters are updated.

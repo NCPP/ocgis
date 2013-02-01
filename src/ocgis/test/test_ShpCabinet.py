@@ -69,7 +69,8 @@ class Test(unittest.TestCase):
                     if attr_flag == 'none':
                         self.assertEqual(set(['ugid','geom']),set(geom.keys()))
                     else:
-                        import ipdb;ipdb.set_trace()
+                        self.assertEqual(set(['ugid', 'state_name', 'state_fips', 'geom', 'state_abbr', 'id']),
+                                         set(geom.keys()))
             finally:
                 shutil.rmtree(path)
 

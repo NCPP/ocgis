@@ -357,6 +357,16 @@ class ShpIterator(object):
         assert(os.path.exists(path))
         self.path = path
         
+    def get_fields(self):
+        ds = ogr.Open(self.path)
+        try:
+            lyr = ds.GetLayerByIndex(0)
+            lyr.ResetReading()
+            feat = lyr.GetNextFeature()
+            return(feat.keys())
+        finally:
+            ds.Destroy()
+        
     def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False,
                       to_shapely=False):
         
@@ -414,12 +424,31 @@ def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='u
     >>> uid_field = 'objectid'
     >>> ret = get_shp_as_multi(path,uid_field)
     """
+    ## the iterator object instantiated here to make sure the shapefile exists
+    ## and there is access to the field acquisition.
+    shpitr = ShpIterator(path)
+    
     if uid_field is None or uid_field == '':
         uid_field = []
     else:
         uid_field = [str(uid_field)]
-    fields = uid_field + attr_fields
-    shpitr = ShpIterator(path)
+    try:
+        fields = uid_field + attr_fields
+    except TypeError:
+        if attr_fields.lower() == 'all':
+            fields = shpitr.get_fields()
+            fields = [f.lower() for f in fields]
+            try:
+                if uid_field[0].lower() in fields:
+                    fields.pop(uid_field[0].lower())
+            except IndexError:
+                if len(uid_field) == 0:
+                    pass
+                else:
+                    raise
+            fields = uid_field + fields
+        else:
+            raise
     data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
     ## add unique identifier if requested and the passed uid field is none
     for ii,gd in enumerate(data,start=1):

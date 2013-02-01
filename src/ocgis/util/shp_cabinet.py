@@ -86,6 +86,9 @@ class ShpCabinet(object):
         ## allow for no attributes to be loaded.
         if len(other_attrs) == 1 and other_attrs[0].lower() == 'none':
             other_attrs = []
+        ## allow for all attributes to be loaded
+        elif len(other_attrs) == 1 and other_attrs[0].lower() == 'all':
+            other_attrs = 'all'
         ## get the geometry objects.
         geoms = get_shp_as_multi(shp_path,
                                  uid_field=id_attr,

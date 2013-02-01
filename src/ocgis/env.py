@@ -10,7 +10,9 @@ import os.path
 DIR_SHPCABINET = os.path.expanduser('~/links/ocgis/bin/shp')
 
 #: Directories to search through to find climate data. If specified, this should
-#: be a sequence of directories. It may also be a single directory location.
+#: be a sequence of directories. It may also be a single directory location. Note
+#: that the search may take considerable time if a very high level directory is
+#: chosen.
 DIR_DATA = None
 
 #: The fill value for masked data in NetCDF output.

@@ -16,6 +16,13 @@ import re
 from ocgis.exc import DefinitionValidationError
 
 
+def locate(pattern, root=os.curdir, followlinks=True):
+    '''Locate all files matching supplied filename pattern in and below
+    supplied root directory.'''
+    for path, dirs, files in os.walk(os.path.abspath(root),followlinks=followlinks):
+        for filename in filter(lambda x: x == pattern,files):
+            yield os.path.join(path, filename)
+
 def reduce_query(query):
     ## parse keys into groups.
     groups = {}

@@ -10,6 +10,7 @@ from collections import OrderedDict
 import os.path
 from ocgis import env
 from ocgis.util.helpers import locate
+from ocgis.util.inspect import Inspect
 
 
 class OcgParameter(object):
@@ -567,7 +568,15 @@ class RequestDataset(object):
         self.ocg_dataset = None
         self._use_for_id = []
         self._format_()
+    
+    def inspect(self):
+        '''Print inspection output using :class:`~ocgis.Insepct`. This is a 
+        convenience method.'''
         
+        ip = Inspect(self.uri,variable=self.variable,
+                     interface_overload=self.interface)
+        print(ip)
+    
     @property
     def interface(self):
         attrs = ['s_proj','t_units','t_calendar']

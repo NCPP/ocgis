@@ -177,6 +177,10 @@ class TestRequestDatasets(unittest.TestCase):
     uri = '/usr/local/climate_data/CanCM4/rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
     variable = 'rhs'
     
+    def test_inspect_method(self):
+        rd = RequestDataset(self.uri,self.variable)
+        rd.inspect()
+    
     def test_env_dir_data(self):
         ## test setting the var to a single directory
         env.DIR_DATA = '/usr/local/climate_data'

@@ -51,7 +51,7 @@ class OcgInterpreter(Interpreter):
         ## check for a user-supplied output prefix
         prefix = self.ops.prefix
         if prefix is not None:
-            env.BASE_NAME = prefix
+            env.PREFIX = prefix
         
         if self.ops.select_ugid is not None:
             geom = self.ops._get_object_('geom')
@@ -89,7 +89,7 @@ class OcgInterpreter(Interpreter):
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
-                conv = Conv(so,wd=env.DIR_OUTPUT,prefix=env.BASE_NAME,
+                conv = Conv(so,wd=env.DIR_OUTPUT,prefix=env.PREFIX,
                             mode=self.ops.mode,ops=self.ops)
                 ret = conv.write()
             else:

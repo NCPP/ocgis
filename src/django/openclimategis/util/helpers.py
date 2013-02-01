@@ -20,7 +20,7 @@ def _zip_response_(path,filename=None):
         dt = dt.replace(' ','_')
         dt = dt.split('.')[0]
         dt = dt.replace(':','')
-        filename = '{1}_{0}.zip'.format(dt,env.BASE_NAME)
+        filename = '{1}_{0}.zip'.format(dt,env.PREFIX)
     resp = HttpResponse(zip_stream,mimetype='application/zip')
     resp['Content-Disposition'] = 'attachment; filename={0}'.format(filename)
     resp['Content-length'] = str(len(zip_stream))

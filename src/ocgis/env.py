@@ -25,7 +25,7 @@ CORES = 6
 MODE = 'raw'
 
 #: The default prefix to apply to output files.
-BASE_NAME = 'ocg'
+PREFIX = 'ocg'
 
 FILL_VALUE = 1e20
 

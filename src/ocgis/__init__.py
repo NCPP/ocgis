@@ -1,5 +1,5 @@
 __VER__ = '0.04'
-__RELEASE__ = '0.04b'
+__RELEASE__ = '0.04.01b'
 
 from api import OcgOperations
 from util.shp_cabinet import ShpCabinet

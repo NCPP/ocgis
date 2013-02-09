@@ -1,5 +1,6 @@
 from distutils.core import setup
 import sys
+import os
 
 
 try:
@@ -22,15 +23,36 @@ if arg == 'install':
             msg = 'Unable to import Python package: "{0}".'.format(pkg)
             raise(ImportError(msg))
     
+    ## get package structure
+    def _get_dot_(path,root='src'):
+        ret = []
+        path_parse = path
+        while True:
+            path_parse,tail = os.path.split(path_parse)
+            if tail == root:
+                break
+            else:
+                ret.append(tail)
+        ret.reverse()
+        return('.'.join(ret))
+    package_dir = {'':'src'}
+    src_path = os.path.join(package_dir.keys()[0],package_dir.values()[0],'ocgis')
+    packages = []
+    for dirpath,dirnames,filenames in os.walk(src_path):
+        if '__init__.py' in filenames:
+            package = _get_dot_(dirpath)
+            packages.append(package)
+    
+    ## run the installation
     setup(name='ocgis',
-          version='0.03a',
+          version='0.04.01b',
           author='Ben Koziol',
           author_email='ben.koziol@noaa.gov',
           url='https://github.com/NCPP/ocgis/tags',
           license='BSD License',
           platforms=['all'],
-          packages=['ocgis'],
-          package_dir = {'': 'src'}
+          packages=packages,
+          package_dir=package_dir
           )
 elif arg == 'uninstall':
     raise(NotImplementedError)

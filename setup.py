@@ -23,7 +23,7 @@ if arg == 'install':
             raise(ImportError(msg))
     
     setup(name='ocgis',
-          version='0.03a',
+          version='0.04b',
           author='Ben Koziol',
           author_email='ben.koziol@noaa.gov',
           url='https://github.com/NCPP/ocgis/tags',

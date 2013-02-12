@@ -4,5 +4,5 @@ __RELEASE__ = '0.04.01b'
 from api import OcgOperations
 from util.shp_cabinet import ShpCabinet
 from util.inspect import Inspect
-from api.definition import RequestDataset, RequestDatasetCollection
+from api.dataset.request import RequestDataset, RequestDatasetCollection
 from api.dataset.collection.collection import OcgCollection, OcgVariable

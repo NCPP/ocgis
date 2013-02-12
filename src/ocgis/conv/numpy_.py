@@ -6,7 +6,7 @@ class NumpyConverter(OcgConverter):
     _create_directory = False
         
     def __iter__(self):
-        for coll in self.so:
+        for coll in self.colls:
             #tdk
             try:
                 vprint('geom id processed: {0}'.format(coll.ugeom['ugid']))

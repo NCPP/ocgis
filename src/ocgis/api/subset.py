@@ -16,10 +16,12 @@ class SubsetOperation(object):
     '''Spatial and temporal subsetting plus calculation. Optional parallel
     extraction mode.
     
-    desc :: dict :: Operational arguments for the interpreter to execute.
-    serial=True :: bool :: Set to False to run in parallel.
-    nprocs=1 :: int :: Number of processes to use when executing parallel
-        operations.
+    :param ops: An `~ocgis.OcgOperations` object.
+    :type ops: `~ocgis.OcgOperations`
+    :param serial: Set to `False` to run in parallel.
+    :type serial: bool
+    :param ncprocs: Number of processes to use when executing in parallel.
+    :type ncprocs: int
     '''
     
     def __init__(self,ops,serial=True,nprocs=1):
@@ -28,15 +30,10 @@ class SubsetOperation(object):
         self.nprocs = nprocs
         
         ## construct OcgDataset objects
-#        uri_map = {}
-        for dataset in self.ops.dataset:
-#            key = dataset['uri']
-#            if key in uri_map:
-#                ods = uri_map[key]
-#            else:
-            ods = OcgDataset(dataset,interface_overload=dataset.interface)
-#                uri_map.update({key:ods})
-            dataset.ocg_dataset = ods
+        for request_dataset in self.ops.dataset:
+            ods = OcgDataset(request_dataset,
+                             interface_overload=request_dataset.interface)
+            request_dataset.ocg_dataset = ods
         
         ## determine if dimensions are equivalent.
         mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
@@ -77,32 +74,6 @@ class SubsetOperation(object):
                                               group(self.cengine.grouping)
                     times = ref.value[tgdim.dgroups[0]]
                     dataset.time_range = [times.min(),times.max()]
-            
-#            import ipdb;ipdb.set_trace()
-#            ## only select the first level
-#            self.ops.level_range = [1]*len(self.ops.dataset)
-#            ## alter time ranges for the datasets
-#            time_ranges = []
-#            for i,ds in enumerate(self.ops.dataset):
-#                ref = ds['ocg_dataset'].i.temporal
-#                ## use standard time bounds if no calculation present
-#                if self.cengine is None:
-#                    app = [ref.value[0],ref.value[0]]
-#                ## if there are calculations, select the first time group
-#                else:
-#                    if self.cengine.grouping is None:
-#                        app = [ref.value[0],ref.value[0]]
-#                    else:
-#                        tgdim = TemporalDimension(ref.tid,ref.value,
-#                                                  bounds=ref.bounds).\
-#                                                  group(self.cengine.grouping)
-#                        times = ref.value[tgdim.dgroups[0]]
-#                        app = [times.min(),times.max()]
-#                time_ranges.append(app)
-#            self.ops.time_range = time_ranges
-
-#        ## set the spatial_interface
-#        self.spatial_interface = ods.i.spatial
         
     def __iter__(self):
         '''Return OcgCollection objects from the cache or directly from

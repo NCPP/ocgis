@@ -5,6 +5,7 @@ from ocgis import env
 from ocgis.util.helpers import locate
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
+from ocgis.util.inspect import Inspect
 
 
 class RequestDataset(object):

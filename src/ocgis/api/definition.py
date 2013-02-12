@@ -5,6 +5,7 @@ from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.api.dataset.request import RequestDatasetCollection, RequestDataset
 
 
 class OcgParameter(object):

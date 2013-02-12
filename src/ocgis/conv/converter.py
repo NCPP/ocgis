@@ -18,8 +18,8 @@ class OcgConverter(object):
     _ext = None
     _create_directory = True
     
-    def __init__(self,so,mode='raw',prefix='ocg',wd=None,ops=None,add_meta=True,nest=True):
-        self.so = so
+    def __init__(self,colls,mode='raw',prefix='ocg',wd=None,ops=None,add_meta=True,nest=True):
+        self.colls = colls
         self.ops = ops
         self.prefix = prefix
         if self._create_directory:
@@ -85,7 +85,7 @@ class OcgConverter(object):
         OcgCollection
         dict'''
         
-        for coll in self.so:
+        for coll in self.colls:
             try:
                 if coll.is_empty:
                     continue

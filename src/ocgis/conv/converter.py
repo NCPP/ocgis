@@ -8,6 +8,9 @@ import tempfile
 class OcgConverter(object):
     '''Base converter object. Intended for subclassing.
     
+    :param colls: A sequence of `~ocgis.OcgCollection` objects.
+    :type colls: sequence of `~ocgis.OcgCollection` objects
+    
     so :: SubsetOperation
     mode="raw" :: str :: Iterator mode.
     base_name="ocg" :: str :: Prefix for data outputs.

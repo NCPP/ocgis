@@ -3,6 +3,8 @@
 Computation
 ===========
 
+.. warning:: The computational API is considered to be in an `alpha` development stage and may change rapidly. Suggestions are welcome!
+
 OpenClimateGIS offers an extensible computation framework that supports:
   1. NumPy-based array calculations
   2. Temporal grouping (level grouping not supported)

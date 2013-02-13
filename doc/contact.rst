@@ -1,8 +1,12 @@
+.. _contact_information:
+
 Contact Information
 ===================
 
-Ben Koziol (NESII_/CIRES_/`NOAA Earth System Research Laboratory`_) <ben.koziol@noaa.gov>
+.. note:: If this is the first time sending emails to these lists you will receive a bounce message. Do not worry, your email will be recieved.
 
-.. _NESII: http://www.esrl.noaa.gov/nesii/
-.. _CIRES: http://cires.colorado.edu/home.html
-.. _NOAA Earth System Research Laboratory: http://www.esrl.noaa.gov/
+Support/Questions: <ocgis_support@list.woc.noaa.gov>
+
+Subscribe to Mailing List: <`ocgis_info@list.woc.noaa.gov`_> (put "subscribe" in the subject line)
+
+.. _ocgis_info@list.woc.noaa.gov: mailto:ocgis_info@list.woc.noaa.gov?subject=subscribe

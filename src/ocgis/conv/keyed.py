@@ -56,7 +56,7 @@ class KeyedConverter(OcgConverter):
                                            add_meta=False,nest=False)
         shpidx.write()
         ########################################################################
-        
+
         return(self.wd)
     
     def _get_file_object_(self,prefix):

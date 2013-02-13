@@ -45,8 +45,14 @@ class OcgConverter(object):
             out_path = os.path.join(self.wd,self.prefix+'_'+MetaConverter._meta_filename)
             with open(out_path,'w') as f:
                 f.write(lines)
-        self._write_()
-        return(self.path)
+        ret = self._write_()
+        
+        ## return anything from the overloaded _write_ method. otherwise return
+        ## the internal path.
+        if ret is None:
+            ret = self.path
+        
+        return(ret)
     
     def _write_(self):
         raise(NotImplementedError)

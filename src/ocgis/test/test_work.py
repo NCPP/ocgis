@@ -12,8 +12,9 @@ from nose.plugins.skip import SkipTest
 import shutil
 import tempfile
 from ocgis.exc import ExtentError
+from ocgis.api.dataset.request import RequestDataset
 
-raise SkipTest(__name__)
+#raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
     
@@ -45,9 +46,9 @@ class TestWork(unittest.TestCase):
                     print traceback.format_exc()
                     import ipdb;ipdb.set_trace()
             finally:
-#                import ipdb;ipdb.set_trace()
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
+                    import ipdb;ipdb.set_trace()
                     shutil.rmtree(ret)
                     
     def iter_operations(self,start=0):
@@ -85,10 +86,7 @@ class TestWork(unittest.TestCase):
                                       True,
                                       False
                                       ]}
-        interface = {'interface':[
-                                  {},
-                                  {'s_abstraction':'point'}
-                                  ]}
+        abstraction = {'abstraction':['polygon','point']}
         
         agg_selection = {'agg_selection':[
                                           True,
@@ -115,7 +113,7 @@ class TestWork(unittest.TestCase):
                                           ['year']]}
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,
-                vector_wrap,interface,agg_selection,level_range,time_range,
+                vector_wrap,abstraction,agg_selection,level_range,time_range,
                 allow_empty,calc,calc_grouping]
         
         combined = OrderedDict()
@@ -124,6 +122,14 @@ class TestWork(unittest.TestCase):
         for ii,ret in enumerate(itertools.product(*combined.values())):
             if ii >= start:
                 kwds = deepcopy(dict(zip(combined.keys(),ret)))
+                uri = kwds['dataset']['uri']
+                variable = kwds['dataset']['variable']
+                kwds.pop('dataset')
+                rd = RequestDataset(uri,
+                                    variable,
+                                    time_range=kwds.pop('time_range'),
+                                    level_range=kwds.pop('level_range'))
+                kwds.update({'dataset':rd})
                 ops = OcgOperations(**kwds)
                 yield(ii,ops)
     

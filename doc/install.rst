@@ -16,9 +16,8 @@ A number of dependencies may be installed from the package repository:
 
 .. code-block:: sh
 
-   [sudo] apt-get install curl wget python-setuptools gdal-bin python-gdal
+   [sudo] apt-get install g++ libz-dev python-dev curl wget python-setuptools gdal-bin python-gdal
    [sudo] easy_install pip
-   [sudo] pip install numpy
    [sudo] pip install shapely
 
 Installing netcdf4-python_ is slightly more complex:

@@ -31,6 +31,7 @@ dataset
 A `dataset` is the target file(s) where data is stored. A `dataset` may be on the local machine or network location accessible by the software. Unsecured OpenDAP datasets may also be accessed.
 
 .. autoclass:: ocgis.RequestDataset
+   :members: inspect
 
 .. autoclass:: ocgis.RequestDatasetCollection
    :members: update

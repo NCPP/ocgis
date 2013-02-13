@@ -16,7 +16,7 @@ A number of dependencies may be installed from the package repository:
 
 .. code-block:: sh
 
-   [sudo] apt-get install g++ libz-dev python-dev curl wget python-setuptools gdal-bin python-gdal
+   [sudo] apt-get install g++ libz-dev curl wget python-setuptools gdal-bin python-gdal
    [sudo] easy_install pip
    [sudo] pip install shapely
 
@@ -31,8 +31,8 @@ Other Platforms (Mac/Windows)
 
 OpenClimateGIS has not been tested on other platforms. All libraries are theoretically supported on Mac and Windows.
 
-OpenClimateGIS Installation
----------------------------
+Installing OpenClimateGIS
+-------------------------
 
 1. Download the current release: https://github.com/NCPP/ocgis/tags.
 2. Extract the file using your favorite extraction utility.

@@ -26,12 +26,15 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 0
+        start = 767
         allow_none_geom = True
         
         for ii,ops in self.iter_operations(start=start):
             
-            ref_geom = ops.geom[0]['geom']
+            try:
+                ref_geom = ops.geom[0]['geom']
+            except:
+                import ipdb;ipdb.set_trace()
             if ref_geom is None and allow_none_geom:
                 allow_none_geom = False
             elif ref_geom is None and not allow_none_geom:
@@ -48,7 +51,6 @@ class TestWork(unittest.TestCase):
             finally:
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
-                    import ipdb;ipdb.set_trace()
                     shutil.rmtree(ret)
                     
     def iter_operations(self,start=0):
@@ -71,7 +73,7 @@ class TestWork(unittest.TestCase):
                         None,
                         self.california,
                         self.state_boundaries,
-                        {'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))},
+                        [{'ugid':1,'geom':make_poly((24.2,50.8),(-128.7,-65.2))}],
 #                        self.world_countries
                         ]}
         aggregate = {'aggregate':[

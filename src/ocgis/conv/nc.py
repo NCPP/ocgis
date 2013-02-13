@@ -217,7 +217,7 @@ class NcConverter(OcgConverter):
             
         ## level variable
         ## if there is no level on the variable no need to build one.
-        if level.is_dummy:
+        if level is None:
             dim_level = None
         ## if there is a level, create the dimension and set the variable.
         else:

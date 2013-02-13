@@ -13,7 +13,11 @@ First, it is always a good idea to ensure a dataset is readable by OpenClimateGI
 
 .. literalinclude:: sphinx_examples/inspect.py
 
-The second print statement will prepend variable-level information used by OpenClimateGIS. It is important to look carefully at this information to identify any inconsistencies especially if the target dataset may not be entirely CF-compliant. For example, this is normal output for variable-level descriptions:
+As an alternative, you may use the :method:`ocgis.RequestDataset.inspect` method to generate a similar output (variable-level only):
+
+.. literalinclude:: sphinx_examples/inspect_request_dataset.py
+
+Passing a variable to :class:`ocgis.Inspect` or using :method:`ocgis.RequestDataset.inspect` will prepend variable-level information used by OpenClimateGIS. It is important to look carefully at this descriptive information to identify any inconsistencies especially if the target dataset may not be entirely CF-compliant. For example, this is normal output for variable-level descriptions:
 
 .. code-block:: rest
 

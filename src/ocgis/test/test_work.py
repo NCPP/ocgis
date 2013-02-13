@@ -13,6 +13,8 @@ import shutil
 import tempfile
 from ocgis.exc import ExtentError
 from ocgis.api.dataset.request import RequestDataset
+from datetime import datetime
+import os
 
 #raise SkipTest(__name__)
 
@@ -20,13 +22,17 @@ class TestWork(unittest.TestCase):
     
     def _allowed_exception_(self,ops,e):
         ret = False
-        if ops.allow_empty is False and type(e) == ExtentError:
+        ## point-based abstractions will result in empty state geometries
+        if ops.allow_empty is False and type(e) == ExtentError and ops.abstraction == 'point':
             if len(ops.geom) == 51:
                 ret = True
+        ## computations with netcdf output is currently not supported
+        elif ops.output_format == 'nc' and ops.calc is not None and type(e) == NotImplementedError:
+            ret = True
         return(ret)
 
     def test_get_data(self):
-        start = 767
+        start = 2304
         allow_none_geom = True
         
         for ii,ops in self.iter_operations(start=start):
@@ -51,15 +57,17 @@ class TestWork(unittest.TestCase):
             finally:
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
+                    if any([ret.endswith(ext) for ext in ['shp','csv','nc']]):
+                        ret = os.path.split(ret)[0]
                     shutil.rmtree(ret)
                     
     def iter_operations(self,start=0):
         output_format = {'output_format':[
-#                                          'shp',
+                                          'shp',
                                           'keyed',
-                                          'meta',
-#                                          'nc',
-#                                          'csv'
+#                                          'meta',
+                                          'nc',
+                                          'csv'
                                           ]}
         snippet = {'snippet':[
                               True,
@@ -100,8 +108,8 @@ class TestWork(unittest.TestCase):
                                       None
                                       ]}
         time_range = {'time_range':[
-#                                    [datetime(2001,1,1),datetime(2001,12,31)],
-                                    None
+                                    [datetime(2001,1,1),datetime(2001,12,31,23,59,59)],
+#                                    None
                                     ]}
         allow_empty = {'allow_empty':[
                                       True,

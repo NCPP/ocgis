@@ -56,11 +56,13 @@ Set the path to the folder containing the shapefile folders in :attr:`ocgis.env.
 Uninstalling OpenClimateGIS
 ---------------------------
 
+.. warning:: The `uninstall` command is currently not supported.
+
 Uninstalling will remove every OpenClimateGIS package exposed on the Python path.
 
 .. code-block:: sh
 
-   [sudo] python setup.py uninstall
+    [sudo] python setup.py uninstall
 
 .. _Python 2.7: http://www.python.org/download/releases/2.7/
 .. _netcdf4-python: http://code.google.com/p/netcdf4-python/

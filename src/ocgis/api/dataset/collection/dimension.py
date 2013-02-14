@@ -114,9 +114,9 @@ class SpatialDimension(OcgDimension):
             weights = np.ones(value.shape,dtype=float)
             weights = np.ma.array(weights,mask=value_mask)
         else:
-            weights = np.empty(value.shape,dtype=float)
-            masked = self.value
-            for idx,geom in iter_array(masked,return_value=True):
+            weights = np.ma.array(np.empty(value.shape,dtype=float),
+                                  mask=value_mask)
+            for idx,geom in iter_array(self.value,return_value=True):
                 weights[idx] = geom.area
             weights = weights/weights.max()
             weights = np.ma.array(weights,mask=value_mask)

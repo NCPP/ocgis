@@ -51,7 +51,10 @@ class ShpConverter(OcgConverter):
                     build = False
                 feat = ogr.Feature(feature_def)
                 for ii,o in enumerate(self.ogr_fields):
-                    args = [o.ogr_name,o.convert(row[ii])]
+                    try:
+                        args = [o.ogr_name,o.convert(row[ii])]
+                    except:
+                        import ipdb;ipdb.set_trace()
                     try:
                         feat.SetField(*args)
                     except NotImplementedError:

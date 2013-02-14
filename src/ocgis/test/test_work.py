@@ -32,7 +32,7 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 2304
+        start = 584
         allow_none_geom = True
         
         for ii,ops in self.iter_operations(start=start):

@@ -2,4 +2,4 @@
 
 For documentation please visit: http://nccp.github.com/ocgis
 
-For additional projection information please visit: http://www.earthsystemcog.org/projects/openclimategis/
+For additional project information please visit: http://www.earthsystemcog.org/projects/openclimategis/

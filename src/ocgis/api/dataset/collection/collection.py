@@ -110,7 +110,7 @@ class OcgVariable(object):
             ## take advange of shapely speedups
             prep_igeom = prepared.prep(igeom)
             ## the weight array
-            weights = np.empty(self.spatial.shape,dtype=float)
+            weights = np.zeros(self.spatial.shape,dtype=float)
             weights = np.ma.array(weights,mask=self.spatial._value_mask)
             ## do the spatial operation
             for idx,geom in iter_array(self.spatial.value,return_value=True):
@@ -120,7 +120,7 @@ class OcgVariable(object):
                     weights[idx] = new_geom.area
                     self.spatial._value[idx] = new_geom
             ## set maximum weight to one
-            self.spatial.weights = weights/weights.max()
+            self.spatial.weights = weights/np.ma.max(weights)
 
 
 class OcgMultivariateCalculationVariable(OcgVariable):

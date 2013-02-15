@@ -110,17 +110,15 @@ class SpatialDimension(OcgDimension):
         value = self._value
         value_mask = self._value_mask
         
-        if isinstance(self._value[0,0],Point):
+        if isinstance(value[0,0],Point):
             weights = np.ones(value.shape,dtype=float)
-            weights = np.ma.array(weights,mask=value_mask)
+            weights_ma = np.ma.array(weights,mask=value_mask)
         else:
-            weights = np.ma.array(np.empty(value.shape,dtype=float),
-                                  mask=value_mask)
-            for idx,geom in iter_array(self.value,return_value=True):
+            weights = np.empty(value.shape,dtype=float)
+            for idx,geom in iter_array(value,return_value=True):
                 weights[idx] = geom.area
-            weights = weights/weights.max()
-            weights = np.ma.array(weights,mask=value_mask)
-        return(weights)
+            weights_ma = np.ma.array(weights/weights.max(),mask=value_mask)
+        return(weights_ma)
     
     @staticmethod
     def _conv_to_multi_(geom):

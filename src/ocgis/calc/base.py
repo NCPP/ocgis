@@ -173,7 +173,7 @@ class OcgCvArgFunction(OcgArgFunction):
     
     @staticmethod
     def _aggregate_temporal_(values):
-        return(np.mean(values,axis=0))
+        return(np.ma.mean(values,axis=0))
     
     def _subset_kwds_(self,group,kwds):
         ret = {}

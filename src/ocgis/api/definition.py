@@ -533,7 +533,12 @@ class Dataset(OcgParameter):
         elif isinstance(value,RequestDatasetCollection):
             ret = value
         else:
-            ret = super(self.__class__,self).format(value)
+            try:
+                for v in value:
+                    self._coll.update(v)
+                    ret = self._coll
+            except:
+                ret = super(self.__class__,self).format(value)
         return(ret)    
     
     def __str__(self):

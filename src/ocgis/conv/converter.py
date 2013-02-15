@@ -101,12 +101,6 @@ class OcgConverter(object):
             except AttributeError:
                 if type(coll) == dict:
                     pass
-            #tdk
-            try:
-                vprint('geom id processed: {0}'.format(coll.ugeom['ugid']))
-            except:
-                pass
-            #tdk
             yield(coll)
             
     def get_headers(self,coll):

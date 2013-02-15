@@ -32,19 +32,9 @@ class TestWork(unittest.TestCase):
         return(ret)
 
     def test_get_data(self):
-        start = 584
-        allow_none_geom = True
-        
+        start = 0
+                
         for ii,ops in self.iter_operations(start=start):
-            
-            try:
-                ref_geom = ops.geom[0]['geom']
-            except:
-                import ipdb;ipdb.set_trace()
-            if ref_geom is None and allow_none_geom:
-                allow_none_geom = False
-            elif ref_geom is None and not allow_none_geom:
-                continue
             print(ii)
             ret = None
             
@@ -62,10 +52,17 @@ class TestWork(unittest.TestCase):
                     shutil.rmtree(ret)
                     
     def iter_operations(self,start=0):
+        datasets = {1:{'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                       'variable':'tasmax',
+                       'alias':'tasmax'},
+                    2:{'uri':'/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                       'variable':'tasmin',
+                       'alias':'tasmin'}}
+        
         output_format = {'output_format':[
                                           'shp',
                                           'keyed',
-#                                          'meta',
+                                          'meta',
                                           'nc',
                                           'csv'
                                           ]}
@@ -73,11 +70,14 @@ class TestWork(unittest.TestCase):
                               True,
 #                              False
                               ]}
+        
         dataset = {'dataset':[
-                              {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'},
-#                              {'uri':'http://esg-datanode.jpl.nasa.gov/thredds/dodsC/esg_dataroot/obs4MIPs/observations/atmos/clt/mon/grid/NASA-GSFC/MODIS/v20111130/clt_MODIS_L3_C5_200003-201109.nc','variable':'clt'}
+                              [1],
+                              [1,2]
                               ]}
+                   
         geom = {'geom':[
+                        self.alaska,
                         None,
                         self.california,
                         self.state_boundaries,
@@ -96,7 +96,10 @@ class TestWork(unittest.TestCase):
                                       True,
                                       False
                                       ]}
-        abstraction = {'abstraction':['polygon','point']}
+        abstraction = {'abstraction':[
+                                      'polygon',
+                                      'point'
+                                      ]}
         
         agg_selection = {'agg_selection':[
                                           True,
@@ -104,12 +107,12 @@ class TestWork(unittest.TestCase):
                                           ]}
         
         level_range = {'level_range':[
-#                                      [10,20],
-                                      None
+                                      None,
+                                      [1,1]
                                       ]}
         time_range = {'time_range':[
                                     [datetime(2001,1,1),datetime(2001,12,31,23,59,59)],
-#                                    None
+                                    None
                                     ]}
         allow_empty = {'allow_empty':[
                                       True,
@@ -119,8 +122,11 @@ class TestWork(unittest.TestCase):
                         [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
-        calc_grouping = {'calc_grouping':[['month','year'],
-                                          ['year']]}
+        calc_grouping = {'calc_grouping':[
+                                          ['month','year'],
+                                          ['year']
+                                        ]
+                         }
         
         args = [output_format,snippet,dataset,geom,aggregate,spatial_operation,
                 vector_wrap,abstraction,agg_selection,level_range,time_range,
@@ -132,14 +138,14 @@ class TestWork(unittest.TestCase):
         for ii,ret in enumerate(itertools.product(*combined.values())):
             if ii >= start:
                 kwds = deepcopy(dict(zip(combined.keys(),ret)))
-                uri = kwds['dataset']['uri']
-                variable = kwds['dataset']['variable']
-                kwds.pop('dataset')
-                rd = RequestDataset(uri,
-                                    variable,
-                                    time_range=kwds.pop('time_range'),
-                                    level_range=kwds.pop('level_range'))
-                kwds.update({'dataset':rd})
+                time_range = kwds.pop('time_range')
+                level_range = kwds.pop('level_range')
+                rds = [RequestDataset(datasets[jj]['uri'],
+                                      datasets[jj]['variable'],
+                                      time_range=time_range,
+                                      level_range=level_range)
+                       for jj in kwds['dataset']]
+                kwds['dataset'] = rds
                 ops = OcgOperations(**kwds)
                 yield(ii,ops)
     
@@ -147,6 +153,12 @@ class TestWork(unittest.TestCase):
     def california(self):
         sc = ShpCabinet()
         ret = sc.get_geom_dict('state_boundaries',{'ugid':[25]})
+        return(ret)
+    
+    @property
+    def alaska(self):
+        sc = ShpCabinet()
+        ret = sc.get_geom_dict('state_boundaries',{'ugid':[51]})
         return(ret)
     
     @property

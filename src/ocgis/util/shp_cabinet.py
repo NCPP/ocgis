@@ -166,13 +166,9 @@ class ShpCabinet(object):
         from ocgis.conv.csv_ import OcgDialect
 #        path = self.get_path()
 
-        ##tdk
         if sr is None:
             sr = osr.SpatialReference()
             sr.ImportFromEPSG(4326)
-#        sr = osr.SpatialReference()
-#        sr.ImportFromProj4('+proj=longlat +datum=WGS84 +pm=180dW ')
-        ##tdk
         
         dr = ogr.GetDriverByName('ESRI Shapefile')
         ds = dr.CreateDataSource(path)

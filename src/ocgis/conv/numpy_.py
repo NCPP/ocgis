@@ -7,12 +7,6 @@ class NumpyConverter(OcgConverter):
         
     def __iter__(self):
         for coll in self.colls:
-            #tdk
-            try:
-                vprint('geom id processed: {0}'.format(coll.ugeom['ugid']))
-            except:
-                pass
-            #tdk
             yield(coll)
     
     def write(self):

@@ -34,7 +34,7 @@ class Median(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        return(np.median(values,axis=0))
+        return(np.ma.median(values,axis=0))
     
     
 class Mean(OcgFunction):
@@ -44,7 +44,7 @@ class Mean(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        return(np.mean(values,axis=0))
+        return(np.ma.mean(values,axis=0))
     
     
 class Max(OcgFunction):
@@ -54,7 +54,7 @@ class Max(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        return(np.max(values,axis=0))
+        return(np.ma.max(values,axis=0))
     
     
 class Min(OcgFunction):
@@ -64,7 +64,7 @@ class Min(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        return(np.min(values,axis=0))
+        return(np.ma.min(values,axis=0))
     
     
 class StandardDeviation(OcgFunction):
@@ -75,7 +75,7 @@ class StandardDeviation(OcgFunction):
     
     @staticmethod
     def _calculate_(values):
-        return(np.std(values,axis=0))
+        return(np.ma.std(values,axis=0))
 
 
 class MaxConsecutive(OcgArgFunction):
@@ -138,7 +138,7 @@ class Between(OcgArgFunction):
     @staticmethod
     def _calculate_(values,lower=None,upper=None):
         idx = (values >= lower)*(values <= upper)
-        return(np.sum(idx,axis=0))
+        return(np.ma.sum(idx,axis=0))
 
 
 #class FooMulti(OcgCvArgFunction):

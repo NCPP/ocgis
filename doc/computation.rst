@@ -14,6 +14,8 @@ OpenClimateGIS offers an extensible computation framework that supports:
 Using Computations
 ------------------
 
+.. warning:: Always use `NumPy masked array functions`_!! Standard array functions may not be compatible with masked variables.
+
 Computations are used by providing a dict list to the :ref:`calc_headline` argument of the :class:`~ocgis.OcgOperations` object. The other two important arguments are :ref:`calc_raw_headline` and :ref:`calc_grouping_headline`.
 
 A function dict is composed of a `func` key and a `name` key. The `func` key corresponds to the `name` attribute of the function class. (This is a bit confusing and will be fixed in a later release.) The `name` key in the function dict is required and is a user-supplied alias. This is required to allow multiple calculations to performed with different parameters. Software-generated function names would be confusing.
@@ -46,4 +48,4 @@ Thresholds
 Multivariate Calculations
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+.. _NumPy masked array functions: http://docs.scipy.org/doc/numpy/reference/maskedarray.html

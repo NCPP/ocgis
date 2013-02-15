@@ -370,12 +370,6 @@ class ShpIterator(object):
     def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False,
                       to_shapely=False):
         
-        ##tdk
-#        to_sr = osr.SpatialReference()
-#        to_sr.ImportFromProj4('+proj=longlat +datum=WGS84 +pm=180dW +over ')
-#        to_sr.ImportFromProj4('+proj=longlat +datum=WGS84 +lon_wrap=180 ')
-        ##tdk
-        
         ds = ogr.Open(self.path)
         try:
             lyr = ds.GetLayerByIndex(lyridx)
@@ -399,12 +393,10 @@ class ShpIterator(object):
                 attrs = dict(zip(fields,values))
                 ## get the geometry
                 
-                ##tdk
                 wkt_str = feat.GetGeometryRef().ExportToWkt()
 #                geom_obj = feat.GetGeometryRef()
 #                geom_obj.TransformTo(to_sr)
 #                wkt_str = geom_obj.ExportToWkt()
-                ##tdk
                 
                 if to_shapely:
                     ## additional load to clean geometries

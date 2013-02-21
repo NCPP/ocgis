@@ -1,6 +1,10 @@
 from distutils.core import setup
 import sys
 import os
+import argparse
+
+parser = argparse.ArgumentParser(description='Install or uninstall OpenClimateGIS.')
+
 
 
 try:
@@ -46,8 +50,8 @@ if arg == 'install':
     ## run the installation
     setup(name='ocgis',
           version='0.04.01b',
-          author='Ben Koziol',
-          author_email='ben.koziol@noaa.gov',
+          author='NESII/CIRES/NOAA-ESRL',
+          author_email='ocgis_support@list.woc.noaa.gov',
           url='https://github.com/NCPP/ocgis/tags',
           license='BSD License',
           platforms=['all'],

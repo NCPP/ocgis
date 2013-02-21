@@ -9,9 +9,9 @@ DIR_DATA = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data
 DIR_OUTPUT = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/20130225_caspar_demo/output/01'
 ## state identifiers in the state shapefile that together comprise the
 ## southwestern united states.
-SW_IDS = [25,23,49,37,42]
+SW_IDS = [25,23,24,37,42]
 ## set to true until final execution
-SNIPPET = True
+SNIPPET = False
 
 
 ## update environmental variables.
@@ -24,9 +24,35 @@ for ii,filename in enumerate(os.listdir(ocgis.env.DIR_DATA)):
     alias = variable + '_' + str(ii)
     rd = ocgis.RequestDataset(filename,variable,alias=alias)
     rdc.update(rd)
-## construct operations
-ops = ocgis.OcgOperations(rdc,
+    
+## SUBSETTING ##################################################################
+    
+#ops = ocgis.OcgOperations(rdc,
+#                          snippet=SNIPPET,
+#                          geom='state_boundaries',
+#                          select_ugid=SW_IDS,
+#                          output_format='shp',
+#                          agg_selection=False,
+#                          spatial_operation='clip',
+#                          aggregate=True)
+#path = ops.execute()
+
+## CALCULATION #################################################################
+
+calc = [{'func':'mean','name':'mean'},
+        {'func':'std','name':'std'},
+        {'func':'min','name':'min'},
+        {'func':'max','name':'max'},
+        {'func':'median','name':'median'}]
+ops = ocgis.OcgOperations(rd,
                           snippet=SNIPPET,
                           geom='state_boundaries',
                           select_ugid=SW_IDS,
-                          output_format='csv')
+                          output_format='shp',
+                          agg_selection=False,
+                          spatial_operation='clip',
+                          aggregate=True,
+                          calc=calc,
+                          calc_grouping=['month','year'],
+                          calc_raw=False)
+path = ops.execute()

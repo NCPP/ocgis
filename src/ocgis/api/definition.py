@@ -78,9 +78,6 @@ class OcgParameter(object):
     def format_all(self,values):
         return(values)
     
-    def _format_all_(self,values):
-        return(values)
-    
     def _get_iter_(self,value):
         try:
             it = iter(value)
@@ -415,7 +412,7 @@ class Geom(OcgParameter):
     
     def _filter_by_ugid_(self,ugids):
         def _filter_(geom_dict):
-            if geom_dict['id'] in ugids:
+            if geom_dict['ugid'] in ugids:
                 return(True)
         self.value = filter(_filter_,self.value)
     
@@ -621,11 +618,18 @@ class SelectUgid(AttributedOcgParameter):
     _nullable = True
     _default = None
     _dtype = dict
+    _scalar = False
     
-    def _format_string_element_(self,value):
-        elements = value.split('|')
-        elements = [int(ii) for ii in elements]
-        return({'ugid':elements})
+    def _format_element_(self,value):
+        return(int(value))
+    
+    def format_all(self,values):
+        return({'ugid':values})
+    
+#    def _format_string_element_(self,value):
+#        elements = value.split('|')
+#        elements = [int(ii) for ii in elements]
+#        return({'ugid':elements})
     
     def message(self):
         if self.value is None:

@@ -15,6 +15,6 @@ cp -r $TDIR/* .
 ## git status, git add
 
 git commit -a -m 'doc changes'
-git push
 git checkout -
+git push
 

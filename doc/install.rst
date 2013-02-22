@@ -17,7 +17,7 @@ A number of dependencies may be installed from the package repository and using 
 .. code-block:: sh
 
    [sudo] apt-get update
-   [sudo] apt-get install g++ libz-dev curl wget python-setuptools python-gdal
+   [sudo] apt-get install g++ libz-dev curl wget python-dev python-setuptools python-gdal
    [sudo] easy_install shapely
 
 Installing netcdf4-python_ is slightly more complex:
@@ -28,34 +28,40 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
 
 .. code-block:: sh
    
+   SRC=/tmp
+   HDF5=hdf5-1.8.1.0-patch1
+   NETCDF4=netcdf-4.2.1
+   NETCDF4_PYTHON=netCDF4-1.0.2
+
    ## HDF5 ##
-   cd /tmp
-   wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.1.0-patch1.tar.gz
-   tar -xzvf hdf5-1.8.1.0-patch1.tar.gz
-   cd hdf5-1.8.1.0-patch1
+   cd $SRC
+   wget http://www.hdfgroup.org/ftp/HDF5/current/src/$HDF5.tar.gz
+   tar -xzvf $HDF5.tar.gz
+   cd $HDF5
    ./configure --prefix=/usr/local --enable-shared --enable-hl
    make 
    [sudo] make install
 
    ## NetCDF4 ##
-   cd /tmp
-   wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.2.1.tar.gz
-   tar -xzvf netcdf-4.2.1.tar.gz
-   cd netcdf-4.2.1
-   LDFLAGS=-L/usr/local/lib CPPFLAGS=-I/usr/local/include
+   cd $SRC
+   wget ftp://ftp.unidata.ucar.edu/pub/netcdf/$NETCDF4.tar.gz
+   tar -xzvf $NETCDF4.tar.gz
+   cd $NETCDF4
+   LDFLAGS=-L/usr/local/lib
+   CPPFLAGS=-I/usr/local/include
    ./configure --enable-netcdf-4 --enable-dap --enable-shared --prefix=/usr/local
    make 
    [sudo] make install
    
    ## netCDF4-python ##
-   cd /tmp
+   cd $SRC
    [sudo] ldconfig
-   wget http://netcdf4-python.googlecode.com/files/netCDF4-1.0.2.tar.gz
-   tar -xzvf netCDF4-1.0.2.tar.gz
-   cd netCDF4-1.0.2
+   wget http://netcdf4-python.googlecode.com/files/$NETCDF4_PYTHON.tar.gz
+   tar -xzvf $NETCDF4_PYTHON.tar.gz
+   cd $NETCDF4_PYTHON
    [sudo] python setup.py install
 
-Dependencies may also be built from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies (no need to install PostGIS).
+Dependencies may also be built entirely from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies (no need to install PostGIS).
 
 Other Platforms (Mac/Windows)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,17 +84,21 @@ Installing OpenClimateGIS
 
 >>> import ocgis
 
+or
+
+.. code-block:: sh
+
+   python -c 'import ocgis'
+
 Configuring the :class:`~ocgis.ShpCabinet`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set the path to the folder containing the shapefile folders in :attr:`ocgis.env.DIR_SHPCABINET`.
+Set the path to the directory containing the shapefile folders in :attr:`ocgis.env.DIR_SHPCABINET`.
 
 Uninstalling OpenClimateGIS
 ---------------------------
 
-.. warning:: The `uninstall` command is currently not supported.
-
-Uninstalling will remove every OpenClimateGIS package exposed on the Python path.
+The `uninstall` command will simply provide you with the directory location of the OpenClimateGIS package. This must be manually removed.
 
 .. code-block:: sh
 

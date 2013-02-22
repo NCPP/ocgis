@@ -2,20 +2,28 @@ from distutils.core import setup
 import sys
 import os
 import argparse
+import ConfigParser
 
-parser = argparse.ArgumentParser(description='Install or uninstall OpenClimateGIS.')
+        
+config = ConfigParser.ConfigParser()
+config.read('setup.cfg')
 
+parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
+parser.add_argument("action",type=str,choices=['install','uninstall'],help='action to perform with the installer')
+#parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
+#parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
+#parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
+#parser.add_argument("--with-bin",help='download binary files for testing',default=config.get('test','dir'),action='store_true')
+#parser.add_argument("--bin-prefix",help='location to hold binary test files',default=config.get('shp','url'))
+#parser.add_argument("--bin-url",help='URL location of binary test files',default=config.get('test','url'))
+args = parser.parse_args()
 
+################################################################################
 
-try:
-    arg = sys.argv[1]
-except IndexError:
-    raise(ValueError('Please supply an "install" or "uninstall" command.'))
-
-if arg == 'install':
+def install(version='0.04.01b'):
     ## check python version
-    version = float(sys.version_info.major) + float(sys.version_info.minor)/10
-    if version < 2.7 or version > 2.7:
+    python_version = float(sys.version_info.major) + float(sys.version_info.minor)/10
+    if python_version != 2.7:
         raise(ImportError('This software requires Python version 2.7.'))
     
     ## attempt package imports
@@ -49,7 +57,7 @@ if arg == 'install':
     
     ## run the installation
     setup(name='ocgis',
-          version='0.04.01b',
+          version=version,
           author='NESII/CIRES/NOAA-ESRL',
           author_email='ocgis_support@list.woc.noaa.gov',
           url='https://github.com/NCPP/ocgis/tags',
@@ -58,21 +66,17 @@ if arg == 'install':
           packages=packages,
           package_dir=package_dir
           )
-elif arg == 'uninstall':
-    raise(NotImplementedError)
+
+def uninstall():
     try:
-        first = True
-        while True:
-            try:
-                __import__('ocgis')
-                #TODO: the actual uninstall work
-                first = False
-            except ImportError:
-                if first:
-                    raise
-                else:
-                    break
+        import ocgis
+        print('To uninstall, manually remove the Python package folder located here: {0}'.format(os.path.split(ocgis.__file__)[0]))
     except ImportError:
-        raise(ImportError("Either OpenClimateGIS is not installed or not available on the Python PATH."))
-else:
-    raise(ValueError('Only "install" and "uninstall" commands are supported. Command not recognized: "{0}".'.format(arg)))
+        raise(ImportError("Either OpenClimateGIS is not installed or not available on the Python path."))
+
+################################################################################
+
+if args.action == 'install':
+    install()
+elif args.action == 'uninstall':
+    uninstall()

@@ -49,9 +49,12 @@ class OcgInterpreter(Interpreter):
         self.check() ## run validation
         
         ## check for a user-supplied output prefix
-        prefix = self.ops.prefix
-        if prefix is not None:
-            env.PREFIX = prefix
+        prefix = 'ocgis'
+        if env.PREFIX is None:
+            if self.ops.prefix is not None:
+                prefix = self.ops.prefix
+        else:
+            prefix = env.PREFIX
         
         if self.ops.select_ugid is not None:
             geom = self.ops._get_object_('geom')
@@ -92,7 +95,7 @@ class OcgInterpreter(Interpreter):
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
-                conv = Conv(so,wd=env.DIR_OUTPUT,prefix=env.PREFIX,
+                conv = Conv(so,wd=env.DIR_OUTPUT,prefix=prefix,
                             mode=self.ops.mode,ops=self.ops)
                 ret = conv.write()
             else:

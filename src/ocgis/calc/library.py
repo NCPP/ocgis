@@ -139,7 +139,36 @@ class Between(OcgArgFunction):
     def _calculate_(values,lower=None,upper=None):
         idx = (values >= lower)*(values <= upper)
         return(np.ma.sum(idx,axis=0))
-
+    
+    
+class Threshold(OcgArgFunction):
+    nargs = 2
+    description = 'Count of values where the logical operation is True.'
+    Group = groups.Thresholds
+    dtype = int
+    
+    @staticmethod
+    def _calculate_(values,threshold=None,operation=None):
+        threshold = float(threshold)
+        
+        ## perform requested logical operation
+        if operation == 'gt':
+            idx = values > threshold
+        elif operation == 'lt':
+            idx = values < threshold
+        elif operation == 'gte':
+            idx = values >= threshold
+        elif operation == 'lte':
+            idx = values <= threshold
+        else:
+            raise(NotImplementedError('The operation "{0}" was not recognized.'.format(operation)))
+        
+        ret = np.ma.sum(idx,axis=0)
+        return(ret)
+        
+    @staticmethod
+    def _aggregate_spatial_(values,weights):
+        return(np.ma.sum(values))
 
 #class FooMulti(OcgCvArgFunction):
 #    description = 'Meaningless test statistic.'

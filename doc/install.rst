@@ -12,17 +12,48 @@ Additional information on software dependencies may be found on the project's `C
 Linux (Debian/Ubuntu)
 ~~~~~~~~~~~~~~~~~~~~~
 
-A number of dependencies may be installed from the package repository:
+A number of dependencies may be installed from the package repository and using Python's `easy_install`:
 
 .. code-block:: sh
 
-   [sudo] apt-get install g++ libz-dev curl wget python-setuptools gdal-bin python-gdal
-   [sudo] easy_install pip
-   [sudo] pip install shapely
+   [sudo] apt-get update
+   [sudo] apt-get install g++ libz-dev curl wget python-setuptools python-gdal
+   [sudo] easy_install shapely
 
 Installing netcdf4-python_ is slightly more complex:
  * The netcdf4-python_ tarball may be downloaded here: http://code.google.com/p/netcdf4-python/downloads/list.
  * Good instructions describing what to do after you have it are available here: http://code.google.com/p/netcdf4-python/wiki/UbuntuInstall.
+
+You may attempt to use this set of terminal commands (file names and URLs may need to be updated):
+
+.. code-block:: sh
+   
+   ## HDF5 ##
+   cd /tmp
+   wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.8.1.0-patch1.tar.gz
+   tar -xzvf hdf5-1.8.1.0-patch1.tar.gz
+   cd hdf5-1.8.1.0-patch1
+   ./configure --prefix=/usr/local --enable-shared --enable-hl
+   make 
+   [sudo] make install
+
+   ## NetCDF4 ##
+   cd /tmp
+   wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-4.2.1.tar.gz
+   tar -xzvf netcdf-4.2.1.tar.gz
+   cd netcdf-4.2.1
+   LDFLAGS=-L/usr/local/lib CPPFLAGS=-I/usr/local/include
+   ./configure --enable-netcdf-4 --enable-dap --enable-shared --prefix=/usr/local
+   make 
+   [sudo] make install
+   
+   ## netCDF4-python ##
+   cd /tmp
+   [sudo] ldconfig
+   wget http://netcdf4-python.googlecode.com/files/netCDF4-1.0.2.tar.gz
+   tar -xzvf netCDF4-1.0.2.tar.gz
+   cd netCDF4-1.0.2
+   [sudo] python setup.py install
 
 Dependencies may also be built from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies (no need to install PostGIS).
 

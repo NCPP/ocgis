@@ -118,7 +118,7 @@ The `uninstall` command will simply provide you with the directory location of t
 
 .. code-block:: sh
 
-    [sudo] python setup.py uninstall
+    python setup.py uninstall
 
 .. _Python 2.7: http://www.python.org/download/releases/2.7/
 .. _netcdf4-python: http://code.google.com/p/netcdf4-python/

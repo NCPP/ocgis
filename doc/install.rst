@@ -20,6 +20,8 @@ A number of dependencies may be installed from the package repository and using 
    [sudo] apt-get install g++ libz-dev curl wget python-dev python-setuptools python-gdal
    [sudo] easy_install shapely
 
+.. _netCDF4-python-install:
+
 Installing netcdf4-python_ is slightly more complex:
  * The netcdf4-python_ tarball may be downloaded here: http://code.google.com/p/netcdf4-python/downloads/list.
  * Good instructions describing what to do after you have it are available here: http://code.google.com/p/netcdf4-python/wiki/UbuntuInstall.
@@ -28,7 +30,8 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
 
 .. code-block:: sh
    
-   SRC=/tmp
+   SRC=<path-to-source-file-storage>
+   PREFIX=/usr/local
    HDF5=hdf5-1.8.1.10-patch1
    NETCDF4=netcdf-4.2.1
    NETCDF4_PYTHON=netCDF4-1.0.2
@@ -38,7 +41,7 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
    wget http://www.hdfgroup.org/ftp/HDF5/current/src/$HDF5.tar.gz
    tar -xzvf $HDF5.tar.gz
    cd $HDF5
-   ./configure --prefix=/usr/local --enable-shared --enable-hl
+   ./configure --prefix=$PREFIX --enable-shared --enable-hl
    make 
    [sudo] make install
 
@@ -47,14 +50,15 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
    wget ftp://ftp.unidata.ucar.edu/pub/netcdf/$NETCDF4.tar.gz
    tar -xzvf $NETCDF4.tar.gz
    cd $NETCDF4
-   LDFLAGS=-L/usr/local/lib
-   CPPFLAGS=-I/usr/local/include
-   ./configure --enable-netcdf-4 --enable-dap --enable-shared --prefix=/usr/local
+   LDFLAGS=-L$PREFIX/lib
+   CPPFLAGS=-I$PREFIX/include
+   ./configure --enable-netcdf-4 --enable-dap --enable-shared --prefix=$PREFIX
    make 
    [sudo] make install
    
    ## netCDF4-python ##
    cd $SRC
+   # not necessary for Mac OS X
    [sudo] ldconfig
    wget http://netcdf4-python.googlecode.com/files/$NETCDF4_PYTHON.tar.gz
    tar -xzvf $NETCDF4_PYTHON.tar.gz
@@ -63,10 +67,22 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
 
 Dependencies may also be built entirely from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies (no need to install PostGIS).
 
-Other Platforms (Mac/Windows)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Mac OS X
+~~~~~~~~
 
-OpenClimateGIS has not been tested on other platforms. All libraries are theoretically supported on Mac and Windows.
+1. Download and install GDAL from a pre-packaged DMG installer: http://www.kyngchaos.com/files/software/frameworks/GDAL_Complete-1.9.dmg.
+2. Download and extract Shapely from: https://pypi.python.org/pypi/Shapely. Then run:
+
+   .. code-block:: sh
+
+      [sudo] python <path-to-extracted-shapely-folder>/setup.py install
+
+3. Follow the instructions on installing :ref:`netCDF4 Python <netCDF4-python-install>`.
+
+Windows
+~~~~~~~
+
+OpenClimateGIS has not been tested on Windows platforms. All libraries are theoretically supported.
 
 Installing OpenClimateGIS
 -------------------------

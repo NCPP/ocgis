@@ -29,7 +29,7 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
 .. code-block:: sh
    
    SRC=/tmp
-   HDF5=hdf5-1.8.1.0-patch1
+   HDF5=hdf5-1.8.1.10-patch1
    NETCDF4=netcdf-4.2.1
    NETCDF4_PYTHON=netCDF4-1.0.2
 

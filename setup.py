@@ -9,7 +9,7 @@ config = ConfigParser.ConfigParser()
 config.read('setup.cfg')
 
 parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','uninstall'],help='action to perform with the installer')
+#parser.add_argument("action",type=str,choices=['install','uninstall'],help='action to perform with the installer')
 #parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
 #parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))

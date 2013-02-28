@@ -20,7 +20,7 @@ parser.add_argument("action",type=str,choices=['install','install_all','uninstal
 #parser.add_argument("--with-bin",help='download binary files for testing',default=config.get('test','dir'),action='store_true')
 #parser.add_argument("--bin-prefix",help='location to hold binary test files',default=config.get('shp','url'))
 #parser.add_argument("--bin-url",help='URL location of binary test files',default=config.get('test','url'))
-args = parser.parse_args()
+ARGS = parser.parse_args()
 
 ################################################################################
 
@@ -79,12 +79,11 @@ def install_all():
     print(odir)
     stdout = open(out,'w')
     
-    def call(args):
-        check_call(args,stdout=stdout)
+    def call(ARGS):
+        check_call(ARGS,stdout=stdout)
     
     def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
         path = tempfile.mkdtemp(dir=odir)
-        os.mkdir(path)
         os.chdir(path)
         call(['wget',url])
         call(['tar','-xzvf',tarball])
@@ -142,9 +141,9 @@ def uninstall():
 
 ################################################################################
 
-if args.action == 'install':
+if ARGS.action == 'install':
     install()
-elif args.action == 'install_all':
+elif ARGS.action == 'install_all':
     install_all()
-elif args.action == 'uninstall':
+elif ARGS.action == 'uninstall':
     uninstall()

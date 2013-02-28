@@ -74,13 +74,15 @@ def install(version='0.04.01b'):
 def install_all():
     
     cwd = os.getcwd()
-    out = 'install.log'
+    out = 'install_out.log'
+    err = 'install_err.log'
     odir = tempfile.mkdtemp()
     print(odir)
     stdout = open(out,'w')
+    stderr = open(err,'w')
     
     def call(args):
-        check_call(args,stdout=stdout)
+        check_call(args,stdout=stdout,stderr=stderr)
     
     def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
         path = tempfile.mkdtemp(dir=odir)
@@ -96,7 +98,7 @@ def install_all():
             print('making {0}...'.format(edir))
             call(['make'])
             print('installing {0}...'.format(edir))
-            call(['make install'])
+            call(['make','install'])
         else:
             print('installing {0}...'.format(edir))
             custom_make()

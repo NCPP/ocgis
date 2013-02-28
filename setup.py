@@ -3,20 +3,24 @@ import sys
 import os
 import argparse
 import ConfigParser
+from subprocess import check_call
+import shutil
+import os
+import tempfile
 
-        
+
 config = ConfigParser.ConfigParser()
 config.read('setup.cfg')
 
 parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','uninstall'],help='action to perform with the installer')
+parser.add_argument("action",type=str,choices=['install','install_dependencies_linux','uninstall'],help='The action to perform with the installer.')
 #parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
 #parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--with-bin",help='download binary files for testing',default=config.get('test','dir'),action='store_true')
 #parser.add_argument("--bin-prefix",help='location to hold binary test files',default=config.get('shp','url'))
 #parser.add_argument("--bin-url",help='URL location of binary test files',default=config.get('test','url'))
-args = parser.parse_args()
+ARGS = parser.parse_args()
 
 ################################################################################
 
@@ -66,6 +70,75 @@ def install(version='0.04.01b'):
           packages=packages,
           package_dir=package_dir
           )
+    
+def install_dependencies_linux():
+    
+    cwd = os.getcwd()
+    out = 'install_out.log'
+    err = 'install_err.log'
+    odir = tempfile.mkdtemp()
+    stdout = open(out,'w')
+    stderr = open(err,'w')
+    
+    def call(args):
+        check_call(args,stdout=stdout,stderr=stderr)
+    
+    def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
+        path = tempfile.mkdtemp(dir=odir)
+        os.chdir(path)
+        print('downloading {0}...'.format(edir))
+        call(['wget',url])
+        print('extracting {0}...'.format(edir))
+        call(['tar','-xzvf',tarball])
+        os.chdir(edir)
+        if custom_make is None:
+            print('configuring {0}...'.format(edir))
+            call(['./configure']+config_flags)
+            print('building {0}...'.format(edir))
+            call(['make'])
+            print('installing {0}...'.format(edir))
+            call(['make','install'])
+        else:
+            print('installing {0}...'.format(edir))
+            custom_make()
+    
+    print('installing apt packages...')
+    call(['apt-get','update'])
+    call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
+    print('installing shapely...')
+    call(['easy_install','shapely'])
+    
+    prefix = '/usr/local'
+    
+    hdf5 = 'hdf5-1.8.10-patch1'
+    hdf5_tarball = '{0}.tar.gz'.format(hdf5)
+    hdf5_url = 'http://www.hdfgroup.org/ftp/HDF5/current/src/{0}'.format(hdf5_tarball)
+    hdf5_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-hl']
+    install_dependency(odir,hdf5_url,hdf5_tarball,hdf5,hdf5_flags)
+    
+    nc4 = 'netcdf-4.2.1'
+    nc4_tarball = '{0}.tar.gz'.format(nc4)
+    nc4_url = 'ftp://ftp.unidata.ucar.edu/pub/netcdf/{0}'.format(nc4_tarball)
+    nc4_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-dap','--enable-netcdf-4']
+    os.putenv('LDFLAGS','-L{0}/lib'.format(prefix))
+    os.putenv('CPPFLAGS','-I{0}/include'.format(prefix))
+    install_dependency(odir,nc4_url,nc4_tarball,nc4,nc4_flags)
+    os.unsetenv('LDFLAGS')
+    os.unsetenv('CPPFLAGS')
+    
+    nc4p = 'netCDF4-1.0.2'
+    nc4p_tarball = '{0}.tar.gz'.format(nc4p)
+    nc4p_url = 'http://netcdf4-python.googlecode.com/files/{0}'.format(nc4p_tarball)
+    call(['ldconfig'])
+    def nc4p_make():
+        call(['python','setup.py','install'])
+    install_dependency(odir,nc4p_url,nc4p_tarball,nc4p,custom_make=nc4p_make)
+    
+    
+    stdout.close()
+    #shutil.rmtree(odir)
+    os.chdir(cwd)
+    print('dependencies installed.')
 
 def uninstall():
     try:
@@ -76,7 +149,9 @@ def uninstall():
 
 ################################################################################
 
-if args.action == 'install':
+if ARGS.action == 'install':
     install()
-elif args.action == 'uninstall':
+elif ARGS.action == 'install_dependencies_linux':
+    install_dependencies_linux()
+elif ARGS.action == 'uninstall':
     uninstall()

@@ -27,36 +27,36 @@ for ii,filename in enumerate(os.listdir(ocgis.env.DIR_DATA)):
     
 ## SUBSETTING ##################################################################
     
-#ops = ocgis.OcgOperations(rdc,
-#                          snippet=SNIPPET,
-#                          geom='state_boundaries',
-#                          select_ugid=SW_IDS,
-#                          output_format='shp',
-#                          agg_selection=False,
-#                          spatial_operation='clip',
-#                          aggregate=True)
-#path = ops.execute()
+ops = ocgis.OcgOperations(rdc,
+                          snippet=SNIPPET,
+                          geom='state_boundaries',
+                          select_ugid=SW_IDS,
+                          output_format='shp',
+                          agg_selection=False,
+                          spatial_operation='clip',
+                          aggregate=True)
+path = ops.execute()
 
 ## CALCULATION #################################################################
 
-#calc = [{'func':'mean','name':'mean'},
-#        {'func':'std','name':'std'},
-#        {'func':'min','name':'min'},
-#        {'func':'max','name':'max'},
-#        {'func':'median','name':'median'}]
-#
-#ops = ocgis.OcgOperations(rdc,
-#                          snippet=SNIPPET,
-#                          geom='state_boundaries',
-#                          select_ugid=SW_IDS,
-#                          output_format='shp',
-#                          agg_selection=False,
-#                          spatial_operation='clip',
-#                          aggregate=True,
-#                          calc=calc,
-#                          calc_grouping=['month','year'],
-#                          calc_raw=False)
-#path = ops.execute()
+calc = [{'func':'mean','name':'mean'},
+        {'func':'std','name':'std'},
+        {'func':'min','name':'min'},
+        {'func':'max','name':'max'},
+        {'func':'median','name':'median'}]
+
+ops = ocgis.OcgOperations(rdc,
+                          snippet=SNIPPET,
+                          geom='state_boundaries',
+                          select_ugid=SW_IDS,
+                          output_format='shp',
+                          agg_selection=False,
+                          spatial_operation='clip',
+                          aggregate=True,
+                          calc=calc,
+                          calc_grouping=['month','year'],
+                          calc_raw=False)
+path = ops.execute()
 #
 #ops = ocgis.OcgOperations(rdc,
 #                          snippet=SNIPPET,

@@ -3,13 +3,17 @@ import sys
 import os
 import argparse
 import ConfigParser
+from subprocess import check_call
+import shutil
+import os
+import tempfile
 
-        
+
 config = ConfigParser.ConfigParser()
 config.read('setup.cfg')
 
 parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-#parser.add_argument("action",type=str,choices=['install','uninstall'],help='action to perform with the installer')
+parser.add_argument("action",type=str,choices=['install','install_all','uninstall'],help='The action to perform with the installer.')
 #parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
 #parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
@@ -66,6 +70,68 @@ def install(version='0.04.01b'):
           packages=packages,
           package_dir=package_dir
           )
+    
+def install_all():
+    
+    cwd = os.getcwd()
+    out = 'install.log'
+    odir = tempfile.mkdtemp()
+    print(odir)
+    stdout = open(out,'w')
+    
+    def call(args):
+        check_call(args,stdout=stdout)
+    
+    def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
+        path = tempfile.mkdtemp(dir=odir)
+        os.mkdir(path)
+        os.chdir(path)
+        call(['wget',url])
+        call(['tar','-xzvf',tarball])
+        os.chdir(edir)
+        if custom_make is None:
+            call(['./configure']+config_flags)
+            call(['make'])
+            call(['make install'])
+        else:
+            custom_make()
+    
+    call(['apt-get','update'])
+    call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
+    call(['easy_install','shapely'])
+    
+    prefix = '/usr/local'
+    
+    hdf5 = 'hdf5-1.8.1.10-patch1'
+    hdf5_tarball = '{0}.tar.gz'.format(hdf5)
+    hdf5_url = 'http://www.hdfgroup.org/ftp/HDF5/current/src/{0}'.format(hdf5_tarball)
+    hdf5_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-hl']
+    install_dependency(odir,hdf5_url,hdf5_tarball,hdf5,hdf5_flags)
+    
+    nc4 = 'netcdf-4.2.1'
+    nc4_tarball = '{0}.tar.gz'.format(nc4)
+    nc4_url = 'ftp://ftp.unidata.ucar.edu/pub/netcdf/{0}'.format(nc4_tarball)
+    nc4_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-dap','--enable-netcdf-4']
+    os.putenv('LDFLAGS','-L{0}/lib'.format(prefix))
+    os.putenv('CPPFLAGS','-I{0}/include'.format(prefix))
+    install_dependency(odir,nc4_url,nc4_tarball,nc4,nc4_flags)
+    os.unsetenv('LDFLAGS')
+    os.unsetenv('CPPFLAGS')
+    
+    nc4p = 'netCDF4-1.0.2'
+    nc4p_tarball = '{0}.tar.gz'.format(nc4p)
+    nc4p_url = 'http://netcdf4-python.googlecode.com/files/{0}'.format(nc4p_tarball)
+    call(['ldconfig'])
+    def nc4p_make():
+        call(['python','setup.py','install'])
+    install_dependency(odir,nc4p_url,nc4p_tarball,nc4p,custom_make=nc4p_make)
+    
+    
+    stdout.close()
+    #shutil.rmtree(odir)
+    os.chdir(cwd)
+    
+    install()
 
 def uninstall():
     try:
@@ -78,5 +144,7 @@ def uninstall():
 
 if args.action == 'install':
     install()
+elif args.action == 'install_all':
+    install_all()
 elif args.action == 'uninstall':
     uninstall()

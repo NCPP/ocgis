@@ -77,7 +77,6 @@ def install_all():
     out = 'install_out.log'
     err = 'install_err.log'
     odir = tempfile.mkdtemp()
-    print(odir)
     stdout = open(out,'w')
     stderr = open(err,'w')
     

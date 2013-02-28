@@ -94,7 +94,7 @@ def install_all():
         if custom_make is None:
             print('configuring {0}...'.format(edir))
             call(['./configure']+config_flags)
-            print('making {0}...'.format(edir))
+            print('building {0}...'.format(edir))
             call(['make'])
             print('installing {0}...'.format(edir))
             call(['make','install'])

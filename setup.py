@@ -13,7 +13,7 @@ config = ConfigParser.ConfigParser()
 config.read('setup.cfg')
 
 parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','install_all','uninstall'],help='The action to perform with the installer.')
+parser.add_argument("action",type=str,choices=['install','install_dependencies_linux','uninstall'],help='The action to perform with the installer.')
 #parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
 #parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
@@ -71,7 +71,7 @@ def install(version='0.04.01b'):
           package_dir=package_dir
           )
     
-def install_all():
+def install_dependencies_linux():
     
     cwd = os.getcwd()
     out = 'install_out.log'
@@ -139,8 +139,6 @@ def install_all():
     #shutil.rmtree(odir)
     os.chdir(cwd)
     print('dependencies installed.')
-    
-    install()
 
 def uninstall():
     try:
@@ -153,7 +151,7 @@ def uninstall():
 
 if ARGS.action == 'install':
     install()
-elif ARGS.action == 'install_all':
-    install_all()
+elif ARGS.action == 'install_dependencies_linux':
+    install_dependencies_linux()
 elif ARGS.action == 'uninstall':
     uninstall()

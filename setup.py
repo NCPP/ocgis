@@ -79,29 +79,37 @@ def install_all():
     print(odir)
     stdout = open(out,'w')
     
-    def call(ARGS):
-        check_call(ARGS,stdout=stdout)
+    def call(args):
+        check_call(args,stdout=stdout)
     
     def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
         path = tempfile.mkdtemp(dir=odir)
         os.chdir(path)
+        print('downloading {0}...'.format(edir))
         call(['wget',url])
+        print('extracting {0}...'.format(edir))
         call(['tar','-xzvf',tarball])
         os.chdir(edir)
         if custom_make is None:
+            print('configuring {0}...'.format(edir))
             call(['./configure']+config_flags)
+            print('making {0}...'.format(edir))
             call(['make'])
+            print('installing {0}...'.format(edir))
             call(['make install'])
         else:
+            print('installing {0}...'.format(edir))
             custom_make()
     
+    print('installing apt packages...')
     call(['apt-get','update'])
     call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
+    print('installing shapely...')
     call(['easy_install','shapely'])
     
     prefix = '/usr/local'
     
-    hdf5 = 'hdf5-1.8.1.10-patch1'
+    hdf5 = 'hdf5-1.8.10-patch1'
     hdf5_tarball = '{0}.tar.gz'.format(hdf5)
     hdf5_url = 'http://www.hdfgroup.org/ftp/HDF5/current/src/{0}'.format(hdf5_tarball)
     hdf5_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-hl']
@@ -129,6 +137,7 @@ def install_all():
     stdout.close()
     #shutil.rmtree(odir)
     os.chdir(cwd)
+    print('dependencies installed.')
     
     install()
 

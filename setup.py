@@ -52,13 +52,13 @@ def install(version='0.04.01b'):
         ret.reverse()
         return('.'.join(ret))
     package_dir = {'':'src'}
-    src_path = os.path.join(package_dir.keys()[0],package_dir.values()[0],'ocgis')
+    src_path = os.path.join(os.path.split(__file__)[0],package_dir.keys()[0],package_dir.values()[0],'ocgis')
     packages = []
     for dirpath,dirnames,filenames in os.walk(src_path):
         if '__init__.py' in filenames:
             package = _get_dot_(dirpath)
             packages.append(package)
-    
+    import ipdb;ipdb.set_trace()
     ## run the installation
     setup(name='ocgis',
           version=version,

@@ -1,28 +1,48 @@
 import unittest
-from ocgis.test.make_test_data import make_simple, make_simple_mask,\
-    make_simple_360
+from ocgis.test.make_test_data import SimpleNc, SimpleMaskNc, SimpleNc360
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 import itertools
 import numpy as np
 import datetime
 from ocgis.util.helpers import make_poly
-from ocgis import exc
-import tempfile
+from ocgis import exc, env
 import os.path
 from ocgis.util.inspect import Inspect
-from warnings import warn
+import tempfile
+import shutil
+from abc import ABCMeta, abstractproperty
 
 
 class TestBase(unittest.TestCase):
-    fn = None
-    outdir = tempfile.gettempdir()
-    var = None
+    __metaclass__ = ABCMeta
+    
     base_value = None
     return_shp = False
+    var = 'foo'
+    
+    @abstractproperty
+    def nc_factory(self): pass
+    @abstractproperty
+    def fn(self): pass
+    
+    @classmethod
+    def setUpClass(cls):
+        cls._original_dir_output = env.DIR_OUTPUT
+        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.TESTOUT)
+        
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            shutil.rmtree(env.DIR_OUTPUT)
+        finally:
+            env.DIR_OUTPUT = cls._original_dir_output
+        
+    def setUp(self):
+        self.nc_factory().write()
     
     def get_dataset(self,time_range=None,level_range=None):
-        uri = os.path.join(self.outdir,self.fn)
+        uri = os.path.join(env.DIR_OUTPUT,self.fn)
         return({'uri':uri,'variable':self.var,
                 'time_range':time_range,'level_range':level_range})
     
@@ -53,16 +73,12 @@ class TestBase(unittest.TestCase):
 
 
 class TestSimple(TestBase):
-    fn = 'test_simple_spatial_01.nc'
-    var = 'foo'
     base_value = np.array([[1.0,1.0,2.0,2.0],
                            [1.0,1.0,2.0,2.0],
                            [3.0,3.0,4.0,4.0],
                            [3.0,3.0,4.0,4.0]])
-    
-    def setUp(self):
-#        self.make_shp()
-        make_simple()
+    nc_factory = SimpleNc
+    fn = 'test_simple_spatial_01.nc'
 
     def test_return_all(self):
         ret = self.get_ret()
@@ -236,12 +252,9 @@ class TestSimple(TestBase):
 
 
 class TestSimpleMask(TestBase):
-    fn = 'test_simple_mask_spatial_01.nc'
-    var = 'foo'
     base_value = None
-    
-    def setUp(self):
-        make_simple_mask()
+    nc_factory = SimpleMaskNc
+    fn = 'test_simple_mask_spatial_01.nc'
         
     def test_spatial(self):
         self.return_shp = False
@@ -269,12 +282,9 @@ class TestSimpleMask(TestBase):
         
         
 class TestSimple360(TestBase):
-    fn = 'test_simple_360_01.nc'
-    var = 'foo'
 #    return_shp = True
-    
-    def setUp(self):
-        make_simple_360()
+    fn = 'test_simple_360_01.nc'
+    nc_factory = SimpleNc360
         
     def test_wrap(self):
         

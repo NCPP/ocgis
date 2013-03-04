@@ -1,11 +1,14 @@
+import tempfile
+import os
+
+
 #: The directory where output data is written. OpenClimateGIS always creates 
 #: temporary directories inside this directory path ensuring data is not 
 #: overwritten. Also, many of the output formats have multiple output files 
 #: making a single directory location potentially troubling in terms of file 
 #: quantity. If `None`, it defaults to the system's temporary directory.
-DIR_OUTPUT = None
+DIR_OUTPUT = os.getenv('OCGIS_DIR_OUTPUT',tempfile.gettempdir())
 
-import os.path
 #: Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
 DIR_SHPCABINET = os.path.expanduser('~/links/ocgis/bin/shp')
 
@@ -31,3 +34,7 @@ FILL_VALUE = 1e20
 
 #: Indicate if additional output information should be printed to terminal. (Currently not very useful.)
 VERBOSE = False
+
+################################################################################
+
+TESTOUT = os.getenv('OCGIS_TESTOUT',tempfile.gettempdir())

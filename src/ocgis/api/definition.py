@@ -529,6 +529,12 @@ class Dataset(OcgParameter):
             ret = self._coll
         elif isinstance(value,RequestDatasetCollection):
             ret = value
+        elif isinstance(value,dict):
+            uri = value.pop('uri')
+            variable = value.pop('variable')
+            rd = RequestDataset(uri,variable,**value)
+            self._coll.update(rd)
+            ret = self._coll
         else:
             try:
                 for v in value:

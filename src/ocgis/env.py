@@ -34,7 +34,3 @@ FILL_VALUE = 1e20
 
 #: Indicate if additional output information should be printed to terminal. (Currently not very useful.)
 VERBOSE = False
-
-################################################################################
-
-TESTOUT = os.getenv('OCGIS_TESTOUT',tempfile.gettempdir())

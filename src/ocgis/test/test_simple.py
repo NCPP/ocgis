@@ -29,7 +29,7 @@ class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._original_dir_output = env.DIR_OUTPUT
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.TESTOUT)
+        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
         
     @classmethod
     def tearDownClass(cls):

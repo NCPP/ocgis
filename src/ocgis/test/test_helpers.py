@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from ocgis.util.helpers import iter_array
+from ocgis.util.helpers import iter_array, format_bool
 
 
 class Test(unittest.TestCase):
@@ -13,6 +13,12 @@ class Test(unittest.TestCase):
             self.assertFalse(values.mask[idx])
         self.assertEqual(len(list(iter_array(values,use_mask=True))),len(values.compressed()))
         self.assertEqual(len(list(iter_array(values,use_mask=False))),len(values.data.flatten()))
+        
+    def test_format_bool(self):
+        mmap = {0:False,1:True,'t':True,'True':True,'f':False,'False':False}
+        for key,value in mmap.iteritems():
+            ret = format_bool(key)
+            self.assertEqual(ret,value)
 
 
 if __name__ == "__main__":

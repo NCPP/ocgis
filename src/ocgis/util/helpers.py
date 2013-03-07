@@ -8,13 +8,30 @@ import warnings
 from osgeo import ogr, osr
 from shapely import wkt, wkb
 from numpy.ma.core import MaskedArray
-from ocgis import env
 from copy import deepcopy
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
 
+
+def format_bool(value):
+    '''Format a string to boolean.
+    
+    :param value: The value to convert.
+    :type value: int or str'''
+    
+    try:
+        ret = bool(int(value))
+    except ValueError:
+        value = value.lower()
+        if value in ['t','true']:
+            ret = True
+        elif value in ['f','false']:
+            ret = False
+        else:
+            raise(ValueError('String not recognized for boolean conversion: {0}'.format(value)))
+    return(ret)
 
 def locate(pattern, root=os.curdir, followlinks=True):
     '''Locate all files matching supplied filename pattern in and below
@@ -106,6 +123,7 @@ def append(arr,value):
     arr[arr.shape[0]-1] = value
             
 def vprint(msg):
+    from ocgis import env
     if env.VERBOSE:
         print(msg)
 

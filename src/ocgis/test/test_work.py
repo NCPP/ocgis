@@ -16,7 +16,7 @@ from ocgis.api.dataset.request import RequestDataset
 from datetime import datetime
 import os
 
-#raise SkipTest(__name__)
+raise SkipTest(__name__)
 
 class TestWork(unittest.TestCase):
     

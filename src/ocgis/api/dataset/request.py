@@ -42,7 +42,10 @@ class RequestDataset(object):
     
     def __init__(self,uri,variable,alias=None,time_range=None,level_range=None,
                  s_proj=None,t_units=None,t_calendar=None):
-        self.uri = self._get_uri_(uri)
+        try:
+            self.uri = self._get_uri_(uri)
+        except:
+            import ipdb;ipdb.set_trace()
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)

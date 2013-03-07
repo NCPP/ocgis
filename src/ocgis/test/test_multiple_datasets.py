@@ -2,9 +2,10 @@ import unittest
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.api.operations import OcgOperations
 from itertools import izip
-from ocgis.exc import DefinitionValidationError
 import numpy as np
-from copy import deepcopy
+from ocgis import env
+import tempfile
+import shutil
 
 
 class Test(unittest.TestCase):
@@ -12,6 +13,18 @@ class Test(unittest.TestCase):
     cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
     tasmin = {'uri':'/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmin'}
     albisccp = {'uri':'/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp'}
+    
+    @classmethod
+    def setUpClass(cls):
+        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+        env.OVERWRITE = True
+        
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            shutil.rmtree(env.DIR_OUTPUT)
+        finally:
+            env.reset()
     
     @property
     def dataset(self):

@@ -28,15 +28,15 @@ class TestBase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        cls._original_dir_output = env.DIR_OUTPUT
         env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+        env.OVERWRITE = True
         
     @classmethod
     def tearDownClass(cls):
         try:
             shutil.rmtree(env.DIR_OUTPUT)
         finally:
-            env.DIR_OUTPUT = cls._original_dir_output
+            env.reset()
         
     def setUp(self):
         self.nc_factory().write()

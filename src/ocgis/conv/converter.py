@@ -19,30 +19,24 @@ class OcgConverter(object):
     use_dir=None :: str :: If provided, forces outputs into this directory.
     '''
     _ext = None
-    _create_directory = True
     
-    def __init__(self,colls,mode='raw',prefix='ocg',wd=None,ops=None,add_meta=True,nest=True):
+    def __init__(self,colls,outdir,prefix,mode='raw',ops=None,add_meta=True):
         self.colls = colls
         self.ops = ops
         self.prefix = prefix
-        if self._create_directory:
-            if wd is None:
-                wd = tempfile.gettempdir()
-            self.wd = get_temp_path(wd=wd,nest=nest,only_dir=True,dir_prefix=prefix)
-        else:
-            self.wd = None
+        self.outdir = outdir
         self.mode = mode
         self.add_meta = add_meta
         
         if self._ext is None:
-            self.path = self.wd
+            self.path = self.outdir
         else:
-            self.path = os.path.join(self.wd,prefix+'.'+self._ext)
+            self.path = os.path.join(self.outdir,prefix+'.'+self._ext)
     
     def write(self):
         if self.add_meta:
             lines = MetaConverter(self.ops).write()
-            out_path = os.path.join(self.wd,self.prefix+'_'+MetaConverter._meta_filename)
+            out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
             with open(out_path,'w') as f:
                 f.write(lines)
         ret = self._write_()

@@ -5,9 +5,24 @@ from ocgis.api.operations import OcgOperations
 from nose.plugins.skip import SkipTest
 from datetime import datetime as dt
 from ocgis.api.dataset.collection.iterators import MeltedIterator, KeyedIterator
+from ocgis import env
+import tempfile
+import shutil
 
 
 class Test(unittest.TestCase):
+    
+    @classmethod
+    def setUpClass(cls):
+        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+        env.OVERWRITE = True
+        
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            shutil.rmtree(env.DIR_OUTPUT)
+        finally:
+            env.reset()
     
     @property
     def tasmax(self):

@@ -3,7 +3,8 @@ import os
 from ocgis.util import helpers
 
 
-#: Set to `True` to overwrite existing output folders.
+#: Set to `True` to overwrite existing output folders. This will remove the
+#: folder if it exists!
 OVERWRITE = False
 
 #: The directory where output data is written. OpenClimateGIS always creates 
@@ -32,7 +33,7 @@ CORES = 6
 MODE = 'raw'
 
 #: The default prefix to apply to output files.
-PREFIX = None
+PREFIX = 'ocgis'
 
 FILL_VALUE = 1e20
 
@@ -72,7 +73,7 @@ class Environment(object):
     def reset(self):
         for value in self.__dict__.itervalues():
             if isinstance(value,EnvParm):
-                value.value = value.default
+                value._value = None
 
 
 class EnvParm(object):

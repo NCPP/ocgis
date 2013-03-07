@@ -50,20 +50,20 @@ class KeyedConverter(OcgConverter):
         ## write the shape idx #################################################
         dct = {'projection':coll.projection,'data':kit.gid}
 #        dct = {'projection':coll.projection,'data':kit.gid.storage}
-        shpidx_path = os.path.join(self.wd,self.prefix+'_'+'shp')
+        shpidx_path = os.path.join(self.outdir,self.prefix+'_'+'shp')
         os.mkdir(shpidx_path)
-        shpidx = ShpIdxIdentifierConverter([dct],prefix=(self.prefix+'_shpidx'),wd=shpidx_path,
-                                           add_meta=False,nest=False)
+        shpidx = ShpIdxIdentifierConverter([dct],shpidx_path,self.prefix+'_shpidx',
+                                           add_meta=False)
         shpidx.write()
         ########################################################################
 
-        return(self.wd)
+        return(self.outdir)
     
     def _get_file_object_(self,prefix):
         return(open(self._get_path_(prefix),'w'))
     
     def _get_path_(self,prefix):
-        return(os.path.join(self.wd,self.prefix+'_'+prefix+'.csv'))
+        return(os.path.join(self.outdir,self.prefix+'_'+prefix+'.csv'))
     
     def _upper_(self,seq):
         return([s.upper() for s in seq])

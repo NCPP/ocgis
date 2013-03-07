@@ -4,6 +4,8 @@ from ocgis.conv.meta import MetaConverter
 from ocgis.conv.converter import OcgConverter
 from subset import SubsetOperation
 from ocgis.util.helpers import union_geoms
+import os
+import shutil
 
 ## TODO: add method to estimate request size
 
@@ -49,12 +51,19 @@ class OcgInterpreter(Interpreter):
         self.check() ## run validation
         
         ## check for a user-supplied output prefix
-        prefix = 'ocgis'
         if env.PREFIX is None:
-            if self.ops.prefix is not None:
-                prefix = self.ops.prefix
+            prefix = self.ops.prefix
         else:
             prefix = env.PREFIX
+            
+        ## do directory management.
+        outdir = os.path.join(env.DIR_OUTPUT,env.PREFIX)
+        if os.path.exists(outdir):
+            if env.OVERWRITE:
+                shutil.rmtree(outdir)
+            else:
+                raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
+        os.mkdir(outdir)
         
         if self.ops.select_ugid is not None:
             geom = self.ops._get_object_('geom')
@@ -90,13 +99,12 @@ class OcgInterpreter(Interpreter):
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=7)
+            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
-                conv = Conv(so,wd=env.DIR_OUTPUT,prefix=prefix,
-                            mode=self.ops.mode,ops=self.ops)
+                conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
                 ret = conv.write()
             else:
                 raise(NotImplementedError)

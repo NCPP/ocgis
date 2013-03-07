@@ -57,7 +57,7 @@ class OcgInterpreter(Interpreter):
             prefix = env.PREFIX
             
         ## do directory management.
-        outdir = os.path.join(env.DIR_OUTPUT,env.PREFIX)
+        outdir = os.path.join(env.DIR_OUTPUT,prefix)
         if os.path.exists(outdir):
             if env.OVERWRITE:
                 shutil.rmtree(outdir)

@@ -10,6 +10,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from ocgis.util.inspect import Inspect
 import tempfile
 import shutil
+import os
 
 
 class NcSpatial(object):
@@ -119,7 +120,7 @@ class Test360(unittest.TestCase):
         return(var)
 
     def make_data(self,nc_spatial):
-        path = '/tmp/test360 {0}.nc'.format(datetime.now())
+        path = os.path.join(env.DIR_OUTPUT,'test360 {0}.nc'.format(datetime.now()))
 
         calendar = 'standard'
         units = 'days since 0000-01-01'

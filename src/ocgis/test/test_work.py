@@ -40,10 +40,10 @@ class TestWork(unittest.TestCase):
             
             try:
                 ret = OcgInterpreter(ops).execute()
+                import ipdb;ipdb.set_trace()
             except Exception as e:
                 if self._allowed_exception_(ops,e) is False:
                     print traceback.format_exc()
-                    import ipdb;ipdb.set_trace()
             finally:
                 if ret is not None and ret.startswith(tempfile.gettempdir()):
                     print(ret)
@@ -60,7 +60,7 @@ class TestWork(unittest.TestCase):
                        'alias':'tasmin'}}
         
         output_format = {'output_format':[
-                                          'shp',
+#                                          'shp',
                                           'keyed',
                                           'meta',
                                           'nc',
@@ -119,7 +119,7 @@ class TestWork(unittest.TestCase):
                                       False
                                       ]}
         calc = {'calc':[
-                        [{'func':'mean','name':'my_mean'}],
+#                        [{'func':'mean','name':'my_mean'}],
                         None,
                         ]}
         calc_grouping = {'calc_grouping':[
@@ -146,6 +146,9 @@ class TestWork(unittest.TestCase):
                                       level_range=level_range)
                        for jj in kwds['dataset']]
                 kwds['dataset'] = rds
+                tmp_path = tempfile.mkdtemp(prefix='ocgis')
+                os.rmdir(tmp_path)
+                kwds['prefix'] = os.path.split(tmp_path)[1]
                 ops = OcgOperations(**kwds)
                 yield(ii,ops)
     

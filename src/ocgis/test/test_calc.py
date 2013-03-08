@@ -101,7 +101,7 @@ class Test(unittest.TestCase):
         kwds['time_range'] = [datetime.datetime(2011,1,1),
                               datetime.datetime(2011,12,31)]
         rd = ocgis.RequestDataset(**kwds)
-        calc = [{'func':'mean','name':'mean'}]
+        calc = [{'func':'mean','name':'tasmax_mean'}]
         calc_grouping = ['month','year']
         ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping)
         ret = ops.execute()
@@ -110,7 +110,7 @@ class Test(unittest.TestCase):
         ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping,
                                   output_format='nc')
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        ip = ocgis.Inspect(ret,variable='n')
 
 
 if __name__ == "__main__":

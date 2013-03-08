@@ -83,13 +83,13 @@ class OcgInterpreter(Interpreter):
             
         ## limited operations available for netcdf
         if self.ops.output_format == 'nc':
-            ## computations are not supported currently for netcdf output
-            if self.ops.calc is not None:
-                raise(NotImplementedError('Computational NetCDF output is currently not supported.'))
+#            ## computations are not supported currently for netcdf output
+#            if self.ops.calc is not None:
+#                raise(NotImplementedError('Computational NetCDF output is currently not supported.'))
             self.ops.spatial_operation = 'intersects'
             self.ops.aggregate = False
             self.ops.calc_raw = False
-            self.ops.mode = 'raw'
+#            self.ops.mode = 'raw'
             self.ops.vector_wrap = False
         
         ## if the requested output format is "meta" then no operations are run

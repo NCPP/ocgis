@@ -40,7 +40,7 @@ class RequestDataset(object):
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
     
-    def __init__(self,uri,variable,alias=None,time_range=None,level_range=None,
+    def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
                  s_proj=None,t_units=None,t_calendar=None):
         self.uri = self._get_uri_(uri)
         self.variable = variable

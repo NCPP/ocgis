@@ -8,6 +8,8 @@ from ocgis.api.dataset.collection.iterators import MeltedIterator, KeyedIterator
 from ocgis import env
 import tempfile
 import shutil
+import ocgis
+import datetime
 
 
 class Test(unittest.TestCase):
@@ -93,6 +95,22 @@ class Test(unittest.TestCase):
         
         mean = library.Mean(values=values,agg=agg,weights=weights,groups=groups)
         ret = mean.calculate()
+        
+    def test_computational_nc_output(self):
+        kwds = self.tasmax
+        kwds['time_range'] = [datetime.datetime(2011,1,1),
+                              datetime.datetime(2011,12,31)]
+        rd = ocgis.RequestDataset(**kwds)
+        calc = [{'func':'mean','name':'mean'}]
+        calc_grouping = ['month','year']
+        ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping)
+        ret = ops.execute()
+        tasmax = ret[1].variables['tasmax']
+        date_centroid = tasmax.temporal_group.date_centroid
+        ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping,
+                                  output_format='nc')
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

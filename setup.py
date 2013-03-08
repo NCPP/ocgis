@@ -13,7 +13,7 @@ config = ConfigParser.ConfigParser()
 config.read('setup.cfg')
 
 parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','install_dependencies_linux','uninstall'],help='The action to perform with the installer.')
+parser.add_argument("action",type=str,choices=['install','install_dependencies_ubuntu','uninstall'],help='The action to perform with the installer.')
 #parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
 #parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
 #parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
@@ -28,7 +28,7 @@ def install(version='0.04.01b'):
     ## check python version
     python_version = float(sys.version_info.major) + float(sys.version_info.minor)/10
     if python_version != 2.7:
-        raise(ImportError('This software requires Python version 2.7.'))
+        raise(ImportError('This software requires Python version 2.7.x.'))
     
     ## attempt package imports
     pkgs = ['numpy','netCDF4','osgeo','shapely']
@@ -71,7 +71,7 @@ def install(version='0.04.01b'):
           package_dir=package_dir
           )
     
-def install_dependencies_linux():
+def install_dependencies_ubuntu():
     
     cwd = os.getcwd()
     out = 'install_out.log'
@@ -151,7 +151,7 @@ def uninstall():
 
 if ARGS.action == 'install':
     install()
-elif ARGS.action == 'install_dependencies_linux':
-    install_dependencies_linux()
+elif ARGS.action == 'install_dependencies_ubuntu':
+    install_dependencies_ubuntu()
 elif ARGS.action == 'uninstall':
     uninstall()

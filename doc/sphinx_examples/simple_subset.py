@@ -1,4 +1,4 @@
-from ocgis import OcgOperations, RequestDataset, env
+import ocgis
 import os.path
 
 
@@ -10,7 +10,7 @@ VAR_TAS = 'tas'
 ## Make it easy to switch to non-snippet requests.
 SNIPPET = True
 ## Set output directory for shapefile and keyed formats. (MAKE SURE IT EXISTS!)
-env.DIR_OUTPUT = '/tmp/foo'
+ocgis.env.DIR_OUTPUT = '/tmp/foo'
 ## The bounding box coordinates [minx, miny, maxx, maxy] for the state of
 ## Colorado in WGS84 latitude/longitude coordinates.
 BBOX = [-109.1, 36.9, -102.0, 41.0]
@@ -19,7 +19,7 @@ BBOX = [-109.1, 36.9, -102.0, 41.0]
 ## Construct RequestDataset Object #############################################
 
 ## This object will be reused so just build it once.
-rd = RequestDataset(URI_TAS,VAR_TAS)
+rd = ocgis.RequestDataset(URI_TAS,VAR_TAS)
 
 ## Returning NumPy Data Objects ################################################
 
@@ -27,7 +27,7 @@ rd = RequestDataset(URI_TAS,VAR_TAS)
 ## RequestDataset are required (except "snippet" of course...). See the
 ## documentation for the OcgCollection object to understand the return 
 ## structure.
-ret = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
+ret = ocgis.OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
 
 ## Returning Converted Files ###################################################
 
@@ -38,7 +38,7 @@ ret = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
 ## depending on the requested format.
 output_formats = ['shp','csv','keyed']
 for output_format in output_formats:
-    prefix = output_format
-    ops = OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET,
+    prefix = output_format + '_output'
+    ops = ocgis.OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET,
                         output_format=output_format,prefix=prefix)
     ret = ops.execute()

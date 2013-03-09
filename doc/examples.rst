@@ -13,11 +13,11 @@ First, it is always a good idea to ensure a dataset is readable by OpenClimateGI
 
 .. literalinclude:: sphinx_examples/inspect.py
 
-As an alternative, you may use the :method:`ocgis.RequestDataset.inspect` method to generate a similar output (variable-level only):
+As an alternative, you may use the :meth:`ocgis.RequestDataset.inspect` method to generate a similar output (variable-level only):
 
 .. literalinclude:: sphinx_examples/inspect_request_dataset.py
 
-Passing a variable to :class:`ocgis.Inspect` or using :method:`ocgis.RequestDataset.inspect` will prepend variable-level information used by OpenClimateGIS. It is important to look carefully at this descriptive information to identify any inconsistencies especially if the target dataset may not be entirely CF-compliant. For example, this is normal output for variable-level descriptions:
+Passing a variable to :class:`ocgis.Inspect` or using :meth:`ocgis.RequestDataset.inspect` will prepend variable-level information used by OpenClimateGIS. It is important to look carefully at this descriptive information to identify any inconsistencies especially if the target dataset may not be entirely CF-compliant. For example, this is normal output for variable-level descriptions:
 
 .. code-block:: rest
 
@@ -79,37 +79,38 @@ This example will introduce simple subsetting by a bounding box with conversion 
 
 .. literalinclude:: sphinx_examples/simple_subset.py
 
-Now, the directory structure for `/tmp/foo` will look like (temporary directory names will differ):
+Now, the directory structure for `/tmp/foo` will look like:
 
 .. code-block:: rest
 
    $ find /tmp/foo
    /tmp/foo
-   /tmp/foo/shp_tmplZ_8mU
-   /tmp/foo/shp_tmplZ_8mU/shp.shx
-   /tmp/foo/shp_tmplZ_8mU/shp_meta.txt
-   /tmp/foo/shp_tmplZ_8mU/shp.prj
-   /tmp/foo/shp_tmplZ_8mU/shp.dbf
-   /tmp/foo/shp_tmplZ_8mU/shp.shp
-   /tmp/foo/csv_tmpRL7dwt
-   /tmp/foo/csv_tmpRL7dwt/csv.csv
-   /tmp/foo/csv_tmpRL7dwt/csv_meta.txt
-   /tmp/foo/keyed_tmpE0noqj
-   /tmp/foo/keyed_tmpE0noqj/keyed_gid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_vid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_ugid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_lid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_value.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_meta.txt
-   /tmp/foo/keyed_tmpE0noqj/keyed_cid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_tid.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_did.csv
-   /tmp/foo/keyed_tmpE0noqj/keyed_shp
-   /tmp/foo/keyed_tmpE0noqj/keyed_shp/keyed_shpidx.dbf
-   /tmp/foo/keyed_tmpE0noqj/keyed_shp/keyed_shpidx.shx
-   /tmp/foo/keyed_tmpE0noqj/keyed_shp/keyed_shpidx.shp
-   /tmp/foo/keyed_tmpE0noqj/keyed_shp/keyed_shpidx.prj
-   /tmp/foo/keyed_tmpE0noqj/keyed_tgid.csv
+   /tmp/foo/shp_output
+   /tmp/foo/shp_output/shp_output.shp
+   /tmp/foo/shp_output/shp_output.dbf
+   /tmp/foo/shp_output/shp_output.shx
+   /tmp/foo/shp_output/shp_output_meta.txt
+   /tmp/foo/shp_output/shp_output.prj
+   /tmp/foo/ocgis_output
+   /tmp/foo/csv_output
+   /tmp/foo/csv_output/csv_output.csv
+   /tmp/foo/csv_output/csv_output_meta.txt
+   /tmp/foo/keyed_output
+   /tmp/foo/keyed_output/keyed_output_tid.csv
+   /tmp/foo/keyed_output/keyed_output_lid.csv
+   /tmp/foo/keyed_output/keyed_output_vid.csv
+   /tmp/foo/keyed_output/keyed_output_cid.csv
+   /tmp/foo/keyed_output/keyed_output_meta.txt
+   /tmp/foo/keyed_output/keyed_output_ugid.csv
+   /tmp/foo/keyed_output/keyed_output_did.csv
+   /tmp/foo/keyed_output/keyed_output_tgid.csv
+   /tmp/foo/keyed_output/keyed_output_shp
+   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.shx
+   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.shp
+   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.prj
+   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.dbf
+   /tmp/foo/keyed_output/keyed_output_gid.csv
+   /tmp/foo/keyed_output/keyed_output_value.csv
 
 .. note:: This data management approach may be confusing and efforts will be made in future releases to improve directory management.
 
@@ -129,7 +130,7 @@ The shapefile attribute table would like something like:
    
    An example shapefile output attribute table. Note how repeated elements may lead to large filesizes. This is a good output format when making an initial pass at a data request. Again the `keyed` output is recommended for data requests in general unless writing to NetCDF which is remains the most efficient format.
 
-For the `keyed` output, the output folder will contain a number of CSV files with unique identifiers that may be linked via the `ocgis_value.csv` table. The `ocgis_shp` folder will contain a shapefile representing the data geometries -- perfect for joining.
+For the `keyed` output, the output folder will contain a number of CSV files with unique identifiers that may be linked via the `ocgis_output_value.csv` table. The `ocgis_output_shp` folder will contain a shapefile representing the data geometries -- perfect for joining.
 
 .. figure:: _images/examples/advanced_subset_keyed_folder_contents.png
    :scale: 50%
@@ -143,14 +144,14 @@ For the `keyed` output, the output folder will contain a number of CSV files wit
    :align: center
    :figwidth: 75%
 
-   A peak inside the `ocgis_value.csv` file.
+   A peak inside the `ocgis_output_value.csv` file.
 
 .. figure:: _images/examples/advanced_subset_vid_csv.png
    :scale: 50%
    :align: center
    :figwidth: 75%
 
-   A peak inside the `ocgis_vid.csv` file which links to the `VID` attribute of the value file.
+   A peak inside the `ocgis_output_vid.csv` file which links to the `VID` attribute of the value file.
 
 Subsetting with a Time/Level Range
 ----------------------------------

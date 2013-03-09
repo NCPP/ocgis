@@ -59,7 +59,7 @@ class RequestDataset(object):
         self._format_()
     
     def inspect(self):
-        '''Print inspection output using :class:`~ocgis.Insepct`. This is a 
+        '''Print inspection output using :class:`~ocgis.Inspect`. This is a 
         convenience method.'''
         
         ip = Inspect(self.uri,variable=self.variable,

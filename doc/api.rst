@@ -11,7 +11,7 @@ Additional information on keyword arguments can be found below the initial docum
 
 These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module.
 
-.. automodule:: ocgis.env
+.. automodule:: ocgis.util.env
    :members:
 
 :class:`ocgis.OcgOperations`

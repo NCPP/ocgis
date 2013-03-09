@@ -1,4 +1,4 @@
-from ocgis import OcgOperations, RequestDataset, RequestDatasetCollection
+from ocgis import OcgOperations, RequestDataset, RequestDatasetCollection, env
 import os.path
 
 
@@ -10,6 +10,8 @@ NCS = {'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc':'tasmin',
        'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc':'tasmax'}
 ## Always start with a snippet.
 SNIPPET = True
+## Data returns will overwrite in this case. Use with caution!!
+env.OVERWRITE = True
 
 
 ## RequestDatasetCollection ####################################################
@@ -35,7 +37,7 @@ path = ops.execute()
 ## Write All Data to Keyed Format ##############################################
 
 ## Without the snippet, we are writing all data to the linked CSV files. The
-## operation will take considerably longer (~20 minutes).
+## operation will take considerably longer.
 ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
                     snippet=False,geom='state_boundaries',output_format='keyed')
 path = ops.execute()

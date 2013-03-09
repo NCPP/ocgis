@@ -60,7 +60,7 @@ class OcgOperations(object):
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
-                 snippet=False, backend='ocg', prefix='ocgis',
+                 snippet=False, backend='ocg', prefix='ocgis_output',
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False):
         

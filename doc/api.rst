@@ -9,10 +9,32 @@ Additional information on keyword arguments can be found below the initial docum
 :mod:`ocgis.env`
 ================
 
-These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module.
+These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
-.. automodule:: ocgis.util.env
-   :members:
+:attr:`env.DIR_OUTPUT` = :meth:`tempfile.gettempdir()`
+ The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the system's temporary directory.
+
+:attr:`env.OVERWRITE` = `False`
+ .. warning:: Use with caution.
+ Set to `True` to overwrite existing output folders. This will remove the folder if it exists!
+
+:attr:`env.PREFIX` = 'ocgis_output'
+ The default prefix to apply to output files. This is also the output folder name.
+
+:attr:`env.DIR_SHPCABINET` = <path-to-directory>
+ Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
+
+:attr:`env.DIR_DATA` = `None`
+ Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
+
+:attr:`env.SERIAL` = `True`
+ If `True`, execute in serial. Only set to `False` if you are confident in your grasp of the software and its internal operation.
+
+:attr:`env.CORES` = 6
+ If operating in parallel (i.e. :attr:`env.SERIAL` = `False`), specify the number of cores to use.
+
+:attr:`env.VERBOSE` = `False`
+ Indicate if additional output information should be printed to terminal. (Currently not very useful.)
 
 :class:`ocgis.OcgOperations`
 ============================
@@ -211,7 +233,7 @@ Value             Description
 Adding Additional Shapefile Data
 --------------------------------
 
-In the :attr:`~ocgis.env.DIR_SHPCABINET`, create a folder with the name you would like to use for the geometry's key. Copy all the shapefile component files to the new directory. Inside the directory, create a `.cfg` file with the same name as the containing folder. The `.cfg` file will containg the header `[mapping]` and two key-value pairs: `ugid` and `attributes`. The `ugid` key value is the name of the attribute for the shapefiles unique identifier. If the file does not contain a unique identifier, setting the value to `none` will cause OpenClimateGIS to generate unique identifiers. The `attributes` key value are the attributes you want OpenClimateGIS to read from the file. Setting this to `none` will result in no additional attributes being inserted into the geometry dictionary. Setting the `attributes` value to `all` results in all attributes being read.
+In the directory specified by :attr:`env.DIR_SHPCABINET`, create a folder with the name you would like to use for the geometry's key. Copy all the shapefile component files to the new directory. Inside the directory, create a `.cfg` file with the same name as the containing folder. The `.cfg` file will containg the header `[mapping]` and two key-value pairs: `ugid` and `attributes`. The `ugid` key value is the name of the attribute for the shapefiles unique identifier. If the file does not contain a unique identifier, setting the value to `none` will cause OpenClimateGIS to generate unique identifiers. The `attributes` key value are the attributes you want OpenClimateGIS to read from the file. Setting this to `none` will result in no additional attributes being inserted into the geometry dictionary. Setting the `attributes` value to `all` results in all attributes being read.
 
 .. code-block:: ini
 

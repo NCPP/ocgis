@@ -3,57 +3,26 @@ import os
 from ocgis.util import helpers
 
 
-#: Set to `True` to overwrite existing output folders. This will remove the
-#: folder if it exists!
-OVERWRITE = False
-
-#: The directory where output data is written. OpenClimateGIS always creates 
-#: temporary directories inside this directory path ensuring data is not 
-#: overwritten. Also, many of the output formats have multiple output files 
-#: making a single directory location potentially troubling in terms of file 
-#: quantity. If `None`, it defaults to the system's temporary directory.
-DIR_OUTPUT = tempfile.gettempdir()
-
-#: Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
-DIR_SHPCABINET = os.path.expanduser('~/links/ocgis/bin/shp')
-
-#: Directories to search through to find climate data. If specified, this should
-#: be a sequence of directories. It may also be a single directory location. Note
-#: that the search may take considerable time if a very high level directory is
-#: chosen.
-DIR_DATA = None
-
-#: The fill value for masked data in NetCDF output.
-#: If `True`, execute in serial. Only set to `False` if you are confident in your grasp of the software and operation.
-SERIAL = True
-
-#: If operating in parallel (i.e. :attr:`~ocgis.env.SERIAL` = `False`), specify the number of cores to use.
-CORES = 6
-
-MODE = 'raw'
-
-#: The default prefix to apply to output files.
-PREFIX = None
-
-FILL_VALUE = 1e20
-
-#: Indicate if additional output information should be printed to terminal. (Currently not very useful.)
-VERBOSE = False
-
-
 class Environment(object):
     
     def __init__(self):
-        self.OVERWRITE = EnvParm('OVERWRITE',OVERWRITE,formatter=helpers.format_bool)
-        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',DIR_OUTPUT)
-        self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',DIR_SHPCABINET)
-        self.DIR_DATA = EnvParm('DIR_DATA',DIR_DATA)
-        self.SERIAL = EnvParm('SERIAL',SERIAL,formatter=helpers.format_bool)
-        self.CORES = EnvParm('CORES',CORES,formatter=int)
-        self.MODE = EnvParm('MODE',MODE)
-        self.PREFIX = EnvParm('PREFIX',PREFIX)
-        self.FILL_VALUE = EnvParm('FILL_VALUE',FILL_VALUE,formatter=float)
-        self.VERBOSE = EnvParm('VERBOSE',VERBOSE,formatter=helpers.format_bool)
+        #: Set to `True` to overwrite existing output folders. This will remove the
+        #: folder if it exists!
+        self.OVERWRITE = EnvParm('OVERWRITE',False,formatter=helpers.format_bool)
+        #: The directory where output data is written. OpenClimateGIS always creates 
+        #: temporary directories inside this directory path ensuring data is not 
+        #: overwritten. Also, many of the output formats have multiple output files 
+        #: making a single directory location potentially troubling in terms of file 
+        #: quantity. If `None`, it defaults to the system's temporary directory.
+        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',tempfile.gettempdir())
+        self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',os.path.expanduser('~/links/ocgis/bin/shp'))
+        self.DIR_DATA = EnvParm('DIR_DATA',None)
+        self.SERIAL = EnvParm('SERIAL',True,formatter=helpers.format_bool)
+        self.CORES = EnvParm('CORES',6,formatter=int)
+        self.MODE = EnvParm('MODE','raw')
+        self.PREFIX = EnvParm('PREFIX',None)
+        self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)
+        self.VERBOSE = EnvParm('VERBOSE',False,formatter=helpers.format_bool)
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -71,6 +40,8 @@ class Environment(object):
             attr.value = value
             
     def reset(self):
+        '''Reset values to defaults (Values will be read from any overloaded
+        system environment variables.'''
         for value in self.__dict__.itervalues():
             if isinstance(value,EnvParm):
                 value._value = None

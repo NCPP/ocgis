@@ -51,10 +51,7 @@ class OcgInterpreter(Interpreter):
         self.check() ## run validation
         
         ## check for a user-supplied output prefix
-        if env.PREFIX is None:
-            prefix = self.ops.prefix
-        else:
-            prefix = env.PREFIX
+        prefix = self.ops.prefix
             
         ## do directory management.
         outdir = os.path.join(env.DIR_OUTPUT,prefix)

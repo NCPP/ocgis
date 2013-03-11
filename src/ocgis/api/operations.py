@@ -1,9 +1,7 @@
 from definition import *  # @UnusedWildImport
-from ocgis.exc import DefinitionValidationError
 from ocgis.api.interpreter import OcgInterpreter
-import inspect
-import definition
 import warnings
+from ocgis import env
 
 
 class OcgOperations(object):
@@ -60,7 +58,7 @@ class OcgOperations(object):
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
-                 snippet=False, backend='ocg', prefix='ocgis_output',
+                 snippet=False, backend='ocg', prefix=env.PREFIX,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False):
         

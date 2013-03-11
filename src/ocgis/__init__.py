@@ -1,7 +1,7 @@
 __VER__ = '0.04'
 __RELEASE__ = '0.04.01b-dev'
 
-from util.env import env
+from util.environment import env
 from api import OcgOperations
 from util.shp_cabinet import ShpCabinet
 from util.inspect import Inspect

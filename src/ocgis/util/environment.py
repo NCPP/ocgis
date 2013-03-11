@@ -20,7 +20,7 @@ class Environment(object):
         self.SERIAL = EnvParm('SERIAL',True,formatter=helpers.format_bool)
         self.CORES = EnvParm('CORES',6,formatter=int)
         self.MODE = EnvParm('MODE','raw')
-        self.PREFIX = EnvParm('PREFIX',None)
+        self.PREFIX = EnvParm('PREFIX','ocgis_output')
         self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=helpers.format_bool)
         

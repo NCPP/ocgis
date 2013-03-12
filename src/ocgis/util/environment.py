@@ -6,14 +6,7 @@ from ocgis.util import helpers
 class Environment(object):
     
     def __init__(self):
-        #: Set to `True` to overwrite existing output folders. This will remove the
-        #: folder if it exists!
         self.OVERWRITE = EnvParm('OVERWRITE',False,formatter=helpers.format_bool)
-        #: The directory where output data is written. OpenClimateGIS always creates 
-        #: temporary directories inside this directory path ensuring data is not 
-        #: overwritten. Also, many of the output formats have multiple output files 
-        #: making a single directory location potentially troubling in terms of file 
-        #: quantity. If `None`, it defaults to the system's temporary directory.
         self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',tempfile.gettempdir())
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',os.path.expanduser('~/links/ocgis/bin/shp'))
         self.DIR_DATA = EnvParm('DIR_DATA',None)
@@ -55,6 +48,9 @@ class EnvParm(object):
         self.formatter = formatter
         self.default = default
         self._value = None
+        
+    def __repr__(self):
+        return(str(self.value))
         
     @property
     def value(self):

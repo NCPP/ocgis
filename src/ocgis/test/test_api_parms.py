@@ -20,12 +20,16 @@ class Test(unittest.TestCase):
         self.assertEqual(s.get_url_string(),'1')
         with self.assertRaises(DefinitionValidationError):
             s.value = 'none'
+            
+        s.get_meta()
 
     def test_spatial_operation(self):
         so = SpatialOperation()
         self.assertEqual(so.value,'intersects')
         with self.assertRaises(DefinitionValidationError):
             so.value = 'clips'
+        so.value = 'clip'
+        print so.get_meta()
             
     def test_output_format(self):
         so = OutputFormat('csv')

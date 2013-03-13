@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractproperty
+from abc import ABCMeta, abstractproperty, abstractmethod
 from ocgis.exc import DefinitionValidationError
 from copy import deepcopy
 
@@ -7,13 +7,16 @@ class OcgParameter(object):
     __metaclass__ = ABCMeta
     
     @abstractproperty
-    def input_types(self): pass
+    def input_types(self): [type]
     @abstractproperty
-    def name(self): pass
+    def name(self): str
     @abstractproperty
-    def nullable(self): pass
+    def nullable(self): bool
     @abstractproperty
-    def return_type(self): pass
+    def return_type(self): type
+    
+    @abstractmethod
+    def _get_meta_(self): return(list)
     
     def __init__(self,init_value=None):
         self._check_types = list(self.input_types) + [basestring,type(None)]
@@ -23,7 +26,7 @@ class OcgParameter(object):
             self.value = init_value
         
     def __repr__(self):
-        ret = '{0}={1}'.parse(self.name,self.value)
+        ret = '{0}={1}'.format(self.name,self.value)
         return(ret)
     
     @property
@@ -46,7 +49,27 @@ class OcgParameter(object):
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)
         self._value = ret
-
+        
+    def get_meta(self):
+        indent = 4
+        edge = 80 - (indent + 1)
+        subrows = self._get_meta_()
+        if isinstance(subrows,basestring):
+            subrows = [subrows]
+        rows = [self.__repr__()]
+        for row in subrows:
+            tabbedrows = []
+            while len(row) > edge:
+                tabbedrows.append(row[0:edge+1])
+                row = row[edge+1:]
+            tabbedrows.append(row)
+            tabbedrows = [' '*indent + ii for ii in tabbedrows]
+            rows.extend(tabbedrows)
+        return(rows)
+    
+    def get_url_string(self):
+        return(str(self._get_url_string_()).lower())
+    
     def parse(self,value):
         ret = self._parse_(value)
         return(ret)
@@ -58,9 +81,6 @@ class OcgParameter(object):
         else:
             ret = self._parse_string_(lowered)
         return(ret)
-    
-    def get_url_string(self):
-        return(str(self._get_url_string_()).lower())
     
     def validate(self,value):
         if value is None:
@@ -89,6 +109,22 @@ class BooleanParameter(OcgParameter):
     return_type = bool
     input_types = [bool,int]
     
+    @abstractproperty
+    def meta_true(self): str
+    @abstractproperty
+    def meta_false(self): str
+    
+    def _get_meta_(self):
+        if self.value:
+            ret = self.meta_true
+        else:
+            ret = self.meta_false
+        return(ret)
+    
+    def _get_url_string_(self):
+        m = {True:1,False:0}
+        return(m[self.value])
+    
     def _parse_(self,value):
         if value == 0:
             ret = False
@@ -104,10 +140,6 @@ class BooleanParameter(OcgParameter):
         for k,v in m.iteritems():
             if value in v:
                 return(k)
-            
-    def _get_url_string_(self):
-        m = {True:1,False:0}
-        return(m[self.value])
     
     
 class StringOptionParameter(OcgParameter):
@@ -116,7 +148,7 @@ class StringOptionParameter(OcgParameter):
     input_types = [str]
     
     @abstractproperty
-    def valid(self): pass
+    def valid(self): [str]
     
     def _validate_(self,value):
         if value not in self.valid:

@@ -18,9 +18,12 @@ class OutputFormat(base.StringOptionParameter):
     valid = ('numpy','shp','csv','keyed','meta','nc')
     
     
-class SelectUgid(base.OcgParameter):
+class SelectUgid(base.IterableParameter,base.OcgParameter):
     name = 'select_ugid'
     return_type = tuple
     nullable = True
     default = None
     input_types = [list,tuple]
+    
+    def _format_(self,value):
+        return(int(value))

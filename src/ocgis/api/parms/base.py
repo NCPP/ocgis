@@ -30,12 +30,12 @@ class OcgParameter(object):
         return(self._value)
     @value.setter
     def value(self,value):
-        self._value = self.format(value)
-
-    def format(self,value):
         type_matches = map(lambda x: isinstance(value,x),self._check_types)
         if not any(type_matches):
             raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(self._check_types,type(value))))
+        self._value = self.format(value)
+
+    def format(self,value):
         if isinstance(value,basestring):
             ret = self.format_string(value)
         else:
@@ -115,3 +115,13 @@ class StringOptionParameter(OcgParameter):
     def _validate_(self,value):
         if value not in self.valid:
             raise(DefinitionValidationError(self,"Valid arguments are: {0}.".format(self.valid)))
+        
+        
+class IterableParameter(object):
+    
+    def format(self,value):
+        if value is None:
+            ret = None
+        else:
+            ret = [OcgParameter.format(self,element) for element in value]
+        return(ret)

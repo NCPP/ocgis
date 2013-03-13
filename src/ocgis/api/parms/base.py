@@ -23,7 +23,7 @@ class OcgParameter(object):
             self.value = init_value
         
     def __repr__(self):
-        ret = '{0}={1}'.format(self.name,self.value)
+        ret = '{0}={1}'.parse(self.name,self.value)
         return(ret)
     
     @property
@@ -35,22 +35,28 @@ class OcgParameter(object):
         if not any(type_matches):
             raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(self._check_types,type(value))))
         if isinstance(value,basestring):
-            value = self.format_string(value)
-        value = deepcopy(value)
-        ret = self.format(value)
+            value = self.parse_string(value)
+        else:
+            value = deepcopy(value)
+        ret = self.parse(value)
+        try:
+            if ret is not None:
+                ret = self.return_type(ret)
+        except:
+            raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)
         self._value = ret
 
-    def format(self,value):
-        ret = self._format_(value)
+    def parse(self,value):
+        ret = self._parse_(value)
         return(ret)
         
-    def format_string(self,value):
+    def parse_string(self,value):
         lowered = value.lower().strip()
         if lowered == 'none':
             ret = None
         else:
-            ret = self._format_string_(lowered)
+            ret = self._parse_string_(lowered)
         return(ret)
     
     def get_url_string(self):
@@ -63,16 +69,12 @@ class OcgParameter(object):
             else:
                 pass
         else:
-            try:
-                value = self.return_type(value)
-            except:
-                raise(DefinitionValidationError(self,'Return type does not match.'))
             self._validate_(value)
     
-    def _format_(self,value):
+    def _parse_(self,value):
         return(value)
         
-    def _format_string_(self,value):
+    def _parse_string_(self,value):
         return(value)
     
     def _get_url_string_(self):
@@ -87,7 +89,7 @@ class BooleanParameter(OcgParameter):
     return_type = bool
     input_types = [bool,int]
     
-    def _format_(self,value):
+    def _parse_(self,value):
         if value == 0:
             ret = False
         elif value == 1:
@@ -96,7 +98,7 @@ class BooleanParameter(OcgParameter):
             ret = value
         return(ret)
     
-    def _format_string_(self,value):
+    def _parse_string_(self,value):
         m = {True:['true','t','1'],
              False:['false','f','0']}
         for k,v in m.iteritems():
@@ -126,19 +128,38 @@ class IterableParameter(object):
     
     @abstractproperty
     def element_type(self): pass
+    @abstractproperty
+    def unique(self): pass
     
-    def format(self,value):
+    def parse(self,value):
         if value is None:
             ret = None
         else:
-            ret = [OcgParameter.format(self,element) for element in value]
+            ret = [OcgParameter.parse(self,element) for element in value]
+            if self.unique:
+                if len(set(ret)) < len(value):
+                    raise(DefinitionValidationError(self,'Argument sequence must have unique elements.'))
             for idx in range(len(ret)):
                 try:
                     ret[idx] = self.element_type(ret[idx])
                 except:
                     raise(DefinitionValidationError(self,'Element type incorrect.'))
-            ret = self.format_all(ret)
+            ret = self.parse_all(ret)
         return(ret)
     
-    def format_all(self,value):
+    def parse_all(self,value):
         return(value)
+    
+    def parse_string(self,value):
+        ret = value.split(',')
+        ret = [OcgParameter.parse_string(self,element) for element in ret]
+        if ret == [None]:
+            ret = None
+        return(ret)
+
+    def get_url_string(self):
+        ret = ','.join([self.element_to_string(element) for element in self.value]).lower()
+        return(ret)
+    
+    def element_to_string(self,element):
+        return(str(element))

@@ -42,9 +42,18 @@ class Test(unittest.TestCase):
         self.assertEqual(so.value,None)
         with self.assertRaises(DefinitionValidationError):
             so.value = 1
-        so.value = [1,1]
-        self.assertEqual(so.value,(1,))
-#        import ipdb;ipdb.set_trace()
+        so = SelectUgid('10')
+        self.assertEqual(so.value,(10,))
+        with self.assertRaises(DefinitionValidationError):
+            so.value = ('1,1,2')
+        with self.assertRaises(DefinitionValidationError):
+            so.value = '22.5'
+        so = SelectUgid('22,23,24')
+        self.assertEqual(so.value,(22,23,24))
+        self.assertEqual(so.get_url_string(),'22,23,24')
+        with self.assertRaises(DefinitionValidationError):
+            so.value = '22,23.5,24'
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

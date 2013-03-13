@@ -1,5 +1,5 @@
 from ocgis import exc, env
-from ocgis.api import definition
+from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
 from ocgis.conv.converter import OcgConverter
 from subset import SubsetOperation

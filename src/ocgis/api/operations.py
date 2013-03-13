@@ -1,4 +1,4 @@
-from definition import *  # @UnusedWildImport
+from ocgis.api.parms.definition import *  # @UnusedWildImport
 from ocgis.api.interpreter import OcgInterpreter
 import warnings
 from ocgis import env

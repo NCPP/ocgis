@@ -24,6 +24,8 @@ class SelectUgid(base.IterableParameter,base.OcgParameter):
     nullable = True
     default = None
     input_types = [list,tuple]
-    
-    def _format_(self,value):
-        return(int(value))
+    element_type = int
+
+    def format_all(self,value):
+        ret = tuple(set(value))
+        return(ret)

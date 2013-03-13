@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractproperty
 from ocgis.exc import DefinitionValidationError
+from copy import deepcopy
 
 
 class OcgParameter(object):
@@ -33,14 +34,15 @@ class OcgParameter(object):
         type_matches = map(lambda x: isinstance(value,x),self._check_types)
         if not any(type_matches):
             raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(self._check_types,type(value))))
-        self._value = self.format(value)
+        if isinstance(value,basestring):
+            value = self.format_string(value)
+        value = deepcopy(value)
+        ret = self.format(value)
+        self.validate(ret)
+        self._value = ret
 
     def format(self,value):
-        if isinstance(value,basestring):
-            ret = self.format_string(value)
-        else:
-            ret = self._format_(value)
-        self.validate(ret)
+        ret = self._format_(value)
         return(ret)
         
     def format_string(self,value):
@@ -61,7 +63,9 @@ class OcgParameter(object):
             else:
                 pass
         else:
-            if type(value) != self.return_type:
+            try:
+                value = self.return_type(value)
+            except:
                 raise(DefinitionValidationError(self,'Return type does not match.'))
             self._validate_(value)
     
@@ -118,10 +122,23 @@ class StringOptionParameter(OcgParameter):
         
         
 class IterableParameter(object):
+    __metaclass__ = ABCMeta
+    
+    @abstractproperty
+    def element_type(self): pass
     
     def format(self,value):
         if value is None:
             ret = None
         else:
             ret = [OcgParameter.format(self,element) for element in value]
+            for idx in range(len(ret)):
+                try:
+                    ret[idx] = self.element_type(ret[idx])
+                except:
+                    raise(DefinitionValidationError(self,'Element type incorrect.'))
+            ret = self.format_all(ret)
         return(ret)
+    
+    def format_all(self,value):
+        return(value)

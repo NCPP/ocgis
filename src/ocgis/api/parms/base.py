@@ -59,10 +59,26 @@ class OcgParameter(object):
         rows = [self.__repr__()]
         for row in subrows:
             tabbedrows = []
-            while len(row) > edge:
-                tabbedrows.append(row[0:edge+1])
-                row = row[edge+1:]
-            tabbedrows.append(row)
+            words = row.strip().split(' ')
+            done = False
+            while True:
+                new_row = []
+                words_idx = 0
+                while len(' '.join(new_row)) <= edge:
+                    try:
+                        new_row.append(words[words_idx])
+                        words_idx += 1
+                    except IndexError:
+                        done = True
+                        break
+                if not done and len(' '.join(new_row)) != edge:
+                    new_row.pop(-1)
+                    words_idx -= 1
+                tabbedrows.append(' '.join(new_row))
+                if done:
+                    break
+                else:
+                    words = words[words_idx:]
             tabbedrows = [' '*indent + ii for ii in tabbedrows]
             rows.extend(tabbedrows)
         return(rows)

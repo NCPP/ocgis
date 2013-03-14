@@ -1,6 +1,5 @@
 import unittest
-from ocgis.api.parms.definition import Snippet, SpatialOperation, OutputFormat,\
-    SelectUgid
+from ocgis.api.parms.definition import *
 from ocgis.exc import DefinitionValidationError
 
 
@@ -57,6 +56,26 @@ class Test(unittest.TestCase):
         self.assertEqual(so.get_url_string(),'22,23,24')
         with self.assertRaises(DefinitionValidationError):
             so.value = '22,23.5,24'
+            
+    def test_prefix(self):
+        pp = Prefix()
+        self.assertEqual(pp.value,'ocgis_output')
+        pp.value = ' Old__man '
+        self.assertEqual(pp.value,'old__man')
+        
+    def test_calc_grouping(self):
+        cg = CalcGrouping(['day','month'])
+        self.assertEqual(cg.value,('day','month'))
+        with self.assertRaises(DefinitionValidationError):
+            cg.value = ['d','foo']
+            
+    def test_dataset(self):
+        uri = '/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
+        variable = 'tas'
+        rd = RequestDataset(uri,variable)
+        dd = Dataset(rd)
+        us = dd.get_url_string()
+        self.assertEqual(us,'uri=/usr/local/climate_data/cancm4/tas_day_cancm4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
 
 
 if __name__ == "__main__":

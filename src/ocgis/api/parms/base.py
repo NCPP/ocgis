@@ -44,7 +44,8 @@ class OcgParameter(object):
         ret = self.parse(value)
         try:
             if ret is not None:
-                ret = self.return_type(ret)
+                if self.return_type != type(ret):
+                    ret = self.return_type(ret)
         except:
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)

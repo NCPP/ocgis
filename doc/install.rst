@@ -71,11 +71,11 @@ Mac OS X
 ~~~~~~~~
 
 1. Download and install GDAL from a pre-packaged DMG installer: http://www.kyngchaos.com/files/software/frameworks/GDAL_Complete-1.9.dmg.
-2. Download and extract Shapely from: https://pypi.python.org/pypi/Shapely. Then run:
+2. Download and extract Shapely from: https://pypi.python.org/pypi/Shapely. Navigate into extracted folder. Then run:
 
    .. code-block:: sh
 
-      [sudo] python <path-to-extracted-shapely-folder>/setup.py install
+      [sudo] python setup.py install
 
 3. Follow the instructions on installing :ref:`netCDF4 Python <netCDF4-python-install>`.
 

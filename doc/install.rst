@@ -58,7 +58,7 @@ You may attempt to use this set of terminal commands (file names and URLs may ne
    
    ## netCDF4-python ##
    cd $SRC
-   # not necessary for Mac OS X
+   # the "ldconfig" is not necessary for Mac OS X
    [sudo] ldconfig
    wget http://netcdf4-python.googlecode.com/files/$NETCDF4_PYTHON.tar.gz
    tar -xzvf $NETCDF4_PYTHON.tar.gz

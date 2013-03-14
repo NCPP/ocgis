@@ -175,10 +175,12 @@ class StringOptionParameter(OcgParameter):
 class IterableParameter(object):
     __metaclass__ = ABCMeta
     
+    split_string = ','
+    
     @abstractproperty
-    def element_type(self): pass
+    def element_type(self): type
     @abstractproperty
-    def unique(self): pass
+    def unique(self): bool
     
     def parse(self,value):
         if value is None:
@@ -200,7 +202,7 @@ class IterableParameter(object):
         return(value)
     
     def parse_string(self,value):
-        ret = value.split(',')
+        ret = value.split(self.split_string)
         ret = [OcgParameter.parse_string(self,element) for element in ret]
         if ret == [None]:
             ret = None

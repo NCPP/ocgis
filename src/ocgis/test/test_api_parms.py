@@ -1,6 +1,8 @@
 import unittest
 from ocgis.api.parms.definition import *
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.util.helpers import make_poly
+from ocgis.util.shp_cabinet import ShpCabinet
 
 
 class Test(unittest.TestCase):
@@ -76,6 +78,37 @@ class Test(unittest.TestCase):
         dd = Dataset(rd)
         us = dd.get_url_string()
         self.assertEqual(us,'uri=/usr/local/climate_data/cancm4/tas_day_cancm4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+
+    def test_geom(self):
+        geom_base = make_poly((37.762,38.222),(-102.281,-101.754))
+        geom = [{'ugid':1,'geom':geom_base}]
+        g = Geom(geom)
+        self.assertEqual(type(g.value),SelectionGeometry)
+        
+        g = Geom(None)
+        self.assertNotEqual(g.value,None)
+        self.assertEqual(str(g),'geom=none')
+        
+        g = Geom('-120|40|-110|50')
+        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
+        self.assertEqual(g.get_url_string(),'-120.0|40.0|-110.0|50.0')
+        
+        g = Geom('mi_watersheds')
+        self.assertEqual(str(g),'geom=mi_watersheds')
+        
+        geoms = ShpCabinet().get_geoms('mi_watersheds')
+        g = Geom(geoms)
+        self.assertEqual(len(g.value),len(geoms))
+        
+        su = SelectUgid([1,2,3])
+        g = Geom('mi_watersheds',select_ugid=su)
+        self.assertEqual(len(g.value),3)
+        
+        geoms = [geom[0],geom[0]]
+        g = Geom(geoms)
+        with self.assertRaises(CannotEncodeUrl):
+            g.get_url_string()
 
 
 if __name__ == "__main__":

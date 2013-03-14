@@ -1,6 +1,9 @@
 from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
+from ocgis.api.geometry import SelectionGeometry
+from ocgis.util.shp_cabinet import ShpCabinet
+from shapely.geometry.polygon import Polygon
 
 
 class Abstraction(base.StringOptionParameter):
@@ -108,6 +111,68 @@ class Dataset(base.OcgParameter):
         return(out_str)
     
     def _parse_string_(self,lowered):
+        raise(NotImplementedError)
+
+
+class Geom(base.IterableParameter,base.OcgParameter):
+    name = 'geom'
+    nullable = True
+    default = SelectionGeometry([{'ugid':1,'geom':None}])
+    input_types = [SelectionGeometry,list,tuple]
+    return_type = SelectionGeometry
+    unique = False
+    element_type = dict
+    _shp_key = None
+    _bounds = None
+    
+    def __init__(self,*args,**kwds):
+        self.select_ugid = kwds.pop('select_ugid',None)
+        base.OcgParameter.__init__(self,*args,**kwds)
+    
+    def __repr__(self):
+        if len(self.value) == 1 and self.value[0]['geom'] is None:
+            value = 'none'
+        elif self._shp_key is not None:
+            value = self._shp_key
+        elif self._bounds is not None:
+            value = '|'.join(map(str,self._bounds))
+        else:
+            value = '<{0} geometry(s)>'.format(len(self.value))
+        ret = '{0}={1}'.format(self.name,value)
+        return(ret)
+    
+    def get_url_string(self):
+        if len(self.value) > 1:
+            raise(CannotEncodeUrl('Too many custom geometries to encode.'))
+        else:
+            ret = str(self)
+            ret = ret.split('=')[1]
+        return(ret)
+    
+    def parse_string(self,value):
+        elements = value.split('|')
+        try:
+            elements = [float(e) for e in elements]
+            minx,miny,maxx,maxy = elements
+            geom = Polygon(((minx,miny),
+                            (minx,maxy),
+                            (maxx,maxy),
+                            (maxx,miny)))
+            if not geom.is_valid:
+                raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
+            ret = [{'ugid':1,'geom':geom}]
+            self._bounds = elements
+        except ValueError:
+            sc = ShpCabinet()
+            if value in sc.keys():
+                self._shp_key = value
+                if self.select_ugid is None or self.select_ugid.value is None:
+                    ret = sc.get_geoms(value)
+                else:
+                    ret = sc.get_geoms(value,attr_filter={'ugid':self.select_ugid.value})
+        return(ret)
+    
+    def _get_meta_(self):
         raise(NotImplementedError)
 
     

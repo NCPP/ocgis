@@ -204,7 +204,12 @@ class RequestDatasetCollection(object):
         :param request_dataset: The :class:`ocgis.RequestDataset` to add.
         :type request_dataset: :class:`ocgis.RequestDataset`
         """
-        if request_dataset.alias in self._s:
+        try:
+            alias = request_dataset.alias
+        except AttributeError:
+            request_dataset = RequestDataset(**request_dataset)
+            alias = request_dataset.alias
+        if alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\
                            .format(request_dataset.alias)))
         else:

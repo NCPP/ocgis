@@ -29,11 +29,9 @@ class OcgParameter(object):
         ret = '{0}={1}'.format(self.name,self.value)
         return(ret)
     
-    @property
-    def value(self):
+    def _get_value_(self):
         return(self._value)
-    @value.setter
-    def value(self,value):
+    def _set_value_(self,value):
         type_matches = map(lambda x: isinstance(value,x),self._check_types)
         if not any(type_matches):
             raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(self._check_types,type(value))))
@@ -50,6 +48,7 @@ class OcgParameter(object):
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)
         self._value = ret
+    value = property(_get_value_,_set_value_)
         
     def get_meta(self):
         indent = 4

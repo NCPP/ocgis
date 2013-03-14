@@ -69,7 +69,6 @@ class OcgOperations(object):
         
         self.dataset = Dataset(dataset)
         self.spatial_operation = SpatialOperation(spatial_operation)
-        self.geom = Geom(geom)
         self.aggregate = Aggregate(aggregate)
         self.calc = Calc(calc)
         self.calc_grouping = CalcGrouping(calc_grouping)
@@ -81,6 +80,7 @@ class OcgOperations(object):
         self.output_format = OutputFormat(output_format)
         self.agg_selection = AggregateSelection(agg_selection)
         self.select_ugid = SelectUgid(select_ugid)
+        self.geom = Geom(geom,select_ugid=self.select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         

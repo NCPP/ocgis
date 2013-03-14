@@ -78,13 +78,15 @@ class Test(unittest.TestCase):
         rd = RequestDataset(uri,variable)
         dd = Dataset(rd)
         us = dd.get_url_string()
-        self.assertEqual(us,'uri=/usr/local/climate_data/cancm4/tas_day_cancm4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
 
     def test_geom(self):
         geom_base = make_poly((37.762,38.222),(-102.281,-101.754))
         geom = [{'ugid':1,'geom':geom_base}]
         g = Geom(geom)
         self.assertEqual(type(g.value),SelectionGeometry)
+        g.value = None
+        self.assertNotEqual(None,g.value)
         
         g = Geom(None)
         self.assertNotEqual(g.value,None)

@@ -158,7 +158,7 @@ class Dataset(base.OcgParameter):
     name = 'dataset'
     nullable = False
     default = None
-    input_types = [RequestDataset,list,tuple,RequestDatasetCollection]
+    input_types = [RequestDataset,list,tuple,RequestDatasetCollection,dict]
     return_type = RequestDatasetCollection
     
     def __init__(self,arg):
@@ -167,6 +167,8 @@ class Dataset(base.OcgParameter):
         else:
             if isinstance(arg,RequestDataset):
                 itr = [arg]
+            elif isinstance(arg,dict):
+                itr = [arg]
             else:
                 itr = arg
             rdc = RequestDatasetCollection()
@@ -174,11 +176,19 @@ class Dataset(base.OcgParameter):
                 rdc.update(rd)
             init_value = rdc
         super(Dataset,self).__init__(init_value)
+        
+    def parse_string(self,value):
+        lowered = value.strip()
+        if lowered == 'none':
+            ret = None
+        else:
+            ret = self._parse_string_(lowered)
+        return(ret)
     
     def _get_meta_(self):
         raise(NotImplementedError)
     
-    def _get_url_string_(self):
+    def get_url_string(self):
         if len(self.value) == 1:
             end_integer_strings = ['']
         else:
@@ -227,12 +237,34 @@ class Geom(base.IterableParameter,base.OcgParameter):
         ret = '{0}={1}'.format(self.name,value)
         return(ret)
     
+    @property
+    def is_empty(self):
+        if self.value[0]['geom'] is None:
+            ret = True
+        else:
+            ret = False
+        return(ret)
+    
+    def _get_value_(self):
+        ret = base.OcgParameter._get_value_(self)
+        if ret is None:
+            ret = self.default
+        return(ret)
+    value = property(_get_value_,base.OcgParameter._set_value_)
+    
     def get_url_string(self):
         if len(self.value) > 1:
             raise(CannotEncodeUrl('Too many custom geometries to encode.'))
         else:
             ret = str(self)
             ret = ret.split('=')[1]
+        return(ret)
+    
+    def parse(self,value):
+        if type(value) in [list,tuple] and len(value) == 4:
+            ret = self.parse_string('|'.join(map(str,value)))
+        else:
+            ret = base.IterableParameter.parse(self,value)
         return(ret)
     
     def parse_string(self,value):
@@ -273,7 +305,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
-    valid = ('numpy','shp','csv','keyed','meta','nc')
+    valid = ('numpy','shp','csv','keyed','meta','nc','shpidx')
     
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)

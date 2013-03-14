@@ -114,7 +114,8 @@ class Test(unittest.TestCase):
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]
         cc = Calc(calc)
-        eq = [{'ref': library.Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref':library.SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}]
+        eq = [{'ref':library.Mean,'name':'my_mean','func':'mean','kwds':{}}, 
+              {'ref':library.SampleSize,'name':'n','func':'n','kwds':{}}]
         self.assertEqual(cc.value,eq)
         cc.value = 'mean~my_mean'
         self.assertEqual(cc.value,eq)

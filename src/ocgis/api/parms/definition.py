@@ -173,7 +173,15 @@ class Geom(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def _get_meta_(self):
-        raise(NotImplementedError)
+        if self.value[0]['geom'] is None:
+            ret = 'No user-supplied geometry. All data returned.'
+        elif self._shp_key is not None:
+            ret = 'The selection geometry "{0}" was used for subsetting.'.format(self._shp_key)
+        elif self._bounds is not None:
+            ret = 'The bounding box coordinates used for subset are: {0}.'.format(self._bounds)
+        else:
+            ret = '{0} custom user geometries provided.'.format(len(self.value))
+        return(ret)
 
     
 class OutputFormat(base.StringOptionParameter):

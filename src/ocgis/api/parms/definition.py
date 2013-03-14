@@ -4,6 +4,9 @@ from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
+from ocgis.calc.base import OcgFunctionTree
+from ocgis.calc import library
+from collections import OrderedDict
 
 
 class Abstraction(base.StringOptionParameter):
@@ -51,6 +54,75 @@ class Backend(base.StringOptionParameter):
         else:
             raise(NotImplementedError)
         return(ret)
+    
+    
+class Calc(base.IterableParameter,base.OcgParameter):
+    name = 'calc'
+    default = None
+    nullable = True
+    input_types = [list,tuple]
+    return_type = list
+    element_type = dict
+    unique = False
+    
+    def __repr__(self):
+        msg = '{0}={1}'.format(self.name,self.get_url_string())
+        return(msg)
+    
+    def get_url_string(self):
+        elements = []
+        for element in self.value:
+            strings = []
+            template = '{0}~{1}'
+            if element['ref'] != library.SampleSize:
+                strings.append(template.format(element['func'],element['name']))
+                for k,v in element['kwds'].iteritems():
+                    strings.append(template.format(k,v))
+            if len(strings) > 0:
+                elements.append('!'.join(strings))
+        ret = '|'.join(elements)
+        return(ret)
+    
+    def parse_all(self,values):
+        values.append(self._parse_({'func':'n','name':'n'}))
+        return(values)
+    
+    def _get_meta_(self):
+        import ipdb;ipdb.set_trace()  
+    
+    def _parse_(self,value):
+        potentials = OcgFunctionTree.get_potentials()
+        for p in potentials:
+            if p[0] == value['func']:
+                value['ref'] = getattr(library,p[1])
+                break
+        if 'kwds' not in value:
+            value['kwds'] = OrderedDict()
+        else:
+            value['kwds'] = OrderedDict(value['kwds'])
+            for k,v in value['kwds'].iteritems():
+                try:
+                    value['kwds'][k] = v.lower()
+                except AttributeError:
+                    pass
+        return(value)
+        
+    def _parse_string_(self,value):
+        key,uname = value.split('~',1)
+        try:
+            uname,kwds_raw = uname.split('!',1)
+            kwds_raw = kwds_raw.split('!')
+            kwds = OrderedDict()
+            for kwd in kwds_raw:
+                kwd_name,kwd_value = kwd.split('~')
+                try:
+                    kwds.update({kwd_name:float(kwd_value)})
+                except ValueError:
+                    kwds.update({kwd_name:str(kwd_value)})
+        except ValueError:
+            kwds = OrderedDict()
+        dct = {'func':key,'name':uname,'kwds':kwds}
+        return(dct)
 
     
 class CalcGrouping(base.IterableParameter,base.OcgParameter):
@@ -140,7 +212,8 @@ class Geom(base.IterableParameter,base.OcgParameter):
     
     def __init__(self,*args,**kwds):
         self.select_ugid = kwds.pop('select_ugid',None)
-        base.OcgParameter.__init__(self,*args,**kwds)
+        args = [self] + list(args)
+        base.OcgParameter.__init__(*args,**kwds)
     
     def __repr__(self):
         if len(self.value) == 1 and self.value[0]['geom'] is None:

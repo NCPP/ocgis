@@ -110,6 +110,16 @@ class Test(unittest.TestCase):
         g = Geom(geoms)
         with self.assertRaises(CannotEncodeUrl):
             g.get_url_string()
+            
+    def test_calc(self):
+        calc = [{'func':'mean','name':'my_mean'}]
+        cc = Calc(calc)
+        eq = [{'ref': library.Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref':library.SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}]
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean'
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
+        self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
 
 
 if __name__ == "__main__":

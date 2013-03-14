@@ -240,3 +240,13 @@ class VectorWrap(base.BooleanParameter):
     default = True
     meta_true = 'Geographic coordinates wrapped from -180 to 180 degrees longitude.'
     meta_false = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
+    
+    
+## determine the iterator mode for the converters
+def identify_iterator_mode(ops):
+    '''raw,agg,calc,multi'''
+    mode = 'raw'
+    if ops.calc is not None:
+        mode = 'calc'
+    ops.mode = mode
+

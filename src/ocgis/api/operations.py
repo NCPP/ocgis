@@ -2,6 +2,7 @@ from ocgis.api.parms.definition import *  # @UnusedWildImport
 from ocgis.api.interpreter import OcgInterpreter
 import warnings
 from ocgis import env
+from ocgis.api.parms.base import OcgParameter
 
 
 class OcgOperations(object):
@@ -85,7 +86,7 @@ class OcgOperations(object):
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
-        self.request_url = RequestUrl(None)
+        self.request_url = None
         
         # # Initial values have been set and global validation should now occur
         # # when any parameters are updated.

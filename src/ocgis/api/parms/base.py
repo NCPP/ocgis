@@ -175,7 +175,7 @@ class StringOptionParameter(OcgParameter):
 class IterableParameter(object):
     __metaclass__ = ABCMeta
     
-    split_string = ','
+    split_string = '|'
     
     @abstractproperty
     def element_type(self): type
@@ -209,7 +209,7 @@ class IterableParameter(object):
         return(ret)
 
     def get_url_string(self):
-        ret = ','.join([self.element_to_string(element) for element in self.value]).lower()
+        ret = self.split_string.join([self.element_to_string(element) for element in self.value]).lower()
         return(ret)
     
     def element_to_string(self,element):

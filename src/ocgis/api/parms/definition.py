@@ -38,7 +38,20 @@ class AggregateSelection(base.BooleanParameter):
     default = False
     meta_true = 'Selection geometries were aggregated (unioned).'
     meta_false = 'Selection geometries left as is.'
+
+
+class Backend(base.StringOptionParameter):
+    name = 'backend'
+    default = 'ocg'
+    valid = ('ocg',)
     
+    def _get_meta_(self):
+        if self.value == 'ocg':
+            ret = 'OpenClimateGIS backend used for processing.'
+        else:
+            raise(NotImplementedError)
+        return(ret)
+
     
 class CalcGrouping(base.IterableParameter,base.OcgParameter):
     name = 'calc_grouping'

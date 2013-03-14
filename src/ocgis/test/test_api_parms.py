@@ -50,14 +50,14 @@ class Test(unittest.TestCase):
         so = SelectUgid('10')
         self.assertEqual(so.value,(10,))
         with self.assertRaises(DefinitionValidationError):
-            so.value = ('1,1,2')
+            so.value = ('1|1|2')
         with self.assertRaises(DefinitionValidationError):
             so.value = '22.5'
-        so = SelectUgid('22,23,24')
+        so = SelectUgid('22|23|24')
         self.assertEqual(so.value,(22,23,24))
-        self.assertEqual(so.get_url_string(),'22,23,24')
+        self.assertEqual(so.get_url_string(),'22|23|24')
         with self.assertRaises(DefinitionValidationError):
-            so.value = '22,23.5,24'
+            so.value = '22|23.5|24'
             
     def test_prefix(self):
         pp = Prefix()
@@ -70,6 +70,7 @@ class Test(unittest.TestCase):
         self.assertEqual(cg.value,('day','month'))
         with self.assertRaises(DefinitionValidationError):
             cg.value = ['d','foo']
+        self.assertEqual(cg.get_url_string(),'day|month')
             
     def test_dataset(self):
         uri = '/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'

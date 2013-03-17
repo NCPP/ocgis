@@ -9,7 +9,7 @@ class Environment(object):
         self.OVERWRITE = EnvParm('OVERWRITE',False,formatter=helpers.format_bool)
         self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',tempfile.gettempdir())
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',None)
-        self.DIR_DATA = EnvParm('DIRDATA',None)
+        self.DIR_DATA = EnvParm('DIR_DATA',None)
         self.SERIAL = EnvParm('SERIAL',True,formatter=helpers.format_bool)
         self.CORES = EnvParm('CORES',6,formatter=int)
         self.MODE = EnvParm('MODE','raw')

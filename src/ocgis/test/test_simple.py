@@ -180,7 +180,7 @@ class TestSimple(TestBase):
         self.assertTrue(ref.is_empty)
         
     def test_calc(self):
-        calc = {'func':'mean','name':'my_mean'}
+        calc = [{'func':'mean','name':'my_mean'}]
         group = ['month','year']
         
         ## raw

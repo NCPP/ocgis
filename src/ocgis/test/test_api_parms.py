@@ -79,6 +79,10 @@ class Test(unittest.TestCase):
         dd = Dataset(rd)
         us = dd.get_url_string()
         self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        
+        uri = '/a/bad/path'
+        with self.assertRaises(ValueError):
+            rd = RequestDataset(uri,'foo')
 
     def test_geom(self):
         geom_base = make_poly((37.762,38.222),(-102.281,-101.754))

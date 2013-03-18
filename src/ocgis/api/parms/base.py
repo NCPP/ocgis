@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractproperty, abstractmethod
 from ocgis.exc import DefinitionValidationError
 from copy import deepcopy
+from ocgis.util.justify import justify_row
 
 
 class OcgParameter(object):
@@ -51,36 +52,36 @@ class OcgParameter(object):
     value = property(_get_value_,_set_value_)
         
     def get_meta(self):
-        indent = 4
-        edge = 80 - (indent + 1)
+#        indent = 4
+#        edge = 80 - (indent + 1)
         subrows = self._get_meta_()
         if isinstance(subrows,basestring):
             subrows = [subrows]
         rows = [self.__repr__()]
         for row in subrows:
-            tabbedrows = []
-            words = row.strip().split(' ')
-            done = False
-            while True:
-                new_row = []
-                words_idx = 0
-                while len(' '.join(new_row)) <= edge:
-                    try:
-                        new_row.append(words[words_idx])
-                        words_idx += 1
-                    except IndexError:
-                        done = True
-                        break
-                if not done and len(' '.join(new_row)) != edge:
-                    new_row.pop(-1)
-                    words_idx -= 1
-                tabbedrows.append(' '.join(new_row))
-                if done:
-                    break
-                else:
-                    words = words[words_idx:]
-            tabbedrows = [' '*indent + ii for ii in tabbedrows]
-            rows.extend(tabbedrows)
+#            tabbedrows = []
+#            words = row.strip().split(' ')
+#            done = False
+#            while True:
+#                new_row = []
+#                words_idx = 0
+#                while len(' '.join(new_row)) <= edge:
+#                    try:
+#                        new_row.append(words[words_idx])
+#                        words_idx += 1
+#                    except IndexError:
+#                        done = True
+#                        break
+#                if not done and len(' '.join(new_row)) != edge:
+#                    new_row.pop(-1)
+#                    words_idx -= 1
+#                tabbedrows.append(' '.join(new_row))
+#                if done:
+#                    break
+#                else:
+#                    words = words[words_idx:]
+#            tabbedrows = [' '*indent + ii for ii in tabbedrows]
+            rows.extend(justify_row(row))
         return(rows)
     
     def get_url_string(self):

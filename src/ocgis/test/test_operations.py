@@ -30,6 +30,8 @@ class Test(unittest.TestCase):
         meta = ops.get_meta()
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
+        print(meta)
+        import ipdb;ipdb.set_trace()
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)

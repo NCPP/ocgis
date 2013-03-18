@@ -145,6 +145,18 @@ class RequestDataset(object):
         if ret[0] > ret[1]:
             raise(DefinitionValidationError('dataset','Level ordination incorrect.'))
         self.level_range = ret
+        
+    def _get_meta_rows_(self):
+        rows = ['URI: {0}'.format(self.uri),
+                'Variable: {0}'.format(self.variable),
+                'Alias: {0}'.format(self.alias),
+                'Time Range: {0}'.format(self.time_range),
+                'Level Range: {0}'.format(self.level_range),
+                'Overloaded Parameters:',
+                '  PROJ4 String: {0}'.format(self.s_proj),
+                '  Time Units: {0}'.format(self.t_units),
+                '  Time Calendar: {0}'.format(self.t_calendar)]
+        return(rows)
     
     
 class RequestDatasetCollection(object):

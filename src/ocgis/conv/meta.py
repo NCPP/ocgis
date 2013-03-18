@@ -33,14 +33,14 @@ class MetaConverter(object):
         lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__RELEASE__)]
         lines.append('  Generated (UTC): {0}'.format(datetime.datetime.utcnow()))
         lines.append('')
-        lines.append('Potential Header Names with Definitions')
+        lines.append('== Potential Header Names with Definitions ==')
         lines.append('')
         sh = sorted(HEADERS)
         for key in sh:
             msg = '  {0} :: {1}'.format(key.upper(),HEADERS[key])
             lines.append(msg)
         lines.append('')
-        lines.append('Argument definitions and content descriptions are found below.')
+        lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
         for k,v in sorted(self.ops.__dict__.iteritems()):
             if isinstance(v,OcgParameter):

@@ -66,7 +66,11 @@ class Calc(base.IterableParameter,base.OcgParameter):
     unique = False
     
     def __repr__(self):
-        msg = '{0}={1}'.format(self.name,self.get_url_string())
+        if self.value is None:
+            fill = None
+        else:
+            fill = self.get_url_string()
+        msg = '{0}={1}'.format(self.name,fill)
         return(msg)
     
     def get_url_string(self):
@@ -88,7 +92,13 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(values)
     
     def _get_meta_(self):
-        import ipdb;ipdb.set_trace()  
+        if self.value is None:
+            ret = 'No computations applied.'
+        else:
+            ret = ['The following computations were applied:']
+            for ii in self.value:
+                ret.append('{0}: {1}'.format(ii['name'],ii['ref'].description))
+        return(ret)
     
     def _parse_(self,value):
         potentials = OcgFunctionTree.get_potentials()
@@ -150,7 +160,7 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
 class CalcRaw(base.BooleanParameter):
     name = 'calc_raw'
     default = False
-    meta_true = 'Raw values will be used for calculations. These are the original data values linked to a selection value.'
+    meta_true = 'Raw values will be used for calculations. These are the original data values linked to a selection geometry.'
     meta_false = 'Aggregated values will be used during the calculation.'
 
 
@@ -186,7 +196,7 @@ class Dataset(base.OcgParameter):
         return(ret)
     
     def _get_meta_(self):
-        raise(NotImplementedError)
+        return(str(self))
     
     def get_url_string(self):
         if len(self.value) == 1:

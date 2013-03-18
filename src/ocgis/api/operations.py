@@ -3,6 +3,7 @@ from ocgis.api.interpreter import OcgInterpreter
 import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
+from ocgis.conv.meta import MetaConverter
 
 
 class OcgOperations(object):
@@ -121,7 +122,12 @@ class OcgOperations(object):
                 object.__setattr__(self, name, value)
         if self._is_init is False:
             self._validate_()
-            
+    
+    def get_meta(self):
+        meta_converter = MetaConverter(self)
+        rows = meta_converter.get_rows()
+        return('\n'.join(rows))
+    
     @classmethod
     def parse_query(cls, query):
         # # TODO: hack

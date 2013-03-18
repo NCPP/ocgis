@@ -25,6 +25,12 @@ class Test(unittest.TestCase):
     datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
     datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_get_meta(self):
+        ops = OcgOperations(dataset=self.datasets)
+        meta = ops.get_meta()
+        self.assertTrue(len(meta) > 100)
+        self.assertTrue('\n' in meta)
+
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
         self.assertNotEqual(ops.geom,None)

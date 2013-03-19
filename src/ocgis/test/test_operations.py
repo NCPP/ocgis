@@ -1,22 +1,18 @@
 import unittest
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
-import numpy as np
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
-from ocgis.api import definition
 from urlparse import parse_qs
 from ocgis.util.helpers import reduce_query, make_poly
 from nose.plugins.skip import SkipTest
 from ocgis.calc.library import SampleSize, Mean, StandardDeviation
 from ocgis.util.shp_cabinet import ShpCabinet
-import inspect
-import traceback
-from ocgis.api.definition import RequestDataset, RequestDatasetCollection
 from ocgis import env
 import os.path
+from ocgis.api.parms import definition
+from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
+from ocgis.api.geometry import SelectionGeometry
 
-#from nose.plugins.skip import SkipTest
-#raise SkipTest(__name__)
 
 class Test(unittest.TestCase):
     env.DIR_DATA = '/usr/local/climate_data/CanCM4'
@@ -28,6 +24,17 @@ class Test(unittest.TestCase):
     level_range = [2,2]
     datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
     datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+
+    def test_get_meta(self):
+        ops = OcgOperations(dataset=self.datasets)
+        meta = ops.get_meta()
+        self.assertTrue(len(meta) > 100)
+        self.assertTrue('\n' in meta)
+        
+        ops = OcgOperations(dataset=self.datasets,calc=[{'func':'mean','name':'my_mean'}])
+        meta = ops.get_meta()
+        self.assertTrue(len(meta) > 100)
+        self.assertTrue('\n' in meta)
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
@@ -61,39 +68,18 @@ class Test(unittest.TestCase):
         ops.geom = [-120,40,-110,50]
         self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
         
-    def test_calc(self):
-        str_version = "[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"
-        _calc = [
-                [{'func':'mean','name':'mean'},str_version],
-                [[{'func':'mean','name':'mean'}],str_version],
-                [None,'None'],
-                [[{'func':'mean','name':'mean'},{'func':'std','name':'my_std'}],"[{'ref': <class 'ocgis.calc.library.Mean'>, 'name': 'mean', 'func': 'mean', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.StandardDeviation'>, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': <class 'ocgis.calc.library.SampleSize'>, 'name': 'n', 'func': 'n', 'kwds': {}}]"]
-                ]
-        
-        for calc in _calc:
-            cd = definition.Calc(calc[0])
-            self.assertEqual(str(cd.value),calc[1])
-            
-        url_str = 'mean~my_mean'
-        cd = definition.Calc(url_str)
-        self.assertEqual(cd.value,[{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref': SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}])
-        
-        url_str = 'mean~my_mean|std~my_std'
-        cd = definition.Calc(url_str)
-        self.assertEqual(cd.value,[{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}}, {'ref': StandardDeviation, 'name': 'my_std', 'func': 'std', 'kwds': {}}, {'ref': SampleSize, 'name': 'n', 'func': 'n', 'kwds': {}}])
-            
     def test_geom(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
         geom = [{'ugid':1,'geom':geom}]
         g = definition.Geom(geom)
-        self.assertEqual(type(g.value),list)
+        self.assertEqual(type(g.value),SelectionGeometry)
         
         g = definition.Geom(None)
         self.assertNotEqual(g.value,None)
-        self.assertEqual(str(g),'geom=none')
+        self.assertEqual(str(g),'geom=None')
         
         g = definition.Geom('-120|40|-110|50')
-        self.assertEqual(str(g),'geom=-120|40|-110|50')
+        self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
         
         g = definition.Geom('mi_watersheds')
         self.assertEqual(str(g),'geom=mi_watersheds')
@@ -102,7 +88,7 @@ class Test(unittest.TestCase):
         g = definition.Geom(geoms)
         self.assertEqual(len(g.value),60)
         with self.assertRaises(CannotEncodeUrl):
-            str(g)
+            g.get_url_string()
         
     def test_calc_grouping(self):
         _cg = [
@@ -112,11 +98,15 @@ class Test(unittest.TestCase):
                ]
         
         for cg in _cg:
+            if cg is not None:
+                eq = tuple(cg)
+            else:
+                eq = cg
             obj = definition.CalcGrouping(cg)
             try:
-                self.assertEqual(obj.value,cg)
+                self.assertEqual(obj.value,eq)
             except AssertionError:
-                self.assertEqual(obj.value,['day'])
+                self.assertEqual(obj.value,('day',))
                 
     def test_dataset(self):
         env.DIR_DATA = '/usr/local/climate_data'
@@ -126,17 +116,12 @@ class Test(unittest.TestCase):
         
         dsa = {'uri':'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','variable':'tas'}
         ds = definition.Dataset(dsa)
-        self.assertEqual(str(ds),'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        self.assertEqual(ds.get_url_string(),'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
         
         dsb = [dsa,{'uri':'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp','alias':'knight'}]
         ds = definition.Dataset(dsb)
         str_cmp = 'uri1=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable1=tas&alias1=tas&t_units1=none&t_calendar1=none&s_proj1=none&uri2=/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc&variable2=albisccp&alias2=knight&t_units2=none&t_calendar2=none&s_proj2=none'
-        self.assertEqual(str(ds),str_cmp)
-        
-        query = parse_qs(str_cmp)
-        query = reduce_query(query)
-        ds = definition.Dataset.parse_query(query)
-        self.assertEqual(str(ds),str_cmp)
+        self.assertEqual(ds.get_url_string(),str_cmp)
         
     def test_abstraction(self):
         K = definition.Abstraction
@@ -160,18 +145,6 @@ class Test(unittest.TestCase):
             obj = klass(v)
             self.assertEqual(obj.value,a)
             
-        query = {'spatial_operation':['intersects']}
-        obj = klass()
-        obj.parse_query(query)
-
-#    def test_time_range(self):
-#        valid = [
-##                 [dt(2000,1,1),dt(2000,12,31)],
-#                 '2000-1-1|2000-12-31'
-#                 ]
-#        for v in valid:
-#            tr = definition.TimeRange(v)
-#            import ipdb;ipdb.set_trace()
         
 class TestRequestDatasets(unittest.TestCase):
     uri = '/usr/local/climate_data/CanCM4/rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'

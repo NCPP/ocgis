@@ -63,7 +63,7 @@ class Test(unittest.TestCase):
         
     def test_HeatIndex_keyed_output(self):
         ds = [self.tasmax,self.rhsmax]
-        calc = {'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}
+        calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
         ops = OcgOperations(dataset=ds,calc=calc,snippet=False,output_format='numpy')
         self.assertEqual(ops.calc_grouping,None)
         ret = ops.execute()

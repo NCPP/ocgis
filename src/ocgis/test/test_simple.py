@@ -180,7 +180,7 @@ class TestSimple(TestBase):
         self.assertTrue(ref.is_empty)
         
     def test_calc(self):
-        calc = {'func':'mean','name':'my_mean'}
+        calc = [{'func':'mean','name':'my_mean'}]
         group = ['month','year']
         
         ## raw
@@ -215,7 +215,7 @@ class TestSimple(TestBase):
     def test_shp_conversion(self):
         calc = [
                 None,
-                {'func':'mean','name':'my_mean'}
+                [{'func':'mean','name':'my_mean'}]
                 ]
         group = ['month','year']
         for c in calc:
@@ -236,7 +236,7 @@ class TestSimple(TestBase):
     def test_keyed_conversion(self):
         calc = [
                 None,
-                {'func':'mean','name':'my_mean'}
+                [{'func':'mean','name':'my_mean'}]
                 ]
         group = ['month','year']
         for c in calc:

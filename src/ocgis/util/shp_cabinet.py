@@ -7,6 +7,7 @@ import osr
 from shapely.geometry.multipolygon import MultiPolygon
 import csv
 from ocgis.util.spatial.wrap import unwrap_geoms
+from ocgis.api.geometry import SelectionGeometry
 
 
 class ShpCabinet(object):
@@ -124,8 +125,8 @@ class ShpCabinet(object):
         ## unwrap the geometries if requested
         if unwrap:
             unwrap_geoms(geoms,pm)
-            
-        return(geoms)
+        
+        return(SelectionGeometry(geoms))
     
     def get_headers(self,geoms):
         ret = ['ugid']

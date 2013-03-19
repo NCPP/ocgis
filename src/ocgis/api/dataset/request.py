@@ -64,7 +64,7 @@ class RequestDataset(object):
         
         ip = Inspect(self.uri,variable=self.variable,
                      interface_overload=self.interface)
-        print(ip)
+        return(ip)
     
     @property
     def interface(self):
@@ -145,6 +145,27 @@ class RequestDataset(object):
         if ret[0] > ret[1]:
             raise(DefinitionValidationError('dataset','Level ordination incorrect.'))
         self.level_range = ret
+        
+    def _get_meta_rows_(self):
+        if self.time_range is None:
+            tr = None
+        else:
+            tr = '{0} to {1} (inclusive)'.format(self.time_range[0],self.time_range[1])
+        if self.level_range is None:
+            lr = None
+        else:
+            lr = '{0} to {1} (inclusive)'.format(self.level_range[0],self.level_range[1])
+        
+        rows = ['    URI: {0}'.format(self.uri),
+                '    Variable: {0}'.format(self.variable),
+                '    Alias: {0}'.format(self.alias),
+                '    Time Range: {0}'.format(tr),
+                '    Level Range: {0}'.format(lr),
+                '    Overloaded Parameters:',
+                '      PROJ4 String: {0}'.format(self.s_proj),
+                '      Time Units: {0}'.format(self.t_units),
+                '      Time Calendar: {0}'.format(self.t_calendar)]
+        return(rows)
     
     
 class RequestDatasetCollection(object):
@@ -204,8 +225,20 @@ class RequestDatasetCollection(object):
         :param request_dataset: The :class:`ocgis.RequestDataset` to add.
         :type request_dataset: :class:`ocgis.RequestDataset`
         """
-        if request_dataset.alias in self._s:
+        try:
+            alias = request_dataset.alias
+        except AttributeError:
+            request_dataset = RequestDataset(**request_dataset)
+            alias = request_dataset.alias
+        if alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\
                            .format(request_dataset.alias)))
         else:
             self._s.update({request_dataset.alias:request_dataset})
+            
+    def _get_meta_rows_(self):
+        rows = ['dataset=']
+        for value in self._s.itervalues():
+            rows += value._get_meta_rows_()
+            rows.append('')
+        return(rows)

@@ -1,5 +1,7 @@
 import datetime
 import ocgis
+from ocgis.api.parms.base import OcgParameter
+from ocgis.util.justify import justify_row
 
 
 HEADERS = {
@@ -28,40 +30,30 @@ class MetaConverter(object):
     def __init__(self,ops):
         self.ops = ops
         
-    def write(self):
-        
-        lines = ['== OpenClimateGIS v{1} Metafile Generated (UTC): {0} =='.format(datetime.datetime.utcnow(),ocgis.__VER__)]
+    def get_rows(self):
+        lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__RELEASE__)]
+        lines.append('  Generated (UTC): {0}'.format(datetime.datetime.utcnow()))
         lines.append('')
-        if self.ops.request_url is not None:
-            lines.append('Requested URL:')
-            lines.append(self.ops.request_url)
-            lines.append('')
-        lines.append('++++ Parameter and Slug Definitions ++++')
-        lines.append('')
-        lines.append('Parameter descriptions for an OpenClimateGIS call based on operational dictionary values. The key/parameter names appears first in each "===" group with the name of URL-encoded slug name if it exists ("None" otherwise).')
-        lines.append('')
-        
-        for key,value in self.ops.__dict__.iteritems():
-            try:
-                str_value = str(value.value)
-                if len(str_value) > 20:
-                    str_value = str_value[0:21]+'...<truncated>'
-                msg = "  {0}={1}  ".format(value.name,str_value)
-            except AttributeError:
-                continue
-            divider = ''.join(['-' for ii in range(len(msg))])
-            lines.append(divider)
-            lines.append(msg)
-            lines.append(divider)
-            lines.append('')
-            lines.append(value.message())
-            lines.append('')
-        
-        lines.append('++++ Potential Header Names and Definitions ++++')
+        lines.append('== Potential Header Names with Definitions ==')
         lines.append('')
         sh = sorted(HEADERS)
         for key in sh:
-            msg = '{0} :: {1}'.format(key.upper(),HEADERS[key])
+            msg = '  {0} :: {1}'.format(key.upper(),'\n'.join(justify_row(HEADERS[key]))).replace('::     ',':: ')
             lines.append(msg)
-        ret = '\n'.join(lines)
+        lines.append('')
+        lines.append('== Argument Definitions and Content Descriptions ==')
+        lines.append('')
+        for k,v in sorted(self.ops.__dict__.iteritems()):
+            if isinstance(v,OcgParameter):
+                lines.append(v.get_meta())
+        ret = []
+        for line in lines:
+            if not isinstance(line,basestring):
+                for item in line:
+                    ret.append(item)
+            else:
+                ret.append(line)
         return(ret)
+        
+    def write(self):
+        return('\n'.join(self.get_rows()))

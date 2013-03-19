@@ -195,8 +195,10 @@ class Dataset(base.OcgParameter):
             ret = self._parse_string_(lowered)
         return(ret)
     
-    def _get_meta_(self):
-        return(str(self))
+    def get_meta(self):
+        return(self.value._get_meta_rows_())
+    
+    def _get_meta_(self): pass
     
     def get_url_string(self):
         if len(self.value) == 1:
@@ -237,7 +239,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
     
     def __repr__(self):
         if len(self.value) == 1 and self.value[0]['geom'] is None:
-            value = 'none'
+            value = None
         elif self._shp_key is not None:
             value = self._shp_key
         elif self._bounds is not None:

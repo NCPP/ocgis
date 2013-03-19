@@ -58,6 +58,7 @@ class OcgParameter(object):
         rows = [self.__repr__()]
         for row in subrows:
             rows.extend(justify_row(row))
+            rows.append('')
         return(rows)
     
     def get_url_string(self):

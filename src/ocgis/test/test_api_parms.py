@@ -30,7 +30,6 @@ class Test(unittest.TestCase):
         with self.assertRaises(DefinitionValidationError):
             so.value = 'clips'
         so.value = 'clip'
-        print so.get_meta()
             
     def test_output_format(self):
         so = OutputFormat('csv')
@@ -94,7 +93,7 @@ class Test(unittest.TestCase):
         
         g = Geom(None)
         self.assertNotEqual(g.value,None)
-        self.assertEqual(str(g),'geom=none')
+        self.assertEqual(str(g),'geom=None')
         
         g = Geom('-120|40|-110|50')
         self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))

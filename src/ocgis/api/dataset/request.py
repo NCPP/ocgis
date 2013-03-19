@@ -64,7 +64,7 @@ class RequestDataset(object):
         
         ip = Inspect(self.uri,variable=self.variable,
                      interface_overload=self.interface)
-        print(ip)
+        return(ip)
     
     @property
     def interface(self):
@@ -147,15 +147,24 @@ class RequestDataset(object):
         self.level_range = ret
         
     def _get_meta_rows_(self):
-        rows = ['URI: {0}'.format(self.uri),
-                'Variable: {0}'.format(self.variable),
-                'Alias: {0}'.format(self.alias),
-                'Time Range: {0}'.format(self.time_range),
-                'Level Range: {0}'.format(self.level_range),
-                'Overloaded Parameters:',
-                '  PROJ4 String: {0}'.format(self.s_proj),
-                '  Time Units: {0}'.format(self.t_units),
-                '  Time Calendar: {0}'.format(self.t_calendar)]
+        if self.time_range is None:
+            tr = None
+        else:
+            tr = '{0} to {1} (inclusive)'.format(self.time_range[0],self.time_range[1])
+        if self.level_range is None:
+            lr = None
+        else:
+            lr = '{0} to {1} (inclusive)'.format(self.level_range[0],self.level_range[1])
+        
+        rows = ['    URI: {0}'.format(self.uri),
+                '    Variable: {0}'.format(self.variable),
+                '    Alias: {0}'.format(self.alias),
+                '    Time Range: {0}'.format(tr),
+                '    Level Range: {0}'.format(lr),
+                '    Overloaded Parameters:',
+                '      PROJ4 String: {0}'.format(self.s_proj),
+                '      Time Units: {0}'.format(self.t_units),
+                '      Time Calendar: {0}'.format(self.t_calendar)]
         return(rows)
     
     
@@ -226,3 +235,10 @@ class RequestDatasetCollection(object):
                            .format(request_dataset.alias)))
         else:
             self._s.update({request_dataset.alias:request_dataset})
+            
+    def _get_meta_rows_(self):
+        rows = ['dataset=']
+        for value in self._s.itervalues():
+            rows += value._get_meta_rows_()
+            rows.append('')
+        return(rows)

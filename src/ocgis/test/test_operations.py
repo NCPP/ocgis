@@ -30,8 +30,11 @@ class Test(unittest.TestCase):
         meta = ops.get_meta()
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
-        print(meta)
-        import ipdb;ipdb.set_trace()
+        
+        ops = OcgOperations(dataset=self.datasets,calc=[{'func':'mean','name':'my_mean'}])
+        meta = ops.get_meta()
+        self.assertTrue(len(meta) > 100)
+        self.assertTrue('\n' in meta)
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
@@ -73,7 +76,7 @@ class Test(unittest.TestCase):
         
         g = definition.Geom(None)
         self.assertNotEqual(g.value,None)
-        self.assertEqual(str(g),'geom=none')
+        self.assertEqual(str(g),'geom=None')
         
         g = definition.Geom('-120|40|-110|50')
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')

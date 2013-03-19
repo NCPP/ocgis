@@ -1,6 +1,7 @@
 import datetime
 import ocgis
 from ocgis.api.parms.base import OcgParameter
+from ocgis.util.justify import justify_row
 
 
 HEADERS = {
@@ -37,7 +38,7 @@ class MetaConverter(object):
         lines.append('')
         sh = sorted(HEADERS)
         for key in sh:
-            msg = '  {0} :: {1}'.format(key.upper(),HEADERS[key])
+            msg = '  {0} :: {1}'.format(key.upper(),'\n'.join(justify_row(HEADERS[key]))).replace('::     ',':: ')
             lines.append(msg)
         lines.append('')
         lines.append('== Argument Definitions and Content Descriptions ==')

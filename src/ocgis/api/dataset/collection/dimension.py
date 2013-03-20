@@ -142,14 +142,9 @@ class TemporalDimension(OcgDimension):
     
     def group(self,*args):
         '''
-        ('month',2)
         (['month','year'])
         '''
-        if len(args) == 2:
-            new_value,new_bounds,dgroups = self._group_part_count_(*args)
-        else:
-            new_value,new_bounds,dgroups = self._group_part_(*args)
-        
+        new_value,new_bounds,dgroups = self._group_part_(*args)
         return(TemporalGroupDimension(new_value,new_bounds,dgroups,args[0]))
     
     def _group_part_(self,groups):

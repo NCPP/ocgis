@@ -43,9 +43,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'OpenClimateGIS'
-copyright = (u'2013, NOAA Environmental Software Infrastructure and '
-             'Interoperability (NESII) Group, National Oceanic and Atmospheric '
-             'Administration (NOAA)')
+copyright = (u'2013, University of Michigan-Ann Arbor, Michigan Technological University, University of Colorado-Boulder')
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

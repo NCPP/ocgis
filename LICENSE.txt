@@ -1,6 +1,7 @@
 OpenClimateGIS (OCGIS)
 
-Copyright 2013: National Oceanic and Atmospheric Administration (NOAA)
+Copyright 2013: University of Michigan-Ann Arbor, Michigan Technological
+  University, University of Colorado-Boulder
 
 Licensed under the University of Illinois-NCSA License.
 
@@ -16,10 +17,10 @@ furnished to do so, subject to the following conditions:
      notice, this list of conditions and the following disclaimers in the
      documentation and/or other materials provided with the distribution.
   3. Neither the names of the NOAA Environmental Software Infrastructure and 
-     Interoperability (NESII) Group, National Oceanic and Atmospheric 
-     Administration, nor the names of its contributors may be used to 
-     endorse or promote products derived from this Software without specific 
-     prior written permission.
+     Interoperability (NESII) Group, University of Michigan-Ann Arbor, 
+     Michigan Technological University, University of Colorado-Boulder, nor 
+     the names of its contributors may be used to endorse or promote products 
+     derived from this Software without specific prior written permission.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,

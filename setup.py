@@ -126,7 +126,7 @@ def install_dependencies_ubuntu():
     os.unsetenv('LDFLAGS')
     os.unsetenv('CPPFLAGS')
     
-    nc4p = 'netCDF4-1.0.2'
+    nc4p = 'netCDF4-1.0.4'
     nc4p_tarball = '{0}.tar.gz'.format(nc4p)
     nc4p_url = 'http://netcdf4-python.googlecode.com/files/{0}'.format(nc4p_tarball)
     call(['ldconfig'])

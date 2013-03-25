@@ -12,6 +12,7 @@ import os.path
 from ocgis.api.parms import definition
 from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
+import pickle
 
 
 class Test(unittest.TestCase):
@@ -149,6 +150,14 @@ class Test(unittest.TestCase):
 class TestRequestDatasets(unittest.TestCase):
     uri = '/usr/local/climate_data/CanCM4/rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
     variable = 'rhs'
+    
+    def test_pickle(self):
+        rd = RequestDataset(uri=self.uri,variable=self.variable)
+        with open('/tmp/rd.pkl','w') as f:
+            pickle.dump(rd,f)
+        with open('/tmp/rd.pkl','r') as f:
+            rd2 = pickle.load(f)
+        self.assertTrue(rd == rd2)
     
     def test_inspect_method(self):
         rd = RequestDataset(self.uri,self.variable)

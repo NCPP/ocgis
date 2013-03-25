@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractproperty, abstractmethod
 from ocgis.exc import DefinitionValidationError
 from copy import deepcopy
 from ocgis.util.justify import justify_row
+from types import NoneType
 
 
 class OcgParameter(object):
@@ -20,7 +21,6 @@ class OcgParameter(object):
     def _get_meta_(self): return(list)
     
     def __init__(self,init_value=None):
-        self._check_types = list(self.input_types) + [basestring,type(None)]
         if init_value is None:
             self.value = self.default
         else:
@@ -33,9 +33,10 @@ class OcgParameter(object):
     def _get_value_(self):
         return(self._value)
     def _set_value_(self,value):
-        type_matches = map(lambda x: isinstance(value,x),self._check_types)
+        input_types = self.input_types + [basestring,NoneType]
+        type_matches = map(lambda x: isinstance(value,x),input_types)
         if not any(type_matches):
-            raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(self._check_types,type(value))))
+            raise(DefinitionValidationError(self,'Input value type "{1}" is not in accepted types: {0}'.format(input_types,type(value))))
         if isinstance(value,basestring):
             value = self.parse_string(value)
         else:

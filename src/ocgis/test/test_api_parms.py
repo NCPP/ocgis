@@ -3,6 +3,7 @@ from ocgis.api.parms.definition import *
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.util.helpers import make_poly
 from ocgis.util.shp_cabinet import ShpCabinet
+import pickle
 
 
 class Test(unittest.TestCase):
@@ -78,6 +79,10 @@ class Test(unittest.TestCase):
         dd = Dataset(rd)
         us = dd.get_url_string()
         self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        
+        with open('/tmp/dd.pkl','w') as f:
+#            import ipdb;ipdb.set_trace()
+            pickle.dump(dd,f)
         
         uri = '/a/bad/path'
         with self.assertRaises(ValueError):

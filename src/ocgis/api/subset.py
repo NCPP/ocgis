@@ -127,9 +127,18 @@ def get_collection((so,geom_dict)):
     OcgCollection
     geom_dict :: dict'''
     
-    #tdk
+#    tdk
+    import pickle
+#    import ipdb;ipdb.set_trace()
+#    ref = so.ops.dataset._s['rhsmax'].ocg_dataset.i.temporal
+#    import ipdb;ipdb.set_trace()
+    with open('/tmp/out.pkl','w') as f:
+        pickle.dump(so.ops.dataset,f)
+#        pickle.dump(so.ops.dataset._s['rhsmax'].ocg_dataset,f)
+#        pickle.dump(so.ops.dataset._s['rhsmax'],f)
+#        pickle.dump(ref,f)
     import ipdb;ipdb.set_trace()
-    #/tdk
+#    /tdk
     
     
     ## using the OcgDataset objects built in the SubsetOperation constructor

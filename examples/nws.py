@@ -14,15 +14,16 @@ def main():
     rds = [ocgis.RequestDataset(fn,var) for fn,var in zip(filenames,variables)]
     
     ## build calculations
-    funcs = ['mean','std','min','max','median']
+    funcs = ['mean']
+#    funcs = ['mean','std','min','max','median']
     calc = [{'func':func,'name':func} for func in funcs]
     
     ## operations
     select_ugid = [2001,2002,2003,2004,2005,2006,2007,2008,2009,2010]
-    calc_grouping = ['month']
+    calc_grouping = ['month','year']
     snippet = True
     geom = 'climate_divisions'
-    output_format = 'shp'
+    output_format = 'numpy'
     ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,snippet=snippet,
      output_format=output_format,geom=geom,calc=calc,calc_grouping=calc_grouping,
      spatial_operation='clip',aggregate=True)

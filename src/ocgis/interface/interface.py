@@ -19,7 +19,7 @@ class GlobalInterface(object):
         self.target_var = target_var
         self._meta = NcMetadata(rootgrp)
         self._dim_map = self._get_dimension_map_(rootgrp)
-        
+
         interfaces = [LevelInterface,TemporalInterface,RowInterface,ColumnInterface]
         for interface in interfaces:
             try:
@@ -53,6 +53,10 @@ class GlobalInterface(object):
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:
             self.spatial = SpatialInterfacePoint(self._row,self._col,projection)
+    
+    def __getstate__(self):
+        self._dim_map = None
+        return(self)
     
     def _get_axis_(self,dimvar,dims,dim):
         try:

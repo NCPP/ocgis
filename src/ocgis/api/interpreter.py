@@ -54,17 +54,16 @@ class OcgInterpreter(Interpreter):
         prefix = self.ops.prefix
             
         ## do directory management.
-        outdir = os.path.join(env.DIR_OUTPUT,prefix)
-        if os.path.exists(outdir):
-            if env.OVERWRITE:
-                shutil.rmtree(outdir)
-            else:
-                raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
-        os.mkdir(outdir)
-        
-        if self.ops.select_ugid is not None:
-            geom = self.ops._get_object_('geom')
-            geom._filter_by_ugid_(self.ops.select_ugid['ugid'])
+        if self.ops.output_format == 'numpy':
+            outdir = None
+        else:
+            outdir = os.path.join(env.DIR_OUTPUT,prefix)
+            if os.path.exists(outdir):
+                if env.OVERWRITE:
+                    shutil.rmtree(outdir)
+                else:
+                    raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
+            os.mkdir(outdir)
             
         ## determine if data is remote or local. if the data is remote, it needs
         ## to be downloaded to a temporary location then the calculations

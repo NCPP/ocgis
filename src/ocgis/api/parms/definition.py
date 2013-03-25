@@ -296,10 +296,16 @@ class Geom(base.IterableParameter,base.OcgParameter):
             sc = ShpCabinet()
             if value in sc.keys():
                 self._shp_key = value
-                if self.select_ugid is None or self.select_ugid.value is None:
+                ## get the select_ugid test value.
+                try:
+                    test_value = self.select_ugid.value
+                except AttributeError:
+                    test_value = self.select_ugid
+                ## return the geometries
+                if test_value is None:
                     ret = sc.get_geoms(value)
                 else:
-                    ret = sc.get_geoms(value,attr_filter={'ugid':self.select_ugid.value})
+                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
         return(ret)
     
     def _get_meta_(self):

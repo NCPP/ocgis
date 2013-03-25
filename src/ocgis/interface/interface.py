@@ -54,10 +54,6 @@ class GlobalInterface(object):
         else:
             self.spatial = SpatialInterfacePoint(self._row,self._col,projection)
     
-    def __getstate__(self):
-        self._dim_map = None
-        return(self)
-    
     def _get_axis_(self,dimvar,dims,dim):
         try:
             axis = getattr(dimvar,'axis')

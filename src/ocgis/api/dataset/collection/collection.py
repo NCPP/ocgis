@@ -11,6 +11,7 @@ from ocgis.util.helpers import iter_array, keep
 from ocgis.exc import UniqueIdNotFound
 from collections import deque
 import itertools
+from ocgis.interface.projection import OcgSpatialReference
 
 
 class OcgVariable(object):
@@ -40,6 +41,10 @@ class OcgVariable(object):
         self._i = None
         ## tell the keyed iterator which ids should be pulled
         self._use_for_id = []
+        
+    def __getstate__(self):
+        self._i = None
+        return(self.__dict__)
         
     @property
     def name(self):
@@ -149,6 +154,16 @@ class OcgCollection(object):
         self.did = StringIdentifier() ## dataset (uri)
         ## holds variables
         self.variables = OrderedDict()
+        
+    def __getstate__(self):
+#        import ipdb;ipdb.set_trace()
+        ret = self.__dict__
+        ret['projection'] = self.projection.sr.ExportToProj4()
+        return(ret)
+    
+    def __setstate__(self,state):
+        state['projection'] = OcgSpatialReference(state['projection'])
+        self.__dict__ = state
         
     @property
     def geomtype(self):

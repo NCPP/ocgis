@@ -128,16 +128,21 @@ def get_collection((so,geom_dict)):
     geom_dict :: dict'''
     
 #    tdk
-    import pickle
+#    import pickle
+##    import ipdb;ipdb.set_trace()
+##    ref = so.ops.dataset._s['rhsmax'].ocg_dataset.i.temporal
+##    import ipdb;ipdb.set_trace()
+##    for k,v in so.ops.dataset._s.iteritems():
+##        v.ocg_dataset = None
+##        import ipdb;ipdb.set_trace()
+#    with open('/tmp/out.pkl','w') as f:
+#        pickle.dump(so.ops,f)
+##        pickle.dump(so.ops.dataset._s['rhsmax'].ocg_dataset,f)
+##        pickle.dump(so.ops.dataset._s['rhsmax'],f)
+##        pickle.dump(ref,f)
+#    with open('/tmp/out.pkl','r') as f:
+#        ops = pickle.load(f)
 #    import ipdb;ipdb.set_trace()
-#    ref = so.ops.dataset._s['rhsmax'].ocg_dataset.i.temporal
-#    import ipdb;ipdb.set_trace()
-    with open('/tmp/out.pkl','w') as f:
-        pickle.dump(so.ops.dataset,f)
-#        pickle.dump(so.ops.dataset._s['rhsmax'].ocg_dataset,f)
-#        pickle.dump(so.ops.dataset._s['rhsmax'],f)
-#        pickle.dump(ref,f)
-    import ipdb;ipdb.set_trace()
 #    /tdk
     
     
@@ -202,6 +207,16 @@ def get_collection((so,geom_dict)):
     ## do the requested calculations.
     if so.cengine is not None:
         so.cengine.execute(coll)
+    
+    #tdk
+#    import pickle
+#    with open('/tmp/coll.pkl','w') as f:
+#        pickle.dump(coll,f)
+#    with open('/tmp/coll.pkl','r') as f:
+#        coll = pickle.load(f)
+#    import ipdb;ipdb.set_trace()
+    #/tdk
+        
     ## conversion of groups.
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)

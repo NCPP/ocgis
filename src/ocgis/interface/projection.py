@@ -82,8 +82,10 @@ class OcgSpatialReference(object):
 #            ret = geom.ExportToWkb()
         return(ret)
     
-    def get_sr(self,*args,**kwds):
-        raise(NotImplementedError)
+    def get_sr(self,proj4_str):
+        sr = osr.SpatialReference()
+        sr.ImportFromProj4(proj4_str)
+        return(sr)
     
     
 class SridSpatialReference(OcgSpatialReference):

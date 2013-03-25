@@ -1,9 +1,10 @@
 import unittest
 import sys
-
-
+from nose.plugins.skip import SkipTest
 sys.path.append('/home/local/WX/ben.koziol/links/git/examples')
 
+
+raise(SkipTest(__name__))
 
 class Test(unittest.TestCase):
 

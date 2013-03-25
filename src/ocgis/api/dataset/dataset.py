@@ -21,6 +21,7 @@ class OcgDataset(object):
     def __init__(self,dataset,interface_overload={}):
         self.uri = dataset['uri']
         self.variable = dataset['variable']
+        self._interface_overload = interface_overload
 
         ## construct interface
         self.dataset = self.connect(self.uri)
@@ -28,6 +29,15 @@ class OcgDataset(object):
             self.i = GlobalInterface(self.dataset,self.variable,overload=interface_overload)
         finally:
             self.dataset.close()
+            
+    def __getstate__(self):
+        self.i = None
+        self.dataset = None
+        return(self.__dict__)
+    
+    def __setstate__(self,state):
+        self.__init__({'uri':state['uri'],'variable':state['variable']},
+                      interface_overload=state['_interface_overload'])
     
     def connect(self,uri):
         try:

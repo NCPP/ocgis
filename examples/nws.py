@@ -2,8 +2,8 @@ import ocgis
 
 
 def main():
-    ocgis.env.CORES = 2
-    ocgis.env.SERIAL = True
+    ocgis.env.CORES = 7
+    ocgis.env.SERIAL = False
     ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
     
     
@@ -23,12 +23,11 @@ def main():
     calc_grouping = ['month','year']
     snippet = True
     geom = 'climate_divisions'
-    output_format = 'numpy'
+    output_format = 'shp'
     ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,snippet=snippet,
      output_format=output_format,geom=geom,calc=calc,calc_grouping=calc_grouping,
      spatial_operation='clip',aggregate=True)
     ret = ops.execute()
-    import ipdb;ipdb.set_trace()
     
     
 if __name__ == '__main__':

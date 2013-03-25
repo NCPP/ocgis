@@ -3,7 +3,7 @@ import ocgis
 
 def main():
     ocgis.env.CORES = 2
-    ocgis.env.SERIAL = False
+    ocgis.env.SERIAL = True
     ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
     
     

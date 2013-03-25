@@ -127,6 +127,11 @@ def get_collection((so,geom_dict)):
     OcgCollection
     geom_dict :: dict'''
     
+    #tdk
+    import ipdb;ipdb.set_trace()
+    #/tdk
+    
+    
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     

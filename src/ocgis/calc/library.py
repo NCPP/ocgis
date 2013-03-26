@@ -4,6 +4,27 @@ import numpy as np
 from ocgis.util.helpers import iter_array
 
 
+class FrequencyPercentile(OcgArgFunction):
+    name = 'freq_perc'
+    nargs = 2
+    Group = groups.Percentiles
+    dtype = float
+    description = 'Percentile value matching "perc" and index rounded according to "round_method" (ceil/floor)'
+    
+    @staticmethod
+    def _calculate_(values,perc=None,round_method=None):
+        ## sort the data
+        cseq = values.copy()
+        cseq.sort(axis=0)
+        ## reference the time vector length
+        n = cseq.shape[0]
+        ## calculate the index
+        idx = getattr(np,round_method)(perc*n)
+        ## get the percentiles
+        ret = cseq[idx,:,:,:]
+        return(ret)
+
+
 class SampleSize(OcgFunction):
     '''
     .. note:: Automatically added by OpenClimateGIS. This should generally not be invoked manually.

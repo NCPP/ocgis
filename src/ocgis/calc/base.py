@@ -72,7 +72,7 @@ class OcgFunction(object):
     @abc.abstractproperty
     def description(self): str
     @abc.abstractproperty
-    def Group(self): 'OcgFunctionGroup'
+    def Group(self): OcgFunctionGroup
     @abc.abstractproperty
     def dtype(self): type
     

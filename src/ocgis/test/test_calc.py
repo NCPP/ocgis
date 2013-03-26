@@ -149,7 +149,7 @@ class Test(unittest.TestCase):
         ## get the percentiles
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
-
+        
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

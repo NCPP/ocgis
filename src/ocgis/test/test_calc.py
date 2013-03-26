@@ -111,6 +111,44 @@ class Test(unittest.TestCase):
                                   output_format='nc')
         ret = ops.execute()
         ip = ocgis.Inspect(ret,variable='n')
+        
+    def test_frequency_percentiles(self):
+        ## data comes in as 4-dimensional array. (time,level,row,column)
+        
+        perc = 0.95
+        round_method = 'ceil' #floor
+        
+        ## generate gaussian sequence
+        np.random.seed(1)
+        seq = np.random.normal(size=(31,1,2,2))
+        seq = np.ma.array(seq,mask=False)
+        ## sort the data
+        cseq = seq.copy()
+        cseq.sort(axis=0)
+        ## reference the time vector length
+        n = cseq.shape[0]
+        ## calculate the index
+        idx = getattr(np,round_method)(perc*n)
+        ## get the percentiles
+        ret = cseq[idx,:,:,:]
+        self.assertAlmostEqual(7.2835104624617717,ret.sum())
+        
+        ## generate gaussian sequence
+        np.random.seed(1)
+        seq = np.random.normal(size=(31,1,2,2))
+        mask = np.zeros((31,1,2,2))
+        mask[:,:,1,1] = True
+        seq = np.ma.array(seq,mask=mask)
+        ## sort the data
+        cseq = seq.copy()
+        cseq.sort(axis=0)
+        ## reference the time vector length
+        n = cseq.shape[0]
+        ## calculate the index
+        idx = getattr(np,round_method)(perc*n)
+        ## get the percentiles
+        ret = cseq[idx,:,:,:]
+        self.assertAlmostEqual(5.1832553259829295,ret.sum())
 
 
 if __name__ == "__main__":

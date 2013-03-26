@@ -4,6 +4,8 @@ from ocgis.util.helpers import itersubclasses
 import groups
 import numpy as np
 import itertools
+import abc
+from ocgis.calc.groups import OcgFunctionGroup
 
 
 class OcgFunctionTree(object):
@@ -65,13 +67,19 @@ class OcgFunctionTree(object):
 
 
 class OcgFunction(object):
+    __metaclass__ = abc.ABCMeta
+    
+    @abc.abstractproperty
+    def description(self): str
+    @abc.abstractproperty
+    def Group(self): 'OcgFunctionGroup'
+    @abc.abstractproperty
+    def dtype(self): type
+    
     text = None
-    description = None
+    nargs = 0
     checked = False
     name = None
-    Group = None
-    nargs = 0
-    dtype = None
     
     def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={}):
         self.values = values
@@ -84,9 +92,6 @@ class OcgFunction(object):
             self.text = self.__class__.__name__
         if self.name is None:
             self.name = self.text.lower()
-        
-        for attr in [self.description,self.Group,self.dtype]:
-            assert(attr is not None)
     
     def calculate(self):
         ## holds output from calculation
@@ -114,6 +119,7 @@ class OcgFunction(object):
         return(ret)
     
     @staticmethod
+    @abc.abstractmethod
     def _calculate_(values,**kwds):
         raise(NotImplementedError)
     
@@ -139,18 +145,19 @@ class OcgFunction(object):
 
 
 class OcgArgFunction(OcgFunction):
-    nargs = None
+    __metaclass__ = abc.ABCMeta
     
-    def __init__(self,*args,**kwds):
-        assert(self.nargs)
-        super(OcgArgFunction,self).__init__(*args,**kwds)
+    @abc.abstractproperty
+    def nargs(self): int
         
         
 class OcgCvArgFunction(OcgArgFunction):
-    keys = None
+    __metaclass__ = abc.ABCMeta
+    
+    @abc.abstractproperty
+    def keys(self): [str]
     
     def __init__(self,groups=None,agg=False,weights=None,kwds={}):
-        assert(self.keys)
         super(OcgCvArgFunction,self).__init__(values=kwds,groups=groups,agg=agg,weights=weights,kwds=kwds)
     
     def calculate(self):

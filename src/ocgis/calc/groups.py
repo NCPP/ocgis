@@ -1,8 +1,12 @@
 from ocgis.util.helpers import itersubclasses
+import abc
 
 
 class OcgFunctionGroup(object):
-    name = None
+    __metaclass__ = abc.ABCMeta
+    
+    @abc.abstractproperty
+    def name(self): str
     
     def __init__(self):
         from base import OcgFunction
@@ -33,3 +37,7 @@ class Thresholds(OcgFunctionGroup):
 
 class MultivariateStatistics(OcgFunctionGroup):
     name = 'Multivariate Statistics'
+    
+    
+class Percentiles(OcgFunctionGroup):
+    name = 'Percentiles'

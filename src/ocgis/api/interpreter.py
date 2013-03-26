@@ -48,6 +48,9 @@ class OcgInterpreter(Interpreter):
         definition.identify_iterator_mode(self.ops)
     
     def execute(self):
+        if env.VERBOSE:
+            print('executing...')
+            
         self.check() ## run validation
         
         ## check for a user-supplied output prefix
@@ -104,4 +107,8 @@ class OcgInterpreter(Interpreter):
                 ret = conv.write()
             else:
                 raise(NotImplementedError)
+        
+        if env.VERBOSE:
+            print('execution complete.')
+            
         return(ret)

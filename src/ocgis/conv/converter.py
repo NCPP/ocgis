@@ -1,8 +1,6 @@
-from ocgis.util.helpers import get_temp_path, vprint
 from ocgis.api.dataset.collection.iterators import MeltedIterator
 from ocgis.conv.meta import MetaConverter
 import os.path
-import tempfile
 
 
 class OcgConverter(object):

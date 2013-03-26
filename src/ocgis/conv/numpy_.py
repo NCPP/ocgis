@@ -1,5 +1,4 @@
 from ocgis.conv.converter import OcgConverter
-from ocgis.util.helpers import vprint
 
     
 class NumpyConverter(OcgConverter):

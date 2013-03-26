@@ -121,11 +121,6 @@ def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
 def append(arr,value):
     arr.resize(arr.shape[0]+1,refcheck=False)
     arr[arr.shape[0]-1] = value
-            
-def vprint(msg):
-    from ocgis import env
-    if env.VERBOSE:
-        print(msg)
 
 def iter_array(a,use_mask=True,return_value=False):
     try:

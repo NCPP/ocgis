@@ -3,10 +3,11 @@ import ocgis
 
 def main():
     ocgis.env.CORES = 7
-    ocgis.env.SERIAL = False
+    ocgis.env.SERIAL = True
     ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
     ocgis.env.DIR_OUTPUT = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/2013_nws_gis_workshop'
     ocgis.env.OVERWRITE = True
+    ocgis.env.VERBOSE = True
     
     
     ## build request datasets
@@ -28,10 +29,10 @@ def main():
     ## operations
 #    select_ugid = [2001,2002,2003,2004,2005,2006,2007,2008,2009,2010]
     select_ugid = None
-    calc_grouping = ['month','year']
-    snippet = True
+    calc_grouping = ['month']
+    snippet = False
     geom = 'climate_divisions'
-    output_format = 'shp'
+    output_format = 'csv'
     ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,snippet=snippet,
      output_format=output_format,geom=geom,calc=calc,calc_grouping=calc_grouping,
      spatial_operation='clip',aggregate=True)

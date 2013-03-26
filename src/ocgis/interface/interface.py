@@ -3,7 +3,7 @@ from ocgis.interface.ncmeta import NcMetadata
 import inspect
 import netCDF4 as nc
 import datetime
-from ocgis.util.helpers import iter_array, approx_resolution, vprint, contains,\
+from ocgis.util.helpers import iter_array, approx_resolution, contains,\
     append
 import numpy as np
 from ocgis.interface.projection import get_projection
@@ -379,7 +379,6 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         return(geom,row,col)
     
     def _select_(self,polygon):
-        vprint('entering select...')
 #        prep_polygon = prepared.prep(polygon)
         emin_col,emin_row,emax_col,emax_row = polygon.envelope.bounds
         smin_col = contains(self.min_col,
@@ -396,9 +395,7 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                             self.resolution)
         include = np.any((smin_col,smax_col),axis=0)*\
                   np.any((smin_row,smax_row),axis=0)
-        vprint('initial subset complete.')
         
-        vprint('building spatial index...')
         from ocgis.util.spatial import index as si
         grid = si.build_index_grid(30.0,polygon)
         index = si.build_index(polygon,grid)
@@ -417,7 +414,6 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
         max_col = self.max_col
 #        append = append
         
-        vprint('starting main loop...')
         for ii,jj in iter_array(include,use_mask=False):
             if include[ii,jj]:
                 test_geom = Polygon(((min_col[ii,jj],min_row[ii,jj]),
@@ -428,7 +424,6 @@ class SpatialInterfacePolygon(AbstractSpatialInterface):
                 if index_intersects(test_geom,index):
                     append(row,real_row[ii,jj])
                     append(col,real_col[ii,jj])
-        vprint('main select loop finished.')
         
         return(geom,row,col)  
 

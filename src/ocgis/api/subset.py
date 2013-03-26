@@ -10,6 +10,7 @@ from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
 from ocgis.api.dataset.mappers import EqualSpatialDimensionMapper,\
     EqualTemporalDimensionMapper, EqualLevelDimensionMapper
+from ocgis import env
 
 
 class SubsetOperation(object):
@@ -145,6 +146,8 @@ def get_collection((so,geom_dict)):
 #    import ipdb;ipdb.set_trace()
 #    /tdk
     
+    if env.VERBOSE:
+        print('processing geometry with UGID {0}...'.format(geom_dict['ugid']))
     
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
@@ -216,6 +219,9 @@ def get_collection((so,geom_dict)):
 #        coll = pickle.load(f)
 #    import ipdb;ipdb.set_trace()
     #/tdk
+    
+    if env.VERBOSE:
+        print(' complete.'.format(geom_dict['ugid']))
         
     ## conversion of groups.
     if so.ops.output_grouping is not None:

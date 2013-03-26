@@ -265,7 +265,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
     value = property(_get_value_,base.OcgParameter._set_value_)
     
     def get_url_string(self):
-        if len(self.value) > 1:
+        if len(self.value) > 1 and self._shp_key is None:
             raise(CannotEncodeUrl('Too many custom geometries to encode.'))
         else:
             ret = str(self)

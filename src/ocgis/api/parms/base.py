@@ -187,7 +187,10 @@ class IterableParameter(object):
         return(ret)
 
     def get_url_string(self):
-        ret = self.split_string.join([self.element_to_string(element) for element in self.value]).lower()
+        if self.value is None:
+            ret = 'none'
+        else:
+            ret = self.split_string.join([self.element_to_string(element) for element in self.value]).lower()
         return(ret)
     
     def element_to_string(self,element):

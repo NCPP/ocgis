@@ -168,7 +168,10 @@ class OcgOperations(object):
             if key in ['request_url']:
                 continue
             if isinstance(value, OcgParameter):
-                parts.append(str(value))
+                if isinstance(value,Dataset):
+                    parts.append(value.get_url_string())
+                else:
+                    parts.append('{0}={1}'.format(value.name,value.get_url_string()))
         ret = '/subset?' + '&'.join(parts)
         return(ret)
         

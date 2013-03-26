@@ -13,6 +13,7 @@ from ocgis.api.parms import definition
 from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 import pickle
+import ocgis
 
 
 class Test(unittest.TestCase):
@@ -145,6 +146,37 @@ class Test(unittest.TestCase):
         for v,a in zip(values,ast):
             obj = klass(v)
             self.assertEqual(obj.value,a)
+            
+    def test_as_url(self):
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
+        
+        ## build request datasets
+        filenames = [
+    #                 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                     'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
+                     ]
+        variables = [
+    #                 'rhsmax',
+                     'tasmax'
+                     ]
+        rds = [ocgis.RequestDataset(fn,var) for fn,var in zip(filenames,variables)]
+        
+        ## build calculations
+        funcs = ['mean','std']
+    #    funcs = ['mean','std','min','max','median']
+        calc = [{'func':func,'name':func} for func in funcs]
+        
+        ## operations
+        select_ugid = None
+        calc_grouping = ['month']
+        snippet = False
+        geom = 'climate_divisions'
+        output_format = 'csv'
+        ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,snippet=snippet,
+         output_format=output_format,geom=geom,calc=calc,calc_grouping=calc_grouping,
+         spatial_operation='clip',aggregate=True)
+        url = ops.as_url()
+        self.assertEqual(url,'/subset?snippet=0&abstraction=polygon&calc_raw=0&agg_selection=0&output_format=csv&spatial_operation=clip&uri=/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc&variable=tasmax&alias=tasmax&t_units=none&t_calendar=none&s_proj=none&calc_grouping=month&prefix=ocgis_output&geom=climate_divisions&allow_empty=0&vector_wrap=1&aggregate=1&select_ugid=none&calc=mean~mean|std~std&backend=ocg')
             
         
 class TestRequestDatasets(unittest.TestCase):

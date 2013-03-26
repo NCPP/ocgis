@@ -43,7 +43,19 @@ def write_climate_divisions():
     geoms = sc.get_geoms('climate_divisions')
     sc.write(geoms,path)
     
+def write_overlay():
+    ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
+    ocgis.env.DIR_OUTPUT = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/2013_nws_gis_workshop'
+    
+    rd = ocgis.RequestDataset(uri='tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                              variable='tasmax')
+    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shpidx',
+                              prefix='overlay')
+    ret = ops.execute()
+    print(ret)
+    
     
 if __name__ == '__main__':
 #    main()
-    write_climate_divisions()
+#    write_climate_divisions()
+    write_overlay()

@@ -2,11 +2,9 @@ import ocgis
 
 
 def main():
-    ocgis.env.CORES = 7
-    ocgis.env.SERIAL = True
     ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
     ocgis.env.DIR_OUTPUT = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/2013_nws_gis_workshop'
-    ocgis.env.OVERWRITE = True
+    ocgis.env.OVERWRITE = False
     ocgis.env.VERBOSE = True
     
     
@@ -39,6 +37,13 @@ def main():
     ret = ops.execute()
     print(ret)
     
+def write_climate_divisions():
+    sc = ocgis.ShpCabinet()
+    path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/2013_nws_gis_workshop/climate_divisions/cd.shp'
+    geoms = sc.get_geoms('climate_divisions')
+    sc.write(geoms,path)
+    
     
 if __name__ == '__main__':
-    main()
+#    main()
+    write_climate_divisions()

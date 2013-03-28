@@ -3,26 +3,14 @@ import ocgis
 
 def main():
     ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
-    ocgis.env.DIR_OUTPUT = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/presentation/2013_nws_gis_workshop'
-    ocgis.env.OVERWRITE = False
-    ocgis.env.VERBOSE = True
+    ocgis.env.DIR_OUTPUT = '.../presentation/2013_nws_gis_workshop'
     
-    
-    ## build request datasets
-    filenames = [
-#                 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
-                 ]
-    variables = [
-#                 'rhsmax',
-                 'tasmax'
-                 ]
-    rds = [ocgis.RequestDataset(fn,var) for fn,var in zip(filenames,variables)]
-    
-    ## build calculations
-    funcs = ['mean','std']
-#    funcs = ['mean','std','min','max','median']
-    calc = [{'func':func,'name':func} for func in funcs]
+    rd = ocgis.RequestDataset(uri='tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                              variable='tasmax')
+    calc = [{'func':'mean','name':'mean','func':'std','name':'std'}]
+    ops = ocgis.OcgOperations(dataset=rd,geom='climate_divisions',spatial_operation='clip',
+                              aggregate=True,calc=calc,calc_grouping=['month'],output_format='csv')
+    ret = ops.execute()
     
     ## operations
 #    select_ugid = [2001,2002,2003,2004,2005,2006,2007,2008,2009,2010]

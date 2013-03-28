@@ -14,15 +14,6 @@ def main():
                 format='%(asctime)s %(levelname)s %(message)s',
                 filename='ncpp.log',
                 filemode='w')
-    # define a Handler which writes INFO messages or higher to the sys.stderr
-    console = log.StreamHandler()
-    console.setLevel(log.INFO)
-    # set a format which is simpler for console use
-    formatter = log.Formatter('%(asctime)s %(levelname)s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    log.getLogger('').addHandler(console)
     
     files = []
     for year in range(YEARS[0],YEARS[1]+1):

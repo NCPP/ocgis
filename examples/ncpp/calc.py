@@ -47,7 +47,9 @@ def decade():
     ## build ocgis operations ##################################################
     
     rd = ocgis.RequestDataset(uri=outfile,variable='tasmax')
-    calc = [{'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
+    calc = [{'func':'freq_perc','name':'perc_99','kwds':{'perc':0.99,'round_method':'ceil'}},
+            {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
+            {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'ceil'}},
             {'func':'mean','name':'mean'}]
     calc_grouping = ['month']
     snippet = True
@@ -55,7 +57,8 @@ def decade():
     geom = 'state_boundaries'
     ops = ocgis.OcgOperations(dataset=rd,snippet=snippet,geom=geom,select_ugid=select_ugid,
                         aggregate=False,spatial_operation='intersects',
-                        output_format='shp',calc=calc,calc_grouping=calc_grouping)
+                        output_format='nc',calc=calc,calc_grouping=calc_grouping,
+                        prefix='netcdf_output')
     ret = ops.execute()
     return(ret)
 

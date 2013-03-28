@@ -13,6 +13,7 @@ class FrequencyPercentile(OcgArgFunction):
     
     @staticmethod
     def _calculate_(values,perc=None,round_method=None):
+        perc = float(perc)
         ## sort the data
         cseq = values.copy()
         cseq.sort(axis=0)

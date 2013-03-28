@@ -17,6 +17,7 @@ def get_projection(dataset):
     if len(projs) == 1:
         ret = projs[0]
     elif len(projs) == 0:
+        warn('no projection information found assuming WGS84')
         ret = WGS84()
     else:
         raise(MultipleProjectionsFound)
@@ -109,14 +110,10 @@ class DatasetSpatialReference(OcgSpatialReference):
     _proj_str = None
         
     def get_sr(self,dataset=None):
-        try:
-            if dataset is not None:
-                proj_str = self._get_proj4_(dataset)
-                self._proj_str = proj_str
-            ret = self._get_sr_from_proj4_(self._proj_str)
-        except NoProjectionFound:
-            warn('no projection information found assuming WGS84')
-            raise
+        if dataset is not None:
+            proj_str = self._get_proj4_(dataset)
+            self._proj_str = proj_str
+        ret = self._get_sr_from_proj4_(self._proj_str)
         return(ret)
     
     @classmethod
@@ -145,6 +142,25 @@ class HostetlerProjection(DatasetSpatialReference):
             lat0 = var.latitude_of_projection_origin
             lon0 = var.longitude_of_central_meridian
             proj = proj.format(lat1=lat1,lat2=lat2,lat0=lat0,lon0=lon0)
+            return(proj)
+        except KeyError:
+            raise(NoProjectionFound)
+        
+        
+class LambertConformalConic(DatasetSpatialReference):
+    
+    def _get_proj4_(self,dataset):
+        try:
+            var = dataset.variables['lambert_conformal_conic']
+            proj = ('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '
+                    '+lon_0={lon0} +x_0={false_easting} +y_0={false_northing} +datum=WGS84 '
+                    '+units=km +no_defs ')
+            lat1,lat2 = var.standard_parallel[0],var.standard_parallel[1]
+            lat0 = var.latitude_of_projection_origin
+            lon0 = var.longitude_of_central_meridian
+            false_easting = var.false_easting
+            false_northing = var.false_northing
+            proj = proj.format(lat1=lat1,lat2=lat2,lat0=lat0,lon0=lon0,false_easting=false_easting,false_northing=false_northing)
             return(proj)
         except KeyError:
             raise(NoProjectionFound)

@@ -5,6 +5,7 @@ from ocgis import Inspect
 from ocgis.api.operations import OcgOperations
 from ocgis.util.shp_cabinet import ShpCabinet
 from nose.plugins.skip import SkipTest
+from ocgis.api.dataset.request import RequestDataset
 
 
 class Test(unittest.TestCase):
@@ -33,6 +34,12 @@ class Test(unittest.TestCase):
         ops = OcgOperations(dataset=ds,output_format='shp',snippet=True,
                             interface=iface)
         ret = ops.execute()
+        
+    def test_daymet(self):
+        uri = 'http://daymet.ornl.gov/thredds//dodsC/allcf/2011/9947_2011/tmax.nc'
+        variable = 'tmax'
+        ip = Inspect(uri,variable=variable)
+        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
 #    import sys;sys.argv = ['', 'TestSimpleMultiCalc01.test']

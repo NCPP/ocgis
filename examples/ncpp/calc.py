@@ -10,16 +10,20 @@ ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/bcca/obs/tasmax/1_8deg'
 
 def single_year():
     rd = ocgis.RequestDataset(uri='gridded_obs.tasmax.OBS_125deg.daily.1999.nc',
-                        variable='tasmax')
-    calc = [{'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
-            {'func':'mean','name':'mean'}]
+                              variable='tasmax')
+    calc = [
+            {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
+#            {'func':'mean','name':'mean'}
+            ]
     calc_grouping = ['month','year']
-    snippet = True
-    select_ugid = [32]
-    geom = 'state_boundaries'
+    snippet = False
+    select_ugid = None
+#    select_ugid = [32]
+    geom = None
+#    geom = 'state_boundaries'
     ops = ocgis.OcgOperations(dataset=rd,snippet=snippet,geom=geom,select_ugid=select_ugid,
                         aggregate=False,spatial_operation='intersects',
-                        output_format='shp',calc=calc,calc_grouping=calc_grouping)
+                        output_format='nc',calc=calc,calc_grouping=calc_grouping)
     ret = ops.execute()
     return(ret)
 
@@ -77,6 +81,6 @@ def profile():
     cProfile.run('decade()','profile.log')
 
 if __name__ == '__main__':
-#    ret = single_year()
-    ret = decade()
+    ret = single_year()
+#    ret = decade()
 #    profile()

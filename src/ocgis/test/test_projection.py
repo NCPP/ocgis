@@ -36,9 +36,16 @@ class Test(unittest.TestCase):
         ret = ops.execute()
         
     def test_daymet(self):
-        uri = 'http://daymet.ornl.gov/thredds//dodsC/allcf/2011/9947_2011/tmax.nc'
+#        uri = 'http://daymet.ornl.gov/thredds//dodsC/allcf/2011/9947_2011/tmax.nc'
+        uri = '/usr/local/climate_data/daymet/tmax.nc'
         variable = 'tmax'
-        ip = Inspect(uri,variable=variable)
+        rd = RequestDataset(uri=uri,variable=variable)
+        geom = 'state_boundaries'
+        select_ugid = [32]
+        snippet = True
+        ops = OcgOperations(dataset=rd,geom=geom,snippet=snippet,
+         select_ugid=select_ugid,output_format='shp')
+        ops.execute()
         import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":

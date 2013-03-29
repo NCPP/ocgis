@@ -2,6 +2,7 @@ import ocgis
 import os
 import tempfile
 from subprocess import check_call
+import cProfile
 
 
 ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/bcca/obs/tasmax/1_8deg'
@@ -47,21 +48,35 @@ def decade():
     ## build ocgis operations ##################################################
     
     rd = ocgis.RequestDataset(uri=outfile,variable='tasmax')
-    calc = [{'func':'freq_perc','name':'perc_99','kwds':{'perc':0.99,'round_method':'ceil'}},
-            {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
-            {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'ceil'}},
+    calc = [
+#            {'func':'freq_perc','name':'perc_99','kwds':{'perc':0.99,'round_method':'ceil'}},
+#            {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'ceil'}},
+#            {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'ceil'}},
             {'func':'mean','name':'mean'}]
+    for c in calc:
+        print(write_calc(rd,[c]))
+
+def write_calc(rd,calc):
+    ocgis.env.OVERWRITE = True
+    
     calc_grouping = ['month']
-    snippet = True
-    select_ugid = [32]
-    geom = 'state_boundaries'
+    snippet = False
+    prefix = 'calc_{0}'.format(calc[0]['name'])
+    select_ugid = None
+#    select_ugid = [32]
+    geom = None
+#    geom = 'state_boundaries'
     ops = ocgis.OcgOperations(dataset=rd,snippet=snippet,geom=geom,select_ugid=select_ugid,
                         aggregate=False,spatial_operation='intersects',
                         output_format='nc',calc=calc,calc_grouping=calc_grouping,
-                        prefix='netcdf_output')
+                        prefix=prefix)
     ret = ops.execute()
     return(ret)
+
+def profile():
+    cProfile.run('decade()','profile.log')
 
 if __name__ == '__main__':
 #    ret = single_year()
     ret = decade()
+#    profile()

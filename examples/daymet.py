@@ -9,7 +9,7 @@ def test():
     ocgis.env.OVERWRITE = True
     
     rd = ocgis.RequestDataset(uri=uri,variable=variable)
-    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp')
+    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='nc')
     ops.execute()
     
 def test_bounds():

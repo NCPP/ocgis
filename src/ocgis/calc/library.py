@@ -15,14 +15,15 @@ class FrequencyPercentile(OcgArgFunction):
     def _calculate_(values,perc=None,round_method=None):
         perc = float(perc)
         ## sort the data
-        cseq = values.copy()
-        cseq.sort(axis=0)
+#        cseq = values.copy()
+#        cseq.sort(axis=0)
+        values.sort(axis=0)
         ## reference the time vector length
-        n = cseq.shape[0]
+        n = values.shape[0]
         ## calculate the index
         idx = getattr(np,round_method)(perc*n)
         ## get the percentiles
-        ret = cseq[idx,:,:,:]
+        ret = values[idx,:,:,:]
         return(ret)
 
 

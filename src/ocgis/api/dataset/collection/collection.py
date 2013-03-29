@@ -286,8 +286,8 @@ class ArrayIdentifier(StringIdentifier):
     
     def __init__(self,ncol,dtype=object):
         self._curr = 1
-        self.uid = np.empty(0,dtype=int)
-        self.value = np.empty((0,ncol),dtype=dtype)
+        self.uid = np.zeros(0,dtype=int)
+        self.value = np.zeros((0,ncol),dtype=dtype)
         
     def __iter__(self):
         uid = self.uid
@@ -299,7 +299,10 @@ class ArrayIdentifier(StringIdentifier):
             yield(template)
         
     def add(self,values,uids=None):
-        values = np.array(values)
+        try:
+            values = np.array(np.nan_to_num(values))
+        except TypeError:
+            values = np.array(values)
         if uids is None:
             uids = np.arange(1,values.shape[0]+1,dtype=int)
         else:
@@ -320,7 +323,11 @@ class ArrayIdentifier(StringIdentifier):
         self._update_()
                 
     def get(self,value):
-        value = np.array(value)
+        try:
+            nan_conv = np.nan_to_num(value)
+        except TypeError:
+            nan_conv = value
+        value = np.array(nan_conv)
         idx = (self.value == value).all(axis=1)
         return(int(self.uid[idx]))
     

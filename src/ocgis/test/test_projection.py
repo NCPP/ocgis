@@ -44,9 +44,16 @@ class Test(unittest.TestCase):
         select_ugid = [32]
         snippet = True
         ops = OcgOperations(dataset=rd,geom=geom,snippet=snippet,
-         select_ugid=select_ugid,output_format='shp')
+         select_ugid=select_ugid,output_format='numpy')
         ops.execute()
-        import ipdb;ipdb.set_trace()
+        
+    def test_differing_projections(self):
+        rd1 = RequestDataset(uri='/usr/local/climate_data/daymet/tmax.nc',variable='tmax')
+        rd2 = RequestDataset(uri=self.hostetler,variable='TG',t_calendar='noleap')
+        ops = OcgOperations(dataset=[rd1,rd2],snippet=True)
+        with self.assertRaises(ValueError):
+            ops.execute()
+
 
 if __name__ == "__main__":
 #    import sys;sys.argv = ['', 'TestSimpleMultiCalc01.test']

@@ -74,17 +74,20 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(msg)
     
     def get_url_string(self):
-        elements = []
-        for element in self.value:
-            strings = []
-            template = '{0}~{1}'
-            if element['ref'] != library.SampleSize:
-                strings.append(template.format(element['func'],element['name']))
-                for k,v in element['kwds'].iteritems():
-                    strings.append(template.format(k,v))
-            if len(strings) > 0:
-                elements.append('!'.join(strings))
-        ret = '|'.join(elements)
+        if self.value is None:
+            ret = 'none'
+        else:
+            elements = []
+            for element in self.value:
+                strings = []
+                template = '{0}~{1}'
+                if element['ref'] != library.SampleSize:
+                    strings.append(template.format(element['func'],element['name']))
+                    for k,v in element['kwds'].iteritems():
+                        strings.append(template.format(k,v))
+                if len(strings) > 0:
+                    elements.append('!'.join(strings))
+            ret = '|'.join(elements)
         return(ret)
     
     def parse_all(self,values):

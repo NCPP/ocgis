@@ -46,6 +46,13 @@ class MetaConverter(object):
         for k,v in sorted(self.ops.__dict__.iteritems()):
             if isinstance(v,OcgParameter):
                 lines.append(v.get_meta())
+        
+        ## append the url representation of the data request
+        lines.append('== URL Representation ==')
+        lines.append('')
+        lines.append(self.ops.as_url())
+            
+        ## collapse lists
         ret = []
         for line in lines:
             if not isinstance(line,basestring):

@@ -2,10 +2,7 @@ import unittest
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
-from urlparse import parse_qs
-from ocgis.util.helpers import reduce_query, make_poly
-from nose.plugins.skip import SkipTest
-from ocgis.calc.library import SampleSize, Mean, StandardDeviation
+from ocgis.util.helpers import make_poly
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis import env
 import os.path
@@ -37,6 +34,7 @@ class Test(unittest.TestCase):
         meta = ops.get_meta()
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
+        self.assertTrue('/subset?' in meta)
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)

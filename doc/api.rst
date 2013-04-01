@@ -16,6 +16,7 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 
 :attr:`env.OVERWRITE` = `False`
  .. warning:: Use with caution.
+ 
  Set to `True` to overwrite existing output folders. This will remove the folder if it exists!
 
 :attr:`env.PREFIX` = 'ocgis_output'

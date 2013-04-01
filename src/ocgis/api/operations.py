@@ -56,7 +56,7 @@ class OcgOperations(object):
     :type vector_wrap: bool
     :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
     :type allow_empty: bool
-    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exists, an exception will be raised.
+    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised.
     :type dir_output: str
     """
     

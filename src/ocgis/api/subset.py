@@ -52,16 +52,17 @@ class SubsetOperation(object):
             raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
         
         ## ensure all data has the same projection
-        projections = [ods.ocg_dataset.i.spatial.projection.sr for ods in self.ops.dataset]
+        projections = [ods.ocg_dataset.i.spatial.projection.sr.ExportToProj4() for ods in self.ops.dataset]
         projection_test = [projections[0] == ii for ii in projections]
         if not all(projection_test):
             raise(ValueError('Input datasets must share a common projection.'))
         
         ## if the target dataset(s) has a different projection than WGS84, the
         ## selection geometries will need to be projected.
-        if self.ops.geom.ocgis.sr != self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr:
-            new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
-            self.ops.geom = new_geom
+        if not self.ops._get_object_('geom').is_empty:
+            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
+                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
+                self.ops.geom = new_geom
 
         ## create the calculation engine
         if self.ops.calc is None:

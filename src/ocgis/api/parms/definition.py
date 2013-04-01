@@ -7,6 +7,8 @@ from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
 from collections import OrderedDict
+import ocgis
+from os.path import exists
 
 
 class Abstraction(base.StringOptionParameter):
@@ -228,6 +230,23 @@ class Dataset(base.OcgParameter):
     
     def _parse_string_(self,lowered):
         raise(NotImplementedError)
+    
+    
+class DirOutput(base.OcgParameter):
+    _in_url = False
+    name = 'dir_output'
+    nullable = False
+    default = ocgis.env.DIR_OUTPUT
+    return_type = str
+    input_types = []
+    
+    def _get_meta_(self):
+        ret = 'At execution time, data was originally written to this processor-local location: {0}'.format(self.value)
+        return(ret)
+    
+    def _validate_(self,value):
+        if not exists(value):
+            raise(DefinitionValidationError(self,'Output directory does not exist: {0}'.format(value)))
 
 
 class Geom(base.IterableParameter,base.OcgParameter):

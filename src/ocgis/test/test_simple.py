@@ -155,7 +155,7 @@ class TestSimple(TestBase):
         ref = ret[1].variables[self.var]
         intersection_areas = [g.area for g in ref.spatial._value.flat]
         for ii in intersection_areas:
-            self.assertEqual(ii,0.25)
+            self.assertAlmostEqual(ii,0.25)
             
         ## intersection + aggregation
         geom = make_poly((38,39),(-104,-103))

@@ -7,6 +7,7 @@ from types import NoneType
 
 class OcgParameter(object):
     __metaclass__ = ABCMeta
+    _in_url = True #: if set to False, parameter will not be written to URL
     
     @abstractproperty
     def input_types(self): [type]

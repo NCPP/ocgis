@@ -60,7 +60,7 @@ class OcgInterpreter(Interpreter):
         if self.ops.output_format == 'numpy':
             outdir = None
         else:
-            outdir = os.path.join(env.DIR_OUTPUT,prefix)
+            outdir = os.path.join(self.ops.dir_output,prefix)
             if os.path.exists(outdir):
                 if env.OVERWRITE:
                     shutil.rmtree(outdir)

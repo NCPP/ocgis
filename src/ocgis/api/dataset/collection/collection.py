@@ -301,7 +301,7 @@ class ArrayIdentifier(StringIdentifier):
     def add(self,values,uids=None):
         try:
             values = np.array(np.nan_to_num(values))
-        except TypeError:
+        except (TypeError,ValueError):
             values = np.array(values)
         if uids is None:
             uids = np.arange(1,values.shape[0]+1,dtype=int)
@@ -325,7 +325,7 @@ class ArrayIdentifier(StringIdentifier):
     def get(self,value):
         try:
             nan_conv = np.nan_to_num(value)
-        except TypeError:
+        except (TypeError,ValueError):
             nan_conv = value
         value = np.array(nan_conv)
         idx = (self.value == value).all(axis=1)

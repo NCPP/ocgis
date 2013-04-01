@@ -96,6 +96,14 @@ class SridSpatialReference(OcgSpatialReference):
         assert(self._srid is not None)
         super(SridSpatialReference,self).__init__(*args,**kwds)
         
+    def __ne__(self,other):
+        tt = osr.SpatialReference()
+        tt.ImportFromProj4(self.sr.ExportToProj4())
+        if tt.ExportToProj4() != other:
+            return(True)
+        else:
+            return(False)
+        
     @classmethod
     def _build_(cls):
         return(cls())

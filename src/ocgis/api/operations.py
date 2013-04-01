@@ -44,7 +44,7 @@ class OcgOperations(object):
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
-    :param prefix: The output prefix to prepend to any output data filename. Defaults to :attr:`ocgis.env.PREFIX`.
+    :param prefix: The output prefix to prepend to any output data filename.
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str
@@ -56,13 +56,15 @@ class OcgOperations(object):
     :type vector_wrap: bool
     :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
     :type allow_empty: bool
+    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exists, an exception will be raised.
+    :type dir_output: str
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
                  snippet=False, backend='ocg', prefix=env.PREFIX,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
-                 vector_wrap=True, allow_empty=False):
+                 vector_wrap=True, allow_empty=False, dir_output=env.DIR_OUTPUT):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -84,6 +86,7 @@ class OcgOperations(object):
         self.geom = Geom(geom,select_ugid=self.select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
+        self.dir_output = DirOutput(dir_output)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
@@ -168,10 +171,11 @@ class OcgOperations(object):
             if key in ['request_url']:
                 continue
             if isinstance(value, OcgParameter):
-                if isinstance(value,Dataset):
-                    parts.append(value.get_url_string())
-                else:
-                    parts.append('{0}={1}'.format(value.name,value.get_url_string()))
+                if value._in_url:
+                    if isinstance(value,Dataset):
+                        parts.append(value.get_url_string())
+                    else:
+                        parts.append('{0}={1}'.format(value.name,value.get_url_string()))
         ret = '/subset?' + '&'.join(parts)
         return(ret)
         

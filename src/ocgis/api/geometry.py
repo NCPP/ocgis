@@ -57,8 +57,3 @@ class SelectionGeometry(list):
         self.ocgis._proj4_str = sr.ExportToProj4()
         
         super(SelectionGeometry,self).__init__(*args,**kwds)
-    
-#se = SelectionGeometry([{'ugid':1,'geom':Point(-90,40)}])
-#to_sr = SpatialReference()
-#to_sr.ImportFromEPSG(4326)
-#se2 = se.ocgis.get_projected(to_sr)

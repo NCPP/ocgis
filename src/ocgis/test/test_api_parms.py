@@ -1,12 +1,16 @@
 import unittest
 from ocgis.api.parms.definition import *
-from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.util.helpers import make_poly
-from ocgis.util.shp_cabinet import ShpCabinet
 import pickle
 
 
 class Test(unittest.TestCase):
+    
+    def test_dir_output(self):
+        ## raise an exception if the directory does not exist
+        do = '/does/not/exist'
+        with self.assertRaises(DefinitionValidationError):
+            DirOutput(do)
 
     def test_snippet(self):
         self.assertFalse(Snippet().value)

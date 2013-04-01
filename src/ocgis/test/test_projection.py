@@ -53,6 +53,12 @@ class Test(unittest.TestCase):
         ops = OcgOperations(dataset=[rd1,rd2],snippet=True)
         with self.assertRaises(ValueError):
             ops.execute()
+            
+    def test_same_projection(self):
+        rd1 = RequestDataset(uri='/usr/local/climate_data/daymet/tmax.nc',variable='tmax',alias='tmax1')
+        rd2 = RequestDataset(uri='/usr/local/climate_data/daymet/tmax.nc',variable='tmax',alias='tmax2')
+        ops = OcgOperations(dataset=[rd1,rd2],snippet=True)
+        ops.execute()
 
 
 if __name__ == "__main__":

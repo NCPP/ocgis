@@ -133,6 +133,12 @@ class Calc(base.IterableParameter,base.OcgParameter):
             kwds = OrderedDict()
         dct = {'func':key,'name':uname,'kwds':kwds}
         return(dct)
+    
+    def _validate_(self,value):
+        ## collect names
+        names = [ii['name'] for ii in value]
+        if len(names) != len(set(names)):
+            raise(DefinitionValidationError(self,'User-provided calculation names must be unique.'))
 
     
 class CalcGrouping(base.IterableParameter,base.OcgParameter):

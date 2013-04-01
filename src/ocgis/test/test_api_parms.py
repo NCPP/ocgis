@@ -131,6 +131,12 @@ class Test(unittest.TestCase):
         self.assertEqual(cc.value,eq)
         cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
         self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+        
+        ## test duplicate parameters
+        calc = [{'func':'mean','name':'my_mean'},
+                {'func':'mean','name':'my_mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
 
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ class OcgOperations(object):
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
-    :param prefix: The output prefix to prepend to any output data filename.
+    :param prefix: The output prefix to prepend to any output data filename. Defaults to :attr:`ocgis.env.PREFIX`.
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str

@@ -2,6 +2,7 @@ from ocgis.conv.converter import OcgConverter
 import netCDF4 as nc
 from ocgis.interface.interface import SpatialInterfacePoint
 import numpy as np
+from ocgis.interface.projection import WGS84
 
     
 class NcConverter(OcgConverter):
@@ -152,5 +153,10 @@ class NcConverter(OcgConverter):
     #            value.fill_value = var_value.raw_value.fill_value
                 for key,val in meta['variables'][var_name]['attrs'].iteritems():
                     setattr(value,key,val)
+                    
+        ## add projection variable if applicable ###############################
+        
+        if not isinstance(spatial.projection,WGS84):
+            spatial.projection.write_to_rootgrp(ds,meta)
         
         ds.close()

@@ -1,6 +1,7 @@
 import unittest
 from ocgis.test.base import TestBase
 import ocgis
+import netCDF4 as nc
 
 
 class Test(TestBase):
@@ -11,7 +12,8 @@ class Test(TestBase):
         rd = ocgis.RequestDataset(uri=uri,variable=variable)
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='nc')
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        ds = nc.Dataset(ret)
+        self.assertTrue('lambert_conformal_conic' in ds.variables)
 
 
 if __name__ == "__main__":

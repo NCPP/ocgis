@@ -165,8 +165,11 @@ class HostetlerProjection(DatasetSpatialReference):
         
 class LambertConformalConic(DatasetSpatialReference):
     
-    def write_to_rootgrp(self,rootgrp):
-        import ipdb;ipdb.set_trace()
+    def write_to_rootgrp(self,rootgrp,ncmeta):
+        ref = ncmeta['variables']['lambert_conformal_conic']
+        lc = rootgrp.createVariable('lambert_conformal_conic',ref['dtype'])
+        for k,v in ref['attrs'].iteritems():
+            setattr(lc,k,v)
     
     def _get_proj4_(self,dataset):
         try:

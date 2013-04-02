@@ -2,6 +2,8 @@ import unittest
 from ocgis.api.parms.definition import *
 from ocgis.util.helpers import make_poly
 import pickle
+import tempfile
+import os
 
 
 class Test(unittest.TestCase):
@@ -11,6 +13,16 @@ class Test(unittest.TestCase):
         do = '/does/not/exist'
         with self.assertRaises(DefinitionValidationError):
             DirOutput(do)
+            
+        ## make sure directory name does not change case
+        do = 'Some'
+        new_dir = os.path.join(tempfile.gettempdir(),do)
+        os.mkdir(new_dir)
+        try:
+            dd = DirOutput(new_dir)
+            self.assertEqual(new_dir,dd.value)
+        finally:
+            os.rmdir(new_dir)
 
     def test_snippet(self):
         self.assertFalse(Snippet().value)

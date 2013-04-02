@@ -234,6 +234,7 @@ class Dataset(base.OcgParameter):
     
 class DirOutput(base.OcgParameter):
     _in_url = False
+    _lower_string = False
     name = 'dir_output'
     nullable = False
     default = ocgis.env.DIR_OUTPUT

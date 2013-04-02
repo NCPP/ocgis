@@ -8,6 +8,7 @@ from types import NoneType
 class OcgParameter(object):
     __metaclass__ = ABCMeta
     _in_url = True #: if set to False, parameter will not be written to URL
+    _lower_string = True #: if set to False, do not lower input strings
     
     @abstractproperty
     def input_types(self): [type]
@@ -71,11 +72,15 @@ class OcgParameter(object):
         return(ret)
         
     def parse_string(self,value):
-        lowered = value.lower().strip()
-        if lowered == 'none':
+        if self._lower_string:
+            modified = value.lower()
+        else:
+            modified = value
+        modified = modified.strip()
+        if modified == 'none':
             ret = None
         else:
-            ret = self._parse_string_(lowered)
+            ret = self._parse_string_(modified)
         return(ret)
     
     def validate(self,value):

@@ -8,6 +8,11 @@ import os.path
 
 
 class Test(unittest.TestCase):
+    
+    def test_bad_path(self):
+        bp = '/a/bad/location'
+        with self.assertRaises(ValueError):
+            ShpCabinet(bp)
 
     def test_get_keys(self):
         sc = ShpCabinet()

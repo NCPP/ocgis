@@ -31,6 +31,8 @@ class ShpCabinet(object):
     
     def __init__(self,path=None):
         self.path = path or env.DIR_SHPCABINET
+        if not os.path.exists(self.path):
+            raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self.path)))
         
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.

@@ -191,6 +191,11 @@ class LambertConformalConic(DatasetSpatialReference):
 class WGS84(SridSpatialReference):
     _srid = 4326
     
+    def write_to_rootgrp(self,rootgrp):
+        pass
     
 class UsNationalEqualArea(SridSpatialReference):
     _srid = 2163
+    
+    def write_to_rootgrp(self,rootgrp):
+        pass

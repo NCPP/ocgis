@@ -62,9 +62,9 @@ class OcgOperations(object):
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
-                 snippet=False, backend='ocg', prefix=env.PREFIX,
+                 snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
-                 vector_wrap=True, allow_empty=False, dir_output=env.DIR_OUTPUT):
+                 vector_wrap=True, allow_empty=False, dir_output=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -79,14 +79,14 @@ class OcgOperations(object):
         self.abstraction = Abstraction(abstraction)
         self.snippet = Snippet(snippet)
         self.backend = Backend(backend)
-        self.prefix = Prefix(prefix)
+        self.prefix = Prefix(prefix or env.PREFIX)
         self.output_format = OutputFormat(output_format)
         self.agg_selection = AggregateSelection(agg_selection)
         self.select_ugid = SelectUgid(select_ugid)
         self.geom = Geom(geom,select_ugid=self.select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
-        self.dir_output = DirOutput(dir_output)
+        self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

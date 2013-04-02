@@ -4,6 +4,7 @@ from ocgis.util.helpers import make_poly
 import pickle
 import tempfile
 import os
+import ocgis
 
 
 class Test(unittest.TestCase):

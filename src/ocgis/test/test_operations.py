@@ -11,10 +11,10 @@ from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 import pickle
 import ocgis
+import tempfile
 
 
 class Test(unittest.TestCase):
-    env.DIR_DATA = '/usr/local/climate_data/CanCM4'
     uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
             'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
             'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc']
@@ -23,6 +23,23 @@ class Test(unittest.TestCase):
     level_range = [2,2]
     datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
     datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+    
+    def setUp(self):
+        env.DIR_DATA = '/usr/local/climate_data/CanCM4'
+    
+    def test_env_overload(self):
+        ## check env overload
+        try:
+            out = tempfile.mkdtemp()
+            ocgis.env.DIR_OUTPUT = out
+            ocgis.env.PREFIX = 'my_prefix'
+            ops = OcgOperations(dataset=self.datasets)
+            self.assertEqual(ocgis.env.DIR_OUTPUT,ops.dir_output)
+            self.assertEqual(ocgis.env.PREFIX,ops.prefix)
+        finally:
+            os.rmdir(out)
+            ocgis.env.reset()
+            
 
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)

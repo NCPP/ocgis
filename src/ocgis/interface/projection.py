@@ -5,6 +5,7 @@ from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.point import Point
 from osgeo import osr
 from shapely import wkb
+import abc
 
 
 def get_projection(dataset):
@@ -33,7 +34,11 @@ class MultipleProjectionsFound(Exception):
 
 
 class OcgSpatialReference(object):
+    __metaclass__ = abc.ABCMeta
     _build = None
+    
+    @abc.abstractmethod
+    def write_to_rootgrp(self,rootgrp): return(None)
     
     def __init__(self,*args,**kwds):
         self.sr = self.get_sr(*args,**kwds)
@@ -140,6 +145,9 @@ class DatasetSpatialReference(OcgSpatialReference):
     
 class HostetlerProjection(DatasetSpatialReference):
     
+    def write_to_rootgrp(self,rootgrp):
+        raise(NotImplementedError)
+    
     def _get_proj4_(self,dataset):
         try:
             var = dataset.variables['Lambert_Conformal']
@@ -156,6 +164,9 @@ class HostetlerProjection(DatasetSpatialReference):
         
         
 class LambertConformalConic(DatasetSpatialReference):
+    
+    def write_to_rootgrp(self,rootgrp):
+        import ipdb;ipdb.set_trace()
     
     def _get_proj4_(self,dataset):
         try:

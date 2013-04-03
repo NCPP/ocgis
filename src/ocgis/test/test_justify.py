@@ -14,6 +14,20 @@ class Test(unittest.TestCase):
         justified = justify_row(row)
         self.assertEqual(justified,eq)
         
+    def test_justify_row_without_words(self):
+        row = 'a'*400
+        ret = justify_row(row)
+        self.assertEqual(ret,['    '+row])
+        
+        row = 'b'*5
+        ret = justify_row(row)
+        self.assertEqual(ret,['    '+row])
+    
+    def test_justify_long_word(self):
+        aes = 'a'*400
+        row = ' '.join(['short',aes,'end'])
+        ret = justify_row(row)
+        self.assertEqual(ret,['    short aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa end'])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

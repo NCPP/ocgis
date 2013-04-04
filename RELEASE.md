@@ -1,5 +1,25 @@
 # Current Release Notes #
 
+## v0.05b ##
+
+### What's New ###
+1. New implementations for parameter definitions with improved type checking and formatting.
+2. Improved metadata formatting.
+3. Numerous bug fixes.
+4. Added "dir_output" parameter to OcgOperations.
+5. Selection geometries are now a derived class of list and carry projection information.
+5. Projection information is now written in CF formatting to NetCDF outputs.
+6. Computations may be written to NetCDF.
+7. OcgOperations parameter "prefix" now names the output folder as well as the files contained in the output directory.
+8. Projection support is available again with selection geometries projected to match input dataset.
+9. Simple multiprocessing implementation available with all objects serializable.
+10. OcgOperations parameter "select_ugid" applied at geometry load-time.
+11. New ocgis.env with support of system environment variables.
+12. Setup.py has option for autmated install on Ubuntu Linux systems.
+13. URL representation of OcgOperations included in metadata output.
+
+# Previous Release Notes #
+
 ## v0.04b ##
 
 ### What's New ###
@@ -17,8 +37,6 @@
 2. Code optimization is behind the multi-dataset implementation.
 4. Datasets with projections currently require customizations.
 5. "setup.py" uninstall not working.
-
-# Previous Release Notes #
 
 ## v0.03a ##
 

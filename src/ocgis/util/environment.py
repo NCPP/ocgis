@@ -37,7 +37,7 @@ class Environment(object):
         system environment variables.'''
         for value in self.__dict__.itervalues():
             if isinstance(value,EnvParm):
-                value._value = None
+                value._value = 'use_env'
 
 
 class EnvParm(object):
@@ -47,14 +47,14 @@ class EnvParm(object):
         self.env_name = 'OCGIS_{0}'.format(self.name)
         self.formatter = formatter
         self.default = default
-        self._value = None
+        self._value = 'use_env'
         
     def __repr__(self):
         return(str(self.value))
         
     @property
     def value(self):
-        if self._value is None:
+        if self._value == 'use_env':
             ret = os.getenv(self.env_name)
             if ret is None:
                 ret = self.default

@@ -31,7 +31,9 @@ class ShpCabinet(object):
     
     def __init__(self,path=None):
         self.path = path or env.DIR_SHPCABINET
-        if not os.path.exists(self.path):
+        if self.path is None:
+            raise(ValueError('A path value is required. Either pass a path to the constructor or set ocgis.env.DIR_SHPCABINET.'))
+        elif not os.path.exists(self.path):
             raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self.path)))
         
     def keys(self):

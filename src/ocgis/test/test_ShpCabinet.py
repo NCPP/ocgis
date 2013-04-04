@@ -5,6 +5,7 @@ from ocgis.util.helpers import get_temp_path
 import shutil
 import ConfigParser
 import os.path
+import ocgis
 
 
 class Test(unittest.TestCase):
@@ -13,6 +14,14 @@ class Test(unittest.TestCase):
         bp = '/a/bad/location'
         with self.assertRaises(ValueError):
             ShpCabinet(bp)
+            
+    def test_none_path(self):
+        try:
+            ocgis.env.DIR_SHPCABINET = None
+            with self.assertRaises(ValueError):
+                ShpCabinet()
+        finally:
+            ocgis.env.reset()
 
     def test_get_keys(self):
         sc = ShpCabinet()

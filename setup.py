@@ -24,7 +24,7 @@ ARGS = parser.parse_args()
 
 ################################################################################
 
-def install(version='0.05b'):
+def install(version='0.05b-dev'):
     ## check python version
     python_version = float(sys.version_info.major) + float(sys.version_info.minor)/10
     if python_version != 2.7:

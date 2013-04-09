@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from ocgis.calc import library
+from ocgis.calc import library, tile
 from ocgis.api.operations import OcgOperations
 from nose.plugins.skip import SkipTest
 from datetime import datetime as dt
@@ -150,6 +150,20 @@ class Test(unittest.TestCase):
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
         
+    def test_tile_get_tile_schema(self):
+        schema = tile.get_tile_schema(5,5,2)
+        self.assertEqual(len(schema),9)
+        
+        schema = tile.get_tile_schema(25,1,2)
+        self.assertEqual(len(schema),13)
+        
+        np.random.seed(1)
+        x = np.random.rand(200,2000)
+        schema = tile.get_tile_schema(200,2000,4)
+        tidx = schema[0]
+        row = tidx['row']
+        col = tidx['col']
+        self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:4,0:4]))        
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

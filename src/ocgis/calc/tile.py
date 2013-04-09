@@ -21,6 +21,7 @@ def get_tile_schema(nrow,ncol,tdim):
     col_idx = get_tile_indices(ncol,tdim,col_origin,nt_col)
     row_slices = get_slices(row_idx)
     col_slices = get_slices(col_idx)
+    import ipdb;ipdb.set_trace()
     tile_id = 0
     for row,col in itertools.product(range(len(row_slices)),range(len(col_slices))):
         ret.update({tile_id:{'row':row_slices[row],'col':col_slices[col]}})

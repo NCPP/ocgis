@@ -157,13 +157,20 @@ class Test(unittest.TestCase):
         schema = tile.get_tile_schema(25,1,2)
         self.assertEqual(len(schema),13)
         
+    def test_tile_sum(self):
         np.random.seed(1)
-        x = np.random.rand(200,2000)
-        schema = tile.get_tile_schema(200,2000,4)
+        x = np.random.rand(2,20)
+        schema = tile.get_tile_schema(2,20,4)
         tidx = schema[0]
         row = tidx['row']
         col = tidx['col']
-        self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:4,0:4]))        
+        self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:4,0:4]))
+        running_sum = 0.0
+        for value in schema.itervalues():
+            row,col = value['row'],value['col']
+            running_sum += np.sum(x[row[0]:row[1],col[0]:col[1]])
+        import ipdb;ipdb.set_trace()
+        self.assertAlmostEqual(running_sum,x.sum())
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

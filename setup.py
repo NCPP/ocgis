@@ -26,10 +26,11 @@ ARGS = parser.parse_args()
 
 def install(version='0.05b'):
     ## check python version
-    python_version = float(sys.version_info.major) + float(sys.version_info.minor)/10
+    python_version = float(sys.version_info[0]) + float(sys.version_info[1])/10
     if python_version != 2.7:
-        raise(ImportError('This software requires Python version 2.7.x.'))
-    
+        raise(ImportError(
+            'This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
+
     ## attempt package imports
     pkgs = ['numpy','netCDF4','osgeo','shapely']
     for pkg in pkgs:
@@ -38,7 +39,7 @@ def install(version='0.05b'):
         except ImportError:
             msg = 'Unable to import Python package: "{0}".'.format(pkg)
             raise(ImportError(msg))
-    
+
     ## get package structure
     def _get_dot_(path,root='src'):
         ret = []
@@ -70,19 +71,19 @@ def install(version='0.05b'):
           packages=packages,
           package_dir=package_dir
           )
-    
+
 def install_dependencies_ubuntu():
-    
+
     cwd = os.getcwd()
     out = 'install_out.log'
     err = 'install_err.log'
     odir = tempfile.mkdtemp()
     stdout = open(out,'w')
     stderr = open(err,'w')
-    
+
     def call(args):
         check_call(args,stdout=stdout,stderr=stderr)
-    
+
     def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
         path = tempfile.mkdtemp(dir=odir)
         os.chdir(path)
@@ -101,21 +102,21 @@ def install_dependencies_ubuntu():
         else:
             print('installing {0}...'.format(edir))
             custom_make()
-    
+
     print('installing apt packages...')
     call(['apt-get','update'])
     call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
     print('installing shapely...')
     call(['easy_install','shapely'])
-    
+
     prefix = '/usr/local'
-    
+
     hdf5 = 'hdf5-1.8.10-patch1'
     hdf5_tarball = '{0}.tar.gz'.format(hdf5)
     hdf5_url = 'http://www.hdfgroup.org/ftp/HDF5/current/src/{0}'.format(hdf5_tarball)
     hdf5_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-hl']
     install_dependency(odir,hdf5_url,hdf5_tarball,hdf5,hdf5_flags)
-    
+
     nc4 = 'netcdf-4.2.1'
     nc4_tarball = '{0}.tar.gz'.format(nc4)
     nc4_url = 'ftp://ftp.unidata.ucar.edu/pub/netcdf/{0}'.format(nc4_tarball)
@@ -125,7 +126,7 @@ def install_dependencies_ubuntu():
     install_dependency(odir,nc4_url,nc4_tarball,nc4,nc4_flags)
     os.unsetenv('LDFLAGS')
     os.unsetenv('CPPFLAGS')
-    
+
     nc4p = 'netCDF4-1.0.4'
     nc4p_tarball = '{0}.tar.gz'.format(nc4p)
     nc4p_url = 'http://netcdf4-python.googlecode.com/files/{0}'.format(nc4p_tarball)
@@ -133,8 +134,8 @@ def install_dependencies_ubuntu():
     def nc4p_make():
         call(['python','setup.py','install'])
     install_dependency(odir,nc4p_url,nc4p_tarball,nc4p,custom_make=nc4p_make)
-    
-    
+
+
     stdout.close()
     #shutil.rmtree(odir)
     os.chdir(cwd)

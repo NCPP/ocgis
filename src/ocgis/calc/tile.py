@@ -18,6 +18,7 @@ def get_tile_schema(nrow,ncol,tdim):
     nt_col = ncol/tdim
     ret = {}
     row_idx = get_tile_indices(nrow,tdim,row_origin,nt_row)
+    import ipdb;ipdb.set_trace()
     col_idx = get_tile_indices(ncol,tdim,col_origin,nt_col)
     row_slices = get_slices(row_idx)
     col_slices = get_slices(col_idx)

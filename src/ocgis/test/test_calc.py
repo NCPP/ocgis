@@ -149,7 +149,13 @@ class Test(unittest.TestCase):
         ## get the percentiles
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
-        
+
+
+class TestTile(unittest.TestCase):
+    
+    def get_random_integer(self,low=1,high=100):
+        return(int(np.random.random_integers(low,high)))
+
     def test_tile_get_tile_schema(self):
         schema = tile.get_tile_schema(5,5,2)
         self.assertEqual(len(schema),9)
@@ -158,19 +164,25 @@ class Test(unittest.TestCase):
         self.assertEqual(len(schema),13)
         
     def test_tile_sum(self):
-        np.random.seed(1)
-        x = np.random.rand(2,20)
-        schema = tile.get_tile_schema(2,20,4)
-        tidx = schema[0]
-        row = tidx['row']
-        col = tidx['col']
-        self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:4,0:4]))
-        running_sum = 0.0
-        for value in schema.itervalues():
-            row,col = value['row'],value['col']
-            running_sum += np.sum(x[row[0]:row[1],col[0]:col[1]])
-        import ipdb;ipdb.set_trace()
-        self.assertAlmostEqual(running_sum,x.sum())
+        ntests = 1000
+        for ii in range(ntests):
+            nrow,ncol,tdim = [self.get_random_integer() for ii in range(3)]
+            x = np.random.rand(nrow,ncol)
+            y = np.empty((nrow,ncol),dtype=float)
+            schema = tile.get_tile_schema(nrow,ncol,tdim)
+            tidx = schema[0]
+            row = tidx['row']
+            col = tidx['col']
+            self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:tdim,0:tdim]))
+            running_sum = 0.0
+            for value in schema.itervalues():
+                row,col = value['row'],value['col']
+                slice = x[row[0]:row[1],col[0]:col[1]]
+                y[row[0]:row[1],col[0]:col[1]] = slice
+                running_sum += slice.sum()
+            self.assertAlmostEqual(running_sum,x.sum())
+            self.assertTrue(np.all(x == y))
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

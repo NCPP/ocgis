@@ -96,7 +96,7 @@ class OcgDataset(object):
         return(npd)
     
     def _subset_(self,polygon=None,time_range=None,level_range=None,
-                 allow_empty=False): ## intersects + touches
+                 allow_empty=False,slice_row=None,slice_column=None): ## intersects + touches
         """
         polygon -- shapely Polygon object
         return -- SubOcgDataset
@@ -150,8 +150,14 @@ class OcgDataset(object):
         ## get the variable from the netcdf dataset
         var = self.dataset.variables[self.variable]
         ## restructure arrays for fancy indexing in the dataset
-        rowidx = sub_range(row)
-        colidx = sub_range(col)
+        is_slice = False #: use for additional subsetting due to a slice being used.
+        if slice_row is None:
+            rowidx = sub_range(row)
+            colidx = sub_range(col)
+        else:
+            is_slice = True
+            rowidx = np.arange(*slice_row)
+            colidx = np.arange(*slice_column)
 
         ## make the subset arguments depending on the number of dimensions
         if ndim == 3:
@@ -164,26 +170,31 @@ class OcgDataset(object):
         npd = self.get_numpy_data(var,args)
 
         ## we need to remove the unwanted data and reshape in the process. first,
-        ## construct the relative indices.
-        rel_mask = np.ones(npd.shape,dtype=bool)
-        min_row = row.min()
-        min_col = col.min()
-        ## now iterate and remove the data
-        for ii in iter_array(row,use_mask=False):
-            rel_mask[:,:,row[ii]-min_row,col[ii]-min_col] = False
+        ## construct the relative indices, but not if slices are used...
+        if not is_slice:
+            rel_mask = np.ones(npd.shape,dtype=bool)
+            min_row = row.min()
+            min_col = col.min()
+            ## now iterate and remove the data
+            for ii in iter_array(row,use_mask=False):
+                rel_mask[:,:,row[ii]-min_row,col[ii]-min_col] = False
         
-        ## test for masked data
-        if hasattr(npd,'mask'):
-            ## if all the data values are masked, raise an error.
-            if npd.mask.all():
-                if allow_empty:
-                    return(OcgVariable.get_empty(self.variable,self.uri))
-                else:
-                    raise(exc.MaskedDataError)
-            else:
-                npd.mask = np.logical_or(npd.mask,rel_mask)
+        ## test for masked data differently depending on slice operation
+        if is_slice:
+            if not hasattr(npd,'mask'):
+                npd = np.ma.array(npd,mask=False)
         else:
-            npd = np.ma.array(npd,mask=rel_mask)
+            if hasattr(npd,'mask'):
+                ## if all the data values are masked, raise an error
+                if npd.mask.all():
+                    if allow_empty:
+                        return(OcgVariable.get_empty(self.variable,self.uri))
+                    else:
+                        raise(exc.MaskedDataError)
+                else:
+                    npd.mask = np.logical_or(npd.mask,rel_mask)
+            else:
+                npd = np.ma.array(npd,mask=rel_mask)
         
         ## create geometry identifier
         gid = self.i.spatial.gid[rowidx][:,colidx].\
@@ -216,7 +227,7 @@ class OcgDataset(object):
             d_level = LevelDimension(self.i.level.lid[levelidx],
                                      self.i.level.value[levelidx],
                                                 levelvec_bounds)
-            
+        
         d_spatial = SpatialDimension(gid,geom,geom_mask,weights=None)
         
         ########################################################################

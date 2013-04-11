@@ -206,3 +206,4 @@ class OcgOperations(object):
     def _validate_(self):
         if self.slice_row is not None or self.slice_column is not None:
             assert(self._get_object_('geom').is_empty == True)
+            assert(all([self.slice_column,self.slice_row]))

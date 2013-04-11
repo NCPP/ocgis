@@ -82,7 +82,14 @@ class TestSimple(TestBase):
     
     def test_slicing(self):
         ops = self.get_ops(kwds={'slice_row':[0,2],'slice_column':[0,2]})
-        import ipdb;ipdb.set_trace()
+        ret = ops.execute()
+        ref = ret[1].variables['foo'].value.data
+        self.assertTrue(np.all(ref.flatten() == 1.0))
+        
+        ops = self.get_ops(kwds={'slice_row':[1,3],'slice_column':[1,3]})
+        ret = ops.execute()
+        ref = ret[1].variables['foo'].value.data
+        self.assertTrue(np.all(np.array([1.,2.,3.,4.] == ref[0,0,:].flatten())))
 
     def test_return_all(self):
         ret = self.get_ret()

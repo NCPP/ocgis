@@ -183,7 +183,9 @@ def get_collection((so,geom_dict)):
                             polygon=geom_copy['geom'],
                             time_range=dataset.time_range,
                             level_range=dataset.level_range,
-                            allow_empty=so.ops.allow_empty)
+                            allow_empty=so.ops.allow_empty,
+                            slice_row=so.ops.slice_row,
+                            slice_column=so.ops.slice_column)
         ## tell the keyed iterator if this should be used for identifiers.
         ocg_variable._use_for_id = dataset._use_for_id
         ## update the variable's alias

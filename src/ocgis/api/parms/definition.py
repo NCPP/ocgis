@@ -386,6 +386,27 @@ class SelectUgid(base.IterableParameter,base.OcgParameter):
         else:
             ret = 'The following UGID values were used to select from the input geometries: {0}.'.format(self.value)
         return(ret)
+    
+    
+class SliceRow(base.IterableParameter,base.OcgParameter):
+    name = 'slice_row'
+    return_type = tuple
+    nullable = True
+    default = None
+    input_types = [list,tuple]
+    element_type = int
+    unique = False
+    
+    def _get_meta_(self):
+        if self.value is None:
+            ret = 'No slice passed.'
+        else:
+            ret = 'A slice was used.'
+        return(ret)
+    
+    
+class SliceColumn(SliceRow):
+    name = 'slice_column'
 
 
 class Snippet(base.BooleanParameter):

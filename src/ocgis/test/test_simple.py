@@ -79,6 +79,10 @@ class TestSimple(TestBase):
                            [3.0,3.0,4.0,4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+    
+    def test_slicing(self):
+        ops = self.get_ops(kwds={'slice_row':[0,2],'slice_column':[0,2]})
+        import ipdb;ipdb.set_trace()
 
     def test_return_all(self):
         ret = self.get_ret()

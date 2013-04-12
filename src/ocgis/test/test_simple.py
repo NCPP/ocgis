@@ -12,6 +12,7 @@ from ocgis.util.inspect import Inspect
 import tempfile
 import shutil
 from abc import ABCMeta, abstractproperty
+import netCDF4 as nc
 
 
 class TestBase(unittest.TestCase):
@@ -48,7 +49,9 @@ class TestBase(unittest.TestCase):
     
     def get_ops(self,kwds={},time_range=None,level_range=None):
         dataset = self.get_dataset(time_range,level_range)
-        kwds.update({'dataset':dataset,'output_format':'numpy'})
+        if 'output_format' not in kwds:
+            kwds.update({'output_format':'numpy'})
+        kwds.update({'dataset':dataset})
         ops = OcgOperations(**kwds)
         return(ops)
     
@@ -90,6 +93,16 @@ class TestSimple(TestBase):
         ret = ops.execute()
         ref = ret[1].variables['foo'].value.data
         self.assertTrue(np.all(np.array([1.,2.,3.,4.] == ref[0,0,:].flatten())))
+        
+    def test_file_only(self):
+        ret = self.get_ret(kwds={'output_format':'nc','file_only':True,
+                                 'calc':[{'func':'mean','name':'my_mean'}],
+                                 'calc_grouping':['month']})
+        try:
+            ds = nc.Dataset(ret,'r')
+            self.assertAlmostEqual(ds.variables['my_mean'][:].sum(),0.0)
+        finally:
+            ds.close()
 
     def test_return_all(self):
         ret = self.get_ret()

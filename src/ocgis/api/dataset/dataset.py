@@ -165,7 +165,7 @@ class OcgDataset(object):
         elif ndim == 4:
             args = [timeidx,levelidx,rowidx,colidx]
         else:
-            raise(NotImplementedError('cannot hold dimension count of "{0}"'.format(ndim)))
+            raise(NotImplementedError('Cannot handle dimension count of "{0}"'.format(ndim)))
         ## actually get the data
         npd = self.get_numpy_data(var,args)
 

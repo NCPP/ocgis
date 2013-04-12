@@ -250,6 +250,13 @@ class DirOutput(base.OcgParameter):
             raise(DefinitionValidationError(self,'Output directory does not exist: {0}'.format(value)))
 
 
+class FileOnly(base.BooleanParameter):
+    meta_true = 'File written with empty data.'
+    meta_false = 'Actual data written to file.'
+    default = False
+    name = 'file_only'
+    
+
 class Geom(base.IterableParameter,base.OcgParameter):
     name = 'geom'
     nullable = True

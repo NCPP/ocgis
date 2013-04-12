@@ -71,8 +71,8 @@ class SubsetOperation(object):
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
-                                           agg=self.ops.aggregate
-                                           )
+                                           agg=self.ops.aggregate,
+                                           file_only=self.ops.file_only)
             
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.

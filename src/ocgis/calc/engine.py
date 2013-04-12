@@ -13,10 +13,11 @@ class OcgCalculationEngine(object):
     time_range : list of datetime.datetime : bounding range for time selection
     '''
     
-    def __init__(self,grouping,funcs,raw=False,agg=False):
+    def __init__(self,grouping,funcs,raw=False,agg=False,file_only=False):
         self.raw = raw
         self.agg = agg
         self.grouping = grouping
+        self.file_only = file_only
         ## always calculate the sample size. do a copy so functions list cannot
         ## grow in memory. only a problem when testing.
 #        funcs_copy = copy(funcs)
@@ -66,6 +67,8 @@ class OcgCalculationEngine(object):
         for f in self.funcs:
             ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction):
+                if self.file_only:
+                    raise(NotImplementedError)
 #                has_multi = True
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
@@ -102,12 +105,17 @@ class OcgCalculationEngine(object):
                     try:
                         ref = f['ref'](values=value,agg=self.agg,
                                        groups=var.temporal_group.dgroups,
-                                       kwds=f['kwds'],weights=var.spatial.weights)
+                                       kwds=f['kwds'],weights=var.spatial.weights,
+                                       file_only=self.file_only)
                     except AttributeError:
                         ## if there is no grouping, there is no need to calculate
                         ## sample size.
                         if self.grouping is None and f['ref'] == SampleSize:
                             break
+                        elif self.grouping is None:
+                            raise(NotImplementedError('Univariate calculations must have a temporal grouping.'))
+                        else:
+                            raise
                     ## calculate the values
                     calc = ref.calculate()
                     ## update calculation identifier

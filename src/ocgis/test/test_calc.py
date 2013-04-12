@@ -187,22 +187,32 @@ class TestTile(unittest.TestCase):
         uri = '/usr/local/climate_data/daymet/tmax.nc'
         variable = 'tmax'
         rd = ocgis.RequestDataset(uri,variable)
-        out = '/tmp/foo.nc'
         import netCDF4 as nc
-        import shutil
-        shutil.copy2(uri,out)
         ods = ocgis.api.dataset.dataset.OcgDataset(rd)
         shp = ods.i.spatial.shape
         schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],10)
-        dst = nc.Dataset(out,'a')
         calc = [{'func':'mean','name':'my_mean'}]
-        for indices in schema.itervalues():
+        fill_file = ocgis.OcgOperations(dataset=rd,file_only=True,
+                                      calc=calc,calc_grouping=['month'],
+                                      output_format='nc').execute()
+        fds = nc.Dataset(fill_file,'a')
+        for tile_id,indices in schema.iteritems():
+            print tile_id
             row = indices['row']
             col = indices['col']
             ret = ocgis.OcgOperations(dataset=rd,slice_row=row,slice_column=col,
                                       calc=calc,calc_grouping=['month']).execute()
-            ref = ret[1].variables['tmax'].calc_value['my_mean']
-            import ipdb;ipdb.set_trace()
+            ref = ret[1].variables['tmax'].calc_value
+            for k,v in ref.iteritems():
+                vref = fds.variables[k]
+                if len(vref.shape) == 3:
+                    vref[:,row[0]:row[1],col[0]:col[1]] = v
+                elif len(vref.shape) == 4:
+                    vref[:,:,row[0]:row[1],col[0]:col[1]] = v
+                else:
+                    raise(NotImplementedError)
+                fds.sync()
+        fds.close()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

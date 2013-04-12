@@ -182,7 +182,27 @@ class TestTile(unittest.TestCase):
                 running_sum += slice.sum()
             self.assertAlmostEqual(running_sum,x.sum())
             self.assertTrue(np.all(x == y))
-
+            
+    def test_execute_fill(self):
+        uri = '/usr/local/climate_data/daymet/tmax.nc'
+        variable = 'tmax'
+        rd = ocgis.RequestDataset(uri,variable)
+        out = '/tmp/foo.nc'
+        import netCDF4 as nc
+        import shutil
+        shutil.copy2(uri,out)
+        ods = ocgis.api.dataset.dataset.OcgDataset(rd)
+        shp = ods.i.spatial.shape
+        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],10)
+        dst = nc.Dataset(out,'a')
+        calc = [{'func':'mean','name':'my_mean'}]
+        for indices in schema.itervalues():
+            row = indices['row']
+            col = indices['col']
+            ret = ocgis.OcgOperations(dataset=rd,slice_row=row,slice_column=col,
+                                      calc=calc,calc_grouping=['month']).execute()
+            ref = ret[1].variables['tmax'].calc_value['my_mean']
+            import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

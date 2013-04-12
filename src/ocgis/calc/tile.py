@@ -5,7 +5,11 @@ import itertools
 def get_tile_schema(nrow,ncol,tdim,origin=0):
     ret = {}
     row_idx = np.arange(origin,nrow+tdim,step=tdim,dtype=int)
+    if row_idx[-1] > nrow:
+        row_idx[-1] = nrow
     col_idx = np.arange(origin,ncol+tdim,step=tdim,dtype=int)
+    if col_idx[-1] > ncol:
+        col_idx[-1] = ncol
     row_slices = get_slices(row_idx)
     col_slices = get_slices(col_idx)
     tile_id = 0

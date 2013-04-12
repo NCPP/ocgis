@@ -190,11 +190,16 @@ class TestTile(unittest.TestCase):
         import netCDF4 as nc
         ods = ocgis.api.dataset.dataset.OcgDataset(rd)
         shp = ods.i.spatial.shape
-        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],10)
-        calc = [{'func':'mean','name':'my_mean'}]
+        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],50)
+        calc = [{'func':'mean','name':'my_mean'},
+                {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'floor'}},
+                {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'floor'}},
+                {'func':'freq_perc','name':'perc_99','kwds':{'perc':0.99,'round_method':'floor'}}
+               ]
         fill_file = ocgis.OcgOperations(dataset=rd,file_only=True,
                                       calc=calc,calc_grouping=['month'],
                                       output_format='nc').execute()
+        print fill_file, len(schema)
         fds = nc.Dataset(fill_file,'a')
         for tile_id,indices in schema.iteritems():
             print tile_id

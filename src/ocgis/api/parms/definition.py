@@ -396,7 +396,6 @@ class SliceRow(base.IterableParameter,base.OcgParameter):
     input_types = [list,tuple]
     element_type = int
     unique = False
-    _in_url = False
     
     def _get_meta_(self):
         if self.value is None:

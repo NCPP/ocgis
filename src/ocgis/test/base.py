@@ -14,21 +14,27 @@ class TestBase(unittest.TestCase):
     __metaclass__ = abc.ABCMeta
     
     def __init__(self,*args,**kwds):
-        self.test_data = TestData()
-        self.test_data.update(['daymet'],'tmax','tmax.nc',key='daymet_tmax')
-        self.test_data.update(['CanCM4'],'tas','tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tas')
-        self.test_data.update(['CanCM4'],'tasmax','tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_tasmax_2011')
-        self.test_data.update(['CanCM4'],'tasmax','tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tasmax_2001')
-        self.test_data.update(['CanCM4'],'tasmin','tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tasmin_2001')
-        self.test_data.update(['CanCM4'],'rhs','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhs')
-        self.test_data.update(['CanCM4'],'rhsmax','rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhsmax')
-        self.test_data.update(['maurer','bccr'],'Prcp','bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',key='maurer_bccr_1950')
-        self.test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
-        self.test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
+        self.test_data = self.get_tdata()
         super(TestBase,self).__init__(*args,**kwds)
+    
+    @staticmethod
+    def get_tdata():
+        test_data = TestData()
+        test_data.update(['daymet'],'tmax','tmax.nc',key='daymet_tmax')
+        test_data.update(['CanCM4'],'tas','tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tas')
+        test_data.update(['CanCM4'],'tasmax','tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_tasmax_2011')
+        test_data.update(['CanCM4'],'tasmax','tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tasmax_2001')
+        test_data.update(['CanCM4'],'tasmin','tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',key='cancm4_tasmin_2001')
+        test_data.update(['CanCM4'],'rhs','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhs')
+        test_data.update(['CanCM4'],'rhsmax','rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhsmax')
+        test_data.update(['maurer','bccr'],'Prcp','bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',key='maurer_bccr_1950')
+        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
+        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
+        return(test_data)
     
     @classmethod
     def setUpClass(cls):
+        env.reset()
         env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
         env.OVERWRITE = True
         

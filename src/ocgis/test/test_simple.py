@@ -9,12 +9,11 @@ from ocgis.util.helpers import make_poly
 from ocgis import exc, env
 import os.path
 from ocgis.util.inspect import Inspect
-import tempfile
-import shutil
 from abc import ABCMeta, abstractproperty
+from ocgis.test.base import TestBase
 
 
-class TestBase(unittest.TestCase):
+class TestSimpleBase(TestBase):
     __metaclass__ = ABCMeta
     
     base_value = None
@@ -25,18 +24,6 @@ class TestBase(unittest.TestCase):
     def nc_factory(self): pass
     @abstractproperty
     def fn(self): pass
-    
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
         
     def setUp(self):
         self.nc_factory().write()
@@ -72,7 +59,7 @@ class TestBase(unittest.TestCase):
         OcgInterpreter(ops).execute()
 
 
-class TestSimple(TestBase):
+class TestSimple(TestSimpleBase):
     base_value = np.array([[1.0,1.0,2.0,2.0],
                            [1.0,1.0,2.0,2.0],
                            [3.0,3.0,4.0,4.0],
@@ -251,7 +238,7 @@ class TestSimple(TestBase):
         ret = self.get_ret(ops)
 
 
-class TestSimpleMask(TestBase):
+class TestSimpleMask(TestSimpleBase):
     base_value = None
     nc_factory = SimpleMaskNc
     fn = 'test_simple_mask_spatial_01.nc'
@@ -281,7 +268,7 @@ class TestSimpleMask(TestBase):
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
         
         
-class TestSimple360(TestBase):
+class TestSimple360(TestSimpleBase):
 #    return_shp = True
     fn = 'test_simple_360_01.nc'
     nc_factory = SimpleNc360

@@ -1,9 +1,15 @@
 import unittest
-from ocgis import env
+from ocgis import env, OcgOperations
 import os
+import tempfile
+from ocgis.test.base import TestBase
 
 
 class Test(unittest.TestCase):
+    
+    @classmethod
+    def setUpClass(cls):
+        cls.test_data = TestBase.get_tdata()
 
     def test_simple(self):
         self.assertEqual(env.OVERWRITE,False)
@@ -20,6 +26,20 @@ class Test(unittest.TestCase):
         env.reset()
         os.environ.pop('OCGIS_OVERWRITE')
         self.assertEqual(env.OVERWRITE,False)
+        
+    def test_env_overload(self):
+        ## check env overload
+        out = tempfile.mkdtemp()
+        try:
+            env.DIR_OUTPUT = out
+            env.PREFIX = 'my_prefix'
+            rd = self.test_data.get_rd('daymet_tmax')
+            ops = OcgOperations(dataset=rd,snippet=True)
+            self.assertEqual(env.DIR_OUTPUT,ops.dir_output)
+            self.assertEqual(env.PREFIX,ops.prefix)
+        finally:
+            os.rmdir(out)
+            env.reset()
         
 
 if __name__ == "__main__":

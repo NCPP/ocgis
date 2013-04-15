@@ -5,16 +5,15 @@ import datetime
 from shapely.geometry.point import Point
 from ocgis.api.dataset.collection.collection import OcgCollection,\
     OcgVariable, StringIdentifier, ArrayIdentifier, GeometryIdentifier
-from ocgis.api.dataset.collection.iterators import KeyedIterator, MeltedIterator
+from ocgis.api.dataset.collection.iterators import MeltedIterator
 from ocgis.api.dataset.collection.dimension import OcgDimension, LevelDimension,\
     SpatialDimension, TemporalDimension
-import netCDF4 as nc
-from ocgis.util.helpers import get_temp_path
 from ocgis.util.spatial.index import shapely_grid
 from ocgis.exc import UniqueIdNotFound
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
+class Test(TestBase):
 
     def test_OcgDimension(self):
         _bounds = [None,

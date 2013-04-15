@@ -1,13 +1,14 @@
 import unittest
 import netCDF4 as nc
 from ocgis.interface.ncmeta import NcMetadata
+from ocgis.test.base import TestBase
 
 
-class TestNcMeta(unittest.TestCase):
-    uri = '/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
+class TestNcMeta(TestBase):
 
     def setUp(self):
-        self.rootgrp = nc.Dataset(self.uri)
+        uri = self.test_data.get_rd('cancm4_tasmax_2001').uri
+        self.rootgrp = nc.Dataset(uri)
 
     def tearDown(self):
         self.rootgrp.close()

@@ -86,6 +86,9 @@ class RequestDataset(object):
         ret = getattr(self,item)
         return(ret)
     
+    def copy(self):
+        return(deepcopy(self))
+    
     def _get_uri_(self,uri,ignore_errors=False,followlinks=True):
         ret = None
         ## check if the path exists locally

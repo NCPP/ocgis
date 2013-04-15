@@ -12,25 +12,36 @@ from ocgis.api.geometry import SelectionGeometry
 import pickle
 import ocgis
 import tempfile
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
-    uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-            'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-            'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc']
-    vars = ['tasmin','tasmax','tas']
-    time_range = [dt(2000,1,1),dt(2000,12,31)]
-    level_range = [2,2]
-    datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
-    datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+class Test(TestBase):
+#    uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+#            'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+#            'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc']
+#    vars = ['tasmin','tasmax','tas']
+#    time_range = [dt(2000,1,1),dt(2000,12,31)]
+#    level_range = [2,2]
+#    datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
+#    datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
     
     def setUp(self):
-        env.DIR_DATA = '/usr/local/climate_data/CanCM4'
+        env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
+        uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc']
+        vars = ['tasmin','tasmax','tas']
+        time_range = [dt(2000,1,1),dt(2000,12,31)]
+        level_range = [2,2]
+        self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
+        self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
     
     def test_env_overload(self):
         ## check env overload
+        prev_do = ocgis.env.DIR_OUTPUT
+        prev_prefix = ocgis.env.PREFIX
+        out = tempfile.mkdtemp()
         try:
-            out = tempfile.mkdtemp()
             ocgis.env.DIR_OUTPUT = out
             ocgis.env.PREFIX = 'my_prefix'
             ops = OcgOperations(dataset=self.datasets)
@@ -38,7 +49,9 @@ class Test(unittest.TestCase):
             self.assertEqual(ocgis.env.PREFIX,ops.prefix)
         finally:
             os.rmdir(out)
-            ocgis.env.reset()
+            ocgis.env.DIR_OUTPUT = prev_do
+            ocgis.env.PREFIX = prev_prefix
+            
             
 
     def test_get_meta(self):
@@ -126,7 +139,7 @@ class Test(unittest.TestCase):
                 self.assertEqual(obj.value,('day',))
                 
     def test_dataset(self):
-        env.DIR_DATA = '/usr/local/climate_data'
+        env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         rd = RequestDataset('tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','tas')
         ds = definition.Dataset(rd)
         self.assertEqual(ds.value,RequestDatasetCollection([rd]))
@@ -163,7 +176,7 @@ class Test(unittest.TestCase):
             self.assertEqual(obj.value,a)
             
     def test_as_url(self):
-        ocgis.env.DIR_DATA = '/usr/local/climate_data/CanCM4'
+        ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4')
         
         ## build request datasets
         filenames = [
@@ -194,15 +207,18 @@ class Test(unittest.TestCase):
         self.assertEqual(url,'/subset?snippet=0&abstraction=polygon&calc_raw=0&agg_selection=0&output_format=csv&spatial_operation=clip&uri=/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc&variable=tasmax&alias=tasmax&t_units=none&t_calendar=none&s_proj=none&calc_grouping=month&prefix=ocgis_output&geom=climate_divisions&allow_empty=0&vector_wrap=1&aggregate=1&select_ugid=none&calc=mean~mean|std~std&backend=ocg')
             
         
-class TestRequestDatasets(unittest.TestCase):
-    uri = '/usr/local/climate_data/CanCM4/rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
-    variable = 'rhs'
+class TestRequestDatasets(TestBase):
+    
+    def setUp(self):
+        self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
+        self.variable = 'rhs'
     
     def test_pickle(self):
         rd = RequestDataset(uri=self.uri,variable=self.variable)
-        with open('/tmp/rd.pkl','w') as f:
+        rd_path = os.path.join(ocgis.env.DIR_OUTPUT,'rd.pkl')
+        with open(rd_path,'w') as f:
             pickle.dump(rd,f)
-        with open('/tmp/rd.pkl','r') as f:
+        with open(rd_path,'r') as f:
             rd2 = pickle.load(f)
         self.assertTrue(rd == rd2)
     
@@ -212,7 +228,7 @@ class TestRequestDatasets(unittest.TestCase):
     
     def test_env_dir_data(self):
         ## test setting the var to a single directory
-        env.DIR_DATA = '/usr/local/climate_data'
+        env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         rd = RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
         self.assertEqual(rd.uri,os.path.join(env.DIR_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'))
         
@@ -222,7 +238,7 @@ class TestRequestDatasets(unittest.TestCase):
             RequestDataset('does_not_exists.nc',variable='foo')
             
         ## set data directory and not find it.
-        env.DIR_DATA = '/usr/local/climate_data/CCSM4'
+        env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA,'CCSM4')
         with self.assertRaises(ValueError):
             RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
     
@@ -257,7 +273,7 @@ class TestRequestDatasets(unittest.TestCase):
             rd = RequestDataset(self.uri,self.variable,level_range=[2,1])
     
     def test_RequestDatasetCollection(self):
-        env.DIR_DATA = '/usr/local/climate_data'
+        env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         uris = ['tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc',
                 'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc']
         variables = ['foo1','foo2']
@@ -284,75 +300,6 @@ class TestRequestDatasets(unittest.TestCase):
             self.assertIsInstance(row,RequestDataset)
         self.assertIsInstance(rdc[0],RequestDataset)
         self.assertIsInstance(rdc['a2'],RequestDataset)
-        
-        
-#class TestUrl(unittest.TestCase):
-#    url_single = 'uri=http://www.dataset.com&variable=foo&spatial_operation=intersects'
-#    url_alias = url_single + '&alias=my_alias'
-#    url_multi = 'uri3=http://www.dataset.com&variable3=foo&uri5=http://www.dataset2.com&variable5=foo2&aggregate=true'
-#    url_bad = 'uri2=http://www.dataset.com&variable3=foo'
-#    url_long = 'uri1=hi&variable1=there&time_range1=2001-1-2|2001-1-5&uri2=hi2&variable2=there2&time_range2=2012-1-1|2012-12-31&level_range2=1|1'
-#    url_interface = url_long + '&t_calendar1=noleap'
-#    
-#    def get_reduced_query(self,attr):
-#        ref = getattr(self,attr)
-#        query = parse_qs(ref)
-#        query = reduce_query(query)
-#        return(query)
-#    
-#    def test_all_urls(self):
-#        members = inspect.getmembers(self)
-#        for member in members:
-#            ref = member[0]
-#            if ref.startswith('url_') and ref != 'url_bad':
-#                query = self.get_reduced_query(ref)
-##                try:
-#                ops = OcgOperations.parse_query(query)
-##                except Exception as e:
-##                    print traceback.format_exc()
-##                    import ipdb;ipdb.set_trace()
-#    
-#    def test_dataset_from_query(self):
-#        query = parse_qs(self.url_long)
-#        query = reduce_query(query)
-#        ds = definition.Dataset.parse_query(query)
-#        rds = [RequestDataset('hi','there',time_range='2001-1-2|2001-1-5'),
-#               RequestDataset('hi2','there2',time_range='2012-1-1|2012-12-31',level_range='1|1')]
-#        rdc = RequestDatasetCollection(rds)
-#        self.assertEqual(ds.value,rdc)
-#        
-#        query = self.get_reduced_query('url_alias')
-#        rdc = RequestDatasetCollection([RequestDataset('http://www.dataset.com','foo',alias='my_alias')])
-#        ds = definition.Dataset.parse_query(query)
-#        self.assertEqual(ds.value,rdc)
-#        
-#    def test_qs_generation(self):
-#        raise(SkipTest('pause in URL concerns at the moment...'))
-#        ds = {'uri':'/path/to/foo','variable':'tas'}
-#        ops = OcgOperations(ds)
-#        qs = ops.as_qs()
-#        self.assertEqual(qs,'/subset?snippet=false&abstraction=polygon&calc_raw=false&agg_selection=false&output_format=numpy&spatial_operation=intersects&uri=/path/to/foo&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none&calc_grouping=none&prefix=none&geom=none&allow_empty=false&vector_wrap=true&aggregate=false&calc=none&select_ugid=none&backend=ocg')
-#        
-#    def test_url_parsing(self):
-#        query = parse_qs(self.url_multi)
-#        reduced = reduce_query(query)
-#        self.assertEqual({'variable': [['foo', 'foo2']], 'aggregate': ['true'], 'uri': [['http://www.dataset.com', 'http://www.dataset2.com']]},reduced)
-#
-#        query = parse_qs(self.url_single)
-#        reduced = reduce_query(query)
-#        self.assertEqual(reduced,{'variable': ['foo'], 'spatial_operation': ['intersects'], 'uri': ['http://www.dataset.com']})
-#        
-#        query = parse_qs(self.url_bad)
-#        with self.assertRaises(DefinitionValidationError):
-#            reduce_query(query)
-#            
-#        query = parse_qs(self.url_long)
-#        reduced = reduce_query(query)
-#        self.assertEqual(reduced,{'variable': [['there', 'there2']], 'level_range': [[None, '1|1']], 'uri': [['hi', 'hi2']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']]})
-#        
-#        query = self.get_reduced_query('url_interface')
-#        self.assertEqual(query,{'variable': [['there', 'there2']], 'level_range': [[None, '1|1']], 'time_range': [['2001-1-2|2001-1-5', '2012-1-1|2012-12-31']], 'uri': [['hi', 'hi2']], 't_calendar': [['noleap', None]]})
-
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

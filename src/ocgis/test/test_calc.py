@@ -2,45 +2,20 @@ import unittest
 import numpy as np
 from ocgis.calc import library
 from ocgis.api.operations import OcgOperations
-from nose.plugins.skip import SkipTest
 from datetime import datetime as dt
 from ocgis.api.dataset.collection.iterators import MeltedIterator, KeyedIterator
-from ocgis import env
-import tempfile
-import shutil
 import ocgis
 import datetime
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
-    
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
-    
-    @property
-    def tasmax(self):
-        cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc','variable':'tasmax'}
-        return(cancm4.copy())
-    @property
-    def rhsmax(self):
-        cancm4 = {'uri':'/usr/local/climate_data/CanCM4/rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc','variable':'rhsmax'}
-        return(cancm4.copy())
+class Test(TestBase):
     
     def test_HeatIndex(self):
-        ds = [self.tasmax,self.rhsmax]
+        kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
+        ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
         
-        time_range = [dt(2011,1,1),dt(2011,12,31,23,59,59)]
-        for d in ds: d['time_range'] = time_range
         ops = OcgOperations(dataset=ds,calc=calc)
         self.assertEqual(ops.calc_grouping,None)
         ret = ops.execute()
@@ -62,7 +37,7 @@ class Test(unittest.TestCase):
         ret = ops.execute()
         
     def test_HeatIndex_keyed_output(self):
-        ds = [self.tasmax,self.rhsmax]
+        ds = [self.test_data.get_rd('cancm4_tasmax_2011'),self.test_data.get_rd('cancm4_rhsmax')]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
         ops = OcgOperations(dataset=ds,calc=calc,snippet=False,output_format='numpy')
         self.assertEqual(ops.calc_grouping,None)
@@ -97,10 +72,7 @@ class Test(unittest.TestCase):
         ret = mean.calculate()
         
     def test_computational_nc_output(self):
-        kwds = self.tasmax
-        kwds['time_range'] = [datetime.datetime(2011,1,1),
-                              datetime.datetime(2011,12,31)]
-        rd = ocgis.RequestDataset(**kwds)
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
         calc = [{'func':'mean','name':'tasmax_mean'}]
         calc_grouping = ['month','year']
         ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping)

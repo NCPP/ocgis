@@ -40,10 +40,10 @@ class OcgDataset(object):
                       interface_overload=state['_interface_overload'])
     
     def connect(self,uri):
-        try:
-            ret = nc.Dataset(uri,'r')
-        except TypeError:
-            ret = nc.MFDataset(uri)
+#        try:
+        ret = nc.Dataset(uri,'r')
+#        except TypeError:
+#            ret = nc.MFDataset(uri)
         return(ret)
     
     def check_extent(self,target):

@@ -1,12 +1,13 @@
 import unittest
 import netCDF4 as nc
 from ocgis.interface.interface import GlobalInterface
+from ocgis.test.base import TestBase
 
 
-class TestInterface(unittest.TestCase):
-    dataset = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
-
+class TestInterface(TestBase):
+    
     def setUp(self):
+        self.dataset = self.test_data.get_rd('cancm4_tasmax_2001')
         self.rootgrp = nc.Dataset(self.dataset['uri'])
 
     def tearDown(self):
@@ -16,7 +17,7 @@ class TestInterface(unittest.TestCase):
         s_abstractions = ['polygon','point']
         for s_abstraction in s_abstractions:
             overload = {'s_abstraction':s_abstraction}
-            i = GlobalInterface(self.rootgrp,self.dataset['variable'],overload=overload)
+            GlobalInterface(self.rootgrp,self.dataset['variable'],overload=overload)
 
 
 if __name__ == "__main__":

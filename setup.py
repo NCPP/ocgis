@@ -7,24 +7,10 @@ from subprocess import check_call
 import shutil
 import os
 import tempfile
+import tarfile
 
 
-config = ConfigParser.ConfigParser()
-config.read('setup.cfg')
-
-parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','install_dependencies_ubuntu','uninstall'],help='The action to perform with the installer.')
-#parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
-#parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
-#parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
-#parser.add_argument("--with-bin",help='download binary files for testing',default=config.get('test','dir'),action='store_true')
-#parser.add_argument("--bin-prefix",help='location to hold binary test files',default=config.get('shp','url'))
-#parser.add_argument("--bin-url",help='URL location of binary test files',default=config.get('test','url'))
-ARGS = parser.parse_args()
-
-################################################################################
-
-def install(version='0.05b-dev'):
+def install(pargs,version='0.05b-dev'):
     ## check python version
     python_version = float(sys.version_info[0]) + float(sys.version_info[1])/10
     if python_version != 2.7:
@@ -72,7 +58,7 @@ def install(version='0.05b-dev'):
           package_dir=package_dir
           )
 
-def install_dependencies_ubuntu():
+def install_dependencies_ubuntu(pargs):
 
     cwd = os.getcwd()
     out = 'install_out.log'
@@ -140,8 +126,51 @@ def install_dependencies_ubuntu():
     #shutil.rmtree(odir)
     os.chdir(cwd)
     print('dependencies installed.')
+    
+def package(pargs):
+    ## get destination directory
+    dst = pargs.d or os.getcwd()
+    if not os.path.exists(dst):
+        raise(IOError('Destination directory does not exist: {0}'.format(dst)))
 
-def uninstall():
+    ## import ocgis using relative locations
+    opath = os.path.join(os.getcwd(),'src')
+    sys.path.append(opath)
+    
+    to_tar = []
+    
+    if pargs.target in ['shp','all']:
+        import ocgis
+        shp_dir = ocgis.env.DIR_SHPCABINET
+        for dirpath,dirnames,filenames in os.walk(shp_dir):
+            for filename in filenames:
+                path = os.path.join(dirpath,filename)
+                arcname = os.path.join('ocgis_data','shp',os.path.split(dirpath)[1],filename)
+                to_tar.append({'path':path,'arcname':arcname})
+    
+    if pargs.target in ['nc','all']:
+        from ocgis.test.base import TestBase
+        tdata = TestBase.get_tdata()
+        for key,value in tdata.iteritems():
+            path = tdata.get_uri(key)
+            arcname = os.path.join('ocgis_data','nc',tdata.get_relative_path(key))
+            to_tar.append({'path':path,'arcname':arcname})
+    
+    out = os.path.join(os.path.join(dst,'ocgis_data.tar.gz'))
+    if pargs.verbose: print('destination file is: {0}'.format(out))
+    tf = tarfile.open(out,'w:gz')
+    try:
+        for tz in to_tar:
+            if pargs.verbose and any([tz['path'].endswith(ii) for ii in ['shp','nc']]):
+                print('adding: {0}'.format(tz['path']))
+            tf.add(tz['path'],arcname=tz['arcname'])
+    finally:
+        if pargs.verbose: print('closing file...')
+        tf.close()
+    
+    if pargs.verbose: print('compression complete.')
+
+def uninstall(pargs):
     try:
         import ocgis
         print('To uninstall, manually remove the Python package folder located here: {0}'.format(os.path.split(ocgis.__file__)[0]))
@@ -150,9 +179,26 @@ def uninstall():
 
 ################################################################################
 
-if ARGS.action == 'install':
-    install()
-elif ARGS.action == 'install_dependencies_ubuntu':
-    install_dependencies_ubuntu()
-elif ARGS.action == 'uninstall':
-    uninstall()
+config = ConfigParser.ConfigParser()
+config.read('setup.cfg')
+
+parser = argparse.ArgumentParser(description='install/uninstall OpenClimateGIS. use "setup.cfg" to find or set default values.')
+parser.add_argument('-v','--verbose',action='store_true',help='print potentially useful information')
+subparsers = parser.add_subparsers()
+
+pinstall = subparsers.add_parser('install',help='install the OpenClimateGIS Python package')
+pinstall.set_defaults(func=install)
+
+pubuntu = subparsers.add_parser('install_dependencies_ubuntu',help='attempt to install OpenClimateGIS dependencies using standard Ubuntu Linux operations')
+pubuntu.set_defaults(func=install_dependencies_ubuntu)
+
+puninstall = subparsers.add_parser('uninstall',help='instructions on how to uninstall the OpenClimateGIS Python package')
+puninstall.set_defaults(func=uninstall)
+
+ppackage = subparsers.add_parser('package',help='utilities for packaging shapefile and NetCDF test datasets')
+ppackage.set_defaults(func=package)
+ppackage.add_argument('target',type=str,choices=['shp','nc','all'],help='Select the files to package.')
+ppackage.add_argument('-d','--directory',dest='d',type=str,metavar='dir',help='the destination directory. if not specified, it defaults the current working directory.')
+
+pargs = parser.parse_args()
+pargs.func(pargs)

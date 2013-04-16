@@ -123,6 +123,7 @@ def install_dependencies_ubuntu(pargs):
 
 
     stdout.close()
+    stderr.close()
     #shutil.rmtree(odir)
     os.chdir(cwd)
     print('dependencies installed.')

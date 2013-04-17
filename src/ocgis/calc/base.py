@@ -81,14 +81,12 @@ class OcgFunction(object):
     checked = False
     name = None
     
-    def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={},
-                 file_only=False):
+    def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={}):
         self.values = values
         self.groups = groups
         self.agg = agg
         self.weights = weights
         self.kwds = kwds
-        self.file_only = file_only
         
         if self.text is None:
             self.text = self.__class__.__name__
@@ -98,12 +96,11 @@ class OcgFunction(object):
     def calculate(self):
         ## holds output from calculation
         fill = self._get_fill_(self.values)
-        if not self.file_only:
-            ## iterate over temporal groups and levels
-            for idx,group in enumerate(self.groups):
-                value_slice = self.values[group,:,:,:]
-                calc = self._calculate_(value_slice,**self.kwds)
-                fill[idx] = calc
+        ## iterate over temporal groups and levels
+        for idx,group in enumerate(self.groups):
+            value_slice = self.values[group,:,:,:]
+            calc = self._calculate_(value_slice,**self.kwds)
+            fill[idx] = calc
         ## if data is calculated on raw values, but area-weighting is required
         ## aggregate the data using provided weights.
         ret = self.aggregate_spatial(fill)

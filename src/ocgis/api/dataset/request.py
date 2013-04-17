@@ -222,6 +222,9 @@ class RequestDatasetCollection(object):
             ret = self._s[key]
         return(ret)
     
+    def keys(self):
+        return(self._s.keys())
+    
     def update(self,request_dataset):
         """Add a :class:`ocgis.RequestDataset` to the collection.
         

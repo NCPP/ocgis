@@ -6,6 +6,7 @@ from subset import SubsetOperation
 from ocgis.util.helpers import union_geoms
 import os
 import shutil
+from ocgis.conv.ncempty import NcEmpty
 
 ## TODO: add method to estimate request size
 
@@ -80,7 +81,7 @@ class OcgInterpreter(Interpreter):
         if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
             self.ops.geom = union_geoms(self.ops.geom)
             
-        ## do not perform vectory wrapping for NetCDF output
+        ## do not perform vector wrapping for NetCDF output
         if self.ops.output_format == 'nc':
             self.ops.vector_wrap = False
         
@@ -90,16 +91,21 @@ class OcgInterpreter(Interpreter):
             ret = MetaConverter(self.ops).write()
         ## this is the standard request for other output types.
         else:
-            ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
-            ## if there is no grouping on the output files, a singe converter is
-            ## is needed
-            if self.ops.output_grouping is None:
-                Conv = OcgConverter.get_converter(self.ops.output_format)
-                conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
+            ## if this is a file only operation, there is no need to subset
+            if self.ops.file_only:
+                conv = NcEmpty(None,outdir,prefix,ops=self.ops)
                 ret = conv.write()
             else:
-                raise(NotImplementedError)
+                ## the operations object performs subsetting and calculations
+                so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
+                ## if there is no grouping on the output files, a singe converter is
+                ## is needed
+                if self.ops.output_grouping is None:
+                    Conv = OcgConverter.get_converter(self.ops.output_format)
+                    conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
+                    ret = conv.write()
+                else:
+                    raise(NotImplementedError)
         
         if env.VERBOSE:
             print('execution complete.')

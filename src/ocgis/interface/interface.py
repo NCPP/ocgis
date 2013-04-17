@@ -115,6 +115,9 @@ class AbstractInterface(object):
     def __init__(self,gi):
         self.gi = gi
         self._ref = gi._dim_map[self._axis]
+        
+        self._dim_name = self._ref['dimension']
+        
         if self._ref is not None:
             self._ref_var = self._ref.get('variable')
             self._ref_bnds = self._ref.get('bounds')

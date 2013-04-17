@@ -87,7 +87,8 @@ class TestSimple(TestSimpleBase):
                                  'calc_grouping':['month']})
         try:
             ds = nc.Dataset(ret,'r')
-            self.assertAlmostEqual(ds.variables['my_mean'][:].sum(),0.0)
+            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),
+                            np.ma.core.MaskedConstant))
         finally:
             ds.close()
 

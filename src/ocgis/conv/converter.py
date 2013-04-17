@@ -1,6 +1,7 @@
 from ocgis.api.dataset.collection.iterators import MeltedIterator
 from ocgis.conv.meta import MetaConverter
 import os.path
+import abc
 
 
 class OcgConverter(object):
@@ -16,7 +17,11 @@ class OcgConverter(object):
         in temporary folders creating in this directory.
     use_dir=None :: str :: If provided, forces outputs into this directory.
     '''
+    __metaclass__ = abc.ABCMeta
     _ext = None
+    
+    @abc.abstractmethod
+    def _write_(self): pass # string path or data
     
     def __init__(self,colls,outdir,prefix,mode='raw',ops=None,add_meta=True):
         self.colls = colls
@@ -45,12 +50,6 @@ class OcgConverter(object):
             ret = self.path
         
         return(ret)
-    
-    def _write_(self):
-        raise(NotImplementedError)
-    
-#    def run(self):
-#        return(self.write())
         
     @classmethod
     def get_converter(cls,output_format):

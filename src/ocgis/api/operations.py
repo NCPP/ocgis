@@ -209,6 +209,7 @@ class OcgOperations(object):
             assert(self._get_object_('geom').is_empty == True)
             assert(all([self.slice_column,self.slice_row]))
         if self.file_only:
+            assert(len(self.dataset) == 1)
             assert(self.output_format == 'nc')
             assert(self.calc is not None)
         if self.output_format == 'nc':

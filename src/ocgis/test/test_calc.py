@@ -163,6 +163,7 @@ class TestTile(TestBase):
         rd = ocgis.RequestDataset(uri,variable)
         import netCDF4 as nc
         ods = ocgis.api.dataset.dataset.OcgDataset(rd)
+        import ipdb;ipdb.set_trace()
         shp = ods.i.spatial.shape
         print('getting schema...')
         schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],100)

@@ -156,18 +156,22 @@ class TestTile(TestBase):
             self.assertTrue(np.all(x == y))
             
     def test_execute_fill(self):
-        uri = '/usr/local/climate_data/daymet/tmax.nc'
-        variable = 'tmax'
+        uri = '/tmp/gridded_obs.tasmax.OBS_125deg.daily.1990-1999.nc'
+#        uri = '/usr/local/climate_data/daymet/tmax.nc'
+        variable = 'tasmax'
+#        variable = 'tmax'
         rd = ocgis.RequestDataset(uri,variable)
         import netCDF4 as nc
         ods = ocgis.api.dataset.dataset.OcgDataset(rd)
         shp = ods.i.spatial.shape
-        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],50)
+        print('getting schema...')
+        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],100)
         calc = [{'func':'mean','name':'my_mean'},
                 {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'floor'}},
                 {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'floor'}},
                 {'func':'freq_perc','name':'perc_99','kwds':{'perc':0.99,'round_method':'floor'}}
                ]
+        print('getting fill file...')
         fill_file = ocgis.OcgOperations(dataset=rd,file_only=True,
                                       calc=calc,calc_grouping=['month'],
                                       output_format='nc').execute()

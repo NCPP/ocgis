@@ -27,6 +27,28 @@ def single_year():
     ret = ops.execute()
     return(ret)
 
+def combine():
+    ## file name template to insert year
+    template = 'gridded_obs.tasmax.OBS_125deg.daily.{year}.nc'
+    years = [1990,1999] # range of years
+    ## output filename 
+    outname = 'gridded_obs.tasmax.OBS_125deg.daily.{0}-{1}.nc'.format(*years)
+    ## path to output file
+    outfile = os.path.join(tempfile.gettempdir(),outname)
+    ## make the file if it does not exist
+    if not os.path.exists(outfile):
+        ## make list of files to concatenate
+        cfiles = []
+        for year in range(years[0],years[1]+1):
+            cfiles.append(os.path.join(ocgis.env.DIR_DATA,template.format(year=year)))
+        ## combine the files
+        sargs = ['ncrcat'] + cfiles + [outfile]
+        print('combining files...')
+        check_call(sargs)
+        print('files combined.')
+    else:
+        print('file already combined.')
+
 def decade():
     ## file name template to insert year
     template = 'gridded_obs.tasmax.OBS_125deg.daily.{year}.nc'
@@ -81,6 +103,7 @@ def profile():
     cProfile.run('decade()','profile.log')
 
 if __name__ == '__main__':
-    ret = single_year()
+#    ret = single_year()
 #    ret = decade()
 #    profile()
+    combine()

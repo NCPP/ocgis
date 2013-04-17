@@ -9,8 +9,9 @@ Past Developers:
  following a transition in managing institutions. Members of the
  original development team must be acknowledged.
 
- Tyler Erickson (Google): original project PI and lead developer,
-  KML conversion, cloud deployment and administration
+ Tyler Erickson (Michigan Tech Research Institute): original project 
+  PI and lead developer, KML conversion, cloud deployment and 
+  administration
  K. Arthur Endsley (Michigan Tech Research Institute): developed
   prototype AJAX web interface
 

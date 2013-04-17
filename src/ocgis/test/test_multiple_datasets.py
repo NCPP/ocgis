@@ -1,30 +1,17 @@
-import unittest
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.api.operations import OcgOperations
 from itertools import izip
 import numpy as np
-from ocgis import env
-import tempfile
-import shutil
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
-    maurer = {'uri':'/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/climate_data/maurer/bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc','variable':'Prcp'}
-    cancm4 = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
-    tasmin = {'uri':'/usr/local/climate_data/CanCM4/tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmin'}
-    albisccp = {'uri':'/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp'}
+class Test(TestBase):
     
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
+    def setUp(self):
+        self.maurer = self.test_data.get_rd('maurer_bccr_1950')
+        self.cancm4 = self.test_data.get_rd('cancm4_tasmax_2001')
+        self.tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
+        self.albisccp = self.test_data.get_rd('ccsm4')
     
     @property
     def dataset(self):
@@ -116,13 +103,13 @@ class Test(unittest.TestCase):
         
         with self.assertRaises(KeyError):
             OcgOperations(dataset=ds)
-        ds[0]['alias'] = 'foo'
-        ds[1]['alias'] = 'foo'
+        ds[0].alias = 'foo'
+        ds[1].alias = 'foo'
         with self.assertRaises(KeyError):
             OcgOperations(dataset=ds)
         
         ds = [self.cancm4.copy(),self.cancm4.copy()]
-        ds[0]['alias'] = 'foo_var'
+        ds[0].alias = 'foo_var'
         ops = OcgOperations(dataset=ds,snippet=True)
         ret = ops.execute()
         self.assertEqual(ret[1].variables.keys(),['foo_var','tasmax'])

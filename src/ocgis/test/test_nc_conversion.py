@@ -7,9 +7,7 @@ import netCDF4 as nc
 class Test(TestBase):
 
     def test_projection_writing(self):
-        uri = '/usr/local/climate_data/daymet/tmax.nc'
-        variable = 'tmax'
-        rd = ocgis.RequestDataset(uri=uri,variable=variable)
+        rd = self.test_data.get_rd('daymet_tmax')
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='nc')
         ret = ops.execute()
         ds = nc.Dataset(ret)

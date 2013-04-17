@@ -11,6 +11,7 @@ from ocgis.util.inspect import Inspect
 import tempfile
 import shutil
 import os
+from ocgis.test.base import TestBase
 
 
 class NcSpatial(object):
@@ -50,7 +51,7 @@ class NcSpatial(object):
         return(bounds)
 
 
-class Test360(unittest.TestCase):
+class Test360(TestBase):
     
     @classmethod
     def setUpClass(cls):

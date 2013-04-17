@@ -4,17 +4,17 @@ from ocgis.util.helpers import make_poly
 import pickle
 import tempfile
 import os
-import ocgis
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
+class Test(TestBase):
     
     def test_dir_output(self):
         ## raise an exception if the directory does not exist
         do = '/does/not/exist'
         with self.assertRaises(DefinitionValidationError):
             DirOutput(do)
-            
+          
         ## make sure directory name does not change case
         do = 'Some'
         new_dir = os.path.join(tempfile.gettempdir(),do)
@@ -90,9 +90,7 @@ class Test(unittest.TestCase):
         self.assertEqual(cg.get_url_string(),'day|month')
             
     def test_dataset(self):
-        uri = '/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
-        variable = 'tas'
-        rd = RequestDataset(uri,variable)
+        rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
         us = dd.get_url_string()
         self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')

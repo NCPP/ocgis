@@ -1,9 +1,10 @@
 import unittest
 import numpy as np
 from ocgis.util.helpers import iter_array, format_bool
+from ocgis.test.base import TestBase
 
 
-class Test(unittest.TestCase):
+class Test(TestBase):
 
     def test_iter_array(self):
         values = np.random.rand(2,2,4,4)

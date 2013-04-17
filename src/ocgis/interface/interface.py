@@ -11,6 +11,7 @@ from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
 from ocgis.exc import DummyLevelEncountered
+from ocgis import constants
 
 
 class GlobalInterface(object):
@@ -81,8 +82,7 @@ class GlobalInterface(object):
             mp[axis] = {'variable':dimvar,'dimension':dim}
             
         ## look for bounds variables
-        bounds_names = set(['bounds','bnds','bound','bnd'])
-        bounds_names.update(['d_'+b for b in bounds_names])
+        bounds_names = set(constants.name_bounds)
         for key,value in mp.iteritems():
             if value is None:
                 continue

@@ -123,7 +123,7 @@ class Test(TestBase):
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
 
 
-class TestTile(unittest.TestCase):
+class TestTile(TestBase):
     
     def get_random_integer(self,low=1,high=100):
         return(int(np.random.random_integers(low,high)))

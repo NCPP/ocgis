@@ -211,3 +211,7 @@ class OcgOperations(object):
         if self.file_only:
             assert(self.output_format == 'nc')
             assert(self.calc is not None)
+        if self.output_format == 'nc':
+            assert(self.spatial_operation == 'intersects')
+            assert(self.aggregate is False)
+            assert(self.calc_raw is False)

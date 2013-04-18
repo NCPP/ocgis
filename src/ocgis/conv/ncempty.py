@@ -14,11 +14,12 @@ class NcEmpty(OcgConverter):
         for k,v in ref.iteritems():
             setattr(var,k,v)
     
-    def _set_variable_(self,key,value,data):
+    def _set_variable_(self,key,value,data,set_attrs=True):
         cvar = self.ds.createVariable(key,value['dtype'],
                                       dimensions=value['dimensions'])
         cvar[:] = data
-        self._set_nc_attrs_(cvar)
+        if set_attrs:
+            self._set_nc_attrs_(cvar)
     
     def _write_(self):
         ods = OcgDataset(self.ops.dataset[self.ops.dataset.keys()[0]])
@@ -51,10 +52,11 @@ class NcEmpty(OcgConverter):
             
         ## create variables except time
         for k,v in self.meta['variables'].iteritems():
-            if k == level.name:
-                self._set_variable_(k,v,level.value)
-            elif k == level.name_bounds:
-                self._set_variable_(k,v,level.bounds)
+            if level is not None:
+                if k == level.name:
+                    self._set_variable_(k,v,level.value)
+                elif k == level.name_bounds:
+                    self._set_variable_(k,v,level.bounds)
             elif k == spatial.row.name:
                 self._set_variable_(k,v,spatial.row.value)
             elif k == spatial.row.name_bounds:
@@ -79,18 +81,28 @@ class NcEmpty(OcgConverter):
             time_value = temporal.calculate(tgd.date_centroid)
             self.ds.createDimension(temporal._dim_name)
             self._set_variable_(temporal.name,
-                       {'dtype':time_value.dtype,'dimensions':(temporal.name,)},
+                       {'dtype':time_value.dtype,'dimensions':(temporal._dim_name,)},
                        time_value)
             time_bounds = temporal.calculate(tgd.bounds)
-            self._set_variable_(temporal.name_bounds,
-                       {'dtype':time_bounds.dtype,'dimensions':(temporal.name,dim_bnds)},
-                       time_bounds)
+            if temporal.name_bounds is None:
+                name_bounds = temporal._dim_name + '_bounds'
+                set_attrs = False
+            else:
+                name_bounds = temporal.name_bounds
+                set_attrs = True
+            self.ds.variables[temporal.name].bounds = name_bounds
+            self._set_variable_(name_bounds,
+                       {'dtype':time_bounds.dtype,'dimensions':(temporal._dim_name,dim_bnds)},
+                       time_bounds,set_attrs=set_attrs)
         else:
             raise(NotImplementedError)
         
         ## add value variables
-        cdims = (temporal._dim_name,level._dim_name,
-                 spatial.row._dim_name,spatial.col._dim_name)
+        try:
+            cdims = (temporal._dim_name,level._dim_name,
+                     spatial.row._dim_name,spatial.col._dim_name)
+        except AttributeError:
+            cdims = (temporal._dim_name,spatial.row._dim_name,spatial.col._dim_name)
         for calc in self.ops.calc:
             self.ds.createVariable(calc['name'],calc['ref'].dtype,dimensions=cdims)
         

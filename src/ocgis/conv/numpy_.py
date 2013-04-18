@@ -13,3 +13,5 @@ class NumpyConverter(OcgConverter):
         for coll in self:
             ret.update({coll.ugeom['ugid']:coll})
         return(ret)
+
+    def _write_(self): pass

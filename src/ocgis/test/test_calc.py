@@ -7,6 +7,7 @@ from ocgis.api.dataset.collection.iterators import MeltedIterator, KeyedIterator
 import ocgis
 import datetime
 from ocgis.test.base import TestBase
+import time
 
 
 class Test(TestBase):
@@ -156,17 +157,17 @@ class TestTile(TestBase):
             self.assertTrue(np.all(x == y))
             
     def test_execute_fill(self):
-        uri = '/tmp/gridded_obs.tasmax.OBS_125deg.daily.1990-1999.nc'
+        #215 minutes
+        uri = '/tmp/gridded_obs.tasmax.OBS_125deg.daily.1950-1999.nc'
 #        uri = '/usr/local/climate_data/daymet/tmax.nc'
         variable = 'tasmax'
 #        variable = 'tmax'
         rd = ocgis.RequestDataset(uri,variable)
         import netCDF4 as nc
         ods = ocgis.api.dataset.dataset.OcgDataset(rd)
-        import ipdb;ipdb.set_trace()
         shp = ods.i.spatial.shape
         print('getting schema...')
-        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],100)
+        schema = ocgis.calc.tile.get_tile_schema(shp[0],shp[1],25)
         calc = [{'func':'mean','name':'my_mean'},
                 {'func':'freq_perc','name':'perc_90','kwds':{'perc':0.90,'round_method':'floor'}},
                 {'func':'freq_perc','name':'perc_95','kwds':{'perc':0.95,'round_method':'floor'}},
@@ -178,13 +179,14 @@ class TestTile(TestBase):
                                       output_format='nc').execute()
         print fill_file, len(schema)
         fds = nc.Dataset(fill_file,'a')
+        t1 = time.time()
         for tile_id,indices in schema.iteritems():
             print tile_id
             row = indices['row']
             col = indices['col']
             ret = ocgis.OcgOperations(dataset=rd,slice_row=row,slice_column=col,
                                       calc=calc,calc_grouping=['month']).execute()
-            ref = ret[1].variables['tmax'].calc_value
+            ref = ret[1].variables[variable].calc_value
             for k,v in ref.iteritems():
                 vref = fds.variables[k]
                 if len(vref.shape) == 3:
@@ -195,6 +197,8 @@ class TestTile(TestBase):
                     raise(NotImplementedError)
                 fds.sync()
         fds.close()
+        print((time.time()-t1)/60.0)
+        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

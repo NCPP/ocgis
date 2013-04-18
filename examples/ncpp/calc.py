@@ -30,7 +30,7 @@ def single_year():
 def combine():
     ## file name template to insert year
     template = 'gridded_obs.tasmax.OBS_125deg.daily.{year}.nc'
-    years = [1990,1999] # range of years
+    years = [1950,1999] # range of years
     ## output filename 
     outname = 'gridded_obs.tasmax.OBS_125deg.daily.{0}-{1}.nc'.format(*years)
     ## path to output file

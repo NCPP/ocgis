@@ -116,17 +116,17 @@ class AbstractInterface(object):
         self.gi = gi
         self._ref = gi._dim_map[self._axis]
         
-        self._dim_name = self._ref['dimension']
-        
         if self._ref is not None:
             self._ref_var = self._ref.get('variable')
             self._ref_bnds = self._ref.get('bounds')
+            self._dim_name = self._ref['dimension']
         else:
             if type(self) == LevelInterface:
                 raise(DummyLevelEncountered)
             else:
                 self._ref_var = None
                 self._ref_bnds = None
+                self._dim_name = None
         
         try:
             self.name = self._ref_var._name

@@ -215,13 +215,15 @@ def get_collection((so,geom_dict)):
     if so.ops.aggregate:
         coll.aggregate(new_id=coll.ugeom['ugid'])
         
-    ## if it is a vector output, wrap the data (if requested).
+    ## if it is a vector output, wrap the data (if requested) but not if optimizations
+    ## for calculations.
     ## TODO: every variable may not need to be wrapped
-    for dataset in so.ops.dataset:
-        ref = dataset['ocg_dataset']
-        if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-            wrap_coll(coll)
-            break
+    if not env.OPTIMIZE_FOR_CALC:
+        for dataset in so.ops.dataset:
+            ref = dataset['ocg_dataset']
+            if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                wrap_coll(coll)
+                break
 
     ## do the requested calculations.
     if so.cengine is not None:

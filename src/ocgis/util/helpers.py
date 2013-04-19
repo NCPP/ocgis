@@ -13,25 +13,38 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
+from ocgis import env
+import sys
 
 
-def format_bool(value):
-    '''Format a string to boolean.
+def vprint(args):
+    if env.VERBOSE:
+        print(args)
+
+class ProgressBar(object):
     
-    :param value: The value to convert.
-    :type value: int or str'''
+    def __init__(self,title):
+        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
+        sys.stdout.flush()
+        self.px = 0
+#        globals()["progress_x"] = 0
     
-    try:
-        ret = bool(int(value))
-    except ValueError:
-        value = value.lower()
-        if value in ['t','true']:
-            ret = True
-        elif value in ['f','false']:
-            ret = False
-        else:
-            raise(ValueError('String not recognized for boolean conversion: {0}'.format(value)))
-    return(ret)
+#    def startProgress(title):
+#        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
+#        sys.stdout.flush()
+#        globals()["progress_x"] = 0
+
+    def progress(self,x):
+        x = x*40//100
+        sys.stdout.write("#"*(x - self.px))
+        sys.stdout.flush()
+        self.px = x
+#        globals()["progress_x"] = x
+    
+    def endProgress(self):
+        sys.stdout.write("#"*(40 - self.px))
+        sys.stdout.write("]\n")
+        sys.stdout.flush()
 
 def locate(pattern, root=os.curdir, followlinks=True):
     '''Locate all files matching supplied filename pattern in and below

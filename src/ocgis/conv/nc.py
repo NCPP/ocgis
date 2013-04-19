@@ -3,6 +3,7 @@ import netCDF4 as nc
 from ocgis.interface.interface import SpatialInterfacePoint
 import numpy as np
 from ocgis.interface.projection import WGS84
+from ocgis import constants
 
     
 class NcConverter(OcgConverter):
@@ -22,6 +23,12 @@ class NcConverter(OcgConverter):
         temporal = iglobal.temporal
         level = iglobal.level
         meta = iglobal._meta
+        
+        ## get or make the bounds dimensions
+        try:
+            bounds_name = list(set(meta['dimensions'].keys()).intersection(set(constants.name_bounds)))[0]
+        except IndexError:
+            bounds_name = constants.ocgis_bounds
                 
         ## add dataset/global attributes
         for key,value in meta['dataset'].iteritems():
@@ -58,14 +65,14 @@ class NcConverter(OcgConverter):
         
         ## time dimensions
         if self.mode == 'calc':
-            dim_time = ds.createDimension(temporal.name,len(arch.temporal_group))
+            dim_time = ds.createDimension(temporal.name)
         else:
-            dim_time = ds.createDimension(temporal.name,len(arch.temporal))
+            dim_time = ds.createDimension(temporal.name)
         ## spatial dimensions
         dim_lat = ds.createDimension(spatial.row.name,len(latitude_values))
         dim_lon = ds.createDimension(spatial.col.name,len(longitude_values))
         if is_poly:
-            dim_bnds = ds.createDimension('bounds',2)
+            dim_bnds = ds.createDimension(bounds_name,2)
         else:
             dim_bnds = None
         
@@ -79,12 +86,12 @@ class NcConverter(OcgConverter):
         ## if bounds are available for the time vector transform those as well
         if temporal.bounds is not None:
             if dim_bnds is None:
-                dim_bnds = ds.createDimension('bounds',2)
+                dim_bnds = ds.createDimension(bounds_name,2)
             if self.mode == 'calc':
                 time_bounds_nc_value = temporal.calculate(arch.temporal_group.bounds)
             else:
                 time_bounds_nc_value = temporal.calculate(arch.temporal.value[:,(0,2)])
-            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,'bounds'))
+            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_time._name,bounds_name))
             times_bounds[:] = time_bounds_nc_value
             for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
                 setattr(times_bounds,key,value)
@@ -122,7 +129,7 @@ class NcConverter(OcgConverter):
         def _make_spatial_variable_(ds,name,values,dimension_tuple,meta):
             ret = ds.createVariable(name,values.dtype,[d._name for d in dimension_tuple])
             ret[:] = values
-            ret.proj4_str = iglobal.spatial.projection.sr.ExportToProj4()
+#            ret.proj4_str = iglobal.spatial.projection.sr.ExportToProj4()
             ## add variable attributes
             for key,value in meta['variables'][name]['attrs'].iteritems():
                 setattr(ret,key,value)

@@ -11,7 +11,7 @@ from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
 from ocgis.exc import DummyLevelEncountered
-from ocgis import constants
+from ocgis import constants, env
 
 
 class GlobalInterface(object):
@@ -284,10 +284,17 @@ class AbstractSpatialInterface(object):
         return(self._count)
         
     def select(self,polygon=None):
-        if polygon is None:
-            return(self._get_all_geoms_())
+        ## loading geometries slows down operations considerably
+        if env.OPTIMIZE_FOR_CALC:
+            geom = np.empty(self.shape,dtype=object)
+            row = self.real_row.reshape(-1)
+            col = self.real_col.reshape(-1)
+            return(geom,row,col)
         else:
-            return(self._select_(polygon))
+            if polygon is None:
+                return(self._get_all_geoms_())
+            else:
+                return(self._select_(polygon))
         
     def _get_resolution_(self):
         return(approx_resolution(self.row.value))

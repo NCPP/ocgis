@@ -9,21 +9,23 @@ class FrequencyPercentile(OcgArgFunction):
     nargs = 2
     Group = groups.Percentiles
     dtype = float
-    description = 'Percentile value matching "perc" and index rounded according to "round_method" (ceil/floor)'
+    description = 'Percentile value matching "perc".'
     
     @staticmethod
-    def _calculate_(values,perc=None,round_method=None):
-        perc = float(perc)
+    def _calculate_(values,perc=None):
+        perc = int(perc)
+        
+        ret = np.percentile(values,perc,axis=0)
         ## sort the data
 #        cseq = values.copy()
 #        cseq.sort(axis=0)
-        values.sort(axis=0)
-        ## reference the time vector length
-        n = values.shape[0]
-        ## calculate the index
-        idx = getattr(np,round_method)(perc*n)
-        ## get the percentiles
-        ret = values[idx,:,:,:]
+#        values.sort(axis=0)
+#        ## reference the time vector length
+#        n = values.shape[0]
+#        ## calculate the index
+#        idx = getattr(np,round_method)(perc*n)
+#        ## get the percentiles
+#        ret = values[idx,:,:,:]
         return(ret)
 
 

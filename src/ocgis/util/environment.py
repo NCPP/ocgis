@@ -17,6 +17,7 @@ class Environment(object):
         self.PREFIX = EnvParm('PREFIX','ocgis_output')
         self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=helpers.format_bool)
+        self.OPTIMIZE_FOR_CALC = EnvParm('OPTIMIZE_FOR_CALC',False,formatter=helpers.format_bool)
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)

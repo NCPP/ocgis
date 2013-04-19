@@ -5,6 +5,7 @@ from collections import deque
 import itertools
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely import wkb
+from ocgis import env
 
 
 class OcgDimension(object):
@@ -110,7 +111,7 @@ class SpatialDimension(OcgDimension):
         value = self._value
         value_mask = self._value_mask
         
-        if isinstance(value[0,0],Point):
+        if isinstance(value[0,0],Point) or env.OPTIMIZE_FOR_CALC:
             weights = np.ones(value.shape,dtype=float)
             weights_ma = np.ma.array(weights,mask=value_mask)
         else:

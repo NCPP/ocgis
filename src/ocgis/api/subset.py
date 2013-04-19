@@ -32,8 +32,10 @@ class SubsetOperation(object):
         
         ## construct OcgDataset objects
         for request_dataset in self.ops.dataset:
+            iface = request_dataset.interface.copy()
+            iface.update({'s_abstraction':self.ops.abstraction})
             ods = OcgDataset(request_dataset,
-                             interface_overload=request_dataset.interface)
+                             interface_overload=iface)
             request_dataset.ocg_dataset = ods
         
         ## determine if dimensions are equivalent.

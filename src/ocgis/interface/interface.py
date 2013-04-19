@@ -44,12 +44,11 @@ class GlobalInterface(object):
         
         ## get the geometric abstraction
         s_abstraction = overload.get('s_abstraction')
-        if s_abstraction is None:
-            if self._row.bounds is None:
-                warn('no bounds found for spatial dimensions. abstracting to point.')
-                s_abstraction = 'point'
-            else:
-                s_abstraction = 'polygon'
+        if self._row.bounds is None:
+            warn('no bounds found for spatial dimensions. abstracting to point.')
+            s_abstraction = 'point'
+#            else:
+#                s_abstraction = 'polygon'
         if s_abstraction == 'polygon':
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:

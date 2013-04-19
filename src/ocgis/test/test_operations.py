@@ -11,8 +11,8 @@ from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 import pickle
 import ocgis
-import tempfile
 from ocgis.test.base import TestBase
+from nose.plugins.skip import SkipTest
 
 
 class Test(TestBase):
@@ -150,6 +150,7 @@ class Test(TestBase):
             self.assertEqual(obj.value,a)
             
     def test_as_url(self):
+        raise(SkipTest)
         ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4')
         
         ## build request datasets

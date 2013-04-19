@@ -113,8 +113,8 @@ class NcConverter(OcgConverter):
                 setattr(levels,key,value)
             if level.bounds is not None:
                 if dim_bnds is None:
-                    dim_bnds = ds.createDimension('bounds',2)
-                levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,'bounds'))
+                    dim_bnds = ds.createDimension(bounds_name,2)
+                levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,bounds_name))
                 levels_bounds[:] = arch.level.value[:,(0,2)]
                 for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
                     setattr(levels,key,value)

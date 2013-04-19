@@ -20,6 +20,24 @@ import sys
 def vprint(args):
     if env.VERBOSE:
         print(args)
+        
+def format_bool(value):
+    '''Format a string to boolean.
+    
+    :param value: The value to convert.
+    :type value: int or str'''
+    
+    try:
+        ret = bool(int(value))
+    except ValueError:
+        value = value.lower()
+        if value in ['t','true']:
+            ret = True
+        elif value in ['f','false']:
+            ret = False
+        else:
+            raise(ValueError('String not recognized for boolean conversion: {0}'.format(value)))
+    return(ret)
 
 class ProgressBar(object):
     

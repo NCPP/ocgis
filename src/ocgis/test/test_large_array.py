@@ -3,6 +3,7 @@ import ocgis
 from ocgis.util.large_array import compute
 import netCDF4 as nc
 import numpy as np
+from ocgis.calc import tile
 
 
 class Test(TestBase):
@@ -57,3 +58,33 @@ class Test(TestBase):
             
             tile_ds.close()
         std_ds.close()
+    
+    def get_random_integer(self,low=1,high=100):
+        return(int(np.random.random_integers(low,high)))
+
+    def test_tile_get_tile_schema(self):
+        schema = tile.get_tile_schema(5,5,2)
+        self.assertEqual(len(schema),9)
+        
+        schema = tile.get_tile_schema(25,1,2)
+        self.assertEqual(len(schema),13)
+        
+    def test_tile_sum(self):
+        ntests = 1000
+        for ii in range(ntests):
+            nrow,ncol,tdim = [self.get_random_integer() for ii in range(3)]
+            x = np.random.rand(nrow,ncol)
+            y = np.empty((nrow,ncol),dtype=float)
+            schema = tile.get_tile_schema(nrow,ncol,tdim)
+            tidx = schema[0]
+            row = tidx['row']
+            col = tidx['col']
+            self.assertTrue(np.all(x[row[0]:row[1],col[0]:col[1]] == x[0:tdim,0:tdim]))
+            running_sum = 0.0
+            for value in schema.itervalues():
+                row,col = value['row'],value['col']
+                slice = x[row[0]:row[1],col[0]:col[1]]
+                y[row[0]:row[1],col[0]:col[1]] = slice
+                running_sum += slice.sum()
+            self.assertAlmostEqual(running_sum,x.sum())
+            self.assertTrue(np.all(x == y))

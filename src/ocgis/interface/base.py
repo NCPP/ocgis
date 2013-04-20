@@ -26,7 +26,7 @@ class AbstractGlobalInterface(object):
     @property
     def level(self):
         if self._level is None:
-            self._level = self._dlevel(gi=self)
+            self._level = self._dlevel._load_(self)
         return(self._level)
     
     @property
@@ -44,7 +44,7 @@ class AbstractGlobalInterface(object):
     @property
     def spatial(self):
         if self._spatial is None:
-            self._spatial = self._dspatial(gi=self)
+            self._spatial = self._dspatial._load_(self)
         return(self._spatial)
 
     def subset_by_dimension(self,temporal=None,level=None,spatial=None):
@@ -65,12 +65,12 @@ class AbstractInterfaceDimension(object):
     @abstractproperty
     def _name_long(self): str
     
-    def __init__(self,gi=None,subset_by=None,value=None,uid=None,bounds=None,
-                 real_idx=None):
+    def __init__(self,subset_by=None,value=None,uid=None,bounds=None,
+                 real_idx=None,name=None):
         if value is None and bounds is not None:
             raise(ValueError("Bounds must be passed with an associated value."))
         
-        self.gi = gi
+        self.name = name
         self.value = value
         self.bounds = bounds
         self.real_idx = real_idx
@@ -82,10 +82,10 @@ class AbstractInterfaceDimension(object):
     
     @abstractmethod
     def subset(self): pass
-        
-    @abstractmethod
-    def _load_(self,subset_by=None):
-        return("do some operation here")
+    
+    @classmethod
+    def _load_(cls,gi,subset_by=None):
+        raise(NotImplementedError)
     
     def _set_value_bounds_uid_(self,value,bounds,uid,subset_by,real_idx):
         if value is None:
@@ -107,7 +107,7 @@ class AbstractVectorDimension(object):
             bounds = self.bounds[slice.start:slice.stop,:]
         uid = self.uid[slice.start:slice.stop]
         real_idx = self.real_idx[slice.start:slice.stop]
-        ret = self.__class__(gi=self.gi,value=value,bounds=bounds,
+        ret = self.__class__(value=value,bounds=bounds,
                              uid=uid,real_idx=real_idx)
         return(ret)
     
@@ -140,7 +140,7 @@ class AbstractVectorDimension(object):
             idx = np.logical_and(lidx,uidx)
             bounds = self.bounds[idx,:]
         
-        ret = self.__class__(gi=self.gi,value=self.value[idx],bounds=bounds,
+        ret = self.__class__(value=self.value[idx],bounds=bounds,
                              uid=self.uid[idx],real_idx=self.real_idx[idx])
         return(ret)
 
@@ -164,12 +164,15 @@ class AbstractColumnDimension(AbstractRowDimension):
 class AbstractSpatialDimension(object):
     __metaclass__ = ABCMeta
     
-    def __init__(self,gi=None,projection=None):
+    def __init__(self,projection=None):
         self.projection = projection
-        self.gi = gi
     
     @abstractproperty
     def weights(self): np.ma.MaskedArray
+    
+    @classmethod
+    def _load_(cls,gi,subset_by=None):
+        raise(NotImplementedError)
 
 
 class AbstractSpatialGrid(AbstractSpatialDimension,AbstractInterfaceDimension):
@@ -214,9 +217,6 @@ class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension)
     
     @abstractmethod
     def _get_all_geoms_(self): np.ma.MaskedArray
-    
-    def _load_(self):
-        raise(NotImplementedError)
 
 
 class AbstractPointDimension(AbstractSpatialVector):

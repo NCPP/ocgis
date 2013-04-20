@@ -83,6 +83,9 @@ class TestNcInterface(TestBase):
         gi = NcGlobalInterface(request_dataset=rd)
         
         spatial = gi.spatial
+        self.assertEqual(spatial.grid.shape,(64,128))
+        
+        level = gi.level
         import ipdb;ipdb.set_trace()
 
 

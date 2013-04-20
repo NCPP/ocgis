@@ -1,5 +1,9 @@
 import base
 import numpy as np
+from ocgis.util.spatial import index as si
+from itertools import product
+from ocgis.util.helpers import make_poly, iter_array
+from shapely import prepared
 
 
 class NcLevelDimension(base.AbstractLevelDimension):
@@ -31,7 +35,11 @@ class NcTemporalDimension(base.AbstractTemporalDimension):
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
-    _name_id = 'gid'
+    pass
+
+
+class NcGridDimension(base.AbstractSpatialGrid):
+    _name_id = None
     _name_long = None
     
     def __init__(self,gi=None,subset_by=None,row=None,column=None,uid=None):
@@ -64,7 +72,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     
     @property
     def resolution(self):
-        raise(NotImplementedError)
+        return(np.mean([self.row.resolution,self.column.resolution]))
     
     @property
     def shape(self):
@@ -84,6 +92,93 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         
     def _load_(self):
         raise(NotImplementedError)
+
+
+class NcPolygonDimension(base.AbstractPolygonDimension):
+    
+    def __init__(self,grid=None,gi=None,geom=None,weights=None):
+        assert(grid.row.bounds is not None)
+        
+        self._geom = geom
+        self._weights = weights
+        self.gi = gi
+        self.grid = grid
+        self.uid = self.grid.uid
+        
+    @property
+    def extent(self):
+        raise(NotImplementedError)
+    
+    @property
+    def weights(self):
+        if self._weights is None:
+            geom = self.geom
+            weights = np.ones(geom.shape,dtype=float)
+            weights = np.ma.array(weights,mask=geom.mask)
+            for ii,jj in iter_array(geom):
+                weights[ii,jj] = geom[ii,jj].area
+            weights = weights/weights.max()
+            self._weights = weights
+        return(self._weights)
+    
+    def clip(self,polygon):
+        ## perform an intersects operation first
+        vd = self.intersects(polygon)
+        ## prepare the geometry for intersection
+        prep_igeom = prepared.prep(polygon)
+        
+        ## loop for the intersection
+        geom = vd._geom
+        for ii,jj in iter_array(geom):
+            ref = geom[ii,jj]
+            if not prep_igeom.contains(ref):
+                new_geom = polygon.intersection(ref)
+                geom[ii,jj] = new_geom
+        
+        ret = self.__class__(gi=self.gi,grid=vd.grid,geom=geom)
+        return(ret)
+    
+    def intersects(self,polygon):
+        ## do the initial grid subset
+        grid = self.grid.subset(polygon=polygon)
+        
+        ## construct the spatial index
+        index_grid = si.build_index_grid(30.0,polygon)
+        index = si.build_index(polygon,index_grid)
+        
+        ## the fill arrays
+        geom = np.ones(grid.shape,dtype=object)
+        geom = np.ma.array(geom,mask=True)
+        
+        ## loop performing the spatial operation
+        row = grid.row.bounds
+        col = grid.column.bounds
+        index_intersects = si.index_intersects
+        geom_mask = geom.mask
+        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+            rref = row[ii,:]
+            cref = col[jj,:]
+            test_geom = make_poly(rref,cref)
+            if index_intersects(test_geom,index):
+                geom[ii,jj] = test_geom
+                geom_mask[ii,jj] = False
+        
+        ret = self.__class__(gi=self.gi,grid=grid,geom=geom)
+        return(ret)
+    
+    def _get_all_geoms_(self):
+        ## the fill arrays
+        geom = np.ones(self.grid.shape,dtype=object)
+        geom = np.ma.array(geom,mask=False)
+        ## loop performing the spatial operation
+        row = self.grid.row.bounds
+        col = self.grid.column.bounds
+        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+            rref = row[ii,:]
+            cref = col[jj,:]
+            geom[ii,jj] = make_poly(rref,cref)
+        
+        return(geom)
 
 
 class NcGlobalInterface(base.AbstractGlobalInterface):

@@ -1,7 +1,7 @@
 import unittest
 from ocgis.test.base import TestBase
 from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
-    NcSpatialDimension
+    NcSpatialDimension, NcGridDimension, NcPolygonDimension
 import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
@@ -49,9 +49,11 @@ class TestNcInterface(TestBase):
         row_bounds = ds.variables['lat_bnds'][:]
         col_data = ds.variables['lon'][:]
         col_bounds = ds.variables['lon_bnds'][:]
+        
         rd = NcRowDimension(value=row_data,bounds=row_bounds)
         cd = NcColumnDimension(value=col_data,bounds=col_bounds)
-        sd = NcSpatialDimension(row=rd,column=cd)
+        sd = NcGridDimension(row=rd,column=cd)
+        self.assertEqual(sd.resolution,2.8009135133922354)
         ssd = sd.subset()
         self.assertEqual(ssd.shape,(rd.shape[0],cd.shape[0]))
         poly = make_poly((-62,59),(87,244))
@@ -60,6 +62,17 @@ class TestNcInterface(TestBase):
         self.assertTrue(sum(ssd.shape) < sum(sd.shape))
         lsd = sd[0:5,0:5]
         self.assertEqual(lsd.shape,(5,5))
+        
+        vd = NcPolygonDimension(sd)
+        
+        self.assertEqual(vd.geom.shape,vd.grid.shape)
+        ivd = vd.intersects(poly)
+        self.assertTrue(sum(ivd.geom.shape) < sum(vd.geom.shape))
+        self.assertEqual(ivd.weights.max(),1.0)
+        
+        cvd = vd.clip(poly)
+        self.assertEqual(ivd.shape,cvd.shape)
+        self.assertFalse(ivd.weights.sum() == cvd.weights.sum())
         import ipdb;ipdb.set_trace()
         ds.close()
         import ipdb;ipdb.set_trace()

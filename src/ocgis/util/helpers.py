@@ -281,6 +281,7 @@ def make_poly(rtup,ctup):
     rtup = (row min, row max)
     ctup = (col min, col max)
     """
+    
     return Polygon(((ctup[0],rtup[0]),
                     (ctup[0],rtup[1]),
                     (ctup[1],rtup[1]),

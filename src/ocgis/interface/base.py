@@ -164,9 +164,68 @@ class AbstractColumnDimension(AbstractRowDimension):
 class AbstractSpatialDimension(AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
+    def __init__(self,*args,**kwds):
+        self._weights = kwds.get('weights',None)
+        super(self.__class__,self).__init__(*args,**kwds)
+    
+    @abstractproperty
+    def weights(self): np.ma.MaskedArray
+
+
 class AbstractSpatialGrid(AbstractSpatialDimension):
     __metaclass__ = ABCMeta
     
+    @property
+    def weights(self):
+        if self._weights is None:
+            self._weights = np.ones(self.shape,dtype=float)
+        return(self._weights)
     
 class AbstractSpatialVector(AbstractSpatialDimension):
     __metaclass__ = ABCMeta
+    _name_id = None
+    _name_long = None
+    
+    def __init__(self,*args,**kwds):
+        self._geom = kwds.get('geom',None)
+        super(self.__class__,self).__init__(*args,**kwds)
+    
+    def __getitem__(self,slc):
+        raise(NotImplementedError)
+    
+    @property
+    def geom(self):
+        if self._geom is None:
+            self._geom = self._get_all_geoms_()
+        return(self._geom)
+    
+    @property
+    def resolution(self):
+        raise(NotImplementedError('Resolution is not a vector property.'))
+    
+    @property
+    def shape(self):
+        return(self.grid.shape)
+    
+    @abstractmethod
+    def clip(self,polygon): pass
+    
+    @abstractmethod
+    def intersects(self,polygon): pass
+    
+    def subset(self):
+        raise(NotImplementedError('Use "intersects" or "clip".'))
+    
+    @abstractmethod
+    def _get_all_geoms_(self): np.ma.MaskedArray
+    
+    def _load_(self):
+        raise(NotImplementedError)
+
+
+class AbstractPointDimension(AbstractSpatialVector):
+    __metaclass__ = ABCMeta
+    
+
+class AbstractPolygonDimension(AbstractSpatialVector):
+    __metaclass__ = ABCMeta 

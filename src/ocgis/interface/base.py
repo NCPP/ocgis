@@ -61,8 +61,6 @@ class AbstractInterfaceDimension(object):
     @abstractproperty
     def shape(self): (int,)
     @abstractproperty
-    def uid(self): np.array(dtype=int)
-    @abstractproperty
     def _name_id(self): str
     @abstractproperty
     def _name_long(self): str
@@ -72,35 +70,69 @@ class AbstractInterfaceDimension(object):
             raise(ValueError("Bounds must be passed with an associated value."))
         
         self.gi = None
-        self._set_value_bounds_(value,bounds,subset_by)
-        self._uid = uid
+        self.value = None
+        self.bounds = None
+        self._set_value_bounds_uid_(value,bounds,uid,subset_by)
         
     @abstractmethod
     def _load_(self,subset_by=None):
         return("do some operation here")
     
-    def _set_value_bounds_(self,value,bounds,subset_by):
+    def _set_value_bounds_uid_(self,value,bounds,uid,subset_by):
         if value is None:
-            self.value, self.bounds = self._load_(subset_by=subset_by)
+            self.value,self.bounds,self.uid = self._load_(subset_by=subset_by)
         else:
             self.value = value
             self.bounds = bounds
+            self.uid = uid
+        if self.uid is None:
+            self.uid = np.arange(1,self.shape[0]+1,dtype=int)
             
             
 class AbstractVectorDimension(object):
     __metaclass__ = ABCMeta
     
     @property
+    def resolution(self):
+        ret = np.abs(np.ediff1d(self.value).mean())
+        return(ret)
+    
+    @property
     def shape(self):
         return(self.value.shape)
     
-    @property
-    def uid(self):
-        if self._uid is None:
-            ret = np.arange(1,self.shape[0]+1,dtype=int)
+    def subset(self,lower,upper):
+        if self.bounds is None:
+            lidx = self.value >= lower
+            uidx = self.value <= upper
+            idx = np.logical_and(lidx,uidx)
+            bounds = None
         else:
-            ret = self._uid
+            ## identify ordering
+            if self.bounds[0,0] > self.bounds[0,1]:
+                lower_col = 1
+                upper_col = 0
+            else:
+                lower_col = 0
+                upper_col = 1
+
+            lidx = self.bounds[:,upper_col] >= lower
+            uidx = self.bounds[:,lower_col] <= upper
+            idx = np.logical_and(lidx,uidx)
+            bounds = self.bounds[idx,:]
+        
+        ret = self.__class__(gi=self.gi,value=self.value[idx],bounds=bounds,
+                             uid=self.uid[idx])
         return(ret)
+    
+#    def _set_view_(self,base,view):
+#        value = base.value[view]
+#        uid = base.uid[view]
+#        if base.bounds is None:
+#            bounds = None
+#        else:
+#            bounds = base.bounds[view,:]
+#        return(value,bounds,uid)
 
 
 class AbstractLevelDimension(AbstractVectorDimension,AbstractInterfaceDimension):

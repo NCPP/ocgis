@@ -21,10 +21,6 @@ class NcRowDimension(base.AbstractRowDimension):
             ret = (self.bounds.min(),self.bounds.max())
         return(ret)
     
-    @property
-    def resolution(self):
-        raise(NotImplementedError)
-    
     def _load_(self,subset_by=None):
         raise(NotImplementedError)
 

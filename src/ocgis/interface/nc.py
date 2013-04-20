@@ -4,6 +4,7 @@ from ocgis.util.spatial import index as si
 from itertools import product
 from ocgis.util.helpers import make_poly, iter_array
 from shapely import prepared
+import netCDF4 as nc
 
 
 class NcLevelDimension(base.AbstractLevelDimension):
@@ -35,15 +36,24 @@ class NcTemporalDimension(base.AbstractTemporalDimension):
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
-    
+    _name_id = 'gid'
+    _name_long = None
     
     def __init__(self,*args,**kwds):
+        super(self.__class__,self).__init__(gi=kwds.get('gi'),
+                                            projection=kwds.get('projection'))
         self.grid = NcGridDimension(*args,**kwds)
-        if self.grid.bounds is None:
+        if self.grid.row.bounds is None:
             self.vector = NcPointDimension(*args,**kwds)
         else:
-            self.vector = NcPolygonDimension(*args,**kwds)
-        super(self.__class__,self).__init__(projection=kwds.get('projection'))
+            self.vector = NcPolygonDimension(gi=self.gi,grid=self.grid)
+    
+    @property
+    def weights(self):
+        raise(NotImplementedError,'Use "grid" or "vector" weights.')
+    
+    def _load_(self):
+        raise(NotImplementedError)
 
 
 class NcGridDimension(base.AbstractSpatialGrid):
@@ -54,6 +64,7 @@ class NcGridDimension(base.AbstractSpatialGrid):
         self.row = row
         self.column = column
         self.gi = gi
+        self._weights = None
         if uid is None:
             shp = (self.row.shape[0],self.column.shape[0])
             uid = np.arange(1,(shp[0]*shp[1])+1,dtype=int).reshape(*shp)
@@ -194,3 +205,19 @@ class NcGlobalInterface(base.AbstractGlobalInterface):
     _dlevel = NcLevelDimension
     _dspatial = NcSpatialDimension
 #    _metdata_cls = NcMetadata
+
+    def __init__(self,*args,**kwds):
+        super(self.__class__,self).__init__(*args,**kwds)
+        self.__ds = None
+        
+    def __del__(self):
+        try:
+            self._ds.close()
+        finally:
+            pass
+        
+    @property
+    def _ds(self):
+        if self.__ds is None:
+            self.__ds = nc.Dataset(self.request_dataset.uri,'r')
+        return(self.__ds)

@@ -161,17 +161,18 @@ class AbstractColumnDimension(AbstractRowDimension):
     __metaclass__ = ABCMeta
     
     
-class AbstractSpatialDimension(AbstractInterfaceDimension):
+class AbstractSpatialDimension(object):
     __metaclass__ = ABCMeta
     
-    def __init__(self,projection=None):
+    def __init__(self,gi=None,projection=None):
         self.projection = projection
+        self.gi = gi
     
     @abstractproperty
     def weights(self): np.ma.MaskedArray
 
 
-class AbstractSpatialGrid(AbstractSpatialDimension):
+class AbstractSpatialGrid(AbstractSpatialDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
     @property
@@ -180,7 +181,7 @@ class AbstractSpatialGrid(AbstractSpatialDimension):
             self._weights = np.ones(self.shape,dtype=float)
         return(self._weights)
     
-class AbstractSpatialVector(AbstractSpatialDimension):
+class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     _name_id = None
     _name_long = None

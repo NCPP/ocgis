@@ -35,7 +35,15 @@ class NcTemporalDimension(base.AbstractTemporalDimension):
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
-    pass
+    
+    
+    def __init__(self,*args,**kwds):
+        self.grid = NcGridDimension(*args,**kwds)
+        if self.grid.bounds is None:
+            self.vector = NcPointDimension(*args,**kwds)
+        else:
+            self.vector = NcPolygonDimension(*args,**kwds)
+        super(self.__class__,self).__init__(projection=kwds.get('projection'))
 
 
 class NcGridDimension(base.AbstractSpatialGrid):

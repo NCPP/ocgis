@@ -164,9 +164,8 @@ class AbstractColumnDimension(AbstractRowDimension):
 class AbstractSpatialDimension(AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
-    def __init__(self,*args,**kwds):
-        self._weights = kwds.get('weights',None)
-        super(self.__class__,self).__init__(*args,**kwds)
+    def __init__(self,projection=None):
+        self.projection = projection
     
     @abstractproperty
     def weights(self): np.ma.MaskedArray
@@ -185,10 +184,6 @@ class AbstractSpatialVector(AbstractSpatialDimension):
     __metaclass__ = ABCMeta
     _name_id = None
     _name_long = None
-    
-    def __init__(self,*args,**kwds):
-        self._geom = kwds.get('geom',None)
-        super(self.__class__,self).__init__(*args,**kwds)
     
     def __getitem__(self,slc):
         raise(NotImplementedError)

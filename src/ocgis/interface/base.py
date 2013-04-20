@@ -149,6 +149,8 @@ class AbstractColumnDimension(AbstractRowDimension):
 class AbstractSpatialDimension(AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
+    @abstractproperty
+    def __get_item__(self): pass
     
 class AbstractSpatialGrid(AbstractSpatialDimension):
     __metaclass__ = ABCMeta

@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 import numpy as np
 
 
-class AbstractGlobalInterface(object):
+class AbstractDataset(object):
     __metaclass__ = ABCMeta
     
     @abstractproperty
@@ -12,8 +12,6 @@ class AbstractGlobalInterface(object):
     def _dlevel(self): AbstractLevelDimension
     @abstractproperty
     def _dspatial(self): AbstractSpatialDimension
-#    @abstractproperty
-#    def _metadata_cls(self): AbstractMetadata
     
     def __init__(self,request_dataset=None,temporal=None,level=None,spatial=None,
                  metadata=None):

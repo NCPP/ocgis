@@ -1,7 +1,7 @@
 import unittest
 from ocgis.test.base import TestBase
 from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
-    NcSpatialDimension, NcGridDimension, NcPolygonDimension, NcGlobalInterface
+    NcSpatialDimension, NcGridDimension, NcPolygonDimension, NcDataset
 import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
@@ -81,7 +81,7 @@ class TestNcInterface(TestBase):
         
     def test_load(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        gi = NcGlobalInterface(request_dataset=rd)
+        gi = NcDataset(request_dataset=rd)
         
         spatial = gi.spatial
         self.assertEqual(spatial.grid.shape,(64,128))

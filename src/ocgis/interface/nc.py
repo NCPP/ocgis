@@ -252,11 +252,10 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
         return(geom)
 
 
-class NcGlobalInterface(base.AbstractGlobalInterface):
+class NcDataset(base.AbstractDataset):
     _dtemporal = NcTemporalDimension
     _dlevel = NcLevelDimension
     _dspatial = NcSpatialDimension
-#    _metdata_cls = NcMetadata
 
     def __init__(self,*args,**kwds):
         super(self.__class__,self).__init__(*args,**kwds)

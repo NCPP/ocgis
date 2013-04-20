@@ -1,9 +1,10 @@
 import unittest
-import netCDF4 as nc
-from ocgis.interface.interface import GlobalInterface
 from ocgis.test.base import TestBase
-from ocgis.interface.nc import NcRowDimension
+from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
+    NcSpatialDimension
 import numpy as np
+import netCDF4 as nc
+from ocgis.util.helpers import make_poly
 
 
 class TestNcInterface(TestBase):
@@ -40,6 +41,26 @@ class TestNcInterface(TestBase):
         self.assertEqual(ri.extent,(bounds.min(),bounds.max()))
         self.assertTrue(np.all(ri.uid == np.arange(1,21)))
         self.assertEqual(ri.resolution,0.5)
+        
+    def test_spatial_dimension(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ds = nc.Dataset(rd.uri,'r')
+        row_data = ds.variables['lat'][:]
+        row_bounds = ds.variables['lat_bnds'][:]
+        col_data = ds.variables['lon'][:]
+        col_bounds = ds.variables['lon_bnds'][:]
+        rd = NcRowDimension(value=row_data,bounds=row_bounds)
+        cd = NcColumnDimension(value=col_data,bounds=col_bounds)
+        sd = NcSpatialDimension(row=rd,column=cd)
+        ssd = sd.subset()
+        poly = make_poly((-62,59),(87,244))
+        ssd = sd.subset(polygon=poly)
+        self.assertEqual(ssd.uid.shape,(ssd.row.shape[0],ssd.column.shape[0]))
+        self.assertTrue(sum(ssd.shape) < sum(sd.shape))
+        import ipdb;ipdb.set_trace()
+        ds.close()
+        import ipdb;ipdb.set_trace()
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

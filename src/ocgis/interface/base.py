@@ -65,28 +65,32 @@ class AbstractInterfaceDimension(object):
     @abstractproperty
     def _name_long(self): str
     
-    def __init__(self,gi=None,subset_by=None,value=None,uid=None,bounds=None):
+    def __init__(self,gi=None,subset_by=None,value=None,uid=None,bounds=None,
+                 real_idx=None):
         if value is None and bounds is not None:
             raise(ValueError("Bounds must be passed with an associated value."))
         
-        self.gi = None
-        self.value = None
-        self.bounds = None
-        self._set_value_bounds_uid_(value,bounds,uid,subset_by)
+        self.gi = gi
+        self.value = value
+        self.bounds = bounds
+        self.real_idx = real_idx
+        self.uid = uid
+        self._set_value_bounds_uid_(value,bounds,uid,subset_by,real_idx)
+        
+    @abstractmethod
+    def subset(self): pass
         
     @abstractmethod
     def _load_(self,subset_by=None):
         return("do some operation here")
     
-    def _set_value_bounds_uid_(self,value,bounds,uid,subset_by):
+    def _set_value_bounds_uid_(self,value,bounds,uid,subset_by,real_idx):
         if value is None:
-            self.value,self.bounds,self.uid = self._load_(subset_by=subset_by)
-        else:
-            self.value = value
-            self.bounds = bounds
-            self.uid = uid
+            self.value,self.bounds,self.uid,self.real_idx = self._load_(subset_by=subset_by)
         if self.uid is None:
             self.uid = np.arange(1,self.shape[0]+1,dtype=int)
+        if self.real_idx is None:
+            self.real_idx = np.arange(0,self.shape[0],dtype=int)
             
             
 class AbstractVectorDimension(object):
@@ -122,17 +126,8 @@ class AbstractVectorDimension(object):
             bounds = self.bounds[idx,:]
         
         ret = self.__class__(gi=self.gi,value=self.value[idx],bounds=bounds,
-                             uid=self.uid[idx])
+                             uid=self.uid[idx],real_idx=self.real_idx[idx])
         return(ret)
-    
-#    def _set_view_(self,base,view):
-#        value = base.value[view]
-#        uid = base.uid[view]
-#        if base.bounds is None:
-#            bounds = None
-#        else:
-#            bounds = base.bounds[view,:]
-#        return(value,bounds,uid)
 
 
 class AbstractLevelDimension(AbstractVectorDimension,AbstractInterfaceDimension):

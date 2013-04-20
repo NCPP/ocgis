@@ -76,7 +76,10 @@ class AbstractInterfaceDimension(object):
         self.real_idx = real_idx
         self.uid = uid
         self._set_value_bounds_uid_(value,bounds,uid,subset_by,real_idx)
-        
+    
+    @abstractproperty
+    def __getitem__(self): pass
+    
     @abstractmethod
     def subset(self): pass
         
@@ -95,6 +98,18 @@ class AbstractInterfaceDimension(object):
             
 class AbstractVectorDimension(object):
     __metaclass__ = ABCMeta
+    
+    def __getitem__(self,slice):
+        value = self.value[slice.start:slice.stop]
+        if self.bounds is None:
+            bounds = None
+        else:
+            bounds = self.bounds[slice.start:slice.stop,:]
+        uid = self.uid[slice.start:slice.stop]
+        real_idx = self.real_idx[slice.start:slice.stop]
+        ret = self.__class__(gi=self.gi,value=value,bounds=bounds,
+                             uid=uid,real_idx=real_idx)
+        return(ret)
     
     @property
     def resolution(self):
@@ -148,9 +163,6 @@ class AbstractColumnDimension(AbstractRowDimension):
     
 class AbstractSpatialDimension(AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
-    
-    @abstractproperty
-    def __get_item__(self): pass
     
 class AbstractSpatialGrid(AbstractSpatialDimension):
     __metaclass__ = ABCMeta

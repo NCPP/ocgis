@@ -44,6 +44,14 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
             uid = np.ma.array(data=uid,mask=False)
         self.uid = uid
         
+    def __getitem__(self,idx):
+        rs,cs = idx
+        row = self.row[rs.start:rs.stop]
+        column = self.column[cs.start:cs.stop]
+        uid = self.uid[rs.start:rs.stop,cs.start:cs.stop]
+        ret = self.__class__(gi=self.gi,row=row,column=column,uid=uid)
+        return(ret)
+        
     @property
     def extent(self):
         if self.row.bounds is None:

@@ -53,10 +53,13 @@ class TestNcInterface(TestBase):
         cd = NcColumnDimension(value=col_data,bounds=col_bounds)
         sd = NcSpatialDimension(row=rd,column=cd)
         ssd = sd.subset()
+        self.assertEqual(ssd.shape,(rd.shape[0],cd.shape[0]))
         poly = make_poly((-62,59),(87,244))
         ssd = sd.subset(polygon=poly)
         self.assertEqual(ssd.uid.shape,(ssd.row.shape[0],ssd.column.shape[0]))
         self.assertTrue(sum(ssd.shape) < sum(sd.shape))
+        lsd = sd[0:5,0:5]
+        self.assertEqual(lsd.shape,(5,5))
         import ipdb;ipdb.set_trace()
         ds.close()
         import ipdb;ipdb.set_trace()

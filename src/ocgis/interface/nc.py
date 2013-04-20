@@ -8,6 +8,7 @@ import netCDF4 as nc
 from ocgis import constants
 from warnings import warn
 from abc import ABCMeta, abstractproperty
+from ocgis.exc import DummyDimensionEncountered
 
 
 class NcDimension(object):
@@ -21,12 +22,16 @@ class NcDimension(object):
         if subset_by is not None:
             raise(NotImplementedError)
         else:
-            ret = gi._load_axis_(cls)
-            import ipdb;ipdb.set_trace()
-
+            try:
+                ret = gi._load_axis_(cls)
+            except DummyDimensionEncountered:
+                ret = None
+        return(ret)
     
 class NcLevelDimension(NcDimension,base.AbstractLevelDimension):
     axis = 'Z'
+    _name_id = 'lid'
+    _name_long = 'level'
 
 
 class NcRowDimension(NcDimension,base.AbstractRowDimension):
@@ -49,6 +54,12 @@ class NcColumnDimension(NcRowDimension,base.AbstractColumnDimension):
 
 class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     axis = 'T'
+    _name_id = 'tid'
+    _name_long = 'time'
+    
+    @property
+    def extent(self):
+        raise(NotImplementedError)
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
@@ -300,11 +311,15 @@ class NcGlobalInterface(base.AbstractGlobalInterface):
     
     def _load_axis_(self,kls):
         ref = self._dim_map[kls.axis]
-        value = ref['variable'][:]
+        try:
+            value = ref['variable'][:]
+        except TypeError:
+            raise(DummyDimensionEncountered(kls.axis))
         name = ref['dimension']
         try:
             bounds = ref['bounds'][:]
+            name_bounds = ref['bounds']._name
         except Exception as e:
             raise(NotImplementedError)
-        ret = kls(value=value,name=name,bounds=bounds)
+        ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds)
         return(ret)

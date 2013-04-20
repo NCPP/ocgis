@@ -10,7 +10,6 @@ from ocgis.interface.projection import get_projection
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
-from ocgis.exc import DummyLevelEncountered
 from ocgis import constants, env
 
 

@@ -52,7 +52,7 @@ class UniqueIdNotFound(OcgException):
         return('No unique ids found.')
     
     
-class DummyLevelEncountered(OcgException):
+class DummyDimensionEncountered(OcgException):
     pass
     
 

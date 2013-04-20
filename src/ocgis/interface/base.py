@@ -18,15 +18,21 @@ class AbstractGlobalInterface(object):
     def __init__(self,request_dataset=None,temporal=None,level=None,spatial=None,
                  metadata=None):
         self.request_dataset = request_dataset
+        
         self._temporal = temporal
         self._level = level
         self._spatial = spatial
         self._metadata = metadata
         
+        self._dummy_level = False
+        self._dummy_temporal = False
+        
     @property
     def level(self):
-        if self._level is None:
+        if self._level is None and not self._dummy_level:
             self._level = self._dlevel._load_(self)
+            if self._level is None:
+                self._dummy_level = True
         return(self._level)
     
     @property
@@ -37,14 +43,17 @@ class AbstractGlobalInterface(object):
     
     @property
     def temporal(self):
-        if self._temporal is None:
-            self._temporal = self._dtemporal(gi=self)
+        if self._temporal is None and not self._dummy_temporal:
+            self._temporal = self._dtemporal._load_(self)
+            if self._temporal is None:
+                self._dummy_temporal = True
         return(self._temporal)
     
     @property
     def spatial(self):
         if self._spatial is None:
             self._spatial = self._dspatial._load_(self)
+            assert(self._spatial is not None)
         return(self._spatial)
 
     def subset_by_dimension(self,temporal=None,level=None,spatial=None):
@@ -66,11 +75,12 @@ class AbstractInterfaceDimension(object):
     def _name_long(self): str
     
     def __init__(self,subset_by=None,value=None,uid=None,bounds=None,
-                 real_idx=None,name=None):
+                 real_idx=None,name=None,name_bounds=None):
         if value is None and bounds is not None:
             raise(ValueError("Bounds must be passed with an associated value."))
         
         self.name = name
+        self.name_bounds = name_bounds
         self.value = value
         self.bounds = bounds
         self.real_idx = real_idx

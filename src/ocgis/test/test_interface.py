@@ -86,6 +86,9 @@ class TestNcInterface(TestBase):
         self.assertEqual(spatial.grid.shape,(64,128))
         
         level = gi.level
+        self.assertEqual(level,None)
+        
+        temporal = gi.temporal
         import ipdb;ipdb.set_trace()
 
 

@@ -5,6 +5,7 @@ from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
 import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
+from ocgis.interface.projection import WGS84
 
 
 class TestNcInterface(TestBase):
@@ -84,12 +85,15 @@ class TestNcInterface(TestBase):
         
         spatial = gi.spatial
         self.assertEqual(spatial.grid.shape,(64,128))
+        self.assertTrue(isinstance(spatial.projection,WGS84))
         
         level = gi.level
         self.assertEqual(level,None)
         
         temporal = gi.temporal
-        import ipdb;ipdb.set_trace()
+        self.assertEqual(str(temporal.extent),'(datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2011, 1, 1, 0, 0))')
+        res = temporal.resolution
+        self.assertAlmostEqual(int(res),1)
 
 
 if __name__ == "__main__":

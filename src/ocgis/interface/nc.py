@@ -9,6 +9,9 @@ from ocgis import constants
 from warnings import warn
 from abc import ABCMeta, abstractproperty
 from ocgis.exc import DummyDimensionEncountered
+from ocgis.interface.metadata import NcMetadata
+import datetime
+from ocgis.interface.projection import get_projection
 
 
 class NcDimension(object):
@@ -27,7 +30,8 @@ class NcDimension(object):
             except DummyDimensionEncountered:
                 ret = None
         return(ret)
-    
+
+
 class NcLevelDimension(NcDimension,base.AbstractLevelDimension):
     axis = 'Z'
     _name_id = 'lid'
@@ -38,14 +42,6 @@ class NcRowDimension(NcDimension,base.AbstractRowDimension):
     _name_id = None
     _name_long = None
     axis = 'Y'
-    
-    @property
-    def extent(self):
-        if self.bounds is None:
-            ret = (self.value.min(),self.value.max())
-        else:
-            ret = (self.bounds.min(),self.bounds.max())
-        return(ret)
     
     
 class NcColumnDimension(NcRowDimension,base.AbstractColumnDimension):
@@ -58,8 +54,36 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     _name_long = 'time'
     
     @property
-    def extent(self):
-        raise(NotImplementedError)
+    def resolution(self):
+        diffs = np.array([],dtype=float)
+        value = self.value
+        for tidx,tval in iter_array(value,return_value=True):
+            try:
+                diffs = np.append(diffs,
+                                np.abs((tval-value[tidx[0]+1]).days))
+            except IndexError:
+                break
+        return(diffs.mean())
+    
+    @classmethod
+    def _load_(cls,gi,subset_by=None):
+        ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
+        attrs = gi.metadata['variables'][ret.name]['attrs']
+        ret.units = attrs['units']
+        ret.calendar = attrs['calendar']
+        ret.value = nc.num2date(ret.value,ret.units,calendar=ret.calendar)
+        cls._to_datetime_(ret.value)
+        if ret.bounds is not None:
+            ret.bounds = nc.num2date(ret.bounds,ret.units,calendar=ret.calendar)
+            cls._to_datetime_(ret.bounds)
+        return(ret)
+    
+    @staticmethod
+    def _to_datetime_(arr):
+        dt = datetime.datetime
+        for idx,t in iter_array(arr,return_value=True):
+            arr[idx] = dt(t.year,t.month,t.day,
+                          t.hour,t.minute,t.second)
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
@@ -67,7 +91,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     _name_long = None
     
     def __init__(self,*args,**kwds):
-        super(self.__class__,self).__init__(projection=kwds.get('projection'))
+        super(self.__class__,self).__init__(projection=kwds.pop('projection',None))
         self.grid = NcGridDimension(*args,**kwds)
         if self.grid.row.bounds is None:
             self.vector = NcPointDimension(*args,**kwds)
@@ -85,7 +109,8 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         else:
             row = gi._load_axis_(NcRowDimension)
             column = gi._load_axis_(NcColumnDimension)
-            ret = cls(row=row,column=column)
+            projection = get_projection(gi._ds)
+            ret = cls(row=row,column=column,projection=projection)
         return(ret)
 
 class NcGridDimension(base.AbstractSpatialGrid):
@@ -243,6 +268,12 @@ class NcGlobalInterface(base.AbstractGlobalInterface):
             self._ds.close()
         finally:
             pass
+        
+    @property
+    def metadata(self):
+        if self._metadata is None:
+            self._metadata = NcMetadata(self._ds)
+        return(self._metadata)
     
     @property
     def _dim_map(self):

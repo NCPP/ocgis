@@ -35,11 +35,8 @@ class AbstractGlobalInterface(object):
                 self._dummy_level = True
         return(self._level)
     
-    @property
-    def metadata(self):
-        if self._metadata is None:
-            self._metadata = self._metadata_cls(gi=self)
-        return(self._metadata)
+    @abstractproperty
+    def metadata(self): pass
     
     @property
     def temporal(self):
@@ -122,6 +119,14 @@ class AbstractVectorDimension(object):
         return(ret)
     
     @property
+    def extent(self):
+        if self.bounds is None:
+            ret = (self.value.min(),self.value.max())
+        else:
+            ret = (self.bounds.min(),self.bounds.max())
+        return(ret)
+    
+    @property
     def resolution(self):
         ret = np.abs(np.ediff1d(self.value).mean())
         return(ret)
@@ -193,7 +198,8 @@ class AbstractSpatialGrid(AbstractSpatialDimension,AbstractInterfaceDimension):
         if self._weights is None:
             self._weights = np.ones(self.shape,dtype=float)
         return(self._weights)
-    
+
+
 class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     _name_id = None
@@ -210,7 +216,7 @@ class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension)
     
     @property
     def resolution(self):
-        raise(NotImplementedError('Resolution is not a vector property.'))
+        raise(NotImplementedError('Resolution is not a spatial vector property.'))
     
     @property
     def shape(self):

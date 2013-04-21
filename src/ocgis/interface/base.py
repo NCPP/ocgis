@@ -14,13 +14,14 @@ class AbstractDataset(object):
     def _dspatial(self): AbstractSpatialDimension
     
     def __init__(self,request_dataset=None,temporal=None,level=None,spatial=None,
-                 metadata=None):
+                 metadata=None,value=None):
         self.request_dataset = request_dataset
         
         self._temporal = temporal
         self._level = level
         self._spatial = spatial
         self._metadata = metadata
+        self._value = value
         
         self._dummy_level = False
         self._dummy_temporal = False
@@ -50,10 +51,18 @@ class AbstractDataset(object):
             self._spatial = self._dspatial._load_(self)
             assert(self._spatial is not None)
         return(self._spatial)
-
-    def subset_by_dimension(self,temporal=None,level=None,spatial=None):
-        return(self.get_dataset(temporal=None,level=None,spatial=None))
     
+    @property
+    def value(self):
+        return(self._value)
+    
+    def aggregate(self):
+        msg = "Aggregation is not implemented for {0}".format(self.__class__.__name__)
+        raise(NotImplementedError(msg))
+    
+    @abstractmethod
+    def get_subset(self,temporal=None,level=None,spatial=None):
+        pass
     
 class AbstractInterfaceDimension(object):
     __metaclass__ = ABCMeta

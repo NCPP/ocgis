@@ -6,6 +6,9 @@ import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
 from ocgis.interface.projection import WGS84
+import datetime
+from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.spatial.wrap import unwrap_geoms
 
 
 class TestNcInterface(TestBase):
@@ -94,6 +97,24 @@ class TestNcInterface(TestBase):
         self.assertEqual(str(temporal.extent),'(datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2011, 1, 1, 0, 0))')
         res = temporal.resolution
         self.assertAlmostEqual(int(res),1)
+        trng = [datetime.datetime(2001,1,1),datetime.datetime(2001,12,31,23,59)]
+        new_ds = gi.get_subset(temporal=trng)
+        self.assertEqual(new_ds.temporal.shape[0],365)        
+        self.assertEqual(new_ds.value.shape,(365,1,64,128))
+        
+    def test_aggregate(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        sc = ShpCabinet()
+        geoms = sc.get_geoms('state_boundaries')
+        unwrap_geoms(geoms,0.0)
+        utah = geoms[23]['geom']
+        ods = ods.get_subset(spatial_operation='clip',polygon=utah)
+        ods.aggregate()
+        self.assertEqual(ods.value.shape,(3650,1,1,1))
+        self.assertEqual(ods.raw_value.shape,(3650,1,3,3))
+        self.assertNotEqual(ods.spatial.raw_weights.shape,ods.spatial.weights.shape)
+        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

@@ -28,6 +28,8 @@ class AbstractDataset(object):
         
     @property
     def level(self):
+        if self._dlevel is None:
+            self._dummy_level = True
         if self._level is None and not self._dummy_level:
             self._level = self._dlevel._load_(self)
             if self._level is None:
@@ -39,6 +41,8 @@ class AbstractDataset(object):
     
     @property
     def temporal(self):
+        if self._dtemporal is None:
+            self._dummy_temporal = True
         if self._temporal is None and not self._dummy_temporal:
             self._temporal = self._dtemporal._load_(self)
             if self._temporal is None:

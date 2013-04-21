@@ -101,6 +101,18 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
             self.vector = NcPolygonDimension(grid=self.grid)
     
     @property
+    def is_360(self):
+        if self.grid.column.bounds is not None:
+            check = self.grid.column.bounds
+        else:
+            check = self.grid.column.value
+        if np.any(check > 180.):
+            ret = True
+        else:
+            ret = False
+        return(ret)
+    
+    @property
     def weights(self):
         raise(NotImplementedError,'Use "grid" or "vector" weights.')
     

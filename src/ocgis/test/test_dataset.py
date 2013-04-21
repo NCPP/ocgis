@@ -9,9 +9,10 @@ from ocgis.interface.projection import WGS84
 import datetime
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.util.spatial.wrap import unwrap_geoms
+from ocgis.interface.shp import ShpDataset
 
 
-class TestNcInterface(TestBase):
+class TestNcDataset(TestBase):
     
     def test_row_dimension(self):
         value = np.arange(30,40,step=0.5)
@@ -87,6 +88,7 @@ class TestNcInterface(TestBase):
         gi = NcDataset(request_dataset=rd)
         
         spatial = gi.spatial
+        self.assertTrue(spatial.is_360)
         self.assertEqual(spatial.grid.shape,(64,128))
         self.assertTrue(isinstance(spatial.projection,WGS84))
         
@@ -114,7 +116,16 @@ class TestNcInterface(TestBase):
         self.assertEqual(ods.value.shape,(3650,1,1,1))
         self.assertEqual(ods.raw_value.shape,(3650,1,3,3))
         self.assertNotEqual(ods.spatial.raw_weights.shape,ods.spatial.weights.shape)
-        import ipdb;ipdb.set_trace()
+
+
+class TestShpDataset(TestBase):
+    
+    def test_load(self):
+        sds = ShpDataset('state_boundaries')
+        geom = sds.spatial.geom
+        self.assertEqual(geom.shape,(51,))
+        self.assertEqual(sds.temporal,None)
+        self.assertEqual(sds.level,None)
 
 
 if __name__ == "__main__":

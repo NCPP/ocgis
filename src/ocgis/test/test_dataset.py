@@ -1,7 +1,8 @@
 import unittest
 from ocgis.test.base import TestBase
 from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
-    NcSpatialDimension, NcGridDimension, NcPolygonDimension, NcDataset
+    NcSpatialDimension, NcGridDimension, NcPolygonDimension, NcDataset,\
+    NcPointDimension
 import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
@@ -10,6 +11,7 @@ import datetime
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.util.spatial.wrap import unwrap_geoms
 from ocgis.interface.shp import ShpDataset
+from shapely.geometry.point import Point
 
 
 class TestNcDataset(TestBase):
@@ -115,7 +117,29 @@ class TestNcDataset(TestBase):
         ods.aggregate()
         self.assertEqual(ods.value.shape,(3650,1,1,1))
         self.assertEqual(ods.raw_value.shape,(3650,1,3,3))
-        self.assertNotEqual(ods.spatial.raw_weights.shape,ods.spatial.weights.shape)
+        self.assertNotEqual(ods.spatial.vector.raw_weights.shape,
+                            ods.spatial.vector.weights.shape)
+        self.assertEqual(ods.spatial.vector.uid[0],1)
+
+    def test_abstraction_point(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd,abstraction='point')
+        with self.assertRaises(AttributeError):
+            ods.spatial.shape
+        self.assertTrue(isinstance(ods.spatial.vector,NcPointDimension))
+        geom = ods.spatial.vector.geom
+        self.assertEqual(geom.shape,(64,128))
+        self.assertTrue(isinstance(geom[0,0],Point))
+        weights = ods.spatial.vector.weights
+        self.assertEqual(weights.max(),1.)
+        poly = make_poly((-62,59),(87,244))
+        nods = ods.get_subset(spatial_operation='intersects',polygon=poly)
+        with self.assertRaises(AttributeError):
+            nods.spatial.shape
+        self.assertNotEqual(ods.spatial.vector.shape,nods.spatial.vector.shape)
+        nods.aggregate()
+        self.assertEqual(nods.spatial.vector.geom.shape,(1,1))
+        self.assertTrue(isinstance(nods.spatial.vector.geom[0,0],Point))
 
 
 class TestShpDataset(TestBase):

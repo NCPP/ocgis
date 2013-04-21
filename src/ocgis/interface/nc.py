@@ -14,6 +14,8 @@ import datetime
 from ocgis.interface.projection import get_projection
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
+from shapely.geometry.point import Point
+from shapely.geometry.multipoint import MultiPoint
 
 
 class NcDimension(object):
@@ -92,13 +94,21 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     _name_id = 'gid'
     _name_long = None
     
-    def __init__(self,*args,**kwds):
-        super(self.__class__,self).__init__(projection=kwds.pop('projection',None))
-        self.grid = NcGridDimension(*args,**kwds)
-        if self.grid.row.bounds is None:
-            self.vector = NcPointDimension(*args,**kwds)
+    def __init__(self,grid=None,vector=None,projection=None,abstraction='polygon',
+                 row=None,column=None,uid=None):
+        self.abstraction = abstraction
+        super(self.__class__,self).__init__(projection=projection)
+        if grid is None:
+            self.grid = NcGridDimension(row=row,column=column)
         else:
-            self.vector = NcPolygonDimension(grid=self.grid)
+            self.grid = grid
+        if vector is None:
+            if self.grid.row.bounds is None or self.abstraction == 'point':
+                self.vector = NcPointDimension(grid=self.grid)
+            else:
+                self.vector = NcPolygonDimension(grid=self.grid)
+        else:
+            self.vector = vector
     
     @property
     def is_360(self):
@@ -124,7 +134,8 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
             row = gi._load_axis_(NcRowDimension)
             column = gi._load_axis_(NcColumnDimension)
             projection = get_projection(gi._ds)
-            ret = cls(row=row,column=column,projection=projection)
+            ret = cls(row=row,column=column,projection=projection,
+                      abstraction=gi._abstraction)
         return(ret)
 
 class NcGridDimension(base.AbstractSpatialGrid):
@@ -182,13 +193,11 @@ class NcGridDimension(base.AbstractSpatialGrid):
 
 class NcPolygonDimension(base.AbstractPolygonDimension):
     
-    def __init__(self,grid=None,geom=None,weights=None):
-        assert(grid.row.bounds is not None)
-        
+    def __init__(self,grid=None,geom=None,uid=None):
         self._geom = geom
-        self._weights = weights
+        self._weights = None
         self.grid = grid
-        self.uid = self.grid.uid
+        self.uid = uid
         
     @property
     def extent(self):
@@ -224,6 +233,8 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
         return(ret)
     
     def intersects(self,polygon):
+        ## reset the weights
+        self._weights = None
         ## do the initial grid subset
         grid = self.grid.subset(polygon=polygon)
         
@@ -244,11 +255,11 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
             rref = row[ii,:]
             cref = col[jj,:]
             test_geom = make_poly(rref,cref)
+            geom[ii,jj] = test_geom
             if index_intersects(test_geom,index):
-                geom[ii,jj] = test_geom
                 geom_mask[ii,jj] = False
         
-        ret = self.__class__(grid=grid,geom=geom)
+        ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)
     
     def _get_all_geoms_(self):
@@ -264,6 +275,52 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
             geom[ii,jj] = make_poly(rref,cref)
         
         return(geom)
+    
+    
+class NcPointDimension(NcPolygonDimension):
+
+    @property
+    def extent(self):
+        raise(NotImplementedError)
+
+    @property
+    def weights(self):
+        return(np.ma.array(self.grid.weights,mask=self.geom.mask))
+
+    def clip(self,polygon):
+        return(self.intersects(polygon))
+    
+    def intersects(self,polygon):
+        ## do the initial grid subset
+        grid = self.grid.subset(polygon=polygon)
+        ## a prepared polygon
+        prep_polygon = prepared.prep(polygon)
+        ## the fill arrays
+        geom = np.ones(grid.shape,dtype=object)
+        geom = np.ma.array(geom,mask=True)
+        geom_mask = geom.mask
+        
+        row = grid.row.value
+        col = grid.column.value
+        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+            pt = Point(row[ii],col[jj])
+            geom[ii,jj] = pt
+            if prep_polygon.intersects(pt):
+                geom_mask[ii,jj] = False
+
+        ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
+        return(ret)
+
+    def _get_all_geoms_(self):
+        ## the fill arrays
+        geom = np.ones(self.grid.shape,dtype=object)
+        geom = np.ma.array(geom,mask=False)
+        ## loop performing the spatial operation
+        row = self.grid.row.value
+        col = self.grid.column.value
+        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+            geom[ii,jj] = Point(row[ii],col[jj])
+        return(geom)
 
 
 class NcDataset(base.AbstractDataset):
@@ -272,6 +329,7 @@ class NcDataset(base.AbstractDataset):
     _dspatial = NcSpatialDimension
 
     def __init__(self,*args,**kwds):
+        self._abstraction = kwds.pop('abstraction','polygon')
         super(self.__class__,self).__init__(*args,**kwds)
         self.__ds = None
         self.__dim_map = None
@@ -313,27 +371,33 @@ class NcDataset(base.AbstractDataset):
         new_geometry = np.ones((1,1),dtype=object)
         new_geometry = np.ma.array(new_geometry,mask=False)
         ## get the masked geometries
-        geoms = self.spatial.geom.compressed()
+        geoms = self.spatial.vector.geom.compressed()
+        ## store the raw weights
+        self.spatial.vector.raw_weights = self.spatial.vector.weights.copy()
         ## break out the MultiPolygon objects. inextricable geometry errors
         ## sometimes occur otherwise
-        ugeom = []
-        for geom in geoms:
-            if isinstance(geom,MultiPolygon):
-                for poly in geom:
-                    ugeom.append(poly)
-            else:
-                ugeom.append(geom)
-        ## store the raw weights
-        self.spatial.raw_weights = self.spatial.weights.copy()
-        ## execute the union
-        new_geometry[0,0] = cascaded_union(ugeom)
+        if self.spatial.abstraction == 'polygon':
+            ugeom = []
+            for geom in geoms:
+                if isinstance(geom,MultiPolygon):
+                    for poly in geom:
+                        ugeom.append(poly)
+                else:
+                    ugeom.append(geom)
+            ## execute the union
+            new_geometry[0,0] = cascaded_union(ugeom)
+        elif self.spatial.abstraction == 'point':
+            pts = MultiPoint([pt for pt in geoms.flat])
+            new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
+        else:
+            raise(NotImplementedError)
         ## overwrite the original geometry
-        self.spatial._geom = new_geometry
-        self.spatial._uid = np.ma.array([[new_geom_id]],mask=False)
+        self.spatial.vector._geom = new_geometry
+        self.spatial.vector.uid = np.ma.array([[new_geom_id]],mask=False)
         ## aggregate the values
         self.raw_value = self.value.copy()
         self._value = self._get_aggregate_sum_()
-        self.spatial._weights = None
+        self.spatial.vector._weights = None
     
     @property
     def _dim_map(self):
@@ -358,9 +422,12 @@ class NcDataset(base.AbstractDataset):
             new_level = self.level
         if spatial_operation is not None and polygon is not None:
             if spatial_operation == 'intersects':
-                new_spatial = self.spatial.vector.intersects(polygon)
+                new_vector = self.spatial.vector.intersects(polygon)
             elif spatial_operation == 'clip':
-                new_spatial = self.spatial.vector.clip(polygon)
+                new_vector = self.spatial.vector.clip(polygon)
+            new_spatial = NcSpatialDimension(grid=new_vector.grid,vector=new_vector,
+                                             projection=self.spatial.projection,
+                                             abstraction=self.spatial.abstraction)
         else:
             new_spatial = self.spatial
         ret = self.__class__(request_dataset=self.request_dataset,temporal=new_temporal,
@@ -369,7 +436,7 @@ class NcDataset(base.AbstractDataset):
     
     def _get_aggregate_sum_(self):
         value = self.raw_value
-        weights = self.spatial.raw_weights
+        weights = self.spatial.vector.raw_weights
 
         ## make the output array
         wshape = (value.shape[0],value.shape[1],1,1)

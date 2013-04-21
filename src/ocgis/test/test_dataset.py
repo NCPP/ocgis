@@ -140,6 +140,14 @@ class TestNcDataset(TestBase):
         nods.aggregate()
         self.assertEqual(nods.spatial.vector.geom.shape,(1,1))
         self.assertTrue(isinstance(nods.spatial.vector.geom[0,0],Point))
+        
+    def test_iteration(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        trng = [datetime.datetime(2001,1,1),datetime.datetime(2001,12,31,23,59)]
+        ods = ods.get_subset(temporal=trng)
+        for row in ods:
+            import ipdb;ipdb.set_trace()
 
 
 class TestShpDataset(TestBase):

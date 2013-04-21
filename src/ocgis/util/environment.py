@@ -18,6 +18,8 @@ class Environment(object):
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=self._format_bool_)
         self.OPTIMIZE_FOR_CALC = EnvParm('OPTIMIZE_FOR_CALC',False,formatter=self._format_bool_)
         
+        self.ops = None
+        
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
         try:
@@ -27,7 +29,7 @@ class Environment(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        if isinstance(value,EnvParm):
+        if isinstance(value,EnvParm) or name == 'ops':
             object.__setattr__(self,name,value)
         else:
             attr = object.__getattribute__(self,name)

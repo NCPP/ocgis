@@ -52,6 +52,9 @@ class OcgInterpreter(Interpreter):
         if env.VERBOSE:
             print('executing...')
             
+        ## add operations to environment
+        env.ops = self.ops
+            
         self.check() ## run validation
         
         ## check for a user-supplied output prefix

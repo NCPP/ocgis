@@ -2,7 +2,6 @@ import base
 from ocgis.interface.projection import WGS84
 from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
-from copy import deepcopy
 
 
 class ShpSpatialDimension(base.AbstractSpatialDimension):

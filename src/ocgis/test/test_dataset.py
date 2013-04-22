@@ -165,14 +165,6 @@ class TestNcDataset(TestBase):
             sods.temporal.group
         sods.temporal.set_grouping(grouping)
         self.assertEqual(sods.temporal.group.value.shape[0],1)
-        
-    def test_iteration(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        ods = NcDataset(request_dataset=rd)
-        trng = [datetime.datetime(2001,1,1),datetime.datetime(2001,12,31,23,59)]
-        ods = ods.get_subset(temporal=trng)
-        for row in ods:
-            import ipdb;ipdb.set_trace()
             
             
 class TestIterator(TestBase):
@@ -185,9 +177,7 @@ class TestIterator(TestBase):
         for ii in itr: self.assertTrue(len(ii) > 0)
         
         itr = mi.iter_spatial_dimension(ods.spatial)
-        for ii in itr:
-            import ipdb;ipdb.set_trace()
-    
+        self.assertEqual(len(list(itr)),25)
 
 
 class TestShpDataset(TestBase):

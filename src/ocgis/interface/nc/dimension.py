@@ -104,9 +104,9 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
             self.grid = grid
         if vector is None:
             if self.grid.row.bounds is None or self.abstraction == 'point':
-                self.vector = NcPointDimension(grid=self.grid)
+                self.vector = NcPointDimension(grid=self.grid,uid=self.grid.uid)
             else:
-                self.vector = NcPolygonDimension(grid=self.grid)
+                self.vector = NcPolygonDimension(grid=self.grid,uid=self.grid.uid)
         else:
             self.vector = vector
             

@@ -15,7 +15,6 @@ class MeltedIterator(object):
         for (ii,jj),geom in iter_array(geoms,return_value=True):
             ret[name_id] = uid[ii,jj]
             yield(((ii,jj),geom,ret))
-            import ipdb;ipdb.set_trace()
     
     def iter_vector_dimension(self,dim):
         value = dim.value

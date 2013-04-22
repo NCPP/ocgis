@@ -145,7 +145,7 @@ class NcDataset(base.AbstractDataset):
         else:
             new_temporal = self.temporal
         if level is not None:
-            new_level = self.level.subset(*level)
+            new_level = self.level[level[0]-1:level[1]:1]
         else:
             new_level = self.level
         if spatial_operation is not None and polygon is not None:

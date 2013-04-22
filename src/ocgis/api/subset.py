@@ -131,7 +131,7 @@ class SubsetOperation(object):
 #        so_copy = copy.copy(self)
         if self.ops.geom is None:
             yield(self,None)
-        elif isinstance(env.geom,ShpDataset):
+        elif isinstance(self.ops.geom,ShpDataset):
             for idx in range(self   .ops.geom.spatial.geom):
                 yield(env.geom[idx])
         else:

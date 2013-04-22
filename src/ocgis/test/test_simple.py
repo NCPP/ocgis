@@ -134,19 +134,11 @@ class TestSimple(TestSimpleBase):
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.level.value.shape,(1,3))
-        
-    def test_using_ugid(self):
-        ## swap names of id variable in geometry dictionary
-        ## intersects
-        geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = [{'ugid':1,'geom':geom}]
-        ret = self.get_ret(kwds={'geom':geom})
+        self.assertEqual(ref.level.value.shape,(1,))
 
     def test_spatial(self):
         ## intersects
         geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
@@ -157,7 +149,6 @@ class TestSimple(TestSimpleBase):
         
         ## intersection
         geom = make_poly((38,39),(-104,-103))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
         self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
         self.assertEqual(ret[1].variables[self.var].value.shape,(61,2,2,2))
@@ -171,7 +162,6 @@ class TestSimple(TestSimpleBase):
             
         ## intersection + aggregation
         geom = make_poly((38,39),(-104,-103))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
         self.assertEqual(len(ref.variables[self.var].spatial.uid.flatten()),1)

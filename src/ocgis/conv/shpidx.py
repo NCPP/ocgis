@@ -1,5 +1,4 @@
 from ocgis.conv.shp import ShpConverter
-from ocgis.api.dataset.collection.dimension import SpatialDimension
 
     
 class ShpIdxConverter(ShpConverter):

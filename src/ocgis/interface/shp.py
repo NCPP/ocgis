@@ -25,7 +25,7 @@ class ShpSpatialDimension(base.AbstractSpatialDimension):
     
     @classmethod
     def _load_(cls,gi):
-        geoms = gi._sc.get_geoms(gi.key)
+        geoms = gi._sc.get_geoms(gi.key,attr_filter=gi._attr_filter)
         lgeoms = len(geoms)
         fill_geoms = np.empty(lgeoms,dtype=object)
         uid = np.empty(lgeoms,dtype=int)
@@ -45,12 +45,13 @@ class ShpDataset(base.AbstractDataset):
     _dtemporal = None
     _dspatial = ShpSpatialDimension
     
-    def __init__(self,key=None,spatial=None):
+    def __init__(self,key=None,spatial=None,attr_filter=None):
         self.key = key
         self._spatial = spatial
         self._temporal = None
         self._level = None
         self.__sc = None
+        self._attr_filter = attr_filter
         
     def __getitem__(self,slc):
         geom = self.spatial.geom[slc]

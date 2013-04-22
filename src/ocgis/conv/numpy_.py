@@ -1,4 +1,4 @@
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 
     
 class NumpyConverter(OcgConverter):
@@ -11,7 +11,7 @@ class NumpyConverter(OcgConverter):
     def write(self):
         ret = {}
         for coll in self:
-            ret.update({coll.ugeom['ugid']:coll})
+            ret.update({coll.ugid:coll})
         return(ret)
 
     def _write_(self): pass

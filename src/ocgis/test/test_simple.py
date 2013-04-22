@@ -97,9 +97,9 @@ class TestSimple(TestSimpleBase):
         
         ## confirm size of geometry array
         ref = ret[1].variables[self.var].spatial
-        attrs = ['value','uid']
-        for attr in attrs:
-            self.assertEqual(getattr(ref,attr).shape,(4,4))
+        shps = [ref.vector,ref.grid,ref.vector.uid,ref.grid.uid]
+        for attr in shps:
+            self.assertEqual(attr.shape,(4,4))
         
         ## confirm value array
         ref = ret[1].variables[self.var].value

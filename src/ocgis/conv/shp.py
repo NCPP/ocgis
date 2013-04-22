@@ -1,4 +1,4 @@
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 import datetime
 from osgeo import ogr
 import numpy as np

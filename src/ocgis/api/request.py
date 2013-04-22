@@ -51,11 +51,6 @@ class RequestDataset(object):
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
         
-        self.ocg_dataset = None
-        
-        ## used for keyed iteratory to avoid writing duplicate identifiers.
-        self._use_for_id = []
-        
         self._format_()
     
     def inspect(self):

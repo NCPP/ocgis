@@ -4,6 +4,9 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
 from copy import deepcopy
 from ocgis import env
+from ocgis.interface.shp import ShpDataset
+from ocgis.api.collection import RawCollection
+from ocgis.interface.nc.dataset import NcDataset
 
 
 class SubsetOperation(object):
@@ -23,13 +26,18 @@ class SubsetOperation(object):
         self.serial = serial
         self.nprocs = nprocs
         
-        ## construct OcgDataset objects
-        for request_dataset in self.ops.dataset:
-            iface = request_dataset.interface.copy()
-            iface.update({'s_abstraction':self.ops.abstraction})
-            ods = OcgDataset(request_dataset,
-                             interface_overload=iface)
-            request_dataset.ocg_dataset = ods
+#        ## construct OcgDataset objects
+#        for request_dataset in env.ops.dataset:
+#            import ipdb;ipdb.set_trace()
+#            iface = request_dataset.interface.copy()
+#            iface.update({'s_abstraction':self.ops.abstraction})
+#            ods = OcgDataset(request_dataset,
+#                             interface_overload=iface)
+#            
+#            request_dataset.ocg_dataset = ods
+        
+        ## move to operations ##################################################
+        
         
 #        ## determine if dimensions are equivalent.
 #        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
@@ -45,19 +53,19 @@ class SubsetOperation(object):
 #            self.itype = SpatialInterfacePoint
 #        else:
 #            raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
-        
-        ## ensure all data has the same projection
-        projections = [ods.ocg_dataset.i.spatial.projection.sr.ExportToProj4() for ods in self.ops.dataset]
-        projection_test = [projections[0] == ii for ii in projections]
-        if not all(projection_test):
-            raise(ValueError('Input datasets must share a common projection.'))
-        
-        ## if the target dataset(s) has a different projection than WGS84, the
-        ## selection geometries will need to be projected.
-        if not self.ops._get_object_('geom').is_empty:
-            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
-                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
-                self.ops.geom = new_geom
+#        
+#        ## ensure all data has the same projection
+#        projections = [ods.ocg_dataset.i.spatial.projection.sr.ExportToProj4() for ods in self.ops.dataset]
+#        projection_test = [projections[0] == ii for ii in projections]
+#        if not all(projection_test):
+#            raise(ValueError('Input datasets must share a common projection.'))
+#        
+#        ## if the target dataset(s) has a different projection than WGS84, the
+#        ## selection geometries will need to be projected.
+#        if not self.ops._get_object_('geom').is_empty:
+#            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
+#                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
+#                self.ops.geom = new_geom
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -68,20 +76,20 @@ class SubsetOperation(object):
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate)
             
-        ## check for snippet request in the operations dictionary. if there is
-        ## on, the time range should be set in the operations dictionary.
-        if self.ops.snippet is True:
-            for dataset in self.ops.dataset:
-                dataset.level_range = [1,1]
-                ref = dataset.ocg_dataset.i.temporal
-                if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-                    dataset.time_range = [ref.value[0],ref.value[0]]
-                else:
-                    tgdim = TemporalDimension(ref.tid,ref.value,
-                                              bounds=ref.bounds).\
-                                              group(self.cengine.grouping)
-                    times = ref.value[tgdim.dgroups[0]]
-                    dataset.time_range = [times.min(),times.max()]
+#        ## check for snippet request in the operations dictionary. if there is
+#        ## on, the time range should be set in the operations dictionary.
+#        if self.ops.snippet is True:
+#            for dataset in self.ops.dataset:
+#                dataset.level_range = [1,1]
+#                ref = dataset.ocg_dataset.i.temporal
+#                if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
+#                    dataset.time_range = [ref.value[0],ref.value[0]]
+#                else:
+#                    tgdim = TemporalDimension(ref.tid,ref.value,
+#                                              bounds=ref.bounds).\
+#                                              group(self.cengine.grouping)
+#                    times = ref.value[tgdim.dgroups[0]]
+#                    dataset.time_range = [times.min(),times.max()]
         
     def __iter__(self):
         '''Return OcgCollection objects from the cache or directly from
@@ -97,6 +105,7 @@ class SubsetOperation(object):
         ## use a multiprocessing pool returning unordered geometries
         ## for the parallel case
         else:
+            raise(NotImplementedError)
             pool = Pool(processes=self.nprocs)
             it = pool.imap_unordered(get_collection,
                                      self._iter_proc_args_())
@@ -120,10 +129,17 @@ class SubsetOperation(object):
         
 #        ## copy for the iterator to avoid pickling the cache
 #        so_copy = copy.copy(self)
-        for geom_dict in self.ops.geom:
-            yield(self,geom_dict)
+        if self.ops.geom is None:
+            yield(self,None)
+        elif isinstance(env.geom,ShpDataset):
+            for idx in range(self   .ops.geom.spatial.geom):
+                yield(env.geom[idx])
+        else:
+            geoms = [self.ops.geom]
+            for geom in geoms:
+                yield(self,geom)
             
-def get_collection((so,geom_dict)):
+def get_collection((so,geom)):
     '''Execute requested operations.
     
     so :: SubsetOperation
@@ -153,74 +169,91 @@ def get_collection((so,geom_dict)):
 #    import ipdb;ipdb.set_trace()
 #    /tdk
     
-    if env.VERBOSE:
-        print('processing geometry with UGID {0}...'.format(geom_dict['ugid']))
+#    if env.VERBOSE:
+#        print('processing geometry with UGID {0}...'.format(geom_dict['ugid']))
     
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     
-    coll = OcgCollection(ugeom=geom_dict)
-    ## store geoms for later clipping. needed because some may be wrapped while
-    ## others unwrapped.
-    geom_copys = []
-    for dataset in so.ops.dataset:
-        ## use a copy of the geometry dictionary, since it may be modified
-        geom_copy = deepcopy(geom_dict)
-        geom_copys.append(geom_copy)
-        
-        ref = dataset.ocg_dataset
+    coll = RawCollection(ugeom=geom)
+#    ## store geoms for later clipping. needed because some may be wrapped while
+#    ## others unwrapped.
+#    geom_copys = []
+    for request_dataset in so.ops.dataset:
+#        ## use a copy of the geometry dictionary, since it may be modified
+#        geom_copy = deepcopy(geom_dict)
+#        geom_copys.append(geom_copy)
+#        
+#        ref = dataset.ocg_dataset
         ## wrap the geometry dictionary if needed
-        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
+        ods = NcDataset(request_dataset=request_dataset)
+        if so.ops.geom is not None and ods.spatial.is_360:
+#        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
             unwrap_geoms([geom_copy],ref.i.spatial.pm)
+        if so.ops.slice_row is not None or so.ops.slice_column is not None:
+            raise(NotImplementedError)
         ## perform the data subset
-        ocg_variable = ref.subset(
-                            polygon=geom_copy['geom'],
-                            time_range=dataset.time_range,
-                            level_range=dataset.level_range,
-                            allow_empty=so.ops.allow_empty,
-                            slice_row=so.ops.slice_row,
-                            slice_column=so.ops.slice_column)
-        ## tell the keyed iterator if this should be used for identifiers.
-        ocg_variable._use_for_id = dataset._use_for_id
-        ## update the variable's alias
-        ocg_variable.alias = dataset.alias
-        ## maintain the interface for use by nc converter
-        ## TODO: i don't think this is required by other converters
-        ocg_variable._i = ref.i
-        ## TODO: projection is set multiple times. what happens with multiple
-        ## projections?
-        coll.projection = ref.i.spatial.projection
-        
-        coll.add_variable(ocg_variable)
+        ods = ods.get_subset(
+                            spatial_operation=so.ops.spatial_operation,
+                            polygon=geom,
+                            temporal=request_dataset.time_range,
+                            level=request_dataset.level_range,
+                            allow_empty=so.ops.allow_empty,)
+        if so.ops.spatial_operation == 'clip' and geom is not None:
+            ods = ods.spatial.vector.clip()
+        if so.ops.aggregate:
+            try:
+                new_id = geom.uid
+            except AttributeError:
+                new_id = 1
+            ods.aggregate(new_id=new_id)
+        if not env.OPTIMIZE_FOR_CALC:
+            if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                ods.wrap()
+        if so.cengine is not None:
+            so.cengine.execute(ods)
+#                            slice_row=so.ops.slice_row,
+#                            slice_column=so.ops.slice_column)
+#        ## tell the keyed iterator if this should be used for identifiers.
+#        ocg_variable._use_for_id = dataset._use_for_id
+#        ## update the variable's alias
+#        ocg_variable.alias = dataset.alias
+#        ## maintain the interface for use by nc converter
+#        ## TODO: i don't think this is required by other converters
+#        ocg_variable._i = ref.i
+#        ## TODO: projection is set multiple times. what happens with multiple
+#        ## projections?
+#        coll.projection = ref.i.spatial.projection
+        coll.variables.update({request_dataset.alias:ods})
+#        coll.add_variable(ocg_variable)
 
-    ## skip other operations if the dataset is empty
-    if coll.is_empty:
-        return(coll)
+#    ## skip other operations if the dataset is empty
+#    if len(coll.variables) == 0:
+#        return(coll)
     
-    ## clipping operation
-    if so.ops.spatial_operation == 'clip':
-        if so.itype == SpatialInterfacePolygon:
-            for geom_copy,var in itertools.izip(geom_copys,
-                                                coll.variables.itervalues()):
-                var.clip(geom_copy['geom'])
+#    ## clipping operation
+#    if so.ops.spatial_operation == 'clip':
+#        if so.itype == SpatialInterfacePolygon:
+#            for geom_copy,var in itertools.izip(geom_copys,
+#                                                coll.variables.itervalues()):
+#                var.clip(geom_copy['geom'])
             
-    ## data aggregation.
-    if so.ops.aggregate:
-        coll.aggregate(new_id=coll.ugeom['ugid'])
+#    ## data aggregation.
+#    if so.ops.aggregate:
+#        coll.aggregate(new_id=coll.ugeom['ugid'])
         
     ## if it is a vector output, wrap the data (if requested) but not if optimizations
     ## for calculations.
     ## TODO: every variable may not need to be wrapped
-    if not env.OPTIMIZE_FOR_CALC:
-        for dataset in so.ops.dataset:
-            ref = dataset['ocg_dataset']
-            if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-                wrap_coll(coll)
-                break
+#    if not env.OPTIMIZE_FOR_CALC:
+#        for dataset in so.ops.dataset:
+#            ref = dataset['ocg_dataset']
+#            if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+#                wrap_coll(coll)
+#                break
 
     ## do the requested calculations.
-    if so.cengine is not None:
-        so.cengine.execute(coll)
+    
     
     #tdk
 #    import pickle

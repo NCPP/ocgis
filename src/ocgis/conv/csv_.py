@@ -1,5 +1,5 @@
 import csv
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 from csv import excel
 
 

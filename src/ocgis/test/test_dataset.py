@@ -208,6 +208,10 @@ class TestShpDataset(TestBase):
         
         ssds = sds[0]
         self.assertEqual(ssds.spatial.uid,1)
+        
+    def test_filter(self):
+        sds = ShpDataset('state_boundaries',attr_filter={'ugid':[20]})
+        self.assertTrue(sds.spatial.geom.shape,(1,))
 
 
 if __name__ == "__main__":

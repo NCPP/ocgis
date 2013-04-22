@@ -20,6 +20,9 @@ class NcDataset(base.AbstractDataset):
 
     def __init__(self,*args,**kwds):
         self._abstraction = kwds.pop('abstraction','polygon')
+        self._t_calendar = kwds.pop('t_calendar',None)
+        self._t_units = kwds.pop('t_units',None)
+        self._s_proj = kwds.pop('s_proj',None)
         super(self.__class__,self).__init__(*args,**kwds)
         self.__ds = None
         self.__dim_map = None
@@ -135,7 +138,8 @@ class NcDataset(base.AbstractDataset):
                 tret[_name_value] = ref
                 yield(geom,gret)
     
-    def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
+    def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None,
+                   allow_empty=False):
         if temporal is not None:
             new_temporal = self.temporal.subset(*temporal)
         else:
@@ -193,7 +197,7 @@ class NcDataset(base.AbstractDataset):
                 dimvar = ds.variables[dim]
             except KeyError:
                 ## search for variable with the matching dimension
-                for key,value in self._meta['variables'].iteritems():
+                for key,value in self.metadata['variables'].iteritems():
                     if len(value['dimensions']) == 1 and value['dimensions'][0] == dim:
                         dimvar = ds.variables[key]
                         break
@@ -214,7 +218,7 @@ class NcDataset(base.AbstractDataset):
                 warn('no bounds attribute found. searching variable dimensions for bounds information.')
                 bounds_names_copy = bounds_names.copy()
                 bounds_names_copy.update([value['dimension']])
-                for key2,value2 in self._meta['variables'].iteritems():
+                for key2,value2 in self.metadata['variables'].iteritems():
                     intersection = bounds_names_copy.intersection(set(value2['dimensions']))
                     if len(intersection) == 2:
                         bounds_var = ds.variables[key2]

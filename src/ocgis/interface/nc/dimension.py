@@ -73,8 +73,8 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     def _load_(cls,gi,subset_by=None):
         ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
         attrs = gi.metadata['variables'][ret.name]['attrs']
-        ret.units = attrs['units']
-        ret.calendar = attrs['calendar']
+        ret.units = gi._t_units or attrs['units']
+        ret.calendar = gi._t_calendar or attrs['calendar']
         ret.value = nc.num2date(ret.value,ret.units,calendar=ret.calendar)
         cls._to_datetime_(ret.value)
         if ret.bounds is not None:

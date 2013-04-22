@@ -2,7 +2,6 @@ from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
-from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
@@ -260,7 +259,7 @@ class FileOnly(base.BooleanParameter):
 class Geom(base.IterableParameter,base.OcgParameter):
     name = 'geom'
     nullable = True
-    default = SelectionGeometry([{'ugid':1,'geom':None}])
+    default = None
     input_types = [SelectionGeometry,list,tuple]
     return_type = SelectionGeometry
     unique = False
@@ -326,7 +325,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
                             (maxx,miny)))
             if not geom.is_valid:
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-            ret = [{'ugid':1,'geom':geom}]
+            ret = geom
             self._bounds = elements
         except ValueError:
             sc = ShpCabinet()

@@ -7,6 +7,7 @@ from collections import deque
 
 class AbstractDataset(object):
     __metaclass__ = ABCMeta
+    _name_value = 'value'
     
     @abstractproperty
     def _dtemporal(self): AbstractTemporalDimension

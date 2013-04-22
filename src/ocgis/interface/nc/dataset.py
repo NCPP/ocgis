@@ -115,10 +115,25 @@ class NcDataset(base.AbstractDataset):
             self.__ds = nc.Dataset(self.request_dataset.uri,'r')
         return(self.__ds)
     
-    def get_iter_value(self,add_bounds=True):
+    def get_iter_value(self,add_bounds=True,add_masked=False):
         value = self.value
+        is_masked = np.ma.is_masked
+        _name_value = self._name_value
         
-        import ipdb;ipdb.set_trace()
+        if self.level is not None:
+            raise(NotImplementedError)
+        
+        for (ridx,cidx),geom,gret in self.spatial.get_iter():
+            for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
+                gret.update(tret)
+                ref = value[tidx,0,ridx,cidx]
+                masked = is_masked(value)
+                if add_masked and masked:
+                    ref = None
+                elif not add_masked and masked:
+                    continue
+                tret[_name_value] = ref
+                yield(geom,gret)
     
     def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
         if temporal is not None:

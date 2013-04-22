@@ -132,15 +132,13 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     def weights(self):
         raise(NotImplementedError,'Use "grid" or "vector" weights.')
     
-    def get_iter(self,target_mask=None):
+    def get_iter(self):
         geoms = self.vector.geom
         name_id = self._name_id
         uid = self.vector.uid
-        if target_mask is None:
-            target_mask = geoms.mask
         
         ret = {}
-        for ii,jj in iter_array(target_mask):
+        for ii,jj in iter_array(geoms):
             ret[name_id] = uid[ii,jj]
             yield(((ii,jj),geoms[ii,jj],ret))
     

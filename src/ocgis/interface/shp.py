@@ -21,6 +21,9 @@ class ShpSpatialDimension(base.AbstractSpatialDimension):
     def weights(self):
         raise(NotImplementedError)
     
+    def get_iter(self):
+        raise(NotImplementedError)
+    
     @classmethod
     def _load_(cls,gi):
         geoms = gi._sc.get_geoms(gi.key)

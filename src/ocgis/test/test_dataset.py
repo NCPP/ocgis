@@ -189,17 +189,9 @@ class TestIteration(TestBase):
     def test_get_iter(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)[0:31,0:5,0:5]
-        itr = ods.temporal.get_iter()
-        for ii in itr: self.assertTrue(len(ii) > 0)
-        
-        itr = ods.spatial.get_iter()
-        self.assertEqual(len(list(itr)),25)
-        for row in ods.spatial.get_iter():
-            self.assertTrue(isinstance(row[1],Polygon))
-            self.assertEqual(len(row),3)
             
         itr = ods.get_iter_value()
-        import ipdb;ipdb.set_trace()
+        self.assertEqual(len(list(itr)),31*5*5)
 
 
 class TestShpDataset(TestBase):

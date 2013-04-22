@@ -169,11 +169,16 @@ class TestNcDataset(TestBase):
     def test_slice(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
+        
         sods = ods[:,0:5,0:5]
         self.assertEqual(sods.value.shape,(3650,1,5,5))
         self.assertEqual(sods.spatial.vector.geom.shape,(5,5))
+        
         sods = ods[0,0:5,0:5]
         self.assertEqual(sods.value.shape,(1,1,5,5))
+        
+        sods = ods[0,0,0]
+        self.assertEqual(sods.value.shape,(1,1,1,1))
         
         grouping = ['month']
         ods.temporal.set_grouping(grouping)

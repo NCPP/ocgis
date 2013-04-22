@@ -257,6 +257,8 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
         raise(NotImplementedError)
     
     def intersects(self,polygon):
+        ## reset the values to ensure mask is properly applied
+        self._value = None
         ## reset the weights
         self._weights = None
         ## do the initial grid subset

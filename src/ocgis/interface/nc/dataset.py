@@ -55,14 +55,8 @@ class NcDataset(base.AbstractDataset):
     def value(self):
         if self._value is None:
             ref = self._ds.variables[self.request_dataset.variable]
-#            row = self.spatial.grid.row.real_idx
-#            row_start,row_stop = row[0],row[-1]+1
             row_start,row_stop = self._sub_range_(self.spatial.grid.row.real_idx)
-#            column = self.spatial.grid.column.real_idx
-#            column_start,column_stop = column[0],column[-1]+1
             column_start,column_stop = self._sub_range_(self.spatial.grid.column.real_idx)
-#            time = self.temporal.real_idx
-#            time_start,time_stop = time[0],time[-1]+1
             time_start,time_stop = self._sub_range_(self.temporal.real_idx)
             if self.level is None:
                 level_start,level_stop = None,None
@@ -72,6 +66,8 @@ class NcDataset(base.AbstractDataset):
             self._value = self._get_numpy_data_(ref,time_start,time_stop,
              row_start,row_stop,column_start,column_stop,level_start=level_start,
              level_stop=level_stop)
+            if self.spatial.vector._geom is not None:
+                self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
         return(self._value)
     
     def aggregate(self,new_geom_id=1):

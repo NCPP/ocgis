@@ -147,16 +147,17 @@ class TestNcDataset(TestBase):
     def test_masking(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
+        
         nods = ods[0:31,0:5,0:5]
         geoms = nods.spatial.vector.geom
         igeom = [geoms[0,2]] + list(geoms[1,:])
         igeom = MultiPolygon(igeom)
-#        igeom = geoms[0,2]
+        self.assertFalse(np.any(nods.value.mask))
+        
         sods = ods.get_subset(spatial_operation='intersects',polygon=igeom)
         geom_mask = sods.spatial.vector.geom.mask
         value_mask = sods.value.mask[0,:,:,:]
         self.assertTrue(np.all(geom_mask == value_mask))
-        import ipdb;ipdb.set_trace()
         
     def test_temporal_group(self):
         rd = self.test_data.get_rd('cancm4_tas')

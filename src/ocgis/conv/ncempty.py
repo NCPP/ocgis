@@ -1,8 +1,6 @@
-from ocgis.conv.converter import OcgConverter
-from ocgis.api.dataset.dataset import OcgDataset
+from ocgis.conv.base import OcgConverter
 import netCDF4 as nc
 from ocgis.interface.projection import WGS84
-from ocgis.api.dataset.collection.dimension import TemporalDimension
 from ocgis import constants
 
 

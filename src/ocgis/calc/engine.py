@@ -1,6 +1,5 @@
 from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
-from ocgis.api.dataset.collection.collection import OcgMultivariateCalculationVariable
 
 
 class OcgCalculationEngine(object):

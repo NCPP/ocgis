@@ -1,6 +1,6 @@
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
-from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
+from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.polygon import Polygon

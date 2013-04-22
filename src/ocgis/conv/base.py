@@ -1,4 +1,3 @@
-from ocgis.api.dataset.collection.iterators import MeltedIterator
 from ocgis.conv.meta import MetaConverter
 import os.path
 import abc

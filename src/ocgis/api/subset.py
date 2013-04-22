@@ -1,15 +1,8 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.interface.interface import SpatialInterfacePolygon,\
-    SpatialInterfacePoint
-from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
-from ocgis.api.dataset.collection.collection import OcgCollection
-from ocgis.api.dataset.collection.dimension import TemporalDimension
 from copy import deepcopy
-from ocgis.api.dataset.mappers import EqualSpatialDimensionMapper,\
-    EqualTemporalDimensionMapper, EqualLevelDimensionMapper
 from ocgis import env
 
 
@@ -38,20 +31,20 @@ class SubsetOperation(object):
                              interface_overload=iface)
             request_dataset.ocg_dataset = ods
         
-        ## determine if dimensions are equivalent.
-        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
-        for mapper in mappers:
-            mapper(self.ops.dataset)
-            
-        ## ensure they are all the same type of spatial interfaces. raise an error
-        ## otherwise.
-        types = [type(ods['ocg_dataset'].i.spatial) for ods in self.ops.dataset]
-        if all([t == SpatialInterfacePolygon for t in types]):
-            self.itype = SpatialInterfacePolygon
-        elif all([t == SpatialInterfacePoint for t in types]):
-            self.itype = SpatialInterfacePoint
-        else:
-            raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
+#        ## determine if dimensions are equivalent.
+#        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
+#        for mapper in mappers:
+#            mapper(self.ops.dataset)
+#            
+#        ## ensure they are all the same type of spatial interfaces. raise an error
+#        ## otherwise.
+#        types = [type(ods['ocg_dataset'].i.spatial) for ods in self.ops.dataset]
+#        if all([t == SpatialInterfacePolygon for t in types]):
+#            self.itype = SpatialInterfacePolygon
+#        elif all([t == SpatialInterfacePoint for t in types]):
+#            self.itype = SpatialInterfacePoint
+#        else:
+#            raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
         
         ## ensure all data has the same projection
         projections = [ods.ocg_dataset.i.spatial.projection.sr.ExportToProj4() for ods in self.ops.dataset]

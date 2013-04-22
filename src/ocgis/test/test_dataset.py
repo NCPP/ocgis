@@ -12,8 +12,6 @@ from shapely.geometry.point import Point
 from ocgis.interface.nc.dimension import NcRowDimension, NcColumnDimension,\
     NcGridDimension, NcSpatialDimension, NcPolygonDimension, NcPointDimension
 from ocgis.interface.nc.dataset import NcDataset
-from ocgis.interface.iterator import MeltedIterator
-from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 
 

@@ -1,5 +1,4 @@
 import netCDF4 as nc
-from ocgis.api.dataset.dataset import OcgDataset
 from ocgis.interface.ncmeta import NcMetadata
 
 

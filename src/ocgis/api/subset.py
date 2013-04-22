@@ -203,10 +203,10 @@ def get_collection((so,geom)):
             ods = ods.spatial.vector.clip()
         if so.ops.aggregate:
             try:
-                new_id = geom.uid
+                new_geom_id = geom.uid
             except AttributeError:
-                new_id = 1
-            ods.aggregate(new_id=new_id)
+                new_geom_id = 1
+            ods.aggregate(new_geom_id=new_geom_id)
         if not env.OPTIMIZE_FOR_CALC:
             if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
                 ods.wrap()

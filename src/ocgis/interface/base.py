@@ -332,7 +332,7 @@ class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension)
     
     @property
     def shape(self):
-        return(self.grid.shape)
+        return(self.geom.shape)
     
     @abstractmethod
     def clip(self,polygon): pass

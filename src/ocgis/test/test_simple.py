@@ -118,7 +118,7 @@ class TestSimple(TestSimpleBase):
         
         ## test geometry reduction
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.spatial.shape,(1,1))
+        self.assertEqual(ref.spatial.vector.shape,(1,1))
         
     def test_time_level_subset(self):
         ret = self.get_ret(time_range=[datetime.datetime(2000,3,1),

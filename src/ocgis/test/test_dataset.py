@@ -188,6 +188,9 @@ class TestShpDataset(TestBase):
         self.assertEqual(geom.shape,(51,))
         self.assertEqual(sds.temporal,None)
         self.assertEqual(sds.level,None)
+        
+        ssds = sds[0]
+        self.assertEqual(ssds.spatial.uid,1)
 
 
 if __name__ == "__main__":

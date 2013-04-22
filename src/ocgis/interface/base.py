@@ -28,6 +28,9 @@ class AbstractDataset(object):
         self._dummy_level = False
         self._dummy_temporal = False
         
+    @abstractmethod
+    def __getitem__(self): pass
+        
     @property
     def level(self):
         if self._dlevel is None:

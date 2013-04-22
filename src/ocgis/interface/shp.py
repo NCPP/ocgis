@@ -2,6 +2,7 @@ import base
 from ocgis.interface.projection import WGS84
 from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
+from copy import deepcopy
 
 
 class ShpSpatialDimension(base.AbstractSpatialDimension):
@@ -42,12 +43,24 @@ class ShpDataset(base.AbstractDataset):
     _dtemporal = None
     _dspatial = ShpSpatialDimension
     
-    def __init__(self,key):
+    def __init__(self,key=None,spatial=None):
         self.key = key
-        self._spatial = None
-        self._sc = ShpCabinet()
+        self._spatial = spatial
         self._temporal = None
         self._level = None
+        self.__sc = None
+        
+    def __getitem__(self,slc):
+        geom = self.spatial.geom[slc]
+        uid = self.spatial.uid[slc]
+        new_attrs = {}
+        for k,v in self.spatial.attrs.iteritems():
+            new_attrs[k] = v[slc]
+        
+        spatial = ShpSpatialDimension(uid,geom,projection=self.spatial.projection,
+                                      attrs=new_attrs)
+        ret = self.__class__(key=self.key,spatial=spatial)
+        return(ret)
     
     @property
     def metadata(self):
@@ -56,3 +69,9 @@ class ShpDataset(base.AbstractDataset):
     @property
     def get_subset(self):
         raise(NotImplementedError)
+    
+    @property
+    def _sc(self):
+        if self.__sc is None:
+            self.__sc = ShpCabinet()
+        return(self.__sc)

@@ -13,6 +13,8 @@ from ocgis.interface.nc.dimension import NcRowDimension, NcColumnDimension,\
     NcGridDimension, NcSpatialDimension, NcPolygonDimension, NcPointDimension
 from ocgis.interface.nc.dataset import NcDataset
 from ocgis.interface.iterator import MeltedIterator
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class TestNcDataset(TestBase):
@@ -142,6 +144,20 @@ class TestNcDataset(TestBase):
         self.assertEqual(nods.spatial.vector.geom.shape,(1,1))
         self.assertTrue(isinstance(nods.spatial.vector.geom[0,0],Point))
         
+    def test_masking(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        nods = ods[0:31,0:5,0:5]
+        geoms = nods.spatial.vector.geom
+        igeom = [geoms[0,2]] + list(geoms[1,:])
+        igeom = MultiPolygon(igeom)
+#        igeom = geoms[0,2]
+        sods = ods.get_subset(spatial_operation='intersects',polygon=igeom)
+        geom_mask = sods.spatial.vector.geom.mask
+        value_mask = sods.value.mask[0,:,:,:]
+        self.assertTrue(np.all(geom_mask == value_mask))
+        import ipdb;ipdb.set_trace()
+        
     def test_temporal_group(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
@@ -167,17 +183,22 @@ class TestNcDataset(TestBase):
         self.assertEqual(sods.temporal.group.value.shape[0],1)
             
             
-class TestIterator(TestBase):
+class TestIteration(TestBase):
     
-    def test_iter_dimension(self):
+    def test_get_iter(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)[0:31,0:5,0:5]
-        mi = MeltedIterator()
-        itr = mi.iter_vector_dimension(ods.temporal)
+        itr = ods.temporal.get_iter()
         for ii in itr: self.assertTrue(len(ii) > 0)
         
-        itr = mi.iter_spatial_dimension(ods.spatial)
+        itr = ods.spatial.get_iter()
         self.assertEqual(len(list(itr)),25)
+        for row in ods.spatial.get_iter():
+            self.assertTrue(isinstance(row[1],Polygon))
+            self.assertEqual(len(row),3)
+            
+        itr = ods.get_iter_value()
+        import ipdb;ipdb.set_trace()
 
 
 class TestShpDataset(TestBase):

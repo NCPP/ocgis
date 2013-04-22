@@ -132,6 +132,18 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     def weights(self):
         raise(NotImplementedError,'Use "grid" or "vector" weights.')
     
+    def get_iter(self,target_mask=None):
+        geoms = self.vector.geom
+        name_id = self._name_id
+        uid = self.vector.uid
+        if target_mask is None:
+            target_mask = geoms.mask
+        
+        ret = {}
+        for ii,jj in iter_array(target_mask):
+            ret[name_id] = uid[ii,jj]
+            yield(((ii,jj),geoms[ii,jj],ret))
+    
     @classmethod
     def _load_(cls,gi,subset_by=None):
         if subset_by is not None:
@@ -183,6 +195,9 @@ class NcGridDimension(base.AbstractSpatialGrid):
     @property
     def shape(self):
         return(self.row.shape[0],self.column.shape[0])
+    
+    def get_iter(self):
+        raise(NotImplementedError)
     
     def subset(self,polygon=None):
         if polygon is not None:
@@ -238,6 +253,9 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
         ret = self.__class__(grid=vd.grid,geom=geom)
         return(ret)
     
+    def get_iter(self):
+        raise(NotImplementedError)
+    
     def intersects(self,polygon):
         ## reset the weights
         self._weights = None
@@ -261,10 +279,10 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
             rref = row[ii,:]
             cref = col[jj,:]
             test_geom = make_poly(rref,cref)
-            geom[ii,jj] = test_geom
             if index_intersects(test_geom,index):
+                geom[ii,jj] = test_geom
                 geom_mask[ii,jj] = False
-        
+
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)
     

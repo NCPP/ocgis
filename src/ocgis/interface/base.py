@@ -72,7 +72,8 @@ class AbstractDataset(object):
     @abstractmethod
     def get_subset(self,temporal=None,level=None,spatial=None):
         pass
-    
+
+
 class AbstractInterfaceDimension(object):
     __metaclass__ = ABCMeta
     
@@ -151,6 +152,27 @@ class AbstractVectorDimension(object):
     def shape(self):
         return(self.value.shape)
     
+    def get_iter(self,add_bounds=True):
+        value = self.value
+        uid = self.uid
+        bounds = self.bounds
+        has_bounds = False if bounds is None else True
+        if not add_bounds and has_bounds:
+            has_bounds = False
+        name_id = self._name_id
+        name_value = self._name_long
+        name_left_bound = 'bnd_left_'+name_value
+        name_right_bound = 'bnd_right_'+name_value
+        
+        ret = {}
+        for idx in range(value.shape[0]):
+            ret[name_value] = value[idx]
+            ret[name_id] = uid[idx]
+            if has_bounds:
+                ret[name_left_bound] = bounds[idx,0]
+                ret[name_right_bound] = bounds[idx,1]
+            yield(idx,ret)
+    
     def subset(self,lower,upper):
         if self.bounds is None:
             lidx = self.value >= lower
@@ -166,8 +188,10 @@ class AbstractVectorDimension(object):
                 lower_col = 0
                 upper_col = 1
 
-            lidx = self.bounds[:,upper_col] >= lower
-            uidx = self.bounds[:,lower_col] <= upper
+#            lidx = self.bounds[:,upper_col] >= lower
+#            uidx = self.bounds[:,lower_col] <= upper
+            lidx = self.bounds[:,upper_col] > lower
+            uidx = self.bounds[:,lower_col] < upper
             idx = np.logical_and(lidx,uidx)
             bounds = self.bounds[idx,:]
         
@@ -268,6 +292,9 @@ class AbstractSpatialDimension(object):
     
     @abstractproperty
     def weights(self): np.ma.MaskedArray
+    
+    @abstractmethod
+    def get_iter(self): pass
     
     @classmethod
     def _load_(cls,gi,subset_by=None):

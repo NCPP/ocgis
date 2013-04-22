@@ -119,6 +119,11 @@ class NcDataset(base.AbstractDataset):
             self.__ds = nc.Dataset(self.request_dataset.uri,'r')
         return(self.__ds)
     
+    def get_iter_value(self,add_bounds=True):
+        value = self.value
+        
+        import ipdb;ipdb.set_trace()
+    
     def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
         if temporal is not None:
             new_temporal = self.temporal.subset(*temporal)

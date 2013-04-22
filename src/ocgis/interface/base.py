@@ -1,6 +1,8 @@
 from ocgis import env
 from abc import ABCMeta, abstractmethod, abstractproperty
 import numpy as np
+import itertools
+from collections import deque
 
 
 class AbstractDataset(object):
@@ -117,14 +119,14 @@ class AbstractInterfaceDimension(object):
 class AbstractVectorDimension(object):
     __metaclass__ = ABCMeta
     
-    def __getitem__(self,slice):
-        value = self.value[slice.start:slice.stop]
+    def __getitem__(self,slc):
+        value = self.value[slc]
         if self.bounds is None:
             bounds = None
         else:
-            bounds = self.bounds[slice.start:slice.stop,:]
-        uid = self.uid[slice.start:slice.stop]
-        real_idx = self.real_idx[slice.start:slice.stop]
+            bounds = self.bounds[slc,:]
+        uid = self.uid[slc]
+        real_idx = self.real_idx[slc]
         ret = self.__class__(value=value,bounds=bounds,
                              uid=uid,real_idx=real_idx)
         return(ret)
@@ -177,6 +179,74 @@ class AbstractLevelDimension(AbstractVectorDimension,AbstractInterfaceDimension)
     
 class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
+    
+    @abstractproperty
+    def _dtemporal_group_dimension(self): AbstractTemporalGroupDimension
+    
+    def set_grouping(self,grouping):
+        date_parts = ('year','month','day','hour','minute','second','microsecond')
+        group_map = dict(zip(range(0,7),date_parts,))
+        group_map_rev = dict(zip(date_parts,range(0,7),))
+        
+        value = np.empty((self.bounds.shape[0],3),dtype=object)
+        if self.bounds is None:
+            value[:,:] = self.value.reshape(-1,1)
+        else:
+            value[:,0] = self.bounds[:,0]
+            value[:,1] = self.value
+            value[:,2] = self.bounds[:,1]
+        
+        def _get_attrs_(dt):
+            return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
+        parts = np.empty((len(self.value),len(date_parts)),dtype=int)
+        for row in range(parts.shape[0]):
+            parts[row,:] = _get_attrs_(value[row,1])
+        
+        unique = deque()
+        for idx in range(parts.shape[1]):
+            if group_map[idx] in grouping:
+                fill = np.unique(parts[:,idx])
+            else:
+                fill = np.array([0])
+            unique.append(fill)
+
+        select = deque()
+        idx2_seq = range(len(date_parts))
+        for idx in itertools.product(*[range(len(u)) for u in unique]):
+            select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
+        select = np.array(select)
+        
+        dgroups = deque()
+        idx_cmp = [group_map_rev[group] for group in grouping]
+        keep_select = []
+        for idx in range(select.shape[0]):
+            match = select[idx,idx_cmp] == parts[:,idx_cmp]
+            dgrp = match.all(axis=1)
+            if dgrp.any():
+                keep_select.append(idx)
+                dgroups.append(dgrp)
+        select = select[keep_select,:]
+        assert(len(dgroups) == select.shape[0])
+        
+        new_value = np.empty((len(dgroups),len(date_parts)),dtype=object)
+        new_bounds = np.empty((len(dgroups),2),dtype=object)
+
+        for idx,dgrp in enumerate(dgroups):
+            new_value[idx] = select[idx]
+            sel = value[dgrp][:,(0,2)]
+            new_bounds[idx,:] = [sel.min(),sel.max()]
+        
+        
+        self.group = self._dtemporal_group_dimension(new_value,new_bounds,dgroups)
+
+    
+class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDimension):
+    __metaclass__ = ABCMeta
+    
+    def __init__(self,value,bounds,dgroups):
+        self.value = value
+        self.bounds = bounds
+        self.dgroups = dgroups
     
     
 class AbstractRowDimension(AbstractVectorDimension,AbstractInterfaceDimension):

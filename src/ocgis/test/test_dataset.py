@@ -1,8 +1,5 @@
 import unittest
 from ocgis.test.base import TestBase
-from ocgis.interface.nc import NcRowDimension, NcColumnDimension,\
-    NcSpatialDimension, NcGridDimension, NcPolygonDimension, NcDataset,\
-    NcPointDimension
 import numpy as np
 import netCDF4 as nc
 from ocgis.util.helpers import make_poly
@@ -12,6 +9,10 @@ from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.util.spatial.wrap import unwrap_geoms
 from ocgis.interface.shp import ShpDataset
 from shapely.geometry.point import Point
+from ocgis.interface.nc.dimension import NcRowDimension, NcColumnDimension,\
+    NcGridDimension, NcSpatialDimension, NcPolygonDimension, NcPointDimension
+from ocgis.interface.nc.dataset import NcDataset
+from ocgis.interface.iterator import MeltedIterator
 
 
 class TestNcDataset(TestBase):
@@ -141,6 +142,30 @@ class TestNcDataset(TestBase):
         self.assertEqual(nods.spatial.vector.geom.shape,(1,1))
         self.assertTrue(isinstance(nods.spatial.vector.geom[0,0],Point))
         
+    def test_temporal_group(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        grouping = ['month']
+        ods.temporal.set_grouping(grouping)
+        self.assertEqual(ods.temporal.group.value.shape[0],12)
+        
+    def test_slice(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        sods = ods[:,0:5,0:5]
+        self.assertEqual(sods.value.shape,(3650,1,5,5))
+        self.assertEqual(sods.spatial.vector.geom.shape,(5,5))
+        sods = ods[0,0:5,0:5]
+        self.assertEqual(sods.value.shape,(1,1,5,5))
+        
+        grouping = ['month']
+        ods.temporal.set_grouping(grouping)
+        sods = ods[0:31,0:5,0:5]
+        with self.assertRaises(AttributeError):
+            sods.temporal.group
+        sods.temporal.set_grouping(grouping)
+        self.assertEqual(sods.temporal.group.value.shape[0],1)
+        
     def test_iteration(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
@@ -148,6 +173,21 @@ class TestNcDataset(TestBase):
         ods = ods.get_subset(temporal=trng)
         for row in ods:
             import ipdb;ipdb.set_trace()
+            
+            
+class TestIterator(TestBase):
+    
+    def test_iter_dimension(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)[0:31,0:5,0:5]
+        mi = MeltedIterator()
+        itr = mi.iter_vector_dimension(ods.temporal)
+        for ii in itr: self.assertTrue(len(ii) > 0)
+        
+        itr = mi.iter_spatial_dimension(ods.spatial)
+        for ii in itr:
+            import ipdb;ipdb.set_trace()
+    
 
 
 class TestShpDataset(TestBase):

@@ -10,20 +10,14 @@ class OcgDialect(excel):
 class CsvConverter(OcgConverter):
     _ext = 'csv'
     
-    def __init__(self,*args,**kwds):
-#        self.wkt = kwds.pop('wkt')
-#        self.wkb = kwds.pop('wkb')
-        
-        super(CsvConverter,self).__init__(*args,**kwds)
-    
     def _write_(self):
         build = True
         with open(self.path,'w') as f:
             writer = csv.writer(f,dialect=OcgDialect)
             for coll in self:
                 if build:
-                    headers = self.get_headers(coll)
+                    headers = coll.get_headers()
                     writer.writerow(headers)
                     build = False
-                for row,geom in self.get_iter(coll):
+                for geom,row in coll.get_iter():
                     writer.writerow(row)

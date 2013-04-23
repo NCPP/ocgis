@@ -12,6 +12,7 @@ from ocgis.util.inspect import Inspect
 from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
 from ocgis.test.base import TestBase
+import subprocess
 
 
 class TestSimpleBase(TestBase):
@@ -238,6 +239,7 @@ class TestSimple(TestSimpleBase):
     def test_csv_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)
+#        subprocess.call(['loffice',ret])
         
     def test_meta_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='meta')

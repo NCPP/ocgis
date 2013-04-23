@@ -1,9 +1,11 @@
 from ocgis.conv.meta import MetaConverter
 import os.path
 import abc
+from abc import ABCMeta
 
 
 class OcgConverter(object):
+    __metaclass__ = ABCMeta
     '''Base converter object. Intended for subclassing.
     
     :param colls: A sequence of `~ocgis.OcgCollection` objects.
@@ -85,17 +87,18 @@ class OcgConverter(object):
         dict'''
         
         for coll in self.colls:
-            try:
-                if coll.is_empty:
-                    continue
-            except AttributeError:
-                if type(coll) == dict:
-                    pass
             yield(coll)
+#            try:
+#                if coll.is_empty:
+#                    continue
+#            except AttributeError:
+#                if type(coll) == dict:
+#                    pass
+#            yield(coll)
             
-    def get_headers(self,coll):
-        it = MeltedIterator(coll,mode=self.mode)
-        return(it.get_headers(upper=True))
-    
-    def get_iter(self,coll):
-        return(MeltedIterator(coll,mode=self.mode).iter_list())
+#    def get_headers(self,coll):
+#        it = MeltedIterator(coll,mode=self.mode)
+#        return(it.get_headers(upper=True))
+#    
+#    def get_iter(self,coll):
+#        return(MeltedIterator(coll,mode=self.mode).iter_list())

@@ -123,20 +123,32 @@ class NcDataset(base.AbstractDataset):
         is_masked = np.ma.is_masked
         _name_value = self._name_value
         
-        if self.level is not None:
-            raise(NotImplementedError)
-        
-        for (ridx,cidx),geom,gret in self.spatial.get_iter():
-            for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
-                gret.update(tret)
-                ref = value[tidx,0,ridx,cidx]
-                masked = is_masked(value)
-                if add_masked and masked:
-                    ref = None
-                elif not add_masked and masked:
-                    continue
-                tret[_name_value] = ref
-                yield(geom,gret)
+        if self.level is None:
+            for (ridx,cidx),geom,gret in self.spatial.get_iter():
+                for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
+                    gret.update(tret)
+                    ref = value[tidx,0,ridx,cidx]
+                    masked = is_masked(value)
+                    if add_masked and masked:
+                        ref = None
+                    elif not add_masked and masked:
+                        continue
+                    gret[_name_value] = ref
+                    yield(geom,gret)
+        else:
+            for (ridx,cidx),geom,gret in self.spatial.get_iter():
+                for lidx,lret in self.level.get_iter(add_bounds=add_bounds):
+                    gret.update(lret)
+                    for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
+                        gret.update(tret)
+                        ref = value[tidx,lidx,ridx,cidx]
+                        masked = is_masked(value)
+                        if add_masked and masked:
+                            ref = None
+                        elif not add_masked and masked:
+                            continue
+                        gret[_name_value] = ref
+                        yield(geom,gret)
     
     def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
         if temporal is not None:

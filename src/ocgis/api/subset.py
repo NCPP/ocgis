@@ -201,8 +201,8 @@ def get_collection((so,geom)):
                             temporal=request_dataset.time_range,
                             level=request_dataset.level_range,
                             allow_empty=so.ops.allow_empty,)
-        if so.ops.spatial_operation == 'clip' and geom is not None:
-            ods = ods.spatial.vector.clip(igeom)
+#        if so.ops.spatial_operation == 'clip' and geom is not None:
+#            ods = ods.spatial.vector.clip(igeom)
         if so.ops.aggregate:
             try:
                 new_geom_id = geom.uid

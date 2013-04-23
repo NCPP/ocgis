@@ -150,13 +150,13 @@ class TestSimple(TestSimpleBase):
         ## intersection
         geom = make_poly((38,39),(-104,-103))
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
-        self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+        self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
         self.assertEqual(ret[1].variables[self.var].value.shape,(61,2,2,2))
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref[0,0,:,:] == np.array([[1,2],[3,4]],dtype=float)))
         ## compare areas to intersects returns
         ref = ret[1].variables[self.var]
-        intersection_areas = [g.area for g in ref.spatial._value.flat]
+        intersection_areas = [g.area for g in ref.spatial.vector.geom.flat]
         for ii in intersection_areas:
             self.assertAlmostEqual(ii,0.25)
             
@@ -164,8 +164,8 @@ class TestSimple(TestSimpleBase):
         geom = make_poly((38,39),(-104,-103))
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
-        self.assertEqual(len(ref.variables[self.var].spatial.uid.flatten()),1)
-        self.assertEqual(ref.variables[self.var].spatial._value.flatten()[0].area,1.0)
+        self.assertEqual(len(ref.variables[self.var].spatial.vector.uid.flatten()),1)
+        self.assertEqual(ref.variables[self.var].spatial.vector.geom.flatten()[0].area,1.0)
         self.assertEqual(ref.variables[self.var].value.flatten().mean(),2.5)
         
     def test_empty_intersection(self):

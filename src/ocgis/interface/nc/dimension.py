@@ -251,7 +251,7 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
                 new_geom = polygon.intersection(ref)
                 geom[ii,jj] = new_geom
         
-        ret = self.__class__(grid=vd.grid,geom=geom)
+        ret = self.__class__(grid=vd.grid,geom=geom,uid=vd.uid)
         return(ret)
     
     def get_iter(self):

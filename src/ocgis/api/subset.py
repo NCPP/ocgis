@@ -211,14 +211,14 @@ def get_collection((so,geom)):
             if not env.OPTIMIZE_FOR_CALC:
                 if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
                     ods.wrap()
-            if so.cengine is not None:
-                so.cengine.execute(ods)
             coll.variables.update({request_dataset.alias:ods})
         except EmptyData:
             if so.ops.allow_empty:
                 coll.variables.update({request_dataset.alias:None})
             else:
                 raise(ExtentError)
+    if so.cengine is not None:
+        coll = so.cengine.execute(coll)
 #        if so.ops.spatial_operation == 'clip' and geom is not None:
 #            ods = ods.spatial.vector.clip(igeom)
         

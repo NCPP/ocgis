@@ -1,5 +1,7 @@
 from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
+from ocgis.api.collection import CalcCollection
+from collections import OrderedDict
 
 
 class OcgCalculationEngine(object):
@@ -43,21 +45,30 @@ class OcgCalculationEngine(object):
 #                f['kwds'] = {}
 #        return(funcs)
 
-    def _get_value_(self,ocg_variable):
+    def _get_value_(self,ds):
         ## select the value source based on raw or aggregated switches
-        if not self.use_agg and ocg_variable.raw_value is not None:
-            value = ocg_variable.raw_value
+        if not self.use_agg:
+            try:
+                value = ds.raw_value
+            except AttributeError:
+                value = ds.value
         else:
-            value = ocg_variable.value
+            value = ds.value
         return(value)
     
     def execute(self,coll):
         
+        ret = CalcCollection(coll)
+        
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
         if self.grouping is not None:
-            for ocg_variable in coll.variables.itervalues():
-                ocg_variable.group(self.grouping)
+            for ds in coll.variables.itervalues():
+                ds.temporal.set_grouping(self.grouping)
+#                import ipdb;ipdb.set_trace()
+#            import ipdb;ipdb.set_trace()
+#            for ocg_variable in coll.variables.itervalues():
+#                ocg_variable.group(self.grouping)
         
 #        ## flag used for sample size calculation for multivariate calculations
 #        has_multi = False
@@ -65,6 +76,7 @@ class OcgCalculationEngine(object):
         for f in self.funcs:
             ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction):
+                raise(NotImplementedError)
 #                has_multi = True
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
@@ -95,13 +107,15 @@ class OcgCalculationEngine(object):
                 coll.add_multivariate_calculation_variable(var)
             else:
                 ## perform calculation on each variable
-                for var in coll.variables.itervalues():
+                for alias,var in coll.variables.iteritems():
+                    if alias not in ret.calc:
+                        ret.calc[alias] = OrderedDict()
                     value = self._get_value_(var)
                     ## make the function instance
                     try:
                         ref = f['ref'](values=value,agg=self.agg,
-                                       groups=var.temporal_group.dgroups,
-                                       kwds=f['kwds'],weights=var.spatial.weights)
+                                       groups=var.temporal.group.dgroups,
+                                       kwds=f['kwds'],weights=var.spatial.vector.weights)
                     except AttributeError:
                         ## if there is no grouping, there is no need to calculate
                         ## sample size.
@@ -114,11 +128,14 @@ class OcgCalculationEngine(object):
                     ## calculate the values
                     calc = ref.calculate()
                     ## update calculation identifier
-                    add_name = f['name']
+#                    add_name = f['name']
                     ## store the values
-                    var.calc_value.update({add_name:calc})
-#                    coll.cid.add(add_name)
-                    coll.add_calculation(var)
+                    ret.calc[alias][f['name']] = calc
+        return(ret)
+#                    import ipdb;ipdb.set_trace()
+#                    var.calc_value.update({add_name:calc})
+##                    coll.cid.add(add_name)
+#                    coll.add_calculation(var)
 #        ## calculate sample size for multivariate calculation
 #        if has_multi:
 #            import ipdb;ipdb.set_trace()

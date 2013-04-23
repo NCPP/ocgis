@@ -184,13 +184,13 @@ class TestSimple(TestSimpleBase):
         
         ## raw
         ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
-        ref = ret[1].variables[self.var].calc_value
+        ref = ret[1].calc[self.var]
         for value in ref.itervalues():
             self.assertEqual(value.shape,(2,2,4,4))
         n_foo = ref['n']
         self.assertEqual(n_foo[0,:].mean(),31)
         self.assertEqual(n_foo[1,:].mean(),30)
-        
+
         ## aggregated
         for calc_raw in [True,False]:
             ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,

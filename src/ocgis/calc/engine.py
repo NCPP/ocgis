@@ -45,16 +45,19 @@ class OcgCalculationEngine(object):
 #                f['kwds'] = {}
 #        return(funcs)
 
-    def _get_value_(self,ds):
+    def _get_value_weights_(self,ds):
         ## select the value source based on raw or aggregated switches
         if not self.use_agg:
             try:
                 value = ds.raw_value
+                weights = ds.spatial.vector.raw_weights
             except AttributeError:
                 value = ds.value
+                weights = ds.spatial.vector.weights
         else:
             value = ds.value
-        return(value)
+            weights = ds.spatial.vector.weights
+        return(value,weights)
     
     def execute(self,coll):
         
@@ -110,12 +113,12 @@ class OcgCalculationEngine(object):
                 for alias,var in coll.variables.iteritems():
                     if alias not in ret.calc:
                         ret.calc[alias] = OrderedDict()
-                    value = self._get_value_(var)
+                    value,weights = self._get_value_weights_(var)
                     ## make the function instance
                     try:
                         ref = f['ref'](values=value,agg=self.agg,
                                        groups=var.temporal.group.dgroups,
-                                       kwds=f['kwds'],weights=var.spatial.vector.weights)
+                                       kwds=f['kwds'],weights=weights)
                     except AttributeError:
                         ## if there is no grouping, there is no need to calculate
                         ## sample size.

@@ -195,7 +195,7 @@ class TestSimple(TestSimpleBase):
         for calc_raw in [True,False]:
             ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
                                      'aggregate':True,'calc_raw':calc_raw})
-            ref = ret[1].variables[self.var].calc_value
+            ref = ret[1].calc[self.var]
             self.assertEqual(ref['n'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)

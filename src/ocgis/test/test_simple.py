@@ -178,6 +178,17 @@ class TestSimple(TestSimpleBase):
         ref = ret[1].variables[self.var]
         self.assertEqual(ref,None)
         
+    def test_snippet(self):
+        ret = self.get_ret(kwds={'snippet':True})
+        ref = ret[1].variables[self.var].value
+        self.assertEqual(ref.shape,(1,1,4,4))
+        
+        calc = [{'func':'mean','name':'my_mean'}]
+        group = ['month','year']
+        ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,'snippet':True})
+        ref = ret[1].calc[self.var]['my_mean']
+        self.assertEqual(ref.shape,(1,1,4,4))
+        
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]
         group = ['month','year']

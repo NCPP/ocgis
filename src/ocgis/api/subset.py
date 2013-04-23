@@ -77,20 +77,20 @@ class SubsetOperation(object):
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate)
             
-#        ## check for snippet request in the operations dictionary. if there is
-#        ## on, the time range should be set in the operations dictionary.
-#        if self.ops.snippet is True:
-#            for dataset in self.ops.dataset:
-#                dataset.level_range = [1,1]
-#                ref = dataset.ocg_dataset.i.temporal
-#                if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-#                    dataset.time_range = [ref.value[0],ref.value[0]]
-#                else:
-#                    tgdim = TemporalDimension(ref.tid,ref.value,
-#                                              bounds=ref.bounds).\
-#                                              group(self.cengine.grouping)
-#                    times = ref.value[tgdim.dgroups[0]]
-#                    dataset.time_range = [times.min(),times.max()]
+        ## check for snippet request in the operations dictionary. if there is
+        ## on, the time range should be set in the operations dictionary.
+        if self.ops.snippet is True:
+            for rd in self.ops.dataset:
+                rd.level_range = [1,1]
+                ods = NcDataset(request_dataset=rd)
+                ref = ods.temporal
+                if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
+                    rd.time_range = [ref.value[0],ref.value[0]]
+                else:
+                    ods.temporal.set_grouping(self.cengine.grouping)
+                    tgdim = ods.temporal.group
+                    times = ref.value[tgdim.dgroups[0]]
+                    rd.time_range = [times.min(),times.max()]
         
     def __iter__(self):
         '''Return OcgCollection objects from the cache or directly from

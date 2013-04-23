@@ -1,7 +1,6 @@
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
-from ocgis.api.geometry import SelectionGeometry
 from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
@@ -301,7 +300,9 @@ class Geom(base.OcgParameter):
     value = property(_get_value_,base.OcgParameter._set_value_)
     
     def get_url_string(self):
-        if len(self.value) > 1 and self._shp_key is None:
+        if self.value is None:
+            ret = 'none'
+        elif len(self.value) > 1 and self._shp_key is None:
             raise(CannotEncodeUrl('Too many custom geometries to encode.'))
         else:
             ret = str(self)
@@ -356,7 +357,7 @@ class Geom(base.OcgParameter):
         return(ret)
     
     def _get_meta_(self):
-        if self.value[0]['geom'] is None:
+        if self.value is None:
             ret = 'No user-supplied geometry. All data returned.'
         elif self._shp_key is not None:
             ret = 'The selection geometry "{0}" was used for subsetting.'.format(self._shp_key)

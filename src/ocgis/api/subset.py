@@ -7,6 +7,7 @@ from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
 from ocgis.interface.nc.dataset import NcDataset
+from ocgis.exc import EmptyData, ExtentError
 
 
 class SubsetOperation(object):
@@ -195,25 +196,32 @@ def get_collection((so,geom)):
         else:
             igeom = None
         ## perform the data subset
-        ods = ods.get_subset(
-                            spatial_operation=so.ops.spatial_operation,
-                            polygon=igeom,
-                            temporal=request_dataset.time_range,
-                            level=request_dataset.level_range,
-                            allow_empty=so.ops.allow_empty,)
+        try:
+            ods = ods.get_subset(
+                                spatial_operation=so.ops.spatial_operation,
+                                polygon=igeom,
+                                temporal=request_dataset.time_range,
+                                level=request_dataset.level_range)
+            if so.ops.aggregate:
+                try:
+                    new_geom_id = geom.uid
+                except AttributeError:
+                    new_geom_id = 1
+                ods.aggregate(new_geom_id=new_geom_id)
+            if not env.OPTIMIZE_FOR_CALC:
+                if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                    ods.wrap()
+            if so.cengine is not None:
+                so.cengine.execute(ods)
+            coll.variables.update({request_dataset.alias:ods})
+        except EmptyData:
+            if so.ops.allow_empty:
+                coll.variables.update({request_dataset.alias:None})
+            else:
+                raise(ExtentError)
 #        if so.ops.spatial_operation == 'clip' and geom is not None:
 #            ods = ods.spatial.vector.clip(igeom)
-        if so.ops.aggregate:
-            try:
-                new_geom_id = geom.uid
-            except AttributeError:
-                new_geom_id = 1
-            ods.aggregate(new_geom_id=new_geom_id)
-        if not env.OPTIMIZE_FOR_CALC:
-            if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-                ods.wrap()
-        if so.cengine is not None:
-            so.cengine.execute(ods)
+        
 #                            slice_row=so.ops.slice_row,
 #                            slice_column=so.ops.slice_column)
 #        ## tell the keyed iterator if this should be used for identifiers.
@@ -226,7 +234,7 @@ def get_collection((so,geom)):
 #        ## TODO: projection is set multiple times. what happens with multiple
 #        ## projections?
 #        coll.projection = ref.i.spatial.projection
-        coll.variables.update({request_dataset.alias:ods})
+#        coll.variables.update({request_dataset.alias:ods})
 #        coll.add_variable(ocg_variable)
 
 #    ## skip other operations if the dataset is empty
@@ -266,8 +274,8 @@ def get_collection((so,geom)):
 #    import ipdb;ipdb.set_trace()
     #/tdk
     
-    if env.VERBOSE:
-        print(' complete.'.format(geom_dict['ugid']))
+#    if env.VERBOSE:
+#        print(' complete.'.format(geom_dict['ugid']))
         
     ## conversion of groups.
     if so.ops.output_grouping is not None:

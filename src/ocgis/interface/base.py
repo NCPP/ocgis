@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 import numpy as np
 import itertools
 from collections import deque
+from ocgis.exc import EmptyData
 
 
 class AbstractDataset(object):
@@ -194,6 +195,8 @@ class AbstractVectorDimension(object):
             lidx = self.bounds[:,upper_col] > lower
             uidx = self.bounds[:,lower_col] < upper
             idx = np.logical_and(lidx,uidx)
+            if not idx.any():
+                raise(EmptyData)
             bounds = self.bounds[idx,:]
         
         ret = self.__class__(value=self.value[idx],bounds=bounds,

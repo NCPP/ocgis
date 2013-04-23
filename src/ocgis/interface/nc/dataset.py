@@ -138,8 +138,7 @@ class NcDataset(base.AbstractDataset):
                 tret[_name_value] = ref
                 yield(geom,gret)
     
-    def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None,
-                   allow_empty=False):
+    def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
         if temporal is not None:
             new_temporal = self.temporal.subset(*temporal)
         else:

@@ -1,5 +1,6 @@
 import netCDF4 as nc
 from ocgis.interface.ncmeta import NcMetadata
+from ocgis.interface.nc.dataset import NcDataset
 
 
 class Inspect(object):
@@ -37,9 +38,12 @@ class Inspect(object):
             finally:
                 rootgrp.close()
         else:
-            self.ds = OcgDataset({'uri':uri,'variable':variable},
-                                 interface_overload=interface_overload)
-            self.meta = self.ds.i._meta
+            from ocgis.api.request import RequestDataset
+            kwds = {'uri':uri,'variable':variable}
+            kwds.update(interface_overload)
+            rd = RequestDataset(**kwds)
+            self.ds = NcDataset(request_dataset=rd)
+            self.meta = self.ds.metadata
         
     def __repr__(self):
         msg = ''
@@ -53,18 +57,18 @@ class Inspect(object):
         
     @property
     def _t(self):
-        return(self.ds.i.temporal)
+        return(self.ds.temporal)
     @property
     def _s(self):
-        return(self.ds.i.spatial)
+        return(self.ds.spatial)
     @property
     def _l(self):
-        return(self.ds.i.level)
+        return(self.ds.level)
         
     def get_temporal_report(self):
         start_date = self._t.value.min()
         end_date = self._t.value.max()
-        res = int(self._t.get_approx_res_days())
+        res = int(self._t.resolution)
         n = len(self._t.value)
         calendar = self._t.calendar
         units = self._t.units
@@ -87,10 +91,10 @@ class Inspect(object):
         return(lines)
     
     def get_spatial_report(self):
-        res = self._s.resolution
-        extent = self._s.extent().bounds
-        itype = self._s.__class__.__name__
-        projection = self.ds.i.spatial.projection
+        res = self._s.grid.resolution
+        extent = self._s.grid.extent
+        itype = self._s.vector.__class__.__name__
+        projection = self.ds.spatial.projection
         
         lines = []
         lines.append('Spatial Reference = {0}'.format(projection.__class__.__name__))
@@ -98,7 +102,7 @@ class Inspect(object):
         lines.append('           Extent = {0}'.format(extent))
         lines.append('   Interface Type = {0}'.format(itype))
         lines.append('       Resolution = {0}'.format(res))
-        lines.append('            Count = {0}'.format(self._s.gid.reshape(-1).shape[0]))
+        lines.append('            Count = {0}'.format(self._s.grid.uid.reshape(-1).shape[0]))
         
         return(lines)
     

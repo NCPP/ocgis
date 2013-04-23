@@ -309,10 +309,10 @@ def bounding_coords(polygon):
                   min_y=min_y,
                   max_y=max_y))
     
-def shapely_to_shp(obj,outname):
+def shapely_to_shp(obj,path):
     from osgeo import osr, ogr
     
-    path = os.path.join('/tmp',outname+'.shp')
+#    path = os.path.join('/tmp',outname+'.shp')
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     ogr_geom = 3
@@ -324,7 +324,10 @@ def shapely_to_shp(obj,outname):
             raise IOError('Could not create file on disk. Does it already exist?')
             
         layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
-        feature_def = layer.GetLayerDefn()
+        try:
+            feature_def = layer.GetLayerDefn()
+        except:
+            import ipdb;ipdb.set_trace()
         feat = ogr.Feature(feature_def)
         try:
             iterator = iter(obj)

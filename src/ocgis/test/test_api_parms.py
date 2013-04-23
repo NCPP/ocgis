@@ -5,6 +5,7 @@ import pickle
 import tempfile
 import os
 from ocgis.test.base import TestBase
+from ocgis.util.shp_cabinet import ShpCabinet
 
 
 class Test(TestBase):
@@ -105,18 +106,18 @@ class Test(TestBase):
 
     def test_geom(self):
         geom_base = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = [{'ugid':1,'geom':geom_base}]
+        geom = geom_base
         g = Geom(geom)
-        self.assertEqual(type(g.value),SelectionGeometry)
+        self.assertEqual(type(g.value),GeometryDataset)
         g.value = None
-        self.assertNotEqual(None,g.value)
+        self.assertEqual(None,g.value)
         
         g = Geom(None)
-        self.assertNotEqual(g.value,None)
+        self.assertEqual(g.value,None)
         self.assertEqual(str(g),'geom=None')
         
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(g.value.spatial.geom.bounds,(-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
         self.assertEqual(g.get_url_string(),'-120.0|40.0|-110.0|50.0')
         
@@ -124,14 +125,14 @@ class Test(TestBase):
         self.assertEqual(str(g),'geom=mi_watersheds')
         
         geoms = ShpCabinet().get_geoms('mi_watersheds')
-        g = Geom(geoms)
+        g = Geom('mi_watersheds')
         self.assertEqual(len(g.value),len(geoms))
         
         su = SelectUgid([1,2,3])
         g = Geom('mi_watersheds',select_ugid=su)
         self.assertEqual(len(g.value),3)
         
-        geoms = [geom[0],geom[0]]
+        geoms = GeometryDataset(uid=[1,2],geom=[geom,geom])
         g = Geom(geoms)
         with self.assertRaises(CannotEncodeUrl):
             g.get_url_string()

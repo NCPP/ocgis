@@ -132,12 +132,10 @@ class SubsetOperation(object):
         if self.ops.geom is None:
             yield(self,None)
         elif isinstance(self.ops.geom,ShpDataset):
-            for idx in range(self   .ops.geom.spatial.geom):
+            for idx in range(self.ops.geom.spatial.geom):
                 yield(env.geom[idx])
         else:
-            geoms = [self.ops.geom]
-            for geom in geoms:
-                yield(self,geom)
+            yield(self,self.ops.geom)
             
 def get_collection((so,geom)):
     '''Execute requested operations.

@@ -8,6 +8,9 @@ from ocgis.calc import library
 from collections import OrderedDict
 import ocgis
 from os.path import exists
+from ocgis.interface.geometry import GeometryDataset
+from ocgis.interface.shp import ShpDataset
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class Abstraction(base.StringOptionParameter):
@@ -256,14 +259,12 @@ class FileOnly(base.BooleanParameter):
     name = 'file_only'
     
 
-class Geom(base.IterableParameter,base.OcgParameter):
+class Geom(base.OcgParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [SelectionGeometry,list,tuple]
-    return_type = SelectionGeometry
-    unique = False
-    element_type = dict
+    input_types = [ShpDataset,GeometryDataset,list,tuple,Polygon,MultiPolygon]
+    return_type = [ShpDataset,GeometryDataset]
     _shp_key = None
     _bounds = None
     
@@ -273,7 +274,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
         base.OcgParameter.__init__(*args,**kwds)
     
     def __repr__(self):
-        if len(self.value) == 1 and self.value[0]['geom'] is None:
+        if self.value is None:
             value = None
         elif self._shp_key is not None:
             value = self._shp_key
@@ -308,10 +309,10 @@ class Geom(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def parse(self,value):
-        if type(value) in [list,tuple] and len(value) == 4:
-            ret = self.parse_string('|'.join(map(str,value)))
+        if type(value) in [Polygon,MultiPolygon]:
+            ret = GeometryDataset(1,value)
         else:
-            ret = base.IterableParameter.parse(self,value)
+            ret = value
         return(ret)
     
     def parse_string(self,value):
@@ -325,22 +326,33 @@ class Geom(base.IterableParameter,base.OcgParameter):
                             (maxx,miny)))
             if not geom.is_valid:
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-            ret = geom
+            ret = GeometryDataset(1,geom)
             self._bounds = elements
         except ValueError:
-            sc = ShpCabinet()
-            if value in sc.keys():
-                self._shp_key = value
-                ## get the select_ugid test value.
-                try:
-                    test_value = self.select_ugid.value
-                except AttributeError:
-                    test_value = self.select_ugid
-                ## return the geometries
-                if test_value is None:
-                    ret = sc.get_geoms(value)
-                else:
-                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
+            self._shp_key = value
+            ## get the select_ugid test value.
+            try:
+                test_value = self.select_ugid.value
+            except AttributeError:
+                test_value = self.select_ugid
+            if test_value is None:
+                attr_filter = None
+            else:
+                attr_filter = {'ugid':test_value}
+            ret = ShpDataset(value,attr_filter=attr_filter)
+#            sc = ShpCabinet()
+#            if value in sc.keys():
+#                self._shp_key = value
+#                ## get the select_ugid test value.
+#                try:
+#                    test_value = self.select_ugid.value
+#                except AttributeError:
+#                    test_value = self.select_ugid
+#                ## return the geometries
+#                if test_value is None:
+#                    ret = sc.get_geoms(value)
+#                else:
+#                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
         return(ret)
     
     def _get_meta_(self):

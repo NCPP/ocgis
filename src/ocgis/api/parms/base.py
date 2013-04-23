@@ -46,8 +46,12 @@ class OcgParameter(object):
         ret = self.parse(value)
         try:
             if ret is not None:
-                if self.return_type != type(ret):
-                    ret = self.return_type(ret)
+                try:
+                    if self.return_type != type(ret):
+                        ret = self.return_type(ret)
+                except:
+                    if type(ret) not in self.return_type:
+                        raise
         except:
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)
@@ -170,7 +174,11 @@ class IterableParameter(object):
         if value is None:
             ret = None
         else:
-            ret = [OcgParameter.parse(self,element) for element in value]
+            try:
+                itr = iter(value)
+            except TypeError:
+                itr = iter([value])
+            ret = [OcgParameter.parse(self,element) for element in itr]
             if self.unique:
                 if len(set(ret)) < len(value):
                     raise(DefinitionValidationError(self,'Argument sequence must have unique elements.'))

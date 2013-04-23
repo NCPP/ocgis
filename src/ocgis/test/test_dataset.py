@@ -13,6 +13,7 @@ from ocgis.interface.nc.dimension import NcRowDimension, NcColumnDimension,\
     NcGridDimension, NcSpatialDimension, NcPolygonDimension, NcPointDimension
 from ocgis.interface.nc.dataset import NcDataset
 from shapely.geometry.multipolygon import MultiPolygon
+from ocgis.interface.geometry import GeometryDataset
 
 
 class TestNcDataset(TestBase):
@@ -212,6 +213,13 @@ class TestShpDataset(TestBase):
     def test_filter(self):
         sds = ShpDataset('state_boundaries',attr_filter={'ugid':[20]})
         self.assertTrue(sds.spatial.geom.shape,(1,))
+        
+        
+class TestGeometryDataset(TestBase):
+    
+    def test_load(self):
+        poly = make_poly((-62,59),(87,244))
+        gds = GeometryDataset(uid=[1],geom=[poly])
 
 
 if __name__ == "__main__":

@@ -118,14 +118,20 @@ class NcDataset(base.AbstractDataset):
             self.__ds = nc.Dataset(self.request_dataset.uri,'r')
         return(self.__ds)
     
-    def get_iter_value(self,add_bounds=True,add_masked=False):
-        value = self.value
+    def get_iter_value(self,add_bounds=True,add_masked=False,value=None,
+                       temporal_group=False):
+        if value is None:
+            value = self.value
         is_masked = np.ma.is_masked
         _name_value = self._name_value
+        if temporal_group:
+            time_iter = self.temporal.group.get_iter(add_bounds=add_bounds)
+        else:
+            time_iter = self.temporal.get_iter(add_bounds=add_bounds)
         
         if self.level is None:
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
-                for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
+                for tidx,tret in time_iter:
                     gret.update(tret)
                     ref = value[tidx,0,ridx,cidx]
                     masked = is_masked(value)
@@ -139,7 +145,7 @@ class NcDataset(base.AbstractDataset):
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
                 for lidx,lret in self.level.get_iter(add_bounds=add_bounds):
                     gret.update(lret)
-                    for tidx,tret in self.temporal.get_iter(add_bounds=add_bounds):
+                    for tidx,tret in time_iter:
                         gret.update(tret)
                         ref = value[tidx,lidx,ridx,cidx]
                         masked = is_masked(value)

@@ -165,6 +165,9 @@ class TestNcDataset(TestBase):
         ods.temporal.set_grouping(grouping)
         self.assertEqual(ods.temporal.group.value.shape[0],12)
         
+        for row in ods.temporal.group.get_iter():
+            pass
+        
     def test_slice(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)

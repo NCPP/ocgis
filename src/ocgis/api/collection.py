@@ -56,7 +56,25 @@ class CalcCollection(AbstractCollection):
         self.calc = OrderedDict()
         
     def get_headers(self):
-        raise(NotImplementedError)
+        return(constants.calc_headers)
     
     def get_iter(self):
-        raise(NotImplementedError)
+        headers = self.get_headers()
+        vid = 1
+        cid = 1
+        ugid = self.ugid
+        for var_name,calc in self.calc.iteritems():
+            ds = self.variables[var_name]
+            for calc_name,calc_value in calc.iteritems():
+                for geom,attrs in ds.get_iter_value(value=calc_value,temporal_group=True):
+                    attrs['var_name'] = var_name
+                    attrs['calc_name'] = calc_name
+                    attrs['vid'] = vid
+                    attrs['cid'] = cid
+                    attrs['ugid'] = ugid
+                    row = [attrs[key] for key in headers]
+                    if type(geom) == Polygon:
+                        geom = MultiPolygon([geom])
+                    yield(geom,row)
+                cid += 1
+            vid += 1

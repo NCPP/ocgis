@@ -238,7 +238,8 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             if group_map[idx] in grouping:
                 fill = np.unique(parts[:,idx])
             else:
-                fill = np.array([0])
+#                fill = np.array([0])
+                fill = [None]
             unique.append(fill)
 
         select = deque()
@@ -246,7 +247,6 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
         for idx in itertools.product(*[range(len(u)) for u in unique]):
             select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
         select = np.array(select)
-        
         dgroups = deque()
         idx_cmp = [group_map_rev[group] for group in grouping]
         keep_select = []
@@ -267,17 +267,45 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
         
-        
         self.group = self._dtemporal_group_dimension(new_value,new_bounds,dgroups)
 
     
 class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
-    def __init__(self,value,bounds,dgroups):
+    def __init__(self,value,bounds,dgroups,uid=None):
         self.value = value
         self.bounds = bounds
         self.dgroups = dgroups
+        if uid is None:
+            uid = np.arange(1,self.value.shape[0]+1,dtype=int)
+        self.uid = uid
+        
+    def get_iter(self,add_bounds=True):
+        value = self.value
+        uid = self.uid
+        bounds = self.bounds
+        has_bounds = False if bounds is None else True
+        if not add_bounds and has_bounds:
+            has_bounds = False
+        name_id = self._name_id
+#        name_value = self._name_long
+#        name_left_bound = 'bnd_left_'+name_value
+#        name_right_bound = 'bnd_right_'+name_value
+        
+        ret = {}
+        for idx in range(value.shape[0]):
+#            ret[name_value] = value[idx]
+            ret[name_id] = uid[idx]
+            ret['year'] = value[idx,0]
+            ret['month'] = value[idx,1]
+            ret['day'] = value[idx,2]
+            ret['hour'] = value[idx,3]
+            ret['minute'] = value[idx,4]
+#            if has_bounds:
+#                ret[name_left_bound] = bounds[idx,0]
+#                ret[name_right_bound] = bounds[idx,1]
+            yield(idx,ret)
     
     
 class AbstractRowDimension(AbstractVectorDimension,AbstractInterfaceDimension):

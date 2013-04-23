@@ -142,7 +142,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
-        ret_gids = set(ref.variables[self.var].spatial.uid.compressed())
+        ret_gids = set(ref.variables[self.var].spatial.vector.uid.compressed())
         intersection = gids.intersection(ret_gids)
         self.assertEqual(len(intersection),4)
         self.assertTrue(np.all(ref.variables[self.var].value[0,0,:,:] == np.array([[1.0,2.0],[3.0,4.0]])))

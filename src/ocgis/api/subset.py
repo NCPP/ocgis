@@ -133,7 +133,7 @@ class SubsetOperation(object):
             yield(self,None)
         elif isinstance(self.ops.geom,ShpDataset):
             for idx in range(self.ops.geom.spatial.geom):
-                yield(env.geom[idx])
+                yield(self.ops.geom[idx])
         else:
             yield(self,self.ops.geom)
             
@@ -190,15 +190,19 @@ def get_collection((so,geom)):
             unwrap_geoms([geom_copy],ref.i.spatial.pm)
         if so.ops.slice_row is not None or so.ops.slice_column is not None:
             raise(NotImplementedError)
+        if geom is not None:
+            igeom = geom.spatial.geom
+        else:
+            igeom = None
         ## perform the data subset
         ods = ods.get_subset(
                             spatial_operation=so.ops.spatial_operation,
-                            polygon=geom,
+                            polygon=igeom,
                             temporal=request_dataset.time_range,
                             level=request_dataset.level_range,
                             allow_empty=so.ops.allow_empty,)
         if so.ops.spatial_operation == 'clip' and geom is not None:
-            ods = ods.spatial.vector.clip()
+            ods = ods.spatial.vector.clip(igeom)
         if so.ops.aggregate:
             try:
                 new_geom_id = geom.uid

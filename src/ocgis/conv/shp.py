@@ -32,18 +32,15 @@ class ShpConverter(OcgConverter):
                 
         build = True
         for coll in self:
-            for row,geom in self.get_iter(coll):
+            for geom,row in coll.get_iter():
                 if build:
                     if isinstance(geom,MultiPolygon):
                         geom_type = ogr.wkbMultiPolygon
                     else:
                         geom_type = ogr.wkbPoint
-                    try:
-                        srs = coll.projection.sr
-                    except AttributeError:
-                        srs = self.projection.sr
+                    srs = coll.projection.sr
                     layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
-                    headers = self.get_headers(coll)
+                    headers = coll.get_headers()
                     self._set_ogr_fields_(headers,row)
                     for ogr_field in self.ogr_fields:
                         layer.CreateField(ogr_field.ogr_field)
@@ -123,7 +120,6 @@ class FieldCache(object):
         self._cache = []
     
     def add(self,name):
-        name = str(name).upper()
         if len(name) > 10:
             name = name[0:10]
         if name not in self._cache:

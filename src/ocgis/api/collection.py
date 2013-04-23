@@ -1,10 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from ocgis import constants
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class AbstractCollection(object):
     __metaclass__ = ABCMeta
+    
+    @property
+    def projection(self):
+        return(self.variables[self.variables.keys()[0]].spatial.projection)
     
     @property
     def ugid(self):
@@ -36,6 +42,8 @@ class RawCollection(AbstractCollection):
                 attrs['vid'] = vid
                 attrs['ugid'] = ugid
                 row = [attrs[key] for key in headers]
+                if type(geom) == Polygon:
+                    geom = MultiPolygon([geom])
                 yield(geom,row)
             vid += 1
         

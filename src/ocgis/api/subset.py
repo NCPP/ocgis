@@ -1,8 +1,6 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.util.spatial.wrap import unwrap_geoms, wrap_coll
-from copy import deepcopy
 from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection

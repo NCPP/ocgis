@@ -13,7 +13,6 @@ def _get_iter_(geom):
         it = [geom]
     return(it)
 
-
 def unwrap_geoms(geoms,axis=0.0):
     '''geoms : ndarray
     yields : geom'''

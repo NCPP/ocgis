@@ -199,7 +199,7 @@ puninstall.set_defaults(func=uninstall)
 ppackage = subparsers.add_parser('package',help='utilities for packaging shapefile and NetCDF test datasets')
 ppackage.set_defaults(func=package)
 ppackage.add_argument('target',type=str,choices=['shp','nc','all'],help='Select the files to package.')
-ppackage.add_argument('-d','--directory',dest='d',type=str,metavar='dir',help='the destination directory. if not specified, it defaults the current working directory.')
+ppackage.add_argument('-d','--directory',dest='d',type=str,metavar='dir',help='the destination directory. if not specified, it defaults to the current working directory.')
 
 pargs = parser.parse_args()
 pargs.func(pargs)

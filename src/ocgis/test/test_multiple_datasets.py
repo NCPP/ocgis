@@ -11,7 +11,7 @@ class Test(TestBase):
         self.maurer = self.test_data.get_rd('maurer_bccr_1950')
         self.cancm4 = self.test_data.get_rd('cancm4_tasmax_2001')
         self.tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-        self.albisccp = self.test_data.get_rd('ccsm4')
+#        self.albisccp = self.test_data.get_rd('ccsm4')
     
     @property
     def dataset(self):
@@ -43,7 +43,7 @@ class Test(TestBase):
     
     def test_keyed(self):
         ds = self.dataset
-        ds.append(self.albisccp.copy())
+#        ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())
         
         ops = OcgOperations(dataset=ds,geom=self.california,output_format='numpy')
@@ -51,8 +51,8 @@ class Test(TestBase):
         ref = ret[25].variables
         self.assertEqual(ref['tasmax']._use_for_id,['gid','tid'])
         self.assertEqual(ref['tasmin']._use_for_id,[])
-        for key in ['albisccp','Prcp']:
-            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
+#        for key in ['albisccp','Prcp']:
+#            self.assertEqual(ret[25].variables[key]._use_for_id,['gid','tid'])
         
         ops = OcgOperations(dataset=ds,geom=self.california,output_format='keyed',snippet=True)
         ret = ops.execute()

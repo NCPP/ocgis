@@ -46,6 +46,15 @@ class TestBase(unittest.TestCase):
             env.reset()
             
             
+class TestBaseNoEnvironment(TestBase):
+    
+    @classmethod
+    def setUpClass(cls): pass
+        
+    @classmethod
+    def tearDownClass(cls): pass
+            
+            
 class TestData(OrderedDict):
     
     def copy_files(self,dest):

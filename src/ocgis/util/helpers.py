@@ -153,24 +153,40 @@ def append(arr,value):
     arr.resize(arr.shape[0]+1,refcheck=False)
     arr[arr.shape[0]-1] = value
 
-def iter_array(a,use_mask=True,return_value=False):
+def iter_array(arr,use_mask=True,return_value=False):
     try:
-        iter_args = [range(0,ii) for ii in a.shape]
+        shp = arr.shape
+    ## assume array is not a numpy array
     except AttributeError:
-        a = np.array(a)
-        iter_args = [range(0,ii) for ii in a.shape]
-    if use_mask and not isinstance(a,MaskedArray):
+        arr = np.array(arr,ndmin=1)
+        shp = arr.shape
+    iter_args = [range(0,ii) for ii in shp]
+    if use_mask and not np.ma.isMaskedArray(arr):
         use_mask = False
+    else:
+        try:
+            mask = arr.mask
+        ## array is not masked
+        except AttributeError:
+            pass
+        
     for ii in itertools.product(*iter_args):
         if use_mask:
-            if not a.mask[ii]:
-                idx = ii
-            else:
-                continue
+            try:
+                if mask[ii]:
+                    continue
+                else:
+                    idx = ii
+            ## occurs with singleton dimension of masked array
+            except IndexError:
+                if mask:
+                    continue
+                else:
+                    idx = ii
         else:
             idx = ii
         if return_value:
-            ret = (idx,a[ii])
+            ret = (idx,arr[ii])
         else:
             ret = idx
         yield(ret)

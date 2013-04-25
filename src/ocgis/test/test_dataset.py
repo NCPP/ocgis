@@ -185,8 +185,7 @@ class TestNcDataset(TestBase):
         grouping = ['month']
         ods.temporal.set_grouping(grouping)
         sods = ods[0:31,0:5,0:5]
-        with self.assertRaises(AttributeError):
-            sods.temporal.group
+        self.assertEqual(self.temporal.group,None)
         sods.temporal.set_grouping(grouping)
         self.assertEqual(sods.temporal.group.value.shape[0],1)
             

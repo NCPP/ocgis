@@ -134,13 +134,12 @@ class NcDataset(base.AbstractDataset):
         is_masked = np.ma.is_masked
         _name_value = self._name_value
         if temporal_group:
-            time_iter = self.temporal.group.get_iter(add_bounds=add_bounds)
+            time_iter = self.temporal.group.get_iter
         else:
-            time_iter = self.temporal.get_iter(add_bounds=add_bounds)
-        
+            time_iter = self.temporal.get_iter
         if self.level is None:
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
-                for tidx,tret in time_iter:
+                for tidx,tret in time_iter(add_bounds=add_bounds):
                     gret.update(tret)
                     ref = value[tidx,0,ridx,cidx]
                     masked = is_masked(value)
@@ -154,7 +153,7 @@ class NcDataset(base.AbstractDataset):
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
                 for lidx,lret in self.level.get_iter(add_bounds=add_bounds):
                     gret.update(lret)
-                    for tidx,tret in time_iter:
+                    for tidx,tret in time_iter(add_bounds=add_bounds):
                         gret.update(tret)
                         ref = value[tidx,lidx,ridx,cidx]
                         masked = is_masked(value)

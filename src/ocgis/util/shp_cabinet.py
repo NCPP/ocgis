@@ -58,18 +58,13 @@ class ShpCabinet(object):
     def get_geom_dict(self,*args,**kwds):
         return(self.get_geoms(*args,**kwds))
     
-    def get_geoms(self,key,attr_filter=None,unwrap=False,pm=0.0):
+    def get_geoms(self,key,attr_filter=None):
         """Return geometries from a shapefile specified by `key`.
         
         :param key: The shapefile identifier.
         :type key: str
         :param attr_filter: A dict containing attribute filters. Keys indicate attribute fields and values should be lists that will match attribute values `exactly`.
         :type attr_filter: dict
-        :param unwrap: If `True`, unwrap the geometries to 0 to 360 longitudinal domain.
-        :type unwrap: bool
-        :param pm: If `unwrap` is `True`, this value sets the prime meridian.
-        :type pm: float
-        :rtype: list of dict
         """
         
         shp_path = self.get_shp_path(key)
@@ -125,10 +120,6 @@ class ShpCabinet(object):
                 if ref in fvalues: return(True)
             ## filter the geometry dictionary
             geoms = filter(_filter_,geoms)
-            
-        ## unwrap the geometries if requested
-        if unwrap:
-            unwrap_geoms(geoms,pm)
         
         return(SelectionGeometry(geoms))
     

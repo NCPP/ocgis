@@ -33,26 +33,6 @@ class Test(unittest.TestCase):
         for key in sc.keys():
             geoms = sc.get_geoms(key)
             self.assertTrue(len(geoms) > 2)
-            
-    def test_unwrap(self):
-        sc = ShpCabinet()
-        _key = ['state_boundaries','world_countries']
-        for key in _key:
-            geoms = sc.get_geoms(key,unwrap=True)
-            for geom in geoms:
-                x = geom['geom'].centroid.x
-                self.assertTrue(x > 0)
-                
-    def test_unwrap_pm(self):
-        _pm = [-4.0,-10.0,-20.0,5.0]
-        sc = ShpCabinet()
-        for pm in _pm:
-            geoms = sc.get_geoms('world_countries',unwrap=True,pm=pm)
-            path = '/tmp/shp{0}.shp'.format(time.time())
-            sc.write(geoms,path)
-            for geom in geoms:
-                bounds = geom['geom'].bounds
-                self.assertTrue(bounds[0] >= pm)
                 
     def test_attribute_flags(self):
         attr_flags = ['none','all']

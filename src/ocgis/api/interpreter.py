@@ -6,7 +6,6 @@ from subset import SubsetOperation
 from ocgis.util.helpers import union_geoms
 import os
 import shutil
-from ocgis.conv.ncempty import NcEmpty
 
 ## TODO: add method to estimate request size
 

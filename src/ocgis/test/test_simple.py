@@ -13,6 +13,7 @@ from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
 from ocgis.test.base import TestBase
 import subprocess
+from unittest.case import SkipTest
 
 
 class TestSimpleBase(TestBase):
@@ -247,6 +248,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(ops)
             
     def test_keyed_conversion(self):
+        raise(SkipTest)
         calc = [
                 None,
                 [{'func':'mean','name':'my_mean'}]

@@ -81,7 +81,8 @@ class OcgInterpreter(Interpreter):
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
         ## aggregated.
-        if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
+        if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) and self.ops.geom is not None and len(self.ops.geom) > 1:
+            import ipdb;ipdb.set_trace()
             self.ops.geom = union_geoms(self.ops.geom)
             
         ## do not perform vector wrapping for NetCDF output

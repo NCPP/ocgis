@@ -222,6 +222,7 @@ class TestSimple(TestSimpleBase):
     def test_nc_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='nc')
         ret = self.get_ret(ops)
+        ip = Inspect(ret,'foo')
         
     def test_shp_conversion(self):
         calc = [

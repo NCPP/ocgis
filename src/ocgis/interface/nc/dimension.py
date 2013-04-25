@@ -73,6 +73,10 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                 break
         return(diffs.mean())
     
+    def get_nc_time(self,values):
+        ret = nc.date2num(values,self.units,calendar=self.calendar)
+        return(ret)
+    
     @classmethod
     def _load_(cls,gi,subset_by=None):
         ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
@@ -202,6 +206,17 @@ class NcGridDimension(base.AbstractSpatialGrid):
         row = getattr(self.row,attr)
         column = getattr(self.column,attr)
         return(column.min(),row.min(),column.max(),row.max())
+    
+    @property
+    def is_bounded(self):
+        check = map(lambda x: x is not None,[self.row.bounds,self.column.bounds])
+        if sum(check) == 1:
+            raise(ValueError('Only one axis is bounded. This should not be possible.'))
+        elif all(check):
+            ret = True
+        else:
+            ret = False
+        return(ret)
     
     @property
     def resolution(self):

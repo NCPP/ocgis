@@ -211,6 +211,10 @@ class AbstractLevelDimension(AbstractVectorDimension,AbstractInterfaceDimension)
 class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
+    def __init__(self,*args,**kwds):
+        super(AbstractTemporalDimension,self).__init__(*args,**kwds)
+        self.group = None
+    
     @abstractproperty
     def _dtemporal_group_dimension(self): AbstractTemporalGroupDimension
     

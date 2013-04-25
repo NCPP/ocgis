@@ -65,7 +65,7 @@ class OcgOperations(object):
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice_row=None, slice_column=None, file_only=False):
+                 slice=None, file_only=False):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -88,8 +88,7 @@ class OcgOperations(object):
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)
-        self.slice_row = SliceRow(slice_row)
-        self.slice_column = SliceColumn(slice_column)
+        self.slice = Slice(slice)
         self.file_only = FileOnly(file_only)
         
         ## these values are left in to perhaps be added back in at a later date.
@@ -205,9 +204,8 @@ class OcgOperations(object):
         return(object.__getattribute__(self, name))
     
     def _validate_(self):
-        if self.slice_row is not None or self.slice_column is not None:
+        if self.slice is not None:
             assert(self.geom is None)
-            assert(all([self.slice_column,self.slice_row]))
         if self.file_only:
             assert(len(self.dataset) == 1)
             assert(self.output_format == 'nc')

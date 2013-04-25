@@ -10,6 +10,7 @@ from os.path import exists
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
 from shapely.geometry.multipolygon import MultiPolygon
+from types import NoneType
 
 
 class Abstraction(base.StringOptionParameter):
@@ -284,20 +285,20 @@ class Geom(base.OcgParameter):
         ret = '{0}={1}'.format(self.name,value)
         return(ret)
     
-    @property
-    def is_empty(self):
-        if self.value[0]['geom'] is None:
-            ret = True
-        else:
-            ret = False
-        return(ret)
+#    @property
+#    def is_empty(self):
+#        if self.value[0]['geom'] is None:
+#            ret = True
+#        else:
+#            ret = False
+#        return(ret)
     
-    def _get_value_(self):
-        ret = base.OcgParameter._get_value_(self)
-        if ret is None:
-            ret = self.default
-        return(ret)
-    value = property(_get_value_,base.OcgParameter._set_value_)
+#    def _get_value_(self):
+#        ret = base.OcgParameter._get_value_(self)
+#        if ret is None:
+#            ret = self.default
+#        return(ret)
+#    value = property(_get_value_,base.OcgParameter._set_value_)
     
     def get_url_string(self):
         if self.value is None:
@@ -312,6 +313,11 @@ class Geom(base.OcgParameter):
     def parse(self,value):
         if type(value) in [Polygon,MultiPolygon]:
             ret = GeometryDataset(1,value)
+        elif type(value) in [list,tuple]:
+            if len(value) == 4:
+                ret = self.parse_string('|'.join(map(str,value)))
+            else:
+                raise(DefinitionValidationError(self,'Bounding coordinates passed but less than four present.'))
         else:
             ret = value
         return(ret)
@@ -407,14 +413,29 @@ class SelectUgid(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     
-class SliceRow(base.IterableParameter,base.OcgParameter):
-    name = 'slice_row'
+class Slice(base.IterableParameter,base.OcgParameter):
+    name = 'slice'
     return_type = tuple
     nullable = True
     default = None
     input_types = [list,tuple]
-    element_type = int
+    element_type = [NoneType,int,tuple,list,slice]
     unique = False
+    
+    def validate_all(self,values):
+        if len(values) not in [3,4]:
+            raise(DefinitionValidationError(self,'Slices must have 3 or 4 values.'))
+    
+    def _parse_(self,value):
+        if value is None:
+            ret = slice(None)
+        elif type(value) == int:
+            ret = slice(value,value+1)
+        elif type(value) in [list,tuple]:
+            ret = slice(*value)
+        else:
+            raise(DefinitionValidationError(self,'"{0}" cannot be converted to a slice object'.format(value)))
+        return(ret)
     
     def _get_meta_(self):
         if self.value is None:
@@ -422,10 +443,6 @@ class SliceRow(base.IterableParameter,base.OcgParameter):
         else:
             ret = 'A slice was used.'
         return(ret)
-    
-    
-class SliceColumn(SliceRow):
-    name = 'slice_column'
 
 
 class Snippet(base.BooleanParameter):

@@ -7,12 +7,14 @@ from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis import env
 import os.path
 from ocgis.api.parms import definition
-from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
 from ocgis.api.geometry import SelectionGeometry
 import pickle
 import ocgis
 from ocgis.test.base import TestBase
 from nose.plugins.skip import SkipTest
+from ocgis.api.request import RequestDataset, RequestDatasetCollection
+from ocgis.interface.geometry import GeometryDataset
+from ocgis.interface.shp import ShpDataset
 
 
 class Test(TestBase):
@@ -42,7 +44,7 @@ class Test(TestBase):
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
-        self.assertNotEqual(ops.geom,None)
+        self.assertEqual(ops.geom,None)
         self.assertEqual(len(ops.dataset),3)
         for ds in ops.dataset:
             self.assertEqual(ds.time_range,None)
@@ -64,22 +66,21 @@ class Test(TestBase):
         ops = OcgOperations(dataset=self.datasets,geom='state_boundaries')
         self.assertEqual(len(ops.geom),51)
         ops.geom = None
-        self.assertEqual(ops.geom,[{'ugid': 1,'geom': None}])
+        self.assertEqual(ops.geom,None)
         ops.geom = 'mi_watersheds'
         self.assertEqual(len(ops.geom),60)
         ops.geom = '-120|40|-110|50'
-        self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
+        self.assertEqual(ops.geom.spatial.geom.bounds,(-120.0,40.0,-110.0,50.0))
         ops.geom = [-120,40,-110,50]
-        self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
+        self.assertEqual(ops.geom.spatial.geom.bounds,(-120.0,40.0,-110.0,50.0))
         
     def test_geom(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = [{'ugid':1,'geom':geom}]
         g = definition.Geom(geom)
-        self.assertEqual(type(g.value),SelectionGeometry)
+        self.assertEqual(type(g.value),GeometryDataset)
         
         g = definition.Geom(None)
-        self.assertNotEqual(g.value,None)
+        self.assertEqual(g.value,None)
         self.assertEqual(str(g),'geom=None')
         
         g = definition.Geom('-120|40|-110|50')
@@ -88,7 +89,7 @@ class Test(TestBase):
         g = definition.Geom('mi_watersheds')
         self.assertEqual(str(g),'geom=mi_watersheds')
         
-        geoms = ShpCabinet().get_geoms('mi_watersheds')
+        geoms = ShpDataset('mi_watersheds')
         g = definition.Geom(geoms)
         self.assertEqual(len(g.value),60)
         with self.assertRaises(CannotEncodeUrl):

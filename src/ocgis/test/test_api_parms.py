@@ -25,6 +25,21 @@ class Test(TestBase):
             self.assertEqual(new_dir,dd.value)
         finally:
             os.rmdir(new_dir)
+            
+    def test_slice(self):
+        slc = Slice(None)
+        self.assertEqual(slc.value,None)
+        
+        slc = Slice([None,0,0])
+        self.assertEqual(slc.value,(slice(None),slice(0,1),slice(0, 1)))
+        
+        slc = Slice([0,None,[0,1],[0,100]])
+        self.assertEqual(slc.value,(slice(0,1),slice(None),slice(0,1),slice(0,100)))
+        
+        with self.assertRaises(DefinitionValidationError):
+            slc.value = 4
+        with self.assertRaises(DefinitionValidationError):
+            slc.value = [None,None]
 
     def test_snippet(self):
         self.assertFalse(Snippet().value)
@@ -105,8 +120,8 @@ class Test(TestBase):
             rd = RequestDataset(uri,'foo')
 
     def test_geom(self):
-        geom_base = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = geom_base
+        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+
         g = Geom(geom)
         self.assertEqual(type(g.value),GeometryDataset)
         g.value = None
@@ -136,6 +151,10 @@ class Test(TestBase):
         g = Geom(geoms)
         with self.assertRaises(CannotEncodeUrl):
             g.get_url_string()
+        
+        bbox = [-120,40,-110,50]
+        g = Geom(bbox)
+        self.assertEqual(g.value.spatial.geom.bounds,tuple(map(float,bbox)))
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]

@@ -185,9 +185,15 @@ class IterableParameter(object):
             for idx in range(len(ret)):
                 try:
                     ret[idx] = self.element_type(ret[idx])
-                except:
-                    raise(DefinitionValidationError(self,'Element type incorrect.'))
+                except TypeError:
+                    if type(ret[idx]) not in self.element_type:
+                        raise(DefinitionValidationError(self,'Element type incorrect. Acceptable types are: {0}'.format(self.element_type)))
+                    else:
+                        pass
+                except ValueError:
+                    raise(DefinitionValidationError(self,'Element type incorrect. Acceptable types are: {0}'.format(self.element_type)))
             ret = self.parse_all(ret)
+            self.validate_all(ret)
         return(ret)
     
     def parse_all(self,value):
@@ -199,6 +205,9 @@ class IterableParameter(object):
         if ret == [None]:
             ret = None
         return(ret)
+    
+    def validate_all(self,values):
+        pass
 
     def get_url_string(self):
         if self.value is None:

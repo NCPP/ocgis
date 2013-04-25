@@ -1,15 +1,15 @@
 from ocgis.conv.base import OcgConverter
 import netCDF4 as nc
-import numpy as np
 from ocgis.interface.projection import WGS84
 from ocgis import constants
 from ocgis.api.collection import CalcCollection
+from ocgis import env
 
     
 class NcConverter(OcgConverter):
     _ext = 'nc'
     
-    def _write_(self):
+    def _write_(self,file_only=False):
         ## get the collection
         for ii,coll in enumerate(self):
             if ii > 0:
@@ -84,8 +84,7 @@ class NcConverter(OcgConverter):
         
         ## time variable
         if temporal.group is not None:
-            raise(NotImplementedError)
-            time_nc_value = temporal.calculate(arch.temporal_group.date_centroid)
+            time_nc_value = temporal.get_nc_time(temporal.group.date_centroid)
         else:
             time_nc_value = temporal.get_nc_time(arch.temporal.value)
 #            time_nc_value = temporal.calculate(arch.temporal.value[:,1])
@@ -94,10 +93,9 @@ class NcConverter(OcgConverter):
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
             if temporal.group is not None:
-                raise(NotImplementedError)
-                time_bounds_nc_value = temporal.calculate(arch.temporal_group.bounds)
+                time_bounds_nc_value = temporal.get_nc_time(temporal.group.bounds)
             else:
-                time_bounds_nc_value = temporal.get_nc_time(arch.temporal.bounds)
+                time_bounds_nc_value = temporal.get_nc_time(temporal.bounds)
             times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
             times_bounds[:] = time_bounds_nc_value
             for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
@@ -154,20 +152,22 @@ class NcConverter(OcgConverter):
         ## set the variable(s) #################################################
         
         ## loop through variables
-        for var_name,var_value in coll.variables.iteritems():
-            if isinstance(coll,CalcCollection):
-                raise(NotImplementedError)
-                for calc_name,calc_value in var_value.calc_value.iteritems():
-                    value = ds.createVariable(calc_name,calc_value.dtype,
-                               value_dims,fill_value=var_value.value.fill_value)
+        if isinstance(coll,CalcCollection):
+            for calc_name,calc_value in coll.calc[coll.variables.keys()[0]].iteritems():
+                value = ds.createVariable(calc_name,calc_value.dtype,
+                           value_dims,fill_value=calc_value.fill_value)
+                if not file_only:
                     value[:] = calc_value
-            else:
+        else:
+            if file_only: raise(NotImplementedError)
+            for var_name,var_value in coll.variables.iteritems():
                 ## reference level interface
     #            level = var_value.ocg_dataset.i.level
                 ## create the value variable.
                 value = ds.createVariable(var_name,var_value.value.dtype,
-                               value_dims,fill_value=var_value.value.fill_value)
-                value[:] = var_value.value
+                               value_dims,fill_value=constants.fill_value)
+                if not file_only:
+                    value[:] = var_value.value
     #            value.fill_value = var_value.raw_value.fill_value
                 for key,val in meta['variables'][var_name]['attrs'].iteritems():
                     setattr(value,key,val)

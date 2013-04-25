@@ -285,6 +285,23 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
             uid = np.arange(1,self.value.shape[0]+1,dtype=int)
         self.uid = uid
         
+    @property
+    def date_centroid(self):
+        ret = np.empty(self.value.shape[0],dtype=object).reshape(-1,1)
+        bounds = self.bounds
+        if bounds[0,0] < bounds[0,1]:
+            lower_idx = 0
+            upper_idx = 1
+        else:
+            lower_idx = 1
+            upper_idx = 0
+        for idx in range(len(ret)):
+            lower = bounds[idx,lower_idx]
+            upper = bounds[idx,upper_idx]
+            delta = (upper - lower)/2
+            ret[idx] = lower + delta
+        return(ret)
+        
     def get_iter(self,add_bounds=True):
         value = self.value
         uid = self.uid

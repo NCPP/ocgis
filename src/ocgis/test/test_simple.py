@@ -87,6 +87,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'output_format':'nc','file_only':True,
                                  'calc':[{'func':'mean','name':'my_mean'}],
                                  'calc_grouping':['month']})
+#        subprocess.call(['ncdump','-h',ret])
         try:
             ds = nc.Dataset(ret,'r')
             self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),

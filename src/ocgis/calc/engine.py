@@ -2,6 +2,8 @@ from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
 from ocgis.api.collection import CalcCollection
 from collections import OrderedDict
+import numpy as np
+from ocgis import constants
 
 
 class OcgCalculationEngine(object):
@@ -59,7 +61,7 @@ class OcgCalculationEngine(object):
             weights = ds.spatial.vector.weights
         return(value,weights)
     
-    def execute(self,coll):
+    def execute(self,coll,file_only=False):
         
         ret = CalcCollection(coll)
         
@@ -112,24 +114,27 @@ class OcgCalculationEngine(object):
                 ## perform calculation on each variable
                 for alias,var in coll.variables.iteritems():
                     if alias not in ret.calc:
-                        ret.calc[alias] = OrderedDict()
-                    value,weights = self._get_value_weights_(var)
-                    ## make the function instance
-                    try:
-                        ref = f['ref'](values=value,agg=self.agg,
-                                       groups=var.temporal.group.dgroups,
-                                       kwds=f['kwds'],weights=weights)
-                    except AttributeError:
-                        ## if there is no grouping, there is no need to calculate
-                        ## sample size.
-                        if self.grouping is None and f['ref'] == SampleSize:
-                            break
-                        elif self.grouping is None:
-                            raise(NotImplementedError('Univariate calculations must have a temporal grouping.'))
-                        else:
-                            raise
-                    ## calculate the values
-                    calc = ref.calculate()
+                            ret.calc[alias] = OrderedDict()
+                    if file_only:
+                        calc = np.ma.array(np.empty(0,dtype=f['ref'].dtype),fill_value=constants.fill_value)
+                    else:
+                        value,weights = self._get_value_weights_(var)
+                        ## make the function instance
+                        try:
+                            ref = f['ref'](values=value,agg=self.agg,
+                                           groups=var.temporal.group.dgroups,
+                                           kwds=f['kwds'],weights=weights)
+                        except AttributeError:
+                            ## if there is no grouping, there is no need to calculate
+                            ## sample size.
+                            if self.grouping is None and f['ref'] == SampleSize:
+                                break
+                            elif self.grouping is None:
+                                raise(NotImplementedError('Univariate calculations must have a temporal grouping.'))
+                            else:
+                                raise
+                        ## calculate the values
+                        calc = ref.calculate()
                     ## update calculation identifier
 #                    add_name = f['name']
                     ## store the values

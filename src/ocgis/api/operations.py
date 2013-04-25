@@ -103,7 +103,7 @@ class OcgOperations(object):
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
-            if key == 'geom' and len(value) > 1:
+            if key == 'geom' and value is not None and len(value) > 1:
                 value = '{0} geometries...'.format(len(value))
             msg.append(' {0}={1}'.format(key, value))
         msg = '\n'.join(msg)

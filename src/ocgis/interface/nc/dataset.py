@@ -34,13 +34,21 @@ class NcDataset(base.AbstractDataset):
             pass
         
     def __getitem__(self,slc):
-        if len(slc) == 4:
-            raise(NotImplementedError)
+        if self.level is None:
+            if len(slc) != 3:
+                raise(IndexError('3 slice elements required for 3-d dataset'))
+            else:
+                tidx,rowidx,colidx = slc
+                level = None
+                _dummy_level = True
         else:
-            tidx,rowidx,colidx = slc
-            import ipdb;ipdb.set_trace()
-            level = None
-            _dummy_level = True
+            if len(slc) != 4:
+                raise(IndexError('4 slice elements required for 4-d dataset'))
+            else:
+                tidx,lidx,rowidx,colidx = slc
+                level = self.level[lidx]
+                _dummy_level = False
+            
         temporal = self.temporal[tidx]
         spatial = self.spatial[rowidx,colidx]
         request_dataset = self.request_dataset

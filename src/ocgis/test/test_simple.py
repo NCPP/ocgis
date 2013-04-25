@@ -73,15 +73,21 @@ class TestSimple(TestSimpleBase):
     fn = 'test_simple_spatial_01.nc'
     
     def test_slicing(self):
-        ops = self.get_ops(kwds={'slice_row':[0,2],'slice_column':[0,2]})
+        ops = self.get_ops(kwds={'slice':[None,0,[0,2],[0,2]]})
         ret = ops.execute()
-        ref = ret[1].variables['foo'].value.data
+        ref = ret[1].variables['foo'].value
         self.assertTrue(np.all(ref.flatten() == 1.0))
+        self.assertEqual(ref.shape,(61,1,2,2))
         
-        ops = self.get_ops(kwds={'slice_row':[1,3],'slice_column':[1,3]})
+        ops = self.get_ops(kwds={'slice':[None,None,[1,3],[1,3]]})
         ret = ops.execute()
         ref = ret[1].variables['foo'].value.data
         self.assertTrue(np.all(np.array([1.,2.,3.,4.] == ref[0,0,:].flatten())))
+        
+        ## pass only three slices for a leveled dataset
+        ops = self.get_ops(kwds={'slice':[None,[1,3],[1,3]]})
+        with self.assertRaises(IndexError):
+            ops.execute()
         
     def test_file_only(self):
         ret = self.get_ret(kwds={'output_format':'nc','file_only':True,

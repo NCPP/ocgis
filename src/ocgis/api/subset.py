@@ -174,8 +174,8 @@ def get_collection((so,geom)):
 #        ref = dataset.ocg_dataset
         ## wrap the geometry dictionary if needed
         ods = NcDataset(request_dataset=request_dataset)
-        if so.ops.slice_row is not None or so.ops.slice_column is not None:
-            ods = ods[:,slice(*so.ops.slice_row),slice(*so.ops.slice_column)]
+        if so.ops.slice is not None:
+            ods = ods.__getitem__(so.ops.slice)
         else:
             if so.ops.geom is not None and ods.spatial.is_360:
     #        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:

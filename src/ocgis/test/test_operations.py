@@ -49,6 +49,7 @@ class Test(TestBase):
         for ds in ops.dataset:
             self.assertEqual(ds.time_range,None)
             self.assertEqual(ds.level_range,None)
+        ops.__repr__()
     
     def test_aggregate(self):
         A = definition.Aggregate

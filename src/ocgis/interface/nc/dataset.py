@@ -38,6 +38,7 @@ class NcDataset(base.AbstractDataset):
             raise(NotImplementedError)
         else:
             tidx,rowidx,colidx = slc
+            import ipdb;ipdb.set_trace()
             level = None
             _dummy_level = True
         temporal = self.temporal[tidx]

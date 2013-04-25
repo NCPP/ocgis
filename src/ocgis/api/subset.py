@@ -174,42 +174,45 @@ def get_collection((so,geom)):
 #        ref = dataset.ocg_dataset
         ## wrap the geometry dictionary if needed
         ods = NcDataset(request_dataset=request_dataset)
-        if so.ops.geom is not None and ods.spatial.is_360:
-#        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
-            so.ops.geom.spatial.unwrap_geoms(ods.spatial.pm)
         if so.ops.slice_row is not None or so.ops.slice_column is not None:
-            raise(NotImplementedError)
-        if geom is not None:
-            igeom = geom.spatial.geom
+            ods = ods[:,slice(*so.ops.slice_row),slice(*so.ops.slice_column)]
         else:
-            igeom = None
-        ## perform the data subset
-        try:
-            ods = ods.get_subset(
-                                spatial_operation=so.ops.spatial_operation,
-                                polygon=igeom,
-                                temporal=request_dataset.time_range,
-                                level=request_dataset.level_range)
-            if so.ops.aggregate:
-                try:
-                    new_geom_id = geom.uid
-                except AttributeError:
-                    new_geom_id = 1
-                ods.aggregate(new_geom_id=new_geom_id)
-            if not env.OPTIMIZE_FOR_CALC:
-                if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-                    ods.spatial.vector.wrap()
-            if not so.ops.file_only and ods.value.mask.all():
-                if so.ops.allow_empty:
-                    pass
-                else:
-                    raise(MaskedDataError)
-            coll.variables.update({request_dataset.alias:ods})
-        except EmptyData:
-            if so.ops.allow_empty:
-                coll.variables.update({request_dataset.alias:None})
+            if so.ops.geom is not None and ods.spatial.is_360:
+    #        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
+                so.ops.geom.spatial.unwrap_geoms(ods.spatial.pm)
+            if geom is not None:
+                igeom = geom.spatial.geom
             else:
-                raise(ExtentError)
+                igeom = None
+            ## perform the data subset
+            try:
+                ods = ods.get_subset(
+                                    spatial_operation=so.ops.spatial_operation,
+                                    polygon=igeom,
+                                    temporal=request_dataset.time_range,
+                                    level=request_dataset.level_range)
+                if so.ops.aggregate:
+                    try:
+                        new_geom_id = geom.uid
+                    except AttributeError:
+                        new_geom_id = 1
+                    ods.aggregate(new_geom_id=new_geom_id)
+                if not env.OPTIMIZE_FOR_CALC:
+                    if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                        ods.spatial.vector.wrap()
+                if not so.ops.file_only and ods.value.mask.all():
+                    if so.ops.allow_empty:
+                        pass
+                    else:
+                        raise(MaskedDataError)
+    #            coll.variables.update({request_dataset.alias:ods})
+            except EmptyData:
+                if so.ops.allow_empty:
+                    ods = None
+    #                coll.variables.update({request_dataset.alias:None})
+                else:
+                    raise(ExtentError)
+        coll.variables.update({request_dataset.alias:ods})
     if so.cengine is not None:
         coll = so.cengine.execute(coll,file_only=so.ops.file_only)
 #        if so.ops.spatial_operation == 'clip' and geom is not None:

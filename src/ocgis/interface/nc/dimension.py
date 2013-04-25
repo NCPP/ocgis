@@ -189,8 +189,8 @@ class NcGridDimension(base.AbstractSpatialGrid):
             uid = np.ma.array(data=uid,mask=False)
         self.uid = uid
         
-    def __getitem__(self,idx):
-        rs,cs = idx
+    def __getitem__(self,slc):
+        rs,cs = slc
         row = self.row[rs]
         column = self.column[cs]
         uid = self.uid[rs,cs]

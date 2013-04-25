@@ -271,8 +271,13 @@ class NcDataset(base.AbstractDataset):
         try:
             bounds = ref['bounds'][:]
             name_bounds = ref['bounds']._name
-        except Exception as e:
-            raise(NotImplementedError)
+        ## likely encountered empty bounds
+        except TypeError:
+            if ref['bounds'] is None:
+                bounds = None
+                name_bounds = None
+            else:
+                raise
         ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds)
         return(ret)
     

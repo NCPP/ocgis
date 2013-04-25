@@ -1,6 +1,5 @@
 from ocgis.conv.base import OcgConverter
 import netCDF4 as nc
-from ocgis.interface.interface import SpatialInterfacePoint
 import numpy as np
 from ocgis.interface.projection import WGS84
 from ocgis import constants

@@ -1,5 +1,5 @@
 import numpy as np
-from ocgis.util.helpers import make_poly
+from ocgis.util.helpers import make_poly, iter_array
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.point import Point
@@ -13,7 +13,7 @@ def _get_iter_(geom):
         it = [geom]
     return(it)
 
-def unwrap_geoms(geoms,axis=0.0):
+def unwrap_geoms(geoms,axis=0.0,yield_idx=False):
     '''geoms : ndarray
     yields : geom'''
     
@@ -73,10 +73,15 @@ def unwrap_geoms(geoms,axis=0.0):
         return(ret)
     
     ## update the polygons in place
-    for geom in geoms:
-        yield(_transform_(geom,axis))
+    for (ii,jj),geom in iter_array(geoms,return_value=True):
+        new_geom = _transform_(geom,axis)
+        if yield_idx:
+            yld = (ii,jj,new_geom)
+        else:
+            yld = new_geom
+        yield(yld)
 
-def wrap_geoms(geoms,axis=0.0):
+def wrap_geoms(geoms,axis=0.0,yield_idx=False):
     right_clip = make_poly((-90,90),(180,360))
     left_clip = make_poly((-90,90),(-180,180))
     
@@ -94,7 +99,7 @@ def wrap_geoms(geoms,axis=0.0):
             ret = MultiPolygon(polygons)
         return(ret)
     
-    for geom in geoms:
+    for (ii,jj),geom in iter_array(geoms,return_value=True):
         return_type = type(geom)
         if not isinstance(geom,Point):
             bounds = np.array(geom.bounds)
@@ -117,7 +122,12 @@ def wrap_geoms(geoms,axis=0.0):
         ## assume the output is multi but the input was not
         if type(new_geom) != return_type:
             new_geom = new_geom[0]
-        yield(new_geom)
+        if yield_idx:
+            yld = (ii,jj,new_geom)
+        else:
+            yld = new_geom
+        yield(yld)
+
 
 #def wrap_coll(coll):
 #    for var in coll.variables.itervalues():

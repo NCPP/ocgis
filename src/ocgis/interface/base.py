@@ -375,6 +375,12 @@ class AbstractSpatialVector(AbstractSpatialDimension,AbstractInterfaceDimension)
         raise(NotImplementedError('Use "intersects" or "clip".'))
     
     @abstractmethod
+    def unwrap(self): pass
+    
+    @abstractmethod
+    def wrap(self): pass
+    
+    @abstractmethod
     def _get_all_geoms_(self): np.ma.MaskedArray
 
 

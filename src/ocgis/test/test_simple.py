@@ -283,11 +283,10 @@ class TestSimpleMask(TestSimpleBase):
         ret = self.get_ret(kwds={'aggregate':True})
         ref = ret[1].variables[self.var]
         self.assertAlmostEqual(ref.value.mean(),2.58333333333,5)
-        self.assertEqual(ref.spatial.uid.shape,(1,1))
+        self.assertEqual(ref.spatial.vector.uid.shape,(1,1))
     
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = [{'ugid':1,'geom':geom}]
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
@@ -305,26 +304,25 @@ class TestSimple360(TestSimpleBase):
             return(ret)
         
         ret = self.get_ret(kwds={'vector_wrap':False})
-        longs_unwrap = _get_longs_(ret[1].variables[self.var].spatial._value)
+        longs_unwrap = _get_longs_(ret[1].variables[self.var].spatial.vector.geom)
         self.assertTrue(np.all(longs_unwrap > 180))
         
         ret = self.get_ret(kwds={'vector_wrap':True})
-        longs_wrap = _get_longs_(ret[1].variables[self.var].spatial._value)
+        longs_wrap = _get_longs_(ret[1].variables[self.var].spatial.vector.geom)
         self.assertTrue(np.all(np.array(longs_wrap) < 180))
         
         self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
         
     def test_spatial(self):
         geom = make_poly((38,39),(-93,-92))
-        geom = [{'ugid':1,'geom':geom}]
         
         for abstraction in ['polygon','point']:
             ret = self.get_ret(kwds={'geom':geom,'abstraction':abstraction})
-            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
             
             self.get_ret(kwds={'vector_wrap':False})
             ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'abstraction':abstraction})
-            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
 
 
 if __name__ == "__main__":

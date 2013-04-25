@@ -10,6 +10,7 @@ from ocgis.exc import DummyDimensionEncountered
 import datetime
 from ocgis.interface.projection import get_projection
 from shapely.geometry.point import Point
+from ocgis.util.spatial.wrap import wrap_geoms
 
 
 class NcDimension(object):
@@ -130,6 +131,19 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         else:
             ret = False
         return(ret)
+    
+    @property
+    def pm(self):
+        if self.grid.column.bounds is None:
+            raise(NotImplementedError('Prime meridian only valid for bounded data.'))
+        else:
+            pm = 0.0
+            ref = self.grid.column.bounds
+            for idx in range(ref.shape[0]):
+                if ref[idx,0] < 0 and ref[idx,1] > 0:
+                    pm = ref[idx,0]
+                    break
+            return(pm)
     
     @property
     def weights(self):
@@ -288,6 +302,16 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
 
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)
+    
+    def unwrap(self):
+        raise(NotImplementedError)
+    
+    def wrap(self):
+        geom = self.geom
+        new_geom = np.ma.array(np.empty(self.geom.shape,dtype=object),mask=geom.mask)
+        for ii,jj,fill in wrap_geoms(geom,yield_idx=True):
+            new_geom[ii,jj] = fill
+        self._geom = new_geom
     
     def _get_all_geoms_(self):
         ## the fill arrays

@@ -5,20 +5,10 @@ from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
 from ocgis.interface.nc.dataset import NcDataset
-from ocgis.exc import EmptyData, ExtentError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 
 
 class SubsetOperation(object):
-    '''Spatial and temporal subsetting plus calculation. Optional parallel
-    extraction mode.
-    
-    :param ops: An `~ocgis.OcgOperations` object.
-    :type ops: `~ocgis.OcgOperations`
-    :param serial: Set to `False` to run in parallel.
-    :type serial: bool
-    :param ncprocs: Number of processes to use when executing in parallel.
-    :type ncprocs: int
-    '''
     
     def __init__(self,ops,serial=True,nprocs=1):
         self.ops = ops
@@ -186,7 +176,7 @@ def get_collection((so,geom)):
         ods = NcDataset(request_dataset=request_dataset)
         if so.ops.geom is not None and ods.spatial.is_360:
 #        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
-            unwrap_geoms([geom_copy],ref.i.spatial.pm)
+            so.ops.geom.spatial.unwrap_geoms(ods.spatial.pm)
         if so.ops.slice_row is not None or so.ops.slice_column is not None:
             raise(NotImplementedError)
         if geom is not None:
@@ -208,7 +198,12 @@ def get_collection((so,geom)):
                 ods.aggregate(new_geom_id=new_geom_id)
             if not env.OPTIMIZE_FOR_CALC:
                 if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-                    ods.wrap()
+                    ods.spatial.vector.wrap()
+            if ods.value.mask.all():
+                if so.ops.allow_empty:
+                    pass
+                else:
+                    raise(MaskedDataError)
             coll.variables.update({request_dataset.alias:ods})
         except EmptyData:
             if so.ops.allow_empty:

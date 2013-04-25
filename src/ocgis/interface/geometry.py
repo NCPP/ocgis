@@ -1,6 +1,7 @@
 import base
 from ocgis.interface.projection import WGS84
 import numpy as np
+from ocgis.util.spatial.wrap import unwrap_geoms
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -36,8 +37,20 @@ class GeometrySpatialDimension(base.AbstractSpatialDimension):
     def get_iter(self):
         raise(NotImplementedError)
     
+    def unwrap_geoms(self,axis):
+        geom = self.geom
+        try:
+            new_geom = np.ma.array(np.empty(geom.shape,dtype=object),mask=geom.mask)
+        ## a singleton value may be encountered
+        except AttributeError:
+            new_geom = np.ma.array(np.empty((1,1),dtype=object))
+            geom = np.array([[geom]])
+        for ii,jj,fill in unwrap_geoms(geom,yield_idx=True):
+            new_geom[ii,jj] = fill
+        self._geom = new_geom.reshape(-1)
+    
     def _as_numpy_(self,element):
-        ret = np.array(element)
+        ret = np.ma.array(element)
         if len(ret.shape) == 0:
             ret = ret.reshape(1,)
         return(ret)

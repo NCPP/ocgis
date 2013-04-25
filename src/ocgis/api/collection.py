@@ -9,8 +9,12 @@ class AbstractCollection(object):
     __metaclass__ = ABCMeta
     
     @property
+    def _archetype(self):
+        return(self.variables[self.variables.keys()[0]])
+    
+    @property
     def projection(self):
-        return(self.variables[self.variables.keys()[0]].spatial.projection)
+        return(self._archetype.spatial.projection)
     
     @property
     def ugid(self):

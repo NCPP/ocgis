@@ -3,7 +3,7 @@ from ocgis.util.spatial.wrap import unwrap_geoms, wrap_geoms
 import numpy as np
 from ocgis.util.helpers import format_bool, iter_array
 import itertools
-from configglue.tests.inischema.test_glue import TestBase
+from ocgis.test.base import TestBase
 
 
 class TestHelpers(TestBase):

@@ -10,7 +10,7 @@ from ocgis.test.base import TestBase
 class Test(TestBase):
     
     def setUp(self):
-#        self.hostetler = self.test_data.get_rd('hostetler').uri
+        TestBase.setUp(self)
         self.daymet = self.test_data.get_rd('daymet_tmax').uri
     
     def test_get_projection(self):

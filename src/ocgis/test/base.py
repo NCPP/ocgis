@@ -32,16 +32,15 @@ class TestBase(unittest.TestCase):
 #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
         return(test_data)
     
-    @classmethod
-    def setUpClass(cls):
+    def setUp(self):
         env.reset()
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+        self._new_dir = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+        env.DIR_OUTPUT = self._new_dir
         env.OVERWRITE = True
         
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         try:
-            shutil.rmtree(env.DIR_OUTPUT)
+            shutil.rmtree(self._new_dir)
         finally:
             env.reset()
             

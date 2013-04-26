@@ -29,6 +29,7 @@ class TestSimpleBase(TestBase):
     def fn(self): pass
         
     def setUp(self):
+        TestBase.setUp(self)
         self.nc_factory().write()
     
     def get_dataset(self,time_range=None,level_range=None):

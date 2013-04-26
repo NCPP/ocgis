@@ -20,6 +20,7 @@ from ocgis.interface.shp import ShpDataset
 class Test(TestBase):
     
     def setUp(self):
+        TestBase.setUp(self)
         env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
         uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
                 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
@@ -187,6 +188,7 @@ class Test(TestBase):
 class TestRequestDatasets(TestBase):
     
     def setUp(self):
+        TestBase.setUp(self)
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
     

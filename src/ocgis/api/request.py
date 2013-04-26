@@ -248,7 +248,7 @@ class RequestDatasetCollection(object):
             
     def validate(self):
         ## confirm projections are equivalent
-        projections = [rd.ds.spatial.projection for rd in self]
+        projections = [rd.ds.spatial.projection.sr.ExportToProj4() for rd in self]
         if len(set(projections)) == 2:
             raise(ValueError('projections for input datasets must be equivalent'))
             

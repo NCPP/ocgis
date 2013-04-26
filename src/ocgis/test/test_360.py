@@ -53,18 +53,6 @@ class NcSpatial(object):
 
 class Test360(TestBase):
     
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
-    
     def test_high_res(self):
         nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)

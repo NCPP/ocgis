@@ -77,6 +77,13 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
         ret = nc.date2num(values,self.units,calendar=self.calendar)
         return(ret)
     
+    def subset(self,*args,**kwds):
+        ret = super(self.__class__,self).subset(*args,**kwds)
+        ret.units = self.units
+        ret.calendar = self.calendar
+        ret.name_bounds = self.name_bounds
+        return(ret)
+    
     @classmethod
     def _load_(cls,gi,subset_by=None):
         ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)

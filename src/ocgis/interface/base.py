@@ -200,7 +200,8 @@ class AbstractVectorDimension(object):
             bounds = self.bounds[idx,:]
         
         ret = self.__class__(value=self.value[idx],bounds=bounds,
-                             uid=self.uid[idx],real_idx=self.real_idx[idx])
+                             uid=self.uid[idx],real_idx=self.real_idx[idx],
+                             name=self.name)
         return(ret)
 
 
@@ -271,13 +272,14 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
         
-        self.group = self._dtemporal_group_dimension(new_value,new_bounds,dgroups)
+        self.group = self._dtemporal_group_dimension(self,new_value,new_bounds,dgroups)
 
     
 class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
-    def __init__(self,value,bounds,dgroups,uid=None):
+    def __init__(self,parent,value,bounds,dgroups,uid=None):
+        self.parent = parent
         self.value = value
         self.bounds = bounds
         self.dgroups = dgroups

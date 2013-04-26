@@ -3,7 +3,7 @@ from netCDF4 import Dataset
 from ocgis.interface.projection import get_projection
 from ocgis import Inspect
 from ocgis.api.operations import OcgOperations
-from ocgis.api.dataset.request import RequestDataset
+from ocgis.api.request import RequestDataset
 from ocgis.test.base import TestBase
 
 

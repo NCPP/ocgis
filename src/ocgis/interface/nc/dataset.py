@@ -170,7 +170,18 @@ class NcDataset(base.AbstractDataset):
         else:
             new_temporal = self.temporal
         if level is not None:
-            new_level = self.level[level[0]-1:level[1]:1]
+            try:
+                new_level = self.level[level[0]-1:level[1]:1]
+            ## may occur with a snippet where there is no level, but a range is
+            ## requested.
+            except TypeError:
+                if self.level is None:
+                    if list(level) == [1,1]:
+                        new_level = self.level
+                    else:
+                        raise(ValueError('level subset requested but no levels available.'))
+                else:
+                    raise
         else:
             new_level = self.level
         if spatial_operation is not None and polygon is not None:

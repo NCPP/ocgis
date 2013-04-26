@@ -19,9 +19,11 @@ class Test(TestBase):
     
     def setUp(self):
         env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
-        uris = ['tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+        uris = [
+                'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
                 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc']
+                'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
+                ]
         vars = ['tasmin','tasmax','tas']
         time_range = [dt(2000,1,1),dt(2000,12,31)]
         level_range = [2,2]

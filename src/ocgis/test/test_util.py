@@ -1,12 +1,12 @@
-from ocgis.test.base import TestBaseNoEnvironment
 from ocgis.interface.shp import ShpDataset
 from ocgis.util.spatial.wrap import unwrap_geoms, wrap_geoms
 import numpy as np
 from ocgis.util.helpers import format_bool, iter_array
 import itertools
+from configglue.tests.inischema.test_glue import TestBase
 
 
-class TestHelpers(TestBaseNoEnvironment):
+class TestHelpers(TestBase):
 
     def test_iter_array(self):
         arrays = [
@@ -60,7 +60,7 @@ class TestHelpers(TestBaseNoEnvironment):
             ret = format_bool(key)
             self.assertEqual(ret,value)
 
-class TestSpatial(TestBaseNoEnvironment):
+class TestSpatial(TestBase):
     axes = [-10.0,-5.0,0.0,5.0,10]
 
     def test_unwrap(self):

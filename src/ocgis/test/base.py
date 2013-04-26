@@ -13,6 +13,8 @@ class TestBase(unittest.TestCase):
     a temporary folder and removed easily.'''
     __metaclass__ = abc.ABCMeta
     
+    _reset = True
+    
     def __init__(self,*args,**kwds):
         self.test_data = self.get_tdata()
         super(TestBase,self).__init__(*args,**kwds)
@@ -34,25 +36,18 @@ class TestBase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        env.reset()
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
+        if cls._reset:
+            env.reset()
+            env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+            env.OVERWRITE = True
         
     @classmethod
     def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
-            
-            
-class TestBaseNoEnvironment(TestBase):
-    
-    @classmethod
-    def setUpClass(cls): pass
-        
-    @classmethod
-    def tearDownClass(cls): pass
+        if cls._reset:
+            try:
+                shutil.rmtree(env.DIR_OUTPUT)
+            finally:
+                env.reset()
             
             
 class TestData(OrderedDict):

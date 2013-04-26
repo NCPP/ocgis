@@ -249,7 +249,7 @@ class RequestDatasetCollection(object):
     def validate(self):
         ## confirm projections are equivalent
         projections = [rd.ds.spatial.projection for rd in self]
-        if len(projections) == len(set(projections)):
+        if len(set(projections)) == 2:
             raise(ValueError('projections for input datasets must be equivalent'))
             
     def _get_meta_rows_(self):

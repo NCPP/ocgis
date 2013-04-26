@@ -224,7 +224,7 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
         group_map = dict(zip(range(0,7),date_parts,))
         group_map_rev = dict(zip(date_parts,range(0,7),))
         
-        value = np.empty((self.bounds.shape[0],3),dtype=object)
+        value = np.empty((self.value.shape[0],3),dtype=object)
         if self.bounds is None:
             value[:,:] = self.value.reshape(-1,1)
         else:

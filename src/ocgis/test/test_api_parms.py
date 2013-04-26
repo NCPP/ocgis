@@ -96,7 +96,7 @@ class Test(TestBase):
         pp = Prefix()
         self.assertEqual(pp.value,'ocgis_output')
         pp.value = ' Old__man '
-        self.assertEqual(pp.value,'old__man')
+        self.assertEqual(pp.value,'Old__man')
         
     def test_calc_grouping(self):
         cg = CalcGrouping(['day','month'])
@@ -132,7 +132,7 @@ class Test(TestBase):
         self.assertEqual(str(g),'geom=None')
         
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value.spatial.geom.bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(g.value.spatial.geom[0].bounds,(-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
         self.assertEqual(g.get_url_string(),'-120.0|40.0|-110.0|50.0')
         

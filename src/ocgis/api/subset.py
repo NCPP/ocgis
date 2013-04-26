@@ -6,6 +6,8 @@ from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
+from ocgis.util.spatial.wrap import Wrapper
+from copy import deepcopy
 
 
 class SubsetOperation(object):
@@ -54,7 +56,7 @@ class SubsetOperation(object):
 #        
         ## if the target dataset(s) has a different projection than WGS84, the
         ## selection geometries will need to be projected.
-        if not isinstance(ops.dataset[0].ds.spatial.projection,WGS84):
+        if ops.geom is not None and not isinstance(ops.dataset[0].ds.spatial.projection,WGS84):
             ops.geom.project(ops.dataset[0].ds.spatial.projection)
 #        if not self.ops._get_object_('geom').is_empty:
 #            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
@@ -135,67 +137,36 @@ def get_collection((so,geom)):
     '''Execute requested operations.
     
     so :: SubsetOperation
-    geom_dict :: dict :: Geometry dictionary with the following structure:
-        {'id':int,'geom':Shapely Polygon or MultiPolygon}
-        
-    returns
-    
-    OcgCollection
-    geom_dict :: dict'''
-    
-#    tdk
-#    import pickle
-##    import ipdb;ipdb.set_trace()
-##    ref = so.ops.dataset._s['rhsmax'].ocg_dataset.i.temporal
-##    import ipdb;ipdb.set_trace()
-##    for k,v in so.ops.dataset._s.iteritems():
-##        v.ocg_dataset = None
-##        import ipdb;ipdb.set_trace()
-#    with open('/tmp/out.pkl','w') as f:
-#        pickle.dump(so.ops,f)
-##        pickle.dump(so.ops.dataset._s['rhsmax'].ocg_dataset,f)
-##        pickle.dump(so.ops.dataset._s['rhsmax'],f)
-##        pickle.dump(ref,f)
-#    with open('/tmp/out.pkl','r') as f:
-#        ops = pickle.load(f)
-#    import ipdb;ipdb.set_trace()
-#    /tdk
-    
-#    if env.VERBOSE:
-#        print('processing geometry with UGID {0}...'.format(geom_dict['ugid']))
+    geom_dict :: GeometryDataset'''
     
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
-    
     coll = RawCollection(ugeom=geom)
-#    ## store geoms for later clipping. needed because some may be wrapped while
-#    ## others unwrapped.
-#    geom_copys = []
+    ## perform the operations on each request dataset
     for request_dataset in so.ops.dataset:
-#        ## use a copy of the geometry dictionary, since it may be modified
-#        geom_copy = deepcopy(geom_dict)
-#        geom_copys.append(geom_copy)
-#        
-#        ref = dataset.ocg_dataset
-        ## wrap the geometry dictionary if needed
+        ## reference the dataset object
         ods = request_dataset.ds
+        ## return a slice or do the other operations
         if so.ops.slice is not None:
             ods = ods.__getitem__(so.ops.slice)
+        ## other subsetting operations
         else:
-            if so.ops.geom is not None and ods.spatial.is_360:
-    #        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
-                so.ops.geom.spatial.unwrap_geoms(ods.spatial.pm)
-            if geom is not None:
-                igeom = geom.spatial.geom[0]
-            else:
+            ## if a geometry is passed and the target dataset is 360 longitude,
+            ## unwrap the passed geometry to match the spatial domain of the target
+            ## dataset.
+            if geom is None:
                 igeom = None
+            else:
+                if ods.spatial.is_360:
+                    w = Wrapper(axis=ods.spatial.pm)
+                    geom.spatial.geom[0] = w.unwrap(deepcopy(geom.spatial.geom[0]))
+                igeom = geom.spatial.geom[0]
             ## perform the data subset
             try:
-                ods = ods.get_subset(
-                                    spatial_operation=so.ops.spatial_operation,
-                                    polygon=igeom,
-                                    temporal=request_dataset.time_range,
-                                    level=request_dataset.level_range)
+                ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
+                                     polygon=igeom,
+                                     temporal=request_dataset.time_range,
+                                     level=request_dataset.level_range)
                 if so.ops.aggregate:
                     try:
                         new_geom_id = geom.uid
@@ -210,73 +181,16 @@ def get_collection((so,geom)):
                         pass
                     else:
                         raise(MaskedDataError)
-    #            coll.variables.update({request_dataset.alias:ods})
             except EmptyData:
                 if so.ops.allow_empty:
                     ods = None
-    #                coll.variables.update({request_dataset.alias:None})
                 else:
-                    raise(ExtentError)
+                    raise(ExtentError(request_dataset))
         coll.variables.update({request_dataset.alias:ods})
+        
+    ## if there are calculations, do those now and return a new type of collection
     if so.cengine is not None:
         coll = so.cengine.execute(coll,file_only=so.ops.file_only)
-#        if so.ops.spatial_operation == 'clip' and geom is not None:
-#            ods = ods.spatial.vector.clip(igeom)
-        
-#                            slice_row=so.ops.slice_row,
-#                            slice_column=so.ops.slice_column)
-#        ## tell the keyed iterator if this should be used for identifiers.
-#        ocg_variable._use_for_id = dataset._use_for_id
-#        ## update the variable's alias
-#        ocg_variable.alias = dataset.alias
-#        ## maintain the interface for use by nc converter
-#        ## TODO: i don't think this is required by other converters
-#        ocg_variable._i = ref.i
-#        ## TODO: projection is set multiple times. what happens with multiple
-#        ## projections?
-#        coll.projection = ref.i.spatial.projection
-#        coll.variables.update({request_dataset.alias:ods})
-#        coll.add_variable(ocg_variable)
-
-#    ## skip other operations if the dataset is empty
-#    if len(coll.variables) == 0:
-#        return(coll)
-    
-#    ## clipping operation
-#    if so.ops.spatial_operation == 'clip':
-#        if so.itype == SpatialInterfacePolygon:
-#            for geom_copy,var in itertools.izip(geom_copys,
-#                                                coll.variables.itervalues()):
-#                var.clip(geom_copy['geom'])
-            
-#    ## data aggregation.
-#    if so.ops.aggregate:
-#        coll.aggregate(new_id=coll.ugeom['ugid'])
-        
-    ## if it is a vector output, wrap the data (if requested) but not if optimizations
-    ## for calculations.
-    ## TODO: every variable may not need to be wrapped
-#    if not env.OPTIMIZE_FOR_CALC:
-#        for dataset in so.ops.dataset:
-#            ref = dataset['ocg_dataset']
-#            if ref.i.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
-#                wrap_coll(coll)
-#                break
-
-    ## do the requested calculations.
-    
-    
-    #tdk
-#    import pickle
-#    with open('/tmp/coll.pkl','w') as f:
-#        pickle.dump(coll,f)
-#    with open('/tmp/coll.pkl','r') as f:
-#        coll = pickle.load(f)
-#    import ipdb;ipdb.set_trace()
-    #/tdk
-    
-#    if env.VERBOSE:
-#        print(' complete.'.format(geom_dict['ugid']))
         
     ## conversion of groups.
     if so.ops.output_grouping is not None:

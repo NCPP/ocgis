@@ -6,7 +6,6 @@ import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
 import csv
-from ocgis.util.spatial.wrap import unwrap_geoms
 from ocgis.api.geometry import SelectionGeometry
 
 

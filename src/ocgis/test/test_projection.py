@@ -1,6 +1,6 @@
 import unittest
 from netCDF4 import Dataset
-from ocgis.interface.projection import get_projection
+from ocgis.interface.projection import get_projection, WGS84
 from ocgis import Inspect
 from ocgis.api.operations import OcgOperations
 from ocgis.api.request import RequestDataset
@@ -12,10 +12,14 @@ class Test(TestBase):
     def setUp(self):
         TestBase.setUp(self)
         self.daymet = self.test_data.get_rd('daymet_tmax').uri
+        
+    def test_WGS84(self):
+        projection = WGS84()
+        self.assertEqual('+proj=longlat +datum=WGS84 +no_defs ',projection.sr.ExportToProj4())
     
     def test_get_projection(self):
-        ip = Inspect(self.daymet,variable='tmax')
-        ip.__repr__()
+#        ip = Inspect(self.daymet,variable='tmax')
+#        ip.__repr__()
         
         ds = Dataset(self.daymet)
         proj = get_projection(ds)

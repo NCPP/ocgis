@@ -19,9 +19,14 @@ class AbstractCollection(object):
     @property
     def ugid(self):
         try:
-            return(self.ugeom.ugid)
+            ret = self.ugeom.spatial.uid[0]
+        ## the geometry may be empty
         except AttributeError:
-            return(1)
+            if self.ugeom is None:
+                ret = 1
+            else:
+                raise
+        return(ret)
     
     @abstractmethod
     def get_headers(self): list

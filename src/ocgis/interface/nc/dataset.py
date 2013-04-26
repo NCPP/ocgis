@@ -141,8 +141,10 @@ class NcDataset(base.AbstractDataset):
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
                 for tidx,tret in time_iter(add_bounds=add_bounds):
                     gret.update(tret)
+                    gret['lid'] = None
+                    gret['level'] = None
                     ref = value[tidx,0,ridx,cidx]
-                    masked = is_masked(value)
+                    masked = is_masked(ref)
                     if add_masked and masked:
                         ref = None
                     elif not add_masked and masked:

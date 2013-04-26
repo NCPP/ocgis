@@ -85,7 +85,6 @@ class OcgConverter(object):
         
         OcgCollection
         dict'''
-        
         for coll in self.colls:
             yield(coll)
 #            try:

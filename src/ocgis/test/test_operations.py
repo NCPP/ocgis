@@ -74,9 +74,9 @@ class Test(TestBase):
         ops.geom = 'mi_watersheds'
         self.assertEqual(len(ops.geom),60)
         ops.geom = '-120|40|-110|50'
-        self.assertEqual(ops.geom.spatial.geom.bounds,(-120.0,40.0,-110.0,50.0))
+        self.assertEqual(ops.geom.spatial.geom[0].bounds,(-120.0,40.0,-110.0,50.0))
         ops.geom = [-120,40,-110,50]
-        self.assertEqual(ops.geom.spatial.geom.bounds,(-120.0,40.0,-110.0,50.0))
+        self.assertEqual(ops.geom.spatial.geom[0].bounds,(-120.0,40.0,-110.0,50.0))
         
     def test_geom(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))

@@ -1,9 +1,9 @@
 import base
 from ocgis.interface.projection import WGS84
 import numpy as np
-from ocgis.util.spatial.wrap import unwrap_geoms
 from shapely import wkb
 from osgeo.ogr import CreateGeometryFromWkb
+from ocgis.util.spatial.wrap import Wrapper
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -27,16 +27,10 @@ class GeometrySpatialDimension(base.AbstractSpatialDimension):
         raise(NotImplementedError)
     
     def unwrap_geoms(self,axis):
+        w = Wrapper(axis=axis)
         geom = self.geom
-        try:
-            new_geom = np.ma.array(np.empty(geom.shape,dtype=object),mask=geom.mask)
-        ## a singleton value may be encountered
-        except AttributeError:
-            new_geom = np.ma.array(np.empty((1,1),dtype=object))
-            geom = np.array([[geom]])
-        for ii,jj,fill in unwrap_geoms(geom,yield_idx=True):
-            new_geom[ii,jj] = fill
-        self.geom = new_geom.reshape(-1)
+        for idx in range(geom.shape[0]):
+            geom[idx] = w.unwrap(geom[idx])
     
     def _as_numpy_(self,element):
         ret = np.ma.array(element)

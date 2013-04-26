@@ -10,7 +10,7 @@ from ocgis.exc import DummyDimensionEncountered, EmptyData
 import datetime
 from ocgis.interface.projection import get_projection
 from shapely.geometry.point import Point
-from ocgis.util.spatial.wrap import wrap_geoms
+from ocgis.util.spatial.wrap import Wrapper
 
 
 class NcDimension(object):
@@ -336,11 +336,10 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
         raise(NotImplementedError)
     
     def wrap(self):
+        wrap = Wrapper().wrap
         geom = self.geom
-        new_geom = np.ma.array(np.empty(self.geom.shape,dtype=object),mask=geom.mask)
-        for ii,jj,fill in wrap_geoms(geom,yield_idx=True):
-            new_geom[ii,jj] = fill
-        self._geom = new_geom
+        for (ii,jj),to_wrap in iter_array(geom,return_value=True):
+            geom[ii,jj] = wrap(to_wrap)
     
     def _get_all_geoms_(self):
         ## the fill arrays

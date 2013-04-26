@@ -39,13 +39,9 @@ class OcgSpatialReference(object):
     
     @abc.abstractmethod
     def write_to_rootgrp(self,rootgrp): return(None)
-    
-    def __init__(self,*args,**kwds):
-        self.sr = self.get_sr(*args,**kwds)
-    
-    @classmethod
-    def _build_(cls,build_str=None):
-        raise(NotImplementedError)
+        
+    @abc.abstractproperty
+    def sr(self): pass
         
     def get_area_km2(self,to_sr,geom):
         if isinstance(geom,Point):
@@ -88,64 +84,42 @@ class OcgSpatialReference(object):
 #            ret = geom.ExportToWkb()
         return(ret)
     
-    def get_sr(self,proj4_str):
-        sr = osr.SpatialReference()
-        sr.ImportFromProj4(proj4_str)
-        return(sr)
+#    def get_sr(self,proj4_str):
+#        sr = osr.SpatialReference()
+#        sr.ImportFromProj4(proj4_str)
+#        return(sr)
     
     
 class SridSpatialReference(OcgSpatialReference):
-    _srid = None
     
-    def __init__(self,*args,**kwds):
-        assert(self._srid is not None)
-        super(SridSpatialReference,self).__init__(*args,**kwds)
+    @abc.abstractproperty
+    def _srid(self): int
         
-    def __ne__(self,other):
-        tt = osr.SpatialReference()
-        tt.ImportFromProj4(self.sr.ExportToProj4())
-        if tt.ExportToProj4() != other:
-            return(True)
-        else:
-            return(False)
-        
-    @classmethod
-    def _build_(cls):
-        return(cls())
-        
-    def get_sr(self):
+    @property
+    def sr(self):
         sr = SpatialReference()
         sr.ImportFromEPSG(self._srid)
         return(sr)
 
 
 class DatasetSpatialReference(OcgSpatialReference):
-    _proj_str = None
+    
+    def __init__(self,dataset):
+        self._proj4_str = self._get_proj4_(dataset)
         
-    def get_sr(self,dataset=None):
-        if dataset is not None:
-            proj_str = self._get_proj4_(dataset)
-            self._proj_str = proj_str
-        ret = self._get_sr_from_proj4_(self._proj_str)
-        return(ret)
-    
-    @classmethod
-    def _build_(cls):
-        return(cls(dataset=None))
-    
-    @staticmethod
-    def _get_sr_from_proj4_(proj_str):
+    @property
+    def sr(self):
         sr = SpatialReference()
-        sr.ImportFromProj4(proj_str)
+        sr.ImportFromProj4(self._proj4_str)
         return(sr)
-        
-    def _get_proj4_(self,dataset):
-        raise(NotImplementedError)
+    
+    @abc.abstractmethod
+    def _get_proj4_(self,dataset): str
     
     
 class HostetlerProjection(DatasetSpatialReference):
     
-    def write_to_rootgrp(self,rootgrp):
+    def write_to_rootgrp(self):
         raise(NotImplementedError)
     
     def _get_proj4_(self,dataset):
@@ -193,9 +167,7 @@ class WGS84(SridSpatialReference):
     
     def write_to_rootgrp(self,rootgrp):
         pass
-    
+
+
 class UsNationalEqualArea(SridSpatialReference):
     _srid = 2163
-    
-    def write_to_rootgrp(self,rootgrp):
-        pass

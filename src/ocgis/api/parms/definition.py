@@ -390,6 +390,7 @@ class Prefix(base.OcgParameter):
     default = 'ocgis_output'
     input_types = [str]
     return_type = str
+    _lower_string = False
     
     def _get_meta_(self):
         msg = 'Data output given the following prefix: {0}.'.format(self.value)

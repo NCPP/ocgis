@@ -41,10 +41,6 @@ class OcgInterpreter(Interpreter):
     '''The OCGIS interpreter and execution framework.'''
     
     def check(self):
-        ## perform basic validation checks
-#        definition.validate_update_definition(self.ops)
-        ## by parsing operational commands, determine iterator mode for
-        ## converters
         definition.identify_iterator_mode(self.ops)
     
     def execute(self):
@@ -100,7 +96,7 @@ class OcgInterpreter(Interpreter):
 #                ret = conv.write()
 #            else:
             ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
+            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES,validate=True)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
             if self.ops.output_grouping is None:

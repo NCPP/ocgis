@@ -6,6 +6,7 @@ from ocgis.util.helpers import locate
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
 from ocgis.util.inspect import Inspect
+from ocgis.interface.nc.dataset import NcDataset
 
 
 class RequestDataset(object):
@@ -39,6 +40,7 @@ class RequestDataset(object):
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
+    _Dataset = NcDataset
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
                  s_proj=None,t_units=None,t_calendar=None):
@@ -50,6 +52,7 @@ class RequestDataset(object):
         self.s_proj = self._str_format_(s_proj)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
+        self._ds = None
         
         self._format_()
     
@@ -60,6 +63,12 @@ class RequestDataset(object):
         ip = Inspect(self.uri,variable=self.variable,
                      interface_overload=self.interface)
         return(ip)
+    
+    @property
+    def ds(self):
+        if self._ds is None:
+            self._ds = self._Dataset(request_dataset=self)
+        return(self._ds)
     
     @property
     def interface(self):
@@ -236,6 +245,12 @@ class RequestDatasetCollection(object):
                            .format(request_dataset.alias)))
         else:
             self._s.update({request_dataset.alias:request_dataset})
+            
+    def validate(self):
+        ## confirm projections are equivalent
+        projections = [rd.ds.spatial.projection for rd in self]
+        if len(projections) == len(set(projections)):
+            raise(ValueError('projections for input datasets must be equivalent'))
             
     def _get_meta_rows_(self):
         rows = ['dataset=']

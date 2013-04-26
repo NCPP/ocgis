@@ -10,10 +10,13 @@ from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 
 class SubsetOperation(object):
     
-    def __init__(self,ops,serial=True,nprocs=1):
+    def __init__(self,ops,serial=True,nprocs=1,validate=True):
         self.ops = ops
         self.serial = serial
         self.nprocs = nprocs
+        
+        if validate:
+            ops.dataset.validate()
         
 #        ## construct OcgDataset objects
 #        for request_dataset in env.ops.dataset:
@@ -70,7 +73,7 @@ class SubsetOperation(object):
         if self.ops.snippet is True:
             for rd in self.ops.dataset:
                 rd.level_range = [1,1]
-                ods = NcDataset(request_dataset=rd)
+                ods = rd.ds
                 ref = ods.temporal
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
                     rd.time_range = [ref.value[0],ref.value[0]]
@@ -173,7 +176,7 @@ def get_collection((so,geom)):
 #        
 #        ref = dataset.ocg_dataset
         ## wrap the geometry dictionary if needed
-        ods = NcDataset(request_dataset=request_dataset)
+        ods = request_dataset.ds
         if so.ops.slice is not None:
             ods = ods.__getitem__(so.ops.slice)
         else:

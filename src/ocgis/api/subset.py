@@ -4,8 +4,8 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
-from ocgis.interface.nc.dataset import NcDataset
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError
+from ocgis.interface.projection import WGS84
 
 
 class SubsetOperation(object):
@@ -52,8 +52,10 @@ class SubsetOperation(object):
 #        if not all(projection_test):
 #            raise(ValueError('Input datasets must share a common projection.'))
 #        
-#        ## if the target dataset(s) has a different projection than WGS84, the
-#        ## selection geometries will need to be projected.
+        ## if the target dataset(s) has a different projection than WGS84, the
+        ## selection geometries will need to be projected.
+        if not isinstance(ops.dataset[0].ds.spatial.projection,WGS84):
+            ops.geom.project(ops.dataset[0].ds.spatial.projection)
 #        if not self.ops._get_object_('geom').is_empty:
 #            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
 #                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
@@ -124,8 +126,8 @@ class SubsetOperation(object):
         if self.ops.geom is None:
             yield(self,None)
         elif isinstance(self.ops.geom,ShpDataset):
-            for idx in range(self.ops.geom.spatial.geom):
-                yield(self.ops.geom[idx])
+            for geom in self.ops.geom:
+                yield(self,geom)
         else:
             yield(self,self.ops.geom)
             
@@ -184,7 +186,7 @@ def get_collection((so,geom)):
     #        if ref.i.spatial.is_360 and so.ops._get_object_('geom').is_empty is False:
                 so.ops.geom.spatial.unwrap_geoms(ods.spatial.pm)
             if geom is not None:
-                igeom = geom.spatial.geom
+                igeom = geom.spatial.geom[0]
             else:
                 igeom = None
             ## perform the data subset

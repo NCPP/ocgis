@@ -6,7 +6,7 @@ from ocgis.util.helpers import make_poly, iter_array
 from shapely import prepared
 import netCDF4 as nc
 from abc import ABCMeta, abstractproperty
-from ocgis.exc import DummyDimensionEncountered
+from ocgis.exc import DummyDimensionEncountered, EmptyData
 import datetime
 from ocgis.interface.projection import get_projection
 from shapely.geometry.point import Point
@@ -241,8 +241,15 @@ class NcGridDimension(base.AbstractSpatialGrid):
             minx,miny,maxx,maxy = polygon.bounds
             row = self.row.subset(miny,maxy)
             column = self.column.subset(minx,maxx)
-            uid = self.uid[row.real_idx.min():row.real_idx.max()+1,
-                           column.real_idx.min():column.real_idx.max()+1]
+            try:
+                uid = self.uid[row.real_idx.min():row.real_idx.max()+1,
+                               column.real_idx.min():column.real_idx.max()+1]
+            ## likely empty row or column data
+            except ValueError:
+                if len(row.value) == 0 or len(column.value) == 0:
+                    raise(EmptyData)
+                else:
+                    raise
             ret = self.__class__(row=row,column=column,uid=uid)
         else:
             ret = self

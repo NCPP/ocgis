@@ -206,8 +206,13 @@ class TestRequestDatasets(TestBase):
     def test_env_dir_data(self):
         ## test setting the var to a single directory
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        rd = RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
-        self.assertEqual(rd.uri,os.path.join(env.DIR_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'))
+        rd = self.test_data.get_rd('cancm4_rhs')
+        target = os.path.join(env.DIR_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
+        try:
+            self.assertEqual(rd.uri,target)
+        ## attempt to normalize the path
+        except AssertionError:
+            self.assertEqual(rd.uid,os.path.normpath(target))
         
         ## test none and not finding the data
         env.DIR_DATA = None

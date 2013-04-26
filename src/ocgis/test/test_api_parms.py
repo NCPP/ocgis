@@ -93,7 +93,7 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
         us = dd.get_url_string()
-        self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        self.assertEqual(us,'uri={0}&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none'.format(rd.uri))
         
         with open('/tmp/dd.pkl','w') as f:
 #            import ipdb;ipdb.set_trace()

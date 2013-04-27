@@ -35,9 +35,6 @@ class NcLevelDimension(NcDimension,base.AbstractLevelDimension):
     axis = 'Z'
     _name_id = 'lid'
     _name_long = 'level'
-    
-    def subset(self,lower,upper):
-        import ipdb;ipdb.set_trace()
 
 
 class NcRowDimension(NcDimension,base.AbstractRowDimension):

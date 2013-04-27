@@ -3,6 +3,7 @@ from collections import OrderedDict
 from ocgis import constants
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
+from copy import deepcopy
 
 
 class AbstractCollection(object):
@@ -87,3 +88,39 @@ class CalcCollection(AbstractCollection):
                     yield(geom,row)
                 cid += 1
             vid += 1
+            
+            
+class MultivariateCalcCollection(CalcCollection):
+    
+    def get_headers(self):
+        ## get the representative dataset
+        arch = self._archetype
+        ## determine if there is a temporal grouping
+        temporal_group = False if arch.temporal.group is None else True
+        if temporal_group:
+            headers = deepcopy(super(MultivariateCalcCollection,self).get_headers())
+            ## the variable name is not relevant for multivariate calculations
+            headers.remove('var_name')
+            headers.remove('vid')
+        else:
+            headers = constants.multi_headers
+        return(headers)
+    
+    def get_iter(self):
+        arch = self._archetype
+        ## determine if there is a temporal grouping
+        temporal_group = False if arch.temporal.group is None else True
+        headers = self.get_headers()
+        cid = 1
+        ugid = self.ugid
+        for calc_name,calc_value in self.calc.iteritems():
+            for geom,attrs in arch.get_iter_value(value=calc_value,temporal_group=temporal_group,
+                                                  add_masked=True):
+                attrs['calc_name'] = calc_name
+                attrs['cid'] = cid
+                attrs['ugid'] = ugid
+                row = [attrs[key] for key in headers]
+                if type(geom) == Polygon:
+                    geom = MultiPolygon([geom])
+                yield(geom,row)
+            cid += 1

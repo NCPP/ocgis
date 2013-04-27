@@ -288,7 +288,7 @@ class NcDataset(base.AbstractDataset):
             value = ref['variable'][:]
         except TypeError:
             raise(DummyDimensionEncountered(kls.axis))
-        name = ref['dimension']
+        name = ref['variable']._name
         try:
             bounds = ref['bounds'][:]
             name_bounds = ref['bounds']._name

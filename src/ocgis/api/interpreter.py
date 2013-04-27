@@ -77,13 +77,14 @@ class OcgInterpreter(Interpreter):
         ## also true for the case of the selection geometry being requested as
         ## aggregated.
         if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) and self.ops.geom is not None and len(self.ops.geom) > 1:
-            import ipdb;ipdb.set_trace()
-            self.ops.geom = union_geoms(self.ops.geom)
+#            import ipdb;ipdb.set_trace()
+            self.ops.geom.aggregate()
+#            self.ops.geom = union_geoms(self.ops.geom)
             
         ## do not perform vector wrapping for NetCDF output
         if self.ops.output_format == 'nc':
             self.ops.vector_wrap = False
-        
+
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
         if self.ops.output_format == 'meta':

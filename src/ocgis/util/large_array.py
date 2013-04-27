@@ -1,8 +1,8 @@
 import ocgis
 from ocgis.calc import tile
-from ocgis.api.dataset.dataset import OcgDataset
 import netCDF4 as nc
 from ocgis.util.helpers import ProgressBar
+from ocgis.interface.nc.dataset import NcDataset
 
 
 def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None):
@@ -13,8 +13,8 @@ def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None)
     orig_oc = ocgis.env.OPTIMIZE_FOR_CALC
     ocgis.env.OPTIMIZE_FOR_CALC = True
     try:
-        ods = OcgDataset(dataset)
-        shp = ods.i.spatial.shape
+        ods = NcDataset(request_dataset=dataset)
+        shp = ods.spatial.grid.shape
         if verbose: print('getting schema...')
         schema = tile.get_tile_schema(shp[0],shp[1],tile_dimension)
         if verbose: print('getting fill file...')
@@ -31,10 +31,10 @@ def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None)
         for ctr,indices in enumerate(schema.itervalues(),start=1):
             row = indices['row']
             col = indices['col']
-            ret = ocgis.OcgOperations(dataset=dataset,slice_row=row,
-                  slice_column=col,calc=calc,calc_grouping=calc_grouping).execute()
+            ret = ocgis.OcgOperations(dataset=dataset,slice=[None,row,col],
+                                calc=calc,calc_grouping=calc_grouping).execute()
             for variable in ret[1].variables.iterkeys():
-                ref = ret[1].variables[variable].calc_value
+                ref = ret[1].calc[variable]
                 for k,v in ref.iteritems():
                     vref = fds.variables[k]
                     if len(vref.shape) == 3:

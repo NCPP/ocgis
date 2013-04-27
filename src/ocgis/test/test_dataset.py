@@ -6,7 +6,6 @@ from ocgis.util.helpers import make_poly
 from ocgis.interface.projection import WGS84
 import datetime
 from ocgis.util.shp_cabinet import ShpCabinet
-from ocgis.util.spatial.wrap import unwrap_geoms
 from ocgis.interface.shp import ShpDataset
 from shapely.geometry.point import Point
 from ocgis.interface.nc.dimension import NcRowDimension, NcColumnDimension,\
@@ -111,10 +110,9 @@ class TestNcDataset(TestBase):
     def test_aggregate(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
-        sc = ShpCabinet()
-        geoms = sc.get_geoms('state_boundaries')
-        unwrap_geoms(geoms,0.0)
-        utah = geoms[23]['geom']
+        sd = ShpDataset('state_boundaries')
+        sd.spatial.unwrap_geoms()
+        utah = sd[23].spatial.geom[0]
         ods = ods.get_subset(spatial_operation='clip',polygon=utah)
         ods.aggregate()
         self.assertEqual(ods.value.shape,(3650,1,1,1))
@@ -185,7 +183,7 @@ class TestNcDataset(TestBase):
         grouping = ['month']
         ods.temporal.set_grouping(grouping)
         sods = ods[0:31,0:5,0:5]
-        self.assertEqual(self.temporal.group,None)
+        self.assertEqual(sods.temporal.group,None)
         sods.temporal.set_grouping(grouping)
         self.assertEqual(sods.temporal.group.value.shape[0],1)
             

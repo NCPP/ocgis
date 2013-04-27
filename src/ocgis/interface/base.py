@@ -134,7 +134,8 @@ class AbstractVectorDimension(object):
         uid = self.uid[slc]
         real_idx = self.real_idx[slc]
         ret = self.__class__(value=value,bounds=bounds,
-                             uid=uid,real_idx=real_idx)
+                             uid=uid,real_idx=real_idx,name=self.name,
+                             name_bounds=self.name_bounds)
         return(ret)
     
     @property
@@ -201,7 +202,7 @@ class AbstractVectorDimension(object):
         
         ret = self.__class__(value=self.value[idx],bounds=bounds,
                              uid=self.uid[idx],real_idx=self.real_idx[idx],
-                             name=self.name)
+                             name=self.name,name_bounds=self.name_bounds)
         return(ret)
 
 

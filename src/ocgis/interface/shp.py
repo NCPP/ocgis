@@ -1,6 +1,8 @@
 import geometry
 from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.ops import cascaded_union
 
 
 class ShpSpatialDimension(geometry.GeometrySpatialDimension):
@@ -39,8 +41,15 @@ class ShpDataset(geometry.GeometryDataset):
         geom = self.spatial.geom[slc]
         uid = self.spatial.uid[slc]
         new_attrs = {}
-        for k,v in self.spatial.attrs.iteritems():
-            new_attrs[k] = v[slc]
+        try:
+            for k,v in self.spatial.attrs.iteritems():
+                new_attrs[k] = v[slc]
+        ## there may be not attrs
+        except AttributeError:
+            if self.spatial.attrs is None:
+                new_attrs = None
+            else:
+                raise
         
         spatial = ShpSpatialDimension(uid,geom,projection=self.spatial.projection,
                                       attrs=new_attrs)
@@ -52,3 +61,19 @@ class ShpDataset(geometry.GeometryDataset):
         if self.__sc is None:
             self.__sc = ShpCabinet()
         return(self.__sc)
+    
+    def aggregate(self,new_id=1):
+        to_union = []
+        for geom in self.spatial.geom.compressed():
+            if isinstance(geom,MultiPolygon):
+                for poly in geom:
+                    to_union.append(poly)
+            else:
+                to_union.append(geom)
+        ugeom = cascaded_union(to_union)
+        new_geom = np.ma.array([0],dtype=object)
+        new_geom[0] = ugeom
+        new_uid = np.ma.array([new_id],dtype=int)
+        self.spatial.geom = new_geom
+        self.spatial.uid = new_uid
+        self.spatial.attrs = None

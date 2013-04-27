@@ -8,6 +8,7 @@ from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
+from ocgis.util.helpers import ProgressBar
 
 
 class SubsetOperation(object):
@@ -123,13 +124,16 @@ class SubsetOperation(object):
         geom_dict :: dict
         '''
         
-#        ## copy for the iterator to avoid pickling the cache
-#        so_copy = copy.copy(self)
         if self.ops.geom is None:
             yield(self,None)
         elif isinstance(self.ops.geom,ShpDataset):
-            for geom in self.ops.geom:
+            if env.VERBOSE:
+                progress = ProgressBar('processing geometries')
+                lg = float(len(self.ops.geom))
+            for ii,geom in enumerate(self.ops.geom,start=1):
+                if env.VERBOSE: progress.progress(int((ii/lg)*100))
                 yield(self,geom)
+            if env.VERBOSE: progress.endProgress()
         else:
             yield(self,self.ops.geom)
             

@@ -154,7 +154,7 @@ class Test(TestBase):
         
         bbox = [-120,40,-110,50]
         g = Geom(bbox)
-        self.assertEqual(g.value.spatial.geom.bounds,tuple(map(float,bbox)))
+        self.assertEqual(g.value.spatial.geom[0].bounds,tuple(map(float,bbox)))
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]

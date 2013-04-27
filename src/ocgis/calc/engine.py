@@ -1,9 +1,10 @@
 from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
-from ocgis.api.collection import CalcCollection
+from ocgis.api.collection import CalcCollection, MultivariateCalcCollection
 from collections import OrderedDict
 import numpy as np
-from ocgis import constants
+from ocgis import constants, env
+from warnings import warn
 
 
 class OcgCalculationEngine(object):
@@ -33,6 +34,10 @@ class OcgCalculationEngine(object):
             self.use_agg = True
         else:
             self.use_agg = False
+            
+        ## check for multivariate functions
+        check = [issubclass(f['ref'],OcgCvArgFunction) for f in funcs]
+        self.has_multi = True if any(check) else False
         
 #    def set_funcs(self,funcs):
 #        potentials = OcgFunctionTree.get_potentials()
@@ -62,9 +67,13 @@ class OcgCalculationEngine(object):
         return(value,weights)
     
     def execute(self,coll,file_only=False):
-        
-        ret = CalcCollection(coll)
-        
+        ## switch collection type based on the presence of a multivariate
+        ## calculation
+        if self.has_multi:
+            ret = MultivariateCalcCollection(coll)
+        else:
+            ret = CalcCollection(coll)
+
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
         if self.grouping is not None:
@@ -80,9 +89,13 @@ class OcgCalculationEngine(object):
         ## iterate over functions
         for f in self.funcs:
             ## change behavior for multivariate functions
-            if issubclass(f['ref'],OcgCvArgFunction):
-                raise(NotImplementedError)
-#                has_multi = True
+            if issubclass(f['ref'],OcgCvArgFunction) or (self.has_multi and f['ref'] == SampleSize):
+                ## do not calculated sample size for multivariate calculations
+                ## yet
+                if f['ref'] == SampleSize:
+                    if not env.VERBOSE:
+                        warn('sample size calculations not implemented for multivariate calculations yet')
+                    continue
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
                 kwds = f['kwds'].copy()
@@ -92,29 +105,30 @@ class OcgCalculationEngine(object):
                     backref = kwds[key]
                     ## pull associated data
                     dref = coll.variables[backref]
-                    value = self._get_value_(dref)
+                    value,weights = self._get_value_weights_(dref)
                     ## get the calculation groups and weights.
                     if ii == 0:
-                        arch = dref
-                        weights = dref.spatial.weights
+#                        arch = dref
+#                        weights = dref.spatial.weights
                         if self.grouping is None:
                             dgroups = None
                         else:
-                            dgroups = dref.temporal_group.dgroups
+                            dgroups = dref.temporal.group.dgroups
                     ## update dict with properly reference data
                     kwds.update({key:value})
                 ## function object instance
                 ref = f['ref'](agg=self.agg,groups=dgroups,kwds=kwds,weights=weights)
                 calc = ref.calculate()
                 ## store calculation value
-                var = OcgMultivariateCalculationVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
-                var.temporal_group = arch.temporal_group
-                coll.add_multivariate_calculation_variable(var)
+                ret.calc[f['name']] = calc
+#                var = OcgMultivariateCalculationVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
+#                var.temporal_group = arch.temporal_group
+#                coll.add_multivariate_calculation_variable(var)
             else:
                 ## perform calculation on each variable
                 for alias,var in coll.variables.iteritems():
                     if alias not in ret.calc:
-                            ret.calc[alias] = OrderedDict()
+                        ret.calc[alias] = OrderedDict()
                     if file_only:
                         calc = np.ma.array(np.empty(0,dtype=f['ref'].dtype),fill_value=constants.fill_value)
                     else:

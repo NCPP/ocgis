@@ -4,6 +4,8 @@ import numpy as np
 from shapely import wkb
 from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.util.spatial.wrap import Wrapper
+from shapely.geometry.multipoint import MultiPoint
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -26,14 +28,20 @@ class GeometrySpatialDimension(base.AbstractSpatialDimension):
     def get_iter(self):
         raise(NotImplementedError)
     
-    def unwrap_geoms(self,axis):
+    def unwrap_geoms(self,axis=0.0):
+        axis = float(axis)
         w = Wrapper(axis=axis)
         geom = self.geom
         for idx in range(geom.shape[0]):
             geom[idx] = w.unwrap(geom[idx])
     
     def _as_numpy_(self,element):
-        ret = np.ma.array(element)
+        ## check for multipolygons to avoid array confusion
+        if isinstance(element,MultiPolygon) or isinstance(element,MultiPoint):
+            ret = np.ma.array([None],dtype=object)
+            ret[0] = element
+        else:
+            ret = np.ma.array(element)
         if len(ret.shape) == 0:
             ret = ret.reshape(1,)
         return(ret)

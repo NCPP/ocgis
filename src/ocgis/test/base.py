@@ -28,6 +28,8 @@ class TestBase(unittest.TestCase):
         test_data.update(['CanCM4'],'rhs','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhs')
         test_data.update(['CanCM4'],'rhsmax','rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',key='cancm4_rhsmax')
         test_data.update(['maurer','bccr'],'Prcp','bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',key='maurer_bccr_1950')
+        test_data.update(['narccap'],'pr','pr_CRCM_ccsm_1981010103.nc',key='narccap_crcm')
+        test_data.update(['narccap'],'pr','pr_RCM3_gfdl_1981010103.nc',key='narccap_rcm3')
 #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
 #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
         return(test_data)

@@ -21,6 +21,7 @@ class Test(TestBase):
     def california(self):
         ret = ShpDataset('state_boundaries',attr_filter={'ugid':[25]})
         return(ret)
+    
     @property
     def dataset(self):
         dataset = [

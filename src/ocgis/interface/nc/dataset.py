@@ -11,6 +11,8 @@ from shapely.geometry.point import Point
 from warnings import warn
 from ocgis import constants
 from ocgis.exc import DummyDimensionEncountered
+import itertools
+from osgeo.ogr import CreateGeometryFromWkb
 
 
 class NcDataset(base.AbstractDataset):
@@ -199,6 +201,36 @@ class NcDataset(base.AbstractDataset):
         ret = self.__class__(request_dataset=self.request_dataset,temporal=new_temporal,
          level=new_level,spatial=new_spatial,metadata=self.metadata,value=None)
         return(ret)
+    
+    def project(self,projection):
+        ## projection is only valid if the geometry has not been loaded. this is
+        ## to limit the number of spatial operations. this is primary to ensure
+        ## any masks created during a subset are not destroyed in the geometry
+        ## resetting process.
+        if self.spatial.vector._geom is not None:
+            raise(NotImplementedError('project is only valid before geometries have been loaded.'))
+        
+        if self.spatial.grid.is_bounded:
+            raise(NotImplementedError)
+        
+        ## project the rows and columns
+        row = self.spatial.grid.row.value
+        col = self.spatial.grid.column.value
+        sr = self.spatial.projection.sr
+        to_sr = projection.sr
+        for row_idx in range(row.shape[0]):
+            row_value = row[row_idx]
+            for col_idx in range(col.shape[0]):
+                col_value = col[col_idx]
+                pt = Point(col_value,row_value)
+                geom = CreateGeometryFromWkb(pt.wkb)
+                geom.AssignSpatialReference(sr)
+                geom.TransformTo(to_sr)
+                col[col_idx] = geom.GetX()
+            row[row_idx] = geom.GetY()
+            
+        ## update the projection
+        self.spatial.projection = projection
     
     def _get_aggregate_sum_(self):
         value = self.raw_value

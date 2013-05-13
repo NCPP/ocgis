@@ -186,6 +186,14 @@ class TestNcDataset(TestBase):
         self.assertEqual(sods.temporal.group,None)
         sods.temporal.set_grouping(grouping)
         self.assertEqual(sods.temporal.group.value.shape[0],1)
+        
+    def test_project(self):
+        rd = self.test_data.get_rd('narccap_rcm3')
+        ods = NcDataset(request_dataset=rd)
+        dest = WGS84()
+        ods.project(dest)
+        self.assertEqual(type(ods.spatial.projection),WGS84)
+        self.assertAlmostEqual(ods.spatial.grid.resolution,0.15042660982793346)
             
             
 class TestIteration(TestBase):

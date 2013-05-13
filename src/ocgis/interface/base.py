@@ -74,6 +74,11 @@ class AbstractDataset(object):
     @abstractmethod
     def get_subset(self,temporal=None,level=None,spatial=None):
         pass
+    
+    @abstractmethod
+    def project(self,projection):
+        ''':type to_sr: ocgis.interface.OcgSpatialReference'''
+        return(None)
 
 
 class AbstractInterfaceDimension(object):

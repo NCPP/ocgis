@@ -190,14 +190,19 @@ class AbstractVectorDimension(object):
             else:
                 lower_col = 0
                 upper_col = 1
-
 #            lidx = self.bounds[:,upper_col] >= lower
 #            uidx = self.bounds[:,lower_col] <= upper
             lidx = self.bounds[:,upper_col] > lower
             uidx = self.bounds[:,lower_col] < upper
             idx = np.logical_and(lidx,uidx)
             if not idx.any():
-                raise(EmptyData)
+                ## bounds may align with centroids, check if the centroids
+                ## return a match
+                lidx = self.value >= lower
+                uidx = self.value <= upper
+                idx = np.logical_and(lidx,uidx)
+                if not idx.any():
+                    raise(EmptyData('temporal subset returned empty'))
             bounds = self.bounds[idx,:]
         
         ret = self.__class__(value=self.value[idx],bounds=bounds,

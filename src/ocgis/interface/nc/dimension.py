@@ -322,9 +322,11 @@ class NcPolygonDimension(base.AbstractPolygonDimension):
             rref = row[ii,:]
             cref = col[jj,:]
             test_geom = make_poly(rref,cref)
+            geom[ii,jj] = test_geom
             if index_intersects(test_geom,index):
-                geom[ii,jj] = test_geom
                 geom_mask[ii,jj] = False
+            else:
+                geom_mask[ii,jj] = True
 
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)
@@ -383,6 +385,8 @@ class NcPointDimension(NcPolygonDimension):
             geom[ii,jj] = pt
             if prep_polygon.intersects(pt):
                 geom_mask[ii,jj] = False
+            else:
+                geom_mask[ii,jj] = True
 
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)

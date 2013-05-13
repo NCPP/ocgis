@@ -161,6 +161,65 @@ class LambertConformalConic(DatasetSpatialReference):
         except KeyError:
             raise(NoProjectionFound)
         
+
+class ObliqueMercator(DatasetSpatialReference):
+    
+    def write_to_rootgrp(self,rootgrp,ncmeta):
+        ref = ncmeta['variables']['Transverse_Mercator']
+        lc = rootgrp.createVariable('Transverse_Mercator',ref['dtype'])
+        for k,v in ref['attrs'].iteritems():
+            setattr(lc,k,v)
+            
+    def _get_proj4_(self,dataset):
+        try:
+            var = dataset.variables['Transverse_Mercator']
+            
+            proj = ('+proj=omerc +lat_0={lat_0} +lonc={lonc} +k_0={k_0} '
+                    '+x_0={false_easting} +y_0={false_northing} +alpha=360')
+            
+            lat_0 = var.latitude_of_projection_origin
+            lonc = var.longitude_of_central_meridian
+            k_0 = var.scale_factor_at_central_meridian
+            false_easting = var.false_easting
+            false_northing = var.false_northing
+            
+            proj = proj.format(lat_0=lat_0,lonc=lonc,k_0=k_0,false_easting=false_easting,
+                               false_northing=false_northing)
+
+            return(proj)
+        except KeyError:
+            raise(NoProjectionFound)
+
+
+class PolarStereographic(DatasetSpatialReference):
+    
+    def write_to_rootgrp(self,rootgrp,ncmeta):
+        ref = ncmeta['variables']['polar_stereographic']
+        lc = rootgrp.createVariable('polar_stereographic',ref['dtype'])
+        for k,v in ref['attrs'].iteritems():
+            setattr(lc,k,v)
+            
+    def _get_proj4_(self,dataset):
+        try:
+            var = dataset.variables['polar_stereographic']
+            proj = ('+proj=stere +lat_ts={latitude_natural} +lat_0={lat_0} +lon_0={longitude_natural} '
+                    '+k_0={scale_factor} +x_0={false_easting} +y_0={false_northing}')
+            
+            false_easting = var.false_easting
+            false_northing = var.false_northing
+            latitude_natural = var.standard_parallel
+            lat_0 = var.latitude_of_projection_origin
+            scale_factor = 1.0
+            longitude_natural = var.straight_vertical_longitude_from_pole
+
+            proj = proj.format(false_easting=false_easting,false_northing=false_northing,
+                    latitude_natural=latitude_natural,lat_0=lat_0,scale_factor=scale_factor,
+                    longitude_natural=longitude_natural)
+
+            return(proj)
+        except KeyError:
+            raise(NoProjectionFound)
+        
         
 class WGS84(SridSpatialReference):
     _srid = 4326

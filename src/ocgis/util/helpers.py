@@ -325,12 +325,13 @@ def bounding_coords(polygon):
                   min_y=min_y,
                   max_y=max_y))
     
-def shapely_to_shp(obj,path):
+def shapely_to_shp(obj,path,srs=None):
     from osgeo import osr, ogr
     
 #    path = os.path.join('/tmp',outname+'.shp')
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
+    if srs is None:
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
     ogr_geom = 3
     
     dr = ogr.GetDriverByName('ESRI Shapefile')

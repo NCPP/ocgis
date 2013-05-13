@@ -95,3 +95,5 @@ class GeometryDataset(base.AbstractDataset):
             geom.AssignSpatialReference(from_sr)
             geom.TransformTo(to_sr)
             se[idx] = loads(geom.ExportToWkb())
+        
+        self.spatial.projection = projection

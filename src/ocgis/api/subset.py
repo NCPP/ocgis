@@ -59,6 +59,10 @@ class SubsetOperation(object):
         ## selection geometries will need to be projected.
         if ops.geom is not None and not isinstance(ops.dataset[0].ds.spatial.projection,WGS84):
             ops.geom.project(ops.dataset[0].ds.spatial.projection)
+            
+#            from ocgis.util.helpers import shapely_to_shp
+#            shapely_to_shp(ops.geom.spatial.geom[0],'/tmp/foo/foo.shp',srs=ops.geom.spatial.projection.sr)
+#            import ipdb;ipdb.set_trace()
 #        if not self.ops._get_object_('geom').is_empty:
 #            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
 #                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
@@ -161,7 +165,7 @@ def get_collection((so,geom)):
             if geom is None:
                 igeom = None
             else:
-                if ods.spatial.is_360:
+                if ods.spatial.is_360 and type(ods.spatial.projection) == WGS84:
                     w = Wrapper(axis=ods.spatial.pm)
                     geom.spatial.geom[0] = w.unwrap(deepcopy(geom.spatial.geom[0]))
                 igeom = geom.spatial.geom[0]
@@ -178,7 +182,7 @@ def get_collection((so,geom)):
                         new_geom_id = 1
                     ods.aggregate(new_geom_id=new_geom_id)
                 if not env.OPTIMIZE_FOR_CALC:
-                    if ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                    if type(ods.spatial.projection) == WGS84 and ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
                         ods.spatial.vector.wrap()
                 if not so.ops.file_only and ods.value.mask.all():
                     if so.ops.allow_empty:

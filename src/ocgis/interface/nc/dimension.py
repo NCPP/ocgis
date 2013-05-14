@@ -198,6 +198,9 @@ class NcGridDimension(base.AbstractSpatialGrid):
         row = self.row[rs]
         column = self.column[cs]
         uid = self.uid[rs,cs]
+        ## we want a two-dimension uid
+        if len(uid.shape) == 1:
+            uid = uid.reshape(-1,1)
         ret = self.__class__(row=row,column=column,uid=uid)
         return(ret)
         

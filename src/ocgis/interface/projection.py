@@ -3,8 +3,8 @@ from osgeo.osr import SpatialReference
 from ocgis.util.helpers import itersubclasses
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.point import Point
-from osgeo import osr
-from shapely import wkb
+#from osgeo import osr
+#from shapely import wkb
 import abc
 
 
@@ -53,41 +53,41 @@ class OcgSpatialReference(object):
             ret = geom.GetArea()*1e-6
         return(ret)
     
-    def project_to_match(self,geoms,in_sr=None):
-        """
-        Args:
-          geoms: A sequence of geometry dictionaries.
-          
-        Returns:
-          A projected copy of the input geometry sequence.
-        """
-        if in_sr is None:
-            in_sr = osr.SpatialReference()
-            in_sr.ImportFromEPSG(4326)
-        
-        ret = [None]*len(geoms)
-        for idx in range(len(geoms)):
-            gc = geoms[idx].copy()
-            geom = CreateGeometryFromWkb(gc['geom'].wkb)
-            geom.AssignSpatialReference(in_sr)
-            geom.TransformTo(self.sr)
-            gc['geom'] = wkb.loads(geom.ExportToWkb())
-            ret[idx] = gc
-#            import ipdb;ipdb.set_trace()
-#        try:
-#            if self._srid == to_sr._srid:
-#                ret = geom.wkb
-#        except AttributeError:
-#            geom = CreateGeometryFromWkb(geom.wkb)
-#            geom.AssignSpatialReference(self.sr)
-#            geom.TransformTo(to_sr)
-#            ret = geom.ExportToWkb()
-        return(ret)
-    
-#    def get_sr(self,proj4_str):
-#        sr = osr.SpatialReference()
-#        sr.ImportFromProj4(proj4_str)
-#        return(sr)
+#    def project_to_match(self,geoms,in_sr=None):
+#        """
+#        Args:
+#          geoms: A sequence of geometry dictionaries.
+#          
+#        Returns:
+#          A projected copy of the input geometry sequence.
+#        """
+#        if in_sr is None:
+#            in_sr = osr.SpatialReference()
+#            in_sr.ImportFromEPSG(4326)
+#        
+#        ret = [None]*len(geoms)
+#        for idx in range(len(geoms)):
+#            gc = geoms[idx].copy()
+#            geom = CreateGeometryFromWkb(gc['geom'].wkb)
+#            geom.AssignSpatialReference(in_sr)
+#            geom.TransformTo(self.sr)
+#            gc['geom'] = wkb.loads(geom.ExportToWkb())
+#            ret[idx] = gc
+##            import ipdb;ipdb.set_trace()
+##        try:
+##            if self._srid == to_sr._srid:
+##                ret = geom.wkb
+##        except AttributeError:
+##            geom = CreateGeometryFromWkb(geom.wkb)
+##            geom.AssignSpatialReference(self.sr)
+##            geom.TransformTo(to_sr)
+##            ret = geom.ExportToWkb()
+#        return(ret)
+#    
+##    def get_sr(self,proj4_str):
+##        sr = osr.SpatialReference()
+##        sr.ImportFromProj4(proj4_str)
+##        return(sr)
     
     
 class SridSpatialReference(OcgSpatialReference):
@@ -117,37 +117,49 @@ class DatasetSpatialReference(OcgSpatialReference):
     def _get_proj4_(self,dataset): str
     
     
-class HostetlerProjection(DatasetSpatialReference):
-    
-    def write_to_rootgrp(self):
-        raise(NotImplementedError)
-    
-    def _get_proj4_(self,dataset):
-        try:
-            var = dataset.variables['Lambert_Conformal']
-            proj = ('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '
-                    '+lon_0={lon0} +x_0=0 +y_0=0 +datum=WGS84 '
-                    '+to_meter=1000.0 +no_defs')
-            lat1,lat2 = var.standard_parallel[0],var.standard_parallel[1]
-            lat0 = var.latitude_of_projection_origin
-            lon0 = var.longitude_of_central_meridian
-            proj = proj.format(lat1=lat1,lat2=lat2,lat0=lat0,lon0=lon0)
-            return(proj)
-        except KeyError:
-            raise(NoProjectionFound)
+#class HostetlerProjection(DatasetSpatialReference):
+#    
+#    def write_to_rootgrp(self):
+#        raise(NotImplementedError)
+#    
+#    def _get_proj4_(self,dataset):
+#        try:
+#            var = dataset.variables['Lambert_Conformal']
+#            proj = ('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '
+#                    '+lon_0={lon0} +x_0=0 +y_0=0 +datum=WGS84 '
+#                    '+to_meter=1000.0 +no_defs')
+#            lat1,lat2 = var.standard_parallel[0],var.standard_parallel[1]
+#            lat0 = var.latitude_of_projection_origin
+#            lon0 = var.longitude_of_central_meridian
+#            proj = proj.format(lat1=lat1,lat2=lat2,lat0=lat0,lon0=lon0)
+#            return(proj)
+#        except KeyError:
+#            raise(NoProjectionFound)
         
         
 class LambertConformalConic(DatasetSpatialReference):
     
     def write_to_rootgrp(self,rootgrp,ncmeta):
-        ref = ncmeta['variables']['lambert_conformal_conic']
-        lc = rootgrp.createVariable('lambert_conformal_conic',ref['dtype'])
+        try:
+            ref = ncmeta['variables']['lambert_conformal_conic']
+            lc = rootgrp.createVariable('lambert_conformal_conic',ref['dtype'])
+        except KeyError:
+            ref = ncmeta['variables']['Lambert_Conformal']
+            lc = rootgrp.createVariable('Lambert_Conformal',ref['dtype'])
         for k,v in ref['attrs'].iteritems():
             setattr(lc,k,v)
     
     def _get_proj4_(self,dataset):
+        keys = ['lambert_conformal_conic','Lambert_Conformal']
         try:
-            var = dataset.variables['lambert_conformal_conic']
+            for ii,key in enumerate(keys,start=1):
+                try:
+                    var = dataset.variables[key]
+                except KeyError:
+                    if ii == len(keys):
+                        raise
+                    else:
+                        continue
             proj = ('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '
                     '+lon_0={lon0} +x_0={false_easting} +y_0={false_northing} +datum=WGS84 '
                     '+units=km +no_defs ')
@@ -162,7 +174,7 @@ class LambertConformalConic(DatasetSpatialReference):
             raise(NoProjectionFound)
         
 
-class ObliqueMercator(DatasetSpatialReference):
+class NarccapObliqueMercator(DatasetSpatialReference):
     
     def write_to_rootgrp(self,rootgrp,ncmeta):
         ref = ncmeta['variables']['Transverse_Mercator']

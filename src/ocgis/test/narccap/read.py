@@ -54,9 +54,14 @@ class Test(NarccapTestBase):
 #        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp')
 #        ret = ops.execute()
         
+#        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp',
+#                                  geom=[-97.74278,30.26694])
+#        ret = ops.execute()
+        
         ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp',
-                                  geom=[-97.74278,30.26694])
+                                  geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
+        
         import ipdb;ipdb.set_trace()
 
     def test_subset(self):

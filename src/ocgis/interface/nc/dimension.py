@@ -12,6 +12,7 @@ from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
 from ocgis.util.spatial.wrap import Wrapper
 from shapely.geometry.multipoint import MultiPoint
+from copy import copy
 
 
 class NcDimension(object):
@@ -351,8 +352,22 @@ class NcGridMatrixDimension(base.AbstractSpatialGrid):
     def get_iter(self):
         raise(NotImplementedError)
     
-    def subset(self):
-        raise(NotImplementedError)
+    def subset(self,polygon=None):
+        if polygon is None:
+            ret = copy(self)
+        else:
+            minx,miny,maxx,maxy = polygon.bounds
+            
+            lidx = self.row >= miny
+            uidx = self.row <= maxy
+            idx_row = np.logical_and(lidx,uidx)
+            lidx = self.column >= minx
+            uidx = self.column <= maxx
+            idx_col = np.logical_and(lidx,uidx)
+            
+            ret = self[idx_row,idx_col]
+        
+        return(ret)
 
 
 class NcPolygonDimension(base.AbstractPolygonDimension):
@@ -480,16 +495,30 @@ class NcPointDimension(NcPolygonDimension):
         geom = np.ma.array(geom,mask=True)
         geom_mask = geom.mask
         
-        row = grid.row.value
-        col = grid.column.value
-        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
-            pt = Point(col[jj],row[ii])
-            geom[ii,jj] = pt
-            if prep_polygon.intersects(pt):
-                geom_mask[ii,jj] = False
-            else:
-                geom_mask[ii,jj] = True
+        try:
+            row = grid.row.value
+            col = grid.column.value
+            for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+                pt = Point(col[jj],row[ii])
+                geom[ii,jj] = pt
+                if prep_polygon.intersects(pt):
+                    geom_mask[ii,jj] = False
+                else:
+                    geom_mask[ii,jj] = True
+        ## NcGridMatrixDimension correction
+        except AttributeError:
+            _row = grid.row
+            _col = grid.column
+            for ii,jj in iter_array(_row):
+                pt = Point(_col[ii,jj],_row[ii,jj])
+                geom[ii,jj] = pt
+                if prep_polygon.intersects(pt):
+                    geom_mask[ii,jj] = False
+                else:
+                    geom_mask[ii,jj] = True
+            
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
+        
         return(ret)
 
     def _get_all_geoms_(self):

@@ -63,7 +63,14 @@ class OcgConverter(object):
         ## add user-geometry
         if self._add_ugeom and self.ops.geom is not None:
             shp_dir = os.path.join(self.outdir,'shp')
-            os.mkdir(shp_dir)
+            try:
+                os.mkdir(shp_dir)
+            ## catch if the directory exists
+            except OSError:
+                if os.path.exists(shp_dir):
+                    pass
+                else:
+                    raise
             shp_path = os.path.join(shp_dir,self.prefix+'_ugid.shp')
             self.ops.geom.write(shp_path)
                 

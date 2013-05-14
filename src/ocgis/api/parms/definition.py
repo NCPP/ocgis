@@ -11,6 +11,7 @@ from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
 from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
+from shapely.geometry.point import Point
 
 
 class Abstraction(base.StringOptionParameter):
@@ -311,13 +312,13 @@ class Geom(base.OcgParameter):
         return(ret)
     
     def parse(self,value):
-        if type(value) in [Polygon,MultiPolygon]:
+        if type(value) in [Polygon,MultiPolygon,Point]:
             ret = GeometryDataset(1,value)
         elif type(value) in [list,tuple]:
-            if len(value) == 4:
+            if len(value) in (2,4):
                 ret = self.parse_string('|'.join(map(str,value)))
             else:
-                raise(DefinitionValidationError(self,'Bounding coordinates passed but less than four present.'))
+                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 or 4.'))
         else:
             ret = value
         return(ret)
@@ -326,11 +327,16 @@ class Geom(base.OcgParameter):
         elements = value.split('|')
         try:
             elements = [float(e) for e in elements]
-            minx,miny,maxx,maxy = elements
-            geom = Polygon(((minx,miny),
-                            (minx,maxy),
-                            (maxx,maxy),
-                            (maxx,miny)))
+            ## switch geometry creation based on length. length of 2 is a point
+            ## otherwise a bounding box
+            if len(elements) == 2:
+                geom = Point(elements[0],elements[1])
+            else:
+                minx,miny,maxx,maxy = elements
+                geom = Polygon(((minx,miny),
+                                (minx,maxy),
+                                (maxx,maxy),
+                                (maxx,miny)))
             if not geom.is_valid:
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
             ret = GeometryDataset(1,geom)

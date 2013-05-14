@@ -14,6 +14,7 @@ import netCDF4 as nc
 from ocgis.test.base import TestBase
 import subprocess
 from unittest.case import SkipTest
+from shapely.geometry.point import Point
 
 
 class TestSimpleBase(TestBase):
@@ -72,6 +73,12 @@ class TestSimple(TestSimpleBase):
                            [3.0,3.0,4.0,4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+    
+    def test_point_subset(self):
+        ops = self.get_ops(kwds={'geom':[-103.5,38.5,]})
+        self.assertEqual(type(ops.geom.spatial.geom[0]),Point)
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
     
     def test_slicing(self):
         ops = self.get_ops(kwds={'slice':[None,0,[0,2],[0,2]]})

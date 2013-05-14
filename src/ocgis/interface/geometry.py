@@ -6,6 +6,7 @@ from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.util.spatial.wrap import Wrapper
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.point import Point
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -37,7 +38,7 @@ class GeometrySpatialDimension(base.AbstractSpatialDimension):
     
     def _as_numpy_(self,element):
         ## check for multipolygons to avoid array confusion
-        if isinstance(element,MultiPolygon) or isinstance(element,MultiPoint):
+        if isinstance(element,MultiPolygon) or isinstance(element,MultiPoint) or isinstance(element,Point):
             ret = np.ma.array([None],dtype=object)
             ret[0] = element
         else:

@@ -7,6 +7,8 @@ import osr
 from shapely.geometry.multipolygon import MultiPolygon
 import csv
 from ocgis.api.geometry import SelectionGeometry
+from osgeo.ogr import CreateGeometryFromWkb
+from shapely.geometry.polygon import Polygon
 
 
 class ShpCabinet(object):
@@ -146,7 +148,7 @@ class ShpCabinet(object):
         for dct in geom_dict:
             dct_copy = dct.copy()
             geom = dct_copy.pop('geom')
-            if not isinstance(geom,MultiPolygon):
+            if isinstance(geom,Polygon):
                 geom = MultiPolygon([geom])
             yield(dct_copy,geom)
             
@@ -174,7 +176,8 @@ class ShpCabinet(object):
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
         
-        layer = ds.CreateLayer('lyr',srs=sr,geom_type=ogr.wkbMultiPolygon)
+        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
+        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
         headers = self.get_headers(geom_dict)
         
         build = True

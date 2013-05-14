@@ -333,7 +333,7 @@ class NcGridMatrixDimension(base.AbstractSpatialGrid):
         new_real_row = self.real_idx_row[slc_row,slc_col]
         new_real_column = self.real_idx_column[slc_row,slc_col]
         new_uid = self.uid[slc_row,slc_col]
-        
+
         ret = self.__class__(new_row,new_column,new_real_row,new_real_column,new_uid)
         
         return(ret)

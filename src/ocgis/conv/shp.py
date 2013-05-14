@@ -9,6 +9,8 @@ from ocgis import constants, env
     
 class ShpConverter(OcgConverter):
     _ext = 'shp'
+    _add_ugeom = True
+    _add_ugeom_nest = False
     
     def __init__(self,*args,**kwds):
         self.layer = kwds.pop('layer','lyr')

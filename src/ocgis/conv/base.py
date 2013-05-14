@@ -23,6 +23,7 @@ class OcgConverter(object):
     _ext = None
     _add_did_file = True
     _add_ugeom = False
+    _add_ugeom_nest = True
     
     @abc.abstractmethod
     def _write_(self): pass # string path or data
@@ -62,15 +63,18 @@ class OcgConverter(object):
                     
         ## add user-geometry
         if self._add_ugeom and self.ops.geom is not None:
-            shp_dir = os.path.join(self.outdir,'shp')
-            try:
-                os.mkdir(shp_dir)
-            ## catch if the directory exists
-            except OSError:
-                if os.path.exists(shp_dir):
-                    pass
-                else:
-                    raise
+            if self._add_ugeom_nest:
+                shp_dir = os.path.join(self.outdir,'shp')
+                try:
+                    os.mkdir(shp_dir)
+                ## catch if the directory exists
+                except OSError:
+                    if os.path.exists(shp_dir):
+                        pass
+                    else:
+                        raise
+            else:
+                shp_dir = self.outdir
             shp_path = os.path.join(shp_dir,self.prefix+'_ugid.shp')
             self.ops.geom.write(shp_path)
                 

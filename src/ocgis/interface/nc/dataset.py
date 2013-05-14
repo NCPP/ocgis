@@ -236,14 +236,23 @@ class NcDataset(base.AbstractDataset):
                 try:
                     _row = self.spatial.grid.row.value
                     _col = self.spatial.grid.column.value
+                    row_idx = np.abs(_row - igeom.y)
+                    row_idx = row_idx == row_idx.min()
+                    col_idx = np.abs(_col - igeom.x)
+                    col_idx = col_idx == col_idx.min()
                 ## NcGridMatrixDimension correction
                 except AttributeError:
                     _row = self.spatial.grid.row
                     _col = self.spatial.grid.column
-                row_idx = np.abs(_row - igeom.y)
-                row_idx = row_idx == row_idx.min()
-                col_idx = np.abs(_col - igeom.x)
-                col_idx = col_idx == col_idx.min()
+                    coords = np.hstack([_col.reshape(-1,1),_row.reshape(-1,1)])
+                    pt = np.array(igeom).reshape(1,2)
+                    dist = np.empty(coords.shape[0],dtype=float)
+                    norm = np.linalg.norm
+                    for idx in range(coords.shape[0]):
+                        dist[idx] = norm(coords[idx,:]-pt)
+                    sel_idx = np.argmin(dist)
+                    row_idx = _row == coords[sel_idx,1]
+                    col_idx = _col == coords[sel_idx,0]
                 new_grid = self.spatial.grid[row_idx,col_idx]
                 new_vector = None
             else:

@@ -22,11 +22,16 @@ variable = 'pr'
 ## make the request datasets
 rds = [ocgis.RequestDataset(uri=fn,variable=variable,alias=alias) for fn,alias in zip(filenames,aliases)]
 
+## write overview shapefiles
+#for rd in rds:
+#    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',prefix=rd.alias)
+#    ops.execute()
+
 ## these are the calculations to perform
 calc = [{'func':'mean','name':'mean'}]
 calc_grouping = ['month','year']
 
-## the operations
+## the operations for index calculation
 ops = ocgis.OcgOperations(dataset=rds,snippet=snippet,calc=calc,calc_grouping=calc_grouping,
                           output_format='shp',geom=geom)
 ret = ops.execute()

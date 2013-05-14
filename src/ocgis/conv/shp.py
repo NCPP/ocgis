@@ -4,7 +4,7 @@ from osgeo import ogr
 import numpy as np
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
-from ocgis import constants
+from ocgis import constants, env
 
     
 class ShpConverter(OcgConverter):
@@ -39,7 +39,10 @@ class ShpConverter(OcgConverter):
                         geom_type = ogr.wkbMultiPolygon
                     else:
                         geom_type = ogr.wkbPoint
-                    srs = coll.projection.sr
+                    if env.WRITE_TO_REFERENCE_PROJECTION:
+                        srs = constants.reference_projection.sr
+                    else:
+                        srs = coll.projection.sr
                     layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
                     headers = coll.get_headers()
                     self._set_ogr_fields_(headers,row)

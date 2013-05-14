@@ -381,13 +381,12 @@ class NcPointDimension(NcPolygonDimension):
         row = grid.row.value
         col = grid.column.value
         for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
-            pt = Point(row[ii],col[jj])
+            pt = Point(col[jj],row[ii])
             geom[ii,jj] = pt
             if prep_polygon.intersects(pt):
                 geom_mask[ii,jj] = False
             else:
                 geom_mask[ii,jj] = True
-
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
         return(ret)
 

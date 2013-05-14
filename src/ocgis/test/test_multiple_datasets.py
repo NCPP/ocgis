@@ -143,6 +143,8 @@ class Test(TestBase):
         self.assertTrue(np.all(values[0].value == values[1].value))
 
     def test_consolidating_projections(self):
+        ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+        
         rd1 = self.test_data.get_rd('narccap_rcm3')
         rd1.alias = 'rcm3'
         rd2 = self.test_data.get_rd('narccap_crcm')
@@ -151,8 +153,19 @@ class Test(TestBase):
               rd1,
 #              rd2
               ]
+        
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
                                   geom='state_boundaries',agg_selection=False,
-                                  select_ugid=[25])
+                                  select_ugid=[25],
+                                  prefix='ca')
+        ret = ops.execute()
+        
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+                                  geom='state_boundaries',agg_selection=True,
+                                  prefix='states')
+        ret = ops.execute()
+        
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+                                  prefix='all')
         ret = ops.execute()
         import ipdb;ipdb.set_trace()

@@ -15,6 +15,7 @@ import itertools
 from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.constants import reference_projection
 from shapely.wkb import loads
+import ocgis
 
 
 class NcDataset(base.AbstractDataset):
@@ -134,7 +135,7 @@ class NcDataset(base.AbstractDataset):
     def get_iter_value(self,add_bounds=True,add_masked=False,value=None,
                        temporal_group=False):        
         ## check if the reference projection is different than the dataset
-        if type(self.spatial.projection) != type(reference_projection):
+        if type(self.spatial.projection) != type(reference_projection) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
             project = True
             sr = self.spatial.projection.sr
             to_sr = reference_projection.sr

@@ -209,7 +209,7 @@ class AbstractVectorDimension(object):
                 if not idx.any():
                     raise(EmptyData('temporal subset returned empty'))
             bounds = self.bounds[idx,:]
-        
+
         ret = self.__class__(value=self.value[idx],bounds=bounds,
                              uid=self.uid[idx],real_idx=self.real_idx[idx],
                              name=self.name,name_bounds=self.name_bounds)

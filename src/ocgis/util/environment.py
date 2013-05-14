@@ -17,6 +17,7 @@ class Environment(object):
         self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=self._format_bool_)
         self.OPTIMIZE_FOR_CALC = EnvParm('OPTIMIZE_FOR_CALC',False,formatter=self._format_bool_)
+        self.WRITE_TO_REFERENCE_PROJECTION = EnvParm('WRITE_TO_REFERENCE_PROJECTION',False,formatter=self._format_bool_)
         
         self.ops = None
         

@@ -197,7 +197,7 @@ class NcDataset(base.AbstractDataset):
                         gret[_name_value] = ref
                         yield(geom,gret)
     
-    def get_subset(self,temporal=None,level=None,spatial_operation=None,polygon=None):
+    def get_subset(self,temporal=None,level=None,spatial_operation=None,igeom=None):
         if temporal is not None:
             new_temporal = self.temporal.subset(*temporal)
         else:
@@ -217,11 +217,11 @@ class NcDataset(base.AbstractDataset):
                     raise
         else:
             new_level = self.level
-        if spatial_operation is not None and polygon is not None:
+        if spatial_operation is not None and igeom is not None:
             if spatial_operation == 'intersects':
-                new_vector = self.spatial.vector.intersects(polygon)
+                new_vector = self.spatial.vector.intersects(igeom)
             elif spatial_operation == 'clip':
-                new_vector = self.spatial.vector.clip(polygon)
+                new_vector = self.spatial.vector.clip(igeom)
             new_spatial = NcSpatialDimension(grid=new_vector.grid,vector=new_vector,
                                              projection=self.spatial.projection,
                                              abstraction=self.spatial.abstraction)

@@ -338,7 +338,6 @@ def shapely_to_shp(obj,path,srs=None):
     if isinstance(obj,MultiPoint):
         test = ogr.CreateGeometryFromWkb(obj[0].wkb)
         ogr_geom = test.GetGeometryType()
-#        import ipdb;ipdb.set_trace()
     else:
         ogr_geom = 3
     

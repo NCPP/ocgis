@@ -116,7 +116,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         else:
             self.grid = grid
         if vector is None:
-            if self.grid.row.bounds is None or self.abstraction == 'point':
+            if self.abstraction == 'point' or self.grid.row.bounds is None:
                 self.vector = NcPointDimension(grid=self.grid,uid=self.grid.uid)
             else:
                 self.vector = NcPolygonDimension(grid=self.grid,uid=self.grid.uid)
@@ -181,17 +181,27 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
                 import csv
                 import itertools
                 import subprocess
+                import tempfile
                 class ProjDialect(csv.excel):
                     lineterminator = '\n'
                     delimiter = '\t'
-                with open('/tmp/foo.csv','w') as f:
-                    writer = csv.writer(f,dialect=ProjDialect)
-                    for x,y in itertools.product(column.value.flat,row.value.flat):
-                        writer.writerow([x,y])
+                f = tempfile.NamedTemporaryFile()
+                writer = csv.writer(f,dialect=ProjDialect)
+                _row = row.value
+                _col = column.value
+                real_idx = []
+                shp = (row.shape[0],column.shape[0])
+                uid = np.arange(1,(shp[0]*shp[1])+1,dtype=int).reshape(*shp)
+                uid = np.ma.array(data=uid,mask=False)
+                for row_idx,col_idx in itertools.product(range(row.value.shape[0]),range(column.value.shape[0])):
+                    real_idx.append([col_idx,row_idx])
+                    writer.writerow([_col[col_idx],_row[row_idx]])
+                f.flush()
                 cmd = projection._trans_proj.split(' ')
-                cmd.append('/tmp/foo.csv')
+                cmd.append(f.name)
                 cmd = ['proj','-f','"%.6f"','-m','57.2957795130823'] + cmd
                 capture = subprocess.check_output(cmd)
+                f.close()
                 coords = capture.split('\n')
                 new_coords = []
                 for ii,coord in enumerate(coords):
@@ -205,15 +215,19 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
                             continue
                         else:
                             raise
-                    new_coords.append(Point(coord[0],coord[1]))
-                mp = MultiPoint(new_coords)
-                from ocgis.util.helpers import shapely_to_shp
-                shapely_to_shp(mp,'/tmp/foo.shp')
-                import ipdb;ipdb.set_trace()
-                raise(NotImplementedError('rotated pole projections are not implemented'))
-            
-            ret = cls(row=row,column=column,projection=projection,
-                      abstraction=gi._abstraction)
+                    new_coords.append(coord)
+                new_coords = np.array(new_coords)
+                real_idx = np.array(real_idx)
+                new_row = new_coords[:,1].reshape(*shp)
+                new_col = new_coords[:,0].reshape(*shp)
+                new_real_row_idx = real_idx[:,1].reshape(*shp)
+                new_real_column_idx = real_idx[:,0].reshape(*shp)
+                
+                grid = NcGridMatrixDimension(new_row,new_col,new_real_row_idx,new_real_column_idx,uid)
+                ret = cls(grid=grid,projection=projection,abstraction='point')
+            else:
+                ret = cls(row=row,column=column,projection=projection,
+                          abstraction=gi._abstraction)
         return(ret)
 
 class NcGridDimension(base.AbstractSpatialGrid):
@@ -291,6 +305,39 @@ class NcGridDimension(base.AbstractSpatialGrid):
         else:
             ret = self
         return(ret)
+    
+    
+class NcGridMatrixDimension(base.AbstractSpatialGrid):
+    _name_id = None
+    _name_long = None
+    
+    def __init__(self,row,column,real_idx_row,real_idx_column,uid):
+        self.row = row
+        self.column = column
+        self.real_idx_row = real_idx_row
+        self.real_idx_column = real_idx_column
+        self.uid = uid
+        
+    def __getitem__(self):
+        raise(NotImplementedError)
+        
+    @property
+    def extent(self):
+        raise(NotImplementedError)
+    
+    @property
+    def resolution(self):
+        raise(NotImplementedError)
+    
+    @property
+    def shape(self):
+        return(self.row.shape)
+    
+    def get_iter(self):
+        raise(NotImplementedError)
+    
+    def subset(self):
+        raise(NotImplementedError)
 
 
 class NcPolygonDimension(base.AbstractPolygonDimension):

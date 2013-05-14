@@ -72,19 +72,33 @@ class NcDataset(base.AbstractDataset):
     def value(self):
         if self._value is None:
             ref = self._ds.variables[self.request_dataset.variable]
-            row_start,row_stop = self._sub_range_(self.spatial.grid.row.real_idx)
-            column_start,column_stop = self._sub_range_(self.spatial.grid.column.real_idx)
+            
+            try:
+                row_start,row_stop = self._sub_range_(self.spatial.grid.row.real_idx)
+            ## NcGridMatrixDimension correction
+            except AttributeError:
+                row_start,row_stop = self._sub_range_(self.spatial.grid.real_idx_row.flatten())
+            try:
+                column_start,column_stop = self._sub_range_(self.spatial.grid.column.real_idx)
+            ## NcGridMatrixDimension correction
+            except AttributeError:
+                column_start,column_stop = self._sub_range_(self.spatial.grid.real_idx_column.flatten())
+                
             time_start,time_stop = self._sub_range_(self.temporal.real_idx)
+            
             if self.level is None:
                 level_start,level_stop = None,None
             else:
                 level = self.level.real_idx
                 level_start,level_stop = level[0],level[-1]+1
+            
             self._value = self._get_numpy_data_(ref,time_start,time_stop,
              row_start,row_stop,column_start,column_stop,level_start=level_start,
              level_stop=level_stop)
+            
             if self.spatial.vector._geom is not None:
                 self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
+                
         return(self._value)
     
     def aggregate(self,new_geom_id=1):
@@ -219,9 +233,16 @@ class NcDataset(base.AbstractDataset):
             new_level = self.level
         if spatial_operation is not None and igeom is not None:
             if isinstance(igeom,Point):
-                row_idx = np.abs(self.spatial.grid.row.value - igeom.y)
+                try:
+                    _row = self.spatial.grid.row.value
+                    _col = self.spatial.grid.column.value
+                ## NcGridMatrixDimension correction
+                except AttributeError:
+                    _row = self.spatial.grid.row
+                    _col = self.spatial.grid.column
+                row_idx = np.abs(_row - igeom.y)
                 row_idx = row_idx == row_idx.min()
-                col_idx = np.abs(self.spatial.grid.column.value - igeom.x)
+                col_idx = np.abs(_col - igeom.x)
                 col_idx = col_idx == col_idx.min()
                 new_grid = self.spatial.grid[row_idx,col_idx]
                 new_vector = None

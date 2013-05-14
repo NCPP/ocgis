@@ -50,7 +50,12 @@ class Test(NarccapTestBase):
         ocgis.env.OVERWRITE = True
         proj = get_projection(nc.Dataset(self.rotated_pole.uri,'r'))
         self.assertEqual(type(proj),RotatedPole)
-        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp')
+        
+#        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp')
+#        ret = ops.execute()
+        
+        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp',
+                                  geom=[-97.74278,30.26694])
         ret = ops.execute()
         import ipdb;ipdb.set_trace()
 

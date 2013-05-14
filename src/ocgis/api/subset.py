@@ -178,7 +178,7 @@ def get_collection((so,geom)):
                 if type(ods.spatial.projection) != type(copy_geom.spatial.projection):
                     copy_geom.project(ods.spatial.projection)
                 ## unwrap the data if it is geographic and 360
-                if ods.spatial.is_360 and type(ods.spatial.projection) == WGS84:
+                if type(ods.spatial.projection) == WGS84 and ods.spatial.is_360:
                     w = Wrapper(axis=ods.spatial.pm)
                     copy_geom.spatial.geom[0] = w.unwrap(deepcopy(copy_geom.spatial.geom[0]))
                 igeom = copy_geom.spatial.geom[0]

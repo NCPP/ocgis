@@ -318,8 +318,23 @@ class NcGridMatrixDimension(base.AbstractSpatialGrid):
         self.real_idx_column = real_idx_column
         self.uid = uid
         
-    def __getitem__(self):
-        raise(NotImplementedError)
+    def __getitem__(self,slc):
+        idx_row,idx_col = slc
+        
+        sub_idx_row = self.real_idx_row[idx_row]
+        slc_row = slice(sub_idx_row.min(),sub_idx_row.max()+1)
+        sub_idx_col = self.real_idx_column[idx_col]
+        slc_col = slice(sub_idx_col.min(),sub_idx_col.max()+1)
+        
+        new_row = self.row[slc_row,slc_col]
+        new_column = self.column[slc_row,slc_col]
+        new_real_row = self.real_idx_row[slc_row,slc_col]
+        new_real_column = self.real_idx_column[slc_row,slc_col]
+        new_uid = self.uid[slc_row,slc_col]
+        
+        ret = self.__class__(new_row,new_column,new_real_row,new_real_column,new_uid)
+        
+        return(ret)
         
     @property
     def extent(self):
@@ -482,8 +497,15 @@ class NcPointDimension(NcPolygonDimension):
         geom = np.ones(self.grid.shape,dtype=object)
         geom = np.ma.array(geom,mask=False)
         ## loop performing the spatial operation
-        row = self.grid.row.value
-        col = self.grid.column.value
-        for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
-            geom[ii,jj] = Point(col[jj],row[ii])
+        try:
+            row = self.grid.row.value
+            col = self.grid.column.value
+            for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
+                geom[ii,jj] = Point(col[jj],row[ii])
+        ## NcGridMatrixDimension correction
+        except AttributeError:
+            _row = self.grid.row
+            _col = self.grid.column
+            for ii,jj in iter_array(_row):
+                geom[ii,jj] = Point(_col[ii,jj],_row[ii,jj])
         return(geom)

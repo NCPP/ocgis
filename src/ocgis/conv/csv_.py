@@ -16,7 +16,7 @@ class CsvConverter(OcgConverter):
             writer = csv.writer(f,dialect=OcgDialect)
             for coll in self:
                 if build:
-                    headers = coll.get_headers()
+                    headers = coll.get_headers(upper=True)
                     writer.writerow(headers)
                     build = False
                 for geom,row in coll.get_iter():

@@ -267,7 +267,8 @@ class TestRequestDatasets(TestBase):
         for uri,variable in zip(uris,variables):
             rd = RequestDataset(uri,variable)
             rdc.update(rd)
-        
+        self.assertEqual([1,2],[rd.did for rd in rdc])
+            
         variables = ['foo1','foo1']
         rdc = RequestDatasetCollection()
         for ii,(uri,variable) in enumerate(zip(uris,variables)):

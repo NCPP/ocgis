@@ -43,7 +43,7 @@ class RequestDataset(object):
     _Dataset = NcDataset
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
-                 s_proj=None,t_units=None,t_calendar=None):
+                 s_proj=None,t_units=None,t_calendar=None,did=None):
         self.uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
@@ -52,6 +52,7 @@ class RequestDataset(object):
         self.s_proj = self._str_format_(s_proj)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
+        self.did = did
         self._ds = None
         
         self._format_()
@@ -196,6 +197,7 @@ class RequestDatasetCollection(object):
     
     def __init__(self,request_datasets=[]):
         self._s = OrderedDict()
+        self._did = []
         for rd in request_datasets:
             self.update(rd)
             
@@ -240,6 +242,17 @@ class RequestDatasetCollection(object):
         except AttributeError:
             request_dataset = RequestDataset(**request_dataset)
             alias = request_dataset.alias
+            
+        if request_dataset.did is None:
+            if len(self._did) == 0:
+                did = 1
+            else:
+                did = max(self._did) + 1
+            self._did.append(did)
+            request_dataset.did = did
+        else:
+            self._did.append(request_dataset.did)
+            
         if alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\
                            .format(request_dataset.alias)))

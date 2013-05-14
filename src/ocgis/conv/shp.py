@@ -44,7 +44,7 @@ class ShpConverter(OcgConverter):
                     else:
                         srs = coll.projection.sr
                     layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
-                    headers = coll.get_headers()
+                    headers = coll.get_headers(upper=True)
                     self._set_ogr_fields_(headers,row)
                     for ogr_field in self.ogr_fields:
                         layer.CreateField(ogr_field.ogr_field)

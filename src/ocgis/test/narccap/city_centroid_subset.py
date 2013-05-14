@@ -2,9 +2,6 @@ import ocgis
 import os
 
 
-ocgis.env.OVERWRITE = True
-
-
 ## set snippet to false to return all data
 snippet = False
 ## city center coordinate
@@ -26,8 +23,8 @@ variable = 'pr'
 rds = [ocgis.RequestDataset(uri=fn,variable=variable,alias=alias) for fn,alias in zip(filenames,aliases)]
 
 ## these are the calculations to perform
-calc = [{'func':'threshold','name':'gt_0','kwds':{'threshold':0.0,'operation':'gt'}}]
-calc_grouping = ['month']
+calc = [{'func':'mean','name':'mean'}]
+calc_grouping = ['month','year']
 
 ## the operations
 ops = ocgis.OcgOperations(dataset=rds,snippet=snippet,calc=calc,calc_grouping=calc_grouping,

@@ -318,6 +318,7 @@ class NcGridMatrixDimension(base.AbstractSpatialGrid):
         self.real_idx_row = real_idx_row
         self.real_idx_column = real_idx_column
         self.uid = uid
+        self._weights = None
         
     def __getitem__(self,slc):
         idx_row,idx_col = slc

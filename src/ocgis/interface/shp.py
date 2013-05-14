@@ -3,6 +3,7 @@ from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
+from ocgis.util.helpers import iter_array
 
 
 class ShpSpatialDimension(geometry.GeometrySpatialDimension):
@@ -77,3 +78,15 @@ class ShpDataset(geometry.GeometryDataset):
         self.spatial.geom = new_geom
         self.spatial.uid = new_uid
         self.spatial.attrs = None
+
+    def write(self,path):
+        geoms = []
+        uid = self.spatial.uid
+        attrs = self.spatial.attrs
+        for ii,geom in iter_array(self.spatial.geom,return_value=True):
+            dct = {'geom':geom,'ugid':uid[ii]}
+            for k,v in attrs.iteritems():
+                dct[k] = v[ii]
+            geoms.append(dct)
+        sc = ShpCabinet()
+        sc.write(geoms,path,sr=self.spatial.projection.sr)

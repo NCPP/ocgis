@@ -185,7 +185,7 @@ def get_collection((so,geom)):
             ## perform the data subset
             try:
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
-                                     polygon=igeom,
+                                     igeom=igeom,
                                      temporal=request_dataset.time_range,
                                      level=request_dataset.level_range)
                 if so.ops.aggregate:

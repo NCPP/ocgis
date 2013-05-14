@@ -218,11 +218,20 @@ class NcDataset(base.AbstractDataset):
         else:
             new_level = self.level
         if spatial_operation is not None and igeom is not None:
-            if spatial_operation == 'intersects':
-                new_vector = self.spatial.vector.intersects(igeom)
-            elif spatial_operation == 'clip':
-                new_vector = self.spatial.vector.clip(igeom)
-            new_spatial = NcSpatialDimension(grid=new_vector.grid,vector=new_vector,
+            if isinstance(igeom,Point):
+                row_idx = np.abs(self.spatial.grid.row.value - igeom.y)
+                row_idx = row_idx == row_idx.min()
+                col_idx = np.abs(self.spatial.grid.column.value - igeom.x)
+                col_idx = col_idx == col_idx.min()
+                new_grid = self.spatial.grid[row_idx,col_idx]
+                new_vector = None
+            else:
+                if spatial_operation == 'intersects':
+                    new_vector = self.spatial.vector.intersects(igeom)
+                elif spatial_operation == 'clip':
+                    new_vector = self.spatial.vector.clip(igeom)
+                new_grid = new_vector.grid
+            new_spatial = NcSpatialDimension(grid=new_grid,vector=new_vector,
                                              projection=self.spatial.projection,
                                              abstraction=self.spatial.abstraction)
         else:

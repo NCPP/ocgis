@@ -78,7 +78,20 @@ class TestSimple(TestSimpleBase):
         ops = self.get_ops(kwds={'geom':[-103.5,38.5,]})
         self.assertEqual(type(ops.geom.spatial.geom[0]),Point)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(2,2))
+        
+        ops = self.get_ops(kwds={'geom':[-103,38,]})
+        ret = ops.execute()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(1,1))
+        self.assertTrue(ref.spatial.vector.geom[0,0].intersects(ops.geom.spatial.geom[0]))
+        
+        ops = self.get_ops(kwds={'geom':[-103,38,],'abstraction':'point'})
+        ret = ops.execute()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(1,1))
+        self.assertTrue(ref.spatial.vector.geom[0,0].intersects(ops.geom.spatial.geom[0]))
     
     def test_slicing(self):
         ops = self.get_ops(kwds={'slice':[None,0,[0,2],[0,2]]})

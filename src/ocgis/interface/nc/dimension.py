@@ -398,5 +398,5 @@ class NcPointDimension(NcPolygonDimension):
         row = self.grid.row.value
         col = self.grid.column.value
         for ii,jj in product(range(row.shape[0]),range(col.shape[0])):
-            geom[ii,jj] = Point(row[ii],col[jj])
+            geom[ii,jj] = Point(col[jj],row[ii])
         return(geom)

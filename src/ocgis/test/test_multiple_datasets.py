@@ -151,21 +151,28 @@ class Test(TestBase):
         rd2.alias = 'crcm'
         rd = [
               rd1,
-#              rd2
+              rd2
               ]
         
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  geom='state_boundaries',agg_selection=False,
-                                  select_ugid=[25],
-                                  prefix='ca')
-        ret = ops.execute()
+#        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+#                                  geom='state_boundaries',agg_selection=False,
+#                                  select_ugid=[25],
+#                                  prefix='ca')
+#        ret = ops.execute()
+
+#        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+#                                  geom='state_boundaries',agg_selection=False,
+#                                  select_ugid=[4],
+#                                  prefix='me')
+#        ret = ops.execute()
+
+#        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+#                                  geom='state_boundaries',agg_selection=True,
+#                                  prefix='states')
+#        ret = ops.execute()
         
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  geom='state_boundaries',agg_selection=True,
-                                  prefix='states')
+                                  prefix='rcm3_crcm_domain')
         ret = ops.execute()
-        
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  prefix='all')
-        ret = ops.execute()
+
         import ipdb;ipdb.set_trace()

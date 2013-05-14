@@ -29,12 +29,16 @@ class ShpCabinet(object):
     '''
     
     def __init__(self,path=None):
-        self.path = path or env.DIR_SHPCABINET
-        if self.path is None:
+        self._path = path or env.DIR_SHPCABINET
+    
+    @property
+    def path(self):
+        if self._path is None:
             raise(ValueError('A path value is required. Either pass a path to the constructor or set ocgis.env.DIR_SHPCABINET.'))
-        elif not os.path.exists(self.path):
-            raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self.path)))
-        
+        elif not os.path.exists(self._path):
+            raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self._path)))
+        return(self._path)
+    
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.
         
@@ -176,7 +180,7 @@ class ShpCabinet(object):
         build = True
         for dct,geom in self.get_converter_iterator(geom_dict):
             if build:
-                csv_path = path.replace('shp','csv')
+                csv_path = path.replace('.shp','.csv')
                 csv_f = open(csv_path,'w')
                 writer = csv.writer(csv_f,dialect=OcgDialect)
                 writer.writerow(headers)

@@ -7,6 +7,8 @@ from ocgis.util.spatial.wrap import Wrapper
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
+from ocgis.util.helpers import iter_array
+from ocgis.util.shp_cabinet import ShpCabinet
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -98,3 +100,11 @@ class GeometryDataset(base.AbstractDataset):
             se[idx] = loads(geom.ExportToWkb())
         
         self.spatial.projection = projection
+    
+    def write(self,path):
+        geoms = []
+        uid = self.spatial.uid
+        for ii,geom in iter_array(self.spatial.geom,return_value=True):
+            geoms.append({'geom':geom,'ugid':uid[ii]})
+        sc = ShpCabinet()
+        sc.write(geoms,path,sr=self.spatial.projection.sr)

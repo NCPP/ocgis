@@ -233,6 +233,27 @@ class PolarStereographic(DatasetSpatialReference):
             raise(NoProjectionFound)
         
         
+class RotatedPole(DatasetSpatialReference):
+    
+    def write_to_rootgrp(self,rootgrp,ncmeta):
+        ref = ncmeta['variables']['rotated_pole']
+        lc = rootgrp.createVariable('rotated_pole',ref['dtype'])
+        for k,v in ref['attrs'].iteritems():
+            setattr(lc,k,v)
+            
+    def _get_proj4_(self,dataset):
+        try:
+            var = dataset.variables['rotated_pole']
+            self.grid_north_pole_latitude = var.grid_north_pole_latitude
+            self.grid_north_pole_longitude = var.grid_north_pole_longitude
+            proj = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180'
+            self._trans_proj = proj.format(lon_pole=self.grid_north_pole_longitude,lat_pole=self.grid_north_pole_latitude)
+#            return(proj)
+            return(WGS84().sr.ExportToProj4())
+        except KeyError:
+            raise(NoProjectionFound)
+        
+        
 class WGS84(SridSpatialReference):
     _srid = 4326
     

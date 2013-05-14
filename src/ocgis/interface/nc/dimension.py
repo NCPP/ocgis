@@ -8,9 +8,10 @@ import netCDF4 as nc
 from abc import ABCMeta, abstractproperty
 from ocgis.exc import DummyDimensionEncountered, EmptyData
 import datetime
-from ocgis.interface.projection import get_projection
+from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
 from ocgis.util.spatial.wrap import Wrapper
+from shapely.geometry.multipoint import MultiPoint
 
 
 class NcDimension(object):
@@ -175,6 +176,42 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
             row = gi._load_axis_(NcRowDimension)
             column = gi._load_axis_(NcColumnDimension)
             projection = get_projection(gi._ds)
+            
+            if isinstance(projection,RotatedPole):
+                import csv
+                import itertools
+                import subprocess
+                class ProjDialect(csv.excel):
+                    lineterminator = '\n'
+                    delimiter = '\t'
+                with open('/tmp/foo.csv','w') as f:
+                    writer = csv.writer(f,dialect=ProjDialect)
+                    for x,y in itertools.product(column.value.flat,row.value.flat):
+                        writer.writerow([x,y])
+                cmd = projection._trans_proj.split(' ')
+                cmd.append('/tmp/foo.csv')
+                cmd = ['proj','-f','"%.6f"','-m','57.2957795130823'] + cmd
+                capture = subprocess.check_output(cmd)
+                coords = capture.split('\n')
+                new_coords = []
+                for ii,coord in enumerate(coords):
+                    coord = coord.replace('"','')
+                    coord = coord.split('\t')
+                    try:
+                        coord = map(float,coord)
+                    ## likely empty string
+                    except ValueError:
+                        if coord[0] == '':
+                            continue
+                        else:
+                            raise
+                    new_coords.append(Point(coord[0],coord[1]))
+                mp = MultiPoint(new_coords)
+                from ocgis.util.helpers import shapely_to_shp
+                shapely_to_shp(mp,'/tmp/foo.shp')
+                import ipdb;ipdb.set_trace()
+                raise(NotImplementedError('rotated pole projections are not implemented'))
+            
             ret = cls(row=row,column=column,projection=projection,
                       abstraction=gi._abstraction)
         return(ret)

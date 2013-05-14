@@ -15,6 +15,8 @@ import re
 from ocgis.exc import DefinitionValidationError
 from ocgis import env
 import sys
+from shapely.geometry.multipoint import MultiPoint
+from osgeo.ogr import wkbPoint
 
 
 def vprint(args):
@@ -332,7 +334,13 @@ def shapely_to_shp(obj,path,srs=None):
     if srs is None:
         srs = osr.SpatialReference()
         srs.ImportFromEPSG(4326)
-    ogr_geom = 3
+        
+    if isinstance(obj,MultiPoint):
+        test = ogr.CreateGeometryFromWkb(obj[0].wkb)
+        ogr_geom = test.GetGeometryType()
+#        import ipdb;ipdb.set_trace()
+    else:
+        ogr_geom = 3
     
     dr = ogr.GetDriverByName('ESRI Shapefile')
     ds = dr.CreateDataSource(path)

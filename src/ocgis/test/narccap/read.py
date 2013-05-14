@@ -1,7 +1,7 @@
 import unittest
 import ocgis
 from ocgis.interface.projection import get_projection, PolarStereographic,\
-    ObliqueMercator
+    NarccapObliqueMercator, RotatedPole
 import netCDF4 as nc
 from ocgis.interface.shp import ShpDataset
 import tempfile
@@ -17,6 +17,8 @@ class NarccapTestBase(unittest.TestCase):
                                                         variable='pr')
         self.oblique_mercator = ocgis.RequestDataset(uri='pr_RCM3_gfdl_1981010103.nc',
                                                      variable='pr')
+        self.rotated_pole = ocgis.RequestDataset(uri='pr_HRM3_gfdl_1981010103.nc',
+                                                 variable='pr')
         
     def tearDown(self):
         ocgis.env.reset()
@@ -36,13 +38,21 @@ class Test(NarccapTestBase):
 
     def test_oblique_mercator(self):
         proj = get_projection(nc.Dataset(self.oblique_mercator.uri,'r'))
-        self.assertEqual(type(proj),ObliqueMercator)
+        self.assertEqual(type(proj),NarccapObliqueMercator)
         
 #        ocgis.env.OVERWRITE = True
 #        prefix = 'oblique_mercator'
 #        ops = ocgis.OcgOperations(dataset=self.oblique_mercator,output_format='shp',
 #                                  snippet=True,dir_output='/tmp',prefix=prefix)
 #        ret = ops.execute()
+
+    def test_rotated_pole(self):
+        ocgis.env.OVERWRITE = True
+        proj = get_projection(nc.Dataset(self.rotated_pole.uri,'r'))
+        self.assertEqual(type(proj),RotatedPole)
+        ops = ocgis.OcgOperations(dataset=self.rotated_pole,snippet=True,output_format='shp')
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
 
     def test_subset(self):
         rds = [

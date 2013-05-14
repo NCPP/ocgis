@@ -287,6 +287,13 @@ class TestRequestDatasets(TestBase):
             self.assertIsInstance(row,RequestDataset)
         self.assertIsInstance(rdc[0],RequestDataset)
         self.assertIsInstance(rdc['a2'],RequestDataset)
+        
+    def test_multiple_uris(self):
+        env.DIR_DATA = '/usr/local/climate_data/narccap'
+        uris = ['pr_CRCM_ccsm_1981010103.nc','pr_CRCM_ccsm_1986010103.nc']
+        variable = 'pr'
+        rd = RequestDataset(uri=uris,variable=variable)
+        import ipdb;ipdb.set_trace()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

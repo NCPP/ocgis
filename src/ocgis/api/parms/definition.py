@@ -383,7 +383,7 @@ class Geom(base.OcgParameter):
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
-    valid = ('numpy','shp','csv','keyed','meta','nc','shpidx')
+    valid = ('numpy','shp','csv','meta','nc','csv+')
     
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)

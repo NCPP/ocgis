@@ -77,7 +77,7 @@ class ShpDataset(geometry.GeometryDataset):
         new_uid = np.ma.array([new_id],dtype=int)
         self.spatial.geom = new_geom
         self.spatial.uid = new_uid
-        self.spatial.attrs = None
+        self.spatial.attrs = {}
 
     def write(self,path):
         geoms = []

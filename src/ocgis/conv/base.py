@@ -22,7 +22,7 @@ class OcgConverter(object):
     __metaclass__ = abc.ABCMeta
     _ext = None
     _add_did_file = True
-    _add_ugeom = True
+    _add_ugeom = False
     
     @abc.abstractmethod
     def _write_(self): pass # string path or data
@@ -95,7 +95,7 @@ class OcgConverter(object):
         OcgConverter'''
         
         from ocgis.conv.shp import ShpConverter
-        from ocgis.conv.csv_ import CsvConverter
+        from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
         from ocgis.conv.numpy_ import NumpyConverter
         from ocgis.conv.shpidx import ShpIdxConverter
         from ocgis.conv.keyed import KeyedConverter
@@ -103,6 +103,7 @@ class OcgConverter(object):
         
         mmap = {'shp':ShpConverter,
                 'csv':CsvConverter,
+                'csv+':CsvPlusConverter,
                 'numpy':NumpyConverter,
                 'shpidx':ShpIdxConverter,
                 'keyed':KeyedConverter,

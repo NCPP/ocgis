@@ -13,6 +13,8 @@ from ocgis import constants
 from ocgis.exc import DummyDimensionEncountered
 import itertools
 from osgeo.ogr import CreateGeometryFromWkb
+from ocgis.constants import reference_projection
+from shapely.wkb import loads
 
 
 class NcDataset(base.AbstractDataset):
@@ -130,17 +132,38 @@ class NcDataset(base.AbstractDataset):
         return(self.__ds)
     
     def get_iter_value(self,add_bounds=True,add_masked=False,value=None,
-                       temporal_group=False):
+                       temporal_group=False):        
+        ## check if the reference projection is different than the dataset
+        if type(self.spatial.projection) != type(reference_projection):
+            project = True
+            sr = self.spatial.projection.sr
+            to_sr = reference_projection.sr
+        else:
+            project = False
+        
+        ## if no external value to iterate over is passed, use the internal value
         if value is None:
             value = self.value
+        
+        ## reference the mask checker
         is_masked = np.ma.is_masked
+        ## reference the value name
         _name_value = self._name_value
+        
+        ## if iteration over the temporal groups is requested, reference the
+        ## appropriate iterator.
         if temporal_group:
             time_iter = self.temporal.group.get_iter
         else:
             time_iter = self.temporal.get_iter
+        
         if self.level is None:
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
+                if project:
+                    geom = CreateGeometryFromWkb(geom.wkb)
+                    geom.AssignSpatialReference(sr)
+                    geom.TransformTo(to_sr)
+                    geom = loads(geom.ExportToWkb())
                 for tidx,tret in time_iter(add_bounds=add_bounds):
                     gret.update(tret)
                     gret['lid'] = None
@@ -155,6 +178,11 @@ class NcDataset(base.AbstractDataset):
                     yield(geom,gret)
         else:
             for (ridx,cidx),geom,gret in self.spatial.get_iter():
+                if project:
+                    geom = CreateGeometryFromWkb(geom.wkb)
+                    geom.AssignSpatialReference(sr)
+                    geom.TransformTo(to_sr)
+                    geom = loads(geom.ExportToWkb())
                 for lidx,lret in self.level.get_iter(add_bounds=add_bounds):
                     gret.update(lret)
                     for tidx,tret in time_iter(add_bounds=add_bounds):
@@ -203,6 +231,7 @@ class NcDataset(base.AbstractDataset):
         return(ret)
     
     def project(self,projection):
+        raise(NotImplementedError)
         ## projection is only valid if the geometry has not been loaded. this is
         ## to limit the number of spatial operations. this is primary to ensure
         ## any masks created during a subset are not destroyed in the geometry
@@ -215,7 +244,9 @@ class NcDataset(base.AbstractDataset):
         
         ## project the rows and columns
         row = self.spatial.grid.row.value
+        new_row = np.empty_like(row)
         col = self.spatial.grid.column.value
+        new_col = np.empty_like(col)
         sr = self.spatial.projection.sr
         to_sr = projection.sr
         for row_idx in range(row.shape[0]):
@@ -226,9 +257,12 @@ class NcDataset(base.AbstractDataset):
                 geom = CreateGeometryFromWkb(pt.wkb)
                 geom.AssignSpatialReference(sr)
                 geom.TransformTo(to_sr)
-                col[col_idx] = geom.GetX()
-            row[row_idx] = geom.GetY()
+                new_col[col_idx] = geom.GetX()
+            new_row[row_idx] = geom.GetY()
             
+        ## update the rows and columns
+        self.spatial.grid.row.value = new_row
+        self.spatial.grid.column.value = new_col
         ## update the projection
         self.spatial.projection = projection
     

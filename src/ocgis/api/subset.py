@@ -1,7 +1,7 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis import env
+from ocgis import env, constants
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError
@@ -20,6 +20,14 @@ class SubsetOperation(object):
         
         if validate:
             ops.dataset.validate()
+            
+#        ## if there are multiple datasets and the input datasets do not match
+#        ## the reference projection, project the datasets to match the reference
+#        ## projection.
+#        if len(ops.dataset) > 1:
+#            for rd in ops.dataset:
+#                if type(rd.ds.spatial.projection) != type(constants.reference_projection):
+#                    rd.ds.project(constants.reference_projection)
         
 #        ## construct OcgDataset objects
 #        for request_dataset in env.ops.dataset:
@@ -57,8 +65,6 @@ class SubsetOperation(object):
 #        
         ## if the target dataset(s) has a different projection than WGS84, the
         ## selection geometries will need to be projected.
-        if ops.geom is not None and not isinstance(ops.dataset[0].ds.spatial.projection,WGS84):
-            ops.geom.project(ops.dataset[0].ds.spatial.projection)
             
 #            from ocgis.util.helpers import shapely_to_shp
 #            shapely_to_shp(ops.geom.spatial.geom[0],'/tmp/foo/foo.shp',srs=ops.geom.spatial.projection.sr)
@@ -150,6 +156,8 @@ def get_collection((so,geom)):
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     coll = RawCollection(ugeom=geom)
+    ## copy the geometry
+    copy_geom = deepcopy(geom)
     ## perform the operations on each request dataset
     for request_dataset in so.ops.dataset:
         ## reference the dataset object
@@ -162,13 +170,18 @@ def get_collection((so,geom)):
             ## if a geometry is passed and the target dataset is 360 longitude,
             ## unwrap the passed geometry to match the spatial domain of the target
             ## dataset.
-            if geom is None:
+            if copy_geom is None:
                 igeom = None
             else:
+                ## check projections adjusting projection the selection geometry
+                ## if necessary
+                if type(ods.spatial.projection) != type(copy_geom.spatial.projection):
+                    copy_geom.project(ods.spatial.projection)
+                ## unwrap the data if it is geographic and 360
                 if ods.spatial.is_360 and type(ods.spatial.projection) == WGS84:
                     w = Wrapper(axis=ods.spatial.pm)
-                    geom.spatial.geom[0] = w.unwrap(deepcopy(geom.spatial.geom[0]))
-                igeom = geom.spatial.geom[0]
+                    copy_geom.spatial.geom[0] = w.unwrap(deepcopy(copy_geom.spatial.geom[0]))
+                igeom = copy_geom.spatial.geom[0]
             ## perform the data subset
             try:
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
@@ -177,7 +190,7 @@ def get_collection((so,geom)):
                                      level=request_dataset.level_range)
                 if so.ops.aggregate:
                     try:
-                        new_geom_id = geom.uid
+                        new_geom_id = copy_geom.uid
                     except AttributeError:
                         new_geom_id = 1
                     ods.aggregate(new_geom_id=new_geom_id)

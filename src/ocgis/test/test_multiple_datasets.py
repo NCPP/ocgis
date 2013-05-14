@@ -141,3 +141,18 @@ class Test(TestBase):
         self.assertEqual(ret[1].variables.keys(),['foo_var','tasmax'])
         values = ret[1].variables.values()
         self.assertTrue(np.all(values[0].value == values[1].value))
+
+    def test_consolidating_projections(self):
+        rd1 = self.test_data.get_rd('narccap_rcm3')
+        rd1.alias = 'rcm3'
+        rd2 = self.test_data.get_rd('narccap_crcm')
+        rd2.alias = 'crcm'
+        rd = [
+              rd1,
+#              rd2
+              ]
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+                                  geom='state_boundaries',agg_selection=False,
+                                  select_ugid=[25])
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()

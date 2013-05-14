@@ -4,6 +4,7 @@ import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
+from ocgis.interface.projection import WGS84
 
 
 class OcgOperations(object):

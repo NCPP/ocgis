@@ -1,7 +1,7 @@
 from datetime import datetime
 from copy import deepcopy
 import os
-from ocgis import env
+from ocgis import env, constants
 from ocgis.util.helpers import locate
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
@@ -250,7 +250,8 @@ class RequestDatasetCollection(object):
         ## confirm projections are equivalent
         projections = [rd.ds.spatial.projection.sr.ExportToProj4() for rd in self]
         if len(set(projections)) == 2:
-            raise(ValueError('projections for input datasets must be equivalent'))
+            if constants.reference_projection is None:
+                raise(ValueError('projections for input datasets must be equivalent if constants.reference_projection is None'))
             
     def _get_meta_rows_(self):
         rows = ['dataset=']

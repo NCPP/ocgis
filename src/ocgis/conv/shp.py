@@ -4,6 +4,7 @@ from osgeo import ogr
 import numpy as np
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
+from ocgis import constants
 
     
 class ShpConverter(OcgConverter):

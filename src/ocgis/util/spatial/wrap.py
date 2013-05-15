@@ -28,9 +28,19 @@ class Wrapper(object):
         coords = np.array(polygon.exterior.coords)
         coords[:,0] = coords[:,0] + 360
         return(Polygon(coords))
+    
+    def unwrap_point(self,geom):
+        if geom.x < 180:
+            ret = Point(geom.x+360,geom.y)
+        else:
+            ret = geom
+        return(ret)
 
     def unwrap(self,geom):
         '''geom : shapely.geometry'''
+        
+        if isinstance(geom,Point):
+            return(self.unwrap_point(geom))
         
         return_type = type(geom)
         

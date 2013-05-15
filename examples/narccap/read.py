@@ -19,12 +19,19 @@ class NarccapTestBase(unittest.TestCase):
                                                      variable='pr')
         self.rotated_pole = ocgis.RequestDataset(uri='pr_HRM3_gfdl_1981010103.nc',
                                                  variable='pr')
+        self.ecp2 = ocgis.RequestDataset(uri='pr_ECP2_ncep_1981010103.nc',
+                                         variable='pr')
         
     def tearDown(self):
         ocgis.env.reset()
         
         
 class Test(NarccapTestBase):
+    
+    def test_ECP2(self):
+        ops = ocgis.OcgOperations(dataset=self.ecp2,output_format='shp',snippet=True)
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
     
     def test_polar_stereographic(self):
         proj = get_projection(nc.Dataset(self.polar_stereographic.uri,'r'))

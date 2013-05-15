@@ -7,15 +7,17 @@ ocgis.env.VERBOSE = True
 
 
 ## set snippet to false to return all data
-snippet = True
+snippet = False
 ## city center coordinate
 geom = [-97.74278,30.26694]
 ## output directory
 ocgis.env.DIR_OUTPUT = '/tmp/narccap'
 ## the directory containing the target data
-ocgis.env.DIR_DATA = '/media/Helium Backup/narccap'
+#ocgis.env.DIR_DATA = '/media/Helium Backup/narccap'
+ocgis.env.DIR_DATA = '/usr/local/climate_data/narccap'
 ## push data to a common reference projection
 ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+
 
 rds = []
 filenames = os.listdir(ocgis.env.DIR_DATA)
@@ -32,7 +34,9 @@ for variable in np.unique(pieces[:,0]).flat:
             uris = pieces[idx,-1].tolist()
             alias = variable+'_'+gcm+'_'+rcm
             rds.append(ocgis.RequestDataset(uri=uris,alias=alias,variable=variable))
-rds = rds[12]
+
+rds = rds[-3:]
+#import ipdb;ipdb.set_trace()
 
 #import ipdb;ipdb.set_trace()
 ### construct aliases for the datasets
@@ -42,14 +46,14 @@ rds = rds[12]
 ### make the request datasets
 #rds = [ocgis.RequestDataset(uri=fn,variable=variable,alias=alias) for fn,alias in zip(filenames,aliases)]
 
-## write overview shapefiles
+# write overview shapefiles
 #for rd in rds:
 #    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',prefix=rd.alias)
 #    ops.execute()
 
 ## these are the calculations to perform
-#calc = [{'func':'mean','name':'mean'}]
-calc = None
+calc = [{'func':'mean','name':'mean'}]
+#calc = None
 calc_grouping = ['month','year']
 
 ## the operations for index calculation

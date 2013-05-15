@@ -173,7 +173,15 @@ class AbstractVectorDimension(object):
         name_right_bound = 'bnd_right_'+name_value
         
         ret = {}
-        for idx in range(value.shape[0]):
+        ## get the shape in case it is singleton
+        try:
+            shp = value.shape[0]
+        except AttributeError:
+            value = np.array([value])
+            uid = np.array([uid])
+            bounds = np.array([bounds])
+            shp = value.shape[0]
+        for idx in range(shp):
             ret[name_value] = value[idx]
             ret[name_id] = uid[idx]
             if has_bounds:

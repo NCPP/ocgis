@@ -94,7 +94,7 @@ class SubsetOperation(object):
                 ods = rd.ds
                 ref = ods.temporal
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-                    rd.time_range = [ref.value[0],ref.value[0]]
+                    ods._temporal = ods.temporal[0]
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
                     tgdim = ods.temporal.group
@@ -161,7 +161,12 @@ def get_collection((so,geom)):
     ## perform the operations on each request dataset
     if env.VERBOSE: print('{0} request dataset(s) to process.'.format(len(so.ops.dataset)))
     for request_dataset in so.ops.dataset:
-        if env.VERBOSE: print('processing: ugid={0}, alias={1}'.format(geom.spatial.uid[0],request_dataset.alias))
+        if env.VERBOSE:
+            if geom is None:
+                msg = 'processing: alias={0}'.format(request_dataset.alias)
+            else:
+                msg = 'processing: ugid={0}, alias={1}'.format(geom.spatial.uid[0],request_dataset.alias)
+            print(msg)
         ## reference the dataset object
         ods = request_dataset.ds
         ## return a slice or do the other operations
@@ -201,6 +206,7 @@ def get_collection((so,geom)):
                         ods.spatial.vector.wrap()
                 if not so.ops.file_only and ods.value.mask.all():
                     if so.ops.allow_empty:
+                        if env.VERBOSE: print('MASKED DATA - EMPTY IS ALLOWED')
                         pass
                     else:
                         raise(MaskedDataError)

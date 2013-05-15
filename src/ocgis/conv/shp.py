@@ -32,39 +32,40 @@ class ShpConverter(OcgConverter):
         ds = dr.CreateDataSource(self.path)
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
-                
-        build = True
-        for coll in self:
-            for geom,row in coll.get_iter():
-                if build:
-                    if isinstance(geom,MultiPolygon):
-                        geom_type = ogr.wkbMultiPolygon
-                    else:
-                        geom_type = ogr.wkbPoint
-                    if env.WRITE_TO_REFERENCE_PROJECTION:
-                        srs = constants.reference_projection.sr
-                    else:
-                        srs = coll.projection.sr
-                    layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
-                    headers = coll.get_headers(upper=True)
-                    self._set_ogr_fields_(headers,row)
-                    for ogr_field in self.ogr_fields:
-                        layer.CreateField(ogr_field.ogr_field)
-                        feature_def = layer.GetLayerDefn()
-                    build = False
-                feat = ogr.Feature(feature_def)
-                for ii,o in enumerate(self.ogr_fields):
-                    args = [o.ogr_name,o.convert(row[ii])]
-                    try:
-                        feat.SetField(*args)
-                    except NotImplementedError:
-                        args[1] = str(args[1])
-                        feat.SetField(*args)
-#                wkb = self.ocg_dataset.i.projection.project(self.to_sr,row[-1])
-                feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
-                layer.CreateFeature(feat)
         
-        ds = None
+        try:
+            build = True
+            for coll in self:
+                for geom,row in coll.get_iter():
+                    if build:
+                        if isinstance(geom,MultiPolygon):
+                            geom_type = ogr.wkbMultiPolygon
+                        else:
+                            geom_type = ogr.wkbPoint
+                        if env.WRITE_TO_REFERENCE_PROJECTION:
+                            srs = constants.reference_projection.sr
+                        else:
+                            srs = coll.projection.sr
+                        layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
+                        headers = coll.get_headers(upper=True)
+                        self._set_ogr_fields_(headers,row)
+                        for ogr_field in self.ogr_fields:
+                            layer.CreateField(ogr_field.ogr_field)
+                            feature_def = layer.GetLayerDefn()
+                        build = False
+                    feat = ogr.Feature(feature_def)
+                    for ii,o in enumerate(self.ogr_fields):
+                        args = [o.ogr_name,o.convert(row[ii])]
+                        try:
+                            feat.SetField(*args)
+                        except NotImplementedError:
+                            args[1] = str(args[1])
+                            feat.SetField(*args)
+    #                wkb = self.ocg_dataset.i.projection.project(self.to_sr,row[-1])
+                    feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
+                    layer.CreateFeature(feat)
+        except:
+            ds = None
         
     def _set_ogr_fields_(self,headers,row):
         ## do not want to have a geometry field

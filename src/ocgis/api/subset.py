@@ -87,18 +87,17 @@ class SubsetOperation(object):
             
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
+        if env.VERBOSE: print('getting snippet bounds...')
         if self.ops.snippet is True:
             for rd in self.ops.dataset:
-                if env.VERBOSE: print('getting snippet bounds: {0}'.format(rd.alias))
                 rd.level_range = [1,1]
                 ods = rd.ds
-                ref = ods.temporal
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-                    ods._temporal = ods.temporal[0]
+                    ods._load_slice.update({'T':slice(0,1)})
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
                     tgdim = ods.temporal.group
-                    times = ref.value[tgdim.dgroups[0]]
+                    times = ods.temporal.value[tgdim.dgroups[0]]
                     rd.time_range = [times.min(),times.max()]
         
     def __iter__(self):
@@ -205,8 +204,12 @@ def get_collection((so,geom)):
                     if type(ods.spatial.projection) == WGS84 and ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
                         ods.spatial.vector.wrap()
                 if not so.ops.file_only and ods.value.mask.all():
-                    if so.ops.allow_empty:
-                        if env.VERBOSE: print('MASKED DATA - EMPTY IS ALLOWED')
+                    if so.ops.snippet or so.ops.allow_empty:
+                        if env.VERBOSE:
+                            if so.ops.snippet:
+                                print('all masked data encountered but allowed for snippet.')
+                            if so.ops.allow_empty:
+                                print('all masked data encountered but empty returns are allowed.')
                         pass
                     else:
                         raise(MaskedDataError)
@@ -216,11 +219,11 @@ def get_collection((so,geom)):
                 else:
                     raise(ExtentError(request_dataset))
         coll.variables.update({request_dataset.alias:ods})
-        
+
     ## if there are calculations, do those now and return a new type of collection
     if so.cengine is not None:
         coll = so.cengine.execute(coll,file_only=so.ops.file_only)
-        
+    
     ## conversion of groups.
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)

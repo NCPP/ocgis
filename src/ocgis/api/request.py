@@ -68,7 +68,10 @@ class RequestDataset(object):
     @property
     def ds(self):
         if self._ds is None:
-            self._ds = self._Dataset(request_dataset=self)
+            iface = self.interface
+            iface.update({'request_dataset':self,
+                          'abstraction':env.ops.abstraction})
+            self._ds = self._Dataset(**iface)
         return(self._ds)
     
     @property

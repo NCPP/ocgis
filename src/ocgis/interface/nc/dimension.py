@@ -110,6 +110,10 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     
     def __init__(self,grid=None,vector=None,projection=None,abstraction='polygon',
                  row=None,column=None):
+        ##tdk
+        if abstraction == 'polygon':
+            import ipdb;ipdb.set_trace()
+            
         self.abstraction = abstraction
         super(self.__class__,self).__init__(projection=projection)
         if grid is None:

@@ -63,8 +63,17 @@ class ShpConverter(OcgConverter):
                             feat.SetField(*args)
     #                wkb = self.ocg_dataset.i.projection.project(self.to_sr,row[-1])
                     feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
-                    layer.CreateFeature(feat)
-        except:
+                    try:
+                        layer.CreateFeature(feat)
+                    ## likely different geometry types
+                    except RuntimeError:
+                        test_geom = ogr.CreateGeometryFromWkb(geom.wkb)
+                        if geom_type != test_geom.GetGeometryType():
+                            msg = 'Shapefile geometry type and target geometry type do not match. This likely occurred because request datasets mix bounded and unbounded spatial data. Try setting "abstraction" to "point".'
+                            raise(RuntimeError(msg))
+                        else:
+                            raise
+        finally:
             ds = None
         
     def _set_ogr_fields_(self,headers,row):

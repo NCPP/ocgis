@@ -7,7 +7,7 @@ ocgis.env.VERBOSE = True
 
 
 ## set snippet to false to return all data
-snippet = False
+snippet = True
 ## city center coordinate
 geom = [-97.74278,30.26694]
 ## output directory
@@ -35,7 +35,7 @@ for variable in np.unique(pieces[:,0]).flat:
             alias = variable+'_'+gcm+'_'+rcm
             rds.append(ocgis.RequestDataset(uri=uris,alias=alias,variable=variable))
 
-rds = rds[-3:]
+#rds = [rds[0]]
 #import ipdb;ipdb.set_trace()
 
 #import ipdb;ipdb.set_trace()
@@ -52,12 +52,12 @@ rds = rds[-3:]
 #    ops.execute()
 
 ## these are the calculations to perform
-calc = [{'func':'mean','name':'mean'}]
-#calc = None
+#calc = [{'func':'mean','name':'mean'}]
+calc = None
 calc_grouping = ['month','year']
 
 ## the operations for index calculation
 ops = ocgis.OcgOperations(dataset=rds,snippet=snippet,calc=calc,calc_grouping=calc_grouping,
-                          output_format='shp',geom=geom)
+                          output_format='shp',geom=geom,abstraction='point')
 ret = ops.execute()
 import ipdb;ipdb.set_trace()

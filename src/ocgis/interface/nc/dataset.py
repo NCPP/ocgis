@@ -31,6 +31,7 @@ class NcDataset(base.AbstractDataset):
         super(self.__class__,self).__init__(*args,**kwds)
         self.__ds = None
         self.__dim_map = None
+        self._load_slice = {}
         
     def __del__(self):
         try:
@@ -150,7 +151,7 @@ class NcDataset(base.AbstractDataset):
                 self.__ds = nc.MFDataset(self.request_dataset.uri,'r')
         return(self.__ds)
     
-    def get_iter_value(self,add_bounds=True,add_masked=False,value=None,
+    def get_iter_value(self,add_bounds=True,add_masked=True,value=None,
                        temporal_group=False):        
         ## check if the reference projection is different than the dataset
         if type(self.spatial.projection) != type(reference_projection) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
@@ -168,6 +169,8 @@ class NcDataset(base.AbstractDataset):
         is_masked = np.ma.is_masked
         ## reference the value name
         _name_value = self._name_value
+        ## reference the fill_value
+        fill_value = constants.fill_value
         
         ## if iteration over the temporal groups is requested, reference the
         ## appropriate iterator.
@@ -190,7 +193,7 @@ class NcDataset(base.AbstractDataset):
                     ref = value[tidx,0,ridx,cidx]
                     masked = is_masked(ref)
                     if add_masked and masked:
-                        ref = None
+                        ref = fill_value
                     elif not add_masked and masked:
                         continue
                     gret[_name_value] = ref
@@ -395,12 +398,14 @@ class NcDataset(base.AbstractDataset):
     def _load_axis_(self,kls):
         ref = self._dim_map[kls.axis]
         try:
-            value = ref['variable'][:]
+            ## check for any initial slices
+            slc = self._load_slice.get(kls.axis,slice(None))
+            value = np.atleast_1d(ref['variable'][slc])
         except TypeError:
             raise(DummyDimensionEncountered(kls.axis))
         name = ref['variable']._name
         try:
-            bounds = ref['bounds'][:]
+            bounds = ref['bounds'][slc]
             name_bounds = ref['bounds']._name
         ## likely encountered empty bounds
         except TypeError:

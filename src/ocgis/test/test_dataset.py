@@ -106,8 +106,18 @@ class TestNcDataset(TestBase):
         self.assertAlmostEqual(int(res),1)
         trng = [datetime.datetime(2001,1,1),datetime.datetime(2001,12,31,23,59)]
         new_ds = gi.get_subset(temporal=trng)
-        self.assertEqual(new_ds.temporal.shape[0],365)        
+        self.assertEqual(new_ds.temporal.shape[0],365)
         self.assertEqual(new_ds.value.shape,(365,1,64,128))
+        
+    def test_initial_subset(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ods = NcDataset(request_dataset=rd)
+        ods._load_slice.update({'T':slice(0,1)})
+        tp = ods.temporal
+        to_check = [tp.value,tp.uid,tp.real_idx]
+        for tc in to_check: self.assertEqual(tc.shape,(1,))
+        self.assertEqual(tp.bounds.shape,(1,2))
+        self.assertEqual(ods.value.shape,(1,1,64,128))
         
     def test_aggregate(self):
         rd = self.test_data.get_rd('cancm4_tas')

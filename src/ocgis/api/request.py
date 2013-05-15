@@ -44,7 +44,7 @@ class RequestDataset(object):
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
                  s_proj=None,t_units=None,t_calendar=None,did=None):
-        self.uri = self._get_uri_(uri)
+        self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)
@@ -76,6 +76,14 @@ class RequestDataset(object):
         attrs = ['s_proj','t_units','t_calendar']
         ret = {attr:getattr(self,attr) for attr in attrs}
         return(ret)
+    
+    @property
+    def uri(self):
+        if len(self._uri) == 1:
+            ret = self._uri[0]
+        else:
+            ret = self._uri
+        return(ret)
         
     def __eq__(self,other):
         if isinstance(other,self.__class__):
@@ -95,28 +103,36 @@ class RequestDataset(object):
         return(deepcopy(self))
     
     def _get_uri_(self,uri,ignore_errors=False,followlinks=True):
-        ret = None
-        ## check if the path exists locally
-        if os.path.exists(uri) or '://' in uri:
-            ret = uri
-        ## if it does not exist, check the directory locations
+        out_uris = []
+        if isinstance(uri,basestring):
+            uris = [uri]
         else:
-            if env.DIR_DATA is not None:
-                if isinstance(env.DIR_DATA,basestring):
-                    dirs = [env.DIR_DATA]
-                else:
-                    dirs = env.DIR_DATA
-                for directory in dirs:
-                    for filepath in locate(uri,directory,followlinks=followlinks):
-                        ret = filepath
-                        break
-            if ret is None:
-                if not ignore_errors:
-                    raise(ValueError('File not found: "{0}". Check env.DIR_DATA or ensure a fully qualified URI is used.'.format(uri)))
+            uris = uri
+        assert(len(uri) >= 1)
+        for uri in uris:
+            ret = None
+            ## check if the path exists locally
+            if os.path.exists(uri) or '://' in uri:
+                ret = uri
+            ## if it does not exist, check the directory locations
             else:
-                if not os.path.exists(ret) and not ignore_errors:
-                    raise(ValueError('Path does not exist and is likely not a remote URI: "{0}". Set "ignore_errors" to True if this is not the case.'.format(ret)))
-        return(ret)
+                if env.DIR_DATA is not None:
+                    if isinstance(env.DIR_DATA,basestring):
+                        dirs = [env.DIR_DATA]
+                    else:
+                        dirs = env.DIR_DATA
+                    for directory in dirs:
+                        for filepath in locate(uri,directory,followlinks=followlinks):
+                            ret = filepath
+                            break
+                if ret is None:
+                    if not ignore_errors:
+                        raise(ValueError('File not found: "{0}". Check env.DIR_DATA or ensure a fully qualified URI is used.'.format(uri)))
+                else:
+                    if not os.path.exists(ret) and not ignore_errors:
+                        raise(ValueError('Path does not exist and is likely not a remote URI: "{0}". Set "ignore_errors" to True if this is not the case.'.format(ret)))
+            out_uris.append(ret)
+        return(out_uris)
     
     def _str_format_(self,value):
         ret = value

@@ -19,6 +19,7 @@ class SubsetOperation(object):
         self.nprocs = nprocs
         
         if validate:
+            print('validating request datasets...')
             ops.dataset.validate()
             
 #        ## if there are multiple datasets and the input datasets do not match
@@ -78,6 +79,7 @@ class SubsetOperation(object):
         if self.ops.calc is None:
             self.cengine = None
         else:
+            if env.VERBOSE: print('initializing calculation engine...')
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
@@ -87,6 +89,7 @@ class SubsetOperation(object):
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
             for rd in self.ops.dataset:
+                if env.VERBOSE: print('getting snippet bounds: {0}'.format(rd.alias))
                 rd.level_range = [1,1]
                 ods = rd.ds
                 ref = ods.temporal
@@ -137,14 +140,11 @@ class SubsetOperation(object):
         if self.ops.geom is None:
             yield(self,None)
         elif isinstance(self.ops.geom,ShpDataset):
-            if env.VERBOSE:
-                progress = ProgressBar('processing geometries')
-                lg = float(len(self.ops.geom))
+            if env.VERBOSE: print('{0} geometry(s) to process.'.format(len(self.ops.geom)))
             for ii,geom in enumerate(self.ops.geom,start=1):
-                if env.VERBOSE: progress.progress(int((ii/lg)*100))
                 yield(self,geom)
-            if env.VERBOSE: progress.endProgress()
         else:
+            if env.VERBOSE: print('1 geometry to process.')
             yield(self,self.ops.geom)
             
 def get_collection((so,geom)):
@@ -159,7 +159,9 @@ def get_collection((so,geom)):
     ## copy the geometry
     copy_geom = deepcopy(geom)
     ## perform the operations on each request dataset
+    if env.VERBOSE: print('{0} request dataset(s) to process.'.format(len(so.ops.dataset)))
     for request_dataset in so.ops.dataset:
+        if env.VERBOSE: print('processing: ugid={0}, alias={1}'.format(geom.spatial.uid[0],request_dataset.alias))
         ## reference the dataset object
         ods = request_dataset.ds
         ## return a slice or do the other operations

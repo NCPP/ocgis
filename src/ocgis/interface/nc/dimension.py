@@ -144,8 +144,11 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     
     @property
     def pm(self):
+        
         if self.grid.column.bounds is None:
-            raise(NotImplementedError('Prime meridian only valid for bounded data.'))
+            pm = 0.0
+#            import ipdb;ipdb.set_trace()
+#            raise(NotImplementedError('Prime meridian only valid for bounded data.'))
         else:
             pm = 0.0
             ref = self.grid.column.bounds
@@ -153,7 +156,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
                 if ref[idx,0] < 0 and ref[idx,1] > 0:
                     pm = ref[idx,0]
                     break
-            return(pm)
+        return(pm)
     
     @property
     def weights(self):

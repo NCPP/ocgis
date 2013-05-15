@@ -143,7 +143,11 @@ class NcDataset(base.AbstractDataset):
     @property
     def _ds(self):
         if self.__ds is None:
-            self.__ds = nc.Dataset(self.request_dataset.uri,'r')
+            try:
+                self.__ds = nc.Dataset(self.request_dataset.uri,'r')
+            ## likely multiple uris...
+            except TypeError:
+                self.__ds = nc.MFDataset(self.request_dataset.uri,'r')
         return(self.__ds)
     
     def get_iter_value(self,add_bounds=True,add_masked=False,value=None,

@@ -293,7 +293,7 @@ class TestRequestDatasets(TestBase):
         uris = ['pr_CRCM_ccsm_1981010103.nc','pr_CRCM_ccsm_1986010103.nc']
         variable = 'pr'
         rd = RequestDataset(uri=uris,variable=variable)
-        import ipdb;ipdb.set_trace()
+        rd.inspect()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

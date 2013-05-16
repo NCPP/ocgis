@@ -47,13 +47,13 @@ for variable in np.unique(pieces[:,0]).flat:
 #import ipdb;ipdb.set_trace()
 
 # write overview shapefiles
-done = []
-for rd in rds:
-    if rd.variable == 'pr' and rd.meta not in done:
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  prefix=rd.meta['gcm']+'_'+rd.meta['rcm'])
-        ops.execute()
-        done.append(rd.meta)
+#done = []
+#for rd in rds:
+#    if rd.variable == 'pr' and rd.meta not in done:
+#        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+#                                  prefix=rd.meta['gcm']+'_'+rd.meta['rcm'])
+#        ops.execute()
+#        done.append(rd.meta)
 
 ## these are the calculations to perform
 calc = [{'func':'mean','name':'mean'},
@@ -64,8 +64,8 @@ calc = [{'func':'mean','name':'mean'},
 calc_grouping = ['month','year']
 
 ## the operations for index calculation
-ops = ocgis.OcgOperations(dataset=rds,snippet=snippet,calc=calc,calc_grouping=calc_grouping,
-                          output_format='shp',geom=geom,abstraction='point')
+ops = ocgis.OcgOperations(dataset=rds,snippet=False,calc=calc,calc_grouping=calc_grouping,
+                          output_format='csv+',geom=geom,abstraction='point')
 ret = ops.execute()
 
 import ipdb;ipdb.set_trace()

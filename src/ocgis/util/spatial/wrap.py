@@ -127,8 +127,10 @@ class Wrapper(object):
             else:
                 new_geom = geom
         else:
-            if geom.x > 180:
+            if geom.x >= 180:
                 new_geom = Point(geom.x-360,geom.y)
+            else:
+                new_geom = geom
         ## assume the output is multi but the input was not
         if type(new_geom) != return_type:
             new_geom = new_geom[0]

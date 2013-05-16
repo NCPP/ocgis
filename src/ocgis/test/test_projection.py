@@ -1,6 +1,6 @@
 import unittest
 from netCDF4 import Dataset
-from ocgis.interface.projection import get_projection, WGS84
+from ocgis.interface import projection
 from ocgis import Inspect
 from ocgis.api.operations import OcgOperations
 from ocgis.api.request import RequestDataset
@@ -50,6 +50,13 @@ class Test(TestBase):
         rd2 = RequestDataset(uri=daymet_uri,variable='tmax',alias='tmax2')
         ops = OcgOperations(dataset=[rd1,rd2],snippet=True)
         ops.execute()
+        
+    def test_lambert_conformal(self):
+        lc = projection.LambertConformalConic([0,1],1,2,3,4)
+        ps = lc.proj4_str
+        self.assertEqual(ps,'+proj=lcc +lat_1=0 +lat_2=1 +lat_0=2 +lon_0=1 +x_0=3 +y_0=4 +datum=WGS84 +units=km +no_defs ')
+        ds = Dataset(self.daymet)
+        lc2 = projection.LambertConformalConic.init_from_dataset(ds)
 
 
 if __name__ == "__main__":

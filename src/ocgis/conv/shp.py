@@ -69,6 +69,7 @@ class ShpConverter(OcgConverter):
                     except RuntimeError:
                         test_geom = ogr.CreateGeometryFromWkb(geom.wkb)
                         if geom_type != test_geom.GetGeometryType():
+                            import ipdb;ipdb.set_trace()
                             msg = 'Shapefile geometry type and target geometry type do not match. This likely occurred because request datasets mix bounded and unbounded spatial data. Try setting "abstraction" to "point".'
                             raise(RuntimeError(msg))
                         else:

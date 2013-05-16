@@ -1,13 +1,14 @@
 import ocgis
 import os
 import numpy as np
+from ocgis.interface.projection import PolarStereographic
 
 
 ocgis.env.VERBOSE = True
 
 
 ## set snippet to false to return all data
-snippet = True
+snippet = False
 ## city center coordinate
 geom = [-97.74278,30.26694]
 ## output directory
@@ -33,31 +34,38 @@ for variable in np.unique(pieces[:,0]).flat:
                 continue
             uris = pieces[idx,-1].tolist()
             alias = variable+'_'+gcm+'_'+rcm
-            rds.append(ocgis.RequestDataset(uri=uris,alias=alias,variable=variable))
+            if gcm == 'ECP2' and rcm == 'ncep':
+                s_proj = PolarStereographic(60.0,90.0,263.0,4700000.0,8400000.0)
+            else:
+                s_proj = None
+            rd = ocgis.RequestDataset(uri=uris,alias=alias,
+                        variable=variable,s_proj=s_proj,
+                        meta={'gcm':gcm,'rcm':rcm})
+            rds.append(rd)
 
 #rds = [rds[0]]
 #import ipdb;ipdb.set_trace()
 
-#import ipdb;ipdb.set_trace()
-### construct aliases for the datasets
-#aliases = [fn.split('_')[1] for fn in filenames]
-### files all use the same variable
-#variable = 'pr'
-### make the request datasets
-#rds = [ocgis.RequestDataset(uri=fn,variable=variable,alias=alias) for fn,alias in zip(filenames,aliases)]
-
 # write overview shapefiles
-#for rd in rds:
-#    ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',prefix=rd.alias)
-#    ops.execute()
+done = []
+for rd in rds:
+    if rd.variable == 'pr' and rd.meta not in done:
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
+                                  prefix=rd.meta['gcm']+'_'+rd.meta['rcm'])
+        ops.execute()
+        done.append(rd.meta)
 
 ## these are the calculations to perform
-#calc = [{'func':'mean','name':'mean'}]
-calc = None
+calc = [{'func':'mean','name':'mean'},
+        {'func':'median','name':'median'},
+        {'func':'max','name':'max'},
+        {'func':'min','name':'min'}]
+#calc = None
 calc_grouping = ['month','year']
 
 ## the operations for index calculation
 ops = ocgis.OcgOperations(dataset=rds,snippet=snippet,calc=calc,calc_grouping=calc_grouping,
                           output_format='shp',geom=geom,abstraction='point')
 ret = ops.execute()
+
 import ipdb;ipdb.set_trace()

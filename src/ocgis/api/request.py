@@ -43,7 +43,7 @@ class RequestDataset(object):
     _Dataset = NcDataset
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
-                 s_proj=None,t_units=None,t_calendar=None,did=None):
+                 s_proj=None,t_units=None,t_calendar=None,did=None,meta=None):
         self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
@@ -53,6 +53,7 @@ class RequestDataset(object):
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did
+        self.meta = meta or {}
         self._ds = None
         
         self._format_()
@@ -69,8 +70,13 @@ class RequestDataset(object):
     def ds(self):
         if self._ds is None:
             iface = self.interface
-            iface.update({'request_dataset':self,
-                          'abstraction':env.ops.abstraction})
+            try:
+                iface.update({'request_dataset':self,
+                              'abstraction':env.ops.abstraction})
+            ## env likely not present
+            except AttributeError:
+                iface.update({'request_dataset':self,
+                              'abstraction':None})
             self._ds = self._Dataset(**iface)
         return(self._ds)
     

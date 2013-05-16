@@ -110,10 +110,6 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
     
     def __init__(self,grid=None,vector=None,projection=None,abstraction='polygon',
                  row=None,column=None):
-        ##tdk
-        if abstraction == 'polygon':
-            import ipdb;ipdb.set_trace()
-            
         self.abstraction = abstraction
         super(self.__class__,self).__init__(projection=projection)
         if grid is None:
@@ -170,7 +166,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         geoms = self.vector.geom
         name_id = self._name_id
         uid = self.vector.uid
-        
+
         ret = {}
         for ii,jj in iter_array(geoms):
             ret[name_id] = uid[ii,jj]
@@ -183,7 +179,12 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         else:
             row = gi._load_axis_(NcRowDimension)
             column = gi._load_axis_(NcColumnDimension)
-            projection = get_projection(gi._ds)
+            
+            ## check for overloaded projections
+            if gi._s_proj is None:
+                projection = get_projection(gi._ds)
+            else:
+                projection = gi._s_proj
             
             if isinstance(projection,RotatedPole):
                 import csv

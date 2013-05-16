@@ -155,8 +155,6 @@ def get_collection((so,geom)):
     ## using the OcgDataset objects built in the SubsetOperation constructor
     ## do the spatial and temporal subsetting.
     coll = RawCollection(ugeom=geom)
-    ## copy the geometry
-    copy_geom = deepcopy(geom)
     ## perform the operations on each request dataset
     if env.VERBOSE: print('{0} request dataset(s) to process.'.format(len(so.ops.dataset)))
     for request_dataset in so.ops.dataset:
@@ -166,6 +164,8 @@ def get_collection((so,geom)):
             else:
                 msg = 'processing: ugid={0}, alias={1}'.format(geom.spatial.uid[0],request_dataset.alias)
             print(msg)
+        ## copy the geometry
+        copy_geom = deepcopy(geom)
         ## reference the dataset object
         ods = request_dataset.ds
         ## return a slice or do the other operations

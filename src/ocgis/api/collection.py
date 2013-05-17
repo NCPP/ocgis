@@ -133,9 +133,9 @@ class MultivariateCalcCollection(CalcCollection):
         ## determine if there is a temporal grouping
         temporal_group = False if arch.temporal.group is None else True
         if temporal_group:
-            headers = deepcopy(super(MultivariateCalcCollection,self).get_headers())
+            headers = [h.upper() for h in deepcopy(super(MultivariateCalcCollection,self)._get_headers_())]
             ## the variable name is not relevant for multivariate calculations
-            headers.remove('var_name')
+            headers.remove('variable')
             headers.remove('vid')
         else:
             headers = constants.multi_headers

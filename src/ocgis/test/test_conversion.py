@@ -18,7 +18,6 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv+',
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

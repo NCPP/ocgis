@@ -13,13 +13,15 @@ class Test(unittest.TestCase):
     def test_bad_path(self):
         bp = '/a/bad/location'
         with self.assertRaises(ValueError):
-            ShpCabinet(bp)
+            ShpCabinet(bp).get_geoms('state_boundaries')
+            
             
     def test_none_path(self):
         try:
             ocgis.env.DIR_SHPCABINET = None
             with self.assertRaises(ValueError):
-                ShpCabinet()
+                ShpCabinet().get_geoms('state_boundaries')
+                
         finally:
             ocgis.env.reset()
 

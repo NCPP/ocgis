@@ -298,6 +298,7 @@ class TestSimple(TestSimpleBase):
             ret = self.get_ret(ops)
         
     def test_shpidx_conversion(self):
+        raise(SkipTest)
         ops = OcgOperations(dataset=self.get_dataset(),output_format='shpidx')
         ret = self.get_ret(ops)
 

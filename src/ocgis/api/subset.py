@@ -19,7 +19,7 @@ class SubsetOperation(object):
         self.nprocs = nprocs
         
         if validate:
-            print('validating request datasets...')
+            if env.VERBOSE: print('validating request datasets...')
             ops.dataset.validate()
             
 #        ## if there are multiple datasets and the input datasets do not match

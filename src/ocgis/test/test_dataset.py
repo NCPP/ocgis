@@ -125,7 +125,7 @@ class TestNcDataset(TestBase):
         sd = ShpDataset('state_boundaries')
         sd.spatial.unwrap_geoms()
         utah = sd[23].spatial.geom[0]
-        ods = ods.get_subset(spatial_operation='clip',polygon=utah)
+        ods = ods.get_subset(spatial_operation='clip',igeom=utah)
         ods.aggregate()
         self.assertEqual(ods.value.shape,(3650,1,1,1))
         self.assertEqual(ods.raw_value.shape,(3650,1,3,3))
@@ -145,7 +145,7 @@ class TestNcDataset(TestBase):
         weights = ods.spatial.vector.weights
         self.assertEqual(weights.max(),1.)
         poly = make_poly((-62,59),(87,244))
-        nods = ods.get_subset(spatial_operation='intersects',polygon=poly)
+        nods = ods.get_subset(spatial_operation='intersects',igeom=poly)
         with self.assertRaises(AttributeError):
             nods.spatial.shape
         self.assertNotEqual(ods.spatial.vector.shape,nods.spatial.vector.shape)
@@ -163,7 +163,7 @@ class TestNcDataset(TestBase):
         igeom = MultiPolygon(igeom)
         self.assertFalse(np.any(nods.value.mask))
         
-        sods = ods.get_subset(spatial_operation='intersects',polygon=igeom)
+        sods = ods.get_subset(spatial_operation='intersects',igeom=igeom)
         geom_mask = sods.spatial.vector.geom.mask
         value_mask = sods.value.mask[0,:,:,:]
         self.assertTrue(np.all(geom_mask == value_mask))
@@ -200,12 +200,11 @@ class TestNcDataset(TestBase):
         self.assertEqual(sods.temporal.group.value.shape[0],1)
         
     def test_project(self):
-        rd = self.test_data.get_rd('narccap_rcm3')
+        rd = self.test_data.get_rd('cancm4_tas')
         ods = NcDataset(request_dataset=rd)
         dest = WGS84()
-        ods.project(dest)
-        self.assertEqual(type(ods.spatial.projection),WGS84)
-        self.assertAlmostEqual(ods.spatial.grid.resolution,0.15042660982793346)
+        with self.assertRaises(NotImplementedError):
+            ods.project(dest)
             
             
 class TestIteration(TestBase):

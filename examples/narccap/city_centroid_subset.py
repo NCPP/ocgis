@@ -55,17 +55,15 @@ for variable in np.unique(pieces[:,0]).flat:
 #        ops.execute()
 #        done.append(rd.meta)
 
-## these are the calculations to perform
+ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
 calc = [{'func':'mean','name':'mean'},
         {'func':'median','name':'median'},
         {'func':'max','name':'max'},
         {'func':'min','name':'min'}]
-#calc = None
 calc_grouping = ['month','year']
-
-## the operations for index calculation
-ops = ocgis.OcgOperations(dataset=rds,snippet=False,calc=calc,calc_grouping=calc_grouping,
-                          output_format='csv+',geom=geom,abstraction='point')
+ops = ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=calc_grouping,
+                          output_format='shp',geom=[-97.74278,30.26694],
+                          abstraction='point')
 ret = ops.execute()
 
 import ipdb;ipdb.set_trace()

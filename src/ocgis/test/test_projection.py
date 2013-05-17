@@ -14,15 +14,15 @@ class Test(TestBase):
         self.daymet = self.test_data.get_rd('daymet_tmax').uri
         
     def test_WGS84(self):
-        projection = WGS84()
-        self.assertEqual('+proj=longlat +datum=WGS84 +no_defs ',projection.sr.ExportToProj4())
+        proj = projection.WGS84()
+        self.assertEqual('+proj=longlat +datum=WGS84 +no_defs ',proj.sr.ExportToProj4())
     
     def test_get_projection(self):
 #        ip = Inspect(self.daymet,variable='tmax')
 #        ip.__repr__()
         
         ds = Dataset(self.daymet)
-        proj = get_projection(ds)
+        proj = projection.get_projection(ds)
         self.assertEqual(proj.sr.ExportToProj4(),
          '+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5 +lon_0=-100 +x_0=0 +y_0=0 +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs ')
         

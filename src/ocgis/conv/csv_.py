@@ -43,21 +43,27 @@ class CsvPlusConverter(CsvConverter):
                         projection = coll._archetype.spatial.projection
                     ugid_idx = headers.index('UGID')
                     gid_idx = headers.index('GID')
+                    did_idx = headers.index('DID')
                     writer.writerow(headers)
                     build = False
                 for geom,row in coll.get_iter():
-                    gid_file.append({'geom':geom,'ugid':row[ugid_idx],'gid':row[gid_idx]})
+                    gid_file.append({'geom':geom,'did':row[did_idx],
+                                     'ugid':row[ugid_idx],'gid':row[gid_idx]})
                     writer.writerow(row)
         
-        sc = ShpCabinet()
-        shp_dir = os.path.join(self.outdir,'shp')
-        try:
-            os.mkdir(shp_dir)
-        ## catch if the directory exists
-        except OSError:
-            if os.path.exists(shp_dir):
-                pass
-            else:
-                raise
-        shp_path = os.path.join(shp_dir,self.prefix+'_gid.shp')
-        sc.write(gid_file,shp_path,sr=projection.sr)
+        if self.ops.aggregate is True and self.ops.abstraction == 'point':
+            if env.VERBOSE:
+                print('creating a UGID-GID shapefile is not necessary for aggregated point data. use UGID shapefile.')
+        else:
+            sc = ShpCabinet()
+            shp_dir = os.path.join(self.outdir,'shp')
+            try:
+                os.mkdir(shp_dir)
+            ## catch if the directory exists
+            except OSError:
+                if os.path.exists(shp_dir):
+                    pass
+                else:
+                    raise
+            shp_path = os.path.join(shp_dir,self.prefix+'_gid.shp')
+            sc.write(gid_file,shp_path,sr=projection.sr)

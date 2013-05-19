@@ -10,7 +10,7 @@ from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
 from warnings import warn
 from ocgis import constants
-from ocgis.exc import DummyDimensionEncountered
+from ocgis.exc import DummyDimensionEncountered, EmptyData
 import itertools
 from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.constants import reference_projection
@@ -102,7 +102,7 @@ class NcDataset(base.AbstractDataset):
                 
         return(self._value)
     
-    def aggregate(self,new_geom_id=1):
+    def aggregate(self,new_geom_id=1,clip_geom=None):
         ## will hold the unioned geometry
         new_geometry = np.ones((1,1),dtype=object)
         new_geometry = np.ma.array(new_geometry,mask=False)
@@ -123,8 +123,20 @@ class NcDataset(base.AbstractDataset):
             ## execute the union
             new_geometry[0,0] = cascaded_union(ugeom)
         elif self.spatial.abstraction == 'point':
-            pts = MultiPoint([pt for pt in geoms.flat])
-            new_geometry[0,0] = Point(pts.centroid.x,pts.centroid.y)
+            if geoms.shape[0] == 0:
+                raise(EmptyData)
+            else:
+                ## for point aggregation, use the provided clip geometry if
+                ## passed as opposed to the more confusing multipoint centroid.
+                ## there may be a need to implement this later so the old code
+                ## remains.
+                if clip_geom is None:
+                    raise(NotImplementedError)
+                    pts = MultiPoint([pt for pt in geoms.flat])
+                    new_fill = Point(pts.centroid.x,pts.centroid.y)
+                else:
+                    new_fill = clip_geom
+                new_geometry[0,0] = new_fill
         else:
             raise(NotImplementedError)
         ## overwrite the original geometry

@@ -1,14 +1,13 @@
 import itertools
 from multiprocessing import Pool
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis import env, constants
+from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
-from ocgis.util.helpers import ProgressBar
 
 
 class SubsetOperation(object):
@@ -87,12 +86,13 @@ class SubsetOperation(object):
             
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
-        if env.VERBOSE: print('getting snippet bounds...')
         if self.ops.snippet is True:
+            if env.VERBOSE: print('getting snippet bounds...')
             for rd in self.ops.dataset:
                 rd.level_range = [1,1]
                 ods = rd.ds
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
+                    ## TODO: improve slicing to not load all time values
                     ods._load_slice.update({'T':slice(0,1)})
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
@@ -196,12 +196,16 @@ def get_collection((so,geom)):
                                      level=request_dataset.level_range)
                 if so.ops.aggregate:
                     try:
-                        new_geom_id = copy_geom.uid
+                        new_geom_id = copy_geom.spatial.uid[0]
                     except AttributeError:
                         new_geom_id = 1
-                    ods.aggregate(new_geom_id=new_geom_id)
+                    ods.aggregate(new_geom_id=new_geom_id,
+                                  clip_geom=copy_geom.spatial.geom[0])
                 if not env.OPTIMIZE_FOR_CALC:
-                    if type(ods.spatial.projection) == WGS84 and ods.spatial.is_360 and so.ops.output_format != 'nc' and so.ops.vector_wrap:
+                    if type(ods.spatial.projection) == WGS84 and \
+                       ods.spatial.is_360 and \
+                       so.ops.output_format != 'nc' and \
+                       so.ops.vector_wrap:
                         ods.spatial.vector.wrap()
                 if not so.ops.file_only and ods.value.mask.all():
                     if so.ops.snippet or so.ops.allow_empty:
@@ -215,7 +219,9 @@ def get_collection((so,geom)):
                         raise(MaskedDataError)
             except EmptyData:
                 if so.ops.allow_empty:
-                    ods = None
+                    if env.VERBOSE:
+                        print('the geometric operations returned empty but empty returns are allowed')
+                    continue
                 else:
                     raise(ExtentError(request_dataset))
         coll.variables.update({request_dataset.alias:ods})

@@ -527,7 +527,7 @@ class NcPointDimension(NcPolygonDimension):
                     geom_mask[ii,jj] = True
             
         ret = self.__class__(grid=grid,geom=geom,uid=grid.uid)
-        
+
         return(ret)
 
     def _get_all_geoms_(self):

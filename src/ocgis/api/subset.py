@@ -20,59 +20,6 @@ class SubsetOperation(object):
         if validate:
             if env.VERBOSE: print('validating request datasets...')
             ops.dataset.validate()
-            
-#        ## if there are multiple datasets and the input datasets do not match
-#        ## the reference projection, project the datasets to match the reference
-#        ## projection.
-#        if len(ops.dataset) > 1:
-#            for rd in ops.dataset:
-#                if type(rd.ds.spatial.projection) != type(constants.reference_projection):
-#                    rd.ds.project(constants.reference_projection)
-        
-#        ## construct OcgDataset objects
-#        for request_dataset in env.ops.dataset:
-#            import ipdb;ipdb.set_trace()
-#            iface = request_dataset.interface.copy()
-#            iface.update({'s_abstraction':self.ops.abstraction})
-#            ods = OcgDataset(request_dataset,
-#                             interface_overload=iface)
-#            
-#            request_dataset.ocg_dataset = ods
-        
-        ## move to operations ##################################################
-        
-        
-#        ## determine if dimensions are equivalent.
-#        mappers = [EqualSpatialDimensionMapper,EqualTemporalDimensionMapper,EqualLevelDimensionMapper]
-#        for mapper in mappers:
-#            mapper(self.ops.dataset)
-#            
-#        ## ensure they are all the same type of spatial interfaces. raise an error
-#        ## otherwise.
-#        types = [type(ods['ocg_dataset'].i.spatial) for ods in self.ops.dataset]
-#        if all([t == SpatialInterfacePolygon for t in types]):
-#            self.itype = SpatialInterfacePolygon
-#        elif all([t == SpatialInterfacePoint for t in types]):
-#            self.itype = SpatialInterfacePoint
-#        else:
-#            raise(ValueError('Input datasets must have same geometry types. Perhaps overload "s_abstraction"?'))
-#        
-#        ## ensure all data has the same projection
-#        projections = [ods.ocg_dataset.i.spatial.projection.sr.ExportToProj4() for ods in self.ops.dataset]
-#        projection_test = [projections[0] == ii for ii in projections]
-#        if not all(projection_test):
-#            raise(ValueError('Input datasets must share a common projection.'))
-#        
-        ## if the target dataset(s) has a different projection than WGS84, the
-        ## selection geometries will need to be projected.
-            
-#            from ocgis.util.helpers import shapely_to_shp
-#            shapely_to_shp(ops.geom.spatial.geom[0],'/tmp/foo/foo.shp',srs=ops.geom.spatial.projection.sr)
-#            import ipdb;ipdb.set_trace()
-#        if not self.ops._get_object_('geom').is_empty:
-#            if self.ops.dataset[0].ocg_dataset.i.spatial.projection != self.ops.geom.ocgis.sr.ExportToProj4():
-#                new_geom = self.ops.geom.ocgis.get_projected(self.ops.dataset[0].ocg_dataset.i.spatial.projection.sr)
-#                self.ops.geom = new_geom
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -87,13 +34,20 @@ class SubsetOperation(object):
         ## check for snippet request in the operations dictionary. if there is
         ## on, the time range should be set in the operations dictionary.
         if self.ops.snippet is True:
+            ##TODO: move snippet to iteration
             if env.VERBOSE: print('getting snippet bounds...')
             for rd in self.ops.dataset:
                 rd.level_range = [1,1]
                 ods = rd.ds
+                ## load the first time slice if there is calculation or the 
+                ## calculation does not use a temporal group.
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-                    ## TODO: improve slicing to not load all time values
+                    ##TODO: improve slicing to not load all time values
                     ods._load_slice.update({'T':slice(0,1)})
+                ## snippet for the computation. this currently requires loading
+                ## all the data for the time dimension into memory.
+                ##TODO: more efficiently pull dates for monthly grouping (for
+                ##example).
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
                     tgdim = ods.temporal.group
@@ -101,12 +55,7 @@ class SubsetOperation(object):
                     rd.time_range = [times.min(),times.max()]
         
     def __iter__(self):
-        '''Return OcgCollection objects from the cache or directly from
-        source data.
-        
-        yields
-        
-        OcgCollection'''
+        ''':rtype: AbstractCollection'''
         
         ## simple iterator for serial operations
         if self.serial:
@@ -128,32 +77,29 @@ class SubsetOperation(object):
                 break
         
     def _iter_proc_args_(self):
-        '''Generate arguments for the extraction function.
-        
-        yields
-        
-        SubsetOperation
-        geom_dict :: dict
-        '''
-        
+        ''':rtype: tuple'''
+        ## if there is no geometry, yield None.
         if self.ops.geom is None:
             yield(self,None)
+        ## iterator through geometries in the ShpDataset
         elif isinstance(self.ops.geom,ShpDataset):
             if env.VERBOSE: print('{0} geometry(s) to process.'.format(len(self.ops.geom)))
-            for ii,geom in enumerate(self.ops.geom,start=1):
+            for geom in self.ops.geom:
                 yield(self,geom)
+        ## otherwise, the data is likely a GeometryDataset with a single value.
+        ## just return it.
         else:
             if env.VERBOSE: print('1 geometry to process.')
             yield(self,self.ops.geom)
             
 def get_collection((so,geom)):
-    '''Execute requested operations.
+    '''
+    :type so: SubsetOperation
+    :type geom: None, GeometryDataset, ShpDataset
+    :rtype: AbstractCollection
+    '''
     
-    so :: SubsetOperation
-    geom_dict :: GeometryDataset'''
-    
-    ## using the OcgDataset objects built in the SubsetOperation constructor
-    ## do the spatial and temporal subsetting.
+    ## initialize the collection object to store the subsetted data.
     coll = RawCollection(ugeom=geom)
     ## perform the operations on each request dataset
     if env.VERBOSE: print('{0} request dataset(s) to process.'.format(len(so.ops.dataset)))
@@ -194,19 +140,27 @@ def get_collection((so,geom)):
                                      igeom=igeom,
                                      temporal=request_dataset.time_range,
                                      level=request_dataset.level_range)
+                ## aggregate the geometries and data if requested
                 if so.ops.aggregate:
+                    ## the new geometry will have the same id as the passed
+                    ## geometry. if it does not have one, simple give it a value
+                    ## of 1 as it is the only geometry requested for subsetting.
                     try:
                         new_geom_id = copy_geom.spatial.uid[0]
                     except AttributeError:
                         new_geom_id = 1
+                    ## do the aggregation in place.
                     ods.aggregate(new_geom_id=new_geom_id,
                                   clip_geom=copy_geom.spatial.geom[0])
+                ## wrap the returned data depending on the conditions of the
+                ## operations.
                 if not env.OPTIMIZE_FOR_CALC:
                     if type(ods.spatial.projection) == WGS84 and \
                        ods.spatial.is_360 and \
                        so.ops.output_format != 'nc' and \
                        so.ops.vector_wrap:
                         ods.spatial.vector.wrap()
+                ## check for all masked values
                 if not so.ops.file_only and ods.value.mask.all():
                     if so.ops.snippet or so.ops.allow_empty:
                         if env.VERBOSE:
@@ -217,6 +171,8 @@ def get_collection((so,geom)):
                         pass
                     else:
                         raise(MaskedDataError)
+            ## there may be no data returned - this may be real or could be an
+            ## error. by default, empty returns are not allowed
             except EmptyData:
                 if so.ops.allow_empty:
                     if env.VERBOSE:

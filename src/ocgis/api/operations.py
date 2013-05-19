@@ -4,7 +4,6 @@ import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
-from ocgis.interface.projection import WGS84
 
 
 class OcgOperations(object):
@@ -129,14 +128,6 @@ class OcgOperations(object):
                 object.__setattr__(self, name, value)
         if self._is_init is False:
             self._validate_()
-            
-#    def __getstate__(self):
-#        import ipdb;ipdb.set_trace()
-#        state = self.as_dict()
-#        return(state)
-#    
-#    def __setstate__(self,state):
-#        import ipdb;ipdb.set_trace()
     
     def get_meta(self):
         meta_converter = MetaConverter(self)

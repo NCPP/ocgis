@@ -7,6 +7,7 @@ from copy import deepcopy
 
 
 class AbstractCollection(object):
+    '''Abstract base class for all collection types.'''
     __metaclass__ = ABCMeta
     
     @property

@@ -3,7 +3,6 @@ from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
 from ocgis.conv.base import OcgConverter
 from subset import SubsetOperation
-from ocgis.util.helpers import union_geoms
 import os
 import shutil
 

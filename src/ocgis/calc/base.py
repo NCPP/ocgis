@@ -9,6 +9,7 @@ from ocgis.calc.groups import OcgFunctionGroup
 
 
 class OcgFunctionTree(object):
+    '''Used by front-end services to retrieve information on available computations.'''
     Groups = [groups.BasicStatistics,groups.Thresholds]
     
     @staticmethod

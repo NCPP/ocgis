@@ -9,23 +9,16 @@ from warnings import warn
 
 class OcgCalculationEngine(object):
     '''
-    grouping : list of bool ndarray : temporal groups
-    timevec : ndarray of datetime.datetime : actual datetime objects
-    funcs : dict : dictionary of function definitions
-    raw=False : bool : true if calculation should be on raw data values
-    agg=False : bool : true if calculations should be performed on aggregated values
-    time_range : list of datetime.datetime : bounding range for time selection
+    :type grouping: list of temporal groupings (e.g. ['month','year'])
+    :type funcs: list of function dictionaries
+    :type raw: bool
+    :type agg: bool
     '''
     
     def __init__(self,grouping,funcs,raw=False,agg=False):
         self.raw = raw
         self.agg = agg
         self.grouping = grouping
-        ## always calculate the sample size. do a copy so functions list cannot
-        ## grow in memory. only a problem when testing.
-#        funcs_copy = copy(funcs)
-#        funcs_copy.insert(0,{'func':'n'})
-#        self.funcs = self.set_funcs(funcs)
         self.funcs = funcs
         ## select which value data to pull based on raw and agg arguments
         if self.raw:
@@ -38,19 +31,6 @@ class OcgCalculationEngine(object):
         ## check for multivariate functions
         check = [issubclass(f['ref'],OcgCvArgFunction) for f in funcs]
         self.has_multi = True if any(check) else False
-        
-#    def set_funcs(self,funcs):
-#        potentials = OcgFunctionTree.get_potentials()
-#        for f in funcs:
-#            for p in potentials:
-#                if p[0] == f['func']:
-#                    f['ref'] = getattr(library,p[1])
-#                    break
-#            if 'name' not in f:
-#                f['name'] = f['func']
-#            if 'kwds' not in f:
-#                f['kwds'] = {}
-#        return(funcs)
 
     def _get_value_weights_(self,ds):
         ## select the value source based on raw or aggregated switches
@@ -79,13 +59,7 @@ class OcgCalculationEngine(object):
         if self.grouping is not None:
             for ds in coll.variables.itervalues():
                 ds.temporal.set_grouping(self.grouping)
-#                import ipdb;ipdb.set_trace()
-#            import ipdb;ipdb.set_trace()
-#            for ocg_variable in coll.variables.itervalues():
-#                ocg_variable.group(self.grouping)
-        
-#        ## flag used for sample size calculation for multivariate calculations
-#        has_multi = False
+
         ## iterate over functions
         for f in self.funcs:
             ## change behavior for multivariate functions
@@ -108,8 +82,6 @@ class OcgCalculationEngine(object):
                     value,weights = self._get_value_weights_(dref)
                     ## get the calculation groups and weights.
                     if ii == 0:
-#                        arch = dref
-#                        weights = dref.spatial.weights
                         if self.grouping is None:
                             dgroups = None
                         else:
@@ -121,9 +93,6 @@ class OcgCalculationEngine(object):
                 calc = ref.calculate()
                 ## store calculation value
                 ret.calc[f['name']] = calc
-#                var = OcgMultivariateCalculationVariable(f['name'],calc,arch.temporal,arch.spatial,arch.level)
-#                var.temporal_group = arch.temporal_group
-#                coll.add_multivariate_calculation_variable(var)
             else:
                 ## perform calculation on each variable
                 for alias,var in coll.variables.iteritems():
@@ -149,22 +118,6 @@ class OcgCalculationEngine(object):
                                 raise
                         ## calculate the values
                         calc = ref.calculate()
-                    ## update calculation identifier
-#                    add_name = f['name']
                     ## store the values
                     ret.calc[alias][f['name']] = calc
         return(ret)
-#                    import ipdb;ipdb.set_trace()
-#                    var.calc_value.update({add_name:calc})
-##                    coll.cid.add(add_name)
-#                    coll.add_calculation(var)
-#        ## calculate sample size for multivariate calculation
-#        if has_multi:
-#            import ipdb;ipdb.set_trace()
-#            for ii,(key,value) in enumerate(coll.variables.iteritems()):
-#                if ii == 0:
-#                    n = value.calc_value['n_'+key].copy()
-#                else:
-#                    n += value.calc_value['n_'+key]
-#            coll.calc_multi['n_multi'] = n
-#            coll.cid.add('n_multi')

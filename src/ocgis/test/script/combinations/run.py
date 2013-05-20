@@ -35,7 +35,6 @@ class CombinationRunner(object):
     def __iter__(self):
         its = [p().__iter__() for p in self.get_parameters()]
         for ii,values in enumerate(itertools.product(*its)):
-            if self.verbose: print(ii)
             if self.target_combo is not None:
                 if self.target_combo > ii:
                     continue
@@ -50,6 +49,7 @@ class CombinationRunner(object):
                         self.check_blocked(ops)
                     except BlockedCombination:
                         continue
+                    if self.verbose: print(ii)
                     if self.ops_only:
                         yld = (ii,ops)
                     else:
@@ -96,5 +96,5 @@ class CombinationRunner(object):
     
     
 if __name__ == '__main__':
-    cr = CombinationRunner(target_combo=10376)
+    cr = CombinationRunner(target_combo=5000)
     cr.execute()

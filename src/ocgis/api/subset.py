@@ -150,8 +150,9 @@ def get_collection((so,geom)):
                     except AttributeError:
                         new_geom_id = 1
                     ## do the aggregation in place.
+                    clip_geom = None if copy_geom is None else copy_geom.spatial.geom[0]
                     ods.aggregate(new_geom_id=new_geom_id,
-                                  clip_geom=copy_geom.spatial.geom[0])
+                                  clip_geom=clip_geom)
                 ## wrap the returned data depending on the conditions of the
                 ## operations.
                 if not env.OPTIMIZE_FOR_CALC:

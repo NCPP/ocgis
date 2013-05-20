@@ -205,8 +205,7 @@ class TestSimple(TestSimpleBase):
             self.get_ret(kwds={'geom':geom})
             
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
-        ref = ret[1].variables[self.var]
-        self.assertEqual(ref,None)
+        self.assertEqual(len(ret[1].variables),0)
         
     def test_snippet(self):
         ret = self.get_ret(kwds={'snippet':True})

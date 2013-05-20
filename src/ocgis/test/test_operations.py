@@ -3,11 +3,9 @@ from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
 from ocgis.util.helpers import make_poly
-from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis import env
 import os.path
 from ocgis.api.parms import definition
-from ocgis.api.geometry import SelectionGeometry
 import pickle
 import ocgis
 from ocgis.test.base import TestBase
@@ -96,8 +94,7 @@ class Test(TestBase):
         geoms = ShpDataset('mi_watersheds')
         g = definition.Geom(geoms)
         self.assertEqual(len(g.value),60)
-        with self.assertRaises(CannotEncodeUrl):
-            g.get_url_string()
+        self.assertEqual(g.get_url_string(),'mi_watersheds')
         
     def test_calc_grouping(self):
         _cg = [

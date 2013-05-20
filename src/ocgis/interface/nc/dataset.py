@@ -131,7 +131,6 @@ class NcDataset(base.AbstractDataset):
                 ## there may be a need to implement this later so the old code
                 ## remains.
                 if clip_geom is None:
-                    raise(NotImplementedError)
                     pts = MultiPoint([pt for pt in geoms.flat])
                     new_fill = Point(pts.centroid.x,pts.centroid.y)
                 else:

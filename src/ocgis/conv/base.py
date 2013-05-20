@@ -101,16 +101,16 @@ class OcgConverter(object):
         from ocgis.conv.shp import ShpConverter
         from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
         from ocgis.conv.numpy_ import NumpyConverter
-        from ocgis.conv.shpidx import ShpIdxConverter
-        from ocgis.conv.keyed import KeyedConverter
+#        from ocgis.conv.shpidx import ShpIdxConverter
+#        from ocgis.conv.keyed import KeyedConverter
         from ocgis.conv.nc import NcConverter
         
         mmap = {'shp':ShpConverter,
                 'csv':CsvConverter,
                 'csv+':CsvPlusConverter,
                 'numpy':NumpyConverter,
-                'shpidx':ShpIdxConverter,
-                'keyed':KeyedConverter,
+#                'shpidx':ShpIdxConverter,
+#                'keyed':KeyedConverter,
                 'nc':NcConverter}
         
         return(mmap[output_format])

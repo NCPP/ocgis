@@ -68,7 +68,7 @@ class RawCollection(AbstractCollection):
             vid += 1
             
     def _get_headers_(self):
-        return(constants.raw_headers)
+        return(deepcopy(constants.raw_headers))
         
         
 class CalcCollection(AbstractCollection):
@@ -104,7 +104,7 @@ class CalcCollection(AbstractCollection):
             vid += 1
             
     def _get_headers_(self):
-        return(constants.calc_headers)
+        return(deepcopy(constants.calc_headers))
             
             
 class MultivariateCalcCollection(CalcCollection):
@@ -134,8 +134,11 @@ class MultivariateCalcCollection(CalcCollection):
         ## determine if there is a temporal grouping
         temporal_group = False if arch.temporal.group is None else True
         if temporal_group:
-            headers = [h.upper() for h in deepcopy(super(MultivariateCalcCollection,self)._get_headers_())]
+            headers = super(MultivariateCalcCollection,self)._get_headers_()
+#            headers = [h.upper() for h in deepcopy(super(MultivariateCalcCollection,self)._get_headers_())]
             ## the variable name is not relevant for multivariate calculations
+            headers.remove('did')
+            headers.remove('alias')
             headers.remove('variable')
             headers.remove('vid')
         else:

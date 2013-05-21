@@ -7,29 +7,16 @@ from subprocess import check_call
 import shutil
 import os
 import tempfile
+import tarfile
 
 
-config = ConfigParser.ConfigParser()
-config.read('setup.cfg')
-
-parser = argparse.ArgumentParser(description='Install/uninstall OpenClimateGIS. Use "setup.cfg" to find or set default values.')
-parser.add_argument("action",type=str,choices=['install','install_dependencies_ubuntu','uninstall'],help='The action to perform with the installer.')
-#parser.add_argument("--with-shp",help='download shapefile regions of interest',action='store_true')
-#parser.add_argument("--shp-prefix",help='location to hold shapefiles',default=config.get('shp','url'))
-#parser.add_argument("--shp-url",help='URL location of shapefiles',default=config.get('shp','url'))
-#parser.add_argument("--with-bin",help='download binary files for testing',default=config.get('test','dir'),action='store_true')
-#parser.add_argument("--bin-prefix",help='location to hold binary test files',default=config.get('shp','url'))
-#parser.add_argument("--bin-url",help='URL location of binary test files',default=config.get('test','url'))
-ARGS = parser.parse_args()
-
-################################################################################
-
-def install(version='0.05b'):
+def install(pargs,version='0.05.1b'):
     ## check python version
-    python_version = float(sys.version_info.major) + float(sys.version_info.minor)/10
+    python_version = float(sys.version_info[0]) + float(sys.version_info[1])/10
     if python_version != 2.7:
-        raise(ImportError('This software requires Python version 2.7.x.'))
-    
+        raise(ImportError(
+            'This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
+
     ## attempt package imports
     pkgs = ['numpy','netCDF4','osgeo','shapely']
     for pkg in pkgs:
@@ -38,7 +25,7 @@ def install(version='0.05b'):
         except ImportError:
             msg = 'Unable to import Python package: "{0}".'.format(pkg)
             raise(ImportError(msg))
-    
+
     ## get package structure
     def _get_dot_(path,root='src'):
         ret = []
@@ -64,25 +51,25 @@ def install(version='0.05b'):
           version=version,
           author='NESII/CIRES/NOAA-ESRL',
           author_email='ocgis_support@list.woc.noaa.gov',
-          url='https://github.com/NCPP/ocgis/tags',
-          license='BSD License',
+          url='http://ncpp.github.io/ocgis/install.html#installing-openclimategis',
+          license='NCSA License',
           platforms=['all'],
           packages=packages,
           package_dir=package_dir
           )
-    
-def install_dependencies_ubuntu():
-    
+
+def install_dependencies_ubuntu(pargs):
+
     cwd = os.getcwd()
     out = 'install_out.log'
     err = 'install_err.log'
     odir = tempfile.mkdtemp()
     stdout = open(out,'w')
     stderr = open(err,'w')
-    
+
     def call(args):
         check_call(args,stdout=stdout,stderr=stderr)
-    
+
     def install_dependency(odir,url,tarball,edir,config_flags=None,custom_make=None):
         path = tempfile.mkdtemp(dir=odir)
         os.chdir(path)
@@ -101,21 +88,21 @@ def install_dependencies_ubuntu():
         else:
             print('installing {0}...'.format(edir))
             custom_make()
-    
+
     print('installing apt packages...')
     call(['apt-get','update'])
     call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
     print('installing shapely...')
     call(['easy_install','shapely'])
-    
+
     prefix = '/usr/local'
-    
+
     hdf5 = 'hdf5-1.8.10-patch1'
     hdf5_tarball = '{0}.tar.gz'.format(hdf5)
     hdf5_url = 'http://www.hdfgroup.org/ftp/HDF5/current/src/{0}'.format(hdf5_tarball)
     hdf5_flags = ['--prefix={0}'.format(prefix),'--enable-shared','--enable-hl']
     install_dependency(odir,hdf5_url,hdf5_tarball,hdf5,hdf5_flags)
-    
+
     nc4 = 'netcdf-4.2.1'
     nc4_tarball = '{0}.tar.gz'.format(nc4)
     nc4_url = 'ftp://ftp.unidata.ucar.edu/pub/netcdf/{0}'.format(nc4_tarball)
@@ -125,7 +112,7 @@ def install_dependencies_ubuntu():
     install_dependency(odir,nc4_url,nc4_tarball,nc4,nc4_flags)
     os.unsetenv('LDFLAGS')
     os.unsetenv('CPPFLAGS')
-    
+
     nc4p = 'netCDF4-1.0.4'
     nc4p_tarball = '{0}.tar.gz'.format(nc4p)
     nc4p_url = 'http://netcdf4-python.googlecode.com/files/{0}'.format(nc4p_tarball)
@@ -133,14 +120,58 @@ def install_dependencies_ubuntu():
     def nc4p_make():
         call(['python','setup.py','install'])
     install_dependency(odir,nc4p_url,nc4p_tarball,nc4p,custom_make=nc4p_make)
-    
-    
+
+
     stdout.close()
+    stderr.close()
     #shutil.rmtree(odir)
     os.chdir(cwd)
     print('dependencies installed.')
+    
+def package(pargs):
+    ## get destination directory
+    dst = pargs.d or os.getcwd()
+    if not os.path.exists(dst):
+        raise(IOError('Destination directory does not exist: {0}'.format(dst)))
 
-def uninstall():
+    ## import ocgis using relative locations
+    opath = os.path.join(os.getcwd(),'src')
+    sys.path.append(opath)
+    
+    to_tar = []
+    
+    if pargs.target in ['shp','all']:
+        import ocgis
+        shp_dir = ocgis.env.DIR_SHPCABINET
+        for dirpath,dirnames,filenames in os.walk(shp_dir):
+            for filename in filenames:
+                path = os.path.join(dirpath,filename)
+                arcname = os.path.join('ocgis_data','shp',os.path.split(dirpath)[1],filename)
+                to_tar.append({'path':path,'arcname':arcname})
+    
+    if pargs.target in ['nc','all']:
+        from ocgis.test.base import TestBase
+        tdata = TestBase.get_tdata()
+        for key,value in tdata.iteritems():
+            path = tdata.get_uri(key)
+            arcname = os.path.join('ocgis_data','nc',tdata.get_relative_path(key))
+            to_tar.append({'path':path,'arcname':arcname})
+    
+    out = os.path.join(os.path.join(dst,'ocgis_data.tar.gz'))
+    if pargs.verbose: print('destination file is: {0}'.format(out))
+    tf = tarfile.open(out,'w:gz')
+    try:
+        for tz in to_tar:
+            if pargs.verbose and any([tz['path'].endswith(ii) for ii in ['shp','nc']]):
+                print('adding: {0}'.format(tz['path']))
+            tf.add(tz['path'],arcname=tz['arcname'])
+    finally:
+        if pargs.verbose: print('closing file...')
+        tf.close()
+    
+    if pargs.verbose: print('compression complete.')
+
+def uninstall(pargs):
     try:
         import ocgis
         print('To uninstall, manually remove the Python package folder located here: {0}'.format(os.path.split(ocgis.__file__)[0]))
@@ -149,9 +180,26 @@ def uninstall():
 
 ################################################################################
 
-if ARGS.action == 'install':
-    install()
-elif ARGS.action == 'install_dependencies_ubuntu':
-    install_dependencies_ubuntu()
-elif ARGS.action == 'uninstall':
-    uninstall()
+config = ConfigParser.ConfigParser()
+config.read('setup.cfg')
+
+parser = argparse.ArgumentParser(description='install/uninstall OpenClimateGIS. use "setup.cfg" to find or set default values.')
+parser.add_argument('-v','--verbose',action='store_true',help='print potentially useful information')
+subparsers = parser.add_subparsers()
+
+pinstall = subparsers.add_parser('install',help='install the OpenClimateGIS Python package')
+pinstall.set_defaults(func=install)
+
+pubuntu = subparsers.add_parser('install_dependencies_ubuntu',help='attempt to install OpenClimateGIS dependencies using standard Ubuntu Linux operations')
+pubuntu.set_defaults(func=install_dependencies_ubuntu)
+
+puninstall = subparsers.add_parser('uninstall',help='instructions on how to uninstall the OpenClimateGIS Python package')
+puninstall.set_defaults(func=uninstall)
+
+ppackage = subparsers.add_parser('package',help='utilities for packaging shapefile and NetCDF test datasets')
+ppackage.set_defaults(func=package)
+ppackage.add_argument('target',type=str,choices=['shp','nc','all'],help='Select the files to package.')
+ppackage.add_argument('-d','--directory',dest='d',type=str,metavar='dir',help='the destination directory. if not specified, it defaults to the current working directory.')
+
+pargs = parser.parse_args()
+pargs.func(pargs)

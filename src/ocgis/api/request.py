@@ -1,11 +1,13 @@
 from datetime import datetime
 from copy import deepcopy
 import os
-from ocgis import env
+from ocgis import env, constants
 from ocgis.util.helpers import locate
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
 from ocgis.util.inspect import Inspect
+from ocgis.interface.nc.dataset import NcDataset
+import ocgis
 
 
 class RequestDataset(object):
@@ -39,10 +41,11 @@ class RequestDataset(object):
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
+    _Dataset = NcDataset
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
-                 s_proj=None,t_units=None,t_calendar=None):
-        self.uri = self._get_uri_(uri)
+                 s_proj=None,t_units=None,t_calendar=None,did=None,meta=None):
+        self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)
@@ -50,11 +53,9 @@ class RequestDataset(object):
         self.s_proj = self._str_format_(s_proj)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
-        
-        self.ocg_dataset = None
-        
-        ## used for keyed iteratory to avoid writing duplicate identifiers.
-        self._use_for_id = []
+        self.did = did
+        self.meta = meta or {}
+        self._ds = None
         
         self._format_()
     
@@ -67,9 +68,31 @@ class RequestDataset(object):
         return(ip)
     
     @property
+    def ds(self):
+        if self._ds is None:
+            iface = self.interface
+            try:
+                iface.update({'request_dataset':self,
+                              'abstraction':env.ops.abstraction})
+            ## env likely not present
+            except AttributeError:
+                iface.update({'request_dataset':self,
+                              'abstraction':None})
+            self._ds = self._Dataset(**iface)
+        return(self._ds)
+    
+    @property
     def interface(self):
         attrs = ['s_proj','t_units','t_calendar']
         ret = {attr:getattr(self,attr) for attr in attrs}
+        return(ret)
+    
+    @property
+    def uri(self):
+        if len(self._uri) == 1:
+            ret = self._uri[0]
+        else:
+            ret = self._uri
         return(ret)
         
     def __eq__(self,other):
@@ -86,29 +109,40 @@ class RequestDataset(object):
         ret = getattr(self,item)
         return(ret)
     
+    def copy(self):
+        return(deepcopy(self))
+    
     def _get_uri_(self,uri,ignore_errors=False,followlinks=True):
-        ret = None
-        ## check if the path exists locally
-        if os.path.exists(uri) or '://' in uri:
-            ret = uri
-        ## if it does not exist, check the directory locations
+        out_uris = []
+        if isinstance(uri,basestring):
+            uris = [uri]
         else:
-            if env.DIR_DATA is not None:
-                if isinstance(env.DIR_DATA,basestring):
-                    dirs = [env.DIR_DATA]
-                else:
-                    dirs = env.DIR_DATA
-                for directory in dirs:
-                    for filepath in locate(uri,directory,followlinks=followlinks):
-                        ret = filepath
-                        break
-            if ret is None:
-                if not ignore_errors:
-                    raise(ValueError('File not found: "{0}". Check env.DIR_DATA or ensure a fully qualified URI is used.'.format(uri)))
+            uris = uri
+        assert(len(uri) >= 1)
+        for uri in uris:
+            ret = None
+            ## check if the path exists locally
+            if os.path.exists(uri) or '://' in uri:
+                ret = uri
+            ## if it does not exist, check the directory locations
             else:
-                if not os.path.exists(ret) and not ignore_errors:
-                    raise(ValueError('Path does not exist and is likely not a remote URI: "{0}". Set "ignore_errors" to True if this is not the case.'.format(ret)))
-        return(ret)
+                if env.DIR_DATA is not None:
+                    if isinstance(env.DIR_DATA,basestring):
+                        dirs = [env.DIR_DATA]
+                    else:
+                        dirs = env.DIR_DATA
+                    for directory in dirs:
+                        for filepath in locate(uri,directory,followlinks=followlinks):
+                            ret = filepath
+                            break
+                if ret is None:
+                    if not ignore_errors:
+                        raise(ValueError('File not found: "{0}". Check env.DIR_DATA or ensure a fully qualified URI is used.'.format(uri)))
+                else:
+                    if not os.path.exists(ret) and not ignore_errors:
+                        raise(ValueError('Path does not exist and is likely not a remote URI: "{0}". Set "ignore_errors" to True if this is not the case.'.format(ret)))
+            out_uris.append(ret)
+        return(out_uris)
     
     def _str_format_(self,value):
         ret = value
@@ -189,6 +223,7 @@ class RequestDatasetCollection(object):
     
     def __init__(self,request_datasets=[]):
         self._s = OrderedDict()
+        self._did = []
         for rd in request_datasets:
             self.update(rd)
             
@@ -219,6 +254,9 @@ class RequestDatasetCollection(object):
             ret = self._s[key]
         return(ret)
     
+    def keys(self):
+        return(self._s.keys())
+    
     def update(self,request_dataset):
         """Add a :class:`ocgis.RequestDataset` to the collection.
         
@@ -230,11 +268,29 @@ class RequestDatasetCollection(object):
         except AttributeError:
             request_dataset = RequestDataset(**request_dataset)
             alias = request_dataset.alias
+            
+        if request_dataset.did is None:
+            if len(self._did) == 0:
+                did = 1
+            else:
+                did = max(self._did) + 1
+            self._did.append(did)
+            request_dataset.did = did
+        else:
+            self._did.append(request_dataset.did)
+            
         if alias in self._s:
             raise(KeyError('Alias "{0}" already in collection.'\
                            .format(request_dataset.alias)))
         else:
             self._s.update({request_dataset.alias:request_dataset})
+            
+    def validate(self):
+        ## confirm projections are equivalent
+        projections = [rd.ds.spatial.projection.sr.ExportToProj4() for rd in self]
+        if len(set(projections)) == 2:
+            if ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
+                raise(ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             
     def _get_meta_rows_(self):
         rows = ['dataset=']

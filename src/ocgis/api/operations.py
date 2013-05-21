@@ -64,7 +64,8 @@ class OcgOperations(object):
                  calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
-                 vector_wrap=True, allow_empty=False, dir_output=None):
+                 vector_wrap=True, allow_empty=False, dir_output=None, 
+                 slice=None, file_only=False):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -87,6 +88,8 @@ class OcgOperations(object):
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)
+        self.slice = Slice(slice)
+        self.file_only = FileOnly(file_only)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
@@ -100,7 +103,7 @@ class OcgOperations(object):
     def __repr__(self):
         msg = ['<{0}>:'.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
-            if key == 'geom' and len(value) > 1:
+            if key == 'geom' and value is not None and len(value) > 1:
                 value = '{0} geometries...'.format(len(value))
             msg.append(' {0}={1}'.format(key, value))
         msg = '\n'.join(msg)
@@ -125,14 +128,6 @@ class OcgOperations(object):
                 object.__setattr__(self, name, value)
         if self._is_init is False:
             self._validate_()
-            
-#    def __getstate__(self):
-#        import ipdb;ipdb.set_trace()
-#        state = self.as_dict()
-#        return(state)
-#    
-#    def __setstate__(self,state):
-#        import ipdb;ipdb.set_trace()
     
     def get_meta(self):
         meta_converter = MetaConverter(self)
@@ -201,4 +196,13 @@ class OcgOperations(object):
         return(object.__getattribute__(self, name))
     
     def _validate_(self):
-        pass
+        if self.slice is not None:
+            assert(self.geom is None)
+        if self.file_only:
+            assert(len(self.dataset) == 1)
+            assert(self.output_format == 'nc')
+            assert(self.calc is not None)
+        if self.output_format == 'nc':
+            assert(self.spatial_operation == 'intersects')
+            assert(self.aggregate is False)
+            assert(self.calc_raw is False)

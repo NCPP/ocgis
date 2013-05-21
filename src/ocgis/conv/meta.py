@@ -20,7 +20,10 @@ HEADERS = {
 'month':'Month extracted from time string.',
 'day':'Day extracted from time string.',
 'cid':'Unique identifier for a calculation name.',
-'value':'Value associated with a variable or calculation.'
+'value':'Value associated with a variable or calculation.',
+'did':'Dataset identifier see *_did.csv file for additional information on dataset requests.',
+'uri':'Path to input data at execution time.',
+'alias':'Dataset alias - may be equivalent to VARIABLE.'
 }
 
 

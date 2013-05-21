@@ -1,14 +1,17 @@
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
-from ocgis.api.dataset.request import RequestDataset, RequestDatasetCollection
-from ocgis.api.geometry import SelectionGeometry
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
 from ocgis.calc import library
 from collections import OrderedDict
 import ocgis
 from os.path import exists
+from ocgis.interface.geometry import GeometryDataset
+from ocgis.interface.shp import ShpDataset
+from shapely.geometry.multipolygon import MultiPolygon
+from types import NoneType
+from shapely.geometry.point import Point
 
 
 class Abstraction(base.StringOptionParameter):
@@ -250,14 +253,19 @@ class DirOutput(base.OcgParameter):
             raise(DefinitionValidationError(self,'Output directory does not exist: {0}'.format(value)))
 
 
-class Geom(base.IterableParameter,base.OcgParameter):
+class FileOnly(base.BooleanParameter):
+    meta_true = 'File written with empty data.'
+    meta_false = 'Actual data written to file.'
+    default = False
+    name = 'file_only'
+    
+
+class Geom(base.OcgParameter):
     name = 'geom'
     nullable = True
-    default = SelectionGeometry([{'ugid':1,'geom':None}])
-    input_types = [SelectionGeometry,list,tuple]
-    return_type = SelectionGeometry
-    unique = False
-    element_type = dict
+    default = None
+    input_types = [ShpDataset,GeometryDataset,list,tuple,Polygon,MultiPolygon]
+    return_type = [ShpDataset,GeometryDataset]
     _shp_key = None
     _bounds = None
     
@@ -267,7 +275,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
         base.OcgParameter.__init__(*args,**kwds)
     
     def __repr__(self):
-        if len(self.value) == 1 and self.value[0]['geom'] is None:
+        if self.value is None:
             value = None
         elif self._shp_key is not None:
             value = self._shp_key
@@ -278,23 +286,25 @@ class Geom(base.IterableParameter,base.OcgParameter):
         ret = '{0}={1}'.format(self.name,value)
         return(ret)
     
-    @property
-    def is_empty(self):
-        if self.value[0]['geom'] is None:
-            ret = True
-        else:
-            ret = False
-        return(ret)
+#    @property
+#    def is_empty(self):
+#        if self.value[0]['geom'] is None:
+#            ret = True
+#        else:
+#            ret = False
+#        return(ret)
     
-    def _get_value_(self):
-        ret = base.OcgParameter._get_value_(self)
-        if ret is None:
-            ret = self.default
-        return(ret)
-    value = property(_get_value_,base.OcgParameter._set_value_)
+#    def _get_value_(self):
+#        ret = base.OcgParameter._get_value_(self)
+#        if ret is None:
+#            ret = self.default
+#        return(ret)
+#    value = property(_get_value_,base.OcgParameter._set_value_)
     
     def get_url_string(self):
-        if len(self.value) > 1 and self._shp_key is None:
+        if self.value is None:
+            ret = 'none'
+        elif len(self.value) > 1 and self._shp_key is None:
             raise(CannotEncodeUrl('Too many custom geometries to encode.'))
         else:
             ret = str(self)
@@ -302,43 +312,67 @@ class Geom(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def parse(self,value):
-        if type(value) in [list,tuple] and len(value) == 4:
-            ret = self.parse_string('|'.join(map(str,value)))
+        if type(value) in [Polygon,MultiPolygon,Point]:
+            ret = GeometryDataset(1,value)
+        elif type(value) in [list,tuple]:
+            if len(value) in (2,4):
+                ret = self.parse_string('|'.join(map(str,value)))
+            else:
+                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 or 4.'))
+        elif isinstance(value,ShpDataset):
+            self._shp_key = value.key
+            ret = value
         else:
-            ret = base.IterableParameter.parse(self,value)
+            ret = value
         return(ret)
     
     def parse_string(self,value):
         elements = value.split('|')
         try:
             elements = [float(e) for e in elements]
-            minx,miny,maxx,maxy = elements
-            geom = Polygon(((minx,miny),
-                            (minx,maxy),
-                            (maxx,maxy),
-                            (maxx,miny)))
+            ## switch geometry creation based on length. length of 2 is a point
+            ## otherwise a bounding box
+            if len(elements) == 2:
+                geom = Point(elements[0],elements[1])
+            else:
+                minx,miny,maxx,maxy = elements
+                geom = Polygon(((minx,miny),
+                                (minx,maxy),
+                                (maxx,maxy),
+                                (maxx,miny)))
             if not geom.is_valid:
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-            ret = [{'ugid':1,'geom':geom}]
+            ret = GeometryDataset(1,geom)
             self._bounds = elements
         except ValueError:
-            sc = ShpCabinet()
-            if value in sc.keys():
-                self._shp_key = value
-                ## get the select_ugid test value.
-                try:
-                    test_value = self.select_ugid.value
-                except AttributeError:
-                    test_value = self.select_ugid
-                ## return the geometries
-                if test_value is None:
-                    ret = sc.get_geoms(value)
-                else:
-                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
+            self._shp_key = value
+            ## get the select_ugid test value.
+            try:
+                test_value = self.select_ugid.value
+            except AttributeError:
+                test_value = self.select_ugid
+            if test_value is None:
+                attr_filter = None
+            else:
+                attr_filter = {'ugid':test_value}
+            ret = ShpDataset(value,attr_filter=attr_filter)
+#            sc = ShpCabinet()
+#            if value in sc.keys():
+#                self._shp_key = value
+#                ## get the select_ugid test value.
+#                try:
+#                    test_value = self.select_ugid.value
+#                except AttributeError:
+#                    test_value = self.select_ugid
+#                ## return the geometries
+#                if test_value is None:
+#                    ret = sc.get_geoms(value)
+#                else:
+#                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
         return(ret)
     
     def _get_meta_(self):
-        if self.value[0]['geom'] is None:
+        if self.value is None:
             ret = 'No user-supplied geometry. All data returned.'
         elif self._shp_key is not None:
             ret = 'The selection geometry "{0}" was used for subsetting.'.format(self._shp_key)
@@ -352,7 +386,7 @@ class Geom(base.IterableParameter,base.OcgParameter):
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
-    valid = ('numpy','shp','csv','keyed','meta','nc','shpidx')
+    valid = ('numpy','shp','csv','meta','nc','csv+')
     
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)
@@ -365,6 +399,7 @@ class Prefix(base.OcgParameter):
     default = 'ocgis_output'
     input_types = [str]
     return_type = str
+    _lower_string = False
     
     def _get_meta_(self):
         msg = 'Data output given the following prefix: {0}.'.format(self.value)
@@ -385,6 +420,38 @@ class SelectUgid(base.IterableParameter,base.OcgParameter):
             ret = 'No geometry selection by unique identifier.'
         else:
             ret = 'The following UGID values were used to select from the input geometries: {0}.'.format(self.value)
+        return(ret)
+    
+    
+class Slice(base.IterableParameter,base.OcgParameter):
+    name = 'slice'
+    return_type = tuple
+    nullable = True
+    default = None
+    input_types = [list,tuple]
+    element_type = [NoneType,int,tuple,list,slice]
+    unique = False
+    
+    def validate_all(self,values):
+        if len(values) not in [3,4]:
+            raise(DefinitionValidationError(self,'Slices must have 3 or 4 values.'))
+    
+    def _parse_(self,value):
+        if value is None:
+            ret = slice(None)
+        elif type(value) == int:
+            ret = slice(value,value+1)
+        elif type(value) in [list,tuple]:
+            ret = slice(*value)
+        else:
+            raise(DefinitionValidationError(self,'"{0}" cannot be converted to a slice object'.format(value)))
+        return(ret)
+    
+    def _get_meta_(self):
+        if self.value is None:
+            ret = 'No slice passed.'
+        else:
+            ret = 'A slice was used.'
         return(ret)
 
 

@@ -1,10 +1,10 @@
 import csv
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 from ocgis.conv.csv_ import OcgDialect
 from ocgis.util.helpers import get_temp_path
 from ocgis.conv.shpidx import ShpIdxIdentifierConverter
 import os.path
-from ocgis.api.dataset.collection.iterators import KeyedIterator
+#from ocgis.api.dataset.collection.iterators import KeyedIterator
 
 
 class KeyedConverter(OcgConverter):

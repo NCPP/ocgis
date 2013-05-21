@@ -1,6 +1,5 @@
 from ocgis.api.dataset.collection.collection import ArrayIdentifier
 import numpy as np
-from ocgis.exc import DummyLevelEncountered
 
 
 class EqualSpatialDimensionMapper(object):

@@ -1,5 +1,20 @@
 # Current Release Notes #
 
+## v0.05.1b ##
+
+### What's New ###
+* New backend interface to support additional output formats.
+* Keyed output removed in favor or "csv+" format.
+* Prototype support for large array computations.
+* Improved verbose output.
+* Support for additional projections.
+* Multiple projections supported in a single request.
+* Addition of input dataset descriptor CSV file in output data package.
+* Multi-file netCDF support using netCDF4.MFDataset.
+* Support for point-based subsetting.
+
+# Previous Release Notes #
+
 ## v0.05b ##
 
 ### What's New ###
@@ -8,17 +23,15 @@
 3. Numerous bug fixes.
 4. Added "dir_output" parameter to OcgOperations.
 5. Selection geometries are now a derived class of list and carry projection information.
-5. Projection information is now written in CF formatting to NetCDF outputs.
-6. Computations may be written to NetCDF.
-7. OcgOperations parameter "prefix" now names the output folder as well as the files contained in the output directory.
-8. Projection support is available again with selection geometries projected to match input dataset.
-9. Simple multiprocessing implementation available with all objects serializable.
-10. OcgOperations parameter "select_ugid" applied at geometry load-time.
-11. New ocgis.env with support of system environment variables.
-12. Setup.py has option for autmated install on Ubuntu Linux systems.
-13. URL representation of OcgOperations included in metadata output.
-
-# Previous Release Notes #
+6. Projection information is now written in CF formatting to NetCDF outputs.
+7. Computations may be written to NetCDF.
+8. OcgOperations parameter "prefix" now names the output folder as well as the files contained in the output directory.
+9. Projection support is available again with selection geometries projected to match input dataset.
+10. Simple multiprocessing implementation available with all objects serializable.
+11. OcgOperations parameter "select_ugid" applied at geometry load-time.
+12. New ocgis.env with support of system environment variables.
+13. Setup.py has option for autmated install on Ubuntu Linux systems.
+14. URL representation of OcgOperations included in metadata output.
 
 ## v0.04b ##
 

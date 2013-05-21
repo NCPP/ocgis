@@ -1,13 +1,16 @@
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 import datetime
 from osgeo import ogr
 import numpy as np
 from types import NoneType
 from shapely.geometry.multipolygon import MultiPolygon
+from ocgis import constants, env
 
     
 class ShpConverter(OcgConverter):
     _ext = 'shp'
+    _add_ugeom = True
+    _add_ugeom_nest = False
     
     def __init__(self,*args,**kwds):
         self.layer = kwds.pop('layer','lyr')
@@ -29,39 +32,50 @@ class ShpConverter(OcgConverter):
         ds = dr.CreateDataSource(self.path)
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
-                
-        build = True
-        for coll in self:
-            for row,geom in self.get_iter(coll):
-                if build:
-                    if isinstance(geom,MultiPolygon):
-                        geom_type = ogr.wkbMultiPolygon
-                    else:
-                        geom_type = ogr.wkbPoint
-                    try:
-                        srs = coll.projection.sr
-                    except AttributeError:
-                        srs = self.projection.sr
-                    layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
-                    headers = self.get_headers(coll)
-                    self._set_ogr_fields_(headers,row)
-                    for ogr_field in self.ogr_fields:
-                        layer.CreateField(ogr_field.ogr_field)
-                        feature_def = layer.GetLayerDefn()
-                    build = False
-                feat = ogr.Feature(feature_def)
-                for ii,o in enumerate(self.ogr_fields):
-                    args = [o.ogr_name,o.convert(row[ii])]
-                    try:
-                        feat.SetField(*args)
-                    except NotImplementedError:
-                        args[1] = str(args[1])
-                        feat.SetField(*args)
-#                wkb = self.ocg_dataset.i.projection.project(self.to_sr,row[-1])
-                feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
-                layer.CreateFeature(feat)
         
-        ds = None
+        try:
+            build = True
+            for coll in self:
+                for geom,row in coll.get_iter():
+                    if build:
+                        if isinstance(geom,MultiPolygon):
+                            geom_type = ogr.wkbMultiPolygon
+                        else:
+                            geom_type = ogr.wkbPoint
+                        if env.WRITE_TO_REFERENCE_PROJECTION:
+                            srs = constants.reference_projection.sr
+                        else:
+                            srs = coll.projection.sr
+                        layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
+                        headers = coll.get_headers(upper=True)
+                        self._set_ogr_fields_(headers,row)
+                        for ogr_field in self.ogr_fields:
+                            layer.CreateField(ogr_field.ogr_field)
+                            feature_def = layer.GetLayerDefn()
+                        build = False
+                    feat = ogr.Feature(feature_def)
+                    for ii,o in enumerate(self.ogr_fields):
+                        args = [o.ogr_name,o.convert(row[ii])]
+                        try:
+                            feat.SetField(*args)
+                        except NotImplementedError:
+                            args[1] = str(args[1])
+                            feat.SetField(*args)
+    #                wkb = self.ocg_dataset.i.projection.project(self.to_sr,row[-1])
+                    feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
+                    try:
+                        layer.CreateFeature(feat)
+                    ## likely different geometry types
+                    except RuntimeError:
+                        test_geom = ogr.CreateGeometryFromWkb(geom.wkb)
+                        if geom_type != test_geom.GetGeometryType():
+                            import ipdb;ipdb.set_trace()
+                            msg = 'Shapefile geometry type and target geometry type do not match. This likely occurred because request datasets mix bounded and unbounded spatial data. Try setting "abstraction" to "point".'
+                            raise(RuntimeError(msg))
+                        else:
+                            raise
+        finally:
+            ds = None
         
     def _set_ogr_fields_(self,headers,row):
         ## do not want to have a geometry field
@@ -123,7 +137,6 @@ class FieldCache(object):
         self._cache = []
     
     def add(self,name):
-        name = str(name).upper()
         if len(name) > 10:
             name = name[0:10]
         if name not in self._cache:

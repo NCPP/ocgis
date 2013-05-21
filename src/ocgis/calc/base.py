@@ -9,6 +9,7 @@ from ocgis.calc.groups import OcgFunctionGroup
 
 
 class OcgFunctionTree(object):
+    '''Used by front-end services to retrieve information on available computations.'''
     Groups = [groups.BasicStatistics,groups.Thresholds]
     
     @staticmethod
@@ -125,7 +126,10 @@ class OcgFunction(object):
     
     @staticmethod
     def _aggregate_spatial_(values,weights):
-        return(np.ma.average(values,weights=weights))
+        try:
+            return(np.ma.average(values,weights=weights))
+        except:
+            import ipdb;ipdb.set_trace()
     
     def _get_fill_(self,values):
         fill = np.empty((len(self.groups),values.shape[1],values.shape[2],values.shape[3]),dtype=self.dtype)

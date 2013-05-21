@@ -15,8 +15,14 @@ from ocgis.exc import ExtentError
 from ocgis.api.dataset.request import RequestDataset
 from datetime import datetime
 import os
+from ocgis.test.base import TestBase
 
-raise SkipTest(__name__)
+
+class TestTestBase(TestBase):
+    
+    def test_copy_files(self):
+        self.test_data.copy_files('/tmp/test_copy_files')
+
 
 class TestWork(unittest.TestCase):
     

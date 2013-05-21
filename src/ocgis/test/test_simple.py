@@ -9,12 +9,15 @@ from ocgis.util.helpers import make_poly
 from ocgis import exc, env
 import os.path
 from ocgis.util.inspect import Inspect
-import tempfile
-import shutil
 from abc import ABCMeta, abstractproperty
+import netCDF4 as nc
+from ocgis.test.base import TestBase
+import subprocess
+from unittest.case import SkipTest
+from shapely.geometry.point import Point
 
 
-class TestBase(unittest.TestCase):
+class TestSimpleBase(TestBase):
     __metaclass__ = ABCMeta
     
     base_value = None
@@ -25,20 +28,9 @@ class TestBase(unittest.TestCase):
     def nc_factory(self): pass
     @abstractproperty
     def fn(self): pass
-    
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
         
     def setUp(self):
+        TestBase.setUp(self)
         self.nc_factory().write()
     
     def get_dataset(self,time_range=None,level_range=None):
@@ -48,7 +40,9 @@ class TestBase(unittest.TestCase):
     
     def get_ops(self,kwds={},time_range=None,level_range=None):
         dataset = self.get_dataset(time_range,level_range)
-        kwds.update({'dataset':dataset,'output_format':'numpy'})
+        if 'output_format' not in kwds:
+            kwds.update({'output_format':'numpy'})
+        kwds.update({'dataset':dataset})
         ops = OcgOperations(**kwds)
         return(ops)
     
@@ -72,22 +66,70 @@ class TestBase(unittest.TestCase):
         OcgInterpreter(ops).execute()
 
 
-class TestSimple(TestBase):
+class TestSimple(TestSimpleBase):
     base_value = np.array([[1.0,1.0,2.0,2.0],
                            [1.0,1.0,2.0,2.0],
                            [3.0,3.0,4.0,4.0],
                            [3.0,3.0,4.0,4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+    
+    def test_point_subset(self):
+        ops = self.get_ops(kwds={'geom':[-103.5,38.5,]})
+        self.assertEqual(type(ops.geom.spatial.geom[0]),Point)
+        ret = ops.execute()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(2,2))
+        
+        ops = self.get_ops(kwds={'geom':[-103,38,]})
+        ret = ops.execute()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(1,1))
+        self.assertTrue(ref.spatial.vector.geom[0,0].intersects(ops.geom.spatial.geom[0]))
+        
+        ops = self.get_ops(kwds={'geom':[-103,38,],'abstraction':'point'})
+        ret = ops.execute()
+        ref = ret[1].variables['foo']
+        self.assertEqual(ref.spatial.grid.shape,(1,1))
+        self.assertTrue(ref.spatial.vector.geom[0,0].intersects(ops.geom.spatial.geom[0]))
+    
+    def test_slicing(self):
+        ops = self.get_ops(kwds={'slice':[None,0,[0,2],[0,2]]})
+        ret = ops.execute()
+        ref = ret[1].variables['foo'].value
+        self.assertTrue(np.all(ref.flatten() == 1.0))
+        self.assertEqual(ref.shape,(61,1,2,2))
+        
+        ops = self.get_ops(kwds={'slice':[None,None,[1,3],[1,3]]})
+        ret = ops.execute()
+        ref = ret[1].variables['foo'].value.data
+        self.assertTrue(np.all(np.array([1.,2.,3.,4.] == ref[0,0,:].flatten())))
+        
+        ## pass only three slices for a leveled dataset
+        ops = self.get_ops(kwds={'slice':[None,[1,3],[1,3]]})
+        with self.assertRaises(IndexError):
+            ops.execute()
+        
+    def test_file_only(self):
+        ret = self.get_ret(kwds={'output_format':'nc','file_only':True,
+                                 'calc':[{'func':'mean','name':'my_mean'}],
+                                 'calc_grouping':['month']})
+#        subprocess.call(['ncdump','-h',ret])
+        try:
+            ds = nc.Dataset(ret,'r')
+            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),
+                            np.ma.core.MaskedConstant))
+        finally:
+            ds.close()
 
     def test_return_all(self):
         ret = self.get_ret()
         
         ## confirm size of geometry array
         ref = ret[1].variables[self.var].spatial
-        attrs = ['value','uid']
-        for attr in attrs:
-            self.assertEqual(getattr(ref,attr).shape,(4,4))
+        shps = [ref.vector,ref.grid,ref.vector.uid,ref.grid.uid]
+        for attr in shps:
+            self.assertEqual(attr.shape,(4,4))
         
         ## confirm value array
         ref = ret[1].variables[self.var].value
@@ -106,7 +148,7 @@ class TestSimple(TestBase):
         
         ## test geometry reduction
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.spatial.shape,(1,1))
+        self.assertEqual(ref.spatial.vector.shape,(1,1))
         
     def test_time_level_subset(self):
         ret = self.get_ret(time_range=[datetime.datetime(2000,3,1),
@@ -122,62 +164,59 @@ class TestSimple(TestBase):
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
-        self.assertEqual(ref.level.value.shape,(1,3))
-        
-    def test_using_ugid(self):
-        ## swap names of id variable in geometry dictionary
-        ## intersects
-        geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = [{'ugid':1,'geom':geom}]
-        ret = self.get_ret(kwds={'geom':geom})
+        self.assertEqual(ref.level.value.shape,(1,))
 
     def test_spatial(self):
         ## intersects
         geom = make_poly((37.5,39.5),(-104.5,-102.5))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom})
         ref = ret[1]
         gids = set([6,7,10,11])
-        ret_gids = set(ref.variables[self.var].spatial.uid.compressed())
+        ret_gids = set(ref.variables[self.var].spatial.vector.uid.compressed())
         intersection = gids.intersection(ret_gids)
         self.assertEqual(len(intersection),4)
         self.assertTrue(np.all(ref.variables[self.var].value[0,0,:,:] == np.array([[1.0,2.0],[3.0,4.0]])))
         
         ## intersection
         geom = make_poly((38,39),(-104,-103))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip'})
-        self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+        self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
         self.assertEqual(ret[1].variables[self.var].value.shape,(61,2,2,2))
         ref = ret[1].variables[self.var].value
         self.assertTrue(np.all(ref[0,0,:,:] == np.array([[1,2],[3,4]],dtype=float)))
         ## compare areas to intersects returns
         ref = ret[1].variables[self.var]
-        intersection_areas = [g.area for g in ref.spatial._value.flat]
+        intersection_areas = [g.area for g in ref.spatial.vector.geom.flat]
         for ii in intersection_areas:
             self.assertAlmostEqual(ii,0.25)
             
         ## intersection + aggregation
         geom = make_poly((38,39),(-104,-103))
-        geom = [{'ugid':1,'geom':geom}]
         ret = self.get_ret(kwds={'geom':geom,'spatial_operation':'clip','aggregate':True})
         ref = ret[1]
-        self.assertEqual(len(ref.variables[self.var].spatial.uid.flatten()),1)
-        self.assertEqual(ref.variables[self.var].spatial._value.flatten()[0].area,1.0)
+        self.assertEqual(len(ref.variables[self.var].spatial.vector.uid.flatten()),1)
+        self.assertEqual(ref.variables[self.var].spatial.vector.geom.flatten()[0].area,1.0)
         self.assertEqual(ref.variables[self.var].value.flatten().mean(),2.5)
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
-        geom = [{'ugid':1,'geom':geom}]
         
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
             
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
-        ref = ret[1].variables[self.var].spatial.uid
-        self.assertEqual(len(ref),0)
-        ref = ret[1]
-        self.assertTrue(ref.is_empty)
+        self.assertEqual(len(ret[1].variables),0)
+        
+    def test_snippet(self):
+        ret = self.get_ret(kwds={'snippet':True})
+        ref = ret[1].variables[self.var].value
+        self.assertEqual(ref.shape,(1,1,4,4))
+        
+        calc = [{'func':'mean','name':'my_mean'}]
+        group = ['month','year']
+        ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,'snippet':True})
+        ref = ret[1].calc[self.var]['my_mean']
+        self.assertEqual(ref.shape,(1,1,4,4))
         
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]
@@ -185,18 +224,18 @@ class TestSimple(TestBase):
         
         ## raw
         ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
-        ref = ret[1].variables[self.var].calc_value
+        ref = ret[1].calc[self.var]
         for value in ref.itervalues():
             self.assertEqual(value.shape,(2,2,4,4))
         n_foo = ref['n']
         self.assertEqual(n_foo[0,:].mean(),31)
         self.assertEqual(n_foo[1,:].mean(),30)
-        
+
         ## aggregated
         for calc_raw in [True,False]:
             ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
                                      'aggregate':True,'calc_raw':calc_raw})
-            ref = ret[1].variables[self.var].calc_value
+            ref = ret[1].calc[self.var]
             self.assertEqual(ref['n'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
@@ -211,6 +250,7 @@ class TestSimple(TestBase):
     def test_nc_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='nc')
         ret = self.get_ret(ops)
+        ip = Inspect(ret,'foo')
         
     def test_shp_conversion(self):
         calc = [
@@ -229,11 +269,21 @@ class TestSimple(TestBase):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)
         
+        ## test with a geometry to check writing of user-geometry overview shapefile
+        geom = make_poly((38,39),(-104,-103))
+        ops = OcgOperations(dataset=self.get_dataset(),output_format='csv',geom=geom)
+        ret = ops.execute()
+        
+#        subprocess.call(['loffice',os.path.join(os.path.split(ret)[0],'ocgis_output_did.csv')])
+#        subprocess.call(['loffice',ret])
+#        subprocess.call(['gedit',os.path.join(os.path.split(ret)[0],'ocgis_output_meta.txt')])
+        
     def test_meta_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='meta')
         ret = self.get_ret(ops)
             
     def test_keyed_conversion(self):
+        raise(SkipTest)
         calc = [
                 None,
                 [{'func':'mean','name':'my_mean'}]
@@ -247,11 +297,12 @@ class TestSimple(TestBase):
             ret = self.get_ret(ops)
         
     def test_shpidx_conversion(self):
+        raise(SkipTest)
         ops = OcgOperations(dataset=self.get_dataset(),output_format='shpidx')
         ret = self.get_ret(ops)
 
 
-class TestSimpleMask(TestBase):
+class TestSimpleMask(TestSimpleBase):
     base_value = None
     nc_factory = SimpleMaskNc
     fn = 'test_simple_mask_spatial_01.nc'
@@ -271,17 +322,16 @@ class TestSimpleMask(TestBase):
         ret = self.get_ret(kwds={'aggregate':True})
         ref = ret[1].variables[self.var]
         self.assertAlmostEqual(ref.value.mean(),2.58333333333,5)
-        self.assertEqual(ref.spatial.uid.shape,(1,1))
+        self.assertEqual(ref.spatial.vector.uid.shape,(1,1))
     
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = [{'ugid':1,'geom':geom}]
         with self.assertRaises(exc.MaskedDataError):
             ret = self.get_ret(kwds={'geom':geom})
         ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
         
         
-class TestSimple360(TestBase):
+class TestSimple360(TestSimpleBase):
 #    return_shp = True
     fn = 'test_simple_360_01.nc'
     nc_factory = SimpleNc360
@@ -292,27 +342,26 @@ class TestSimple360(TestBase):
             ret = np.array([g.centroid.x for g in geom.flat])
             return(ret)
         
-        ret = self.get_ret(kwds={'vector_wrap':False})
-        longs_unwrap = _get_longs_(ret[1].variables[self.var].spatial._value)
-        self.assertTrue(np.all(longs_unwrap > 180))
+#        ret = self.get_ret(kwds={'vector_wrap':False})
+#        longs_unwrap = _get_longs_(ret[1].variables[self.var].spatial.vector.geom)
+#        self.assertTrue(np.all(longs_unwrap > 180))
         
         ret = self.get_ret(kwds={'vector_wrap':True})
-        longs_wrap = _get_longs_(ret[1].variables[self.var].spatial._value)
+        longs_wrap = _get_longs_(ret[1].variables[self.var].spatial.vector.geom)
         self.assertTrue(np.all(np.array(longs_wrap) < 180))
         
-        self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
+#        self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
         
     def test_spatial(self):
         geom = make_poly((38,39),(-93,-92))
-        geom = [{'ugid':1,'geom':geom}]
         
         for abstraction in ['polygon','point']:
             ret = self.get_ret(kwds={'geom':geom,'abstraction':abstraction})
-            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
             
             self.get_ret(kwds={'vector_wrap':False})
             ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'abstraction':abstraction})
-            self.assertEqual(len(ret[1].variables[self.var].spatial.uid.compressed()),4)
+            self.assertEqual(len(ret[1].variables[self.var].spatial.vector.uid.compressed()),4)
 
 
 if __name__ == "__main__":

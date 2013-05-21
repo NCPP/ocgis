@@ -13,8 +13,16 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
+from ocgis import env
+import sys
+from shapely.geometry.multipoint import MultiPoint
+from osgeo.ogr import wkbPoint
 
 
+def vprint(args):
+    if env.VERBOSE:
+        print(args)
+        
 def format_bool(value):
     '''Format a string to boolean.
     
@@ -32,6 +40,31 @@ def format_bool(value):
         else:
             raise(ValueError('String not recognized for boolean conversion: {0}'.format(value)))
     return(ret)
+
+class ProgressBar(object):
+    
+    def __init__(self,title):
+        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
+        sys.stdout.flush()
+        self.px = 0
+#        globals()["progress_x"] = 0
+    
+#    def startProgress(title):
+#        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
+#        sys.stdout.flush()
+#        globals()["progress_x"] = 0
+
+    def progress(self,x):
+        x = x*40//100
+        sys.stdout.write("#"*(x - self.px))
+        sys.stdout.flush()
+        self.px = x
+#        globals()["progress_x"] = x
+    
+    def endProgress(self):
+        sys.stdout.write("#"*(40 - self.px))
+        sys.stdout.write("]\n")
+        sys.stdout.flush()
 
 def locate(pattern, root=os.curdir, followlinks=True):
     '''Locate all files matching supplied filename pattern in and below
@@ -122,24 +155,40 @@ def append(arr,value):
     arr.resize(arr.shape[0]+1,refcheck=False)
     arr[arr.shape[0]-1] = value
 
-def iter_array(a,use_mask=True,return_value=False):
+def iter_array(arr,use_mask=True,return_value=False):
     try:
-        iter_args = [range(0,ii) for ii in a.shape]
+        shp = arr.shape
+    ## assume array is not a numpy array
     except AttributeError:
-        a = np.array(a)
-        iter_args = [range(0,ii) for ii in a.shape]
-    if use_mask and not isinstance(a,MaskedArray):
+        arr = np.array(arr,ndmin=1)
+        shp = arr.shape
+    iter_args = [range(0,ii) for ii in shp]
+    if use_mask and not np.ma.isMaskedArray(arr):
         use_mask = False
+    else:
+        try:
+            mask = arr.mask
+        ## array is not masked
+        except AttributeError:
+            pass
+        
     for ii in itertools.product(*iter_args):
         if use_mask:
-            if not a.mask[ii]:
-                idx = ii
-            else:
-                continue
+            try:
+                if mask[ii]:
+                    continue
+                else:
+                    idx = ii
+            ## occurs with singleton dimension of masked array
+            except IndexError:
+                if mask:
+                    continue
+                else:
+                    idx = ii
         else:
             idx = ii
         if return_value:
-            ret = (idx,a[ii])
+            ret = (idx,arr[ii])
         else:
             ret = idx
         yield(ret)
@@ -250,6 +299,7 @@ def make_poly(rtup,ctup):
     rtup = (row min, row max)
     ctup = (col min, col max)
     """
+    
     return Polygon(((ctup[0],rtup[0]),
                     (ctup[0],rtup[1]),
                     (ctup[1],rtup[1]),
@@ -277,13 +327,19 @@ def bounding_coords(polygon):
                   min_y=min_y,
                   max_y=max_y))
     
-def shapely_to_shp(obj,outname):
+def shapely_to_shp(obj,path,srs=None):
     from osgeo import osr, ogr
     
-    path = os.path.join('/tmp',outname+'.shp')
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    ogr_geom = 3
+#    path = os.path.join('/tmp',outname+'.shp')
+    if srs is None:
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(4326)
+        
+    if isinstance(obj,MultiPoint):
+        test = ogr.CreateGeometryFromWkb(obj[0].wkb)
+        ogr_geom = test.GetGeometryType()
+    else:
+        ogr_geom = 3
     
     dr = ogr.GetDriverByName('ESRI Shapefile')
     ds = dr.CreateDataSource(path)
@@ -292,7 +348,10 @@ def shapely_to_shp(obj,outname):
             raise IOError('Could not create file on disk. Does it already exist?')
             
         layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
-        feature_def = layer.GetLayerDefn()
+        try:
+            feature_def = layer.GetLayerDefn()
+        except:
+            import ipdb;ipdb.set_trace()
         feat = ogr.Feature(feature_def)
         try:
             iterator = iter(obj)

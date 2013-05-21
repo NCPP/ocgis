@@ -8,9 +8,9 @@ from shapely.geometry.polygon import Polygon
 from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.util.inspect import Inspect
-import tempfile
-import shutil
 import os
+from ocgis.test.base import TestBase
+from ocgis.interface.shp import ShpDataset
 
 
 class NcSpatial(object):
@@ -50,19 +50,7 @@ class NcSpatial(object):
         return(bounds)
 
 
-class Test360(unittest.TestCase):
-    
-    @classmethod
-    def setUpClass(cls):
-        env.DIR_OUTPUT = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.OVERWRITE = True
-        
-    @classmethod
-    def tearDownClass(cls):
-        try:
-            shutil.rmtree(env.DIR_OUTPUT)
-        finally:
-            env.reset()
+class Test360(TestBase):
     
     def test_high_res(self):
         nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
@@ -98,9 +86,8 @@ class Test360(unittest.TestCase):
         
     @property
     def nebraska(self):
-        sc = ShpCabinet()
-        geom_dict = sc.get_geom_dict('state_boundaries',{'ugid':[16]})
-        return(geom_dict)
+        geom = ShpDataset('state_boundaries',attr_filter={'ugid':[16]})
+        return(geom)
         
     def transform_to_360(self,polygon):
         

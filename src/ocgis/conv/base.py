@@ -1,9 +1,12 @@
-from ocgis.api.dataset.collection.iterators import MeltedIterator
 from ocgis.conv.meta import MetaConverter
 import os.path
+import abc
+from abc import ABCMeta
+import csv
 
 
 class OcgConverter(object):
+    __metaclass__ = ABCMeta
     '''Base converter object. Intended for subclassing.
     
     :param colls: A sequence of `~ocgis.OcgCollection` objects.
@@ -16,7 +19,14 @@ class OcgConverter(object):
         in temporary folders creating in this directory.
     use_dir=None :: str :: If provided, forces outputs into this directory.
     '''
+    __metaclass__ = abc.ABCMeta
     _ext = None
+    _add_did_file = True
+    _add_ugeom = False
+    _add_ugeom_nest = True
+    
+    @abc.abstractmethod
+    def _write_(self): pass # string path or data
     
     def __init__(self,colls,outdir,prefix,mode='raw',ops=None,add_meta=True):
         self.colls = colls
@@ -37,6 +47,38 @@ class OcgConverter(object):
             out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
             with open(out_path,'w') as f:
                 f.write(lines)
+        
+        ## add the dataset descriptor file if specified
+        if self._add_did_file:
+            from ocgis.conv.csv_ import OcgDialect
+            
+            headers = ['DID','VARIABLE','ALIAS','URI']
+            out_path = os.path.join(self.outdir,self.prefix+'_did.csv')
+            with open(out_path,'w') as f:
+                writer = csv.writer(f,dialect=OcgDialect)
+                writer.writerow(headers)
+                for rd in self.ops.dataset:
+                    row = [rd.did,rd.variable,rd.alias,rd.uri]
+                    writer.writerow(row)
+                    
+        ## add user-geometry
+        if self._add_ugeom and self.ops.geom is not None:
+            if self._add_ugeom_nest:
+                shp_dir = os.path.join(self.outdir,'shp')
+                try:
+                    os.mkdir(shp_dir)
+                ## catch if the directory exists
+                except OSError:
+                    if os.path.exists(shp_dir):
+                        pass
+                    else:
+                        raise
+            else:
+                shp_dir = self.outdir
+            shp_path = os.path.join(shp_dir,self.prefix+'_ugid.shp')
+            self.ops.geom.write(shp_path)
+                
+        ## call subclass write method
         ret = self._write_()
         
         ## return anything from the overloaded _write_ method. otherwise return
@@ -45,12 +87,6 @@ class OcgConverter(object):
             ret = self.path
         
         return(ret)
-    
-    def _write_(self):
-        raise(NotImplementedError)
-    
-#    def run(self):
-#        return(self.write())
         
     @classmethod
     def get_converter(cls,output_format):
@@ -63,17 +99,18 @@ class OcgConverter(object):
         OcgConverter'''
         
         from ocgis.conv.shp import ShpConverter
-        from ocgis.conv.csv_ import CsvConverter
+        from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
         from ocgis.conv.numpy_ import NumpyConverter
-        from ocgis.conv.shpidx import ShpIdxConverter
-        from ocgis.conv.keyed import KeyedConverter
+#        from ocgis.conv.shpidx import ShpIdxConverter
+#        from ocgis.conv.keyed import KeyedConverter
         from ocgis.conv.nc import NcConverter
         
         mmap = {'shp':ShpConverter,
                 'csv':CsvConverter,
+                'csv+':CsvPlusConverter,
                 'numpy':NumpyConverter,
-                'shpidx':ShpIdxConverter,
-                'keyed':KeyedConverter,
+#                'shpidx':ShpIdxConverter,
+#                'keyed':KeyedConverter,
                 'nc':NcConverter}
         
         return(mmap[output_format])
@@ -85,19 +122,5 @@ class OcgConverter(object):
         
         OcgCollection
         dict'''
-        
         for coll in self.colls:
-            try:
-                if coll.is_empty:
-                    continue
-            except AttributeError:
-                if type(coll) == dict:
-                    pass
             yield(coll)
-            
-    def get_headers(self,coll):
-        it = MeltedIterator(coll,mode=self.mode)
-        return(it.get_headers(upper=True))
-    
-    def get_iter(self,coll):
-        return(MeltedIterator(coll,mode=self.mode).iter_list())

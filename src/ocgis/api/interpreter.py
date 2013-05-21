@@ -1,9 +1,8 @@
 from ocgis import exc, env
 from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
-from ocgis.conv.converter import OcgConverter
+from ocgis.conv.base import OcgConverter
 from subset import SubsetOperation
-from ocgis.util.helpers import union_geoms
 import os
 import shutil
 
@@ -41,15 +40,13 @@ class OcgInterpreter(Interpreter):
     '''The OCGIS interpreter and execution framework.'''
     
     def check(self):
-        ## perform basic validation checks
-#        definition.validate_update_definition(self.ops)
-        ## by parsing operational commands, determine iterator mode for
-        ## converters
         definition.identify_iterator_mode(self.ops)
     
     def execute(self):
-        if env.VERBOSE:
-            print('executing...')
+        if env.VERBOSE: print('executing...')
+            
+        ## add operations to environment
+        env.ops = self.ops
             
         self.check() ## run validation
         
@@ -77,32 +74,34 @@ class OcgInterpreter(Interpreter):
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
         ## aggregated.
-        if self.ops.output_format == 'nc' or self.ops.agg_selection is True:
-            self.ops.geom = union_geoms(self.ops.geom)
+        if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) and self.ops.geom is not None and len(self.ops.geom) > 1:
+            if env.VERBOSE: print('aggregating selection geometry...')
+            self.ops.geom.aggregate()
+#            self.ops.geom = union_geoms(self.ops.geom)
             
-        ## limited operations available for netcdf
+        ## do not perform vector wrapping for NetCDF output
         if self.ops.output_format == 'nc':
-#            ## computations are not supported currently for netcdf output
-#            if self.ops.calc is not None:
-#                raise(NotImplementedError('Computational NetCDF output is currently not supported.'))
-            self.ops.spatial_operation = 'intersects'
-            self.ops.aggregate = False
-            self.ops.calc_raw = False
-#            self.ops.mode = 'raw'
             self.ops.vector_wrap = False
-        
+
         ## if the requested output format is "meta" then no operations are run
         ## and only the operations dictionary is required to generate output.
         if self.ops.output_format == 'meta':
             ret = MetaConverter(self.ops).write()
         ## this is the standard request for other output types.
         else:
+#            ## if this is a file only operation, there is no need to subset
+#            if self.ops.file_only:
+#                conv = NcEmpty(None,outdir,prefix,ops=self.ops)
+#                ret = conv.write()
+#            else:
             ## the operations object performs subsetting and calculations
-            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
+            if env.VERBOSE: print('initializing subset...')
+            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES,validate=True)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
+                if env.VERBOSE: print('initializing converter...')
                 conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
                 ret = conv.write()
             else:

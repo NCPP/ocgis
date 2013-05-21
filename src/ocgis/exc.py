@@ -1,6 +1,8 @@
 class OcgException(Exception):
     """Base class for all OCGIS exceptions."""
-    pass
+    
+    def __init__(self,msg=None):
+        self.msg = msg
 
 
 class InterpreterException(OcgException):
@@ -52,7 +54,7 @@ class UniqueIdNotFound(OcgException):
         return('No unique ids found.')
     
     
-class DummyLevelEncountered(OcgException):
+class DummyDimensionEncountered(OcgException):
     pass
     
 
@@ -68,7 +70,7 @@ class MaskedDataError(SubsetException):
     
 class ExtentError(SubsetException):
     def __str__(self):
-        return('Geometric intersection is empty.')
+        return('Geometric intersection is empty. {0}'.format(self.msg))
     
     
 class EmptyDataNotAllowed(SubsetException):

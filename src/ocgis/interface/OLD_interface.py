@@ -10,7 +10,7 @@ from ocgis.interface.projection import get_projection
 from shapely.geometry.polygon import Polygon
 from shapely import prepared
 from shapely.geometry.point import Point
-from ocgis.exc import DummyLevelEncountered
+from ocgis import constants, env
 
 
 class GlobalInterface(object):
@@ -43,12 +43,11 @@ class GlobalInterface(object):
         
         ## get the geometric abstraction
         s_abstraction = overload.get('s_abstraction')
-        if s_abstraction is None:
-            if self._row.bounds is None:
-                warn('no bounds found for spatial dimensions. abstracting to point.')
-                s_abstraction = 'point'
-            else:
-                s_abstraction = 'polygon'
+        if self._row.bounds is None:
+            warn('no bounds found for spatial dimensions. abstracting to point.')
+            s_abstraction = 'point'
+#            else:
+#                s_abstraction = 'polygon'
         if s_abstraction == 'polygon':
             self.spatial = SpatialInterfacePolygon(self._row,self._col,projection)
         else:
@@ -81,8 +80,7 @@ class GlobalInterface(object):
             mp[axis] = {'variable':dimvar,'dimension':dim}
             
         ## look for bounds variables
-        bounds_names = set(['bounds','bnds','bound','bnd'])
-        bounds_names.update(['d_'+b for b in bounds_names])
+        bounds_names = set(constants.name_bounds)
         for key,value in mp.iteritems():
             if value is None:
                 continue
@@ -115,15 +113,18 @@ class AbstractInterface(object):
     def __init__(self,gi):
         self.gi = gi
         self._ref = gi._dim_map[self._axis]
+        
         if self._ref is not None:
             self._ref_var = self._ref.get('variable')
             self._ref_bnds = self._ref.get('bounds')
+            self._dim_name = self._ref['dimension']
         else:
             if type(self) == LevelInterface:
                 raise(DummyLevelEncountered)
             else:
                 self._ref_var = None
                 self._ref_bnds = None
+                self._dim_name = None
         
         try:
             self.name = self._ref_var._name
@@ -281,10 +282,17 @@ class AbstractSpatialInterface(object):
         return(self._count)
         
     def select(self,polygon=None):
-        if polygon is None:
-            return(self._get_all_geoms_())
+        ## loading geometries slows down operations considerably
+        if env.OPTIMIZE_FOR_CALC:
+            geom = np.empty(self.shape,dtype=object)
+            row = self.real_row.reshape(-1)
+            col = self.real_col.reshape(-1)
+            return(geom,row,col)
         else:
-            return(self._select_(polygon))
+            if polygon is None:
+                return(self._get_all_geoms_())
+            else:
+                return(self._select_(polygon))
         
     def _get_resolution_(self):
         return(approx_resolution(self.row.value))

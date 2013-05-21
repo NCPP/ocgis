@@ -4,17 +4,18 @@ from ocgis.util.helpers import make_poly
 import pickle
 import tempfile
 import os
-import ocgis
+from ocgis.test.base import TestBase
+from ocgis.util.shp_cabinet import ShpCabinet
 
 
-class Test(unittest.TestCase):
+class Test(TestBase):
     
     def test_dir_output(self):
         ## raise an exception if the directory does not exist
         do = '/does/not/exist'
         with self.assertRaises(DefinitionValidationError):
             DirOutput(do)
-            
+          
         ## make sure directory name does not change case
         do = 'Some'
         new_dir = os.path.join(tempfile.gettempdir(),do)
@@ -24,6 +25,21 @@ class Test(unittest.TestCase):
             self.assertEqual(new_dir,dd.value)
         finally:
             os.rmdir(new_dir)
+            
+    def test_slice(self):
+        slc = Slice(None)
+        self.assertEqual(slc.value,None)
+        
+        slc = Slice([None,0,0])
+        self.assertEqual(slc.value,(slice(None),slice(0,1),slice(0, 1)))
+        
+        slc = Slice([0,None,[0,1],[0,100]])
+        self.assertEqual(slc.value,(slice(0,1),slice(None),slice(0,1),slice(0,100)))
+        
+        with self.assertRaises(DefinitionValidationError):
+            slc.value = 4
+        with self.assertRaises(DefinitionValidationError):
+            slc.value = [None,None]
 
     def test_snippet(self):
         self.assertFalse(Snippet().value)
@@ -80,7 +96,7 @@ class Test(unittest.TestCase):
         pp = Prefix()
         self.assertEqual(pp.value,'ocgis_output')
         pp.value = ' Old__man '
-        self.assertEqual(pp.value,'old__man')
+        self.assertEqual(pp.value,'Old__man')
         
     def test_calc_grouping(self):
         cg = CalcGrouping(['day','month'])
@@ -90,12 +106,10 @@ class Test(unittest.TestCase):
         self.assertEqual(cg.get_url_string(),'day|month')
             
     def test_dataset(self):
-        uri = '/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
-        variable = 'tas'
-        rd = RequestDataset(uri,variable)
+        rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
         us = dd.get_url_string()
-        self.assertEqual(us,'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        self.assertEqual(us,'uri={0}&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none'.format(rd.uri))
         
         with open('/tmp/dd.pkl','w') as f:
 #            import ipdb;ipdb.set_trace()
@@ -106,19 +120,19 @@ class Test(unittest.TestCase):
             rd = RequestDataset(uri,'foo')
 
     def test_geom(self):
-        geom_base = make_poly((37.762,38.222),(-102.281,-101.754))
-        geom = [{'ugid':1,'geom':geom_base}]
+        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+
         g = Geom(geom)
-        self.assertEqual(type(g.value),SelectionGeometry)
+        self.assertEqual(type(g.value),GeometryDataset)
         g.value = None
-        self.assertNotEqual(None,g.value)
+        self.assertEqual(None,g.value)
         
         g = Geom(None)
-        self.assertNotEqual(g.value,None)
+        self.assertEqual(g.value,None)
         self.assertEqual(str(g),'geom=None')
         
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(g.value.spatial.geom[0].bounds,(-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
         self.assertEqual(g.get_url_string(),'-120.0|40.0|-110.0|50.0')
         
@@ -126,17 +140,21 @@ class Test(unittest.TestCase):
         self.assertEqual(str(g),'geom=mi_watersheds')
         
         geoms = ShpCabinet().get_geoms('mi_watersheds')
-        g = Geom(geoms)
+        g = Geom('mi_watersheds')
         self.assertEqual(len(g.value),len(geoms))
         
         su = SelectUgid([1,2,3])
         g = Geom('mi_watersheds',select_ugid=su)
         self.assertEqual(len(g.value),3)
         
-        geoms = [geom[0],geom[0]]
+        geoms = GeometryDataset(uid=[1,2],geom=[geom,geom])
         g = Geom(geoms)
         with self.assertRaises(CannotEncodeUrl):
             g.get_url_string()
+        
+        bbox = [-120,40,-110,50]
+        g = Geom(bbox)
+        self.assertEqual(g.value.spatial.geom[0].bounds,tuple(map(float,bbox)))
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]

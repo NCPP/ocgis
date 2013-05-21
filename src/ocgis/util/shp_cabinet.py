@@ -6,8 +6,11 @@ import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
 import csv
-from ocgis.util.spatial.wrap import unwrap_geoms
-from ocgis.api.geometry import SelectionGeometry
+from osgeo.ogr import CreateGeometryFromWkb
+from shapely.geometry.polygon import Polygon
+from osgeo.osr import SpatialReference
+from copy import deepcopy
+from shapely import wkb
 
 
 class ShpCabinet(object):
@@ -30,12 +33,16 @@ class ShpCabinet(object):
     '''
     
     def __init__(self,path=None):
-        self.path = path or env.DIR_SHPCABINET
-        if self.path is None:
+        self._path = path or env.DIR_SHPCABINET
+    
+    @property
+    def path(self):
+        if self._path is None:
             raise(ValueError('A path value is required. Either pass a path to the constructor or set ocgis.env.DIR_SHPCABINET.'))
-        elif not os.path.exists(self.path):
-            raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self.path)))
-        
+        elif not os.path.exists(self._path):
+            raise(ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self._path)))
+        return(self._path)
+    
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.
         
@@ -58,18 +65,13 @@ class ShpCabinet(object):
     def get_geom_dict(self,*args,**kwds):
         return(self.get_geoms(*args,**kwds))
     
-    def get_geoms(self,key,attr_filter=None,unwrap=False,pm=0.0):
+    def get_geoms(self,key,attr_filter=None):
         """Return geometries from a shapefile specified by `key`.
         
         :param key: The shapefile identifier.
         :type key: str
         :param attr_filter: A dict containing attribute filters. Keys indicate attribute fields and values should be lists that will match attribute values `exactly`.
         :type attr_filter: dict
-        :param unwrap: If `True`, unwrap the geometries to 0 to 360 longitudinal domain.
-        :type unwrap: bool
-        :param pm: If `unwrap` is `True`, this value sets the prime meridian.
-        :type pm: float
-        :rtype: list of dict
         """
         
         shp_path = self.get_shp_path(key)
@@ -125,10 +127,6 @@ class ShpCabinet(object):
                 if ref in fvalues: return(True)
             ## filter the geometry dictionary
             geoms = filter(_filter_,geoms)
-            
-        ## unwrap the geometries if requested
-        if unwrap:
-            unwrap_geoms(geoms,pm)
         
         return(SelectionGeometry(geoms))
     
@@ -152,7 +150,7 @@ class ShpCabinet(object):
         for dct in geom_dict:
             dct_copy = dct.copy()
             geom = dct_copy.pop('geom')
-            if not isinstance(geom,MultiPolygon):
+            if isinstance(geom,Polygon):
                 geom = MultiPolygon([geom])
             yield(dct_copy,geom)
             
@@ -180,13 +178,14 @@ class ShpCabinet(object):
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
         
-        layer = ds.CreateLayer('lyr',srs=sr,geom_type=ogr.wkbMultiPolygon)
+        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
+        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
         headers = self.get_headers(geom_dict)
         
         build = True
         for dct,geom in self.get_converter_iterator(geom_dict):
             if build:
-                csv_path = path.replace('shp','csv')
+                csv_path = path.replace('.shp','.csv')
                 csv_f = open(csv_path,'w')
                 writer = csv.writer(csv_f,dialect=OcgDialect)
                 writer.writerow(headers)
@@ -243,3 +242,58 @@ class ShpCabinet(object):
         for header in headers:
             ogr_fields.append(OgrField(fcache,header,type(self._get_(row,header))))
         return(ogr_fields)
+    
+    
+class ocgis(object):
+    
+    def __init__(self,selection_geometry):
+        self.selection_geometry = selection_geometry
+    
+    @property
+    def geom_type(self):
+        raise(NotImplementedError)
+    
+    @property
+    def sr(self):
+        sr = SpatialReference()
+        sr.ImportFromProj4(self._proj4_str)
+        return(sr)
+    
+    def get_aggregated(self):
+        raise(NotImplementedError)
+        
+    def get_projected(self,to_sr):
+        from_sr = self.sr
+        se = self.selection_geometry
+        len_se = len(se)
+        loads = wkb.loads
+        
+        ret = [None]*len_se
+        for idx in range(len_se):
+            gc = deepcopy(se[idx])
+            geom = CreateGeometryFromWkb(gc['geom'].wkb)
+            geom.AssignSpatialReference(from_sr)
+            geom.TransformTo(to_sr)
+            gc['geom'] = loads(geom.ExportToWkb())
+            ret[idx] = gc
+        
+        return(SelectionGeometry(ret,sr=to_sr))
+    
+    def get_unwrapped(self,axis):
+        raise(NotImplementedError)
+    
+    def get_wrapped(self,axis):
+        raise(NotImplementedError)
+
+
+class SelectionGeometry(list):
+    
+    def __init__(self,*args,**kwds):
+        self.ocgis = ocgis(self)
+        sr = kwds.pop('sr',None)
+        if sr is None:
+            sr = SpatialReference()
+            sr.ImportFromEPSG(4326)
+        self.ocgis._proj4_str = sr.ExportToProj4()
+        
+        super(SelectionGeometry,self).__init__(*args,**kwds)

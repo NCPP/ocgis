@@ -1,5 +1,5 @@
-__VER__ = '0.05'
-__RELEASE__ = '0.05b-dev'
+__VER__ = '0.05.1'
+__RELEASE__ = '0.05.1b'
 
 from util.environment import env
 from api import OcgOperations

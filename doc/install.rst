@@ -87,7 +87,7 @@ OpenClimateGIS has not been tested on Windows platforms. All libraries are theor
 Installing OpenClimateGIS
 -------------------------
 
-1. Download the current release: http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.05b/reg/OCGIS_Framework_Reg.html.
+1. Download the current release: http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.05.1b/reg/OCGIS_Framework_Reg.html.
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.
 4. Run the system command:

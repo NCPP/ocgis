@@ -108,36 +108,36 @@ sudo ldconfig
 # INSTALL GDAL PYTHON BINDINGS
 ##############################
 
-GDAL_PYTHON_PREFIX=gdal-python
-GDAL_PYTHON_VER=1.9.1
-GDAL_PYTHON_SRC=$SRCDIR/$GDAL_PYTHON_PREFIX/v$GDAL_PYTHON_VER
-GDAL_PYTHON_DIR=$INSTALLDIR/$GDAL_PYTHON_PREFIX/v$GDAL_PYTHON_VER
-GDAL_PYTHON_URL=http://pypi.python.org/packages/source/G/GDAL/GDAL-$GDAL_PYTHON_VER.tar.gz
-
-mkdir -p $GDAL_PYTHON_SRC
-cd $GDAL_PYTHON_SRC
-wget $GDAL_PYTHON_URL
-tar xzf GDAL-$GDAL_PYTHON_VER.tar.gz
-cd GDAL-$GDAL_PYTHON_VER
-## EDIT PATH TO GDAL-CONFIG (should be: '$GDAL_DIR/bin/gdal-config')
-emacs setup.cfg
-
-sudo python setup.py install
+#GDAL_PYTHON_PREFIX=gdal-python
+#GDAL_PYTHON_VER=1.9.1
+#GDAL_PYTHON_SRC=$SRCDIR/$GDAL_PYTHON_PREFIX/v$GDAL_PYTHON_VER
+#GDAL_PYTHON_DIR=$INSTALLDIR/$GDAL_PYTHON_PREFIX/v$GDAL_PYTHON_VER
+#GDAL_PYTHON_URL=http://pypi.python.org/packages/source/G/GDAL/GDAL-$GDAL_PYTHON_VER.tar.gz
+#
+#mkdir -p $GDAL_PYTHON_SRC
+#cd $GDAL_PYTHON_SRC
+#wget $GDAL_PYTHON_URL
+#tar xzf GDAL-$GDAL_PYTHON_VER.tar.gz
+#cd GDAL-$GDAL_PYTHON_VER
+### EDIT PATH TO GDAL-CONFIG (should be: '$GDAL_DIR/bin/gdal-config')
+#emacs setup.cfg
+#
+#sudo python setup.py install
 
 ########################
 # INSTALL NETCDF4-PYTHON
 ########################
 
 NC4_PYTHON_PREFIX=netCDF4-python
-NC4_PYTHON_VER=1.0
+NC4_PYTHON_VER=1.0.4
 NC4_PYTHON_SRC=$SRCDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
 NC4_PYTHON_DIR=$INSTALLDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
-NC4_PYTHON_URL=http://netcdf4-python.googlecode.com/files/netCDF4-1.0fix1.tar.gz
+NC4_PYTHON_URL=https://netcdf4-python.googlecode.com/files/netCDF4-1.0.4.tar.gz
 
 mkdir -p $NC4_PYTHON_SRC
 cd $NC4_PYTHON_SRC
 wget $NC4_PYTHON_URL
-tar xzf netCDF4-1.0fix1.tar.gz
+tar xzf netCDF4-1.0.4.tar.gz
 cd netCDF4-$NC4_PYTHON_VER
 
 #### make this the setup.cfg file ####
@@ -149,7 +149,6 @@ netCDF4_dir=$NC_DIR
 netCDF4_incdir=$NC_DIR/include
 netCDF4_libdir=$NC_DIR/lib" > setup.cfg
 
-#sudo /home/local/WX/ben.koziol/Dropbox/.virtualenvs/ocg/bin/python setup.py install
 sudo python setup.py install
 
 #################
@@ -185,36 +184,36 @@ sudo pip install shapely
 # INSTALL POSTGIS
 #################
 
-POSTGIS_VER=2.0.1
-POSTGIS_SRC=$SRCDIR/postgis/v$POSTGIS_VER
-GEOS_CONFIG=/usr/local/geos/v3.3.5/bin/geos-config
-PROJ_DIR=/usr/local/proj/v4.8.0
-GDAL_CONFIG=/usr/local/gdal/v1.9.1/bin/gdal-config
-PG_TEMPLATE=postgis-$POSTGIS_VER-template
-PG_CONFIG=/usr/bin/pg_config
-
-# install dependencies
-sudo apt-get install libpq-dev
-sudo apt-get install postgresql-server-dev-9.1
-sudo apt-get install postgresql-contrib-9.1
-
-# install postgis
-TAR=postgis-$POSTGIS_VER.tar.gz
-mkdir -p $POSTGIS_SRC
-cd $POSTGIS_SRC
-wget http://postgis.refractions.net/download/$TAR
-tar -xzvf $TAR
-cd postgis-$POSTGIS_VER
-./configure --with-geosconfig=$GEOS_CONFIG --with-projdir=$PROJ_DIR --with-gdalconfig=$GDAL_CONFIG --with-raster --with-gui
-make -j $J
-sudo make install
-
-# create template database
-sudo su -c "createdb '$PG_TEMPLATE'" - postgres
-sudo su -c "createlang plpgsql $PG_TEMPLATE" - postgres
-sudo su -c "psql -c \"UPDATE pg_database SET datistemplate='true' WHERE datname='$PG_TEMPLATE';\"" - postgres
-sudo -u postgres psql -f postgis/postgis.sql -d $PG_TEMPLATE
-sudo -u postgres psql -f spatial_ref_sys.sql -d $PG_TEMPLATE
-sudo -u postgres psql -f raster/rt_pg/rtpostgis.sql -d $PG_TEMPLATE
-#sudo -u postgres psql -d $PG_TEMPLATE -c "GRANT ALL ON geometry_columns TO PUBLIC;"
-#sudo -u postgres psql -d $PG_TEMPLATE -c "GRANT SELECT ON spatial_ref_sys TO PUBLIC;"
+#POSTGIS_VER=2.0.1
+#POSTGIS_SRC=$SRCDIR/postgis/v$POSTGIS_VER
+#GEOS_CONFIG=/usr/local/geos/v3.3.5/bin/geos-config
+#PROJ_DIR=/usr/local/proj/v4.8.0
+#GDAL_CONFIG=/usr/local/gdal/v1.9.1/bin/gdal-config
+#PG_TEMPLATE=postgis-$POSTGIS_VER-template
+#PG_CONFIG=/usr/bin/pg_config
+#
+## install dependencies
+#sudo apt-get install libpq-dev
+#sudo apt-get install postgresql-server-dev-9.1
+#sudo apt-get install postgresql-contrib-9.1
+#
+## install postgis
+#TAR=postgis-$POSTGIS_VER.tar.gz
+#mkdir -p $POSTGIS_SRC
+#cd $POSTGIS_SRC
+#wget http://postgis.refractions.net/download/$TAR
+#tar -xzvf $TAR
+#cd postgis-$POSTGIS_VER
+#./configure --with-geosconfig=$GEOS_CONFIG --with-projdir=$PROJ_DIR --with-gdalconfig=$GDAL_CONFIG --with-raster --with-gui
+#make -j $J
+#sudo make install
+#
+## create template database
+#sudo su -c "createdb '$PG_TEMPLATE'" - postgres
+#sudo su -c "createlang plpgsql $PG_TEMPLATE" - postgres
+#sudo su -c "psql -c \"UPDATE pg_database SET datistemplate='true' WHERE datname='$PG_TEMPLATE';\"" - postgres
+#sudo -u postgres psql -f postgis/postgis.sql -d $PG_TEMPLATE
+#sudo -u postgres psql -f spatial_ref_sys.sql -d $PG_TEMPLATE
+#sudo -u postgres psql -f raster/rt_pg/rtpostgis.sql -d $PG_TEMPLATE
+##sudo -u postgres psql -d $PG_TEMPLATE -c "GRANT ALL ON geometry_columns TO PUBLIC;"
+##sudo -u postgres psql -d $PG_TEMPLATE -c "GRANT SELECT ON spatial_ref_sys TO PUBLIC;"

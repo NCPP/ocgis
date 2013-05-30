@@ -1,8 +1,11 @@
 class OcgException(Exception):
     """Base class for all OCGIS exceptions."""
     
-    def __init__(self,msg=None):
-        self.msg = msg
+    def __init__(self,message=None):
+        self.message = message
+        
+    def __str__(self):
+        return(self.message)
 
 
 class InterpreterException(OcgException):
@@ -24,19 +27,18 @@ class DefinitionValidationError(OcgException):
     
     def __init__(self,ocg_argument,msg):
         self.ocg_argument = ocg_argument
-        self.msg = msg
         
-    def __str__(self):
-        msg = ('Operations validation raised an exception on the argument or operation '
+        fmt = ('Operations validation raised an exception on the argument or operation '
                '"{0}" with the message: "{1}"')
         try:
-            msg = msg.format(self.ocg_argument.name,self.msg)
+            msg = fmt.format(ocg_argument.name,msg)
         except AttributeError:
             try:
-                msg = msg.format(self.ocg_argument._name,self.msg)
+                msg = fmt.format(ocg_argument._name,msg)
             except AttributeError:
-                msg = msg.format(self.ocg_argument,self.msg)
-        return(msg)
+                msg = fmt.format(ocg_argument,msg)
+        
+        self.message = msg
 
 
 class CannotEncodeUrl(OcgException):
@@ -50,8 +52,8 @@ class ParameterFormattingError(OcgException):
     
 class UniqueIdNotFound(OcgException):
     
-    def __str__(self):
-        return('No unique ids found.')
+    def __init__(self):
+        self.message = 'No unique ids found.'
     
     
 class DummyDimensionEncountered(OcgException):
@@ -64,21 +66,25 @@ class SubsetException(OcgException):
 
 
 class MaskedDataError(SubsetException):
-    def __str__(self):
-        return('Geometric intersection returns all masked values.')
+    
+    def __init__(self):
+        self.message = 'Geometric intersection returned all masked values.'
     
     
 class ExtentError(SubsetException):
-    def __str__(self):
-        return('Geometric intersection is empty. {0}'.format(self.msg))
+    
+    def __init__(self):
+        self.message = 'Geometry intersection is empty.'
     
     
 class EmptyDataNotAllowed(SubsetException):
     """Raised when the empty set for a geometry is returned and `allow_empty`_ is `False`."""
-    def __str__(self):
-        return('Intersection returned empty, but empty data not allowed.')
+    
+    def __init__(self):
+        self.message = 'Intersection returned empty, but empty data not allowed.'
     
     
 class EmptyData(SubsetException):
-    def __str__(self):
-        return('Empty data returned.')
+    
+    def __init__(self):
+        self.message = 'Empty data returned.'

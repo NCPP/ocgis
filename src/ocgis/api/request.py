@@ -203,7 +203,7 @@ class RequestDataset(object):
     
     
 class RequestDatasetCollection(object):
-    '''Contains business logic ensuring multi-:class:`ocgis.RequestDataset` objects are
+    '''Contains business logic ensuring multiple :class:`ocgis.RequestDataset` objects are
     compatible.
     
     >>> from ocgis import RequestDatasetCollection, RequestDataset

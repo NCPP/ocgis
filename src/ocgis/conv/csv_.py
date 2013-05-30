@@ -32,6 +32,7 @@ class CsvPlusConverter(CsvConverter):
     def _write_(self):
         gid_file = []
         build = True
+        is_aggregated = self.ops.aggregate
         with open(self.path,'w') as f:
             writer = csv.writer(f,dialect=OcgDialect)
             for coll in self:
@@ -47,13 +48,14 @@ class CsvPlusConverter(CsvConverter):
                     writer.writerow(headers)
                     build = False
                 for geom,row in coll.get_iter():
-                    gid_file.append({'geom':geom,'did':row[did_idx],
-                                     'ugid':row[ugid_idx],'gid':row[gid_idx]})
+                    if not is_aggregated:
+                        gid_file.append({'geom':geom,'did':row[did_idx],
+                                         'ugid':row[ugid_idx],'gid':row[gid_idx]})
                     writer.writerow(row)
         
-        if self.ops.aggregate is True and self.ops.abstraction == 'point':
+        if is_aggregated is True:
             if env.VERBOSE:
-                print('creating a UGID-GID shapefile is not necessary for aggregated point data. use UGID shapefile.')
+                print('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.')
         else:
             sc = ShpCabinet()
             shp_dir = os.path.join(self.outdir,'shp')

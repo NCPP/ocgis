@@ -7,8 +7,7 @@ from ocgis.conv.meta import MetaConverter
 
 
 class OcgOperations(object):
-    """Entry point for OCGIS operations. Parameters may be modified before an
-    execution.
+    """Entry point for OCGIS operations.
     
     .. warning:: The object SHOULD NOT be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution.
     
@@ -56,7 +55,7 @@ class OcgOperations(object):
     :type vector_wrap: bool
     :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
     :type allow_empty: bool
-    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised.
+    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
     """
     
@@ -187,7 +186,7 @@ class OcgOperations(object):
     def execute(self):
         """Execute the request using the selected backend.
         
-        :rtype: Path to an output file/folder or :class:`ocgis.OcgCollection`
+        :rtype: Path to an output file/folder or dictionary composed of :class:`ocgis.api.collection.AbstractCollection` objects.
         """
         interp = OcgInterpreter(self)
         return(interp.execute())

@@ -84,74 +84,51 @@ Now, the directory structure for `/tmp/foo` will look like:
 .. code-block:: rest
 
    $ find /tmp/foo
-   /tmp/foo
+   /tmp/foo/
+   /tmp/foo/nc_output
+   /tmp/foo/nc_output/nc_output_did.csv
+   /tmp/foo/nc_output/nc_output.nc
+   /tmp/foo/nc_output/nc_output_meta.txt
+   /tmp/foo/csv+_output
+   /tmp/foo/csv+_output/csv+_output_meta.txt
+   /tmp/foo/csv+_output/csv+_output_did.csv
+   /tmp/foo/csv+_output/csv+_output.csv
+   /tmp/foo/csv+_output/shp
+   /tmp/foo/csv+_output/shp/csv+_output_gid.csv
+   /tmp/foo/csv+_output/shp/csv+_output_gid.shp
+   /tmp/foo/csv+_output/shp/csv+_output_ugid.prj
+   /tmp/foo/csv+_output/shp/csv+_output_gid.dbf
+   /tmp/foo/csv+_output/shp/csv+_output_ugid.shp
+   /tmp/foo/csv+_output/shp/csv+_output_gid.prj
+   /tmp/foo/csv+_output/shp/csv+_output_ugid.shx
+   /tmp/foo/csv+_output/shp/csv+_output_gid.shx
+   /tmp/foo/csv+_output/shp/csv+_output_ugid.csv
+   /tmp/foo/csv+_output/shp/csv+_output_ugid.dbf
    /tmp/foo/shp_output
+   /tmp/foo/shp_output/shp_output_ugid.shx
+   /tmp/foo/shp_output/shp_output_ugid.prj
    /tmp/foo/shp_output/shp_output.shp
+   /tmp/foo/shp_output/shp_output_ugid.csv
    /tmp/foo/shp_output/shp_output.dbf
+   /tmp/foo/shp_output/shp_output_ugid.shp
    /tmp/foo/shp_output/shp_output.shx
+   /tmp/foo/shp_output/shp_output_ugid.dbf
    /tmp/foo/shp_output/shp_output_meta.txt
+   /tmp/foo/shp_output/shp_output_did.csv
    /tmp/foo/shp_output/shp_output.prj
-   /tmp/foo/ocgis_output
    /tmp/foo/csv_output
    /tmp/foo/csv_output/csv_output.csv
    /tmp/foo/csv_output/csv_output_meta.txt
-   /tmp/foo/keyed_output
-   /tmp/foo/keyed_output/keyed_output_tid.csv
-   /tmp/foo/keyed_output/keyed_output_lid.csv
-   /tmp/foo/keyed_output/keyed_output_vid.csv
-   /tmp/foo/keyed_output/keyed_output_cid.csv
-   /tmp/foo/keyed_output/keyed_output_meta.txt
-   /tmp/foo/keyed_output/keyed_output_ugid.csv
-   /tmp/foo/keyed_output/keyed_output_did.csv
-   /tmp/foo/keyed_output/keyed_output_tgid.csv
-   /tmp/foo/keyed_output/keyed_output_shp
-   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.shx
-   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.shp
-   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.prj
-   /tmp/foo/keyed_output/keyed_output_shp/keyed_output_shpidx.dbf
-   /tmp/foo/keyed_output/keyed_output_gid.csv
-   /tmp/foo/keyed_output/keyed_output_value.csv
-
-.. note:: This data management approach may be confusing and efforts will be made in future releases to improve directory management.
+   /tmp/foo/csv_output/csv_output_did.csv
 
 Advanced Subsetting
 -------------------
 
 In this example, a U.S. state boundary shapefile will be used to subset and aggregate three climate datasets. The aggregation will occur on a per-geometry + dataset basis. Hence, we will end up with daily aggregated "statewide" temperatures for the three climate variables. We also want to clip the climate data cells to the boundary of the selection geometry to take advantage of area-weighting and avoid data duplication.
 
+.. note:: With no output directory specified, data is written to an "ocgis_output" folder in the system's default temporary directory.
+
 .. literalinclude:: sphinx_examples/advanced_subset.py
-
-The shapefile attribute table would like something like:
-
-.. figure:: _images/examples/advanced_subset_shapefile.png
-   :scale: 50%
-   :align: center
-   :figwidth: 75%
-   
-   An example shapefile output attribute table. Note how repeated elements may lead to large filesizes. This is a good output format when making an initial pass at a data request. Again the `keyed` output is recommended for data requests in general unless writing to NetCDF which is remains the most efficient format.
-
-For the `keyed` output, the output folder will contain a number of CSV files with unique identifiers that may be linked via the `ocgis_output_value.csv` table. The `ocgis_output_shp` folder will contain a shapefile representing the data geometries -- perfect for joining.
-
-.. figure:: _images/examples/advanced_subset_keyed_folder_contents.png
-   :scale: 50%
-   :align: center
-   :figwidth: 75%
-
-   Folder contents for the `keyed` output.
-
-.. figure:: _images/examples/advanced_subset_value_csv.png
-   :scale: 50%
-   :align: center
-   :figwidth: 75%
-
-   A peak inside the `ocgis_output_value.csv` file.
-
-.. figure:: _images/examples/advanced_subset_vid_csv.png
-   :scale: 50%
-   :align: center
-   :figwidth: 75%
-
-   A peak inside the `ocgis_output_vid.csv` file which links to the `VID` attribute of the value file.
 
 Subsetting with a Time/Level Range
 ----------------------------------

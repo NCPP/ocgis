@@ -6,6 +6,8 @@ from api import OcgOperations
 from util.shp_cabinet import ShpCabinet
 from util.inspect import Inspect
 from api.request import RequestDataset, RequestDatasetCollection
+from interface.geometry import GeometryDataset
+from interface.shp import ShpDataset
 
 from osgeo import ogr
 ## tell ogr to raise exceptions

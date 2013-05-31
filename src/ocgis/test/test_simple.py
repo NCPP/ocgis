@@ -200,7 +200,7 @@ class TestSimple(TestSimpleBase):
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
-        
+
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
             
@@ -255,7 +255,7 @@ class TestSimple(TestSimpleBase):
     def test_shp_conversion(self):
         calc = [
                 None,
-                [{'func':'mean','name':'my_mean'}]
+                [{'func':'mean','name':'my_mean'}],
                 ]
         group = ['month','year']
         for c in calc:

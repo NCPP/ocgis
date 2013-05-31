@@ -8,15 +8,15 @@ from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
-import logging
 from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 
 
-## create local logger if necessary
-if env.VERBOSE or env.ENABLE_FILE_LOGGING:
+if env._use_logging:
     subset_log = logging.getLogger('subset')
 else:
     subset_log = None
+
 
 class SubsetOperation(object):
     
@@ -201,7 +201,7 @@ def get_collection((so,geom,logger)):
                              logger,alias=alias,ugid=ugid)
                     continue
                 else:
-                    ocgis_lh(ExtentError(request_dataset),logger,alias=alias,ugid=ugid)
+                    ocgis_lh(None,logger,exc=ExtentError(),alias=alias,ugid=ugid)
         coll.variables.update({request_dataset.alias:ods})
 
     ## if there are calculations, do those now and return a new type of collection

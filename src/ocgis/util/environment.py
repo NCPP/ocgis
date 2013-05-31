@@ -21,6 +21,8 @@ class Environment(object):
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         
         self.ops = None
+        ## pass logging flag between modules
+        self._use_logging = False
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -31,7 +33,7 @@ class Environment(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        if isinstance(value,EnvParm) or name == 'ops':
+        if isinstance(value,EnvParm) or name in ['ops','_use_logging']:
             object.__setattr__(self,name,value)
         else:
             attr = object.__getattribute__(self,name)

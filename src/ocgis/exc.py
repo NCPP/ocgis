@@ -86,5 +86,5 @@ class EmptyDataNotAllowed(SubsetException):
     
 class EmptyData(SubsetException):
     
-    def __init__(self):
-        self.message = 'Empty data returned.'
+    def __init__(self,message=None):
+        self.message = message or 'Empty data returned.'

@@ -40,9 +40,9 @@ def ocgis_lh(msg,logger,level=logging.INFO,alias=None,exc=None,ugid=None):
     if alias is not None:
         msg = get_formatted_msg(msg,alias,ugid=ugid)
     if exc is None:
-        if logger is not None and (env.VERBOSE or env.ENABLE_FILE_LOGGING):
+        if logger is not None:
             logger.log(level,msg)
     else:
-        if logger is not None and (env.VERBOSE or env.ENABLE_FILE_LOGGING):
+        if logger is not None:
             logger.exception(msg)
         raise(exc)

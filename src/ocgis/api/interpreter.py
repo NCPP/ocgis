@@ -5,9 +5,8 @@ from ocgis.conv.base import OcgConverter
 from subset import SubsetOperation
 import os
 import shutil
+from ocgis.util.logging_ocgis import ocgis_lh
 import logging
-import tempfile
-from ocgis.util.logging_ocgis import configure_logging, ocgis_lh
 
 ## TODO: add method to estimate request size
 
@@ -66,55 +65,48 @@ class OcgInterpreter(Interpreter):
         ## if file logging is enable, perform some logic based on the operational
         ## parameters.
         if env.ENABLE_FILE_LOGGING:
-            ## for numpy output, we do not need need to write the log file, unless
-            ## the level is DEBUG.
-            if constants.logging_level == logging.DEBUG and self.ops.output_format == 'numpy':
-                add_filehandler = True
-                filename = os.path.join(tempfile.gettempdir(),prefix+'.log')
-            ## if the output is numpy and we are not logging at the debug level,
-            ## then do not create the filehandler.
-            elif constants.logging_level != logging.DEBUG and self.ops.output_format == 'numpy':
-                add_filehandler = False
+            if self.ops.output_format == 'numpy':
+                to_file = False
                 filename = None
-            ## add a log file to the output directory
             else:
-                add_filehandler = True
+                to_file = True
                 filename = os.path.join(outdir,prefix+'.log')
         else:
-            add_filehandler = False
+            to_file = False
             filename = None
+        
+        ## flags to determine streaming to console
+        if env.VERBOSE:
+            to_stream = True
+        else:
+            to_stream = False
+
         ## configure the logger
-        configure_logging(add_filehandler=add_filehandler,filename=filename)
+        ocgis_lh.configure(to_file=to_file,filename=filename,
+                           to_stream=to_stream,level=constants.logging_level)
         
         ## create local logger
-        if add_filehandler:
-            interpreter_log = logging.getLogger('interpreter')
-        else:
-            interpreter_log = None
+        interpreter_log = ocgis_lh.get_logger('interpreter')
         
         ocgis_lh('executing: {0}'.format(self.ops.prefix),interpreter_log)
         
         ## add operations to environment
         env.ops = self.ops
             
-        self.check() ## run validation
-            
-        ## determine if data is remote or local. if the data is remote, it needs
-        ## to be downloaded to a temporary location then the calculations
-        ## performed on the local data. the downloaded data should be removed
-        ## when computations have finished.
-        ## TODO: add single download
+        self.check() ## run validation - doesn't do much now
             
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
         ## aggregated.
-        if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) and self.ops.geom is not None and len(self.ops.geom) > 1:
+        if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) \
+         and self.ops.geom is not None and len(self.ops.geom) > 1:
             ocgis_lh('aggregating selection geometry',interpreter_log)
             self.ops.geom.aggregate()
             
         ## do not perform vector wrapping for NetCDF output
         if self.ops.output_format == 'nc':
-            ocgis_lh('"vector_wrap" set to False for netCDF output',interpreter_log,level=logging.WARN)
+            ocgis_lh('"vector_wrap" set to False for netCDF output',
+                     interpreter_log,level=logging.WARN)
             self.ops.vector_wrap = False
 
         ## if the requested output format is "meta" then no operations are run
@@ -124,15 +116,18 @@ class OcgInterpreter(Interpreter):
         ## this is the standard request for other output types.
         else:
             ## the operations object performs subsetting and calculations
-            ocgis_lh('initializing subset',interpreter_log)
-            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES,validate=True)
+            ocgis_lh('initializing subset',interpreter_log,level=logging.DEBUG)
+            so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES,
+                                 validate=True)
             ## if there is no grouping on the output files, a singe converter is
             ## is needed
             if self.ops.output_grouping is None:
                 Conv = OcgConverter.get_converter(self.ops.output_format)
-                ocgis_lh('initializing converter',interpreter_log)
+                ocgis_lh('initializing converter',interpreter_log,
+                         level=logging.DEBUG)
                 conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
-                ocgis_lh('starting converter write loop',interpreter_log)
+                ocgis_lh('starting converter write loop',interpreter_log,
+                         level=logging.DEBUG)
                 ret = conv.write()
             else:
                 raise(NotImplementedError)

@@ -12,12 +12,6 @@ from ocgis.util.logging_ocgis import ocgis_lh
 import logging
 
 
-if env._use_logging:
-    subset_log = logging.getLogger('subset')
-else:
-    subset_log = None
-
-
 class SubsetOperation(object):
     
     def __init__(self,ops,serial=True,nprocs=1,validate=True):
@@ -25,15 +19,17 @@ class SubsetOperation(object):
         self.serial = serial
         self.nprocs = nprocs
         
+        subset_log = ocgis_lh.get_logger('subset')
+        
         if validate:
-            ocgis_lh('validating request datasets',subset_log)
+            ocgis_lh('validating request datasets',subset_log,level=logging.DEBUG)
             ops.dataset.validate()
 
         ## create the calculation engine
         if self.ops.calc is None:
             self.cengine = None
         else:
-            ocgis_lh('initializing calculation engine',subset_log)
+            ocgis_lh('initializing calculation engine',subset_log,level=logging.DEBUG)
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
@@ -86,15 +82,20 @@ class SubsetOperation(object):
         
     def _iter_proc_args_(self):
         ''':rtype: tuple'''
+        
+        subset_log = ocgis_lh.get_logger('subset')
+        
         ## if there is no geometry, yield None.
         if self.ops.geom is None:
             ocgis_lh('returning entire spatial domain - no selection geometry',subset_log)
             yield(self,None,subset_log)
+            
         ## iterator through geometries in the ShpDataset
         elif isinstance(self.ops.geom,ShpDataset):
             ocgis_lh('{0} geometry(s) to process'.format(len(self.ops.geom)),subset_log)
             for geom in self.ops.geom:
                 yield(self,geom,subset_log)
+                
         ## otherwise, the data is likely a GeometryDataset with a single value.
         ## just return it.
         else:

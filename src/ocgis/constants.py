@@ -14,4 +14,5 @@ multi_headers = ['ugid','tid','lid','gid','calc_name','time','level','value']
 
 reference_projection = WGS84()
 
-logging_level = logging.INFO
+logging_level = logging.INFO ## default level to log messages
+logging_level_output = logging.INFO ## default level to print log messages

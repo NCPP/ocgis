@@ -264,7 +264,7 @@ class TestSimple(TestSimpleBase):
                                 calc_grouping=group,
                                 calc=c)
             ret = self.get_ret(ops)
-        
+            
     def test_csv_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)

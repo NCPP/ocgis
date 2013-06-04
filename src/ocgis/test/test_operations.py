@@ -238,7 +238,7 @@ class TestRequestDatasets(TestBase):
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
         self.assertEqual(rd.time_range,tr)
         
-        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31, 23, 59, 59)]
+        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31,)]
         tr = '2000-1-1|2000-12-31'
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
         self.assertEqual(rd.time_range,out)
@@ -291,7 +291,28 @@ class TestRequestDatasets(TestBase):
         variable = 'pr'
         rd = RequestDataset(uri=uris,variable=variable)
         rd.inspect()
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+        
+    def test_time_region(self):
+        tr1 = {'month':[6],'year':[2001]}
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr1)
+        self.assertEqual(rd.time_region,tr1)
+        
+        tr2 = {'bad':15}
+        with self.assertRaises(DefinitionValidationError):
+            RequestDataset(uri=self.uri,variable=self.variable,time_region=tr2)
+            
+        tr_str = 'month~6|year~2001'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,tr1)
+        
+        tr_str = 'month~6-8|year~2001-2003'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':[2001,2002,2003]})
+        
+        tr_str = 'month~6-8'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
+        
+        tr_str = 'month~6-8|year~none'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})

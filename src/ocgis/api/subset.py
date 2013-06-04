@@ -153,9 +153,11 @@ def get_collection((so,geom,logger)):
                 igeom = copy_geom.spatial.geom[0]
             ## perform the data subset
             try:
+                ## pull the temporal subset which may be a range or region
+                temporal = request_dataset.time_range or request_dataset.time_region
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
                                      igeom=igeom,
-                                     temporal=request_dataset.time_range,
+                                     temporal=temporal,
                                      level=request_dataset.level_range)
                 ## aggregate the geometries and data if requested
                 if so.ops.aggregate:

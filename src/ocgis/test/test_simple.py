@@ -15,6 +15,7 @@ from ocgis.test.base import TestBase
 import subprocess
 from unittest.case import SkipTest
 from shapely.geometry.point import Point
+import ocgis
 
 
 class TestSimpleBase(TestBase):
@@ -33,10 +34,11 @@ class TestSimpleBase(TestBase):
         TestBase.setUp(self)
         self.nc_factory().write()
     
-    def get_dataset(self,time_range=None,level_range=None):
+    def get_dataset(self,time_range=None,level_range=None,time_region=None):
         uri = os.path.join(env.DIR_OUTPUT,self.fn)
         return({'uri':uri,'variable':self.var,
-                'time_range':time_range,'level_range':level_range})
+                'time_range':time_range,'level_range':level_range,
+                'time_region':time_region})
     
     def get_ops(self,kwds={},time_range=None,level_range=None):
         dataset = self.get_dataset(time_range,level_range)
@@ -165,6 +167,17 @@ class TestSimple(TestSimpleBase):
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
         self.assertEqual(ref.level.value.shape,(1,))
+        
+    def test_time_region_subset(self):
+        rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
+                                  variable=self.var,
+                                  time_region={'month':[3]})
+        ops = ocgis.OcgOperations(dataset=rd)
+        ret = ops.execute()
+#        rd = self.get_dataset(time_region={'month':[3]})
+#        ops = self.get_ops(kwds={'dataset':rd})
+#        ret = self.get_ret(kwds={'dataset':rd})
+        import ipdb;ipdb.set_trace()
 
     def test_spatial(self):
         ## intersects

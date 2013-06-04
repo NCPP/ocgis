@@ -16,6 +16,7 @@ import subprocess
 from unittest.case import SkipTest
 from shapely.geometry.point import Point
 import ocgis
+from ocgis.exc import ExtentError
 
 
 class TestSimpleBase(TestBase):
@@ -198,7 +199,10 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ref.shape[0],30)
         
         ref = get_ref(None,[2000])
-        self.assertTrue(np.all(ref == all))            
+        self.assertTrue(np.all(ref == all))
+        
+        with self.assertRaises(ExtentError):
+            ref = get_ref([1],None)
 
     def test_spatial(self):
         ## intersects

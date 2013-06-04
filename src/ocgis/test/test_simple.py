@@ -169,15 +169,36 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ref.level.value.shape,(1,))
         
     def test_time_region_subset(self):
+        
         rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
-                                  variable=self.var,
-                                  time_region={'month':[3]})
+                                      variable=self.var)
         ops = ocgis.OcgOperations(dataset=rd)
         ret = ops.execute()
-#        rd = self.get_dataset(time_region={'month':[3]})
-#        ops = self.get_ops(kwds={'dataset':rd})
-#        ret = self.get_ret(kwds={'dataset':rd})
-        import ipdb;ipdb.set_trace()
+        all = ret[1].variables['foo'].temporal.value
+        
+        def get_ref(month,year):
+            rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
+                                      variable=self.var,
+                                      time_region={'month':month,'year':year})
+            ops = ocgis.OcgOperations(dataset=rd)
+            ret = ops.execute()
+            ref = ret[1].variables['foo'].temporal.value
+            return(ref)
+        
+        ref = get_ref(None,None)
+        self.assertTrue(np.all(ref == all))
+        
+        ref = get_ref([3],None)
+        self.assertEqual(ref.shape[0],31)
+        
+        ref = get_ref([3,4],None)
+        self.assertTrue(np.all(ref == all))
+        
+        ref = get_ref([4],None)
+        self.assertEqual(ref.shape[0],30)
+        
+        ref = get_ref(None,[2000])
+        self.assertTrue(np.all(ref == all))            
 
     def test_spatial(self):
         ## intersects

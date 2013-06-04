@@ -72,15 +72,43 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                 break
         return(diffs.mean())
     
+    def __getitem__(self,*args,**kwds):
+        ret = super(self.__class__,self).__getitem__(*args,**kwds)
+        ret.units = self.units
+        ret.calendar = self.calendar
+        ret.name_bounds = self.name_bounds
+        return(ret)
+    
     def get_nc_time(self,values):
         ret = nc.date2num(values,self.units,calendar=self.calendar)
         return(ret)
     
     def subset(self,*args,**kwds):
-        ret = super(self.__class__,self).subset(*args,**kwds)
-        ret.units = self.units
-        ret.calendar = self.calendar
-        ret.name_bounds = self.name_bounds
+        try:
+            ret = super(self.__class__,self).subset(*args,**kwds)
+            ret.units = self.units
+            ret.calendar = self.calendar
+            ret.name_bounds = self.name_bounds
+        ## likely a region subset
+        except TypeError:
+            regions = args[0]
+            if regions['month'] is None and regions['year'] is None:
+                ret = self
+            else:
+                ## get years and months from dates
+                parts = np.array([[dt.year,dt.month] for dt in self.value],dtype=int)
+                ## get matching months
+                idx_months = np.zeros(parts.shape[0],dtype=bool)
+                if regions['month'] is not None:
+                    for month in regions['month']:
+                        idx_months = np.logical_or(idx_months,parts[:,1] == month)
+                ## get matching years
+                idx_years = np.zeros(parts.shape[0],dtype=bool)
+                if regions['year'] is not None:
+                    for year in regions['year']:
+                        idx_years = np.logical_or(idx_years,parts[:,0] == year)
+                idx_dates = np.logical_or(idx_months,idx_years)
+                ret = self[idx_dates]
         return(ret)
     
     @classmethod

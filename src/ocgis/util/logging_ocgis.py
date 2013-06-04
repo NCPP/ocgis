@@ -29,14 +29,8 @@ class OcgisLogging(object):
             else:
                 dest_logger.exception(msg)
                 raise(exc)
-            
-    def __del__(self):
-        try:
-            logging.shutdown()
-        except:
-            pass
     
-    def configure(self,to_file=True,filename=None,to_stream=True,
+    def configure(self,to_file=False,filename=None,to_stream=False,
                   level=logging.INFO):
         self.level = level
         self.to_file = to_file
@@ -75,7 +69,18 @@ class OcgisLogging(object):
         return(ret)
     
     def get_logger(self,name):
-        return(logging.getLogger(name))        
+        if self.null:
+            ret = None
+        else:
+            ret = logging.getLogger(name)
+        return(ret)
+    
+    def shutdown(self):
+        self = self.__class__()
+        try:
+            logging.shutdown()
+        except:
+            pass
     
     def _reset_handlers_(self):
         root_logger = logging.getLogger()

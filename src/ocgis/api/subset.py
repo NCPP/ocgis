@@ -4,7 +4,8 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError,\
+    TemporalExtentError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
@@ -198,13 +199,20 @@ def get_collection((so,geom,logger)):
                         ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
             ## there may be no data returned - this may be real or could be an
             ## error. by default, empty returns are not allowed
-            except EmptyData:
+            except EmptyData as ed:
                 if so.ops.allow_empty:
-                    ocgis_lh('the geometric operations returned empty but empty returns are allowed',
-                             logger,alias=alias,ugid=ugid)
+                    if ed.origin == 'time':
+                        msg = 'the time subset returned empty but empty returns are allowed'
+                    else:
+                        msg = 'the geometric operations returned empty but empty returns are allowed'
+                    ocgis_lh(msg,logger,alias=alias,ugid=ugid)
                     continue
                 else:
-                    ocgis_lh('empty geometric operation',logger,exc=ExtentError(),alias=alias,ugid=ugid)
+                    if ed.origin == 'time':
+                        msg = 'empty temporal subset operation'
+                    else:
+                        msg = 'empty geometric operation'
+                    ocgis_lh(msg,logger,exc=ExtentError(msg),alias=alias,ugid=ugid)
         coll.variables.update({request_dataset.alias:ods})
 
     ## if there are calculations, do those now and return a new type of collection

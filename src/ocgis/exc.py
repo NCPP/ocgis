@@ -73,8 +73,14 @@ class MaskedDataError(SubsetException):
     
 class ExtentError(SubsetException):
     
+    def __init__(self,message=None):
+        self.message = message or 'Geometry intersection is empty.'
+        
+        
+class TemporalExtentError(SubsetException):
+    
     def __init__(self):
-        self.message = 'Geometry intersection is empty.'
+        self.message = 'Temporal subset returned empty.'
     
     
 class EmptyDataNotAllowed(SubsetException):
@@ -86,5 +92,6 @@ class EmptyDataNotAllowed(SubsetException):
     
 class EmptyData(SubsetException):
     
-    def __init__(self,message=None):
+    def __init__(self,message=None,origin=None):
         self.message = message or 'Empty data returned.'
+        self.origin = origin

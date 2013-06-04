@@ -10,7 +10,7 @@ from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
 from warnings import warn
 from ocgis import constants
-from ocgis.exc import DummyDimensionEncountered, EmptyData
+from ocgis.exc import DummyDimensionEncountered, EmptyData, TemporalExtentError
 import itertools
 from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.constants import reference_projection
@@ -93,9 +93,16 @@ class NcDataset(base.AbstractDataset):
                 level = self.level.real_idx
                 level_start,level_stop = level[0],level[-1]+1
             
-            self._value = self._get_numpy_data_(ref,time_start,time_stop,
-             row_start,row_stop,column_start,column_stop,level_start=level_start,
-             level_stop=level_stop)
+            try:
+                self._value = self._get_numpy_data_(ref,time_start,time_stop,
+                 row_start,row_stop,column_start,column_stop,level_start=level_start,
+                 level_stop=level_stop)
+            ## likely empty time
+            except TypeError:
+                if time_start.shape[0] == 0:
+                    raise(EmptyData(origin='time'))
+                else:
+                    raise
             
             if self.spatial.vector._geom is not None:
                 self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
@@ -231,7 +238,11 @@ class NcDataset(base.AbstractDataset):
     
     def get_subset(self,temporal=None,level=None,spatial_operation=None,igeom=None):
         if temporal is not None:
-            new_temporal = self.temporal.subset(*temporal)
+            ## time region requests come in as dictionaries
+            if isinstance(temporal,dict):
+                new_temporal = self.temporal.subset(temporal)
+            else:
+                new_temporal = self.temporal.subset(*temporal)
         else:
             new_temporal = self.temporal
         if level is not None:

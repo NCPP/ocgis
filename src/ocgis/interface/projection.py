@@ -1,10 +1,7 @@
-#from warnings import warn
 from osgeo.osr import SpatialReference
 from ocgis.util.helpers import itersubclasses
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.point import Point
-#from osgeo import osr
-#from shapely import wkb
 import abc
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
@@ -21,7 +18,6 @@ def get_projection(dataset):
     if len(projs) == 1:
         ret = projs[0]
     elif len(projs) == 0:
-#        warn('no projection information found assuming WGS84')
         ocgis_lh('no projection information found assuming WGS84',proj_log,logging.WARN)
         ret = WGS84()
     else:

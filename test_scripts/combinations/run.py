@@ -96,5 +96,5 @@ class CombinationRunner(object):
     
     
 if __name__ == '__main__':
-    cr = CombinationRunner(target_combo=5000)
+    cr = CombinationRunner(target_combo=10375)
     cr.execute()

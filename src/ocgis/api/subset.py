@@ -202,7 +202,7 @@ def get_collection((so,geom,logger)):
                              logger,alias=alias,ugid=ugid)
                     continue
                 else:
-                    ocgis_lh(None,logger,exc=ExtentError(),alias=alias,ugid=ugid)
+                    ocgis_lh('empty geometric operation',logger,exc=ExtentError(),alias=alias,ugid=ugid)
         coll.variables.update({request_dataset.alias:ods})
 
     ## if there are calculations, do those now and return a new type of collection

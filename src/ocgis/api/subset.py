@@ -42,12 +42,17 @@ class SubsetOperation(object):
             ##TODO: move snippet to iteration
             ocgis_lh('getting snippet bounds',subset_log)
             for rd in self.ops.dataset:
+                ## snippet is not implemented for time regions
+                if rd.time_region is not None:
+                    raise(NotImplementedError('snippet is not implemented for time regions'))
+                
                 rd.level_range = [1,1]
                 ods = rd.ds
                 ## load the first time slice if there is calculation or the 
                 ## calculation does not use a temporal group.
                 if self.cengine is None or (self.cengine is not None and self.cengine.grouping is None):
-                    ##TODO: improve slicing to not load all time values
+                    ##TODO: improve slicing to not load all time values in a more
+                    ## elegant way.
                     ods._load_slice.update({'T':slice(0,1)})
                 ## snippet for the computation. this currently requires loading
                 ## all the data for the time dimension into memory.

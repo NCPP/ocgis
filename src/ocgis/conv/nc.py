@@ -15,7 +15,7 @@ class NcConverter(OcgConverter):
             if ii > 0:
                 raise(ValueError('only one collection should be returned for NC conversion'))
         ## dataset object to write to
-        ds = nc.Dataset(self.path,'w')
+        ds = nc.Dataset(self.path,'w',format='NETCDF4_CLASSIC')
         ## reference the interfaces
         arch = coll._archetype
 #        iglobal = arch._i

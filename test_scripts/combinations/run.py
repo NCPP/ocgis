@@ -6,6 +6,7 @@ import traceback
 import tempfile
 import os
 import shutil
+import argparse
 
 
 class BlockedCombination(Exception):
@@ -67,18 +68,22 @@ class CombinationRunner(object):
                     shutil.rmtree(kwds['dir_output'])
             
     def check_blocked(self,ops):
+        ## do not write the whole datasets without a snippet or a selection geometry
         if (ops.geom is None or ops.snippet is False) and ops.output_format in ('csv','csv+','shp'):
             raise(BlockedCombination)
+        ## only perform calculation tests on subsetted regions
         if ops.geom is None and ops.calc is not None:
             raise(BlockedCombination)
             
     def check_exception(self,ii,kwds,e,tb):
         reraise = True
         if type(e) == AssertionError:
+            ## nc files may not be clipped or aggregated
             if kwds['output_format'] == 'nc':
-                if kwds['spatial_operation'] == 'clip' or kwds['aggregate'] is True or kwds['calc_raw'] is True:
+                if kwds['spatial_operation'] == 'clip' or kwds['aggregate'] is True:
                     reraise = False
         elif type(e) == NotImplementedError:
+            ## groupings are required for calculations
             if kwds['calc'] is not None and kwds['calc_grouping'] is None:
                 reraise = False
         if reraise:
@@ -95,6 +100,32 @@ class CombinationRunner(object):
         return(ret)
     
     
-if __name__ == '__main__':
-    cr = CombinationRunner(target_combo=10375)
-    cr.execute()
+def main(pargs):
+    import ipdb;ipdb.set_trace()
+    
+    
+parser = argparse.ArgumentParser(description='combinatorial test runner for OCGIS')
+parser.add_argument('-c','--combination',type=int,help='target start combination',default=0)
+parser.set_defaults(func=main)
+
+pargs = parser.parse_args()
+pargs.func(pargs)
+    
+#if __name__ == '__main__':
+#    nretries = 10
+#    ctr_retry = 0
+#    target = 2625
+#    
+#    def run_combos(target_combo=target):
+#        cr = CombinationRunner(target_combo=target_combo)
+#        cr.execute()
+#    
+#    while ctr_retry <= nretries:
+#        try:
+#            run_combos(target_combo=target)
+#        except Exception as e:
+#            ctr_retry += 1
+#            if ctr_retry == nretries:
+#                raise
+#            else:
+#                run_combos(target_combo=e.inumber)

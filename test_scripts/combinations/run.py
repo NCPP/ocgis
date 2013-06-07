@@ -41,7 +41,12 @@ class CombinationRunner(object):
                     continue
             yield(ii)
             kwds = {}
-            for val in values: kwds.update(val)
+            for val in values:
+                ## check for environmental parameters
+                if val.keys()[0].isupper():
+                    setattr(env,val.keys()[0],val.values()[0])
+                else:
+                    kwds.update(val)
             if not self.ops_only:
                 kwds.update({'dir_output':tempfile.mkdtemp()})
             try:
@@ -65,6 +70,7 @@ class CombinationRunner(object):
             finally:
                 if not self.ops_only and self.remove_output:
                     shutil.rmtree(kwds['dir_output'])
+                env.reset()
             
     def check_blocked(self,ops):
         ## do not write the whole datasets without a snippet or a selection geometry
@@ -95,7 +101,10 @@ class CombinationRunner(object):
     def get_parameters(self):
         ret = []
         for sc in itersubclasses(parms.AbstractParameter):
-            if sc != parms.AbstractBooleanParameter:
+            if sc not in [parms.AbstractBooleanParameter,parms.AbstractEnvironmentalParameter]:
+#                if issubclass(sc,parms.AbstractEnvironmentalParameter):
+#                    ret_env.append(sc)
+#                else:
                 ret.append(sc)
         return(ret)
     

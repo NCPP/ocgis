@@ -53,7 +53,7 @@ def make_load_test_data():
 def run_combinations():
     nretries = 10
     curr_retry = 0
-    combo = 7438
+    combo = 0
     combo_log = '../test_scripts/combinations/combination.log'
     
     while curr_retry <= nretries:

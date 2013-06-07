@@ -90,3 +90,23 @@ class Snippet(AbstractBooleanParameter):
 class SpatialOperation(AbstractParameter):
     name = 'spatial_operation'
     values = ['clip','intersects',None]
+    
+## environmental parameters ####################################################
+
+class AbstractEnvironmentalParameter(AbstractParameter):
+    __metaclass__ = ABCMeta
+    
+    
+class Verbose(AbstractEnvironmentalParameter):
+    name = 'VERBOSE'
+    values = [True,False]
+    
+    
+class FileLogging(AbstractEnvironmentalParameter):
+    name = 'ENABLE_FILE_LOGGING'
+    values = [True,False]
+    
+    
+class ReferenceProjection(AbstractEnvironmentalParameter):
+    name = 'WRITE_TO_REFERENCE_PROJECTION'
+    values = [True,False]

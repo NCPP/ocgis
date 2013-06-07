@@ -27,7 +27,7 @@ class CombinationError(Exception):
 class CombinationRunner(object):
     
     def __init__(self,ops_only=False,target_combo=None,remove_output=True,
-                 verbose=True):
+                 verbose=False):
         self.ops_only = ops_only
         self.target_combo = target_combo
         self.remove_output = True
@@ -39,6 +39,7 @@ class CombinationRunner(object):
             if self.target_combo is not None:
                 if self.target_combo > ii:
                     continue
+            yield(ii)
             kwds = {}
             for val in values: kwds.update(val)
             if not self.ops_only:
@@ -52,11 +53,9 @@ class CombinationRunner(object):
                         continue
                     if self.verbose: print(ii)
                     if self.ops_only:
-                        yld = (ii,ops)
+                        pass
                     else:
                         ret = ops.execute()
-                        yld = (ii,ops,ret)
-                    yield(yld)
                 except Exception as e:
                     tb = traceback.format_exc()
                     try:
@@ -78,9 +77,10 @@ class CombinationRunner(object):
     def check_exception(self,ii,kwds,e,tb):
         reraise = True
         if type(e) == AssertionError:
-            ## nc files may not be clipped or aggregated
+            ## nc files may not be clipped or aggregated - calculations must
+            ## be on raw data.
             if kwds['output_format'] == 'nc':
-                if kwds['spatial_operation'] == 'clip' or kwds['aggregate'] is True:
+                if kwds['spatial_operation'] == 'clip' or kwds['aggregate'] is True or kwds['calc_raw'] is True:
                     reraise = False
         elif type(e) == NotImplementedError:
             ## groupings are required for calculations
@@ -101,31 +101,18 @@ class CombinationRunner(object):
     
     
 def main(pargs):
-    import ipdb;ipdb.set_trace()
-    
-    
+    log_filename = os.path.join(os.path.split(__file__)[0],'combination.log')
+    with open(log_filename,'w') as f:
+        cr = CombinationRunner(target_combo=pargs.combination,ops_only=False)
+        for ii,combo in enumerate(cr):
+            f.write('{0}\n'.format(combo))
+            f.flush()
+
+## argument parsing ############################################################
+
 parser = argparse.ArgumentParser(description='combinatorial test runner for OCGIS')
 parser.add_argument('-c','--combination',type=int,help='target start combination',default=0)
 parser.set_defaults(func=main)
 
 pargs = parser.parse_args()
 pargs.func(pargs)
-    
-#if __name__ == '__main__':
-#    nretries = 10
-#    ctr_retry = 0
-#    target = 2625
-#    
-#    def run_combos(target_combo=target):
-#        cr = CombinationRunner(target_combo=target_combo)
-#        cr.execute()
-#    
-#    while ctr_retry <= nretries:
-#        try:
-#            run_combos(target_combo=target)
-#        except Exception as e:
-#            ctr_retry += 1
-#            if ctr_retry == nretries:
-#                raise
-#            else:
-#                run_combos(target_combo=e.inumber)

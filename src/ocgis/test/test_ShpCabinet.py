@@ -6,9 +6,19 @@ import shutil
 import ConfigParser
 import os.path
 import ocgis
+from osgeo import ogr
 
 
 class Test(unittest.TestCase):
+    
+    def test_sql_subset(self):
+        sc = ShpCabinet()
+        path = sc.get_shp_path('state_boundaries')
+        ds = ogr.Open(path)
+        ret = ds.ExecuteSQL('select * from state_boundaries where state_name = "New Jersey"')
+        ret.ResetReading()
+        for feat in ret:
+            pass
     
     def test_bad_path(self):
         bp = '/a/bad/location'

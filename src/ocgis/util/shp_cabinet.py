@@ -132,7 +132,7 @@ class ShpCabinet(object):
     
     def get_headers(self,geoms):
         ret = ['ugid']
-        keys = geoms[0].keys()
+        keys = geoms.keys()
         for key in ['ugid','id','geom']:
             try:
                 keys.remove(key)
@@ -178,13 +178,16 @@ class ShpCabinet(object):
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
         
-        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
-        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
-        headers = self.get_headers(geom_dict)
+#        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
+#        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
+#        headers = self.get_headers(geom_dict)
         
         build = True
         for dct,geom in self.get_converter_iterator(geom_dict):
             if build:
+                arch = CreateGeometryFromWkb(geom.wkb)
+                layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
+                headers = self.get_headers(dct)
                 csv_path = path.replace('.shp','.csv')
                 csv_f = open(csv_path,'w')
                 writer = csv.writer(csv_f,dialect=OcgDialect)

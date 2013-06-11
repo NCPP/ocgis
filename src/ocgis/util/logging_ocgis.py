@@ -32,11 +32,6 @@ class OcgisLogging(object):
     
     def configure(self,to_file=False,filename=None,to_stream=False,
                   level=logging.INFO):
-        self.level = level
-        self.to_file = to_file
-        self.filename = filename
-        self.to_stream = to_stream
-        self._reset_handlers_()
         
         ## no need to configure loggers
         if not to_file and not to_stream:
@@ -44,7 +39,12 @@ class OcgisLogging(object):
         else:
             if to_file and filename is None:
                 raise(ValueError('a filename is required when writing to file'))
+            self.level = level
+            self.to_file = to_file
+            self.filename = filename
+            self.to_stream = to_stream
             self.null = False
+            self._reset_handlers_()
             ## have the logging capture any emitted warning messages
             logging.captureWarnings(True)
             ## add the filehandler if request
@@ -76,15 +76,19 @@ class OcgisLogging(object):
         return(ret)
     
     def shutdown(self):
-        self = self.__class__()
+        self.null = True
+        logging.captureWarnings(False)
         try:
             logging.shutdown()
         except:
             pass
     
     def _reset_handlers_(self):
-        root_logger = logging.getLogger()
-        root_logger.handlers = []
-        self.root_logger = root_logger
+        if self.null:
+            pass
+        else:
+            root_logger = logging.getLogger()
+            root_logger.handlers = []
+            self.root_logger = root_logger
         
 ocgis_lh = OcgisLogging()

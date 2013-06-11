@@ -4,6 +4,8 @@ from ocgis import env
 import os
 import itertools
 import logging
+import ocgis
+import webbrowser
 
 
 class Test(TestBase):
@@ -47,5 +49,14 @@ class Test(TestBase):
         except Exception as e:
             with self.assertRaises(ValueError):
                 ocgis_lh('something happened',exc=e)
-            
-            
+                
+    def test_writing(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv')
+        ret = ops.execute()
+        folder = os.path.split(ret)[0]
+        log = os.path.join(folder,ops.prefix+'.log')
+        with open(log) as f:
+            lines = f.readlines()
+            self.assertTrue(len(lines) > 5)
+#        webbrowser.open(log)

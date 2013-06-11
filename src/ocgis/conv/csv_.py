@@ -4,6 +4,7 @@ from csv import excel
 from ocgis.util.shp_cabinet import ShpCabinet
 import os
 from ocgis import env, constants
+from collections import OrderedDict, deque
 
 
 class OcgDialect(excel):
@@ -30,7 +31,7 @@ class CsvPlusConverter(CsvConverter):
     _add_ugeom = True
     
     def _write_(self):
-        gid_file = []
+        gid_file = OrderedDict()
         build = True
         is_aggregated = self.ops.aggregate
         with open(self.path,'w') as f:
@@ -49,8 +50,16 @@ class CsvPlusConverter(CsvConverter):
                     build = False
                 for geom,row in coll.get_iter():
                     if not is_aggregated:
-                        gid_file.append({'geom':geom,'did':row[did_idx],
-                                         'ugid':row[ugid_idx],'gid':row[gid_idx]})
+                        ugid = row[ugid_idx]
+                        did = row[did_idx]
+                        gid = row[gid_idx]
+                        if ugid not in gid_file:
+                            gid_file[ugid] = OrderedDict()
+                        if did not in gid_file[ugid]:
+                            gid_file[ugid][did] = OrderedDict()
+                        gid_file[ugid][did][gid] = geom
+#                        gid_file.append({'geom':geom,'did':row[did_idx],
+#                                         'ugid':row[ugid_idx],'gid':row[gid_idx]})
                     writer.writerow(row)
         
         if is_aggregated is True:
@@ -68,4 +77,12 @@ class CsvPlusConverter(CsvConverter):
                 else:
                     raise
             shp_path = os.path.join(shp_dir,self.prefix+'_gid.shp')
-            sc.write(gid_file,shp_path,sr=projection.sr)
+            
+            def iter_gid_file():
+                for ugid,did_gid in gid_file.iteritems():
+                    for did,gid_geom in did_gid.iteritems():
+                        for gid,geom in gid_geom.iteritems():
+                            yield({'geom':geom,'did':did,
+                                   'ugid':ugid,'gid':gid})
+            
+            sc.write(iter_gid_file(),shp_path,sr=projection.sr)

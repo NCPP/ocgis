@@ -1,4 +1,4 @@
-from ordereddict import OrderedDict
+from collections import OrderedDict
 
 
 class NcMetadata(OrderedDict):

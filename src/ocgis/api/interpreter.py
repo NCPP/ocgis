@@ -1,3 +1,5 @@
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 from ocgis import exc, env, constants
 from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
@@ -5,8 +7,6 @@ from ocgis.conv.base import OcgConverter
 from subset import SubsetOperation
 import os
 import shutil
-from ocgis.util.logging_ocgis import ocgis_lh
-import logging
 
 ## TODO: add method to estimate request size
 

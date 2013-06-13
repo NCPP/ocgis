@@ -9,9 +9,9 @@ class OcgisLogging(object):
         self.to_stream = None
         self.level = None
         self.null = True ## pass through if not configured
-        self.root_logger = None
+#        self.root_logger = None
         
-        self._reset_handlers_()
+#        self._reset_handlers_()
         
     def __call__(self,msg=None,logger=None,level=None,alias=None,ugid=None,exc=None):
         if self.null:
@@ -21,7 +21,7 @@ class OcgisLogging(object):
                 raise(exc)
         else:
             dest_level = level or self.level
-            dest_logger = logger or self.root_logger
+            dest_logger = logger or logging.getLogger()
             if alias is not None:
                 msg = self.get_formatted_msg(msg,alias,ugid=ugid)
             if exc is None:
@@ -32,7 +32,7 @@ class OcgisLogging(object):
     
     def configure(self,to_file=False,filename=None,to_stream=False,
                   level=logging.INFO):
-        
+
         ## no need to configure loggers
         if not to_file and not to_stream:
             self.null = True
@@ -44,22 +44,26 @@ class OcgisLogging(object):
             self.filename = filename
             self.to_stream = to_stream
             self.null = False
-            self._reset_handlers_()
+#            self._reset_handlers_()
             ## have the logging capture any emitted warning messages
-            logging.captureWarnings(True)
+#            logging.captureWarnings(True)
             ## add the filehandler if request
             if to_file:
                 fmt = '%(name)s: %(levelname)s: %(message)s'
                 fileh = logging.FileHandler(filename,mode='w')
                 fileh.setFormatter(logging.Formatter(fmt))
                 fileh.setLevel(level)
-                self.root_logger.addHandler(fileh)
+                root = logging.getLogger()
+                root.addHandler(fileh)
+#                self.root_logger.addHandler(fileh)
             ## add the stream handler if requested
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
                 console.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
-                self.root_logger.addHandler(console)
+                root = logging.getLogger()
+                root.addHandler(console)
+#                self.root_logger.addHandler(console)
     
     def get_formatted_msg(self,msg,alias,ugid=None):
         if ugid is None:
@@ -73,6 +77,7 @@ class OcgisLogging(object):
             ret = None
         else:
             ret = logging.getLogger(name)
+            ret.handlers = logging.getLogger().handlers
         return(ret)
     
     def shutdown(self):
@@ -89,6 +94,6 @@ class OcgisLogging(object):
         else:
             root_logger = logging.getLogger()
             root_logger.handlers = []
-            self.root_logger = root_logger
+#            self.root_logger = root_logger
         
 ocgis_lh = OcgisLogging()

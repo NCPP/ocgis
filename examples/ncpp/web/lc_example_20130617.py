@@ -5,9 +5,9 @@ import os
 
 DIR_OUTPUT = tempfile.gettempdir()
 DIR_DATA = '/home/local/WX/ben.koziol/links/ocgis/bin/nc'
-URI = 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
-#     'rhsmin_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
-#     'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
+FILENAME = 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
+#          'rhsmin_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
+#          'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
 VARIABLE = 'rhs'
 #          'rhsmin'
 #          'rhsmax'
@@ -22,7 +22,8 @@ PREFIX = 'ocgis_output'
 
 ## construct the request dataset. time subsetting is also parameterized with 
 ## this object.
-rd = ocgis.RequestDataset(uri=URI,variable=VARIABLE,time_range=None,time_region=None)
+rd = ocgis.RequestDataset(uri=os.path.join(DIR_DATA,FILENAME),
+                          variable=VARIABLE,time_range=None,time_region=None)
 
 ## construct the operations call
 ops = ocgis.OcgOperations(dataset=rd,geom=GEOM,select_ugid=STATES['CO'],

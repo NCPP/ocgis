@@ -15,15 +15,17 @@ AGGREGATE = False #True
 SPATIAL_OPERATION = 'intersects' #'clip'
 GEOM = 'state_boundaries'
 STATES = {'CO':[32],'CA':[25]}
-OUTPUT_FORMAT = 'csv' #'csv+' #'nc' #'shp'
+OUTPUT_FORMAT = 'csv+' #'csv' #'nc' #'shp'
 PREFIX = 'ocgis_output'
+TIME_REGION = {'month':[6,7],'year':[2011]}
 
 ################################################################################
 
 ## construct the request dataset. time subsetting is also parameterized with 
 ## this object.
 rd = ocgis.RequestDataset(uri=os.path.join(DIR_DATA,FILENAME),
-                          variable=VARIABLE,time_range=None,time_region=None)
+                          variable=VARIABLE,time_range=None,
+                          time_region=TIME_REGION)
 
 ## construct the operations call
 ops = ocgis.OcgOperations(dataset=rd,geom=GEOM,select_ugid=STATES['CO'],

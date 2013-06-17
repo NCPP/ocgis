@@ -1,6 +1,6 @@
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
-from ocgis import exc, env, constants
+from ocgis import exc, env
 from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
 from ocgis.conv.base import OcgConverter
@@ -67,14 +67,11 @@ class OcgInterpreter(Interpreter):
             ## parameters.
             if env.ENABLE_FILE_LOGGING:
                 if self.ops.output_format == 'numpy':
-                    to_file = False
-                    filename = None
+                    to_file = None
                 else:
-                    to_file = True
-                    filename = os.path.join(outdir,prefix+'.log')
+                    to_file = os.path.join(outdir,prefix+'.log')
             else:
-                to_file = False
-                filename = None
+                to_file = None
             
             ## flags to determine streaming to console
             if env.VERBOSE:
@@ -83,8 +80,12 @@ class OcgInterpreter(Interpreter):
                 to_stream = False
     
             ## configure the logger
-            ocgis_lh.configure(to_file=to_file,filename=filename,
-                               to_stream=to_stream,level=constants.logging_level)
+            if env.DEBUG:
+                level = logging.DEBUG
+            else:
+                level = logging.INFO
+            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,
+                               level=level)
             
             ## create local logger
             interpreter_log = ocgis_lh.get_logger('interpreter')

@@ -190,6 +190,8 @@ def get_collection((so,geom,logger)):
                         ocgis_lh('wrapping output geometries',logger,alias=alias,
                                  ugid=ugid)
                         ods.spatial.vector.wrap()
+                        ocgis_lh('geometries wrapped',logger,alias=alias,
+                                 ugid=ugid,level=logging.DEBUG)
                 ## check for all masked values
                 if not so.ops.file_only and ods.value.mask.all():
                     if so.ops.snippet or so.ops.allow_empty:
@@ -229,4 +231,5 @@ def get_collection((so,geom,logger)):
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)
     else:
+        ocgis_lh('subset returning',logger,level=logging.DEBUG)
         return(coll)

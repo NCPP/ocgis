@@ -1,5 +1,4 @@
 from ocgis.interface.projection import WGS84
-import logging
 
 
 name_bounds = ['bounds','bnds','bound','bnd']
@@ -13,6 +12,3 @@ calc_headers = ['did','vid','cid','ugid','tgid','lid','gid','variable','alias','
 multi_headers = ['ugid','tid','lid','gid','calc_name','time','level','value']
 
 reference_projection = WGS84()
-
-logging_level = logging.INFO ## default level to log messages
-logging_level_output = logging.INFO ## default level to print log messages

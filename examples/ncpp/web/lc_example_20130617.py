@@ -5,6 +5,7 @@ import os
 
 DIR_OUTPUT = tempfile.gettempdir()
 DIR_DATA = '/home/local/WX/ben.koziol/links/ocgis/bin/nc'
+#DIR_DATA = '/usr/local/climate_data/CanCM4'
 FILENAME = 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
 #          'rhsmin_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
 #          'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'

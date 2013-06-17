@@ -98,16 +98,24 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                 ## get years and months from dates
                 parts = np.array([[dt.year,dt.month] for dt in self.value],dtype=int)
                 ## get matching months
-                idx_months = np.zeros(parts.shape[0],dtype=bool)
                 if regions['month'] is not None:
+                    idx_months = np.zeros(parts.shape[0],dtype=bool)
                     for month in regions['month']:
                         idx_months = np.logical_or(idx_months,parts[:,1] == month)
+                ## potentially return all months if none are in the region
+                ## dictionary.
+                else:
+                    idx_months = np.ones(parts.shape[0],dtype=bool)
                 ## get matching years
-                idx_years = np.zeros(parts.shape[0],dtype=bool)
                 if regions['year'] is not None:
+                    idx_years = np.zeros(parts.shape[0],dtype=bool)
                     for year in regions['year']:
                         idx_years = np.logical_or(idx_years,parts[:,0] == year)
-                idx_dates = np.logical_or(idx_months,idx_years)
+                ## potentially return all years.
+                else:
+                    idx_years = np.ones(parts.shape[0],dtype=bool)
+                ## combine the index arrays
+                idx_dates = np.logical_and(idx_months,idx_years)
                 ret = self[idx_dates]
         return(ret)
     

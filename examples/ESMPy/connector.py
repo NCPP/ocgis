@@ -54,9 +54,7 @@ def fill_bounds(arr,target,dim=0):
 fill_bounds(col_bounds,x_corners,dim=1)
 fill_bounds(row_bounds,y_corners,dim=0)
 '''
-grid.dump_ESMF_coords(staggerloc=StaggerLoc.CORNER)
-
-import pdb; pdb.set_trace()
+grid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
 
 tgrid = Grid(np.array(dims),num_peri_dims=0,coord_sys=CoordSys.CART,
              staggerloc=[StaggerLoc.CENTER])
@@ -65,8 +63,8 @@ iy_centers = grid.get_coords(1)
 #ix_corners = grid.get_coords(0,staggerloc=StaggerLoc.CORNER)
 #iy_corners = grid.get_coords(1,staggerloc=StaggerLoc.CORNER)
 
-ix_centers = x + 5
-iy_centers = y + 5
+ix_centers[:] = x + 5
+iy_centers[:] = y + 5
 
 # FIELDS
 
@@ -78,10 +76,7 @@ src_field[:] = 42
 exact_field[:] = 42
 dst_field[:] = 0
 
-
-
-import ipdb;ipdb.set_trace()
-regrid_S2D = Regrid(src_field, dst_field)
+regrid_S2D = Regrid(src_field, dst_field, unmapped_action=UnmappedAction.IGNORE)
 
 dst_field = regrid_S2D(src_field, dst_field)
 

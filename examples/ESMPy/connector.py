@@ -39,26 +39,24 @@ y_centers = grid.get_coords(1)
 #x_corners = grid.get_coords(0,staggerloc=StaggerLoc.CORNER)
 #y_corners = grid.get_coords(1,staggerloc=StaggerLoc.CORNER)
 
-def set_coords(src, target):
-    for i in range(x_centers.shape[0]):
-        for j in range(y_centers.shape[1]):
-            target[i,j] = src[i,j]
-            target[i,j] = src[i,j]
-            
-set_coords(x, x_centers)
-set_coords(y, y_centers)
+x_centers[:] = x
+y_centers[:] = y
 
+'''
 def fill_bounds(arr,target,dim=0):
     u = np.unique(arr)
     for idx in range(u.shape[0]):
         if dim == 0:
-            set_coords(u[idx], target[idx,:])
+            target[idx,:] = u[idx]
         else:
-            set_coords(u[idx], target[:,idx])
+            target[:,idx] = u[idx]
         
-#fill_bounds(col_bounds,x_corners,dim=1)
-#fill_bounds(row_bounds,y_corners,dim=0)
+fill_bounds(col_bounds,x_corners,dim=1)
+fill_bounds(row_bounds,y_corners,dim=0)
+'''
+grid.dump_ESMF_coords(staggerloc=StaggerLoc.CORNER)
 
+import pdb; pdb.set_trace()
 
 tgrid = Grid(np.array(dims),num_peri_dims=0,coord_sys=CoordSys.CART,
              staggerloc=[StaggerLoc.CENTER])
@@ -67,15 +65,10 @@ iy_centers = grid.get_coords(1)
 #ix_corners = grid.get_coords(0,staggerloc=StaggerLoc.CORNER)
 #iy_corners = grid.get_coords(1,staggerloc=StaggerLoc.CORNER)
 
-set_coords(x, ix_centers)
-set_coords(y, iy_centers)
-#set_coords(x_corners, ix_corners)
-#set_coords(y_corners, iy_corners)
+ix_centers = x + 5
+iy_centers = y + 5
 
-ix_centers = ix_centers + 5
-iy_centers = iy_centers + 5
-#ix_corners = ix_corners + 5
-#iy_corners = iy_corners + 5
+# FIELDS
 
 src_field = Field(grid,'source')
 dst_field = Field(tgrid, 'destination')    

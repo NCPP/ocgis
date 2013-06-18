@@ -72,14 +72,20 @@ src_field = Field(grid,'source')
 dst_field = Field(tgrid, 'destination')    
 exact_field = Field(tgrid, 'exact')
 
-src_field[:] = 42
-exact_field[:] = 42
-dst_field[:] = 0
+src_field[:] = 42.
+exact_field[:] = 42.
+dst_field[:] = 7.
+
+print('src')
+src_field.dump_ESMF_coords()
+print('exact')
+exact_field.dump_ESMF_coords()
 
 regrid_S2D = Regrid(src_field, dst_field, unmapped_action=UnmappedAction.IGNORE)
 
 dst_field = regrid_S2D(src_field, dst_field)
 
-print dst_field - exact_field
+print('dst')
+dst_field.dump_ESMF_coords()
 
 

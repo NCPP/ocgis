@@ -1,4 +1,4 @@
-import ocgis
+#import ocgis
 from ESMF import *
 import numpy as np
 
@@ -32,6 +32,13 @@ col_bounds = tas.spatial.grid.column.bounds
 
 x,y = np.meshgrid(col,row)
 
+'''
+# devious x and y hardcoded to emulate ocgis action
+dims = np.array([2,3])
+x = np.array([[200, 202, 205],[200, 202, 205]])
+y = np.array([[18, 18, 18],[21, 21, 21]])
+'''
+
 grid = Grid(np.array(dims),num_peri_dims=0,coord_sys=CoordSys.CART,
             staggerloc=[StaggerLoc.CENTER])
 x_centers = grid.get_coords(0)
@@ -54,12 +61,11 @@ def fill_bounds(arr,target,dim=0):
 fill_bounds(col_bounds,x_corners,dim=1)
 fill_bounds(row_bounds,y_corners,dim=0)
 '''
-grid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
 
 tgrid = Grid(np.array(dims),num_peri_dims=0,coord_sys=CoordSys.CART,
              staggerloc=[StaggerLoc.CENTER])
-ix_centers = grid.get_coords(0)
-iy_centers = grid.get_coords(1)
+ix_centers = tgrid.get_coords(0)
+iy_centers = tgrid.get_coords(1)
 #ix_corners = grid.get_coords(0,staggerloc=StaggerLoc.CORNER)
 #iy_corners = grid.get_coords(1,staggerloc=StaggerLoc.CORNER)
 
@@ -74,16 +80,21 @@ exact_field = Field(tgrid, 'exact')
 
 src_field[:] = 42.
 exact_field[:] = 42.
-dst_field[:] = 7.
+dst_field[:] = 42.
+
+regrid_S2D = Regrid(src_field, dst_field, unmapped_action=UnmappedAction.IGNORE)
+
+dst_field = regrid_S2D(src_field, dst_field)
+
+print('grid')
+grid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
+print('tgrid')
+tgrid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
 
 print('src')
 src_field.dump_ESMF_coords()
 print('exact')
 exact_field.dump_ESMF_coords()
-
-regrid_S2D = Regrid(src_field, dst_field, unmapped_action=UnmappedAction.IGNORE)
-
-dst_field = regrid_S2D(src_field, dst_field)
 
 print('dst')
 dst_field.dump_ESMF_coords()

@@ -58,6 +58,12 @@ class UniqueIdNotFound(OcgException):
     
 class DummyDimensionEncountered(OcgException):
     pass
+
+
+class TemporalResolutionError(OcgException):
+    
+    def __init__(self):
+        self.message = 'Resolution may not be computed for a singleton temporal dimension.'
     
 
 class SubsetException(OcgException):

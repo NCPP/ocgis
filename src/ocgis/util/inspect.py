@@ -1,6 +1,7 @@
 import netCDF4 as nc
 from ocgis.interface.ncmeta import NcMetadata
 from ocgis.interface.nc.dataset import NcDataset
+from ocgis.exc import TemporalResolutionError
 
 
 class Inspect(object):
@@ -27,23 +28,30 @@ class Inspect(object):
     .. _ncdump: http://www.unidata.ucar.edu/software/netcdf/docs/netcdf/ncdump.html
     """
     
-    def __init__(self,uri,variable=None,interface_overload={}):
-        self.uri = uri
-        self.variable = variable
-        if self.variable is None:
-            try:
-                self.ds = None
-                rootgrp = nc.Dataset(uri)
-                self.meta = NcMetadata(rootgrp)
-            finally:
-                rootgrp.close()
+    def __init__(self,uri=None,variable=None,interface_overload={},request_dataset=None):
+        self.request_dataset = request_dataset
+        if self.request_dataset is None:
+            self.uri = uri
+            self.variable = variable
+            if self.variable is None:
+                try:
+                    self.ds = None
+                    rootgrp = nc.Dataset(uri)
+                    self.meta = NcMetadata(rootgrp)
+                finally:
+                    rootgrp.close()
+            else:
+                from ocgis.api.request import RequestDataset
+                kwds = {'uri':uri,'variable':variable}
+                kwds.update(interface_overload)
+                rd = RequestDataset(**kwds)
+                self.ds = NcDataset(request_dataset=rd)
+                self.meta = self.ds.metadata
         else:
-            from ocgis.api.request import RequestDataset
-            kwds = {'uri':uri,'variable':variable}
-            kwds.update(interface_overload)
-            rd = RequestDataset(**kwds)
-            self.ds = NcDataset(request_dataset=rd)
-            self.meta = self.ds.metadata
+            self.uri = self.request_dataset.uri
+            self.variable = self.request_dataset.variable
+            self.ds = self.request_dataset.ds
+            self.meta = self.request_dataset.ds.metadata
         
     def __repr__(self):
         msg = ''
@@ -68,7 +76,12 @@ class Inspect(object):
     def get_temporal_report(self):
         start_date = self._t.value.min()
         end_date = self._t.value.max()
-        res = int(self._t.resolution)
+        try:
+            res = int(self._t.resolution)
+        ## raised if the temporal dimension has a single value. possible with
+        ## snippet or a small dataset...
+        except TemporalResolutionError:
+            res = 'NA (singleton)'
         n = len(self._t.value)
         calendar = self._t.calendar
         units = self._t.units
@@ -143,6 +156,8 @@ class Inspect(object):
         
         lines = ['','URI = {0}'.format(self.uri)]
         lines.append('VARIABLE = {0}'.format(self.variable))
+        lines.append('ALIAS = {0}'.format(self.request_dataset.alias))
+        lines.append('DID = {0}'.format(self.request_dataset.did))
         lines.append('')
         for dct in mp:
             for key,value in dct.iteritems():

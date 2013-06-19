@@ -65,8 +65,7 @@ class RequestDataset(object):
         '''Print inspection output using :class:`~ocgis.Inspect`. This is a 
         convenience method.'''
         
-        ip = Inspect(self.uri,variable=self.variable,
-                     interface_overload=self.interface)
+        ip = Inspect(request_dataset=self)
         return(ip)
     
     @property

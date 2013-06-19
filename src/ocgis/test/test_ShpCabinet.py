@@ -7,6 +7,7 @@ import ConfigParser
 import os.path
 import ocgis
 from osgeo import ogr
+from unittest.case import SkipTest
 
 
 class Test(unittest.TestCase):
@@ -41,6 +42,7 @@ class Test(unittest.TestCase):
         self.assertTrue(len(ret) >= 1)
         
     def test_load_all(self):
+        raise(SkipTest('too long for no benefit'))
         sc = ShpCabinet()
         for key in sc.keys():
             geoms = sc.get_geoms(key)

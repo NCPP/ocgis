@@ -6,7 +6,8 @@ from ocgis.util.helpers import make_poly, iter_array
 from shapely import prepared
 import netCDF4 as nc
 from abc import ABCMeta, abstractproperty
-from ocgis.exc import DummyDimensionEncountered, EmptyData
+from ocgis.exc import DummyDimensionEncountered, EmptyData,\
+    TemporalResolutionError
 import datetime
 from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
@@ -64,13 +65,17 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     def resolution(self):
         diffs = np.array([],dtype=float)
         value = self.value
+        ## resolution cannot be calculated from a single value
+        if value.shape[0] == 1:
+            raise(TemporalResolutionError)
         for tidx,tval in iter_array(value,return_value=True):
             try:
                 diffs = np.append(diffs,
                                 np.abs((tval-value[tidx[0]+1]).days))
             except IndexError:
                 break
-        return(diffs.mean())
+        ret = diffs.mean()
+        return(ret)
     
     def __getitem__(self,*args,**kwds):
         ret = super(self.__class__,self).__getitem__(*args,**kwds)

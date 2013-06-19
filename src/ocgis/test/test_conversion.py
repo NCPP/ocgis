@@ -2,6 +2,7 @@ import unittest
 from ocgis.test.base import TestBase
 import ocgis
 import netCDF4 as nc
+import os
 
 
 class Test(TestBase):
@@ -14,10 +15,28 @@ class Test(TestBase):
         self.assertTrue('lambert_conformal_conic' in ds.variables)
 
     def test_csv_plus(self):
+        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd2 = self.test_data.get_rd('maurer_bccr_1950')
+        ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+',
+                                  geom='state_boundaries',agg_selection=True,
+                                  select_ugid=[32])
+        ret = ops.execute()
+        meta = os.path.join(os.path.split(ret)[0],'ocgis_output_source_metadata.txt')
+        
+        with open(meta,'r') as f:
+            lines = f.readlines()
+        self.assertTrue(len(lines) > 199)
+        
+#        import subprocess, os
+#        subprocess.call(['nautilus',os.path.split(ret)[0]])
+#        import ipdb;ipdb.set_trace()
+        
+    def test_meta(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv+',
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='meta',
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
+        self.assertTrue(isinstance(ret,basestring))        
 
 
 if __name__ == "__main__":

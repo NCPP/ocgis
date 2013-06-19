@@ -42,6 +42,11 @@ y_centers = grid.get_coords(1)
 x_centers[:] = x
 y_centers[:] = y
 
+print('x')
+print(x)
+print('y')
+print(y)
+
 '''
 def fill_bounds(arr,target,dim=0):
     u = np.unique(arr)

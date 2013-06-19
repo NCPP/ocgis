@@ -27,7 +27,7 @@ class Test(TestBase):
             lines = f.readlines()
         self.assertTrue(len(lines) > 199)
         
-#        import subprocess, os
+#        import subprocess
 #        subprocess.call(['nautilus',os.path.split(ret)[0]])
 #        import ipdb;ipdb.set_trace()
         

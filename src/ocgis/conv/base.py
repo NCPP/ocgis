@@ -55,13 +55,17 @@ class OcgConverter(object):
         if self._add_did_file:
             from ocgis.conv.csv_ import OcgDialect
             
-            headers = ['DID','VARIABLE','ALIAS','URI']
+            headers = ['DID','VARIABLE','ALIAS','URI','STANDARD_NAME','UNITS','LONG_NAME']
             out_path = os.path.join(self.outdir,self.prefix+'_did.csv')
             with open(out_path,'w') as f:
                 writer = csv.writer(f,dialect=OcgDialect)
                 writer.writerow(headers)
                 for rd in self.ops.dataset:
                     row = [rd.did,rd.variable,rd.alias,rd.uri]
+                    ref_variable = rd.ds.metadata['variables'][rd.variable]['attrs']
+                    row.append(ref_variable.get('standard_name',None))
+                    row.append(ref_variable.get('units',None))
+                    row.append(ref_variable.get('long_name',None))
                     writer.writerow(row)
                     
         ## add user-geometry

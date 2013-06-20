@@ -221,8 +221,8 @@ class IterableParameter(object):
             self.validate_all(ret)
         return(ret)
     
-    def parse_all(self,value):
-        return(value)
+    def parse_all(self,values):
+        return(values)
     
     def parse_string(self,value):
         ret = value.split(self.split_string)

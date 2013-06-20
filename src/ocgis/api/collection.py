@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from ocgis import constants
+from ocgis import constants, env
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from copy import deepcopy
@@ -31,15 +31,37 @@ class AbstractCollection(object):
         return(ret)
     
     def get_headers(self,upper=False):
-        headers = self._get_headers_()
+        ## headers may have been overloaded by operations.
+        if env.ops.headers is None: #@UndefinedVariable
+            headers = self._get_headers_()
+        else:
+            headers = env.ops.headers #@UndefinedVariable
         if upper:
             ret = [h.upper() for h in headers]
         else:
             ret = headers
         return(ret)
     
+    def get_iter(self,with_geometry_ids=False):
+        '''
+        :param with_geometry_ids: If True, return a dictionary containing geometry identifiers.
+        :type with_geometry_ids: bool
+        '''
+        headers = self.get_headers()
+        for geom,attrs in self._get_iter_():
+            row = [attrs[h] for h in headers]
+            if with_geometry_ids:
+                geom_ids = {'ugid':attrs['ugid'],'gid':attrs['gid'],'did':attrs['did']}
+                yld = (geom,row,geom_ids)
+            else:
+                yld = (geom,row)
+            yield(yld)
+    
     @abstractmethod
     def _get_headers_(self): list
+    
+    @abstractmethod
+    def _get_iter_(self): 'generator'
     
     
 class RawCollection(AbstractCollection):
@@ -48,8 +70,8 @@ class RawCollection(AbstractCollection):
         self.ugeom = ugeom
         self.variables = OrderedDict()
     
-    def get_iter(self):
-        headers = self.get_headers()
+    def _get_iter_(self):
+#        headers = self._get_headers_()
         vid = 1
         ugid = self.ugid
         for alias,ds in self.variables.iteritems():
@@ -61,10 +83,10 @@ class RawCollection(AbstractCollection):
                 attrs['variable'] = variable
                 attrs['vid'] = vid
                 attrs['ugid'] = ugid
-                row = [attrs[key] for key in headers]
+#                row = [attrs[key] for key in headers]
                 if type(geom) == Polygon:
                     geom = MultiPolygon([geom])
-                yield(geom,row)
+                yield(geom,attrs)
             vid += 1
             
     def _get_headers_(self):
@@ -78,8 +100,8 @@ class CalcCollection(AbstractCollection):
         self.variables = raw_collection.variables
         self.calc = OrderedDict()
     
-    def get_iter(self):
-        headers = self.get_headers()
+    def _get_iter_(self):
+#        headers = self.get_headers()
         vid = 1
         cid = 1
         ugid = self.ugid
@@ -96,10 +118,10 @@ class CalcCollection(AbstractCollection):
                     attrs['vid'] = vid
                     attrs['cid'] = cid
                     attrs['ugid'] = ugid
-                    row = [attrs[key] for key in headers]
+#                    row = [attrs[key] for key in headers]
                     if type(geom) == Polygon:
                         geom = MultiPolygon([geom])
-                    yield(geom,row)
+                    yield(geom,attrs)
                 cid += 1
             vid += 1
             
@@ -109,11 +131,11 @@ class CalcCollection(AbstractCollection):
             
 class MultivariateCalcCollection(CalcCollection):
     
-    def get_iter(self):
+    def _get_iter_(self):
         arch = self._archetype
         ## determine if there is a temporal grouping
         temporal_group = False if arch.temporal.group is None else True
-        headers = self.get_headers()
+#        headers = self.get_headers()
         cid = 1
         ugid = self.ugid
         for calc_name,calc_value in self.calc.iteritems():
@@ -122,10 +144,10 @@ class MultivariateCalcCollection(CalcCollection):
                 attrs['calc_name'] = calc_name
                 attrs['cid'] = cid
                 attrs['ugid'] = ugid
-                row = [attrs[key] for key in headers]
+#                row = [attrs[key] for key in headers]
                 if type(geom) == Polygon:
                     geom = MultiPolygon([geom])
-                yield(geom,row)
+                yield(geom,attrs)
             cid += 1
 
     def _get_headers_(self):

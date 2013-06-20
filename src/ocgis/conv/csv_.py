@@ -43,16 +43,16 @@ class CsvPlusConverter(CsvConverter):
                         projection = constants.reference_projection
                     else:
                         projection = coll._archetype.spatial.projection
-                    ugid_idx = headers.index('UGID')
-                    gid_idx = headers.index('GID')
-                    did_idx = headers.index('DID')
+#                    ugid_idx = headers.index('UGID')
+#                    gid_idx = headers.index('GID')
+#                    did_idx = headers.index('DID')
                     writer.writerow(headers)
                     build = False
-                for geom,row in coll.get_iter():
+                for geom,row,geom_ids in coll.get_iter(with_geometry_ids=True):
                     if not is_aggregated:
-                        ugid = row[ugid_idx]
-                        did = row[did_idx]
-                        gid = row[gid_idx]
+                        ugid = geom_ids['ugid']
+                        did = geom_ids['did']
+                        gid = geom_ids['gid']
                         if ugid not in gid_file:
                             gid_file[ugid] = OrderedDict()
                         if did not in gid_file[ugid]:

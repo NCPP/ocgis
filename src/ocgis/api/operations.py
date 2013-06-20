@@ -57,6 +57,8 @@ class OcgOperations(object):
     :type allow_empty: bool
     :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
+    :param headers: A sequence of strings specifying the output headers.
+    :type headers: sequence
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -64,7 +66,7 @@ class OcgOperations(object):
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice=None, file_only=False):
+                 slice=None, file_only=False, headers=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -89,6 +91,7 @@ class OcgOperations(object):
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)
         self.slice = Slice(slice)
         self.file_only = FileOnly(file_only)
+        self.headers = Headers(headers)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

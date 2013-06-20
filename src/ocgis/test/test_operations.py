@@ -96,6 +96,21 @@ class Test(TestBase):
         self.assertEqual(len(g.value),60)
         self.assertEqual(g.get_url_string(),'mi_watersheds')
         
+    def test_headers(self):
+        headers = ['did','value']
+        for htype in [list,tuple]:
+            hvalue = htype(headers)
+            hh = definition.Headers(hvalue)
+            self.assertEqual(tuple(hvalue),hh.value)
+            
+        headers = ['foo']
+        with self.assertRaises(DefinitionValidationError):
+            hh = definition.Headers(headers)
+            
+        headers = []
+        with self.assertRaises(DefinitionValidationError):
+            hh = definition.Headers(headers)
+                
     def test_calc_grouping(self):
         _cg = [
                None,

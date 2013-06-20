@@ -33,6 +33,8 @@ class Inspect(object):
         if self.request_dataset is None:
             self.uri = uri
             self.variable = variable
+            self.alias = None
+            self.did = None
             if self.variable is None:
                 try:
                     self.ds = None
@@ -52,6 +54,8 @@ class Inspect(object):
             self.variable = self.request_dataset.variable
             self.ds = self.request_dataset.ds
             self.meta = self.request_dataset.ds.metadata
+            self.alias = self.request_dataset.alias
+            self.did = self.request_dataset.did
         
     def __repr__(self):
         msg = ''
@@ -156,8 +160,8 @@ class Inspect(object):
         
         lines = ['','URI = {0}'.format(self.uri)]
         lines.append('VARIABLE = {0}'.format(self.variable))
-        lines.append('ALIAS = {0}'.format(self.request_dataset.alias))
-        lines.append('DID = {0}'.format(self.request_dataset.did))
+        lines.append('ALIAS = {0}'.format(self.alias))
+        lines.append('DID = {0}'.format(self.did))
         lines.append('')
         for dct in mp:
             for key,value in dct.iteritems():

@@ -383,7 +383,14 @@ class Headers(base.IterableParameter,base.OcgParameter):
     _in_url = True
 
     def __repr__(self):
-        msg = '{0}={1}'.format(self.name,self.split_string.join(self.value))
+        try:
+            msg = '{0}={1}'.format(self.name,self.split_string.join(self.value))
+        ## likely a NoneType
+        except TypeError:
+            if self.value is None:
+                msg = '{0}=none'.format(self.name)
+            else:
+                raise
         return(msg)
         
     def get_url_string(self):

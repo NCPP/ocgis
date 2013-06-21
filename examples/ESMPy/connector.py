@@ -1,9 +1,11 @@
-#import ocgis
+import ocgis
 from ESMF import *
 import numpy as np
+from math import sin, cos
 
 
-ocgis.env.DIR_DATA = '/usr/local/climate_data'
+ocgis.env.DIR_DATA = '/Users/ryan.okuinghttons/netCDFfiles/climate_data'
+ocgis.env.DIR_SHPCABINET = '/Users/ryan.okuinghttons/netCDFfiles/shapefiles/ocgis_data/shp'
 ocgis.env.OVERWRITE = True
 
 
@@ -49,11 +51,6 @@ y_centers = grid.get_coords(1)
 x_centers[:] = x
 y_centers[:] = y
 
-print('x')
-print(x)
-print('y')
-print(y)
-
 '''
 def fill_bounds(arr,target,dim=0):
     u = np.unique(arr)
@@ -74,8 +71,8 @@ iy_centers = tgrid.get_coords(1)
 #ix_corners = grid.get_coords(0,staggerloc=StaggerLoc.CORNER)
 #iy_corners = grid.get_coords(1,staggerloc=StaggerLoc.CORNER)
 
-ix_centers[:] = x + 5
-iy_centers[:] = y + 5
+ix_centers[:] = x + 2.793
+iy_centers[:] = y + 2.793
 
 # FIELDS
 
@@ -83,18 +80,46 @@ src_field = Field(grid,'source')
 dst_field = Field(tgrid, 'destination')    
 exact_field = Field(tgrid, 'exact')
 
-src_field[:] = 42.
-exact_field[:] = 42.
-dst_field[:] = 42.
+for i in range(x_centers.shape[0]):
+    for j in range(y_centers.shape[1]):
+        src_field[i,j] = 2 + sin(i**2) + cos(j)**2
+
+for i in range(ix_centers.shape[0]):
+    for j in range(iy_centers.shape[1]):
+        exact_field[:] = 2. + sin(i**2) + cos(j)**2
+        dst_field[:] = 2. + sin(i**2) + cos(j)**2
 
 regrid_S2D = Regrid(src_field, dst_field, unmapped_action=UnmappedAction.IGNORE)
 
 dst_field = regrid_S2D(src_field, dst_field)
 
+
+# error analysis
+
+exact = np.array(exact_field.data)
+dst = np.array(dst_field.data)
+
+#import pdb; pdb.set_trace()
+
+check = (exact - dst)/exact
+if np.any(check > .1):
+    print "Relative error is greater than 10 percent: {0}".\
+            format(check[check > .1])    
+
+min = np.min(check)
+max = np.max(check)
+rel = np.sum(check)
+
+print "Minimum error  = {0}".format(min)
+print "Maximum error  = {0}".format(max)
+print "Relative error = {0}".format(rel)
+
+'''
 print('grid')
 grid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
 print('tgrid')
 tgrid.dump_ESMF_coords(stagger=StaggerLoc.CENTER)
+'''
 
 print('src')
 src_field.dump_ESMF_coords()
@@ -103,5 +128,3 @@ exact_field.dump_ESMF_coords()
 
 print('dst')
 dst_field.dump_ESMF_coords()
-
-

@@ -2,16 +2,29 @@ import ocgis
 from ESMF import *
 import numpy as np
 from math import sin, cos
+from ocgis.interface.projection import WGS84
+import logging
+import sys
 
 
-ocgis.env.DIR_DATA = '/Users/ryan.okuinghttons/netCDFfiles/climate_data'
-ocgis.env.DIR_SHPCABINET = '/Users/ryan.okuinghttons/netCDFfiles/shapefiles/ocgis_data/shp'
+logging.basicConfig(level=logging.INFO)
+
+
+#ocgis.env.DIR_DATA = '/Users/ryan.okuinghttons/netCDFfiles/climate_data'
+ocgis.env.DIR_DATA = '/usr/local/climate_data'
+#ocgis.env.DIR_SHPCABINET = '/Users/ryan.okuinghttons/netCDFfiles/shapefiles/ocgis_data/shp'
 ocgis.env.OVERWRITE = True
+ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
 
 
-rd = ocgis.RequestDataset(uri='tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                          variable='tas')
+#rd = ocgis.RequestDataset(uri='tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+#                          variable='tas')
+logging.info('creating request datasets')
+crcm = ocgis.RequestDataset(uri='pr_CRCM_ccsm_1981010103.nc',variable='pr',alias='crcm')
+wrfg = ocgis.RequestDataset(uri='pr_WRFG_ncep_1981010103.nc',variable='pr',alias='wrfg')
 
+logging.info('generating destination grid')
+dest_x,dest_y = np.meshgrid(np.arange(0,360),np.arange(-90,90))
 
 #ops = ocgis.OcgOperations(dataset=rd,snippet=True,prefix='overview',output_format='shp')
 #ret = ops.execute()
@@ -21,9 +34,16 @@ rd = ocgis.RequestDataset(uri='tas_day_CanCM4_decadal2000_r2i1p1_20010101-201012
 #                          select_ugid=[1],geom='state_boundaries')
 #ret = ops.execute()
 
-ops = ocgis.OcgOperations(dataset=rd,snippet=True,prefix='output',output_format='numpy',
-                          select_ugid=[1],geom='state_boundaries')
+logging.info('retrieving source grids')
+ops = ocgis.OcgOperations(dataset=[crcm,wrfg],snippet=True,prefix='output',
+               output_format='numpy',geom='state_boundaries',agg_selection=True)
 ret = ops.execute()
+
+logging.info('projecting source grids')
+for key in ['crcm','wrfg']:
+    ret[1].variables[key].project(WGS84())
+
+import ipdb;ipdb.set_trace()
 
 tas = ret[1].variables['tas']
 dims = tas.spatial.grid.shape
@@ -33,13 +53,6 @@ col = tas.spatial.grid.column.value
 col_bounds = tas.spatial.grid.column.bounds
 
 x,y = np.meshgrid(col,row)
-
-'''
-# devious x and y hardcoded to emulate ocgis action
-dims = np.array([2,3])
-x = np.array([[200, 202, 205],[200, 202, 205]])
-y = np.array([[18, 18, 18],[21, 21, 21]])
-'''
 
 grid = Grid(np.array(dims),num_peri_dims=0,coord_sys=CoordSys.CART,
             staggerloc=[StaggerLoc.CENTER])

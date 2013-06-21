@@ -300,13 +300,12 @@ class NcDataset(base.AbstractDataset):
         return(ret)
     
     def project(self,projection):
-        raise(NotImplementedError)
         ## projection is only valid if the geometry has not been loaded. this is
         ## to limit the number of spatial operations. this is primary to ensure
         ## any masks created during a subset are not destroyed in the geometry
         ## resetting process.
-        if self.spatial.vector._geom is not None:
-            raise(NotImplementedError('project is only valid before geometries have been loaded.'))
+#        if self.spatial.vector._geom is not None:
+#            raise(NotImplementedError('project is only valid before geometries have been loaded.'))
         
         if self.spatial.grid.is_bounded:
             raise(NotImplementedError)
@@ -334,6 +333,7 @@ class NcDataset(base.AbstractDataset):
         self.spatial.grid.column.value = new_col
         ## update the projection
         self.spatial.projection = projection
+        self.spatial.vector._geom = None
     
     def _get_aggregate_sum_(self):
         value = self.raw_value

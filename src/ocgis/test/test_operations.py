@@ -226,7 +226,6 @@ class TestRequestDatasets(TestBase):
         ret = rd.inspect_as_dct()
         ref = ret['derived']
         self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
-        import ipdb;ipdb.set_trace()
     
     def test_env_dir_data(self):
         ## test setting the var to a single directory

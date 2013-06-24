@@ -7,6 +7,8 @@ import logging
 import sys
 
 
+# short-term, useful, clearly defined, relate back to previous work
+
 logging.basicConfig(level=logging.INFO)
 
 

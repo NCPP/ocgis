@@ -13,6 +13,8 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
+from ocgis.interface.metadata import NcMetadata
+import netCDF4 as nc
 
 
 class Test(TestBase):
@@ -218,6 +220,13 @@ class TestRequestDatasets(TestBase):
     def test_inspect_method(self):
         rd = RequestDataset(self.uri,self.variable)
         rd.inspect()
+        
+    def test_inspect_as_dct(self):
+        rd = RequestDataset(self.uri,self.variable)
+        ret = rd.inspect_as_dct()
+        ref = ret['derived']
+        self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
+        import ipdb;ipdb.set_trace()
     
     def test_env_dir_data(self):
         ## test setting the var to a single directory

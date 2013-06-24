@@ -1,7 +1,9 @@
 import netCDF4 as nc
-from ocgis.interface.ncmeta import NcMetadata
+from ocgis.interface.metadata import NcMetadata
 from ocgis.interface.nc.dataset import NcDataset
 from ocgis.exc import TemporalResolutionError
+from collections import OrderedDict
+import re
 
 
 class Inspect(object):
@@ -172,3 +174,21 @@ class Inspect(object):
             lines.append('')
         
         return(lines)
+    
+    def _as_dct_(self):
+        ret = self.meta.copy()
+        derived = OrderedDict()
+        to_add = self.get_temporal_report() + self.get_spatial_report() + self.get_level_report()
+        for row in to_add:
+            try:
+                key,value = re.split(' = ',row,maxsplit=1)
+            ## here to catch oddities of the returns
+            except ValueError:
+                if row == 'No level dimension found.':
+                    continue
+                else:
+                    raise
+            key = key.strip()
+            derived.update({key:value})
+        ret.update({'derived':derived})
+        return(ret)

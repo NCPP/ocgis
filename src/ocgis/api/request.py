@@ -28,6 +28,14 @@ class RequestDataset(object):
     :type alias: str
     :param time_range: Upper and lower bounds for time dimension subsetting. If `None`, return all time points.
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
+    :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`.
+    :type time_region: dict
+    
+    .. note:: Only one of `time_range` or `time_region` may be passed to the constructor.
+    
+    >>> time_region = {'month':[6,7],'year':[2010,2011]}
+    >>> time_region = {'year':[2010]}
+    
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
     :param s_proj: A `PROJ4 string`_ describing the dataset's spatial reference.
@@ -67,6 +75,23 @@ class RequestDataset(object):
         
         ip = Inspect(request_dataset=self)
         return(ip)
+    
+    def inspect_as_dct(self):
+        '''
+        Return a dictionary representation of the target's metadata.
+        
+        >>> rd = ocgis.RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc','rhs')
+        >>> ret = rd.inspect_as_dct()
+        >>> ret.keys()
+        ['dataset', 'variables', 'dimensions', 'derived']
+        >>> ret['derived']
+        OrderedDict([('Start Date', '2011-01-01 12:00:00'), ('End Date', '2020-12-31 12:00:00'), ('Calendar', '365_day'), ('Units', 'days since 1850-1-1'), ('Resolution (Days)', '1'), ('Count', '8192'), ('Has Bounds', 'True'), ('Spatial Reference', 'WGS84'), ('Proj4 String', '+proj=longlat +datum=WGS84 +no_defs '), ('Extent', '(-1.40625, -90.0, 358.59375, 90.0)'), ('Interface Type', 'NcPolygonDimension'), ('Resolution', '2.80091351339')])        
+        
+        :rtype: :class:`collections.OrderedDict`
+        '''
+        ip = Inspect(request_dataset=self)
+        ret = ip._as_dct_()
+        return(ret)
     
     @property
     def ds(self):

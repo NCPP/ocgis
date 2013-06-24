@@ -61,6 +61,10 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     _name_long = 'time'
     _dtemporal_group_dimension = NcTemporalGroupDimension
     
+#    def __init__(self,*args,**kwds):
+#        self._date_range = None
+#        super(NcTemporalDimension,self).__init__(*args,**kwds)
+    
     @property
     def resolution(self):
         diffs = np.array([],dtype=float)

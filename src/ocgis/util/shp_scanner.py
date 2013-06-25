@@ -1,20 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData, Column, UniqueConstraint, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.session import sessionmaker
-from sqlalchemy.types import Integer, Float, String
-import copy
+from sqlalchemy.types import Integer, String
 from sqlalchemy.orm import relationship
 import os
 import fiona
 from ocgis.util.shp_cabinet import ShpCabinet
-import ConfigParser
 from ConfigParser import SafeConfigParser, NoOptionError
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from collections import OrderedDict
-import json
-import webbrowser
 
 
 db_path = '/tmp/foo.sqlite'
@@ -96,15 +91,6 @@ def get_or_create(session,Model,**kwargs):
         session.commit()
     return(obj)
 
-#def dct_get_or_create(key,dct,fill):
-#    try:
-#        dct[key] = fill
-#    except KeyError:
-#        dct[key] = fill
-#        ret = dct[key]
-#    return(ret)
-
-
 def build():
     try:
         os.remove(db_path)
@@ -171,18 +157,17 @@ for row in session.query(Geometry):
         ref = to_dump[row.label_formatted]['geometries']
     ref.update({row.value:row.ugid})
     
-fmtd = json.dumps(to_dump)
-with open(json_path,'w') as f:
-    f.write(fmtd)
+#fmtd = json.dumps(to_dump)
+#with open(json_path,'w') as f:
+#    f.write(fmtd)
+#
+#category = 'US State Boundaries'
+#geometry = ['Delaware']
+#
+#with open(json_path,'r') as f:
+#    mapping = json.load(f)
+#    
+#geom = mapping[category]['key']
+#select_ugid = [mapping[category]['geometries'][g] for g in geometry]
 
-category = 'US State Boundaries'
-geometry = ['Delaware']
-
-with open(json_path,'r') as f:
-    mapping = json.load(f)
-    
-geom = mapping[category]['key']
-select_ugid = [mapping[category]['geometries'][g] for g in geometry]
-
-import ipdb;ipdb.set_trace()
 #webbrowser.open(json_path)

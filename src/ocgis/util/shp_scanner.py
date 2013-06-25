@@ -9,12 +9,16 @@ import os
 import fiona
 from ocgis.util.shp_cabinet import ShpCabinet
 import ConfigParser
-from ConfigParser import SafeConfigParser
+from ConfigParser import SafeConfigParser, NoOptionError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
+from collections import OrderedDict
+import json
+import webbrowser
 
 
-connstr = 'sqlite:////tmp/foo.sqlite'
+db_path = '/tmp/foo.sqlite'
+connstr = 'sqlite:///{0}'.format(db_path)
 engine = create_engine(connstr)
 metadata = MetaData(bind=engine)
 Base = declarative_base(metadata=metadata)
@@ -41,38 +45,34 @@ class Subcategory(AbstractBase,Base):
     category = relationship(Category,backref="subcategory")
     
     
-class Name(AbstractBase,Base):
-    __tablename__ = 'name'
+class Geometry(AbstractBase,Base):
+    __tablename__ = 'geometry'
     __table_args__ = (UniqueConstraint('value','ugid'),)
+    cid = Column(Integer,ForeignKey(Category.cid),nullable=False)
     nid = Column(Integer,primary_key=True)
     sid = Column(Integer,ForeignKey(Subcategory.sid),nullable=True)
     ugid = Column(Integer,nullable=False)
     
-    subcategory = relationship(Subcategory,backref="name")
+    category = relationship(Category,backref='geometry')
+    subcategory = relationship(Subcategory,backref='geometry')
+    
+    @property
+    def label(self):
+        if self.subcategory is None:
+            label = self.category.value
+        else:
+            label = self.subcategory.value
+        return(label)
+    
+    @property
+    def label_formatted(self):
+        if self.category.key == 'us_counties':
+            ret = '{0} Counties'.format(self.label)
+        else:
+            ret = self.label
+        return(ret)
 
-try:
-    os.remove('/tmp/foo.sqlite')
-except:
-    pass
-
-metadata.create_all()
-session = Session()
-
-sc = ShpCabinet()
-shp_path = sc.get_shp_path('us_counties')
-cfg_path = sc.get_cfg_path('us_counties')
-
-config = SafeConfigParser()
-config.read(cfg_path)
-ugid = config.get('mapping','ugid')
-category = config.get('mapping','category')
-subcategory = config.get('mapping','subcategory')
-name = config.get('mapping','name')
-
-db_category = Category(value=category,key='us_counties')
-session.add(db_category)
-session.commit()
-
+ 
 def get_variant(key,feature):
     ref = feature['properties']
     variants = [str,str.lower,str.upper,str.title]
@@ -96,16 +96,93 @@ def get_or_create(session,Model,**kwargs):
         session.commit()
     return(obj)
 
-with fiona.open(shp_path, 'r') as source:
-    n = len(source)
-    for ctr,feature in enumerate(source):
-        if ctr % 100 == 0:
-            print('{0} of {1}'.format(ctr,n))
-        value_subcategory = get_variant(subcategory,feature)
-        db_subcategory = get_or_create(session,Subcategory,value=value_subcategory,category=db_category)
+#def dct_get_or_create(key,dct,fill):
+#    try:
+#        dct[key] = fill
+#    except KeyError:
+#        dct[key] = fill
+#        ret = dct[key]
+#    return(ret)
+
+
+def build():
+    try:
+        os.remove(db_path)
+    except:
+        pass
+    
+    metadata.create_all()
+    session = Session()
+    
+    sc = ShpCabinet()
+    
+    keys = ['state_boundaries','us_counties']
+    
+    for key in keys:
+        print(key)
+        shp_path = sc.get_shp_path(key)
+        cfg_path = sc.get_cfg_path(key)
         
-        value_name = get_variant(name,feature)
-        value_name_ugid = get_variant(ugid,feature)
-        db_name = Name(value=value_name,ugid=value_name_ugid,subcategory=db_subcategory)
-        session.add(db_name)
-    session.commit()
+        config = SafeConfigParser()
+        config.read(cfg_path)
+        ugid = config.get('mapping','ugid')
+        category = config.get('mapping','category')
+        try:
+            subcategory = config.get('mapping','subcategory')
+        except NoOptionError:
+            subcategory = None
+        name = config.get('mapping','name')
+        
+        db_category = Category(value=category,key=key)
+        session.add(db_category)
+        session.commit()
+        
+        with fiona.open(shp_path, 'r') as source:
+            n = len(source)
+            for ctr,feature in enumerate(source):
+                if ctr % 1000 == 0:
+                    print('{0} of {1}'.format(ctr,n))
+                
+                if subcategory is None:
+                    db_subcategory = None
+                else:
+                    value_subcategory = get_variant(subcategory,feature)
+                    db_subcategory = get_or_create(session,Subcategory,value=value_subcategory,category=db_category)
+                
+                value_name = get_variant(name,feature)
+                value_name_ugid = get_variant(ugid,feature)
+                db_name = Geometry(value=value_name,ugid=value_name_ugid,category=db_category,
+                               subcategory=db_subcategory)
+                session.add(db_name)
+            session.commit()
+    
+    session.close()
+
+#build()
+
+json_path = '/tmp/ocgis_geometries.json'
+to_dump = OrderedDict()
+session = Session()
+for row in session.query(Geometry):
+    try:
+        ref = to_dump[row.label_formatted]['geometries']
+    except KeyError:
+        to_dump[row.label_formatted] = {'key':row.category.key,'geometries':{}}
+        ref = to_dump[row.label_formatted]['geometries']
+    ref.update({row.value:row.ugid})
+    
+fmtd = json.dumps(to_dump)
+with open(json_path,'w') as f:
+    f.write(fmtd)
+
+category = 'US State Boundaries'
+geometry = ['Delaware']
+
+with open(json_path,'r') as f:
+    mapping = json.load(f)
+    
+geom = mapping[category]['key']
+select_ugid = [mapping[category]['geometries'][g] for g in geometry]
+
+import ipdb;ipdb.set_trace()
+#webbrowser.open(json_path)

@@ -56,7 +56,12 @@ def get_zipped_path(path_zip,folder):
 
 def format_return(ret_path,ops,with_auxiliary_files=False):
     '''
-    Format an OpenClimateGIS returning an absolute path to a zip file or simply passing `ret_path` through.
+    Format an OpenClimateGIS path returning an absolute path to a zip file or simply passing `ret_path` through.
+    
+    >>> import ocgis
+    >>> ops = ocgis.OcgOperations(...)
+    >>> ret = ops.execute()
+    >>> new_path = ocgis.format_return(ret,ops)
     
     :param ret_path: The path returned by :func:`ocgis.OcgOperations.execute`.
     :type ret_path: str

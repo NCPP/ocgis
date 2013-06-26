@@ -222,10 +222,26 @@ class TestRequestDatasets(TestBase):
         rd.inspect()
         
     def test_inspect_as_dct(self):
-        rd = RequestDataset(self.uri,self.variable)
-        ret = rd.inspect_as_dct()
-        ref = ret['derived']
-        self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
+        variables = [self.variable,None,'foo','time']
+        for variable in variables:
+            rd = RequestDataset(self.uri,variable)
+            try:
+                ret = rd.inspect_as_dct()
+            except KeyError:
+                if variable == 'foo':
+                    continue
+                else:
+                    raise
+            except ValueError:
+                if variable == 'time':
+                    continue
+                else:
+                    raise
+            ref = ret['derived']
+            if variable is None:
+                self.assertEqual(ref,None)
+            else:
+                self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
     
     def test_env_dir_data(self):
         ## test setting the var to a single directory

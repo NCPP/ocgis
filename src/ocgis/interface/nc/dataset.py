@@ -1,6 +1,6 @@
 from ocgis.interface import base
 from ocgis.interface.nc.dimension import NcTemporalDimension, NcLevelDimension,\
-    NcSpatialDimension
+    NcSpatialDimension, NcRowDimension
 from ocgis.interface.metadata import NcMetadata
 import numpy as np
 import netCDF4 as nc
@@ -359,7 +359,12 @@ class NcDataset(base.AbstractDataset):
         return(axis)
     
     def _get_dimension_map_(self):
-        var = self._ds.variables[self.request_dataset.variable]
+        try:    
+            var = self._ds.variables[self.request_dataset.variable]
+        ## variable likely does not exist in the target data
+        except KeyError:
+            raise(KeyError('The variable "{0}" was not found in the target dataset.'.\
+                  format(self.request_dataset.variable)))
         dims = var.dimensions
         mp = dict.fromkeys(['T','Z','X','Y'])
         ds = self._ds
@@ -423,8 +428,14 @@ class NcDataset(base.AbstractDataset):
             ## check for any initial slices
             slc = self._load_slice.get(kls.axis,slice(None))
             value = np.atleast_1d(ref['variable'][slc])
+        ## dimension may not exist or the variable is not 3- or 4-d
         except TypeError:
-            raise(DummyDimensionEncountered(kls.axis))
+            if kls == NcRowDimension:
+                msg = ('Target netCDF variables suitable for subsetting must '
+                       'have a row dimension. Is the correct variable chosen?')
+                raise(ValueError(msg))
+            else:
+                raise(DummyDimensionEncountered(kls.axis))
         name = ref['variable']._name
         try:
             bounds = ref['bounds'][slc]

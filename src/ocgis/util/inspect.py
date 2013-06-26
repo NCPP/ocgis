@@ -177,18 +177,23 @@ class Inspect(object):
     
     def _as_dct_(self):
         ret = self.meta.copy()
-        derived = OrderedDict()
-        to_add = self.get_temporal_report() + self.get_spatial_report() + self.get_level_report()
-        for row in to_add:
-            try:
-                key,value = re.split(' = ',row,maxsplit=1)
-            ## here to catch oddities of the returns
-            except ValueError:
-                if row == 'No level dimension found.':
-                    continue
-                else:
-                    raise
-            key = key.strip()
-            derived.update({key:value})
+        ## without a target variable, there is nothing to derive
+        if self.variable is None:
+            derived = None
+        ## we can get derived values
+        else:
+            derived = OrderedDict()
+            to_add = self.get_temporal_report() + self.get_spatial_report() + self.get_level_report()
+            for row in to_add:
+                try:
+                    key,value = re.split(' = ',row,maxsplit=1)
+                ## here to catch oddities of the returns
+                except ValueError:
+                    if row == 'No level dimension found.':
+                        continue
+                    else:
+                        raise
+                key = key.strip()
+                derived.update({key:value})
         ret.update({'derived':derived})
         return(ret)

@@ -55,6 +55,18 @@ def get_zipped_path(path_zip,folder):
     return(path_zip)
 
 def format_return(ret_path,ops,with_auxiliary_files=False):
+    '''
+    Format an OpenClimateGIS returning an absolute path to a zip file or simply passing `ret_path` through.
+    
+    :param ret_path: The path returned by :func:`ocgis.OcgOperations.execute`.
+    :type ret_path: str
+    :param ops: Instance of :class:`ocgis.OcgOperations`.
+    :type ops: :class:`ocgis.OcgOperations`
+    :param with_auxiliary_files: If `True`, zip additional contents of CSV and netCDF returns.
+    :type with_auxiliary_files: bool
+    :raises: NotImplementedError
+    :returns: str
+    '''
     ## can do nothing with numpy returns
     if ops.output_format == 'numpy':
         raise(NotImplementedError('numpy formats have no use here - only disk outputs.'))

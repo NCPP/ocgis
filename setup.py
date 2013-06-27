@@ -10,7 +10,7 @@ import tempfile
 import tarfile
 
 
-def install(pargs,version='0.06b'):
+def install(pargs,version='0.06b-dev'):
     ## check python version
     python_version = float(sys.version_info[0]) + float(sys.version_info[1])/10
     if python_version != 2.7:

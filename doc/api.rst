@@ -221,6 +221,13 @@ Value             Description
 `False` (default) Raise :class:`~ocgis.exc.EmptyDataNotAllowed` if the empty set is encountered.
 ================= ====================================================================================================
 
+headers
+~~~~~~~
+
+Useful to limit the number of attributes included in an output file.
+
+>>> headers = ['did','time','value']
+
 :class:`ocgis.ShpCabinet`
 =========================
 

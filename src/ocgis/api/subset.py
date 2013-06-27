@@ -167,6 +167,7 @@ def get_collection((so,geom,logger)):
                     temporal = None
                 else:
                     temporal = request_dataset.time_range or request_dataset.time_region
+
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
                                      igeom=igeom,
                                      temporal=temporal,

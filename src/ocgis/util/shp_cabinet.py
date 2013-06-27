@@ -1,7 +1,5 @@
 import os
 from ocgis import env
-from ConfigParser import ConfigParser
-from ocgis.util.helpers import get_shp_as_multi
 import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
@@ -62,88 +60,113 @@ class ShpCabinet(object):
     def get_cfg_path(self,key):
         return(os.path.join(self.path,key,'{0}.cfg'.format(key)))
     
-    def get_geom_dict(self,*args,**kwds):
-        return(self.get_geoms(*args,**kwds))
+#    def get_geom_dict(self,*args,**kwds):
+#        return(self.get_geoms(*args,**kwds))
     
-    def get_geoms(self,key,attr_filter=None):
+    def get_geoms(self,key,select_ugid=None):
         """Return geometries from a shapefile specified by `key`.
+        
+        >>> sc = ShpCabinet()
+        >>> geoms = sc.get_geoms('state_boundaries',select_ugid=[1,48])
+        >>> len(geoms)
+        2
         
         :param key: The shapefile identifier.
         :type key: str
-        :param attr_filter: A dict containing attribute filters. Keys indicate attribute fields and values should be lists that will match attribute values `exactly`.
-        :type attr_filter: dict
+        :param select_ugid: Sequence of unique identifiers matching values from the shapefile's UGID attribute.
+        :type select_ugid: sequence
         """
         
+        ## path to the target shapefile
         shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
-            raise(RuntimeError('requested geometry with identifier "{0}" does not exists in the file system.'.format(key)))
-        cfg_path = self.get_cfg_path(key)
-        config = ConfigParser()
-        config.read(cfg_path)
-        id_attr = config.get('mapping','ugid')
-        ## adjust the id attribute name for auto-generation in the shapefile
-        ## reader.
-        if id_attr.lower() == 'none':
-            id_attr = None
-            make_id = True
-        else:
-            make_id = False
-        other_attrs = config.get('mapping','attributes').split(',')
-        ## allow for no attributes to be loaded.
-        if len(other_attrs) == 1 and other_attrs[0].lower() == 'none':
-            other_attrs = []
-        ## allow for all attributes to be loaded
-        elif len(other_attrs) == 1 and other_attrs[0].lower() == 'all':
-            other_attrs = 'all'
-        ## get the geometry objects.
-        geoms = get_shp_as_multi(shp_path,
-                                 uid_field=id_attr,
-                                 attr_fields=other_attrs,
-                                 make_id=make_id)
-
-        ## filter the returned geometries if an attribute filter is passed
-        if attr_filter is not None:
-            ## get the attribute
-            attr = attr_filter.keys()[0].lower()
-#            ## rename ugid to id to prevent confusion on the front end.
-#            if attr == 'ugid':
-#                attr = 'id'
-            ## get the target attribute data type
-            dtype = type(geoms[0][attr])
-            ## attempt to convert the filter values to that data type
-            fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
-            ## if the filter data type is a string, do a conversion
-            if dtype == str:
-                fvalues = [f.lower() for f in fvalues]
-            ## filter function
-            def _filter_(x):
-                ref = x[attr]
-                ## attempt to lower the string value, otherwise move on
-                try:
-                    ref = ref.lower()
-                except AttributeError:
-                    pass
-                if ref in fvalues: return(True)
-            ## filter the geometry dictionary
-            geoms = filter(_filter_,geoms)
+            raise(RuntimeError('requested geometry with identifier "{0}" does not exist in the file system.'.format(key)))
+        
+        ## get the geometries
+        ds = ogr.Open(shp_path)
+        try:
+            lyr = ds.GetLayerByIndex(0)
+            lyr.ResetReading()
+            if select_ugid is not None:
+                lyr_name = lyr.GetName()
+                ## format where statement different for singletons
+                if len(select_ugid) == 1:
+                    sql_where = 'UGID = {0}'.format(select_ugid[0])
+                else:
+                    sql_where = 'UGID IN {0}'.format(tuple(select_ugid))
+                sql = 'SELECT * FROM {0} WHERE {1}'.format(lyr_name,sql_where)
+                features = ds.ExecuteSQL(sql)
+            else:
+                features = lyr
+            
+            geoms = [None]*len(features)
+            for idx,feature in enumerate(features):
+                attrs = feature.items()
+                attrs.update({'geom':wkb.loads(feature.geometry().ExportToWkb())})
+                geoms[idx] = attrs
+        finally:
+            ds.Destroy()
+            ds = None
+        
+#        cfg_path = self.get_cfg_path(key)
+#        config = ConfigParser()
+#        config.read(cfg_path)
+#        id_attr = config.get('mapping','ugid')
+#        ## adjust the id attribute name for auto-generation in the shapefile
+#        ## reader.
+#        if id_attr.lower() == 'none':
+#            id_attr = None
+#            make_id = True
+#        else:
+#            make_id = False
+#        other_attrs = config.get('mapping','attributes').split(',')
+#        ## allow for no attributes to be loaded.
+#        if len(other_attrs) == 1 and other_attrs[0].lower() == 'none':
+#            other_attrs = []
+#        ## allow for all attributes to be loaded
+#        elif len(other_attrs) == 1 and other_attrs[0].lower() == 'all':
+#            other_attrs = 'all'
+#        ## get the geometry objects.
+#        geoms = get_shp_as_multi(shp_path,
+#                                 uid_field=id_attr,
+#                                 attr_fields=other_attrs,
+#                                 make_id=make_id)
+#
+#        ## filter the returned geometries if an attribute filter is passed
+#        if attr_filter is not None:
+#            ## get the attribute
+#            attr = attr_filter.keys()[0].lower()
+##            ## rename ugid to id to prevent confusion on the front end.
+##            if attr == 'ugid':
+##                attr = 'id'
+#            ## get the target attribute data type
+#            dtype = type(geoms[0][attr])
+#            ## attempt to convert the filter values to that data type
+#            fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
+#            ## if the filter data type is a string, do a conversion
+#            if dtype == str:
+#                fvalues = [f.lower() for f in fvalues]
+#            ## filter function
+#            def _filter_(x):
+#                ref = x[attr]
+#                ## attempt to lower the string value, otherwise move on
+#                try:
+#                    ref = ref.lower()
+#                except AttributeError:
+#                    pass
+#                if ref in fvalues: return(True)
+#            ## filter the geometry dictionary
+#            geoms = filter(_filter_,geoms)
         
         return(SelectionGeometry(geoms))
     
     def get_headers(self,geoms):
-        ret = ['ugid']
-        keys = geoms[0].keys()
-        for key in ['ugid','id','geom']:
-            try:
-                keys.remove(key)
-            except ValueError:
-                try:
-                    keys.remove(key.upper())
-                except ValueError:
-                    pass
-        keys.sort()
+        ret = ['UGID']
+        keys = geoms.keys()
+        for key in ['UGID']:
+            keys.remove(key)
         ret += keys
-        ret = [h.upper() for h in ret]
         return(ret)
     
     def get_converter_iterator(self,geom_dict):
@@ -178,13 +201,16 @@ class ShpCabinet(object):
         if ds is None:
             raise IOError('Could not create file on disk. Does it already exist?')
         
-        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
-        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
-        headers = self.get_headers(geom_dict)
+#        arch = CreateGeometryFromWkb(geom_dict[0]['geom'].wkb)
+#        layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
+#        headers = self.get_headers(geom_dict)
         
         build = True
         for dct,geom in self.get_converter_iterator(geom_dict):
             if build:
+                arch = CreateGeometryFromWkb(geom.wkb)
+                layer = ds.CreateLayer('lyr',srs=sr,geom_type=arch.GetGeometryType())
+                headers = self.get_headers(dct)
                 csv_path = path.replace('.shp','.csv')
                 csv_f = open(csv_path,'w')
                 writer = csv.writer(csv_f,dialect=OcgDialect)

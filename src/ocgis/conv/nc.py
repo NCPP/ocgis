@@ -14,10 +14,10 @@ class NcConverter(OcgConverter):
         for ii,coll in enumerate(self):
             if ii > 0:
                 raise(ValueError('only one collection should be returned for NC conversion'))
-        ## dataset object to write to
-        ds = nc.Dataset(self.path,'w')
-        ## reference the interfaces
         arch = coll._archetype
+        ## dataset object to write to
+        ds = nc.Dataset(self.path,'w',format=arch.request_dataset.ds._ds.file_format)
+        ## reference the interfaces
 #        iglobal = arch._i
 #        spatial = iglobal.spatial
         grid = arch.spatial.grid

@@ -18,8 +18,12 @@ class Environment(object):
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=self._format_bool_)
         self.OPTIMIZE_FOR_CALC = EnvParm('OPTIMIZE_FOR_CALC',False,formatter=self._format_bool_)
         self.WRITE_TO_REFERENCE_PROJECTION = EnvParm('WRITE_TO_REFERENCE_PROJECTION',False,formatter=self._format_bool_)
+        self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
+        self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
         
         self.ops = None
+        ## pass logging flag between modules
+        self._use_logging = False
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -30,7 +34,7 @@ class Environment(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        if isinstance(value,EnvParm) or name == 'ops':
+        if isinstance(value,EnvParm) or name in ['ops','_use_logging']:
             object.__setattr__(self,name,value)
         else:
             attr = object.__getattribute__(self,name)

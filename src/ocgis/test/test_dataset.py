@@ -230,7 +230,7 @@ class TestShpDataset(TestBase):
         self.assertEqual(ssds.spatial.uid,1)
         
     def test_filter(self):
-        sds = ShpDataset('state_boundaries',attr_filter={'ugid':[20]})
+        sds = ShpDataset('state_boundaries',select_ugid=[20])
         self.assertTrue(sds.spatial.geom.shape,(1,))
         
     def test_write(self):

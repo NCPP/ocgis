@@ -6,7 +6,8 @@ from ocgis.util.helpers import make_poly, iter_array
 from shapely import prepared
 import netCDF4 as nc
 from abc import ABCMeta, abstractproperty
-from ocgis.exc import DummyDimensionEncountered, EmptyData
+from ocgis.exc import DummyDimensionEncountered, EmptyData,\
+    TemporalResolutionError
 import datetime
 from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
@@ -60,27 +61,71 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     _name_long = 'time'
     _dtemporal_group_dimension = NcTemporalGroupDimension
     
+#    def __init__(self,*args,**kwds):
+#        self._date_range = None
+#        super(NcTemporalDimension,self).__init__(*args,**kwds)
+    
     @property
     def resolution(self):
         diffs = np.array([],dtype=float)
         value = self.value
+        ## resolution cannot be calculated from a single value
+        if value.shape[0] == 1:
+            raise(TemporalResolutionError)
         for tidx,tval in iter_array(value,return_value=True):
             try:
                 diffs = np.append(diffs,
                                 np.abs((tval-value[tidx[0]+1]).days))
             except IndexError:
                 break
-        return(diffs.mean())
+        ret = diffs.mean()
+        return(ret)
+    
+    def __getitem__(self,*args,**kwds):
+        ret = super(self.__class__,self).__getitem__(*args,**kwds)
+        ret.units = self.units
+        ret.calendar = self.calendar
+        ret.name_bounds = self.name_bounds
+        return(ret)
     
     def get_nc_time(self,values):
         ret = nc.date2num(values,self.units,calendar=self.calendar)
         return(ret)
     
     def subset(self,*args,**kwds):
-        ret = super(self.__class__,self).subset(*args,**kwds)
-        ret.units = self.units
-        ret.calendar = self.calendar
-        ret.name_bounds = self.name_bounds
+        try:
+            ret = super(self.__class__,self).subset(*args,**kwds)
+            ret.units = self.units
+            ret.calendar = self.calendar
+            ret.name_bounds = self.name_bounds
+        ## likely a region subset
+        except TypeError:
+            regions = args[0]
+            if regions['month'] is None and regions['year'] is None:
+                ret = self
+            else:
+                ## get years and months from dates
+                parts = np.array([[dt.year,dt.month] for dt in self.value],dtype=int)
+                ## get matching months
+                if regions['month'] is not None:
+                    idx_months = np.zeros(parts.shape[0],dtype=bool)
+                    for month in regions['month']:
+                        idx_months = np.logical_or(idx_months,parts[:,1] == month)
+                ## potentially return all months if none are in the region
+                ## dictionary.
+                else:
+                    idx_months = np.ones(parts.shape[0],dtype=bool)
+                ## get matching years
+                if regions['year'] is not None:
+                    idx_years = np.zeros(parts.shape[0],dtype=bool)
+                    for year in regions['year']:
+                        idx_years = np.logical_or(idx_years,parts[:,0] == year)
+                ## potentially return all years.
+                else:
+                    idx_years = np.ones(parts.shape[0],dtype=bool)
+                ## combine the index arrays
+                idx_dates = np.logical_and(idx_months,idx_years)
+                ret = self[idx_dates]
         return(ret)
     
     @classmethod

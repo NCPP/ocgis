@@ -4,6 +4,7 @@ from csv import excel
 from ocgis.util.shp_cabinet import ShpCabinet
 import os
 from ocgis import env, constants
+from collections import OrderedDict, deque
 
 
 class OcgDialect(excel):
@@ -30,8 +31,9 @@ class CsvPlusConverter(CsvConverter):
     _add_ugeom = True
     
     def _write_(self):
-        gid_file = []
+        gid_file = OrderedDict()
         build = True
+        is_aggregated = self.ops.aggregate
         with open(self.path,'w') as f:
             writer = csv.writer(f,dialect=OcgDialect)
             for coll in self:
@@ -41,19 +43,28 @@ class CsvPlusConverter(CsvConverter):
                         projection = constants.reference_projection
                     else:
                         projection = coll._archetype.spatial.projection
-                    ugid_idx = headers.index('UGID')
-                    gid_idx = headers.index('GID')
-                    did_idx = headers.index('DID')
+#                    ugid_idx = headers.index('UGID')
+#                    gid_idx = headers.index('GID')
+#                    did_idx = headers.index('DID')
                     writer.writerow(headers)
                     build = False
-                for geom,row in coll.get_iter():
-                    gid_file.append({'geom':geom,'did':row[did_idx],
-                                     'ugid':row[ugid_idx],'gid':row[gid_idx]})
+                for geom,row,geom_ids in coll.get_iter(with_geometry_ids=True):
+                    if not is_aggregated:
+                        ugid = geom_ids['ugid']
+                        did = geom_ids['did']
+                        gid = geom_ids['gid']
+                        if ugid not in gid_file:
+                            gid_file[ugid] = OrderedDict()
+                        if did not in gid_file[ugid]:
+                            gid_file[ugid][did] = OrderedDict()
+                        gid_file[ugid][did][gid] = geom
+#                        gid_file.append({'geom':geom,'did':row[did_idx],
+#                                         'ugid':row[ugid_idx],'gid':row[gid_idx]})
                     writer.writerow(row)
         
-        if self.ops.aggregate is True and self.ops.abstraction == 'point':
+        if is_aggregated is True:
             if env.VERBOSE:
-                print('creating a UGID-GID shapefile is not necessary for aggregated point data. use UGID shapefile.')
+                print('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.')
         else:
             sc = ShpCabinet()
             shp_dir = os.path.join(self.outdir,'shp')
@@ -66,4 +77,12 @@ class CsvPlusConverter(CsvConverter):
                 else:
                     raise
             shp_path = os.path.join(shp_dir,self.prefix+'_gid.shp')
-            sc.write(gid_file,shp_path,sr=projection.sr)
+            
+            def iter_gid_file():
+                for ugid,did_gid in gid_file.iteritems():
+                    for did,gid_geom in did_gid.iteritems():
+                        for gid,geom in gid_geom.iteritems():
+                            yield({'geom':geom,'DID':did,
+                                   'UGID':ugid,'GID':gid})
+            
+            sc.write(iter_gid_file(),shp_path,sr=projection.sr)

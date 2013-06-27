@@ -3,8 +3,9 @@ from collections import OrderedDict
 
 class NcMetadata(OrderedDict):
     
-    def __init__(self,rootgrp):
+    def __init__(self,rootgrp,derived=None):
         super(NcMetadata,self).__init__()
+        self._derived = derived
         self._parse_(rootgrp)
         
     def _parse_(self,rootgrp):

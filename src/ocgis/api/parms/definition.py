@@ -12,6 +12,7 @@ from ocgis.interface.shp import ShpDataset
 from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
 from shapely.geometry.point import Point
+from ocgis import constants
 
 
 class Abstraction(base.StringOptionParameter):
@@ -352,23 +353,10 @@ class Geom(base.OcgParameter):
             except AttributeError:
                 test_value = self.select_ugid
             if test_value is None:
-                attr_filter = None
+                select_ugid = None
             else:
-                attr_filter = {'ugid':test_value}
-            ret = ShpDataset(value,attr_filter=attr_filter)
-#            sc = ShpCabinet()
-#            if value in sc.keys():
-#                self._shp_key = value
-#                ## get the select_ugid test value.
-#                try:
-#                    test_value = self.select_ugid.value
-#                except AttributeError:
-#                    test_value = self.select_ugid
-#                ## return the geometries
-#                if test_value is None:
-#                    ret = sc.get_geoms(value)
-#                else:
-#                    ret = sc.get_geoms(value,attr_filter={'ugid':test_value})
+                select_ugid = test_value
+            ret = ShpDataset(value,select_ugid=select_ugid)
         return(ret)
     
     def _get_meta_(self):
@@ -381,7 +369,43 @@ class Geom(base.OcgParameter):
         else:
             ret = '{0} custom user geometries provided.'.format(len(self.value))
         return(ret)
+    
+    
+class Headers(base.IterableParameter,base.OcgParameter):
+    name = 'headers'
+    default = None
+    return_type = tuple
+    valid = set(constants.raw_headers+constants.calc_headers+constants.multi_headers)
+    input_types = [list,tuple]
+    nullable = True
+    element_type = str
+    unique = True
+    _in_url = True
 
+    def __repr__(self):
+        try:
+            msg = '{0}={1}'.format(self.name,self.split_string.join(self.value))
+        ## likely a NoneType
+        except TypeError:
+            if self.value is None:
+                msg = '{0}=none'.format(self.name)
+            else:
+                raise
+        return(msg)
+        
+    def get_url_string(self):
+        return(self.__repr__().lower())
+    
+    def validate_all(self,values):
+        if len(values) == 0:
+            msg = 'At least one header value must be passed.'
+            raise(DefinitionValidationError(self,msg))
+        if not self.valid.issuperset(values):
+            msg = 'Valid headers are {0}.'.format(list(self.valid))
+            raise(DefinitionValidationError(self,msg))
+
+    def _get_meta_(self):
+        return('The following headers were used for file creation: {0}'.format(self.value))
     
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'

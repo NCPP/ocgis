@@ -1,7 +1,7 @@
 import unittest
 import netCDF4 as nc
-from ocgis.interface.ncmeta import NcMetadata
 from ocgis.test.base import TestBase
+from ocgis.interface.metadata import NcMetadata
 
 
 class TestNcMeta(TestBase):

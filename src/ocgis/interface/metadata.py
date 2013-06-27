@@ -16,7 +16,14 @@ class NcMetadata(AbstractMetadata):
     
     def __init__(self,rootgrp):
         super(NcMetadata,self).__init__()
-        self._parse_(rootgrp)
+        try:
+            self._parse_(rootgrp)
+        ## likely raised by an initialization following a copy.
+        except AttributeError:
+            if isinstance(rootgrp,NcMetadata):
+                super(NcMetadata,self).__init__(rootgrp)
+            else:
+                raise
         
     def _parse_(self,rootgrp):
         ## get global metadata

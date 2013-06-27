@@ -24,20 +24,23 @@ rdc = RequestDatasetCollection([RequestDataset(
 ## Data is returned as a dictionary with 51 keys (don't forget Puerto Rico...).
 ## A key in the returned dictionary corresponds to a geometry "ugid" with the
 ## value of type OcgCollection.
+print('returning numpy...')
 ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
                     snippet=SNIPPET,geom='state_boundaries')
 ret = ops.execute()
 
 ## Write to Shapefile ##########################################################
 
+print('returning shapefile...')
 ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
                     snippet=SNIPPET,geom='state_boundaries',output_format='shp')
 path = ops.execute()
 
 ## Write All Data to Keyed Format ##############################################
 
-## Without the snippet, we are writing all data to the linked CSV files. The
-## operation will take considerably longer.
+## Without the snippet, we are writing all data to the linked CSV-Shapefile
+## output format. The operation will take considerably longer.
+print('returning csv+...')
 ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
-                    snippet=False,geom='state_boundaries',output_format='keyed')
+                    snippet=False,geom='state_boundaries',output_format='csv+')
 path = ops.execute()

@@ -1,5 +1,5 @@
 import ocgis
-import os.path
+import os
 
 
 ## Directory holding climate data.
@@ -11,6 +11,7 @@ VAR_TAS = 'tas'
 SNIPPET = True
 ## Set output directory for shapefile and keyed formats. (MAKE SURE IT EXISTS!)
 ocgis.env.DIR_OUTPUT = '/tmp/foo'
+os.mkdir('/tmp/foo')
 ## The bounding box coordinates [minx, miny, maxx, maxy] for the state of
 ## Colorado in WGS84 latitude/longitude coordinates.
 BBOX = [-109.1, 36.9, -102.0, 41.0]
@@ -31,14 +32,9 @@ ret = ocgis.OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET).execute()
 
 ## Returning Converted Files ###################################################
 
-## At this time, the software will create named temporary directories inside
-## env.DIR_OUTPUT. This is to avoid the confusing process of managine overwrites
-## etc. The support for managing output files will be improved in future 
-## releases. The returned value is the absolute path to the file or folder
-## depending on the requested format.
-output_formats = ['shp','csv','keyed']
+output_formats = ['shp','csv','csv+','nc']
 for output_format in output_formats:
     prefix = output_format + '_output'
     ops = ocgis.OcgOperations(dataset=rd,geom=BBOX,snippet=SNIPPET,
-                        output_format=output_format,prefix=prefix)
+                              output_format=output_format,prefix=prefix)
     ret = ops.execute()

@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractproperty
 from ocgis.test.base import TestBase
 from ocgis.interface.shp import ShpDataset
+import datetime
 
 
 class AbstractParameter(object):
@@ -65,7 +66,16 @@ class Dataset(AbstractParameter):
     @property
     def values(self):
         tdata = TestBase.get_tdata()
-        return([tdata.get_rd('cancm4_tasmax_2001')])
+        
+        rd = tdata.get_rd('cancm4_tasmax_2001')
+        
+        rd_time_range = tdata.get_rd('cancm4_tasmax_2001')
+        rd_time_range.time_range = [datetime.datetime(2001,3,1),datetime.datetime(2001,3,31,23)]
+        
+        rd_time_region = tdata.get_rd('cancm4_tasmax_2001')
+        rd_time_region.time_region = {'month':[6,7],'year':[2006,2007]}
+        
+        return([rd,rd_time_range,rd_time_region])
     
     
 class Geometry(AbstractParameter):
@@ -73,9 +83,10 @@ class Geometry(AbstractParameter):
     
     @property
     def values(self):
-        california = ShpDataset('state_boundaries',attr_filter={'ugid':[25]})
-        ne_ia_co = ShpDataset('state_boundaries',attr_filter={'ugid':[14,16,32]})
-        return([california,ne_ia_co,None])
+        california = ShpDataset('state_boundaries',select_ugid=[25])
+        ne_ia_co = ShpDataset('state_boundaries',select_ugid=[14,16,32])
+        split_counties = ShpDataset('us_counties',select_ugid=[622,3051])
+        return([california,ne_ia_co,split_counties,None])
 
 
 class OutputFormat(AbstractParameter):
@@ -90,3 +101,23 @@ class Snippet(AbstractBooleanParameter):
 class SpatialOperation(AbstractParameter):
     name = 'spatial_operation'
     values = ['clip','intersects',None]
+    
+## environmental parameters ####################################################
+
+class AbstractEnvironmentalParameter(AbstractParameter):
+    __metaclass__ = ABCMeta
+    
+    
+#class Verbose(AbstractEnvironmentalParameter):
+#    name = 'VERBOSE'
+#    values = [True,False]
+#    
+#    
+#class FileLogging(AbstractEnvironmentalParameter):
+#    name = 'ENABLE_FILE_LOGGING'
+#    values = [True,False]
+    
+    
+class ReferenceProjection(AbstractEnvironmentalParameter):
+    name = 'WRITE_TO_REFERENCE_PROJECTION'
+    values = [True,False]

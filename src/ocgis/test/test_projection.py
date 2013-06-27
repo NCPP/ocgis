@@ -40,8 +40,14 @@ class Test(TestBase):
         rd1 = self.test_data.get_rd('daymet_tmax')
 #        rd2 = RequestDataset(uri=self.hostetler,variable='TG',t_calendar='noleap')
         rd2 = self.test_data.get_rd('cancm4_tas')
+        
+        ## for numpy formats, different projections are allowed.
         ops = OcgOperations(dataset=[rd1,rd2],snippet=True)
+        ret = ops.execute()
+        
+        ## it is not okay for other formats
         with self.assertRaises(ValueError):
+            ops = OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+')
             ops.execute()
             
     def test_same_projection(self):

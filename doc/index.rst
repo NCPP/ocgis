@@ -26,6 +26,7 @@ Contents:
    api
    computation
    examples
+   utility
 
 .. Indices and tables
 ..  ==================

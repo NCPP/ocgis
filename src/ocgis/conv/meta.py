@@ -28,7 +28,7 @@ HEADERS = {
 
 
 class MetaConverter(object):
-    _meta_filename = 'meta.txt'
+    _meta_filename = 'metadata.txt'
     
     def __init__(self,ops):
         self.ops = ops

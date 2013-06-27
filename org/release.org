@@ -1,0 +1,32 @@
+1. stage the release:
+   - [X] git checkout staged-release
+   - [X] git merge dev
+2. run tests:
+   - [X] combinatorial
+   - [X] standard
+3. update documents:
+   - [X] CoG page
+   - [X] RELEASE.md (use "release" label)
+4. update version number in:
+   - [X] setup.py
+   - [X] ocgis.__init__
+5. update links
+   - [X] update link in install.rst
+6. merge development to master:
+   - [ ] git commit
+   - [ ] git checkout master
+   - [ ] git merge staged-release
+   - [ ] git tag -a <version> -m '<description>'
+   - [ ] git push
+   - [ ] git push origin --tags
+   - [ ] build and push documentation
+   - [ ] git checkout dev
+   - [ ] git merge master
+7. put -dev back in version numbers:
+   - [ ] setup.py
+   - [ ] ocgis.__init__
+   - [ ] git commit -a -m 'added dev to version strings'
+8. finalize:
+   - [ ] have silverio update link
+   - [ ] remove release label from issues
+9. remove "release" label from GitHub issues

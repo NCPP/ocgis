@@ -28,11 +28,15 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.DIR_DATA` = `None`
  Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
 
-:attr:`env.SERIAL` = `True`
- If `True`, execute in serial. Only set to `False` if you are confident in your grasp of the software and its internal operation.
+:attr:`env.WRITE_TO_REFERENCE_PROJECTION` = `False`
+ If `True`, output vector data will be written to a common projection determined by :attr:`ocgis.constants.reference_projection`.
 
-:attr:`env.CORES` = 6
- If operating in parallel (i.e. :attr:`env.SERIAL` = `False`), specify the number of cores to use.
+..
+   :attr:`env.SERIAL` = `True`
+    If `True`, execute in serial. Only set to `False` if you are confident in your grasp of the software and its internal operation.
+
+   :attr:`env.CORES` = 6
+    If operating in parallel (i.e. :attr:`env.SERIAL` = `False`), specify the number of cores to use.
 
 :attr:`env.VERBOSE` = `False`
  Indicate if additional output information should be printed to terminal. (Currently not very useful.)
@@ -41,7 +45,7 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 ============================
 
 .. autoclass:: ocgis.OcgOperations
-   :members: execute, as_dict, as_qs
+   :members: execute
 
 Detailed Argument Information
 -----------------------------
@@ -54,7 +58,7 @@ dataset
 A `dataset` is the target file(s) where data is stored. A `dataset` may be on the local machine or network location accessible by the software. Unsecured OpenDAP datasets may also be accessed.
 
 .. autoclass:: ocgis.RequestDataset
-   :members: inspect
+   :members: inspect, inspect_as_dct
 
 .. autoclass:: ocgis.RequestDatasetCollection
    :members: update
@@ -78,30 +82,22 @@ If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.Request
 
 This is a list of floats corresponding to: `[min x, min y, max x, max y]`. The coordinates should be WGS84 geographic.
 
->>> bounds = [-120.4, 30.0, -110.3, 41.4]
+>>> geom = [-120.4, 30.0, -110.3, 41.4]
 
-2. Using :class:`ocgis.ShpCabinet`
+2. Point
 
->>> from ocgis import ShpCabinet
->>> sc = ShpCabinet()
->>> geoms = sc.get_geoms('state_boundaries')
+This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic.
 
-3. Using a :class:`ocgis.ShpCabinet` Key
+>>> geom = [-120.4,36.5]
 
->>> geom_key = 'state_boundaries'
+3. Using :class:`ocgis.ShpDataset`
 
-4. Direct Geometry Construction
+>>> from ocgis import ShpDataset
+>>> geom = ShpDataset('state_boundaries')
 
-A geometry in OpenClimateGIS is a dictionary containing `ugid` (user geometry identifier) and `geom` keys. The `ugid` is a unique integer identifier -- unique within the list of geometries -- with the `geom` key value being a :class:`shapely.geometry.Polygon` or :class:`shapely.geometry.MultiPolygon` object. See `shapely documentation`_.
+4. Using a :class:`ocgis.ShpDataset` Key
 
-.. note:: Remember to always keep coordinates in WGS84 geographic. The software will handle projecting to matching coordinate systems.
-
->>> from shapely.geometry import Polygon
->>> from ocgis.util.helpers import make_poly
-...
->>> geom1 = {'ugid':1, 'geom':make_poly((30,40),(-110,-120))}
->>> geom2 = {'ugid':2, 'geom':make_poly((40,50),(-110,-120))}
->>> geoms = [geom1, geom2]
+>>> geom = 'state_boundaries'
 
 aggregate
 ~~~~~~~~~
@@ -174,15 +170,15 @@ Value                  Description
 output_format
 ~~~~~~~~~~~~~
 
-====================== =========================================================================================================================================================
+====================== ====================================================================================================================================================================
 Value                  Description
-====================== =========================================================================================================================================================
-`numpy` (default)      Return a dict with keys matching `ugid` (see `geom`_) and values of :class:`ocgis.OcgCollection`.
-`keyed`                A reduced data format composed of a shapfile geometry index and a series of CSV files for attributes. Best to think of this as a series of linked tables.
+====================== ====================================================================================================================================================================
+`numpy` (default)      Return a dict with keys matching `ugid` (see `geom`_) and values of :class:`ocgis.api.collection.AbstractCollection`. The collection type depends on the operations.
 `shp`                  A shapefile representation of the data.
 `csv`                  A CSV file representation of the data.
+`csv+`                 In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
 `nc`                   A NetCDF4 file.
-====================== =========================================================================================================================================================
+====================== ====================================================================================================================================================================
 
 agg_selection
 ~~~~~~~~~~~~~
@@ -224,6 +220,13 @@ Value             Description
 `True`            Allow the empty set for geometries not geographically coincident with a source geometry.
 `False` (default) Raise :class:`~ocgis.exc.EmptyDataNotAllowed` if the empty set is encountered.
 ================= ====================================================================================================
+
+headers
+~~~~~~~
+
+Useful to limit the number of attributes included in an output file.
+
+>>> headers = ['did','time','value']
 
 :class:`ocgis.ShpCabinet`
 =========================
@@ -268,28 +271,6 @@ When the default output format (i.e. `numpy`) is returned by OpenClimateGIS, the
 >>> tasmax.geom.value
 >>> # This is the actual data.
 >>> tasmax.value 
-
-.. autoclass:: ocgis.OcgCollection
-   :members:
-
-   .. attribute:: variables
-
-      An :class:`collections.OrderedDict` holding :class:`ocgis.OcgVariable` s.
-
-.. autoclass:: ocgis.OcgVariable
-   :members:
-   
-   .. attribute:: name
-
-   .. attribute:: value
-
-   .. attribute:: temporal
-
-   .. attribute:: level
-
-   .. attribute:: geom
-
-
 
 :mod:`ocgis.exc`
 ================

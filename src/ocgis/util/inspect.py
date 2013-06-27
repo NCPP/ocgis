@@ -1,6 +1,11 @@
 import netCDF4 as nc
-from ocgis.interface.ncmeta import NcMetadata
+from ocgis.interface.metadata import NcMetadata
 from ocgis.interface.nc.dataset import NcDataset
+from ocgis.exc import TemporalResolutionError
+from collections import OrderedDict
+import re
+import datetime
+from warnings import warn
 
 
 class Inspect(object):
@@ -27,23 +32,34 @@ class Inspect(object):
     .. _ncdump: http://www.unidata.ucar.edu/software/netcdf/docs/netcdf/ncdump.html
     """
     
-    def __init__(self,uri,variable=None,interface_overload={}):
-        self.uri = uri
-        self.variable = variable
-        if self.variable is None:
-            try:
-                self.ds = None
-                rootgrp = nc.Dataset(uri)
-                self.meta = NcMetadata(rootgrp)
-            finally:
-                rootgrp.close()
+    def __init__(self,uri=None,variable=None,interface_overload={},request_dataset=None):
+        self.request_dataset = request_dataset
+        if self.request_dataset is None:
+            self.uri = uri
+            self.variable = variable
+            self.alias = None
+            self.did = None
+            if self.variable is None:
+                try:
+                    self.ds = None
+                    rootgrp = nc.Dataset(uri)
+                    self.meta = NcMetadata(rootgrp)
+                finally:
+                    rootgrp.close()
+            else:
+                from ocgis.api.request import RequestDataset
+                kwds = {'uri':uri,'variable':variable}
+                kwds.update(interface_overload)
+                rd = RequestDataset(**kwds)
+                self.ds = NcDataset(request_dataset=rd)
+                self.meta = self.ds.metadata
         else:
-            from ocgis.api.request import RequestDataset
-            kwds = {'uri':uri,'variable':variable}
-            kwds.update(interface_overload)
-            rd = RequestDataset(**kwds)
-            self.ds = NcDataset(request_dataset=rd)
-            self.meta = self.ds.metadata
+            self.uri = self.request_dataset.uri
+            self.variable = self.request_dataset.variable
+            self.ds = self.request_dataset.ds
+            self.meta = self.request_dataset.ds.metadata
+            self.alias = self.request_dataset.alias
+            self.did = self.request_dataset.did
         
     def __repr__(self):
         msg = ''
@@ -68,7 +84,12 @@ class Inspect(object):
     def get_temporal_report(self):
         start_date = self._t.value.min()
         end_date = self._t.value.max()
-        res = int(self._t.resolution)
+        try:
+            res = int(self._t.resolution)
+        ## raised if the temporal dimension has a single value. possible with
+        ## snippet or a small dataset...
+        except TemporalResolutionError:
+            res = 'NA (singleton)'
         n = len(self._t.value)
         calendar = self._t.calendar
         units = self._t.units
@@ -143,6 +164,8 @@ class Inspect(object):
         
         lines = ['','URI = {0}'.format(self.uri)]
         lines.append('VARIABLE = {0}'.format(self.variable))
+        lines.append('ALIAS = {0}'.format(self.alias))
+        lines.append('DID = {0}'.format(self.did))
         lines.append('')
         for dct in mp:
             for key,value in dct.iteritems():
@@ -153,3 +176,36 @@ class Inspect(object):
             lines.append('')
         
         return(lines)
+    
+    def _as_dct_(self):
+        ret = self.meta.copy()
+        ## without a target variable, attempt to set start and end dates.
+        if self.variable is None:
+            ds = nc.Dataset(self.uri,'r')
+            try:
+                time = ds.variables['time']
+                time_bounds = [time[0],time[-1]]
+                time_bounds = nc.num2date(time_bounds,time.units,calendar=time.calendar)
+                derived = {'Start Date':str(time_bounds[0]),'End Date':str(time_bounds[1])}
+            except:
+                warn('Time variable not found or improperly attributed. Setting "derived" key to None.')
+                derived = None
+            finally:
+                ds.close()
+        ## we can get derived values
+        else:
+            derived = OrderedDict()
+            to_add = self.get_temporal_report() + self.get_spatial_report() + self.get_level_report()
+            for row in to_add:
+                try:
+                    key,value = re.split(' = ',row,maxsplit=1)
+                ## here to catch oddities of the returns
+                except ValueError:
+                    if row == 'No level dimension found.':
+                        continue
+                    else:
+                        raise
+                key = key.strip()
+                derived.update({key:value})
+        ret.update({'derived':derived})
+        return(ret)

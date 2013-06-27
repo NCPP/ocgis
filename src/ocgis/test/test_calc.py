@@ -9,9 +9,40 @@ from ocgis.test.base import TestBase
 from unittest.case import SkipTest
 import netCDF4 as nc
 import subprocess
+import webbrowser
 
 
 class Test(TestBase):
+    
+    def test_with_time_region(self):
+        kwds = {'time_region':{'year':[2011]}}
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
+        calc = [{'func':'mean','name':'mean'}]
+        calc_grouping = ['year','month']
+        
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        
+        tgroup = ret[25].variables['tasmax'].temporal.group.value
+        self.assertEqual(set([2011]),set(tgroup[:,0]))
+        self.assertEqual(tgroup[-1,1],12)
+        
+        kwds = {'time_region':{'year':[2011,2013],'month':[8]}}
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
+        calc = [{'func':'threshold','name':'threshold','kwds':{'threshold':0.0,'operation':'gte'}}]
+        calc_grouping = ['month']
+        aggregate = True
+        calc_raw = True
+        geom = 'us_counties'
+        select_ugid = [2762]
+        
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                 aggregate=aggregate,calc_raw=calc_raw,geom=geom,
+                                 select_ugid=select_ugid,output_format='numpy')
+        ret = ops.execute()
+        threshold = ret[2762].calc['tasmax']['threshold']
+        self.assertEqual(threshold.flatten()[0],62)
     
     def test_HeatIndex(self):
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
@@ -140,7 +171,3 @@ class Test(TestBase):
         ## get the percentiles
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

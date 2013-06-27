@@ -1,7 +1,7 @@
 from datetime import datetime
 from copy import deepcopy
 import os
-from ocgis import env, constants
+from ocgis import env
 from ocgis.util.helpers import locate
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
@@ -28,6 +28,14 @@ class RequestDataset(object):
     :type alias: str
     :param time_range: Upper and lower bounds for time dimension subsetting. If `None`, return all time points.
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
+    :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`.
+    :type time_region: dict
+    
+    .. note:: Only one of `time_range` or `time_region` may be passed to the constructor.
+    
+    >>> time_region = {'month':[6,7],'year':[2010,2011]}
+    >>> time_region = {'year':[2010]}
+    
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
     :param s_proj: A `PROJ4 string`_ describing the dataset's spatial reference.
@@ -43,12 +51,14 @@ class RequestDataset(object):
     '''
     _Dataset = NcDataset
     
-    def __init__(self,uri=None,variable=None,alias=None,time_range=None,level_range=None,
-                 s_proj=None,t_units=None,t_calendar=None,did=None,meta=None):
+    def __init__(self,uri=None,variable=None,alias=None,time_range=None,
+                 time_region=None,level_range=None,s_proj=None,t_units=None,
+                 t_calendar=None,did=None,meta=None):
         self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)
+        self.time_region = deepcopy(time_region)
         self.level_range = deepcopy(level_range)
         self.s_proj = self._str_format_(s_proj)
         self.t_units = self._str_format_(t_units)
@@ -63,9 +73,28 @@ class RequestDataset(object):
         '''Print inspection output using :class:`~ocgis.Inspect`. This is a 
         convenience method.'''
         
-        ip = Inspect(self.uri,variable=self.variable,
-                     interface_overload=self.interface)
+        ip = Inspect(request_dataset=self)
         return(ip)
+    
+    def inspect_as_dct(self):
+        '''
+        Return a dictionary representation of the target's metadata. If the variable
+        is `None`. An attempt will be made to find the target dataset's time bounds
+        raising a warning if none is found or the time variable is lacking units
+        and/or calendar attributes.
+        
+        >>> rd = ocgis.RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc','rhs')
+        >>> ret = rd.inspect_as_dct()
+        >>> ret.keys()
+        ['dataset', 'variables', 'dimensions', 'derived']
+        >>> ret['derived']
+        OrderedDict([('Start Date', '2011-01-01 12:00:00'), ('End Date', '2020-12-31 12:00:00'), ('Calendar', '365_day'), ('Units', 'days since 1850-1-1'), ('Resolution (Days)', '1'), ('Count', '8192'), ('Has Bounds', 'True'), ('Spatial Reference', 'WGS84'), ('Proj4 String', '+proj=longlat +datum=WGS84 +no_defs '), ('Extent', '(-1.40625, -90.0, 358.59375, 90.0)'), ('Interface Type', 'NcPolygonDimension'), ('Resolution', '2.80091351339')])        
+        
+        :rtype: :class:`collections.OrderedDict`
+        '''
+        ip = Inspect(request_dataset=self)
+        ret = ip._as_dct_()
+        return(ret)
     
     @property
     def ds(self):
@@ -155,21 +184,56 @@ class RequestDataset(object):
         return(ret)
     
     def _format_(self):
+        ## only a time range or time region is acceptable
+        if self.time_range is not None and self.time_region is not None:
+            raise(DefinitionValidationError('dataset','only a time range or time region may be set - not both.'))
         if self.time_range is not None:
             self._format_time_range_()
+        if self.time_region is not None:
+            self._format_time_region_()
         if self.level_range is not None:
             self._format_level_range_()
     
     def _format_time_range_(self):
         try:
             ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
-            ref = ret[1]
-            ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
+#            ref = ret[1]
+#            ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
         except AttributeError:
             ret = self.time_range
         if ret[0] > ret[1]:
             raise(DefinitionValidationError('dataset','Time ordination incorrect.'))
         self.time_range = ret
+        
+    def _format_time_region_(self):
+        if isinstance(self.time_region,basestring):
+            ret = {}
+            parts = self.time_region.split('|')
+            for part in parts:
+                tpart,values = part.split('~')
+                try:
+                    values = map(int,values.split('-'))
+                ## may be nonetype
+                except ValueError:
+                    if isinstance(values,basestring):
+                        if values.lower() == 'none':
+                            values = None
+                    else:
+                        raise
+                if values is not None and len(values) > 1:
+                    values = range(values[0],values[1]+1)
+                ret.update({tpart:values})
+        else:
+            ret = self.time_region
+        ## add missing keys
+        for add_key in ['month','year']:
+            if add_key not in ret:
+                ret.update({add_key:None})
+        ## confirm only month and year keys are present
+        for key in ret.keys():
+            if key not in ['month','year']:
+                raise(DefinitionValidationError('dataset','time regions keys must be month and/or year'))
+        self.time_region = ret
         
     def _format_level_range_(self):
         try:
@@ -203,7 +267,7 @@ class RequestDataset(object):
     
     
 class RequestDatasetCollection(object):
-    '''Contains business logic ensuring multi-:class:`ocgis.RequestDataset` objects are
+    '''Contains business logic ensuring multiple :class:`ocgis.RequestDataset` objects are
     compatible.
     
     >>> from ocgis import RequestDatasetCollection, RequestDataset
@@ -288,7 +352,7 @@ class RequestDatasetCollection(object):
     def validate(self):
         ## confirm projections are equivalent
         projections = [rd.ds.spatial.projection.sr.ExportToProj4() for rd in self]
-        if len(set(projections)) == 2:
+        if len(set(projections)) == 2 and env.ops.output_format != 'numpy': #@UndefinedVariable
             if ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
                 raise(ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             

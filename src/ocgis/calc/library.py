@@ -8,7 +8,7 @@ class FrequencyPercentile(OcgArgFunction):
     name = 'freq_perc'
     nargs = 2
     Group = groups.Percentiles
-    dtype = float
+    dtype = np.float32
     description = 'Percentile value matching "perc".'
     
     @staticmethod
@@ -27,7 +27,7 @@ class SampleSize(OcgFunction):
     name = 'n'
     description = 'Statistical sample size.'
     Group = groups.BasicStatistics
-    dtype = int
+    dtype = np.int32
     
     @staticmethod
     def _calculate_(values):
@@ -44,7 +44,7 @@ class SampleSize(OcgFunction):
 class Median(OcgFunction):
     description = 'Median value for the series.'
     Group = groups.BasicStatistics
-    dtype = float
+    dtype = np.float32
     
     @staticmethod
     def _calculate_(values):
@@ -54,7 +54,7 @@ class Median(OcgFunction):
 class Mean(OcgFunction):
     description = 'Mean value for the series.'
     Group = groups.BasicStatistics
-    dtype = float
+    dtype = np.float32
     
     @staticmethod
     def _calculate_(values):
@@ -64,7 +64,7 @@ class Mean(OcgFunction):
 class Max(OcgFunction):
     description = 'Max value for the series.'
     Group = groups.BasicStatistics
-    dtype = float
+    dtype = np.float32
     
     @staticmethod
     def _calculate_(values):
@@ -74,7 +74,7 @@ class Max(OcgFunction):
 class Min(OcgFunction):
     description = 'Min value for the series.'
     Group = groups.BasicStatistics
-    dtype = float
+    dtype = np.float32
     
     @staticmethod
     def _calculate_(values):
@@ -84,7 +84,7 @@ class Min(OcgFunction):
 class StandardDeviation(OcgFunction):
     description = 'Standard deviation for the series.'
     Group = groups.BasicStatistics
-    dtype = float
+    dtype = np.float32
     name = 'std'
     
     @staticmethod
@@ -96,7 +96,7 @@ class MaxConsecutive(OcgArgFunction):
     name = 'max_cons'
     nargs = 2
     Group = groups.Thresholds
-    dtype = int
+    dtype = np.int32
     description = ('Maximum number of consecutive occurrences in the sequence'
                    ' where the logical operation returns TRUE.')
     
@@ -147,7 +147,7 @@ class Between(OcgArgFunction):
     nargs = 2
     description = 'Count of values falling within the limits lower and upper (inclusive).'
     Group = groups.Thresholds
-    dtype = int
+    dtype = np.int32
     
     @staticmethod
     def _calculate_(values,lower=None,upper=None):
@@ -159,7 +159,7 @@ class Threshold(OcgArgFunction):
     nargs = 2
     description = 'Count of values where the logical operation is True.'
     Group = groups.Thresholds
-    dtype = int
+    dtype = np.int32
     
     @staticmethod
     def _calculate_(values,threshold=None,operation=None):
@@ -202,7 +202,7 @@ class Threshold(OcgArgFunction):
 class HeatIndex(OcgCvArgFunction):
     description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation. Output units are Fahrenheit.'
     Group = groups.MultivariateStatistics
-    dtype = float
+    dtype = np.float32
     nargs = 2
     keys = ['tas','rhs']
     name = 'heat_index'

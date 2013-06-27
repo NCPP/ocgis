@@ -13,6 +13,8 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
+from ocgis.interface.metadata import NcMetadata
+import netCDF4 as nc
 
 
 class Test(TestBase):
@@ -96,6 +98,21 @@ class Test(TestBase):
         self.assertEqual(len(g.value),60)
         self.assertEqual(g.get_url_string(),'mi_watersheds')
         
+    def test_headers(self):
+        headers = ['did','value']
+        for htype in [list,tuple]:
+            hvalue = htype(headers)
+            hh = definition.Headers(hvalue)
+            self.assertEqual(tuple(hvalue),hh.value)
+            
+        headers = ['foo']
+        with self.assertRaises(DefinitionValidationError):
+            hh = definition.Headers(headers)
+            
+        headers = []
+        with self.assertRaises(DefinitionValidationError):
+            hh = definition.Headers(headers)
+                
     def test_calc_grouping(self):
         _cg = [
                None,
@@ -184,7 +201,7 @@ class Test(TestBase):
         self.assertEqual(url,'/subset?snippet=0&abstraction=polygon&calc_raw=0&agg_selection=0&output_format=csv&spatial_operation=clip&uri=/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc&variable=tasmax&alias=tasmax&t_units=none&t_calendar=none&s_proj=none&calc_grouping=month&prefix=ocgis_output&geom=climate_divisions&allow_empty=0&vector_wrap=1&aggregate=1&select_ugid=none&calc=mean~mean|std~std&backend=ocg')
             
         
-class TestRequestDatasets(TestBase):
+class TestRequestDataset(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
@@ -203,6 +220,30 @@ class TestRequestDatasets(TestBase):
     def test_inspect_method(self):
         rd = RequestDataset(self.uri,self.variable)
         rd.inspect()
+        
+    def test_inspect_as_dct(self):
+        variables = [self.variable,None,'foo','time']
+        
+        for variable in variables:
+            rd = RequestDataset(self.uri,variable)
+            try:
+                ret = rd.inspect_as_dct()
+            except KeyError:
+                if variable == 'foo':
+                    continue
+                else:
+                    raise
+            except ValueError:
+                if variable == 'time':
+                    continue
+                else:
+                    raise
+            ref = ret['derived']
+            
+            if variable is None:
+                self.assertEqual(ref,{'End Date': '2020-12-31 12:00:00', 'Start Date': '2011-01-01 12:00:00'})
+            else:
+                self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
     
     def test_env_dir_data(self):
         ## test setting the var to a single directory
@@ -238,7 +279,7 @@ class TestRequestDatasets(TestBase):
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
         self.assertEqual(rd.time_range,tr)
         
-        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31, 23, 59, 59)]
+        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31,)]
         tr = '2000-1-1|2000-12-31'
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
         self.assertEqual(rd.time_range,out)
@@ -291,7 +332,28 @@ class TestRequestDatasets(TestBase):
         variable = 'pr'
         rd = RequestDataset(uri=uris,variable=variable)
         rd.inspect()
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+        
+    def test_time_region(self):
+        tr1 = {'month':[6],'year':[2001]}
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr1)
+        self.assertEqual(rd.time_region,tr1)
+        
+        tr2 = {'bad':15}
+        with self.assertRaises(DefinitionValidationError):
+            RequestDataset(uri=self.uri,variable=self.variable,time_region=tr2)
+            
+        tr_str = 'month~6|year~2001'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,tr1)
+        
+        tr_str = 'month~6-8|year~2001-2003'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':[2001,2002,2003]})
+        
+        tr_str = 'month~6-8'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
+        
+        tr_str = 'month~6-8|year~none'
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+        self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})

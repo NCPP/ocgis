@@ -15,6 +15,8 @@ from ocgis.test.base import TestBase
 import subprocess
 from unittest.case import SkipTest
 from shapely.geometry.point import Point
+import ocgis
+from ocgis.exc import ExtentError
 
 
 class TestSimpleBase(TestBase):
@@ -33,10 +35,11 @@ class TestSimpleBase(TestBase):
         TestBase.setUp(self)
         self.nc_factory().write()
     
-    def get_dataset(self,time_range=None,level_range=None):
+    def get_dataset(self,time_range=None,level_range=None,time_region=None):
         uri = os.path.join(env.DIR_OUTPUT,self.fn)
         return({'uri':uri,'variable':self.var,
-                'time_range':time_range,'level_range':level_range})
+                'time_range':time_range,'level_range':level_range,
+                'time_region':time_region})
     
     def get_ops(self,kwds={},time_range=None,level_range=None):
         dataset = self.get_dataset(time_range,level_range)
@@ -165,6 +168,41 @@ class TestSimple(TestSimpleBase):
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1].variables[self.var]
         self.assertEqual(ref.level.value.shape,(1,))
+        
+    def test_time_region_subset(self):
+        
+        rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
+                                      variable=self.var)
+        ops = ocgis.OcgOperations(dataset=rd)
+        ret = ops.execute()
+        all = ret[1].variables['foo'].temporal.value
+        
+        def get_ref(month,year):
+            rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
+                                      variable=self.var,
+                                      time_region={'month':month,'year':year})
+            ops = ocgis.OcgOperations(dataset=rd)
+            ret = ops.execute()
+            ref = ret[1].variables['foo'].temporal.value
+            return(ref)
+        
+        ref = get_ref(None,None)
+        self.assertTrue(np.all(ref == all))
+        
+        ref = get_ref([3],None)
+        self.assertEqual(ref.shape[0],31)
+        
+        ref = get_ref([3,4],None)
+        self.assertTrue(np.all(ref == all))
+        
+        ref = get_ref([4],None)
+        self.assertEqual(ref.shape[0],30)
+        
+        ref = get_ref(None,[2000])
+        self.assertTrue(np.all(ref == all))
+        
+        with self.assertRaises(ExtentError):
+            ref = get_ref([1],None)
 
     def test_spatial(self):
         ## intersects
@@ -200,7 +238,7 @@ class TestSimple(TestSimpleBase):
         
     def test_empty_intersection(self):
         geom = make_poly((20,25),(-90,-80))
-        
+
         with self.assertRaises(exc.ExtentError):
             self.get_ret(kwds={'geom':geom})
             
@@ -255,7 +293,7 @@ class TestSimple(TestSimpleBase):
     def test_shp_conversion(self):
         calc = [
                 None,
-                [{'func':'mean','name':'my_mean'}]
+                [{'func':'mean','name':'my_mean'}],
                 ]
         group = ['month','year']
         for c in calc:
@@ -264,7 +302,7 @@ class TestSimple(TestSimpleBase):
                                 calc_grouping=group,
                                 calc=c)
             ret = self.get_ret(ops)
-        
+            
     def test_csv_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)

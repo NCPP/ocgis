@@ -7,21 +7,14 @@ import tempfile
 import warnings
 from osgeo import ogr, osr
 from shapely import wkt, wkb
-from numpy.ma.core import MaskedArray
 from copy import deepcopy
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
-from ocgis import env
 import sys
 from shapely.geometry.multipoint import MultiPoint
-from osgeo.ogr import wkbPoint
 
-
-def vprint(args):
-    if env.VERBOSE:
-        print(args)
         
 def format_bool(value):
     '''Format a string to boolean.

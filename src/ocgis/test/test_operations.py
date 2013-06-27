@@ -201,7 +201,7 @@ class Test(TestBase):
         self.assertEqual(url,'/subset?snippet=0&abstraction=polygon&calc_raw=0&agg_selection=0&output_format=csv&spatial_operation=clip&uri=/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc&variable=tasmax&alias=tasmax&t_units=none&t_calendar=none&s_proj=none&calc_grouping=month&prefix=ocgis_output&geom=climate_divisions&allow_empty=0&vector_wrap=1&aggregate=1&select_ugid=none&calc=mean~mean|std~std&backend=ocg')
             
         
-class TestRequestDatasets(TestBase):
+class TestRequestDataset(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
@@ -223,6 +223,7 @@ class TestRequestDatasets(TestBase):
         
     def test_inspect_as_dct(self):
         variables = [self.variable,None,'foo','time']
+        
         for variable in variables:
             rd = RequestDataset(self.uri,variable)
             try:
@@ -238,8 +239,9 @@ class TestRequestDatasets(TestBase):
                 else:
                     raise
             ref = ret['derived']
+            
             if variable is None:
-                self.assertEqual(ref,None)
+                self.assertEqual(ref,{'End Date': '2020-12-31 12:00:00', 'Start Date': '2011-01-01 12:00:00'})
             else:
                 self.assertEqual(ref['End Date'],'2020-12-31 12:00:00')
     

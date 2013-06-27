@@ -78,7 +78,10 @@ class RequestDataset(object):
     
     def inspect_as_dct(self):
         '''
-        Return a dictionary representation of the target's metadata.
+        Return a dictionary representation of the target's metadata. If the variable
+        is `None`. An attempt will be made to find the target dataset's time bounds
+        raising a warning if none is found or the time variable is lacking units
+        and/or calendar attributes.
         
         >>> rd = ocgis.RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc','rhs')
         >>> ret = rd.inspect_as_dct()

@@ -3,6 +3,7 @@ import fiona
 from shapely.geometry.geo import shape, mapping
 import os
 from collections import OrderedDict
+import shutil
 
 
 class ShpProcess(object):
@@ -14,24 +15,29 @@ class ShpProcess(object):
         ## make the output folder
         new_folder = os.path.join(out_folder,key)
         os.mkdir(new_folder)
-        ## the name of the new shapefile
-        new_shp = os.path.join(new_folder,key+'.shp')
-        ## update the schema to include UGID
-        meta = self._get_meta_()
-        if 'UGID' in meta['schema']['properties']:
-            meta['schema']['properties'].pop('UGID')
-        new_properties = OrderedDict({'UGID':'int'})
-        new_properties.update(meta['schema']['properties'])
-        meta['schema']['properties'] = new_properties
-        ctr = 1
-        with fiona.open(new_shp, 'w',**meta) as sink:
-            for feature in self._iter_source_():
-                if ugid is None:
-                    feature['properties'].update({'UGID':ctr})
-                    ctr += 1
-                else:
-                    feature['properties'].update({'UGID':int(feature['properties'][ugid])})
-                sink.write(feature)
+        try:
+            ## the name of the new shapefile
+            new_shp = os.path.join(new_folder,key+'.shp')
+            ## update the schema to include UGID
+            meta = self._get_meta_()
+            if 'UGID' in meta['schema']['properties']:
+                meta['schema']['properties'].pop('UGID')
+            new_properties = OrderedDict({'UGID':'int'})
+            new_properties.update(meta['schema']['properties'])
+            meta['schema']['properties'] = new_properties
+            ctr = 1
+            with fiona.open(new_shp, 'w',**meta) as sink:
+                for feature in self._iter_source_():
+                    if ugid is None:
+                        feature['properties'].update({'UGID':ctr})
+                        ctr += 1
+                    else:
+                        feature['properties'].update({'UGID':int(feature['properties'][ugid])})
+                    sink.write(feature)
+        except:
+            ## remove the created folder on an exception
+            shutil.rmtree(new_folder)
+            raise
                 
     def _get_meta_(self):
         with fiona.open(self.path,'r') as source:
@@ -50,7 +56,6 @@ class ShpProcess(object):
                     geom = clean
                 feature['geometry'] = mapping(geom)
                 feature['shapely'] = geom
-                feature['properties'] = {key.upper():value for key,value in feature['properties'].iteritems()}
                 yield(feature)
 
 

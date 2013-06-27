@@ -1,6 +1,13 @@
 import logging
 import os
 
+## try to turn off fiona logging
+try:
+    import fiona
+    fiona_logger = logging.getLogger('Fiona')
+    fiona_logger.setLevel(logging.ERROR)
+except ImportError:
+    pass
 
 class OcgisLogging(object):
     

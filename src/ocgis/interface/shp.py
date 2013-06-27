@@ -10,14 +10,14 @@ class ShpSpatialDimension(geometry.GeometrySpatialDimension):
     
     @classmethod
     def _load_(cls,gi):
-        geoms = gi._sc.get_geoms(gi.key,attr_filter=gi._attr_filter)
+        geoms = gi._sc.get_geoms(gi.key,select_ugid=gi._select_ugid)
         lgeoms = len(geoms)
         fill_geoms = np.empty(lgeoms,dtype=object)
         uid = np.empty(lgeoms,dtype=int)
         attrs = {}
         for ii,geom in enumerate(geoms):
             fill_geoms[ii] = geom.pop('geom')
-            uid[ii] = geom.pop('ugid')
+            uid[ii] = geom.pop('UGID')
             for k,v in geom.iteritems():
                 if k not in attrs:
                     attrs[k] = np.empty(lgeoms,dtype=object)
@@ -30,13 +30,13 @@ class ShpDataset(geometry.GeometryDataset):
     _dtemporal = None
     _dspatial = ShpSpatialDimension
     
-    def __init__(self,key=None,spatial=None,attr_filter=None):
+    def __init__(self,key=None,spatial=None,select_ugid=None):
         self.key = key
         self._spatial = spatial
         self._temporal = None
         self._level = None
         self.__sc = None
-        self._attr_filter = attr_filter
+        self._select_ugid = select_ugid
         
     def __getitem__(self,slc):
         geom = self.spatial.geom[slc]

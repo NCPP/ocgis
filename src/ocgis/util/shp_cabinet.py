@@ -1,7 +1,5 @@
 import os
 from ocgis import env
-from ConfigParser import ConfigParser
-from ocgis.util.helpers import get_shp_as_multi
 import ogr
 import osr
 from shapely.geometry.multipolygon import MultiPolygon
@@ -92,7 +90,12 @@ class ShpCabinet(object):
             lyr.ResetReading()
             if select_ugid is not None:
                 lyr_name = lyr.GetName()
-                sql = 'SELECT * FROM {0} WHERE UGID IN {1}'.format(lyr_name,tuple(select_ugid))
+                ## format where statement different for singletons
+                if len(select_ugid) == 1:
+                    sql_where = 'UGID = {0}'.format(select_ugid[0])
+                else:
+                    sql_where = 'UGID IN {0}'.format(tuple(select_ugid))
+                sql = 'SELECT * FROM {0} WHERE {1}'.format(lyr_name,sql_where)
                 features = ds.ExecuteSQL(sql)
             else:
                 features = lyr

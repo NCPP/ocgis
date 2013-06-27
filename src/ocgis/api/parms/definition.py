@@ -353,10 +353,10 @@ class Geom(base.OcgParameter):
             except AttributeError:
                 test_value = self.select_ugid
             if test_value is None:
-                attr_filter = None
+                select_ugid = None
             else:
-                attr_filter = {'ugid':test_value}
-            ret = ShpDataset(value,attr_filter=attr_filter)
+                select_ugid = test_value
+            ret = ShpDataset(value,select_ugid=select_ugid)
         return(ret)
     
     def _get_meta_(self):

@@ -86,7 +86,7 @@ class Test360(TestBase):
         
     @property
     def nebraska(self):
-        geom = ShpDataset('state_boundaries',attr_filter={'ugid':[16]})
+        geom = ShpDataset('state_boundaries',select_ugid=[16])
         return(geom)
         
     def transform_to_360(self,polygon):

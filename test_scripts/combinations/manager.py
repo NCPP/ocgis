@@ -51,9 +51,9 @@ def make_load_test_data():
 #            import ipdb;ipdb.set_trace()
 
 def run_combinations():
-    nretries = 10
+    nretries = 100
     curr_retry = 0
-    combo = 0
+    combo = 92159
     combo_log = '../test_scripts/combinations/combination.log'
     
     while curr_retry <= nretries:

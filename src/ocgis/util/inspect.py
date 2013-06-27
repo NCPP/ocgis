@@ -4,6 +4,8 @@ from ocgis.interface.nc.dataset import NcDataset
 from ocgis.exc import TemporalResolutionError
 from collections import OrderedDict
 import re
+import datetime
+from warnings import warn
 
 
 class Inspect(object):
@@ -177,9 +179,19 @@ class Inspect(object):
     
     def _as_dct_(self):
         ret = self.meta.copy()
-        ## without a target variable, there is nothing to derive
+        ## without a target variable, attempt to set start and end dates.
         if self.variable is None:
-            derived = None
+            ds = nc.Dataset(self.uri,'r')
+            try:
+                time = ds.variables['time']
+                time_bounds = [time[0],time[-1]]
+                time_bounds = nc.num2date(time_bounds,time.units,calendar=time.calendar)
+                derived = {'Start Date':str(time_bounds[0]),'End Date':str(time_bounds[1])}
+            except:
+                warn('Time variable not found or improperly attributed. Setting "derived" key to None.')
+                derived = None
+            finally:
+                ds.close()
         ## we can get derived values
         else:
             derived = OrderedDict()

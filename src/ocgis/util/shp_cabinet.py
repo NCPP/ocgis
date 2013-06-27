@@ -107,6 +107,7 @@ class ShpCabinet(object):
                 geoms[idx] = attrs
         finally:
             ds.Destroy()
+            ds = None
         
 #        cfg_path = self.get_cfg_path(key)
 #        config = ConfigParser()
@@ -161,19 +162,11 @@ class ShpCabinet(object):
         return(SelectionGeometry(geoms))
     
     def get_headers(self,geoms):
-        ret = ['ugid']
+        ret = ['UGID']
         keys = geoms.keys()
-        for key in ['ugid','id','geom']:
-            try:
-                keys.remove(key)
-            except ValueError:
-                try:
-                    keys.remove(key.upper())
-                except ValueError:
-                    pass
-        keys.sort()
+        for key in ['UGID']:
+            keys.remove(key)
         ret += keys
-        ret = [h.upper() for h in ret]
         return(ret)
     
     def get_converter_iterator(self,geom_dict):

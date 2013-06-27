@@ -82,7 +82,7 @@ class CsvPlusConverter(CsvConverter):
                 for ugid,did_gid in gid_file.iteritems():
                     for did,gid_geom in did_gid.iteritems():
                         for gid,geom in gid_geom.iteritems():
-                            yield({'geom':geom,'did':did,
-                                   'ugid':ugid,'gid':gid})
+                            yield({'geom':geom,'DID':did,
+                                   'UGID':ugid,'GID':gid})
             
             sc.write(iter_gid_file(),shp_path,sr=projection.sr)

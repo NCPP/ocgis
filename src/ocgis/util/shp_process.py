@@ -34,6 +34,8 @@ class ShpProcess(object):
                     else:
                         feature['properties'].update({'UGID':int(feature['properties'][ugid])})
                     sink.write(feature)
+            ## remove the cpg file
+            os.remove(new_shp.replace('.shp','.cpg'))
         except:
             ## remove the created folder on an exception
             shutil.rmtree(new_folder)

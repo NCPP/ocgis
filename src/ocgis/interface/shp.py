@@ -84,7 +84,7 @@ class ShpDataset(geometry.GeometryDataset):
         uid = self.spatial.uid
         attrs = self.spatial.attrs
         for ii,geom in iter_array(self.spatial.geom,return_value=True):
-            dct = {'geom':geom,'ugid':uid[ii]}
+            dct = {'geom':geom,'UGID':uid[ii]}
             for k,v in attrs.iteritems():
                 dct[k] = v[ii]
             geoms.append(dct)

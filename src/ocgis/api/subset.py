@@ -159,8 +159,14 @@ def get_collection((so,geom,logger)):
                 igeom = copy_geom.spatial.geom[0]
             ## perform the data subset
             try:
-                ## pull the temporal subset which may be a range or region
-                temporal = request_dataset.time_range or request_dataset.time_region
+                ## pull the temporal subset which may be a range or region. if
+                ## it is a snippet operation, set the temporal subset to None
+                ## as a slice has already been applied. however, if a calculation
+                ## is present leave the temporal subset alone.
+                if so.ops.snippet and so.ops.calc is None:
+                    temporal = None
+                else:
+                    temporal = request_dataset.time_range or request_dataset.time_region
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
                                      igeom=igeom,
                                      temporal=temporal,
@@ -203,7 +209,12 @@ def get_collection((so,geom,logger)):
                                      logger,alias=alias,ugid=ugid,level=logging.WARN)
                         pass
                     else:
-                        ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
+                        ## if the geometry is also masked, it is an empty spatial
+                        ## operation.
+                        if ods.spatial.vector.geom.mask.all():
+                            raise(EmptyData)
+                        else:
+                            ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
             ## there may be no data returned - this may be real or could be an
             ## error. by default, empty returns are not allowed
             except EmptyData as ed:

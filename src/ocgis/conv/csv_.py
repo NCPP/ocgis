@@ -4,7 +4,9 @@ from csv import excel
 from ocgis.util.shp_cabinet import ShpCabinet
 import os
 from ocgis import env, constants
-from collections import OrderedDict, deque
+from collections import OrderedDict
+import logging
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class OcgDialect(excel):
@@ -63,9 +65,11 @@ class CsvPlusConverter(CsvConverter):
                     writer.writerow(row)
         
         if is_aggregated is True:
-            if env.VERBOSE:
-                print('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.')
+            ocgis_lh('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.',
+                     'conv',
+                     logging.WARN)
         else:
+            ocgis_lh('writing UGID-GID shapefile','conv',logging.DEBUG)
             sc = ShpCabinet()
             shp_dir = os.path.join(self.outdir,'shp')
             try:

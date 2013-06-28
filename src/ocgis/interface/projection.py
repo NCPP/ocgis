@@ -6,7 +6,6 @@ import abc
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
 
-proj_log = ocgis_lh.get_logger('projection')
 
 def get_projection(dataset):
     projs = []
@@ -18,7 +17,9 @@ def get_projection(dataset):
     if len(projs) == 1:
         ret = projs[0]
     elif len(projs) == 0:
-        ocgis_lh('no projection information found assuming WGS84',proj_log,logging.WARN)
+        ocgis_lh('No projection information found assuming WGS84: {0}'.format(dataset._files),
+                 'projection',
+                 logging.WARN)
         ret = WGS84()
     else:
         raise(MultipleProjectionsFound)

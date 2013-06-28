@@ -8,6 +8,7 @@ from collections import OrderedDict
 from ocgis.util.inspect import Inspect
 from ocgis.interface.nc.dataset import NcDataset
 import ocgis
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class RequestDataset(object):
@@ -351,10 +352,14 @@ class RequestDatasetCollection(object):
             
     def validate(self):
         ## confirm projections are equivalent
-        projections = [rd.ds.spatial.projection.sr.ExportToProj4() for rd in self]
+        projections = []
+        for rd in self:
+            ocgis_lh('loading projection','request',alias=rd.alias)
+            projections.append(rd.ds.spatial.projection.sr.ExportToProj4())
         if len(set(projections)) == 2 and env.ops.output_format != 'numpy': #@UndefinedVariable
             if ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
-                raise(ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
+                ocgis_lh(None,'request',
+                 exc=ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             
     def _get_meta_rows_(self):
         rows = ['dataset=']

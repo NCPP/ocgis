@@ -29,4 +29,3 @@
 8. finalize:
    - [ ] have silverio update link
    - [ ] remove release label from issues
-9. remove "release" label from GitHub issues

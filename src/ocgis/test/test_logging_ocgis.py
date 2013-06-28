@@ -9,10 +9,22 @@ import webbrowser
 
 
 class Test(TestBase):
+    
+    def test_simple(self):
+        to_file = os.path.join(env.DIR_OUTPUT,'test_ocgis_log.log')
+        to_stream = False
+        
+        ocgis_lh.configure(to_file,to_stream)
+        
+        ocgis_lh('a test message')
+        subset = ocgis_lh.get_logger('subset')
+        subset.info('a subset message')
+        
+#        webbrowser.open(to_file)
 
     def test_combinations(self):
         _to_stream = [
-                      True,
+#                      True,
                       False
                       ]
         _to_file = [
@@ -20,9 +32,10 @@ class Test(TestBase):
                     None
                     ]
         _level = [logging.INFO,logging.DEBUG,logging.WARN]
-        for to_file,to_stream,level in itertools.product(_to_file,_to_stream,_level):
-            ocgis_lh.configure(to_file=to_file,to_stream=to_stream)
+        for ii,(to_file,to_stream,level) in enumerate(itertools.product(_to_file,_to_stream,_level)):
+            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,level=level)
             try:
+                ocgis_lh(ii)
                 ocgis_lh('a test message')
                 subset = ocgis_lh.get_logger('subset')
                 interp = ocgis_lh.get_logger('interp')
@@ -34,7 +47,7 @@ class Test(TestBase):
                     self.assertTrue(os.path.exists(to_file))
                     os.remove(to_file)
             finally:
-                ocgis_lh.shutdown()
+                logging.shutdown()
                 
     def test_exc(self):
         to_file = os.path.join(env.DIR_OUTPUT,'test_ocgis_log.log')

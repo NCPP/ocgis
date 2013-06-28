@@ -16,6 +16,8 @@ from osgeo.ogr import CreateGeometryFromWkb
 from ocgis.constants import reference_projection
 from shapely.wkb import loads
 import ocgis
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 
 
 class NcDataset(base.AbstractDataset):
@@ -354,7 +356,11 @@ class NcDataset(base.AbstractDataset):
         try:
             axis = getattr(dimvar,'axis')
         except AttributeError:
-            warn('guessing dimension location with "axis" attribute missing')
+            ocgis_lh('Guessing dimension location with "axis" attribute missing for variable "{0}".'.format(dimvar._name),
+                     logger='nc.dataset',
+                     level=logging.WARN,
+                     check_duplicate=True)
+#            warn('guessing dimension location with "axis" attribute missing')
             axis = self._guess_by_location_(dims,dim)
         return(axis)
     
@@ -393,7 +399,11 @@ class NcDataset(base.AbstractDataset):
             try:
                 bounds_var = ds.variables[getattr(var,intersection[0])]
             except IndexError:
-                warn('no bounds attribute found. searching variable dimensions for bounds information.')
+                ocgis_lh('No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(var._name),
+                         logger='nc.dataset',
+                         level=logging.WARN,
+                         check_duplicate=True)
+#                warn('no bounds attribute found. searching variable dimensions for bounds information.')
                 bounds_names_copy = bounds_names.copy()
                 bounds_names_copy.update([value['dimension']])
                 for key2,value2 in self.metadata['variables'].iteritems():

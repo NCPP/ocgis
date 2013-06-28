@@ -397,6 +397,7 @@ class NcGridMatrixDimension(base.AbstractSpatialGrid):
     
     @property
     def resolution(self):
+        import ipdb;ipdb.set_trace()
         raise(NotImplementedError)
     
     @property

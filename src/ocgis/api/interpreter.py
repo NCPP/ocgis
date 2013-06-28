@@ -84,8 +84,7 @@ class OcgInterpreter(Interpreter):
                 level = logging.DEBUG
             else:
                 level = logging.INFO
-            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,
-                               level=level)
+            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,level=level)
             
             ## create local logger
             interpreter_log = ocgis_lh.get_logger('interpreter')
@@ -128,7 +127,7 @@ class OcgInterpreter(Interpreter):
                     ocgis_lh('initializing converter',interpreter_log,
                              level=logging.DEBUG)
                     conv = Conv(so,outdir,prefix,mode=self.ops.mode,ops=self.ops)
-                    ocgis_lh('starting converter write loop',interpreter_log,
+                    ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format),interpreter_log,
                              level=logging.DEBUG)
                     ret = conv.write()
                 else:

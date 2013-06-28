@@ -4,6 +4,8 @@ import abc
 from abc import ABCMeta
 import csv
 from ocgis.util.inspect import Inspect
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 
 
 class OcgConverter(object):
@@ -37,15 +39,22 @@ class OcgConverter(object):
         self.outdir = outdir
         self.mode = mode
         self.add_meta = add_meta
+        self._log = ocgis_lh.get_logger('conv')
         
         if self._ext is None:
             self.path = self.outdir
         else:
             self.path = os.path.join(self.outdir,prefix+'.'+self._ext)
+        ocgis_lh('converter initialized',level=logging.DEBUG,logger=self._log)
     
     def write(self):
+        ## call subclass write method
+        ocgis_lh('starting subclass write method',self._log,logging.DEBUG)
+        ret = self._write_()
+        
         ## added OCGIS metadata output if requested.
         if self.add_meta:
+            ocgis_lh('adding OCGIS metadata file','conv',logging.DEBUG)
             lines = MetaConverter(self.ops).write()
             out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
             with open(out_path,'w') as f:
@@ -53,6 +62,7 @@ class OcgConverter(object):
         
         ## add the dataset descriptor file if specified
         if self._add_did_file:
+            ocgis_lh('writing dataset description (DID) file','conv',logging.DEBUG)
             from ocgis.conv.csv_ import OcgDialect
             
             headers = ['DID','VARIABLE','ALIAS','URI','STANDARD_NAME','UNITS','LONG_NAME']
@@ -70,6 +80,7 @@ class OcgConverter(object):
                     
         ## add user-geometry
         if self._add_ugeom and self.ops.geom is not None:
+            ocgis_lh('writer user-geometry shapefile','conv',logging.DEBUG)
             if self._add_ugeom_nest:
                 shp_dir = os.path.join(self.outdir,'shp')
                 try:
@@ -87,6 +98,7 @@ class OcgConverter(object):
             
         ## add source metadata if requested
         if self._add_source_meta:
+            ocgis_lh('writing source metadata file','conv',logging.DEBUG)
             out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
             to_write = []
             for rd in self.ops.dataset:
@@ -94,9 +106,6 @@ class OcgConverter(object):
                 to_write += ip.get_report()
             with open(out_path,'w') as f:
                 f.writelines('\n'.join(to_write))
-                
-        ## call subclass write method
-        ret = self._write_()
         
         ## return anything from the overloaded _write_ method. otherwise return
         ## the internal path.

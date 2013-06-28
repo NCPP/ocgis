@@ -1,5 +1,5 @@
-** Note that this repostiory is no longer being maintained.  Please visit the current repository at:
-[https://github.com/NCPP/ocgis] 
+**Note that this repostiory is no longer being maintained.  Please visit the current repository at:
+<https://github.com/NCPP/ocgis>** 
 
 ==============
 OpenClimateGIS

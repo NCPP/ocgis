@@ -1,4 +1,9 @@
-# Current Release Notes #
+# Release Notes and Known Bugs #
+
+* **Quicklinks**
+ * [v0.06b](#v006b)
+ * [v0.05.1b](#v0051b)
+ * [v0.05b](#v005b)
 
 ## v0.06b ##
 
@@ -14,6 +19,7 @@
 ### Known Bugs ###
 * Missing documentation for ShpProcess
 * Outdated documentation for ShpCabinet
+* Resolution of NcGridMatrixDimensions fails
 
 ## v0.05.1b ##
 

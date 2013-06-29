@@ -7,6 +7,14 @@ from ocgis.interface.shp import ShpDataset
 import tempfile
 import os.path
 import shutil
+import itertools
+from shapely.geometry.point import Point
+from ocgis.util.shp_cabinet import ShpCabinet
+import fiona
+from fiona import crs
+from shapely.geometry.geo import mapping
+import numpy as np
+from ocgis.util.helpers import iter_array
 
 
 class NarccapTestBase(unittest.TestCase):
@@ -28,10 +36,48 @@ class NarccapTestBase(unittest.TestCase):
         
 class Test(NarccapTestBase):
     
+    def work(self):
+        ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+        ocgis.env.VERBOSE = True
+        rd = self.oblique_mercator
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp')
+        ret = ops.execute()
+        import ipdb;ipdb.set_trace()
+        
+    def write_RCM3(self):
+        rd = self.oblique_mercator
+        ds = nc.Dataset(rd.uri)
+        path = os.path.join(tempfile.mkdtemp(prefix='RCM3'),'RCM3.shp')
+        crs = fiona.crs.from_epsg(4326)
+        driver = 'ESRI Shapefile'
+        schema = {'geometry':'Point',
+                  'properties':{}}
+#        path = os.path.join(tempfile.mkdtemp(prefix='RCM3'),'RCM3.shp')
+#        polygon = Polygon(coordinates)
+#            feature = {'id':feature_idx,'properties':{},'geometry':mapping(polygon)}
+#            f.write(feature)
+    
+#    with fiona.open(out_path,'w',driver=driver,crs=crs,schema=schema) as f:
+        try:
+            lats = ds.variables['lat'][:]
+            lons = ds.variables['lon'][:] - 360
+            n = lons.shape[0]*lons.shape[1]
+            print n
+            with fiona.open(path,'w',driver=driver,crs=crs,schema=schema) as f:
+                for ctr,(ii,jj) in enumerate(iter_array(lats,use_mask=False)):
+                    if ctr % 100 == 0:
+                        print ctr,n
+                    point = Point(lons[ii,jj],lats[ii,jj])
+                    feature = {'properties':{},'geometry':mapping(point)}
+                    f.write(feature)
+            import ipdb;ipdb.set_trace()
+        finally:
+            ds.close()
+        
+    
     def test_ECP2(self):
         ops = ocgis.OcgOperations(dataset=self.ecp2,output_format='shp',snippet=True)
         ret = ops.execute()
-        import ipdb;ipdb.set_trace()
     
     def test_polar_stereographic(self):
         proj = get_projection(nc.Dataset(self.polar_stereographic.uri,'r'))
@@ -69,8 +115,6 @@ class Test(NarccapTestBase):
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
         
-        import ipdb;ipdb.set_trace()
-
     def test_subset(self):
         rds = [
                self.polar_stereographic,
@@ -84,5 +128,4 @@ class Test(NarccapTestBase):
                    snippet=True,output_format='shp',dir_output=dir_output,
                    prefix=os.path.split(rd.uri)[1])
             ret = ops.execute()
-        import ipdb;ipdb.set_trace()
         shutil.rmtree(dir_output)

@@ -17,7 +17,11 @@ def get_projection(dataset):
     if len(projs) == 1:
         ret = projs[0]
     elif len(projs) == 0:
-        ocgis_lh('No projection information found assuming WGS84: {0}'.format(dataset._files),
+        try:
+            files = dataset._files
+        except AttributeError:
+            files = 'NA'
+        ocgis_lh('No projection information found assuming WGS84: {0}'.format(files),
                  'projection',
                  logging.WARN)
         ret = WGS84()

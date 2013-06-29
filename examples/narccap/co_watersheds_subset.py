@@ -5,13 +5,11 @@ from ocgis.interface.projection import PolarStereographic
 
 
 ## lower logging level to debug output
-ocgis.env.DEBUG = True
+ocgis.env.DEBUG = False
 ## print more information to the terminal
-ocgis.env.VERBOSE = True
+ocgis.env.VERBOSE = False
 ## set snippet to false to return all data
 snippet = False
-## city center coordinate
-geom = 'co_watersheds'
 ## output directory
 ocgis.env.DIR_OUTPUT = '/tmp/narccap'
 ## the directory containing the target data
@@ -51,16 +49,22 @@ def parse_narccap_filenames(folder):
                 rds.append(rd)
     return(rds)
 
+## get the request datasets from the filenames
 dataset = parse_narccap_filenames(ocgis.env.DIR_DATA)
-dataset = [dataset[0]]
+## parameterize the calculations
 calc = [{'func':'mean','name':'mean'},
         {'func':'median','name':'median'},
         {'func':'max','name':'max'},
         {'func':'min','name':'min'}]
+## groups the time variable by month and year
 calc_grouping = ['month','year']
+## make the operations object. the data will be written to csv+ format (includes
+## shapefile overviews of geometries), subsetted by the CO watershed with unique
+## geometry identifier of 5, and aggregated to the watershed geoemtry. the geomtric
+## abstraction is "point" because the timeslice experiments have bounds.
 ops = ocgis.OcgOperations(dataset=dataset,calc=calc,calc_grouping=calc_grouping,
                           output_format='csv+',geom='co_watersheds',aggregate=True,
-                          abstraction='point',select_ugid=[5],allow_empty=False,
-                          snippet=snippet)
+                          abstraction='point',select_ugid=[5],snippet=snippet)
+## return the path to the ouput csv file.
 ret = ops.execute()
 print(ret)

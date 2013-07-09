@@ -13,6 +13,7 @@ class OcgParameter(object):
     __metaclass__ = ABCMeta
     _in_url = True #: if set to False, parameter will not be written to URL
     _lower_string = True #: if set to False, do not lower input strings
+    _perform_deepcopy = True #: if False, do not perform deepcopy operation on value set
     
     def __init__(self,init_value=None):
         if init_value is None:
@@ -56,7 +57,8 @@ class OcgParameter(object):
         if isinstance(value,basestring):
             value = self.parse_string(value)
         else:
-            value = deepcopy(value)
+            if self._perform_deepcopy:
+                value = deepcopy(value)
         ret = self.parse(value)
         try:
             if ret is not None:

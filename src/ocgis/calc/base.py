@@ -145,7 +145,8 @@ class OcgFunction(object):
     @abc.abstractmethod
     def _calculate_(self,values,**kwds):
         '''
-        The calculation method to overload. Values are explicitly passed to avoid dereferencing.
+        The calculation method to overload. Values are explicitly passed to 
+        avoid dereferencing. Reducing along the time axis is required (i.e. axis=0).
         
         :param values: Same as :class:`~ocgis.calc.base.OcgFunction` input.
         :param kwds: Any keyword parameters for the function.

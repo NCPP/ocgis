@@ -16,7 +16,7 @@
 * Added "headers" parameters to OcgOperations to allow selection of file headers.
 * Added "time_region" to RequestDataset to subset by arbitrary month/year combinations.
 
-### Known Bugs ###
+### Known Issues ###
 * Missing documentation for ShpProcess
 * Outdated documentation for ShpCabinet
 * Resolution of NcGridMatrixDimension fails

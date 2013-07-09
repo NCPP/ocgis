@@ -33,6 +33,10 @@ class TestBase(unittest.TestCase):
         test_data.update(['narccap'],'pr','pr_HRM3_gfdl_1981010103.nc',key='narccap_hrm3')
 #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
 #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
+        test_data.update(['maurer','2010'],'pr',['nldas_met_update.obs.daily.pr.1990.nc','nldas_met_update.obs.daily.pr.1991.nc'],key='maurer_2010_pr')
+        test_data.update(['maurer','2010'],'tas',['nldas_met_update.obs.daily.tas.1990.nc','nldas_met_update.obs.daily.tas.1991.nc'],key='maurer_2010_tas')
+        test_data.update(['maurer','2010'],'tasmin',['nldas_met_update.obs.daily.tasmin.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmin')
+        test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmax')
         return(test_data)
     
     def setUp(self):

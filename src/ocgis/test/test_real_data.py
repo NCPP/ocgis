@@ -60,3 +60,19 @@ class Test(TestBase):
                    output_format='csv+',geom='state_boundaries',calc=calc,
                    calc_grouping=calc_grouping,prefix=key)
             ret = ops.execute()
+            
+    def test_QED_2013(self):
+        variable = 'tasmax'
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/QED-2013'
+        files = ['Maurer_11day_double_tasmax.nc','Maurer_11day_float_tasmax.nc']
+        rds = [ocgis.RequestDataset(f,variable,alias=f) for f in files]
+        calc = [{'func':'mean','name':'mean'},{'func':'median','name':'median'}]
+        calc_grouping = ['month']
+        
+        for rd in rds:
+            dct = rd.inspect_as_dct()
+            
+        ops = ocgis.OcgOperations(dataset=rds,snippet=False,select_ugid=[10,15],
+                   output_format='csv+',geom='state_boundaries',calc=calc,
+                   calc_grouping=calc_grouping)
+        ret = ops.execute()

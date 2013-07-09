@@ -11,8 +11,7 @@ class FrequencyPercentile(OcgArgFunction):
     dtype = np.float32
     description = 'Percentile value matching "perc".'
     
-    @staticmethod
-    def _calculate_(values,perc=None):
+    def _calculate_(self,values,perc=None):
         perc = int(perc)
         ret = np.percentile(values,perc,axis=0)
         return(ret)
@@ -21,23 +20,19 @@ class FrequencyPercentile(OcgArgFunction):
 class SampleSize(OcgFunction):
     '''
     .. note:: Automatically added by OpenClimateGIS. This should generally not be invoked manually.
-    
-    n: Statistical sample size.
     '''
     name = 'n'
     description = 'Statistical sample size.'
     Group = groups.BasicStatistics
     dtype = np.int32
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         ret = np.empty(values.shape[-2:],dtype=int)
         ret[:] = values.shape[0]
         ret = np.ma.array(ret,mask=values.mask[0,0,:])
         return(ret)
     
-    @staticmethod
-    def _aggregate_spatial_(values,weights):
+    def _aggregate_spatial_(self,values,weights):
         return(np.ma.sum(values))
 
 
@@ -46,8 +41,7 @@ class Median(OcgFunction):
     Group = groups.BasicStatistics
     dtype = np.float32
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         return(np.ma.median(values,axis=0))
     
     
@@ -56,8 +50,7 @@ class Mean(OcgFunction):
     Group = groups.BasicStatistics
     dtype = np.float32
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         return(np.ma.mean(values,axis=0))
     
     
@@ -66,8 +59,7 @@ class Max(OcgFunction):
     Group = groups.BasicStatistics
     dtype = np.float32
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         return(np.ma.max(values,axis=0))
     
     
@@ -76,8 +68,7 @@ class Min(OcgFunction):
     Group = groups.BasicStatistics
     dtype = np.float32
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         return(np.ma.min(values,axis=0))
     
     
@@ -87,8 +78,7 @@ class StandardDeviation(OcgFunction):
     dtype = np.float32
     name = 'std'
     
-    @staticmethod
-    def _calculate_(values):
+    def _calculate_(self,values):
         return(np.ma.std(values,axis=0))
 
 
@@ -100,8 +90,7 @@ class MaxConsecutive(OcgArgFunction):
     description = ('Maximum number of consecutive occurrences in the sequence'
                    ' where the logical operation returns TRUE.')
     
-    @staticmethod
-    def _calculate_(values,threshold=None,operation=None):
+    def _calculate_(self,values,threshold=None,operation=None):
         ## time index reference
         ref = np.arange(0,values.shape[0])
         ## storage array for counts
@@ -149,8 +138,7 @@ class Between(OcgArgFunction):
     Group = groups.Thresholds
     dtype = np.int32
     
-    @staticmethod
-    def _calculate_(values,lower=None,upper=None):
+    def _calculate_(self,values,lower=None,upper=None):
         idx = (values >= lower)*(values <= upper)
         return(np.ma.sum(idx,axis=0))
     
@@ -161,8 +149,7 @@ class Threshold(OcgArgFunction):
     Group = groups.Thresholds
     dtype = np.int32
     
-    @staticmethod
-    def _calculate_(values,threshold=None,operation=None):
+    def _calculate_(self,values,threshold=None,operation=None):
         threshold = float(threshold)
         
         ## perform requested logical operation
@@ -180,23 +167,8 @@ class Threshold(OcgArgFunction):
         ret = np.ma.sum(idx,axis=0)
         return(ret)
         
-    @staticmethod
-    def _aggregate_spatial_(values,weights):
+    def _aggregate_spatial_(self,values,weights):
         return(np.ma.sum(values))
-
-#class FooMulti(OcgCvArgFunction):
-#    description = 'Meaningless test statistic.'
-#    Group = groups.MultivariateStatistics
-#    dtype = float
-#    nargs = 2
-#    keys = ['foo','foo2']
-#    
-#    @staticmethod
-#    def _calculate_(foo=None,foo2=None):
-#        ret = foo + foo2
-#        ret = 2*ret
-#        ret = np.mean(ret,axis=0)
-#        return(ret)
     
 
 class HeatIndex(OcgCvArgFunction):
@@ -207,8 +179,7 @@ class HeatIndex(OcgCvArgFunction):
     keys = ['tas','rhs']
     name = 'heat_index'
     
-    @staticmethod
-    def _calculate_(tas=None,rhs=None,units=None):
+    def _calculate_(self,tas=None,rhs=None,units=None):
         if units == 'k':
             tas = 1.8*(tas - 273.15) + 32
         else:

@@ -27,6 +27,7 @@ class OcgFunctionGroup(object):
                    children=children)
         return(ret)
 
+
 class BasicStatistics(OcgFunctionGroup):
     name = 'Basic Statistics'
     

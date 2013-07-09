@@ -9,12 +9,10 @@ from ocgis.calc.groups import OcgFunctionGroup
 
 
 class OcgFunctionTree(object):
-    '''Used by front-end services to retrieve information on available computations.'''
     Groups = [groups.BasicStatistics,groups.Thresholds]
     
     @staticmethod
     def get_potentials():
-        """Left in to support HTML query page. Does not support argumented functions."""
         import library
         
         potentials = []
@@ -68,6 +66,28 @@ class OcgFunctionTree(object):
 
 
 class OcgFunction(object):
+    '''
+    Required class attributes to overload:
+    
+    * **description** (str): A arbitrary length string describing the calculation.
+    * **Group** (:class:`ocgis.calc.groups.OcgFunctionGroup`): The calculation group this function belongs to.
+    * **dtype** (type): The output data type for this function. Use 32-bit when possible to avoid conversion issues (e.g. netCDF-3).
+    
+    Optional class attributes to overload:
+    
+    * **name** (str): The name of the calculation. No spaces or ambiguous characters! If not overloaded, the name defaults to a lowered string version of the class name.
+    
+    :param values: An array with dimensions of (time,level,row,column) containing the target values.
+    :type values: numpy.ma.MaskedArray
+    :param groups: A sequence of boolean arrays with individual array dimensions matching the `time` dimension of `values`.
+    :type groups: sequence
+    :param agg: If True, calculation is performed on raw values from an aggregated data request. This requires the execution of :func:`ocgis.calc.base.OcgFunction.aggregate_spatial` to aggregate the calculations on individual data cells.
+    :type agg: bool
+    :param weights: Array of weights with dimension (row,column).
+    :type weights: numpy.array or numpy.ma.MaskedArray
+    :param kwds: Optional keyword parameters to pass to the calculation function.
+    :type kwds: dict
+    '''
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractproperty
@@ -77,9 +97,7 @@ class OcgFunction(object):
     @abc.abstractproperty
     def dtype(self): type
     
-    text = None
     nargs = 0
-    checked = False
     name = None
     
     def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={}):
@@ -89,12 +107,17 @@ class OcgFunction(object):
         self.weights = weights
         self.kwds = kwds
         
-        if self.text is None:
-            self.text = self.__class__.__name__
+        self.text = self.__class__.__name__
         if self.name is None:
             self.name = self.text.lower()
     
     def calculate(self):
+        '''
+        Execute the calculation. The returned array size differs depending on
+        the calculation structure.
+        
+        :rtype: :class:`numpy.ma.MaskedArray`
+        '''
         ## holds output from calculation
         fill = self._get_fill_(self.values)
         ## iterate over temporal groups and levels
@@ -119,13 +142,25 @@ class OcgFunction(object):
             ret = fill
         return(ret)
     
-    @staticmethod
     @abc.abstractmethod
-    def _calculate_(values,**kwds):
+    def _calculate_(self,values,**kwds):
+        '''
+        The calculation method to overload. Values are explicitly passed to avoid dereferencing.
+        
+        :param values: Same as :class:`~ocgis.calc.base.OcgFunction` input.
+        :param kwds: Any keyword parameters for the function.
+        :rtype: numpy.ma.MaskedArray
+        '''
         raise(NotImplementedError)
     
-    @staticmethod
-    def _aggregate_spatial_(values,weights):
+    def _aggregate_spatial_(self,values,weights):
+        '''
+        Optional spatial aggregation method to overload.
+        
+        :param values: Same as :class:`~ocgis.calc.base.OcgFunction` input.
+        :param weights: Same as :class:`~ocgis.calc.base.OcgFunction` input.
+        :rtype: numpy.ma.MaskedArray
+        '''
         return(np.ma.average(values,weights=weights))
     
     def _get_fill_(self,values):
@@ -136,16 +171,22 @@ class OcgFunction(object):
         return(fill)
         
     def format(self):
-        ret = dict(text=self.text,
-                   checked=self.checked,
-                   leaf=True,
-                   value=self.name,
-                   desc=self.description,
-                   nargs=self.nargs)
-        return(ret)
+        raise(NotImplementedError)
+#        ret = dict(text=self.text,
+#                   checked=self.checked,
+#                   leaf=True,
+#                   value=self.name,
+#                   desc=self.description,
+#                   nargs=self.nargs)
+#        return(ret)
 
 
 class OcgArgFunction(OcgFunction):
+    '''
+    Required class parameter to overload:
+    
+    * **nargs** (int): Number of required arguments.
+    '''
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractproperty
@@ -153,6 +194,11 @@ class OcgArgFunction(OcgFunction):
         
         
 class OcgCvArgFunction(OcgArgFunction):
+    '''
+    Required class parameter to overload:
+    
+    * **keys** ([str,]): These are the aliases of the input data mapping to input variables required by the calculation.
+    '''
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractproperty
@@ -176,11 +222,25 @@ class OcgCvArgFunction(OcgArgFunction):
         ret = self.aggregate_spatial(fill)
         return(ret)
     
+    @abc.abstractmethod
+    def _calculate_(self,**kwds):
+        '''
+        The calculation method to overload. Note the inputs are all keyword arguments.
+        
+        :rtype: numpy.ma.MaskedArray
+        '''
+        raise(NotImplementedError)
+    
     def aggregate_temporal(self,values):
         return(self._aggregate_temporal_(values))
     
-    @staticmethod
-    def _aggregate_temporal_(values):
+    def _aggregate_temporal_(self,values):
+        '''
+        Optional temporal aggregation method to overload.
+        
+        :param values: Same as :class:`~ocgis.calc.base.OcgFunction` input.
+        :rtype: numpy.ma.MaskedArray
+        '''
         return(np.ma.mean(values,axis=0))
     
     def _subset_kwds_(self,group,kwds):

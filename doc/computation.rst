@@ -33,19 +33,79 @@ A calculation with arguments includes a `kwds` key in the function dictionary:
 
 >>> calc = [{'func':'between','name':'between_5_10','kwds':{'lower':5,'upper':10}}]
 
+Inheritance Structure
+---------------------
+
+All calculations are classes that inherit from one of three abstract base classes:
+ 1. :class:`~ocgis.calc.base.OcgFunction`: Functions with no required parameters.
+ 2. :class:`~ocgis.calc.base.OcgArgFunction`: Functions `with` required parameters.
+ 3. :class:`~ocgis.calc.base.OcgCvArgFunction`: Functions with or without parameters, but requiring a mulivariate input. A heat index requiring both temperature and humidity is a good example.
+
+-------------------------------------------------
+
+.. autoclass:: ocgis.calc.base.OcgFunction
+   :show-inheritance:
+   :members: _calculate_, _aggregate_spatial_
+
+-------------------------------------------------
+
+.. autoclass:: ocgis.calc.base.OcgArgFunction
+   :show-inheritance:
+
+-------------------------------------------------
+
+.. autoclass:: ocgis.calc.base.OcgCvArgFunction
+   :show-inheritance:
+   :members: _calculate_, _aggregate_temporal_
+
 Available Functions
 -------------------
+
+Click on `Show Source` to the right of the function to get descriptive information and see class-level definitions.
 
 Basic Statistics
 ~~~~~~~~~~~~~~~~
 
-.. autoclass:: ocgis.calc.library.SampleSize()
-   :members: _calculate_
+.. autoclass:: ocgis.calc.library.Max
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.Mean
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.Median
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.Min
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.SampleSize
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.StandardDeviation
+   :show-inheritance:
+
+Multivariate Calculations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: ocgis.calc.library.HeatIndex
+   :show-inheritance:
+
+Percentiles
+~~~~~~~~~~~
+
+.. autoclass:: ocgis.calc.library.FrequencyPercentile
+   :show-inheritance:
 
 Thresholds
 ~~~~~~~~~~
 
-Multivariate Calculations
-~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ocgis.calc.library.Between
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.MaxConsecutive
+   :show-inheritance:
+
+.. autoclass:: ocgis.calc.library.Threshold
+   :show-inheritance:
 
 .. _NumPy masked array functions: http://docs.scipy.org/doc/numpy/reference/maskedarray.html

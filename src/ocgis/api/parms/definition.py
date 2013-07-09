@@ -180,6 +180,7 @@ class CalcRaw(base.BooleanParameter):
 
 
 class Dataset(base.OcgParameter):
+    _perform_deepcopy = False
     name = 'dataset'
     nullable = False
     default = None

@@ -19,7 +19,7 @@
 ### Known Bugs ###
 * Missing documentation for ShpProcess
 * Outdated documentation for ShpCabinet
-* Resolution of NcGridMatrixDimensions fails
+* Resolution of NcGridMatrixDimension fails
 
 ## v0.05.1b ##
 

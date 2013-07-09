@@ -33,8 +33,13 @@ A calculation with arguments includes a `kwds` key in the function dictionary:
 
 >>> calc = [{'func':'between','name':'between_5_10','kwds':{'lower':5,'upper':10}}]
 
+Defining Custom Functions
+-------------------------
+
+Currently, custom calculations must be added to the module :mod:`ocgis.calc.library` to be available to the software. This is a known inconvenience...
+
 Inheritance Structure
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 All calculations are classes that inherit from one of three abstract base classes:
  1. :class:`~ocgis.calc.base.OcgFunction`: Functions with no required parameters.

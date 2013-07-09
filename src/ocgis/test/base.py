@@ -3,7 +3,7 @@ import abc
 import tempfile
 from ocgis import env, RequestDataset
 import shutil
-from copy import deepcopy
+from copy import deepcopy, copy
 import os
 from collections import OrderedDict
 
@@ -36,7 +36,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['maurer','2010'],'pr',['nldas_met_update.obs.daily.pr.1990.nc','nldas_met_update.obs.daily.pr.1991.nc'],key='maurer_2010_pr')
         test_data.update(['maurer','2010'],'tas',['nldas_met_update.obs.daily.tas.1990.nc','nldas_met_update.obs.daily.tas.1991.nc'],key='maurer_2010_tas')
         test_data.update(['maurer','2010'],'tasmin',['nldas_met_update.obs.daily.tasmin.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmin')
-        test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmax')
+        test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmax.1991.nc'],key='maurer_2010_tasmax')
         return(test_data)
     
     def setUp(self):
@@ -87,8 +87,17 @@ class TestData(OrderedDict):
         if env.DIR_TEST_DATA is None:
             raise(ValueError('The TestDataset object requires env.DIR_TEST_DATA have a path value.'))
         coll.insert(0,env.DIR_TEST_DATA)
-        coll.append(ref['filename'])
-        uri = os.path.join(*coll)
+        ## determine if the filename is a string or a sequence of paths
+        filename = ref['filename']
+        if isinstance(filename,basestring):
+            coll.append(filename)
+            uri = os.path.join(*coll)
+        else:
+            uri = []
+            for part in filename:
+                copy_coll = copy(coll)
+                copy_coll.append(part)
+                uri.append(os.path.join(*copy_coll))
         return(uri)
     
     def update(self,collection,variable,filename,key=None):

@@ -180,7 +180,6 @@ class CalcRaw(base.BooleanParameter):
 
 
 class Dataset(base.OcgParameter):
-    _perform_deepcopy = False
     name = 'dataset'
     nullable = False
     default = None
@@ -201,6 +200,9 @@ class Dataset(base.OcgParameter):
             for rd in itr:
                 rdc.update(rd)
             init_value = rdc
+        ## dereference any prior dataset connections
+        for rd in init_value:
+            rd._ds = None
         super(Dataset,self).__init__(init_value)
         
     def parse_string(self,value):

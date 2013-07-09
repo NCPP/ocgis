@@ -46,8 +46,8 @@ class Test(TestBase):
             ops = ocgis.OcgOperations(dataset=rd,snippet=True,select_ugid=[10,15],
                    output_format='numpy',geom='state_boundaries')
             ret = ops.execute()
-            self.assertTrue(ret[10].variables[rd.variable].value.sum() > 0)
-            self.assertTrue(ret[15].variables[rd.variable].value.sum() > 0)
+            self.assertTrue(ret[10].variables[rd.variable].value.sum() != 0)
+            self.assertTrue(ret[15].variables[rd.variable].value.sum() != 0)
             
             ops = ocgis.OcgOperations(dataset=rd,snippet=False,select_ugid=[10,15],
                    output_format='numpy',geom='state_boundaries',calc=calc,

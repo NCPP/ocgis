@@ -70,18 +70,14 @@ class Test(TestBase):
         self.assertEqual(ret[1].calc['heat_index'].shape,(1,1,64,128))
         ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='csv')
         ret = ops.execute()
-        
-#        subprocess.check_call(['loffice',ret])
-        
+                
         # try temporal grouping
         ops = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'])
         ret = ops.execute()
         self.assertEqual(ret[1].calc['heat_index'].shape,(12,1,64,128))
         ret = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'],
                             output_format='csv',snippet=True).execute()
-                            
-#        subprocess.check_call(['loffice',ret])
-        
+                                    
     def test_HeatIndex_keyed_output(self):
         raise(SkipTest)
         ds = [self.test_data.get_rd('cancm4_tasmax_2011'),self.test_data.get_rd('cancm4_rhsmax')]

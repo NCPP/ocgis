@@ -9,7 +9,7 @@ OpenClimateGIS offers an extensible computation framework that supports:
   1. NumPy-based array calculations
   2. Temporal grouping (level grouping not supported)
   3. Argumented and multivariate functions (e.g. heat index)
-  4. Overload hooks for spatial aggregation - temporal aggregation implicit to calculation function
+  4. Overload hooks for aggregation operations
 
 Using Computations
 ------------------

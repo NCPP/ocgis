@@ -8,18 +8,18 @@
 ## v0.06b ##
 
 ### What's New ###
-* SQL access to shapefile selection for lower read delays on large shapefiles
+* Added SQL access to shapefile selection by unique identifier for lower read delays on large shapefiles. The prior implementation required looping over the shapefile features to find the matching identifier value.
   - Shapefiles now require a unique, integer UGID field.
   - ShpProcess object added to assist in shapefile conversion (requires Fiona).
 * Header dump of netCDF file attributes included in disk outputs (*_source_metdata.txt).
-* Additional attributes in *_did.csv.
+* Additional attributes in *_did.csv: standard name, units, long name.
 * Added "headers" parameters to OcgOperations to allow selection of file headers.
 * Added "time_region" to RequestDataset to subset by arbitrary month/year combinations.
 
 ### Known Issues ###
-* Missing documentation for ShpProcess
-* Outdated documentation for ShpCabinet
-* Resolution of NcGridMatrixDimension fails
+* Missing documentation for ShpProcess.
+* Outdated documentation for ShpCabinet.
+* Resolution of NcGridMatrixDimension fails.
 
 ## v0.05.1b ##
 

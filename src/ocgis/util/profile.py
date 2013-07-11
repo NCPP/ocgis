@@ -41,15 +41,18 @@ class ExecutionInfo(Base):
 
 
 def run():
-    for ii in range(5):
-        dir_output = mkdtemp()
-        try:
-            dataset = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
-            ops = OcgOperations(dataset=dataset,output_format='csv+',geom='state_boundaries',select_ugid=[25,26],
-                            dir_output=dir_output)
-            ret = ops.execute()
-        finally:
-            shutil.rmtree(dir_output)
+#    for ii in range(10):
+#        dir_output = mkdtemp()
+#        try:
+#            dataset = {'uri':'/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc','variable':'tasmax'}
+#            ops = OcgOperations(dataset=dataset,output_format='csv+',geom='state_boundaries',select_ugid=[25,26],
+#                                dir_output=dir_output,calc=[{'func':'mean','name':'mean'}],calc_grouping=['month'])
+#            ret = ops.execute()
+#        finally:
+#            shutil.rmtree(dir_output)
+    sys.path.append('/home/local/WX/ben.koziol/links/git/examples')
+    from narccap import city_centroid_subset
+    city_centroid_subset.main()
     
     
 def main():

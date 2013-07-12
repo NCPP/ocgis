@@ -86,7 +86,6 @@ class OcgisLogging(object):
         if self.null:
             ret = None
         else:
-            
             ret = logging.getLogger('ocgis').getChild(name)
         return(ret)
     

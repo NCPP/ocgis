@@ -6,6 +6,7 @@ from collections import OrderedDict
 import re
 import datetime
 from warnings import warn
+from ocgis.interface.nc.dimension import NcGridMatrixDimension
 
 
 class Inspect(object):
@@ -112,8 +113,18 @@ class Inspect(object):
         return(lines)
     
     def get_spatial_report(self):
-        res = self._s.grid.resolution
-        extent = self._s.grid.extent
+        try:
+            res = self._s.grid.resolution
+        except NotImplementedError:
+            if isinstance(self._s.grid,NcGridMatrixDimension):
+                res = '<not implemented for grid matrices>'
+            else: raise
+        try:
+            extent = self._s.grid.extent
+        except NotImplementedError:
+            if isinstance(self._s.grid,NcGridMatrixDimension):
+                extent = '<not implemented for grid matrices>'
+            else: raise
         itype = self._s.vector.__class__.__name__
         projection = self.ds.spatial.projection
         

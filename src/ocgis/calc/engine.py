@@ -5,6 +5,8 @@ from collections import OrderedDict
 import numpy as np
 from ocgis import constants, env
 from warnings import warn
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 
 
 class OcgCalculationEngine(object):
@@ -57,18 +59,20 @@ class OcgCalculationEngine(object):
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
         if self.grouping is not None:
+            ocgis_lh('setting temporal grouping(s)','calc.engine')
             for ds in coll.variables.itervalues():
                 ds.temporal.set_grouping(self.grouping)
 
         ## iterate over functions
         for f in self.funcs:
+            ocgis_lh('calculating: {0}'.format(f),logger='calc.engine')
             ## change behavior for multivariate functions
             if issubclass(f['ref'],OcgCvArgFunction) or (self.has_multi and f['ref'] == SampleSize):
                 ## do not calculated sample size for multivariate calculations
                 ## yet
                 if f['ref'] == SampleSize:
-                    if not env.VERBOSE:
-                        warn('sample size calculations not implemented for multivariate calculations yet')
+                    ocgis_lh('sample size calculations not implemented for multivariate calculations yet',
+                             'calc.engine',level=logging.WARN)
                     continue
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
@@ -113,7 +117,8 @@ class OcgCalculationEngine(object):
                             if self.grouping is None and f['ref'] == SampleSize:
                                 break
                             elif self.grouping is None:
-                                raise(NotImplementedError('Univariate calculations must have a temporal grouping.'))
+                                e = NotImplementedError('Univariate calculations must have a temporal grouping.')
+                                ocgis_lh(exc=e)
                             else:
                                 raise
                         ## calculate the values

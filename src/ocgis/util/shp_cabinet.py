@@ -165,9 +165,13 @@ class ShpCabinet(object):
         ret = ['UGID']
         keys = geoms.keys()
         for key in ['UGID']:
-            keys.remove(key)
+            try:
+                keys.remove(key)
+            ## perhaps it is lower case
+            except ValueError:
+                keys.remove(key.lower())
         ret += keys
-        return(ret)
+        return([r.upper() for r in ret])
     
     def get_converter_iterator(self,geom_dict):
         for dct in geom_dict:

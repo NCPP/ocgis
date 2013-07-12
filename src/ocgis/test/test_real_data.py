@@ -76,3 +76,41 @@ class Test(TestBase):
                    output_format='csv+',geom='state_boundaries',calc=calc,
                    calc_grouping=calc_grouping)
         ret = ops.execute()
+        
+    def test_narccap_point_subset_small(self):
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        geom = [-97.74278,30.26694]
+        ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+        ocgis.env.VERBOSE = True
+    
+        calc = [{'func':'mean','name':'mean'},
+                {'func':'median','name':'median'},
+                {'func':'max','name':'max'},
+                {'func':'min','name':'min'}]
+        calc_grouping = ['month','year']
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  output_format='csv+',geom=geom,abstraction='point',
+                                  snippet=False,allow_empty=False)
+        ret = ops.execute()
+    
+    def test_narccap_point_subset_long(self):
+        import sys
+        sys.path.append('/home/local/WX/ben.koziol/links/git/examples/')
+        from narccap.co_watersheds_subset import parse_narccap_filenames
+        snippet = False
+        ## city center coordinate
+        geom = [-97.74278,30.26694]
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/narccap'
+        ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+        ocgis.env.VERBOSE = True
+        
+        rds = parse_narccap_filenames(ocgis.env.DIR_DATA)
+        calc = [{'func':'mean','name':'mean'},
+                {'func':'median','name':'median'},
+                {'func':'max','name':'max'},
+                {'func':'min','name':'min'}]
+        calc_grouping = ['month','year']
+        ops = ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=calc_grouping,
+                                  output_format='csv+',geom=geom,abstraction='point',
+                                  snippet=snippet,allow_empty=False)
+        ret = ops.execute()

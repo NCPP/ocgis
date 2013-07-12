@@ -9,6 +9,7 @@ def main():
     ocgis.env.DIR_OUTPUT = '/tmp/narccap'
     ocgis.env.DIR_DATA = '/usr/local/climate_data/narccap'
     ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
+    ocgis.env.VERBOSE = True
     
     
     rds = parse_narccap_filenames(ocgis.env.DIR_DATA)
@@ -19,5 +20,5 @@ def main():
     calc_grouping = ['month','year']
     ops = ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=calc_grouping,
                               output_format='csv+',geom=geom,abstraction='point',
-                              snippet=snippet,allow_empty=True)
+                              snippet=snippet)
     ret = ops.execute()

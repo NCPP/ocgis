@@ -61,16 +61,18 @@ def main():
     except:
         pass
     metadata.create_all()
-    f = NamedTemporaryFile(delete=False)
-    prev_stdout = sys.stdout
-    sys.stdout = f
-    path = '/tmp/stats'
-    cProfile.run('run()',path)
-    p = pstats.Stats(path)
-    p.print_stats()
-    f.close()
-    sys.stdout = prev_stdout
-    with open(f.name,'r') as dstats:
+#    f = NamedTemporaryFile(delete=False)
+#    prev_stdout = sys.stdout
+#    sys.stdout = f
+#    path = '/tmp/stats'
+#    cProfile.run('run()',path)
+#    p = pstats.Stats(path)
+#    p.print_stats()
+#    f.close()
+#    sys.stdout = prev_stdout
+#    to_open = f.name
+    to_open = '/home/local/WX/ben.koziol/htmp/tmpLK23nT'
+    with open(to_open,'r') as dstats:
         lines = dstats.readlines()
 #    p.sort_stats('time').print_stats(30)
 #    p.print_stats('get_numpy_data')
@@ -90,7 +92,7 @@ def main():
             headers[4] = 'percall_cumtime'
             build = False
         else:
-            parts = re.split(' {2,5}',line)
+            parts = re.split('[0-9] {1,5}',line,maxsplit=6)
             data = dict(zip(headers,parts))
             if not 'filename' in data:
                 try:
@@ -102,6 +104,7 @@ def main():
                         start += 1
                         continue
                     else:
+                        import ipdb;ipdb.set_trace()
                         raise
             results = Results(**data)
             s.add(results)

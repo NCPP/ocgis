@@ -37,6 +37,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['maurer','2010'],'tas',['nldas_met_update.obs.daily.tas.1990.nc','nldas_met_update.obs.daily.tas.1991.nc'],key='maurer_2010_tas')
         test_data.update(['maurer','2010'],'tasmin',['nldas_met_update.obs.daily.tasmin.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmin')
         test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmax.1991.nc'],key='maurer_2010_tasmax')
+        test_data.update(['narccap'],'pr',['pr_WRFG_ncep_1981010103.nc','pr_WRFG_ncep_1986010103.nc'],key='narccap_pr_wrfg_ncep')
         return(test_data)
     
     def setUp(self):

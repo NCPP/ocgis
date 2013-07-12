@@ -8,18 +8,17 @@
 ## v0.06b ##
 
 ### What's New ###
-* Added SQL access to shapefile selection by unique identifier for lower read delays on large shapefiles. The prior implementation required looping over the shapefile features to find the matching identifier value.
-  - Shapefiles now require a unique, integer UGID field.
-  - ShpProcess object added to assist in shapefile conversion (requires Fiona).
-* Header dump of netCDF file attributes included in disk outputs (*_source_metdata.txt).
-* Additional attributes in *_did.csv: standard name, units, long name.
-* Added "headers" parameters to OcgOperations to allow selection of file headers.
-* Added "time_region" to RequestDataset to subset by arbitrary month/year combinations.
+* SQL access to shapefile selection for lower read delays on large shapefiles. This utilizes the SQL query capability of OGR negating the need to loop over the entire shapefile contents.
+* Shapefiles now require a unique, integer UGID field. A ShpProcess object was added to assist in shapefile conversion (requires Fiona). The UGID requirement was added for consistency within the software, to avoid miscellaneous configuration,  and ease attribute joining to original shapefiles.
+* Header dump of netCDF file attributes included in disk outputs (*_source_metdata.txt). This is functionally equivalent to the output provided by “ncdump -h <target>”.
+* Additional attributes added to *_did.csv: standard name, long name, units.
+* Added "headers" parameters to OcgOperations to allow selection of file headers. This allows a user to limit the columns in an ASCII output.
+* Added "time_region" to RequestDataset to subset by arbitrary month/year combinations in addition to the “time_range” which provides only a lower and upper bound.
 
 ### Known Issues ###
 * Missing documentation for ShpProcess.
 * Outdated documentation for ShpCabinet.
-* Resolution of NcGridMatrixDimension fails.
+* Resolution and extent properties of NcGridMatrixDimension fails.
 
 ## v0.05.1b ##
 

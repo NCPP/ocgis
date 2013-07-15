@@ -1,6 +1,7 @@
 import ocgis
 from ocgis.test.base import TestBase
 import itertools
+from unittest.case import SkipTest
 
 
 class Test(TestBase):
@@ -94,6 +95,7 @@ class Test(TestBase):
         ret = ops.execute()
     
     def test_narccap_point_subset_long(self):
+        raise(SkipTest)
         import sys
         sys.path.append('/home/local/WX/ben.koziol/links/git/examples/')
         from narccap.co_watersheds_subset import parse_narccap_filenames

@@ -61,16 +61,16 @@ def main():
     except:
         pass
     metadata.create_all()
-#    f = NamedTemporaryFile(delete=False)
-#    prev_stdout = sys.stdout
-#    sys.stdout = f
-#    path = '/tmp/stats'
-#    cProfile.run('run()',path)
-#    p = pstats.Stats(path)
-#    p.print_stats()
-#    f.close()
-#    sys.stdout = prev_stdout
-#    to_open = f.name
+    f = NamedTemporaryFile(delete=False)
+    prev_stdout = sys.stdout
+    sys.stdout = f
+    path = '/tmp/stats'
+    cProfile.run('run()',path)
+    p = pstats.Stats(path)
+    p.print_stats()
+    f.close()
+    sys.stdout = prev_stdout
+    to_open = f.name
     to_open = '/home/local/WX/ben.koziol/htmp/tmpLK23nT'
     with open(to_open,'r') as dstats:
         lines = dstats.readlines()

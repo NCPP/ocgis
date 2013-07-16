@@ -1,0 +1,33 @@
+{% extends "base_api.html" %}
+
+{% block breadcrumbs %}
+    {{ block.super }}
+{% endblock breadcrumbs %}
+
+{% block subtitle %} - API{% endblock subtitle %}
+
+{% block content %}
+<div id="content">
+    <span class="header">Resources</span>
+    <ul>
+        <li>
+            <a href="{% url archive_list %}">Archives</a>
+        </li>
+        <li>
+            <a href="{% url climatemodel_list %}">Climate Models</a>
+        </li>
+        <li>
+            <a href="{% url scenario_list %}">Emissions Scenarios</a>
+        </li>
+        <li>
+            <a href="{% url variable_list %}">Output Variables</a>
+        </li>
+        <li>
+            <a href="{% url aoi_list %}">Areas-of-Interest</a>
+        </li>
+        <li>
+            <a href="{% url simulation_list %}">Simulation Outputs </a>
+        </li>
+    </ul>
+</div>
+{% endblock content %}

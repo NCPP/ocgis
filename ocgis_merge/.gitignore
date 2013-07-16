@@ -1,0 +1,11 @@
+.gitignore
+.project
+.pydevproject
+.settings
+src/openclimategis/settings_local.py
+dist/*
+README.pdf
+src/OpenClimateGIS.egg-info/*
+*.pyc
+*.orig
+*.log

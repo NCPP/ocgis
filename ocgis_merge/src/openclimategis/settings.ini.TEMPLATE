@@ -1,0 +1,45 @@
+# the following is an example of a configuration file that stores sensitive 
+# information.  It should be copied to /etc/openclimategis/settings.ini and
+# modified.
+
+[database]
+DATABASE_USER: djangouser
+DATABASE_PASSWORD: secret
+DATABASE_HOST: localhost
+DATABASE_PORT:
+DATABASE_NAME: openclimategis_sql
+
+[database-test]
+DATABASE_USER: testuser
+DATABASE_PASSWORD: secret
+DATABASE_HOST: localhost
+DATABASE_PORT:
+DATABASE_NAME: openclimategis_sql
+
+[logging]
+LOG_FILENAME: /var/log/openclimategis/django.log
+
+[media]
+MEDIA_ROOT: /path/to/static/media/directory/used/for/development
+
+[secrets]
+SECRET_KEY: random-string-of-ascii
+
+# all settings in debug section should be false in productive environment
+# INTERNAL_IPS should be empty in productive environment
+[debug]
+DEBUG: true
+TEMPLATE_DEBUG: true
+
+[email]
+SERVER_EMAIL: django@localhost
+EMAIL_HOST: localhost
+
+# the [error mail] and [404 mail] sections are special. Just add lines with
+#    full name: email_address@domain.xx
+# each section must be present but may be empty.
+[error mail]
+John Smith: johnsmith@localhost
+
+[404 mail]
+John Wayne: johnwayne@localhost

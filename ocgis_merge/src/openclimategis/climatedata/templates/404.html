@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block subtitle %} - Error 404{% endblock subtitle %}
+{% block breadcrumbs %}
+    Error 404 - File Not Found
+{% endblock breadcrumbs %}
+{% block content %}
+<style>
+body {background-image:url('/media/img/backing_clean.png');background-color:#FFF;}
+#container {background:url('/media/img/treasure_island.png') no-repeat center top;margin-top:0;padding-top:180px;min-height:550px;}
+</style>
+<div class="quote">
+    <img class="quotemark" src="/media/img/quote_open.png" />There is danger and misery at the edges.
+    <img class="quotemark" src="/media/img/quote_close.png" /><br /><br />
+    <span class="author">- Douglas Crockford</span><br /><br />
+</div>
+{% endblock content %}

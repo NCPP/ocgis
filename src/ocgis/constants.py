@@ -12,3 +12,5 @@ calc_headers = ['did','vid','cid','ugid','tgid','lid','gid','variable','alias','
 multi_headers = ['ugid','tid','lid','gid','calc_name','time','level','value']
 
 reference_projection = WGS84()
+
+test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'

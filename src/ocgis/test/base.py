@@ -6,12 +6,18 @@ import shutil
 from copy import deepcopy, copy
 import os
 from collections import OrderedDict
+import subprocess
+import ocgis
+from warnings import warn
+from subprocess import CalledProcessError
 
 
 class TestBase(unittest.TestCase):
     '''All tests should inherit from this. It allows test data to be written to
     a temporary folder and removed easily.'''
     __metaclass__ = abc.ABCMeta
+    _reset_env = True
+    _create_dir = True
     
     def __init__(self,*args,**kwds):
         self.test_data = self.get_tdata()
@@ -41,16 +47,18 @@ class TestBase(unittest.TestCase):
         return(test_data)
     
     def setUp(self):
-        env.reset()
-        self._new_dir = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
-        env.DIR_OUTPUT = self._new_dir
-        env.OVERWRITE = True
+        if self._reset_env: env.reset()
+        if self._create_dir:
+            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+            env.DIR_OUTPUT = self._test_dir
+        else:
+            self._create_dir = None
         
     def tearDown(self):
         try:
-            shutil.rmtree(self._new_dir)
+            if self._create_dir: shutil.rmtree(self._test_dir)
         finally:
-            env.reset()
+            if self._reset_env: env.reset()
             
             
 class TestData(OrderedDict):
@@ -60,19 +68,18 @@ class TestData(OrderedDict):
             raise(IOError('Copy destination does not exist: {0}'.format(dest)))
         for k,v in self.iteritems():
             uri = self.get_uri(k)
-            rel_path = self.get_relative_path(k)
-            dest_dir = os.path.join(dest,os.path.split(rel_path)[0])
-            dst = os.path.join(dest_dir,v['filename'])
-            if not os.path.exists(dest_dir):
-                os.makedirs(dest_dir)
-            print('copying: {0}...'.format(dst))
-            shutil.copy2(uri,dst)
+            if isinstance(uri,basestring):
+                to_copy = [uri]
+            else:
+                to_copy = uri
+            for to_copy_uri in to_copy:
+                dest_dir = os.path.join(*([dest] + v['collection']))
+                dst = os.path.join(dest_dir,os.path.split(to_copy_uri)[1])
+                if not os.path.exists(dest_dir):
+                    os.makedirs(dest_dir)
+                print('copying: {0}...'.format(dst))
+                shutil.copy2(to_copy_uri,dst)
         print('copy completed.')
-            
-    def get_relative_path(self,key):
-        coll = deepcopy(self[key]['collection'])
-        coll.append(self[key]['filename'])
-        return(os.path.join(*coll))
     
     def get_rd(self,key,kwds=None):
         ref = self[key]
@@ -99,6 +106,40 @@ class TestData(OrderedDict):
                 copy_coll = copy(coll)
                 copy_coll.append(part)
                 uri.append(os.path.join(*copy_coll))
+        ## ensure the uris exist, if not, we may need to download
+        try:
+            if isinstance(uri,basestring):
+                assert(os.path.exists(uri))
+            else:
+                for element in uri:
+                    assert(os.path.exists(element))
+        except AssertionError:
+            if isinstance(uri,basestring):
+                download_uris = [uri]
+            else:
+                download_uris = uri
+            try:
+                os.makedirs(env.DIR_TEST_DATA)
+            except OSError:
+                if os.path.exists(env.DIR_TEST_DATA):
+                    warn('Target download location exists. Files will be written to the existing location: {0}'.format(env.DIR_TEST_DATA))
+                else:
+                    raise
+            for download_uri in download_uris:
+                wget_url = ocgis.constants.test_data_download_url_prefix + '/'.join(ref['collection']) + '/' + os.path.split(download_uri)[1]
+                wget_dest = os.path.join(*([env.DIR_TEST_DATA] + ref['collection'] + [download_uri]))
+                try:
+                    os.makedirs(os.path.split(wget_dest)[0])
+                except OSError:
+                    if os.path.exists(os.path.split(wget_dest)[0]):
+                        warn('Data download directory exists: {0}'.format())
+                    else:
+                        raise
+                try:
+                    cmd = ['wget','--quiet','-O',wget_dest,wget_url]
+                    subprocess.check_call(cmd)
+                except CalledProcessError:
+                    raise(ValueError('"wget" was unable to fetch the test data URL ({0}) to the destination location: {1}. The command list was: {2}'.format(wget_url,wget_dest,cmd)))
         return(uri)
     
     def update(self,collection,variable,filename,key=None):

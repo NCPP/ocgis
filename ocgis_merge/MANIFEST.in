@@ -1,6 +1,0 @@
-include README.rst
-include CREDITS.txt
-include LICENSE.txt
-recursive-include src *.py
-include src/openclimategis/settings.ini.TEMPLATE
-

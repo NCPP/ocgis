@@ -1,7 +1,6 @@
-import unittest
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.exc import DefinitionValidationError
 from ocgis.util.helpers import make_poly
 from ocgis import env
 import os.path
@@ -13,8 +12,6 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
-from ocgis.interface.metadata import NcMetadata
-import netCDF4 as nc
 
 
 class Test(TestBase):
@@ -22,6 +19,12 @@ class Test(TestBase):
     def setUp(self):
         TestBase.setUp(self)
         env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
+        
+        ## data may need to be pulled from remote repository
+        self.test_data.get_rd('cancm4_tasmin_2001')
+        self.test_data.get_rd('cancm4_tasmax_2011')
+        self.test_data.get_rd('cancm4_tas')
+        
         uris = [
                 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
                 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',

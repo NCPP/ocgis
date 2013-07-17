@@ -48,20 +48,26 @@ class ShpCabinet(object):
         """
         ret = []
         for dirpath,dirnames,filenames in os.walk(self.path):
-            for dn in dirnames:
-                for fn in os.listdir(os.path.join(dirpath,dn)):
-                    if fn.endswith('shp'):
-                        ret.append(os.path.splitext(fn)[0])
+            for fn in filenames:
+                if fn.endswith('shp'):
+                    ret.append(os.path.splitext(fn)[0])
         return(ret)
         
     def get_shp_path(self,key):
-        return(os.path.join(self.path,key,'{0}.shp'.format(key)))
+        return(self._get_path_(key,ext='shp'))
     
     def get_cfg_path(self,key):
-        return(os.path.join(self.path,key,'{0}.cfg'.format(key)))
+        return(self._get_path_(key,ext='cfg'))
     
-#    def get_geom_dict(self,*args,**kwds):
-#        return(self.get_geoms(*args,**kwds))
+    def _get_path_(self,key,ext='shp'):
+        ret = None
+        for dirpath,dirnames,filenames in os.walk(self.path):
+            for filename in filenames:
+                if filename.endswith(ext) and os.path.splitext(filename)[0] == key:
+                    ret = os.path.join(dirpath,filename)
+                    return(ret)
+        if ret is None:
+            raise(ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key,self.path)))
     
     def get_geoms(self,key,select_ugid=None):
         """Return geometries from a shapefile specified by `key`.

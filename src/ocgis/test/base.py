@@ -132,7 +132,7 @@ class TestData(OrderedDict):
                     os.makedirs(os.path.split(wget_dest)[0])
                 except OSError:
                     if os.path.exists(os.path.split(wget_dest)[0]):
-                        warn('Data download directory exists: {0}'.format())
+                        warn('Data download directory exists: {0}'.format(os.path.split(wget_dest)[0]))
                     else:
                         raise
                 try:

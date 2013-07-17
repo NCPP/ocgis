@@ -45,6 +45,7 @@ class Test(TestBase):
         self.assertEqual(threshold.flatten()[0],62)
     
     def test_HeatIndex(self):
+        ocgis.env.OVERWRITE = True
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
         ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
@@ -77,25 +78,6 @@ class Test(TestBase):
         self.assertEqual(ret[1].calc['heat_index'].shape,(12,1,64,128))
         ret = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'],
                             output_format='csv',snippet=True).execute()
-                                    
-    def test_HeatIndex_keyed_output(self):
-        raise(SkipTest)
-        ds = [self.test_data.get_rd('cancm4_tasmax_2011'),self.test_data.get_rd('cancm4_rhsmax')]
-        calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
-        ops = OcgOperations(dataset=ds,calc=calc,snippet=False,output_format='numpy')
-        self.assertEqual(ops.calc_grouping,None)
-        ret = ops.execute()
-        it = KeyedIterator(ret[1],mode='calc')
-        for ii,row in enumerate(it.iter_rows(ret[1])):
-            if ii < 1000:
-                self.assertEqual(row['cid'],1)
-                self.assertEqual(row['tgid'],None)
-                self.assertNotEqual(row['tid'],None)
-            else:
-                break
-            
-        ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='keyed')
-        ops.execute()
 
     def test_Mean(self):
         agg = True

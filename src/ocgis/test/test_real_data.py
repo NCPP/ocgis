@@ -82,7 +82,7 @@ class Test(TestBase):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         geom = [-97.74278,30.26694]
         ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
-        ocgis.env.VERBOSE = True
+        ocgis.env.VERBOSE = False
     
         calc = [{'func':'mean','name':'mean'},
                 {'func':'median','name':'median'},
@@ -95,7 +95,7 @@ class Test(TestBase):
         ret = ops.execute()
     
     def test_narccap_point_subset_long(self):
-        raise(SkipTest)
+        raise(SkipTest('for development purposes only'))
         import sys
         sys.path.append('/home/local/WX/ben.koziol/links/git/examples/')
         from narccap.co_watersheds_subset import parse_narccap_filenames

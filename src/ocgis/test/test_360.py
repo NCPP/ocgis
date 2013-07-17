@@ -11,6 +11,7 @@ from ocgis.util.inspect import Inspect
 import os
 from ocgis.test.base import TestBase
 from ocgis.interface.shp import ShpDataset
+import ocgis
 
 
 class NcSpatial(object):
@@ -53,6 +54,7 @@ class NcSpatial(object):
 class Test360(TestBase):
     
     def test_high_res(self):
+        ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(0.5,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
         
@@ -68,6 +70,7 @@ class Test360(TestBase):
             ret = OcgInterpreter(ops).execute()
 
     def test_low_res(self):
+        ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(5.0,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
         

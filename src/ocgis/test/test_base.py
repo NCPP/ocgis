@@ -1,9 +1,13 @@
 import unittest
 from ocgis.test.base import TestBase
 import ocgis
+from unittest.case import SkipTest
 
 
 class Test(TestBase):
+    
+    def setUp(self):
+        raise(SkipTest('tests only for development purposes'))
 
     def test_data_download(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir

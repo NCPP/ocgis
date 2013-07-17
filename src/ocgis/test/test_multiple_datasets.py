@@ -46,7 +46,7 @@ class Test(TestBase):
         return(ret[25])
     
     def test_keyed(self):
-        raise(SkipTest)
+        raise(SkipTest('keyed format currently deprecated'))
         ds = self.dataset
 #        ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())

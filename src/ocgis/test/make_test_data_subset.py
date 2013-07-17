@@ -31,19 +31,19 @@ def subset_first_two_years(in_nc,out_nc):
     finally:
         ds.close()
     
-def test_subset_first_two_years():
-    tdata = TestBase.get_tdata()
-    rd = tdata.get_rd('cancm4_tas')
-    f,out_nc = tempfile.mkstemp(suffix='_test_nc.nc')
-    try:
-        subset_first_two_years(rd.uri,out_nc)
-        ds = nc.Dataset(out_nc,'r')
-        try:
-            tvar = ds.variables['time']
-            dts = nc.num2date(tvar[:],tvar.units,calendar=tvar.calendar)
-            uyears = np.unique([dt.year for dt in dts.flat])
-            assert(uyears.shape[0] == 2)
-        finally:
-            ds.close()
-    finally:
-        os.remove(out_nc)
+#def test_subset_first_two_years():
+#    tdata = TestBase.get_tdata()
+#    rd = tdata.get_rd('cancm4_tas')
+#    f,out_nc = tempfile.mkstemp(suffix='_test_nc.nc')
+#    try:
+#        subset_first_two_years(rd.uri,out_nc)
+#        ds = nc.Dataset(out_nc,'r')
+#        try:
+#            tvar = ds.variables['time']
+#            dts = nc.num2date(tvar[:],tvar.units,calendar=tvar.calendar)
+#            uyears = np.unique([dt.year for dt in dts.flat])
+#            assert(uyears.shape[0] == 2)
+#        finally:
+#            ds.close()
+#    finally:
+#        os.remove(out_nc)

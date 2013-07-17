@@ -63,7 +63,16 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='meta',
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
-        self.assertTrue(isinstance(ret,basestring))        
+        self.assertTrue(isinstance(ret,basestring))  
+        
+    def test_meta_with_source(self):
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv',
+                                  geom='state_boundaries',agg_selection=True)
+        ret = ops.execute()
+        with open(os.path.join(os.path.split(ret)[0],'ocgis_output_metadata.txt')) as f:
+            lines = f.readlines()
+        self.assertEqual(lines[3],'This is OpenClimateGIS-related metadata. Data-level metadata may be found in the file named: ocgis_output_source_metadata.txt\n')
 
 
 if __name__ == "__main__":

@@ -291,6 +291,7 @@ class TestSimple(TestSimpleBase):
         ip = Inspect(ret,'foo')
         
     def test_shp_conversion(self):
+        ocgis.env.OVERWRITE = True
         calc = [
                 None,
                 [{'func':'mean','name':'my_mean'}],
@@ -304,6 +305,7 @@ class TestSimple(TestSimpleBase):
             ret = self.get_ret(ops)
             
     def test_csv_conversion(self):
+        ocgis.env.OVERWRITE = True
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv')
         ret = self.get_ret(ops)
         
@@ -311,10 +313,6 @@ class TestSimple(TestSimpleBase):
         geom = make_poly((38,39),(-104,-103))
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv',geom=geom)
         ret = ops.execute()
-        
-#        subprocess.call(['loffice',os.path.join(os.path.split(ret)[0],'ocgis_output_did.csv')])
-#        subprocess.call(['loffice',ret])
-#        subprocess.call(['gedit',os.path.join(os.path.split(ret)[0],'ocgis_output_meta.txt')])
         
     def test_meta_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='meta')

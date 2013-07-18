@@ -12,6 +12,7 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
+import itertools
 
 
 class Test(TestBase):
@@ -133,6 +134,23 @@ class Test(TestBase):
                 self.assertEqual(obj.value,eq)
             except AssertionError:
                 self.assertEqual(obj.value,('day',))
+        
+        ## only month, year, and day combinations are currently supported
+        rd = self.test_data.get_rd('cancm4_tas')
+        calcs = [None,[{'func':'mean','name':'mean'}]]
+        acceptable = ['day','month','year']
+        for calc in calcs:
+            for length in [1,2,3,4,5]:
+                for combo in itertools.combinations(['day','month','year','hour','minute'],length):
+                    try:
+                        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=combo)
+                    except DefinitionValidationError:
+                        reraise = True
+                        for c in combo:
+                            if c not in acceptable:
+                                reraise = False
+                        if reraise:
+                            raise
                 
     def test_dataset(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA

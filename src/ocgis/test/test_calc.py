@@ -10,6 +10,7 @@ from unittest.case import SkipTest
 import netCDF4 as nc
 import subprocess
 import webbrowser
+import itertools
 
 
 class Test(TestBase):
@@ -149,3 +150,70 @@ class Test(TestBase):
         ## get the percentiles
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
+        
+    def test_date_groups(self):
+        calc = [{'func':'mean','name':'mean'}]
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        
+        calc_grouping = ['month']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertTrue(np.all(rdt == np.array([dt(2011,month,16) for month in range(1,13)])))
+        
+        calc_grouping = ['year']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertTrue(np.all(rdt == [dt(year,7,1) for year in range(2011,2021)]))
+
+        calc_grouping = ['month','year']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertTrue(np.all(rdt == [dt(year,month,16) for year,month in itertools.product(range(2011,2021),range(1,13))]))
+
+        calc_grouping = ['day']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertTrue(np.all(rdt == [dt(2011,1,day,12) for day in range(1,32)]))
+        
+        calc_grouping = ['month','day']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertEqual(rdt[0],dt(2011,1,1,12))
+        self.assertEqual(rdt[12],dt(2011,1,13,12))
+
+        calc_grouping = ['year','day']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertEqual(rdt[0],dt(2011,1,1,12))
+
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_region':{'month':[1],'year':[2011]}})
+        calc_grouping = ['month','day','year']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['tasmax'].temporal
+        rdt = ref.group.representative_datetime
+        self.assertTrue(np.all(rdt == ref.value))
+        self.assertTrue(np.all(ref.bounds == ref.group.bounds))
+        
+
+if __name__ == '__main__':
+    unittest.main()

@@ -24,6 +24,10 @@ class Test(TestBase):
     def test_copy_files(self):
 #        self.test_data.copy_files(self._test_dir)
         self.test_data.copy_files('/home/local/WX/ben.koziol/htmp/transfer')
+        
+    def test_multifile(self):
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        self.assertEqual(len(rd.uri),2)
 
 
 if __name__ == "__main__":

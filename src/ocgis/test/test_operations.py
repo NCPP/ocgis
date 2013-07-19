@@ -154,17 +154,19 @@ class Test(TestBase):
                 
     def test_dataset(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        rd = RequestDataset('tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','tas')
+        reference_rd = self.test_data.get_rd('cancm4_tas')
+        rd = RequestDataset(reference_rd.uri,reference_rd.variable)
         ds = definition.Dataset(rd)
         self.assertEqual(ds.value,RequestDatasetCollection([rd]))
         
-        dsa = {'uri':'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','variable':'tas'}
+        dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
         ds = definition.Dataset(dsa)
-        self.assertEqual(ds.get_url_string(),'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
+        self.assertEqual(ds.get_url_string(),'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
         
-        dsb = [dsa,{'uri':'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp','alias':'knight'}]
+        reference_rd2 = self.test_data.get_rd('narccap_crcm')
+        dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
         ds = definition.Dataset(dsb)
-        str_cmp = 'uri1=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable1=tas&alias1=tas&t_units1=none&t_calendar1=none&s_proj1=none&uri2=/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc&variable2=albisccp&alias2=knight&t_units2=none&t_calendar2=none&s_proj2=none'
+        str_cmp = 'uri1=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc&variable1=tas&alias1=tas&t_units1=none&t_calendar1=none&s_proj1=none&uri2=/usr/local/climate_data/narccap/pr_CRCM_ccsm_1981010103.nc&variable2=pr&alias2=knight&t_units2=none&t_calendar2=none&s_proj2=none'
         self.assertEqual(ds.get_url_string(),str_cmp)
         
     def test_abstraction(self):
@@ -226,6 +228,8 @@ class TestRequestDataset(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
+        ## download test data
+        self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
     
@@ -319,8 +323,12 @@ class TestRequestDataset(TestBase):
     
     def test_RequestDatasetCollection(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        uris = ['tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc',
-                'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc']
+        
+        daymet = self.test_data.get_rd('daymet_tmax')
+        tas = self.test_data.get_rd('cancm4_tas')
+        
+        uris = [daymet.uri,
+                tas.uri]
         variables = ['foo1','foo2']
         rdc = RequestDatasetCollection()
         for uri,variable in zip(uris,variables):
@@ -348,10 +356,8 @@ class TestRequestDataset(TestBase):
         self.assertIsInstance(rdc['a2'],RequestDataset)
         
     def test_multiple_uris(self):
-        env.DIR_DATA = '/usr/local/climate_data/narccap'
-        uris = ['pr_CRCM_ccsm_1981010103.nc','pr_CRCM_ccsm_1986010103.nc']
-        variable = 'pr'
-        rd = RequestDataset(uri=uris,variable=variable)
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        self.assertEqual(len(rd.uri),2)
         rd.inspect()
         
     def test_time_region(self):

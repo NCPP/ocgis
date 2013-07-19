@@ -84,7 +84,7 @@ class NcConverter(OcgConverter):
         
         ## time variable
         if temporal.group is not None:
-            time_nc_value = temporal.get_nc_time(temporal.group.date_centroid)
+            time_nc_value = temporal.get_nc_time(temporal.group.representative_datetime)
         else:
             time_nc_value = temporal.get_nc_time(arch.temporal.value)
 #            time_nc_value = temporal.calculate(arch.temporal.value[:,1])
@@ -96,14 +96,20 @@ class NcConverter(OcgConverter):
                 time_bounds_nc_value = temporal.get_nc_time(temporal.group.bounds)
             else:
                 time_bounds_nc_value = temporal.get_nc_time(temporal.bounds)
-            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
+            if temporal.group is None:
+                times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
+            else:
+                times_bounds = ds.createVariable('climatology_'+bounds_name,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
             times_bounds[:] = time_bounds_nc_value
             for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
                 setattr(times_bounds,key,value)
         times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_temporal._name,))
         times[:] = time_nc_value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
-            setattr(times,key,value)
+            if temporal.group is not None and key == 'bounds':
+                setattr(times,'climatology',times_bounds._name)
+            else:
+                setattr(times,key,value)
             
         ## level variable
         ## if there is no level on the variable no need to build one.

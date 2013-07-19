@@ -311,22 +311,22 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
         self.uid = uid
         self._representative_datetime = None
         
-    @property
-    def date_centroid(self):
-        ret = np.empty(self.value.shape[0],dtype=object).reshape(-1,1)
-        bounds = self.bounds
-        if bounds[0,0] < bounds[0,1]:
-            lower_idx = 0
-            upper_idx = 1
-        else:
-            lower_idx = 1
-            upper_idx = 0
-        for idx in range(len(ret)):
-            lower = bounds[idx,lower_idx]
-            upper = bounds[idx,upper_idx]
-            delta = (upper - lower)/2
-            ret[idx] = lower + delta
-        return(ret)
+#    @property
+#    def date_centroid(self):
+#        ret = np.empty(self.value.shape[0],dtype=object).reshape(-1,1)
+#        bounds = self.bounds
+#        if bounds[0,0] < bounds[0,1]:
+#            lower_idx = 0
+#            upper_idx = 1
+#        else:
+#            lower_idx = 1
+#            upper_idx = 0
+#        for idx in range(len(ret)):
+#            lower = bounds[idx,lower_idx]
+#            upper = bounds[idx,upper_idx]
+#            delta = (upper - lower)/2
+#            ret[idx] = lower + delta
+#        return(ret)
     
     @property
     def representative_datetime(self):
@@ -373,7 +373,7 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
                     day,year,month = ref_value[idx]['day'],ref_value[idx]['year'],ref_value[idx]['month']
                     ret[idx] = datetime(year,month,day,12)
             else:
-                raise(NotImplementedError)
+                raise(NotImplementedError('grouping: {0}'.format(self.grouping)))
             return(ret)
         
     def get_iter(self,add_bounds=True):

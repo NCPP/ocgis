@@ -8,6 +8,7 @@ import datetime
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 import itertools
+import subprocess
 
 
 class Test(TestBase):
@@ -98,11 +99,22 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
         calc = [{'func':'mean','name':'tasmax_mean'}]
         calc_grouping = ['month','year']
-        ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping)
-        ret = ops.execute()
+
         ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping,
                                   output_format='nc')
         ret = ops.execute()
+        ds = nc.Dataset(ret,'r')
+        ref = ds.variables['time']
+        self.assertEqual(ref.climatology,'climatology_bnds')
+        self.assertEqual(len(ref[:]),12)
+        ref = ds.variables['climatology_bnds']
+        self.assertEqual(ref[:].shape[0],12)
+        ds.close()
+
+        ops = ocgis.OcgOperations(dataset={'uri':ret,'variable':calc[0]['name']},
+                                  output_format='nc',prefix='subset_climatology')
+        ret = ops.execute()
+#        subprocess.check_call(['ncdump','-h',ret])
         ip = ocgis.Inspect(ret,variable='n')
         
         ds = nc.Dataset(ret,'r')

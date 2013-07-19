@@ -6,16 +6,13 @@ from datetime import datetime as dt
 import ocgis
 import datetime
 from ocgis.test.base import TestBase
-from unittest.case import SkipTest
 import netCDF4 as nc
-import subprocess
-import webbrowser
 import itertools
 
 
 class Test(TestBase):
     
-    def test_with_time_region(self):
+    def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}
         rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
         calc = [{'func':'mean','name':'mean'}]
@@ -26,8 +23,8 @@ class Test(TestBase):
         ret = ops.execute()
         
         tgroup = ret[25].variables['tasmax'].temporal.group.value
-        self.assertEqual(set([2011]),set(tgroup[:,0]))
-        self.assertEqual(tgroup[-1,1],12)
+        self.assertEqual(set([2011]),set(tgroup['year']))
+        self.assertEqual(tgroup['month'][-1],12)
         
         kwds = {'time_region':{'year':[2011,2013],'month':[8]}}
         rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)

@@ -2,6 +2,7 @@ import unittest
 from ocgis.test.base import TestBase
 import ocgis
 from unittest.case import SkipTest
+from ocgis import constants
 
 
 class Test(TestBase):
@@ -18,6 +19,9 @@ class Test(TestBase):
         
     def test_multifile_data_download(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir
+        ocgis.env.DEBUG = True
+        constants.test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         import ipdb;ipdb.set_trace()
     
     def test_entirely_bad_location(self):

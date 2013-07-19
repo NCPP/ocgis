@@ -136,7 +136,10 @@ class TestData(OrderedDict):
                     else:
                         raise
                 try:
-                    cmd = ['wget','--quiet','-O',wget_dest,wget_url]
+                    if env.DEBUG:
+                        cmd = ['wget','-O',wget_dest,wget_url]
+                    else:
+                        cmd = ['wget','--quiet','-O',wget_dest,wget_url]
                     subprocess.check_call(cmd)
                 except CalledProcessError:
                     raise(ValueError('"wget" was unable to fetch the test data URL ({0}) to the destination location: {1}. The command list was: {2}'.format(wget_url,wget_dest,cmd)))

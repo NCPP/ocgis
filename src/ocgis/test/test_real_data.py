@@ -63,6 +63,7 @@ class Test(TestBase):
             ret = ops.execute()
             
     def test_QED_2013(self):
+        raise(SkipTest('data changes rapidly - for development purposes only'))
         variable = 'tasmax'
         ocgis.env.DIR_DATA = '/usr/local/climate_data/QED-2013'
         files = ['Maurer_11day_double_tasmax.nc','Maurer_11day_float_tasmax.nc']

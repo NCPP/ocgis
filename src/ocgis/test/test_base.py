@@ -15,6 +15,10 @@ class Test(TestBase):
         ocgis.env.reset()
         rd2 = self.test_data.get_rd('cancm4_tas')
         self.assertEqual(rd1,rd2)
+        
+    def test_multifile_data_download(self):
+        ocgis.env.DIR_TEST_DATA = self._test_dir
+        import ipdb;ipdb.set_trace()
     
     def test_entirely_bad_location(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir

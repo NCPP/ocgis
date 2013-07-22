@@ -399,17 +399,28 @@ class NcDataset(base.AbstractDataset):
             try:
                 bounds_var = ds.variables[getattr(var,intersection[0])]
             except IndexError:
-                ocgis_lh('No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(var._name),
-                         logger='nc.dataset',
-                         level=logging.WARN,
-                         check_duplicate=True)
-#                warn('no bounds attribute found. searching variable dimensions for bounds information.')
-                bounds_names_copy = bounds_names.copy()
-                bounds_names_copy.update([value['dimension']])
-                for key2,value2 in self.metadata['variables'].iteritems():
-                    intersection = bounds_names_copy.intersection(set(value2['dimensions']))
-                    if len(intersection) == 2:
-                        bounds_var = ds.variables[key2]
+                ## if no bounds variable is found for time, it may be a climatological.
+                if key == 'T':
+                    try:
+                        bounds_var = ds.variables[getattr(value['variable'],'climatology')]
+                        ocgis_lh('Climatological bounds found for variable: {0}'.format(var._name),
+                                 logger='nc.dataset',
+                                 level=logging.INFO)
+                    ## climatology is not found on time axis
+                    except KeyError:
+                        pass
+                ## bounds variable not found by other methods
+                if bounds_var is None:
+                    ocgis_lh('No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(var._name),
+                             logger='nc.dataset',
+                             level=logging.WARN,
+                             check_duplicate=True)
+                    bounds_names_copy = bounds_names.copy()
+                    bounds_names_copy.update([value['dimension']])
+                    for key2,value2 in self.metadata['variables'].iteritems():
+                        intersection = bounds_names_copy.intersection(set(value2['dimensions']))
+                        if len(intersection) == 2:
+                            bounds_var = ds.variables[key2]
             value.update({'bounds':bounds_var})
         return(mp)
     

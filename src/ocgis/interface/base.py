@@ -1,9 +1,10 @@
-from ocgis import env
+from ocgis import env, constants
 from abc import ABCMeta, abstractmethod, abstractproperty
 import numpy as np
 import itertools
 from collections import deque
 from ocgis.exc import EmptyData
+from datetime import datetime
 
 
 class AbstractDataset(object):
@@ -230,6 +231,7 @@ class AbstractLevelDimension(AbstractVectorDimension,AbstractInterfaceDimension)
     
 class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
+    _date_parts = ('year','month','day','hour','minute','second','microsecond')
     
     def __init__(self,*args,**kwds):
         super(AbstractTemporalDimension,self).__init__(*args,**kwds)
@@ -239,9 +241,8 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
     def _dtemporal_group_dimension(self): AbstractTemporalGroupDimension
     
     def set_grouping(self,grouping):
-        date_parts = ('year','month','day','hour','minute','second','microsecond')
-        group_map = dict(zip(range(0,7),date_parts,))
-        group_map_rev = dict(zip(date_parts,range(0,7),))
+        group_map = dict(zip(range(0,7),self._date_parts,))
+        group_map_rev = dict(zip(self._date_parts,range(0,7),))
         
         value = np.empty((self.value.shape[0],3),dtype=object)
         if self.bounds is None:
@@ -253,7 +254,7 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
         
         def _get_attrs_(dt):
             return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
-        parts = np.empty((len(self.value),len(date_parts)),dtype=int)
+        parts = np.empty((len(self.value),len(self._date_parts)),dtype=int)
         for row in range(parts.shape[0]):
             parts[row,:] = _get_attrs_(value[row,1])
         
@@ -267,7 +268,7 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             unique.append(fill)
 
         select = deque()
-        idx2_seq = range(len(date_parts))
+        idx2_seq = range(len(self._date_parts))
         for idx in itertools.product(*[range(len(u)) for u in unique]):
             select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
         select = np.array(select)
@@ -283,21 +284,24 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
         select = select[keep_select,:]
         assert(len(dgroups) == select.shape[0])
         
-        new_value = np.empty((len(dgroups),len(date_parts)),dtype=object)
+        dtype = [(dp,object) for dp in self._date_parts]
+        new_value = np.empty((len(dgroups),),dtype=dtype)
         new_bounds = np.empty((len(dgroups),2),dtype=object)
 
         for idx,dgrp in enumerate(dgroups):
-            new_value[idx] = select[idx]
+            ## tuple conversion is required for structure arrays: http://docs.scipy.org/doc/numpy/user/basics.rec.html#filling-structured-arrays
+            new_value[idx] = tuple(select[idx])
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
-        
-        self.group = self._dtemporal_group_dimension(self,new_value,new_bounds,dgroups)
+
+        self.group = self._dtemporal_group_dimension(grouping,self,new_value,new_bounds,dgroups)
 
     
 class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
-    def __init__(self,parent,value,bounds,dgroups,uid=None):
+    def __init__(self,grouping,parent,value,bounds,dgroups,uid=None):
+        self.grouping = grouping
         self.parent = parent
         self.value = value
         self.bounds = bounds
@@ -305,23 +309,72 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
         if uid is None:
             uid = np.arange(1,self.value.shape[0]+1,dtype=int)
         self.uid = uid
+        self._representative_datetime = None
         
+#    @property
+#    def date_centroid(self):
+#        ret = np.empty(self.value.shape[0],dtype=object).reshape(-1,1)
+#        bounds = self.bounds
+#        if bounds[0,0] < bounds[0,1]:
+#            lower_idx = 0
+#            upper_idx = 1
+#        else:
+#            lower_idx = 1
+#            upper_idx = 0
+#        for idx in range(len(ret)):
+#            lower = bounds[idx,lower_idx]
+#            upper = bounds[idx,upper_idx]
+#            delta = (upper - lower)/2
+#            ret[idx] = lower + delta
+#        return(ret)
+    
     @property
-    def date_centroid(self):
-        ret = np.empty(self.value.shape[0],dtype=object).reshape(-1,1)
-        bounds = self.bounds
-        if bounds[0,0] < bounds[0,1]:
-            lower_idx = 0
-            upper_idx = 1
-        else:
-            lower_idx = 1
-            upper_idx = 0
-        for idx in range(len(ret)):
-            lower = bounds[idx,lower_idx]
-            upper = bounds[idx,upper_idx]
-            delta = (upper - lower)/2
-            ret[idx] = lower + delta
-        return(ret)
+    def representative_datetime(self):
+        if self._representative_datetime is None:
+            ref_value = self.value
+            ref_bounds = self.bounds
+            ret = np.empty((ref_value.shape[0],),dtype=object)
+            set_grouping = set(self.grouping)
+            if set_grouping == set(['month']):
+                ref_calc_month_centroid = constants.calc_month_centroid
+                for idx in range(ret.shape[0]):
+                    month = ref_value[idx]['month']
+                    ## get the start year from the bounds data
+                    start_year = ref_bounds[idx][0].year
+                    ## create the datetime object
+                    ret[idx] = datetime(start_year,month,ref_calc_month_centroid)
+            elif set_grouping == set(['year']):
+                ref_calc_year_centroid_month = constants.calc_year_centroid_month
+                ref_calc_year_centroid_day = constants.calc_year_centroid_day
+                for idx in range(ret.shape[0]):
+                    year = ref_value[idx]['year']
+                    ## create the datetime object
+                    ret[idx] = datetime(year,ref_calc_year_centroid_month,ref_calc_year_centroid_day)
+            elif set_grouping == set(['month','year']):
+                ref_calc_month_centroid = constants.calc_month_centroid
+                for idx in range(ret.shape[0]):
+                    year,month = ref_value[idx]['year'],ref_value[idx]['month']
+                    ret[idx] = datetime(year,month,ref_calc_month_centroid)
+            elif set_grouping == set(['day']):
+                for idx in range(ret.shape[0]):
+                    start_year,start_month = ref_bounds[idx][0].year,ref_bounds[idx][0].month
+                    ret[idx] = datetime(start_year,start_month,ref_value[idx]['day'],12)
+            elif set_grouping == set(['day','month']):
+                for idx in range(ret.shape[0]):
+                    start_year = ref_bounds[idx][0].year
+                    day,month = ref_value[idx]['day'],ref_value[idx]['month']
+                    ret[idx] = datetime(start_year,month,day,12)
+            elif set_grouping == set(['day','year']):
+                for idx in range(ret.shape[0]):
+                    day,year = ref_value[idx]['day'],ref_value[idx]['year']
+                    ret[idx] = datetime(year,1,day,12)
+            elif set_grouping == set(['day','year','month']):
+                for idx in range(ret.shape[0]):
+                    day,year,month = ref_value[idx]['day'],ref_value[idx]['year'],ref_value[idx]['month']
+                    ret[idx] = datetime(year,month,day,12)
+            else:
+                raise(NotImplementedError('grouping: {0}'.format(self.grouping)))
+            return(ret)
         
     def get_iter(self,add_bounds=True):
         value = self.value
@@ -339,11 +392,11 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
         for idx in range(value.shape[0]):
 #            ret[name_value] = value[idx]
             ret[name_id] = uid[idx]
-            ret['year'] = value[idx,0]
-            ret['month'] = value[idx,1]
-            ret['day'] = value[idx,2]
-            ret['hour'] = value[idx,3]
-            ret['minute'] = value[idx,4]
+            ret['year'] = value[idx]['year']
+            ret['month'] = value[idx]['month']
+            ret['day'] = value[idx]['day']
+#            ret['hour'] = value[idx,3]
+#            ret['minute'] = value[idx,4]
 #            if has_bounds:
 #                ret[name_left_bound] = bounds[idx,0]
 #                ret[name_right_bound] = bounds[idx,1]

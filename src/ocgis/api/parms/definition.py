@@ -168,8 +168,8 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
     
     def _validate_(self,value):
         for val in value:
-            if val not in ['day','month','year','hour','minute','second']:
-                raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group.'.format(val)))
+            if val not in ['day','month','year']:
+                raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(val)))
             
             
 class CalcRaw(base.BooleanParameter):

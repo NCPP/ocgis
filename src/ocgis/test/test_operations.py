@@ -12,10 +12,7 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
-<<<<<<< HEAD
-=======
 import itertools
->>>>>>> i-67-computations
 
 
 class Test(TestBase):

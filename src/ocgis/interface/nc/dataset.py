@@ -407,7 +407,7 @@ class NcDataset(base.AbstractDataset):
                                  logger='nc.dataset',
                                  level=logging.INFO)
                     ## climatology is not found on time axis
-                    except KeyError:
+                    except AttributeError:
                         pass
                 ## bounds variable not found by other methods
                 if bounds_var is None:

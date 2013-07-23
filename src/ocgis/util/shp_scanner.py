@@ -10,9 +10,11 @@ from ocgis.util.shp_cabinet import ShpCabinet
 from ConfigParser import SafeConfigParser, NoOptionError
 from sqlalchemy.orm.exc import NoResultFound
 from collections import OrderedDict
+import json
 
 
 db_path = '/tmp/foo.sqlite'
+json_path = '/tmp/ocgis_geometries.json'
 connstr = 'sqlite:///{0}'.format(db_path)
 engine = create_engine(connstr)
 metadata = MetaData(bind=engine)
@@ -91,7 +93,30 @@ def get_or_create(session,Model,**kwargs):
         session.commit()
     return(obj)
 
-def build():
+def build_huc_table(key,huc_attr):
+    sc = ShpCabinet()
+    ## get the HUC2 codes for reference
+    huc2_path = sc.get_shp_path('WBDHU2_June2013')
+    with fiona.open(huc2_path,'r') as source:
+        huc2 = {feature['properties']['HUC2']:feature['properties']['Name'] for feature in source}
+    
+    ## bring in the HUC8 features determining the category based on the the HUC2
+    ## codes.
+    session = Session()
+    huc_path = sc.get_shp_path(key)
+    with fiona.open(huc_path,'r') as source:
+        for feature in source:
+            code = feature['properties'][huc_attr]
+            name = feature['properties']['Name']
+            ugid = feature['properties']['UGID']
+            huc2_region = huc2[code[0:2]]
+            db_category = get_or_create(session,Category,value='{0} - {1}'.format(huc_attr,huc2_region),key=key)
+            db_geometry = Geometry(value=name,ugid=ugid,category=db_category,subcategory=None)
+            session.add(db_geometry)
+    session.commit()
+    session.close()
+
+def build_database():
     try:
         os.remove(db_path)
     except:
@@ -102,10 +127,20 @@ def build():
     
     sc = ShpCabinet()
     
-    keys = ['state_boundaries','us_counties']
+    keys = [
+            'state_boundaries',
+            'us_counties',
+            'WBDHU8_June2013',
+            ]
     
     for key in keys:
         print(key)
+        
+        ## special processing required for HUC tables
+        if key in ['WBDHU8_June2013']:
+            build_huc_table(key,'HUC8')
+            continue
+        
         shp_path = sc.get_shp_path(key)
         cfg_path = sc.get_cfg_path(key)
         
@@ -144,9 +179,9 @@ def build():
     
     session.close()
 
-#build()
-
-json_path = '/tmp/ocgis_geometries.json'
+## first build the database
+build_database()
+## fill the json dictionary
 to_dump = OrderedDict()
 session = Session()
 for row in session.query(Geometry):
@@ -157,9 +192,9 @@ for row in session.query(Geometry):
         ref = to_dump[row.label_formatted]['geometries']
     ref.update({row.value:row.ugid})
     
-#fmtd = json.dumps(to_dump)
-#with open(json_path,'w') as f:
-#    f.write(fmtd)
+fmtd = json.dumps(to_dump)
+with open(json_path,'w') as f:
+    f.write(fmtd)
 #
 #category = 'US State Boundaries'
 #geometry = ['Delaware']

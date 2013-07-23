@@ -55,16 +55,16 @@ class ShpProcess(object):
                     geom = shape(feature['geometry'])
                     if not geom.is_valid:
                         clean = geom.buffer(0.0)
-                        assert(clean.is_valid)
-                        assert(clean.geom_type == 'Polygon')
                         geom = clean
                         feature['geometry'] = mapping(geom)
-                    feature['shapely'] = geom
-                    yield(feature)
+                        assert(clean.is_valid)
+                        assert(clean.geom_type == 'Polygon')
                 except (AssertionError,AttributeError) as e:
-                    warn('{2}. Invalid geometry found. Skipping feature with id={0} and properties: {1}'.format(feature['id'],
-                                                                                                                feature['properties'],
+                    warn('{2}. Invalid geometry found with id={0} and properties: {1}'.format(feature['id'],
+                                                                                                feature['properties'],
                                                                                                                 e))
+                feature['shapely'] = geom
+                yield(feature)
                 
                 
 

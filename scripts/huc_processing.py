@@ -18,10 +18,10 @@ LOG = logging.getLogger('gdb.convert')
 GDBS = [
 #        'WBDHU10_June2013.gdb',
 #        'WBDHU4_June2013.gdb',
-        'WBDHU12_June2013.gdb',
+#        'WBDHU12_June2013.gdb',
 #        'WBDHU8_June2013.gdb',
 #        'WBD_Line_June2013.gdb',
-#        'WBDHU2_June2013.gdb',
+        'WBDHU2_June2013.gdb',
 #        'WBDHU6_June2013.gdb'
         ]
 
@@ -57,4 +57,4 @@ def prepare_shapefile(filename):
 
 if __name__ == '__main__':
 #    convert_to_shapefile()
-    prepare_shapefile('WBDHU12_June2013.shp')
+    prepare_shapefile('WBDHU2_June2013.shp')

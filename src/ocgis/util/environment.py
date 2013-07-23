@@ -1,5 +1,9 @@
 import tempfile
 import os
+from ocgis.interface.projection import WGS84
+from ocgis.interface import projection
+from ocgis.exc import OcgisEnvironmentError
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class Environment(object):
@@ -20,6 +24,7 @@ class Environment(object):
         self.WRITE_TO_REFERENCE_PROJECTION = EnvParm('WRITE_TO_REFERENCE_PROJECTION',False,formatter=self._format_bool_)
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
+        self.REFERENCE_PROJECTION = ReferenceProjection()
         
         self.ops = None
         ## pass logging flag between modules
@@ -46,6 +51,7 @@ class Environment(object):
         for value in self.__dict__.itervalues():
             if isinstance(value,EnvParm):
                 value._value = 'use_env'
+                getattr(value,'value')
                 
     def _format_bool_(self,value):
         '''Format a string to boolean.
@@ -65,9 +71,6 @@ class EnvParm(object):
         self.default = default
         self._value = 'use_env'
         
-    def __repr__(self):
-        return(str(self.value))
-        
     @property
     def value(self):
         if self._value == 'use_env':
@@ -75,14 +78,33 @@ class EnvParm(object):
             if ret is None:
                 ret = self.default
             else:
-                if self.formatter is not None:
-                    ret = self.formatter(ret)
+                ## attempt to use the parameter's format method.
+                try:
+                    ret = self.format(ret)
+                except NotImplementedError:
+                    if self.formatter is not None:
+                        ret = self.formatter(ret)
         else:
             ret = self._value
         return(ret)
     @value.setter
     def value(self,value):
         self._value = value
+        
+    def format(self,value):
+        raise(NotImplementedError)
+    
+    
+class ReferenceProjection(EnvParm):
+    
+    def __init__(self):
+        EnvParm.__init__(self,'REFERENCE_PROJECTION',WGS84())
+        
+    def format(self,value):
+        if os.environ.get(self.env_name) is not None:
+            msg = 'REFERENCE_PROJECTION may not be set as a system environment variable. It must be parameterized at runtime.'
+            e = OcgisEnvironmentError(self,msg)
+            ocgis_lh(exc=e,logger='env')
 
 
 env = Environment()

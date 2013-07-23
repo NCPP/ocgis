@@ -42,7 +42,7 @@ class CsvPlusConverter(CsvConverter):
                 if build:
                     headers = coll.get_headers(upper=True)
                     if env.WRITE_TO_REFERENCE_PROJECTION:
-                        projection = constants.reference_projection
+                        projection = env.REFERENCE_PROJECTION
                     else:
                         projection = coll._archetype.spatial.projection
 #                    ugid_idx = headers.index('UGID')

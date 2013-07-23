@@ -1,4 +1,4 @@
-from ocgis.interface.projection import WGS84
+#from ocgis.interface.projection import WGS84
 
 
 name_bounds = ['bounds','bnds','bound','bnd']
@@ -11,7 +11,7 @@ raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','l
 calc_headers = ['did','vid','cid','ugid','tgid','lid','gid','variable','alias','calc_name','year','month','day','level','value']
 multi_headers = ['ugid','tid','lid','gid','calc_name','time','level','value']
 
-reference_projection = WGS84()
+#reference_projection = WGS84()
 
 #test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
 test_data_download_url_prefix = 'http://www.earthsystemmodeling.org/download/data/ocgis/nc/'

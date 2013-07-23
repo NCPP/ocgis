@@ -42,8 +42,9 @@ class ShpConverter(OcgConverter):
                             geom_type = ogr.wkbMultiPolygon
                         else:
                             geom_type = ogr.wkbPoint
+                        ## select the output projection
                         if env.WRITE_TO_REFERENCE_PROJECTION:
-                            srs = constants.reference_projection.sr
+                            srs = env.REFERENCE_PROJECTION.sr
                         else:
                             srs = coll.projection.sr
                         layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
@@ -69,7 +70,6 @@ class ShpConverter(OcgConverter):
                     except RuntimeError:
                         test_geom = ogr.CreateGeometryFromWkb(geom.wkb)
                         if geom_type != test_geom.GetGeometryType():
-                            import ipdb;ipdb.set_trace()
                             msg = 'Shapefile geometry type and target geometry type do not match. This likely occurred because request datasets mix bounded and unbounded spatial data. Try setting "abstraction" to "point".'
                             raise(RuntimeError(msg))
                         else:

@@ -4,6 +4,7 @@ import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class OcgOperations(object):
@@ -208,3 +209,8 @@ class OcgOperations(object):
             assert(self.spatial_operation == 'intersects')
             assert(self.aggregate is False)
             assert(self.calc_raw is False)
+            
+            if env.WRITE_TO_REFERENCE_PROJECTION is True:
+                msg = 'env.WRITE_TO_REFERENCE_PROJECTION must be False when writing to netCDF.'
+                e = DefinitionValidationError(OutputFormat,msg)
+                ocgis_lh(exc=e,logger='operations')

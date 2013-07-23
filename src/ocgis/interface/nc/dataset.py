@@ -8,12 +8,9 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
-from warnings import warn
 from ocgis import constants
-from ocgis.exc import DummyDimensionEncountered, EmptyData, TemporalExtentError
-import itertools
+from ocgis.exc import DummyDimensionEncountered, EmptyData
 from osgeo.ogr import CreateGeometryFromWkb
-from ocgis.constants import reference_projection
 from shapely.wkb import loads
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -174,10 +171,10 @@ class NcDataset(base.AbstractDataset):
     def get_iter_value(self,add_bounds=True,add_masked=True,value=None,
                        temporal_group=False):        
         ## check if the reference projection is different than the dataset
-        if type(self.spatial.projection) != type(reference_projection) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
+        if type(self.spatial.projection) != type(ocgis.env.REFERENCE_PROJECTION) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
             project = True
             sr = self.spatial.projection.sr
-            to_sr = reference_projection.sr
+            to_sr = ocgis.env.REFERENCE_PROJECTION.sr
         else:
             project = False
         

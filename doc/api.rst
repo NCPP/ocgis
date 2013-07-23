@@ -121,11 +121,13 @@ See the :ref:`computation_headline` page for more details.
 calc_grouping
 ~~~~~~~~~~~~~
 
-Any combination of :class:`datetime.datetime` attribute strings.
+Any combination of 'day', 'month', and 'year'.
 
->>> calc_grouping = ['year']
+>>> calc_grouping = ['day']
 >>> calc_grouping = ['month','year']
->>> calc_grouping = ['day','second']
+>>> calc_grouping = ['day','year']
+
+Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one.
 
 .. _calc_raw_headline:
 

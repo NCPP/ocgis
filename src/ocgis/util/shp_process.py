@@ -4,6 +4,7 @@ from shapely.geometry.geo import shape, mapping
 import os
 from collections import OrderedDict
 import shutil
+from warnings import warn
 
 
 class ShpProcess(object):
@@ -34,7 +35,7 @@ class ShpProcess(object):
                     else:
                         feature['properties'].update({'UGID':int(feature['properties'][ugid])})
                     sink.write(feature)
-            ## remove the cpg file
+            ## remove the cpg file. this raises many, many warnings on occasion
             os.remove(new_shp.replace('.shp','.cpg'))
         except:
             ## remove the created folder on an exception
@@ -50,15 +51,22 @@ class ShpProcess(object):
             for feature in source:
                 ## ensure the feature is valid
                 ## https://github.com/Toblerity/Fiona/blob/master/examples/with-shapely.py
-                geom = shape(feature['geometry'])
-                if not geom.is_valid:
-                    clean = geom.buffer(0.0)
-                    assert(clean.is_valid)
-                    assert(clean.geom_type == 'Polygon')
-                    geom = clean
-                feature['geometry'] = mapping(geom)
-                feature['shapely'] = geom
-                yield(feature)
+                try:
+                    geom = shape(feature['geometry'])
+                    if not geom.is_valid:
+                        clean = geom.buffer(0.0)
+                        assert(clean.is_valid)
+                        assert(clean.geom_type == 'Polygon')
+                        geom = clean
+                        feature['geometry'] = mapping(geom)
+                    feature['shapely'] = geom
+                    yield(feature)
+                except (AssertionError,AttributeError) as e:
+                    warn('{2}. Invalid geometry found. Skipping feature with id={0} and properties: {1}'.format(feature['id'],
+                                                                                                                feature['properties'],
+                                                                                                                e))
+                
+                
 
 
 #################################################################################

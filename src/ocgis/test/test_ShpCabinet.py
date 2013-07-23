@@ -58,6 +58,13 @@ class Test(TestBase):
         sc = ShpCabinet(path=self._test_dir)
         path = sc.get_shp_path('world_countries')
         self.assertEqual(path,os.path.join(self._test_dir,'world_countries.shp'))
+        
+    def test_huc_loading(self):
+        raise(SkipTest('tests loading time for HUC data'))
+        sc = ShpCabinet()
+        geoms = sc.get_geoms('WBDHU12_June2013',select_ugid=[2221,5000])
+        self.assertEqual(len(geoms),2)
+        self.assertEqual(geoms[0]['UGID'],2221)
             
             
 if __name__ == '__main__':

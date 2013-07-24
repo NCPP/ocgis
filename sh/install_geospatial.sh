@@ -48,6 +48,11 @@ sudo ldconfig
 # INSTALL PROJ
 ##############
 
+## Note: If the error below is received, you may need to access the SVN trunk source code.
+##       jniproj.c:52:26: fatal error: org_proj4_PJ.h: No such file or directory
+## The SVN repo is here: http://svn.osgeo.org/metacrs/proj/trunk/proj
+## See this ticket: http://trac.osgeo.org/proj/ticket/153
+
 PROJ_VER=4.8.0
 PROJ_SRC=$SRCDIR/proj/v$PROJ_VER
 PROJ_DIR=$INSTALLDIR/proj/v$PROJ_VER

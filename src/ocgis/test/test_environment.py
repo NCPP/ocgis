@@ -47,6 +47,10 @@ class Test(TestBase):
         with self.assertRaises(OcgisEnvironmentError):
             env.reset()
         os.environ.pop('OCGIS_REFERENCE_PROJECTION')
+        
+    def test_str(self):
+        ret = str(env)
+        self.assertTrue(len(ret) > 300)
 
         
 

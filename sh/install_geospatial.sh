@@ -185,6 +185,20 @@ sudo pip install shapely
 #
 #sudo /home/local/WX/ben.koziol/Dropbox/.virtualenvs/ocg/bin/python setup.py install
 
+###############
+# INSTALL FIONA
+###############
+
+## Website: https://pypi.python.org/pypi/Fiona
+
+## Pluto installation
+module load gdal/1.9.1 python/2.7.2 gfortran/4.7.2/gcc/4.7.2/gcc geos/3.3.5 
+cd /home/local/WX/ben.koziol/src/fiona/v0.16.1
+wget --no-check-certificate https://pypi.python.org/packages/source/F/Fiona/Fiona-0.16.1.tar.gz
+tar -xzvf Fiona-0.16.1.tar.gz
+cd Fiona-0.16.1
+[sudo] python setup.py install
+
 #################
 # INSTALL POSTGIS
 #################

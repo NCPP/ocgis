@@ -239,7 +239,7 @@ class Dataset(base.OcgParameter):
         raise(NotImplementedError)
     
     
-class DirOutput(base.OcgParameter):
+class DirOutput(base.StringParameter):
     _in_url = False
     _lower_string = False
     name = 'dir_output'
@@ -420,7 +420,7 @@ class OutputFormat(base.StringOptionParameter):
         return(ret)
     
     
-class Prefix(base.OcgParameter):
+class Prefix(base.StringParameter):
     name = 'prefix'
     nullable = False
     default = 'ocgis_output'

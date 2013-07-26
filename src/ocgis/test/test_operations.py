@@ -37,6 +37,13 @@ class Test(TestBase):
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_repr(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd)
+        ret = str(ops)
+        print(ret)
+        import ipdb;ipdb.set_trace()
+
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)
         meta = ops.get_meta()

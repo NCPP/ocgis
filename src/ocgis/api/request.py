@@ -9,6 +9,7 @@ from ocgis.util.inspect import Inspect
 from ocgis.interface.nc.dataset import NcDataset
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
+import inspect
 
 
 class RequestDataset(object):
@@ -39,8 +40,8 @@ class RequestDataset(object):
     
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
-    :param s_proj: A `PROJ4 string`_ describing the dataset's spatial reference.
-    :type s_proj: str
+    :param s_proj: An ~`ocgis.interface.projection.OcgSpatialReference` object to overload the projectiona autodiscovery.
+    :type s_proj: `ocgis.interface.projection.OcgSpatialReference`
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
@@ -61,7 +62,7 @@ class RequestDataset(object):
         self.time_range = deepcopy(time_range)
         self.time_region = deepcopy(time_region)
         self.level_range = deepcopy(level_range)
-        self.s_proj = self._str_format_(s_proj)
+        self.s_proj = s_proj
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did
@@ -131,8 +132,23 @@ class RequestDataset(object):
         else:
             return(False)
         
-    def __repr__(self):
-        msg = '<{0} ({1})>'.format(self.__class__.__name__,self.alias)
+    def __str__(self):
+        msg = '{0}({1})'
+        argspec = inspect.getargspec(self.__class__.__init__)
+        parms = []
+        for name in argspec.args:
+            if name == 'self':
+                continue
+            else:
+                as_str = '{0}={1}'
+                value = getattr(self,name)
+                if isinstance(value,basestring):
+                    fill = '"{0}"'.format(value)
+                else:
+                    fill = value
+                as_str = as_str.format(name,fill)
+            parms.append(as_str)
+        msg = msg.format(self.__class__.__name__,','.join(parms))
         return(msg)
     
     def __getitem__(self,item):
@@ -301,11 +317,11 @@ class RequestDatasetCollection(object):
     def __len__(self):
         return(len(self._s))
         
-    def __repr__(self):
-        msg = ['{0} RequestDataset(s) in collection:'.format(len(self))]
-        for rd in self:
-            msg.append('  {0}'.format(rd.__repr__()))
-        return('\n'.join(msg))
+    def __str__(self):
+        msg = '{0}([{1}])'
+        fill = [str(rd) for rd in self]
+        msg = msg.format(self.__class__.__name__,','.join(fill))
+        return(msg)
         
     def __iter__(self):
         for value in self._s.itervalues():

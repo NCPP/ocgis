@@ -21,7 +21,7 @@ class OcgParameter(object):
         else:
             self.value = init_value
         
-    def __repr__(self):
+    def __str__(self):
         ret = '{0}={1}'.format(self.name,self.value)
         return(ret)
     
@@ -172,12 +172,23 @@ class BooleanParameter(OcgParameter):
         for k,v in m.iteritems():
             if value in v:
                 return(k)
+            
+            
+class StringParameter(OcgParameter):
+    __metaclass__ = ABCMeta
     
-    
-class StringOptionParameter(OcgParameter):
-    nullable = False
     return_type = str
     input_types = [str]
+    
+    def __str__(self):
+        ret = '{0}="{1}"'.format(self.name,self.value)
+        return(ret)
+    
+    
+class StringOptionParameter(StringParameter):
+    __metaclass__ = ABCMeta
+    
+    nullable = False
     
     @abstractproperty
     def valid(self): [str]

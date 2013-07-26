@@ -103,12 +103,13 @@ class OcgOperations(object):
         self._is_init = False
         self._validate_()
         
-    def __repr__(self):
-        msg = ['<{0}>:'.format(self.__class__.__name__)]
+    def __str__(self):
+        msg = ['{0}('.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
             if key == 'geom' and value is not None and len(value) > 1:
-                value = '{0} geometries...'.format(len(value))
-            msg.append(' {0}={1}'.format(key, value))
+                value = '{0} custom geometries...'.format(len(value))
+            msg.append(' {0},'.format(self._get_object_(key)))
+        msg.append('  )')
         msg = '\n'.join(msg)
         return(msg)
             

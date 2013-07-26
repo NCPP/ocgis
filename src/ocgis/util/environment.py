@@ -1,7 +1,6 @@
 import tempfile
 import os
 from ocgis.interface.projection import WGS84
-from ocgis.interface import projection
 from ocgis.exc import OcgisEnvironmentError
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -27,8 +26,14 @@ class Environment(object):
         self.REFERENCE_PROJECTION = ReferenceProjection()
         
         self.ops = None
-        ## pass logging flag between modules
-        self._use_logging = False
+        
+    def __str__(self):
+        msg = []
+        for value in self.__dict__.itervalues():
+            if isinstance(value,EnvParm):
+                msg.append(str(value))
+        msg.sort()
+        return('\n'.join(msg))
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -70,6 +75,9 @@ class EnvParm(object):
         self.formatter = formatter
         self.default = default
         self._value = 'use_env'
+        
+    def __str__(self):
+        return('{0}={1}'.format(self.name,self.value))
         
     @property
     def value(self):

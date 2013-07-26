@@ -7,13 +7,16 @@ from shapely import prepared
 import netCDF4 as nc
 from abc import ABCMeta, abstractproperty
 from ocgis.exc import DummyDimensionEncountered, EmptyData,\
-    TemporalResolutionError
+    TemporalResolutionError, DataNotCached
 import datetime
 from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
 from ocgis.util.spatial.wrap import Wrapper
-from shapely.geometry.multipoint import MultiPoint
 from copy import copy
+from ocgis import env
+from ocgis.util.cache import CacheCabinet, get_cache_state, get_cached_temporal,\
+    add_to_cache, get_key_mtime
+import os
 
 
 class NcDimension(object):
@@ -61,10 +64,6 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     _name_long = 'time'
     _dtemporal_group_dimension = NcTemporalGroupDimension
     
-#    def __init__(self,*args,**kwds):
-#        self._date_range = None
-#        super(NcTemporalDimension,self).__init__(*args,**kwds)
-    
     @property
     def resolution(self):
         diffs = np.array([],dtype=float)
@@ -91,6 +90,21 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     def get_nc_time(self,values):
         ret = nc.date2num(values,self.units,calendar=self.calendar)
         return(ret)
+    
+    def set_grouping(self,*args,**kwargs):
+        
+        def _set_():
+            super(NcTemporalDimension,self).set_grouping(*args,**kwargs)
+        
+        if get_cache_state():
+            try:
+                self.group = get_cached_temporal(self._cache_key,self._cache_mtime)
+            except DataNotCached:
+                _set_()
+                add_to_cache(self.group,self._cache_key,self._cache_mtime)
+        else:
+            _set_()
+         
     
     def subset(self,*args,**kwds):
         try:
@@ -130,15 +144,30 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     
     @classmethod
     def _load_(cls,gi,subset_by=None):
-        ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
-        attrs = gi.metadata['variables'][ret.name]['attrs']
-        ret.units = gi._t_units or attrs['units']
-        ret.calendar = gi._t_calendar or attrs['calendar']
-        ret.value = nc.num2date(ret.value,ret.units,calendar=ret.calendar)
-        cls._to_datetime_(ret.value)
-        if ret.bounds is not None:
-            ret.bounds = nc.num2date(ret.bounds,ret.units,calendar=ret.calendar)
-            cls._to_datetime_(ret.bounds)
+        
+        def _get_():
+            ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
+            attrs = gi.metadata['variables'][ret.name]['attrs']
+            ret.units = gi._t_units or attrs['units']
+            ret.calendar = gi._t_calendar or attrs['calendar']
+            ret.value = nc.num2date(ret.value,ret.units,calendar=ret.calendar)
+            cls._to_datetime_(ret.value)
+            if ret.bounds is not None:
+                ret.bounds = nc.num2date(ret.bounds,ret.units,calendar=ret.calendar)
+                cls._to_datetime_(ret.bounds)
+            return(ret)
+        
+        if get_cache_state():
+            try:
+                ret = get_cached_temporal(gi.request_dataset)
+            except DataNotCached:
+                ret = _get_()
+                add_to_cache(ret,gi.request_dataset)
+            cls._cache_key,cls._cache_mtime = get_key_mtime(gi.request_dataset) ## needed by group caching
+            ## need the time range/region to correctly save and load
+            cls._cache_key += str(gi.request_dataset.time_range) + str(gi.request_dataset.time_region)
+        else:
+            ret = _get_()
         return(ret)
     
     @staticmethod

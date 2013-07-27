@@ -44,7 +44,8 @@ class SubsetOperation(object):
             for rd in self.ops.dataset:
                 ## snippet is not implemented for time regions
                 if rd.time_region is not None:
-                    raise(NotImplementedError('snippet is not implemented for time regions'))
+                    exc = NotImplementedError('snippet is not implemented for time regions')
+                    ocgis_lh(exc=exc,logger=subset_log)
                 
                 rd.level_range = [1,1]
                 ods = rd.ds

@@ -41,8 +41,6 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         ret = str(ops)
-        print(ret)
-        import ipdb;ipdb.set_trace()
 
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)

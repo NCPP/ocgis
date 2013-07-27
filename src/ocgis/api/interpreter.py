@@ -91,6 +91,8 @@ class OcgInterpreter(Interpreter):
             
             ocgis_lh('executing: {0}'.format(self.ops.prefix),interpreter_log)
             
+            ## set up environment ##############################################
+            
             ## add operations to environment
             env.ops = self.ops
                 
@@ -137,4 +139,5 @@ class OcgInterpreter(Interpreter):
 
             return(ret)
         finally:
+            env.ops = None
             ocgis_lh.shutdown()

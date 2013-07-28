@@ -10,6 +10,7 @@ import subprocess
 import ocgis
 from warnings import warn
 from subprocess import CalledProcessError
+import numpy as np
 
 
 class TestBase(unittest.TestCase):
@@ -49,7 +50,7 @@ class TestBase(unittest.TestCase):
     def setUp(self):
         if self._reset_env: env.reset()
         if self._create_dir:
-            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_')
             env.DIR_OUTPUT = self._test_dir
         else:
             self._create_dir = None
@@ -59,6 +60,9 @@ class TestBase(unittest.TestCase):
             if self._create_dir: shutil.rmtree(self._test_dir)
         finally:
             if self._reset_env: env.reset()
+            
+    def assertNumpyAll(self,arr1,arr2):
+        return(self.assertTrue(np.all(arr1 == arr2)))
             
             
 class TestData(OrderedDict):

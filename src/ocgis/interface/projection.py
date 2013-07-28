@@ -47,7 +47,10 @@ class OcgSpatialReference(object):
         
     @abc.abstractproperty
     def sr(self): pass
-        
+    
+    def __str__(self):
+        return(self.__class__.__name__)
+    
     def get_area_km2(self,to_sr,geom):
         if isinstance(geom,Point):
             ret = None

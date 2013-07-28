@@ -127,19 +127,19 @@ class OcgFunction(object):
             fill[idx] = calc
         ## if data is calculated on raw values, but area-weighting is required
         ## aggregate the data using provided weights.
-        ret = self.aggregate_spatial(fill)
+        if self.agg:
+            ret = self.aggregate_spatial(fill)
+        else:
+            ret = fill
         return(ret)
     
     def aggregate_spatial(self,fill):
-        if self.agg:
-            ##TODO: possible speed-up with array operations
-            aw = np.empty((fill.shape[0],fill.shape[1],1,1),dtype=fill.dtype)
-            aw = np.ma.array(aw,mask=False)
-            for tidx,lidx in itertools.product(range(fill.shape[0]),range(fill.shape[1])):
-                aw[tidx,lidx,:] = self._aggregate_spatial_(fill[tidx,lidx,:],self.weights)
-            ret = aw
-        else:
-            ret = fill
+        ##TODO: possible speed-up with array operations
+        aw = np.empty((fill.shape[0],fill.shape[1],1,1),dtype=fill.dtype)
+        aw = np.ma.array(aw,mask=False)
+        for tidx,lidx in itertools.product(range(fill.shape[0]),range(fill.shape[1])):
+            aw[tidx,lidx,:] = self._aggregate_spatial_(fill[tidx,lidx,:],self.weights)
+        ret = aw
         return(ret)
     
     @abc.abstractmethod
@@ -165,8 +165,8 @@ class OcgFunction(object):
         return(np.ma.average(values,weights=weights))
     
     def _get_fill_(self,values):
-        fill = np.empty((len(self.groups),values.shape[1],values.shape[2],values.shape[3]),dtype=self.dtype)
-        mask = np.empty(fill.shape,dtype=bool)
+        fill = np.zeros((len(self.groups),values.shape[1],values.shape[2],values.shape[3]),dtype=self.dtype)
+        mask = np.zeros(fill.shape,dtype=bool)
         mask[:] = values.mask[0,0,:]
         fill = np.ma.array(fill,mask=mask)
         return(fill)
@@ -220,7 +220,10 @@ class OcgCvArgFunction(OcgArgFunction):
                 calc = self._calculate_(**kwds)
                 calc = self.aggregate_temporal(calc)
                 fill[idx] = calc
-        ret = self.aggregate_spatial(fill)
+        if self.agg:
+            ret = self.aggregate_spatial(fill)
+        else:
+            ret = fill
         return(ret)
     
     @abc.abstractmethod

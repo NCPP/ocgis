@@ -10,6 +10,7 @@ from ocgis.interface.nc.dataset import NcDataset
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
 import inspect
+from ocgis.util.cache import CacheCabinet
 
 
 class RequestDataset(object):

@@ -97,7 +97,7 @@ class AbstractInterfaceDimension(object):
     def _name_long(self): str
     
     def __init__(self,subset_by=None,value=None,uid=None,bounds=None,
-                 real_idx=None,name=None,name_bounds=None):
+                 real_idx=None,name=None,name_bounds=None,dataset=None):
         if value is None and bounds is not None:
             raise(ValueError("Bounds must be passed with an associated value."))
         
@@ -107,6 +107,7 @@ class AbstractInterfaceDimension(object):
         self.bounds = bounds
         self.real_idx = real_idx
         self.uid = uid
+        self.dataset = dataset
         self._set_value_bounds_uid_(value,bounds,uid,subset_by,real_idx)
     
     @abstractproperty
@@ -141,7 +142,7 @@ class AbstractVectorDimension(object):
         real_idx = self.real_idx[slc]
         ret = self.__class__(value=value,bounds=bounds,
                              uid=uid,real_idx=real_idx,name=self.name,
-                             name_bounds=self.name_bounds)
+                             name_bounds=self.name_bounds,dataset=self.dataset)
         return(ret)
     
     @property
@@ -221,7 +222,8 @@ class AbstractVectorDimension(object):
 
         ret = self.__class__(value=self.value[idx],bounds=bounds,
                              uid=self.uid[idx],real_idx=self.real_idx[idx],
-                             name=self.name,name_bounds=self.name_bounds)
+                             name=self.name,name_bounds=self.name_bounds,
+                             dataset=self.dataset)
         return(ret)
 
 
@@ -294,15 +296,15 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
 
-        self.group = self._dtemporal_group_dimension(grouping,self,new_value,new_bounds,dgroups)
+        self.group = self._dtemporal_group_dimension(grouping,new_value,new_bounds,dgroups)
 
     
 class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDimension):
     __metaclass__ = ABCMeta
     
-    def __init__(self,grouping,parent,value,bounds,dgroups,uid=None):
+    def __init__(self,grouping,value,bounds,dgroups,uid=None):
         self.grouping = grouping
-        self.parent = parent
+#        self.parent = parent
         self.value = value
         self.bounds = bounds
         self.dgroups = dgroups

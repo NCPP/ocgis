@@ -322,7 +322,7 @@ class Geom(base.OcgParameter):
             if len(value) in (2,4):
                 ret = self.parse_string('|'.join(map(str,value)))
             else:
-                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 or 4.'))
+                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 (point) or 4 (bounding box).'))
         elif isinstance(value,ShpDataset):
             self._shp_key = value.key
             ret = value

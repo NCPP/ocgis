@@ -81,10 +81,9 @@ class OcgParameter(object):
         subrows = self._get_meta_()
         if isinstance(subrows,basestring):
             subrows = [subrows]
-        rows = [self.__repr__()]
-        for row in subrows:
-            rows.extend(justify_row(row))
-            rows.append('')
+        rows = ['* '+str(self)]
+        rows.extend(subrows)
+        rows.append('')
         return(rows)
     
     def get_url_string(self):

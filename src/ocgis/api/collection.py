@@ -4,6 +4,7 @@ from ocgis import constants, env
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from copy import deepcopy
+from ocgis.calc.base import KeyedFunctionOutput
 
 
 class AbstractCollection(object):
@@ -95,10 +96,11 @@ class RawCollection(AbstractCollection):
         
 class CalcCollection(AbstractCollection):
     
-    def __init__(self,raw_collection):
+    def __init__(self,raw_collection,funcs=None):
         self.ugeom = raw_collection.ugeom
         self.variables = raw_collection.variables
         self.calc = OrderedDict()
+        self.funcs = funcs
     
     def _get_iter_(self):
 #        headers = self.get_headers()
@@ -166,3 +168,59 @@ class MultivariateCalcCollection(CalcCollection):
         else:
             headers = constants.multi_headers
         return(headers)
+
+
+class KeyedOutputCalcCollection(CalcCollection):
+    
+    def _get_iter_(self):
+#        headers = self._get_headers_()
+        vid = 1
+        cid = 1
+        ugid = self.ugid
+        output_keys = self._get_target_ref_().output_keys
+        for alias,calc in self.calc.iteritems():
+            ds = self.variables[alias]
+            did = ds.request_dataset.did
+            variable = ds.request_dataset.variable
+            for calc_name,calc_value in calc.iteritems():
+                is_sample_size = False
+                for geom,base_attrs in ds.get_iter_value(value=calc_value,temporal_group=True):
+                    ## try to get the shape of the structure arrays
+                    try:
+                        iter_shape = base_attrs['value'].shape[0]
+                    except IndexError:
+                        iter_shape = 1
+                    for ii_value in range(iter_shape):
+                        attrs = base_attrs.copy()
+                        for key in output_keys:
+                            try:
+                                attrs[key] = attrs['value'][key][ii_value]
+                            except IndexError:
+                                ## likely sample size
+                                is_sample_size = True
+                                attrs[key] = None
+                        if not is_sample_size:
+                            attrs['value'] = None
+                        attrs['did'] = did
+                        attrs['variable'] = variable
+                        attrs['alias'] = alias
+                        attrs['calc_name'] = calc_name
+                        attrs['vid'] = vid
+                        attrs['cid'] = cid
+                        attrs['ugid'] = ugid
+                        if type(geom) == Polygon:
+                            geom = MultiPolygon([geom])
+                        yield(geom,attrs)
+                cid += 1
+            vid += 1
+        
+    def _get_headers_(self):
+        headers = super(self.__class__,self)._get_headers_()
+        ref = self._get_target_ref_()
+        headers += ref.output_keys
+        return(headers)
+        
+    def _get_target_ref_(self):
+        for func in self.funcs:
+            if issubclass(func['ref'],KeyedFunctionOutput):
+                return(func['ref'])

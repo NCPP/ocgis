@@ -2,9 +2,20 @@ import ocgis
 from ocgis.test.base import TestBase
 import itertools
 from unittest.case import SkipTest
+from ocgis.api.operations import OcgOperations
 
 
 class Test(TestBase):
+    
+    def test_point_shapefile_subset(self):
+        _output_format = ['numpy','nc','csv','csv+']
+        for output_format in _output_format:
+            rd = self.test_data.get_rd('cancm4_tas')
+            ops = OcgOperations(dataset=rd,geom='gg_city_centroids',output_format=output_format,
+                                prefix=output_format)
+            ret = ops.execute()
+            if output_format == 'numpy':
+                self.assertEqual(len(ret),3)
     
     def test_time_region_subset(self):
         

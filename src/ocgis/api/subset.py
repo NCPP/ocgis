@@ -91,7 +91,6 @@ class SubsetOperation(object):
         ''':rtype: tuple'''
         
         subset_log = ocgis_lh.get_logger('subset')
-        
         ## if there is no geometry, yield None.
         if self.ops.geom is None:
             ocgis_lh('returning entire spatial domain - no selection geometry',subset_log)

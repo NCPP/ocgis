@@ -9,6 +9,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from ocgis.util.helpers import iter_array
 from ocgis.util.shp_cabinet import ShpCabinet
+from shapely.geometry.base import BaseGeometry
 
 
 class GeometrySpatialDimension(base.AbstractSpatialDimension):
@@ -39,14 +40,16 @@ class GeometrySpatialDimension(base.AbstractSpatialDimension):
             geom[idx] = w.unwrap(geom[idx])
     
     def _as_numpy_(self,element):
-        ## check for multipolygons to avoid array confusion
-        if isinstance(element,MultiPolygon) or isinstance(element,MultiPoint) or isinstance(element,Point):
+        if isinstance(element,BaseGeometry):
             ret = np.ma.array([None],dtype=object)
             ret[0] = element
         else:
-            ret = np.ma.array(element)
-        if len(ret.shape) == 0:
-            ret = ret.reshape(1,)
+            try:
+                ret = np.ma.array(element)
+            except TypeError:
+                ## default to object arrays on element type failure
+                ret = np.ma.array(element,dtype=object)
+        ret = np.atleast_1d(ret)
         return(ret)
     
     

@@ -9,7 +9,7 @@ class Environment(object):
     
     def __init__(self):
         self.OVERWRITE = EnvParm('OVERWRITE',False,formatter=self._format_bool_)
-        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',tempfile.gettempdir())
+        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',os.getcwd())
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',None)
         self.DIR_DATA = EnvParm('DIR_DATA',None)
         self.DIR_TEST_DATA = EnvParm('DIR_TEST_DATA',None)
@@ -24,6 +24,8 @@ class Environment(object):
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
         self.REFERENCE_PROJECTION = ReferenceProjection()
+        self.USE_CACHING = EnvParm('USE_CACHING',False,formatter=self._format_bool_)
+        self.DIR_CACHE = EnvParm('DIR_CACHE',None)
         
         self.ops = None
         
@@ -57,6 +59,7 @@ class Environment(object):
             if isinstance(value,EnvParm):
                 value._value = 'use_env'
                 getattr(value,'value')
+        env.ops = None
                 
     def _format_bool_(self,value):
         '''Format a string to boolean.

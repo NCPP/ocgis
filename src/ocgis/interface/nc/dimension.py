@@ -13,7 +13,7 @@ from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
 from ocgis.util.spatial.wrap import Wrapper
 from copy import copy
-from ocgis import env
+from ocgis import env, constants
 from ocgis.util.cache import CacheCabinet, get_cache_state, get_cached_temporal,\
     add_to_cache, get_key_mtime
 import os
@@ -64,18 +64,36 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     _name_long = 'time'
     _dtemporal_group_dimension = NcTemporalGroupDimension
     
+    def __init__(self,*args,**kwargs):
+        super(self.__class__,self).__init__(*args,**kwargs)
+        ## the dataset is need for caching
+        assert(self.dataset is not None)
+        
+    def __del__(self):
+        try:
+            if get_cache_state():
+                request_dataset = self.dataset.request_dataset
+                self.dataset = None
+                add_to_cache(self,request_dataset)
+        except:
+            raise
+    
     @property
     def resolution(self):
         diffs = np.array([],dtype=float)
         value = self.value
+        resolution_limit = constants.resolution_limit
         ## resolution cannot be calculated from a single value
         if value.shape[0] == 1:
             raise(TemporalResolutionError)
-        for tidx,tval in iter_array(value,return_value=True):
+        for ii,(tidx,tval) in enumerate(iter_array(value,return_value=True),start=1):
             try:
                 diffs = np.append(diffs,
                                 np.abs((tval-value[tidx[0]+1]).days))
             except IndexError:
+                break
+            ## if enough values have been accrued, break
+            if ii == resolution_limit:
                 break
         ret = diffs.mean()
         return(ret)
@@ -90,21 +108,6 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     def get_nc_time(self,values):
         ret = nc.date2num(values,self.units,calendar=self.calendar)
         return(ret)
-    
-    def set_grouping(self,*args,**kwargs):
-        
-        def _set_():
-            super(NcTemporalDimension,self).set_grouping(*args,**kwargs)
-        
-        if get_cache_state():
-            try:
-                self.group = get_cached_temporal(self._cache_key,self._cache_mtime)
-            except DataNotCached:
-                _set_()
-                add_to_cache(self.group,self._cache_key,self._cache_mtime)
-        else:
-            _set_()
-         
     
     def subset(self,*args,**kwds):
         try:
@@ -162,10 +165,6 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                 ret = get_cached_temporal(gi.request_dataset)
             except DataNotCached:
                 ret = _get_()
-                add_to_cache(ret,gi.request_dataset)
-            cls._cache_key,cls._cache_mtime = get_key_mtime(gi.request_dataset) ## needed by group caching
-            ## need the time range/region to correctly save and load
-            cls._cache_key += str(gi.request_dataset.time_range) + str(gi.request_dataset.time_region)
         else:
             ret = _get_()
         return(ret)

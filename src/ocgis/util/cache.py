@@ -183,8 +183,8 @@ def get_cache_state():
                 ret = True
         return(ret)
     
-def get_cached_temporal(request_dataset,mtime=None):
-    key,mtime = get_key_mtime(request_dataset,mtime=mtime)
+def get_cached_temporal(request_dataset):
+    key,mtime = get_key_mtime(request_dataset)
     try:
         cc = CacheCabinet(env.DIR_CACHE)
         ret = cc.get(key)
@@ -192,29 +192,20 @@ def get_cached_temporal(request_dataset,mtime=None):
         raise(DataNotCached)
     return(ret)
     
-def get_key_mtime(request_dataset,mtime=None):
+def get_key_mtime(request_dataset,):
+    ret = str(request_dataset)
     try:
-        ret = '_'.join(request_dataset._uri)
-    except AttributeError:
-        ## it is likely a string key passed for temporal group caching
-        if isinstance(request_dataset,basestring):
-            ret = request_dataset
-            assert(mtime is not None)
-            mtime = mtime
-        else:
-            raise
-    try:
-        if mtime is None:
-            mtime = max(map(os.path.getmtime,request_dataset._uri))
+        mtime = max(map(os.path.getmtime,request_dataset._uri))
     except OSError:
         ## data may be remote
         mtime = None
     if env.ops is not None:
         if env.ops.calc is not None and env.ops.calc_grouping is not None:
-            ret += '_ocgis_grouping_' + '_'.join(env.ops.calc_grouping)
+            ret = '{0}_calc_grouping_{1}'.format(ret,env.ops.calc_grouping)
+        ret += '_slice_' + str(env.ops.slice)
     return(ret,mtime)
 
-def add_to_cache(obj,request_dataset,mtime=None):
-    key,mtime = get_key_mtime(request_dataset,mtime=mtime)
+def add_to_cache(obj,request_dataset):
+    key,mtime = get_key_mtime(request_dataset)
     cc = CacheCabinet(env.DIR_CACHE)
     cc.add(key,obj,mtime)

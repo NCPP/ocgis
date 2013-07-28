@@ -465,7 +465,8 @@ class NcDataset(base.AbstractDataset):
                 name_bounds = None
             else:
                 raise
-        ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds)
+        ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds,
+                  dataset=self)
         return(ret)
     
     @staticmethod

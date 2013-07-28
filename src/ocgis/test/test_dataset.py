@@ -238,12 +238,29 @@ class TestShpDataset(TestBase):
         path = os.path.join(env.DIR_OUTPUT,'foo.shp')
         sds.write(path)
         
+    def test_point_load(self):
+        sds = ShpDataset('gg_city_centroids')
+        self.assertIsInstance(sds.spatial.geom[0],Point)
+        self.assertEqual(sds.spatial.geom.shape[0],3)
+        
         
 class TestGeometryDataset(TestBase):
     
+    @property
+    def polygon(self):
+        return(make_poly((-62,59),(87,244)))
+    
+    @property
+    def point(self):
+        return(Point(1,2))
+    
     def test_load(self):
-        poly = make_poly((-62,59),(87,244))
-        gds = GeometryDataset(uid=[1],geom=[poly])
+        gds = GeometryDataset(uid=[1],geom=[self.polygon])
+        
+    def test_iter(self):
+        gds = GeometryDataset(uid=[1,2],geom=[self.point,self.point])
+        for row in gds:
+            self.assertEqual(row.spatial.geom.shape,(1,))
 
 
 if __name__ == "__main__":

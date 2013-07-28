@@ -6,6 +6,7 @@ import numpy as np
 import itertools
 import abc
 from ocgis.calc.groups import OcgFunctionGroup
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class OcgFunctionTree(object):
@@ -124,7 +125,9 @@ class OcgFunction(object):
         for idx,group in enumerate(self.groups):
             value_slice = self.values[group,:,:,:]
             calc = self._calculate_(value_slice,**self.kwds)
-            fill[idx] = calc
+            ## we want to leave the mask alone and only fill the data. calculations
+            ## are not concerned with the global mask (though they can be).
+            fill.data[idx] = calc
         ## if data is calculated on raw values, but area-weighting is required
         ## aggregate the data using provided weights.
         if self.agg:
@@ -164,8 +167,9 @@ class OcgFunction(object):
         '''
         return(np.ma.average(values,weights=weights))
     
-    def _get_fill_(self,values):
-        fill = np.zeros((len(self.groups),values.shape[1],values.shape[2],values.shape[3]),dtype=self.dtype)
+    def _get_fill_(self,values,dtype=None):
+        new_dtype = dtype or self.dtype
+        fill = np.zeros((len(self.groups),values.shape[1],values.shape[2],values.shape[3]),dtype=new_dtype)
         mask = np.zeros(fill.shape,dtype=bool)
         mask[:] = values.mask[0,0,:]
         fill = np.ma.array(fill,mask=mask)
@@ -256,3 +260,21 @@ class OcgCvArgFunction(OcgArgFunction):
                 u = value
             ret.update({key:u})
         return(ret)
+
+
+class KeyedFunctionOutput(object):
+    '''
+    For functions that output data with a different structure.
+    '''
+    __metaclass__ = abc.ABCMeta
+    @abc.abstractproperty
+    def output_keys(self):
+        '''
+        Sequence of output keys returned by the function.
+        '''
+        [str]
+    
+    def aggregate_spatial(self,fill):
+        exc = NotImplementedError('Spatial aggregation of raw input values not implemented for keyed output functions.')
+        ocgis_lh(exc=exc,logger='calc.library')
+    

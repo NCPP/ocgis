@@ -1,12 +1,13 @@
 from base import OcgCvArgFunction
 from ocgis.calc.library import SampleSize
-from ocgis.api.collection import CalcCollection, MultivariateCalcCollection
+from ocgis.api.collection import CalcCollection, MultivariateCalcCollection, \
+    KeyedOutputCalcCollection
 from collections import OrderedDict
 import numpy as np
-from ocgis import constants, env
-from warnings import warn
+from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+from ocgis.calc.base import KeyedFunctionOutput
 
 
 class OcgCalculationEngine(object):
@@ -29,10 +30,6 @@ class OcgCalculationEngine(object):
             self.use_agg = True
         else:
             self.use_agg = False
-            
-        ## check for multivariate functions
-        check = [issubclass(f['ref'],OcgCvArgFunction) for f in funcs]
-        self.has_multi = True if any(check) else False
 
     def _get_value_weights_(self,ds):
         ## select the value source based on raw or aggregated switches
@@ -48,13 +45,29 @@ class OcgCalculationEngine(object):
             weights = ds.spatial.vector.weights
         return(value,weights)
     
+    def _check_calculation_members_(self,funcs,klass):
+        '''
+        Return True if a subclass of type `klass` is contained in the calculation
+        list.
+        
+        :param funcs: Sequence of calculation dictionaries.
+        :param klass: `ocgis.calc.base.OcgFunction`
+        '''
+        check = [issubclass(f['ref'],klass) for f in funcs]
+        ret = True if any(check) else False
+        return(ret)
+        
     def execute(self,coll,file_only=False):
-        ## switch collection type based on the presence of a multivariate
-        ## calculation
-        if self.has_multi:
-            ret = MultivariateCalcCollection(coll)
+        ## switch collection type based on the types of calculations present
+        if self._check_calculation_members_(self.funcs,OcgCvArgFunction):
+            klass = MultivariateCalcCollection
+        elif self._check_calculation_members_(self.funcs,KeyedFunctionOutput):
+            klass = KeyedOutputCalcCollection
         else:
-            ret = CalcCollection(coll)
+            klass = CalcCollection
+        ret = klass(coll,funcs=self.funcs)
+        ocgis_lh(msg='returning collection of type {0}'.format(coll.__class__),
+                 logger='calc.engine')
 
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
@@ -67,7 +80,7 @@ class OcgCalculationEngine(object):
         for f in self.funcs:
             ocgis_lh('calculating: {0}'.format(f),logger='calc.engine')
             ## change behavior for multivariate functions
-            if issubclass(f['ref'],OcgCvArgFunction) or (self.has_multi and f['ref'] == SampleSize):
+            if issubclass(f['ref'],OcgCvArgFunction) or (isinstance(ret,MultivariateCalcCollection) and f['ref'] == SampleSize):
                 ## do not calculated sample size for multivariate calculations
                 ## yet
                 if f['ref'] == SampleSize:

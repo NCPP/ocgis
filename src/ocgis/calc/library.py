@@ -2,6 +2,8 @@ import groups
 from base import OcgFunction, OcgCvArgFunction, OcgArgFunction
 import numpy as np
 from ocgis.util.helpers import iter_array
+from ocgis.calc.base import KeyedFunctionOutput
+from ocgis.constants import np_int
 
 
 class FrequencyPercentile(OcgArgFunction):
@@ -82,19 +84,40 @@ class StandardDeviation(OcgFunction):
         return(np.ma.std(values,axis=0))
 
 
-class MaxConsecutive(OcgArgFunction):
-    name = 'max_cons'
-    nargs = 2
+class Duration(OcgArgFunction):
+    name = 'duration'
+    nargs = 3
     Group = groups.Thresholds
-    dtype = np.int32
-    description = ('Maximum number of consecutive occurrences in the sequence'
-                   ' where the logical operation returns TRUE.')
+    dtype = np.float32
+    description = ('Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied within the temporal aggregation.')
     
-    def _calculate_(self,values,threshold=None,operation=None):
+    def _calculate_(self,values,threshold=None,operation=None,summary='mean'):
+        ## storage array for counts
+        shp_out = list(values.shape)
+        shp_out[0] = 1
+        store = np.zeros(shp_out,dtype=self.dtype).flatten()
+        ## get the summary operation from the numpy library
+        summary_operation = getattr(np,summary)
+
+        ## find longest sequence for each geometry across time dimension
+        for ii,fill in enumerate(self._iter_consecutive_(values,threshold,operation)):
+            ## case of only a singular occurrence
+            if len(fill) > 1:
+                fill = summary_operation(fill)
+            else:
+                try:
+                    fill = fill[0]
+                ## value is likely masked
+                except IndexError:
+                    fill = 0
+            store[ii] = fill
+        
+        store.resize(shp_out)
+        return(store)
+    
+    def _iter_consecutive_(self,values,threshold,operation):
         ## time index reference
         ref = np.arange(0,values.shape[0])
-        ## storage array for counts
-        store = np.empty(list(values.shape)[1:])
         ## perform requested logical operation
         if operation == 'gt':
             arr = values > threshold
@@ -106,31 +129,50 @@ class MaxConsecutive(OcgArgFunction):
             arr = values <= threshold
 
         ## find longest sequence for each geometry across time dimension
-        for xidx,yidx in iter_array(values[0,:]):
-            vec = arr[:,xidx,yidx]
-#            ## collapse data if no axis provided
-#            if axis is None:
-#                vec = vec.reshape(-1)
+        for zidx,rowidx,colidx in iter_array(values[0,:,:,:],use_mask=False):
+            vec = arr[:,zidx,rowidx,colidx]
             ## check first if there is a longer series than 1
             if np.any(np.diff(ref[vec]) == 1):
                 split_idx = ref[np.diff(vec)] + 1
                 splits = np.array_split(vec,split_idx)
-                sums = [a.sum() for a in splits if np.all(a)]
-                fill = np.max(sums)
+                fill = [a.sum() for a in splits if np.all(a)]
             ## case of only a singular occurrence
             elif np.any(vec):
-                fill = 1
+                fill = [1]
             ## case for no occurrence
             else:
-                fill = 0
-            store[xidx,yidx] = fill
-        
-#        ## summarize across geometries if axis is collapsed
-#        if axis is None:
-#            store = np.max(store)
+                fill = [0]
             
+            yield(fill)
+    
+    
+class FrequencyDuration(KeyedFunctionOutput,Duration):
+    name = 'freq_duration'
+    description = 'Counts the frequency of spell durations within the temporal aggregation.'
+    nargs = 2
+    dtype = object
+    output_keys = ['duration','count']
+    
+    def _calculate_(self,values,threshold=None,operation=None):
+        shp_out = list(values.shape)
+        shp_out[0] = 1
+        store = np.zeros(shp_out,dtype=self.dtype).flatten()
+        for ii,duration in enumerate(self._iter_consecutive_(values,threshold,operation)):
+            summary = self._get_summary_(duration)
+            store[ii] = summary
+        store.resize(shp_out)
         return(store)
         
+    def _get_summary_(self,duration):
+        set_duration = set(duration)
+        ret = np.empty(len(set_duration),dtype=[('duration',np_int),('count',np_int)])
+        for ii,sd in enumerate(set_duration):
+            idx = np.array(duration) == sd
+            count = idx.sum()
+            ret[ii]['duration'] = sd
+            ret[ii]['count'] = count
+        return(ret)
+
 
 class Between(OcgArgFunction):
     nargs = 2

@@ -5,6 +5,7 @@ from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.calc.base import KeyedFunctionOutput
 
 
 class OcgOperations(object):
@@ -200,6 +201,11 @@ class OcgOperations(object):
         return(object.__getattribute__(self, name))
     
     def _validate_(self):
+        
+        def _raise_(msg,obj=OutputFormat):
+            e = DefinitionValidationError(OutputFormat,msg)
+            ocgis_lh(exc=e,logger='operations')
+        
         if self.slice is not None:
             assert(self.geom is None)
         if self.file_only:
@@ -209,9 +215,15 @@ class OcgOperations(object):
         if self.output_format == 'nc':
             assert(self.spatial_operation == 'intersects')
             assert(self.aggregate is False)
-            assert(self.calc_raw is False)
             
             if env.WRITE_TO_REFERENCE_PROJECTION is True:
                 msg = 'env.WRITE_TO_REFERENCE_PROJECTION must be False when writing to netCDF.'
-                e = DefinitionValidationError(OutputFormat,msg)
-                ocgis_lh(exc=e,logger='operations')
+                _raise_(msg,OutputFormat)
+                
+            if self.calc is not None:
+                if self.calc_raw:
+                    msg = 'Calculations must be performed on original values (i.e. calc_raw=False).'
+                    _raise_(msg)
+                if any([issubclass(c['ref'],KeyedFunctionOutput) for c in self.calc]):
+                    msg = 'Keyed function output may not be written to netCDF.'
+                    _raise_(msg)

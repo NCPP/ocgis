@@ -52,7 +52,6 @@ class Test(TestBase):
         meta = ops.get_meta()
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
-        self.assertTrue('/subset?' in meta)
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
@@ -179,7 +178,7 @@ class Test(TestBase):
         
         k = K()
         self.assertEqual(k.value,'polygon')
-        self.assertEqual(str(k),'abstraction=polygon')
+        self.assertEqual(str(k),'abstraction="polygon"')
         
         k = K('point')
         self.assertEqual(k.value,'point')

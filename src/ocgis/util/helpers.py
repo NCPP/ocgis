@@ -13,7 +13,7 @@ from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
 import sys
-from shapely.geometry.multipoint import MultiPoint
+
 
         
 def format_bool(value):

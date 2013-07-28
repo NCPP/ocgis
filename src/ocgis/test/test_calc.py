@@ -8,10 +8,123 @@ import datetime
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 import itertools
-import subprocess
+from ocgis.calc.library import Duration, FrequencyDuration
+from ocgis.exc import DefinitionValidationError
+import webbrowser
 
 
 class Test(TestBase):
+    '''
+    Test guide:
+     * Data is required to be 4-dimensional:
+         arr.shape = (t,1,m,n)
+    '''
+    
+    def get_reshaped(self,arr):
+        ret = arr.reshape(arr.shape[0],1,1,1)
+        assert(len(ret.shape) == 4)
+        ret = np.ma.array(ret,mask=False)
+        return(ret)
+    
+    def run_standard_operations(self,calc,capture=False,output_format=None):
+        _aggregate = [False,True]
+        _calc_grouping = [['month'],['month','year']]
+        _output_format = output_format or ['numpy','csv+','nc']
+        captured = []
+        for ii,tup in enumerate(itertools.product(_aggregate,_calc_grouping,_output_format)):
+            aggregate,calc_grouping,output_format = tup
+            if aggregate is True and output_format == 'nc':
+                continue
+            rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2001,2002]}})
+            try:
+                ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
+                       calc=calc,calc_grouping=calc_grouping,output_format=output_format,
+                       aggregate=aggregate,prefix=('standard_ops_'+str(ii)))
+                ret = ops.execute()
+                if output_format == 'numpy':
+                    ref = ret[25].calc['tas'][calc[0]['name']]
+                    if aggregate:
+                        space_shape = [1,1]
+                    else:
+                        space_shape = [5,4]
+                    if calc_grouping == ['month']:
+                        shp1 = [12]
+                    else:
+                        shp1 = [24]
+                    test_shape = shp1 + [1] + space_shape
+                    self.assertEqual(ref.shape,tuple(test_shape))
+                    if not aggregate:
+                        self.assertTrue(np.ma.is_masked(ref[0,0,0,0]))
+            except Exception as e:
+                if capture:
+                    captured.append({'exception':e,'parms':tup})
+                else:
+                    raise
+        return(captured)
+    
+    def test_frequency_duration(self):
+        fduration = FrequencyDuration()
+        
+        values = np.array([1,2,3,3,3,1,1,3,3,3,4,4,1,4,4,1,10,10],dtype=float)
+        values = self.get_reshaped(values)
+        ret = fduration._calculate_(values,threshold=2,operation='gt')
+        self.assertEqual(ret.flatten()[0].dtype.names,('duration','count'))
+        self.assertNumpyAll(np.array([2,3,5],dtype=np.int32),ret.flatten()[0]['duration'])
+        self.assertNumpyAll(np.array([2,1,1],dtype=np.int32),ret.flatten()[0]['count'])
+        
+        calc = [{'func':'freq_duration','name':'freq_duration','kwds':{'operation':'gt','threshold':280}}]
+        ocgis.env.VERBOSE = False
+        ret = self.run_standard_operations(calc,capture=True,output_format=None)
+        for dct in ret:
+            if isinstance(dct['exception'],NotImplementedError) and dct['parms'][0]:
+                pass
+            elif isinstance(dct['exception'],DefinitionValidationError) and dct['parms'][2] == 'nc':
+                pass
+            else:
+                raise(dct['exception'])
+    
+    def test_duration(self):
+        duration = Duration()
+        
+        ## three consecutive days over 3
+        values = np.array([1,2,3,3,3,1,1],dtype=float)
+        values = self.get_reshaped(values)
+        ret = duration._calculate_(values,2,operation='gt',summary='max')
+        self.assertEqual(3.0,ret.flatten()[0])
+        
+        ## no duration over the threshold
+        values = np.array([1,2,1,2,1,2,1],dtype=float)
+        values = self.get_reshaped(values)
+        ret = duration._calculate_(values,2,operation='gt',summary='max')
+        self.assertEqual(0.,ret.flatten()[0])
+        
+        ## no duration over the threshold
+        values = np.array([1,2,1,2,1,2,1],dtype=float)
+        values = self.get_reshaped(values)
+        ret = duration._calculate_(values,2,operation='gte',summary='max')
+        self.assertEqual(1.,ret.flatten()[0])
+        
+        ## average duration
+        values = np.array([1,5,5,2,5,5,5],dtype=float)
+        values = self.get_reshaped(values)
+        ret = duration._calculate_(values,4,operation='gte',summary='mean')
+        self.assertEqual(2.5,ret.flatten()[0])
+        
+        ## add some masked values
+        values = np.array([1,5,5,2,5,5,5],dtype=float)
+        mask = [0,0,0,0,0,1,0]
+        values = np.ma.array(values,mask=mask)
+        values = self.get_reshaped(values)
+        ret = duration._calculate_(values,4,operation='gte',summary='max')
+        self.assertEqual(2.,ret.flatten()[0])
+        
+        ## test with an actual matrix
+        values = np.array([1,5,5,2,5,5,5,4,4,0,2,4,4,4,3,3,5,5,6,9],dtype=float)
+        values = values.reshape(5,1,2,2)
+        ret = duration._calculate_(values,4,operation='gte',summary='mean')
+        self.assertNumpyAll(np.array([ 4. ,  2. ,  1.5,  1.5]),ret.flatten())
+        
+        self.run_standard_operations([{'func':'duration','name':'max_duration','kwds':{'operation':'gt','threshold':2,'summary':'max'}}])
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}

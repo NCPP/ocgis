@@ -46,6 +46,11 @@ class CannotEncodeUrl(OcgException):
     pass
 
 
+class DataNotCached(OcgException):
+    """"Raised when data is not cached."""
+    pass
+
+
 class ParameterFormattingError(OcgException):
     pass
     

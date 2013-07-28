@@ -118,7 +118,7 @@ class OcgCalculationEngine(object):
                                 break
                             elif self.grouping is None:
                                 e = NotImplementedError('Univariate calculations must have a temporal grouping.')
-                                ocgis_lh(exc=e)
+                                ocgis_lh(exc=e,logger='calc.engine')
                             else:
                                 raise
                         ## calculate the values

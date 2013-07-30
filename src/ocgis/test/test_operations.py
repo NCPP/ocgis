@@ -196,7 +196,7 @@ class Test(TestBase):
             self.assertEqual(obj.value,a)
             
     def test_as_url(self):
-        raise(SkipTest)
+        raise(SkipTest('url representation not supported'))
         ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4')
         
         ## build request datasets

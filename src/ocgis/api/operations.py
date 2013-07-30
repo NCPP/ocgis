@@ -5,7 +5,7 @@ from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.calc.base import KeyedFunctionOutput
+from ocgis.calc.base import KeyedFunctionOutput, ProtectedFunction
 
 
 class OcgOperations(object):
@@ -227,3 +227,8 @@ class OcgOperations(object):
                 if any([issubclass(c['ref'],KeyedFunctionOutput) for c in self.calc]):
                     msg = 'Keyed function output may not be written to netCDF.'
                     _raise_(msg)
+        if self.calc is not None:
+            ## validate any protected functions
+            for calc in self.calc:
+                if issubclass(calc['ref'],ProtectedFunction):
+                    calc['ref'].validate(self)

@@ -33,10 +33,14 @@ class AbstractCollection(object):
     
     def get_headers(self,upper=False):
         ## headers may have been overloaded by operations.
-        if env.ops.headers is None: #@UndefinedVariable
+        try:
+            if env.ops.headers is None: #@UndefinedVariable
+                headers = self._get_headers_()
+            else:
+                headers = env.ops.headers #@UndefinedVariable
+        except AttributeError:
+            ## env.ops likely not present
             headers = self._get_headers_()
-        else:
-            headers = env.ops.headers #@UndefinedVariable
         if upper:
             ret = [h.upper() for h in headers]
         else:
@@ -72,7 +76,15 @@ class RawCollection(AbstractCollection):
         self.variables = OrderedDict()
     
     def _get_iter_(self):
-#        headers = self._get_headers_()
+        ## we want to break out the date parts if any date parts are present
+        ## in the headers argument.
+        headers = self.get_headers()
+        intersection = set(headers).intersection(set(['year','month','day']))
+        if len(intersection) > 0:
+            add_date_parts = True
+        else:
+            add_date_parts = False
+
         vid = 1
         ugid = self.ugid
         for alias,ds in self.variables.iteritems():
@@ -84,7 +96,10 @@ class RawCollection(AbstractCollection):
                 attrs['variable'] = variable
                 attrs['vid'] = vid
                 attrs['ugid'] = ugid
-#                row = [attrs[key] for key in headers]
+                if add_date_parts:
+                    attrs['year'] = attrs['time'].year
+                    attrs['month'] = attrs['time'].month
+                    attrs['day'] = attrs['time'].day
                 if type(geom) == Polygon:
                     geom = MultiPolygon([geom])
                 yield(geom,attrs)

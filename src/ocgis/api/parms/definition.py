@@ -278,7 +278,7 @@ class Geom(base.OcgParameter):
         args = [self] + list(args)
         base.OcgParameter.__init__(*args,**kwds)
     
-    def __repr__(self):
+    def __str__(self):
         if self.value is None:
             value = None
         elif self._shp_key is not None:

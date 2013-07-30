@@ -3,6 +3,8 @@ from ocgis.test.base import TestBase
 import itertools
 from unittest.case import SkipTest
 from ocgis.api.operations import OcgOperations
+from ocgis.interface.nc.dataset import NcDataset
+import webbrowser
 
 
 class Test(TestBase):
@@ -107,7 +109,7 @@ class Test(TestBase):
         ret = ops.execute()
     
     def test_narccap_point_subset_long(self):
-        raise(SkipTest('for development purposes only'))
+        raise(SkipTest('dev'))
         import sys
         sys.path.append('/home/local/WX/ben.koziol/links/git/examples/')
         from narccap.co_watersheds_subset import parse_narccap_filenames
@@ -128,3 +130,17 @@ class Test(TestBase):
                                   output_format='csv+',geom=geom,abstraction='point',
                                   snippet=snippet,allow_empty=False)
         ret = ops.execute()
+
+    def test_qed_maurer_concatenated(self):
+        raise(SkipTest('dev'))
+        calc = [{'func':'freq_duration','name':'freq_duration','kwds':{'operation':'gt','threshold':15}}]
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
+        filename = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
+        variable = 'tasmax'
+        rd = ocgis.RequestDataset(filename,variable)
+        ocgis.env.VERBOSE = True
+        ops = ocgis.OcgOperations(dataset=rd,geom='gg_city_centroids',select_ugid=None,
+                                  calc=calc,calc_grouping=['month','year'],output_format='csv+')
+        ret = ops.execute()
+        webbrowser.open(ret)
+        import ipdb;ipdb.set_trace()

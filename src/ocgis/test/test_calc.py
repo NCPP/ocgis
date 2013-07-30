@@ -57,7 +57,8 @@ class Test(TestBase):
                         self.assertTrue(np.ma.is_masked(ref[0,0,0,0]))
             except Exception as e:
                 if capture:
-                    captured.append({'exception':e,'parms':tup})
+                    parms = dict(aggregate=aggregate,calc_grouping=calc_grouping,output_format=output_format)
+                    captured.append({'exception':e,'parms':parms})
                 else:
                     raise
         return(captured)
@@ -76,10 +77,11 @@ class Test(TestBase):
         ocgis.env.VERBOSE = False
         ret = self.run_standard_operations(calc,capture=True,output_format=None)
         for dct in ret:
-            if isinstance(dct['exception'],NotImplementedError) and dct['parms'][0]:
+            if isinstance(dct['exception'],NotImplementedError) and dct['parms']['aggregate']:
                 pass
-            elif isinstance(dct['exception'],DefinitionValidationError) and dct['parms'][2] == 'nc':
-                pass
+            elif isinstance(dct['exception'],DefinitionValidationError):
+                if dct['parms']['output_format'] == 'nc' or dct['parms']['calc_grouping'] == ['month']:
+                    pass
             else:
                 raise(dct['exception'])
     
@@ -124,7 +126,16 @@ class Test(TestBase):
         ret = duration._calculate_(values,4,operation='gte',summary='mean')
         self.assertNumpyAll(np.array([ 4. ,  2. ,  1.5,  1.5]),ret.flatten())
         
-        self.run_standard_operations([{'func':'duration','name':'max_duration','kwds':{'operation':'gt','threshold':2,'summary':'max'}}])
+        ret = self.run_standard_operations(
+         [{'func':'duration','name':'max_duration','kwds':{'operation':'gt','threshold':2,'summary':'max'}}],
+         capture=True)
+        for cap in ret:
+            reraise = True
+            if isinstance(cap['exception'],DefinitionValidationError):
+                if cap['parms']['calc_grouping'] == ['month']:
+                    reraise = False
+            if reraise:
+                raise(cap['exception'])
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}

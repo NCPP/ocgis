@@ -277,4 +277,13 @@ class KeyedFunctionOutput(object):
     def aggregate_spatial(self,fill):
         exc = NotImplementedError('Spatial aggregation of raw input values not implemented for keyed output functions.')
         ocgis_lh(exc=exc,logger='calc.library')
-    
+        
+        
+class ProtectedFunction(object):
+    '''
+    For functions that should be run under certain operational conditions.
+    '''
+    __metaclass__ = abc.ABCMeta
+    @classmethod
+    @abc.abstractmethod
+    def validate(self,ops): pass

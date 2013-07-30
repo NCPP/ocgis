@@ -2,8 +2,9 @@ import groups
 from base import OcgFunction, OcgCvArgFunction, OcgArgFunction
 import numpy as np
 from ocgis.util.helpers import iter_array
-from ocgis.calc.base import KeyedFunctionOutput
+from ocgis.calc.base import KeyedFunctionOutput, ProtectedFunction
 from ocgis.constants import np_int
+from ocgis.exc import DefinitionValidationError
 
 
 class FrequencyPercentile(OcgArgFunction):
@@ -84,7 +85,7 @@ class StandardDeviation(OcgFunction):
         return(np.ma.std(values,axis=0))
 
 
-class Duration(OcgArgFunction):
+class Duration(ProtectedFunction,OcgArgFunction):
     name = 'duration'
     nargs = 3
     Group = groups.Thresholds
@@ -144,6 +145,12 @@ class Duration(OcgArgFunction):
                 fill = [0]
             
             yield(fill)
+    
+    @classmethod 
+    def validate(cls,ops):
+        if 'year' not in ops.calc_grouping:
+            msg = 'Calculation grouping must include "year" for duration calculations.'
+            raise(DefinitionValidationError('calc',msg))
     
     
 class FrequencyDuration(KeyedFunctionOutput,Duration):

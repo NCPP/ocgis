@@ -12,11 +12,14 @@ class FrequencyPercentile(OcgArgFunction):
     nargs = 2
     Group = groups.Percentiles
     dtype = np.float32
-    description = 'Percentile value matching "perc".'
+    description = 'The percentile value along the time axis. See: http://docs.scipy.org/doc/numpy-dev/reference/generated/numpy.percentile.html.'
     
-    def _calculate_(self,values,perc=None):
-        perc = int(perc)
-        ret = np.percentile(values,perc,axis=0)
+    def _calculate_(self,values,percentile=None):
+        '''
+        :param percentile: Percentile to compute.
+        :type percentile: float on the interval [0,100]
+        '''
+        ret = np.percentile(values,percentile,axis=0)
         return(ret)
 
 
@@ -93,6 +96,14 @@ class Duration(ProtectedFunction,OcgArgFunction):
     description = ('Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied within the temporal aggregation.')
     
     def _calculate_(self,values,threshold=None,operation=None,summary='mean'):
+        '''
+        :param threshold: The threshold value to use for the logical operation.
+        :type threshold: float
+        :param operation: The logical operation. One of 'gt','gte','lt', or 'lte'.
+        :type operation: str
+        :param summary: The summary operation to apply the durations. One of 'mean','median','std','max', or 'min'.
+        :type summary: str
+        '''
         ## storage array for counts
         shp_out = list(values.shape)
         shp_out[0] = 1
@@ -161,6 +172,12 @@ class FrequencyDuration(KeyedFunctionOutput,Duration):
     output_keys = ['duration','count']
     
     def _calculate_(self,values,threshold=None,operation=None):
+        '''
+        :param threshold: The threshold value to use for the logical operation.
+        :type threshold: float
+        :param operation: The logical operation. One of 'gt','gte','lt', or 'lte'.
+        :type operation: str
+        '''
         shp_out = list(values.shape)
         shp_out[0] = 1
         store = np.zeros(shp_out,dtype=self.dtype).flatten()
@@ -188,7 +205,13 @@ class Between(OcgArgFunction):
     dtype = np.int32
     
     def _calculate_(self,values,lower=None,upper=None):
-        idx = (values >= lower)*(values <= upper)
+        '''
+        :param lower: The lower value of the range.
+        :type lower: float
+        :param upper: The upper value of the range.
+        :type upper: float
+        '''
+        idx = (values >= float(lower))*(values <= float(upper))
         return(np.ma.sum(idx,axis=0))
     
     
@@ -199,6 +222,12 @@ class Threshold(OcgArgFunction):
     dtype = np.int32
     
     def _calculate_(self,values,threshold=None,operation=None):
+        '''
+        :param threshold: The threshold value to use for the logical operation.
+        :type threshold: float
+        :param operation: The logical operation. One of 'gt','gte','lt', or 'lte'.
+        :type operation: str
+        '''
         threshold = float(threshold)
         
         ## perform requested logical operation

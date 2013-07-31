@@ -93,7 +93,7 @@ class Duration(ProtectedFunction,OcgArgFunction):
     nargs = 3
     Group = groups.Thresholds
     dtype = np.float32
-    description = ('Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied within the temporal aggregation.')
+    description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
     
     def _calculate_(self,values,threshold=None,operation=None,summary='mean'):
         '''
@@ -166,7 +166,7 @@ class Duration(ProtectedFunction,OcgArgFunction):
     
 class FrequencyDuration(KeyedFunctionOutput,Duration):
     name = 'freq_duration'
-    description = 'Counts the frequency of spell durations within the temporal aggregation.'
+    description = 'Count the frequency of spell durations within the temporal aggregation.'
     nargs = 2
     dtype = object
     output_keys = ['duration','count']
@@ -217,7 +217,7 @@ class Between(OcgArgFunction):
     
 class Threshold(OcgArgFunction):
     nargs = 2
-    description = 'Count of values where the logical operation is True.'
+    description = 'Count of values where the logical operation returns TRUE.'
     Group = groups.Thresholds
     dtype = np.int32
     

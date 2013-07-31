@@ -9,6 +9,13 @@ from ocgis.interface.nc.dataset import NcDataset
 
 
 class Test(TestBase):
+    
+    def test_missing_bounds(self):
+        '''
+        Data lists a bounds attribute but none is actually present in the dataset.
+        '''
+        rd = self.test_data.get_rd('snippet_maurer_dtr')
+        ip = rd.inspect_as_dct()
 
     def test_climatology(self):
         ## http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#idp5996336

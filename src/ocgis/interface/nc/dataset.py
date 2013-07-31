@@ -395,6 +395,14 @@ class NcDataset(base.AbstractDataset):
             intersection = list(bounds_names.intersection(set(var.ncattrs())))
             try:
                 bounds_var = ds.variables[getattr(var,intersection[0])]
+            except KeyError:
+                ## the data has listed a bounds variable, but the variable is not
+                ## actually present in the dataset.
+                ocgis_lh('Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.format(var._name,getattr(var,intersection[0])),
+                                 logger='nc.dataset',
+                                 level=logging.WARNING,
+                                 check_duplicate=True)
+                bounds_var = None
             except IndexError:
                 ## if no bounds variable is found for time, it may be a climatological.
                 if key == 'T':

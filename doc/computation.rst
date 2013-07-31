@@ -73,44 +73,71 @@ Basic Statistics
 
 .. autoclass:: ocgis.calc.library.Max
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.Mean
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.Median
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.Min
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.SampleSize
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.StandardDeviation
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 Multivariate Calculations
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autoclass:: ocgis.calc.library.HeatIndex
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 Percentiles
 ~~~~~~~~~~~
 
 .. autoclass:: ocgis.calc.library.FrequencyPercentile
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 Thresholds
 ~~~~~~~~~~
 
 .. autoclass:: ocgis.calc.library.Between
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
-.. autoclass:: ocgis.calc.library.MaxConsecutive
+.. autoclass:: ocgis.calc.library.Duration
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
+
+.. autoclass:: ocgis.calc.library.FrequencyDuration
+   :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. autoclass:: ocgis.calc.library.Threshold
    :show-inheritance:
+   :members: _calculate_
+   :undoc-members:
 
 .. _NumPy masked array functions: http://docs.scipy.org/doc/numpy/reference/maskedarray.html

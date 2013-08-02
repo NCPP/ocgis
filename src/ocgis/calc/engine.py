@@ -14,7 +14,9 @@ class OcgCalculationEngine(object):
     '''
     :type grouping: list of temporal groupings (e.g. ['month','year'])
     :type funcs: list of function dictionaries
+    :param raw: If True, perform calculations on raw data values.
     :type raw: bool
+    :param agg: If True, data needs to be spatially aggregated (using weights) following a calculation.
     :type agg: bool
     '''
     
@@ -32,6 +34,9 @@ class OcgCalculationEngine(object):
             self.use_agg = False
 
     def _get_value_weights_(self,ds):
+        '''
+        :type ds: AbstractDataset
+        '''
         ## select the value source based on raw or aggregated switches
         if not self.use_agg:
             try:

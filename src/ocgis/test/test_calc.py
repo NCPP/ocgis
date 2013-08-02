@@ -8,9 +8,10 @@ import datetime
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 import itertools
-from ocgis.calc.library import Duration, FrequencyDuration
+from ocgis.calc.library import Duration, FrequencyDuration, StandardDeviation
 from ocgis.exc import DefinitionValidationError
 import webbrowser
+from ocgis.calc.engine import OcgCalculationEngine
 
 
 class Test(TestBase):
@@ -346,7 +347,42 @@ class Test(TestBase):
         rdt = ref.group.representative_datetime
         self.assertTrue(np.all(rdt == ref.value))
         self.assertTrue(np.all(ref.bounds == ref.group.bounds))
-        
+
+
+class TestOcgCalculationEngine(TestBase):
+    
+    def get_collection(self,aggregate=False):
+        if aggregate:
+            spatial_operation = 'clip'
+        else:
+            spatial_operation = 'intersects'
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
+                            spatial_operation=spatial_operation,aggregate=aggregate)
+        ret = ops.execute()
+        return(ret[25])
+    
+    def test_agg_raw(self):
+        grouping = ['month']
+        funcs = [{'func':'std','name':'std','ref':StandardDeviation,'kwds':{}}]
+        raws = [True,False]
+        aggs = [True,False]
+        for raw,agg in itertools.product(raws,aggs):
+            coll = self.get_collection(aggregate=agg)
+            ce = OcgCalculationEngine(grouping,funcs,raw,agg)
+            ret = ce.execute(coll)
+            shape = ret.calc['tas']['std'].shape
+            value,weights = ce._get_value_weights_(coll.variables['tas'])
+            ## aggregated data should have a (1,1) spatial dimension
+            if agg is True:
+                self.assertNumpyAll(shape[-2:],(1,1))
+            ## if raw data is used, the input values to a calculation should be
+            ## returned with a different shape - aggregated spatial dimension
+            if raw is True and agg is True:
+                self.assertNumpyAll(value.shape[-2:],weights.shape)
+                self.assertNumpyNotAll(value.shape[-2:],shape[-2:])
+            if raw is True and agg is False:
+                self.assertNumpyAll(shape[-3:],value.shape[-3:])
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,7 @@ import itertools
 import abc
 from ocgis.calc.groups import OcgFunctionGroup
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.exc import DefinitionValidationError
 
 
 class OcgFunctionTree(object):
@@ -145,6 +146,10 @@ class OcgFunction(object):
         ret = aw
         return(ret)
     
+    @classmethod
+    def validate(cls,ops):
+        pass
+    
     @abc.abstractmethod
     def _calculate_(self,values,**kwds):
         '''
@@ -278,12 +283,7 @@ class KeyedFunctionOutput(object):
         exc = NotImplementedError('Spatial aggregation of raw input values not implemented for keyed output functions.')
         ocgis_lh(exc=exc,logger='calc.library')
         
-        
-class ProtectedFunction(object):
-    '''
-    For functions that should be run under certain operational conditions.
-    '''
-    __metaclass__ = abc.ABCMeta
     @classmethod
-    @abc.abstractmethod
-    def validate(self,ops): pass
+    def validate(cls,ops):
+        if ops.calc_raw is True:
+            raise(DefinitionValidationError('calc','Keyed function output may not have calc_raw=True.'))

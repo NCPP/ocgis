@@ -8,6 +8,10 @@ class CounterLimit(Exception):
     pass
 
 
+class ConditionalNotMet(Exception):
+    pass
+
+
 class Counter(object):
     
     def __init__(self,predicate,limit=1):
@@ -39,8 +43,12 @@ class AbstractParameter(object):
     def values(self): ['<varying>']
     
     @classmethod
-    def get_conditional(cls,kwargs):
-        raise(NotImplementedError)
+    def get_conditional(cls,kwargs,name):
+        func = getattr(cls,name)
+        ret = func(kwargs)
+        if ret is None:
+            raise(ConditionalNotMet)
+        return(ret)
     
     
 class AbstractBooleanParameter(AbstractParameter):
@@ -60,15 +68,24 @@ class Calc(AbstractParameter):
     values = [
               None,
               [{'func':'mean','name':'mean'}],
-              '_conditional_',
+              '_conditional_tasmax_duration_',
+              '_conditional_tasmax_frequency_duration_',
               ]
     
     @classmethod
-    def get_conditional(cls,kwargs):
+    def _conditional_tasmax_duration_(cls,kwargs):
         ret = None
         rd = kwargs['dataset']
         if rd.variable == 'tasmax':
             ret = [{'func':'duration','name':'duration','kwds':{'threshold':21.0,'operation':'gte','summary':'mean'}}]
+        return(ret)
+    
+    @classmethod
+    def _conditional_tasmax_frequency_duration_(cls,kwargs):
+        ret = None
+        rd = kwargs['dataset']
+        if rd.variable == 'tasmax':
+            ret = [{'func':'freq_duration','name':'freq_duration','kwds':{'threshold':21.0,'operation':'gte'}}]
         return(ret)
     
 class CalcGrouping(AbstractParameter):
@@ -86,9 +103,18 @@ class CalcGrouping(AbstractParameter):
 class CalcRaw(AbstractBooleanParameter):
     name = 'calc_raw'
 
-        
+
+def _counter_dataset_(x):
+    if x.variable == 'tasmax':
+        ret = False
+    else:
+        ret = True
+    return(ret)
+
+
 class Dataset(AbstractParameter):
     name = 'dataset'
+    counters = [Counter(_counter_dataset_,limit=3)]
     
     @property
     def values(self):
@@ -116,9 +142,18 @@ class Dataset(AbstractParameter):
                 rd = ocgis.RequestDataset(os.path.join(path,filename),variable,time_range=trange,time_region=tregion)
                 yield(rd)
     
-    
+
+def _counter_geometry_(x):
+    if x == 'state_boundaries':
+        ret = False
+    else:
+        ret = True
+    return(ret)
+
+
 class Geometry(AbstractParameter):
     name = 'geom'
+    counters = [Counter(_counter_geometry_,limit=3)]
     
     def __iter__(self):
         for value in self.values:
@@ -136,8 +171,8 @@ class Geometry(AbstractParameter):
 
 class OutputFormat(AbstractParameter):
     name = 'output_format'
-    values = ['csv+','nc','shp']
-    counters = [Counter(lambda x: x == 'shp',limit=1)]
+    values = ['csv+','nc','shp','csv']
+    counters = [Counter(lambda x: x in ('shp','csv'),limit=1)]
 
     
 class SpatialOperation(AbstractParameter):

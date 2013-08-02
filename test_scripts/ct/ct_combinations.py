@@ -1,5 +1,5 @@
 import ocgis
-from parameters import AbstractParameter, CounterLimit
+from parameters import AbstractParameter, CounterLimit, ConditionalNotMet
 from ocgis.util.helpers import itersubclasses
 import itertools
 from tempfile import mkdtemp
@@ -39,11 +39,15 @@ def iter_combinations(start=0,execute=True):
             except CounterLimit:
                 continue
             ## search for conditional parameters and update appropriately
-            for key,value in kwargs.iteritems():
-                if value == '_conditional_':
-                    klass = get_parameter_class(key)
-                    new_value = klass.get_conditional(kwargs)
-                    kwargs[key] = new_value
+            try:
+                for key,value in kwargs.iteritems():
+                    if isinstance(value,basestring) and value.startswith('_conditional_'):
+                        klass = get_parameter_class(key)
+                        new_value = klass.get_conditional(kwargs,value)
+                        kwargs[key] = new_value
+            except ConditionalNotMet:
+                continue
+            ## execute the operation
             try:
                 print(ctr)
                 ocgis.env.VERBOSE = True
@@ -54,7 +58,6 @@ def iter_combinations(start=0,execute=True):
             except DefinitionValidationError as e:
                 check_exception(kwargs,e)
             except:
-                print(ops)
                 raise
         finally:
             shutil.rmtree(dir_output)
@@ -70,11 +73,17 @@ def check_exception(kwargs,e):
             reraise = False
     if kwargs['calc'] is not None:
         ref = kwargs['calc']
-        if ref[0]['func'] == 'duration':
+        if ref[0]['func'] in ('duration','freq_duration'):
             if 'year' not in kwargs['calc_grouping']:
+                reraise = False
+        if kwargs['output_format'] == 'nc':
+            if ref[0]['func'] == 'freq_duration':
+                reraise = False
+        if kwargs['calc_raw'] or kwargs['aggregate']:
+            if ref[0]['func'] in ('freq_duration',):
                 reraise = False
     if reraise:
         raise(e)
         
         
-iter_combinations(start=0,execute=False)
+iter_combinations(start=5696,execute=True)

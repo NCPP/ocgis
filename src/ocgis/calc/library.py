@@ -2,7 +2,7 @@ import groups
 from base import OcgFunction, OcgCvArgFunction, OcgArgFunction
 import numpy as np
 from ocgis.util.helpers import iter_array
-from ocgis.calc.base import KeyedFunctionOutput, ProtectedFunction
+from ocgis.calc.base import KeyedFunctionOutput
 from ocgis.constants import np_int
 from ocgis.exc import DefinitionValidationError
 
@@ -88,7 +88,7 @@ class StandardDeviation(OcgFunction):
         return(np.ma.std(values,axis=0))
 
 
-class Duration(ProtectedFunction,OcgArgFunction):
+class Duration(OcgArgFunction):
     name = 'duration'
     nargs = 3
     Group = groups.Thresholds
@@ -196,6 +196,11 @@ class FrequencyDuration(KeyedFunctionOutput,Duration):
             ret[ii]['duration'] = sd
             ret[ii]['count'] = count
         return(ret)
+    
+    @classmethod
+    def validate(cls,ops):
+        KeyedFunctionOutput.validate(ops)
+        Duration.validate(ops)
 
 
 class Between(OcgArgFunction):

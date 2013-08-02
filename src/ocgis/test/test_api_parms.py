@@ -112,7 +112,6 @@ class Test(TestBase):
         self.assertEqual(us,'uri={0}&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none'.format(rd.uri))
         
         with open('/tmp/dd.pkl','w') as f:
-#            import ipdb;ipdb.set_trace()
             pickle.dump(dd,f)
         
         uri = '/a/bad/path'

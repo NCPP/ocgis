@@ -15,9 +15,9 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         
         calc = [{'func':'mean','name':'my_mean'},
-                {'func':'freq_perc','name':'perc_90','kwds':{'perc':90,}},
-                {'func':'freq_perc','name':'perc_95','kwds':{'perc':95,}},
-                {'func':'freq_perc','name':'perc_99','kwds':{'perc':99,}}
+                {'func':'freq_perc','name':'perc_90','kwds':{'percentile':90,}},
+                {'func':'freq_perc','name':'perc_95','kwds':{'percentile':95,}},
+                {'func':'freq_perc','name':'perc_99','kwds':{'percentile':99,}}
                ]
         calc_grouping = ['month']
         

@@ -56,6 +56,10 @@ class RequestDataset(object):
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,
                  time_region=None,level_range=None,s_proj=None,t_units=None,
                  t_calendar=None,did=None,meta=None):
+        ## this variable is used in the __del__ method. set before any other
+        ## operations to ensure smooth cleanup.
+        self._ds = None
+        
         self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
@@ -67,7 +71,6 @@ class RequestDataset(object):
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did
         self.meta = meta or {}
-        self._ds = None
         
         self._format_()
     

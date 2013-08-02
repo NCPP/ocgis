@@ -112,6 +112,13 @@ class RequestDataset(object):
             self._ds = self._Dataset(**iface)
         return(self._ds)
     
+    def __del__(self):
+        if self._ds is not None:
+            try:
+                self._ds.close()
+            except:
+                pass
+    
     @property
     def interface(self):
         attrs = ['s_proj','t_units','t_calendar']

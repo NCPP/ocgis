@@ -131,7 +131,7 @@ class OcgFunction(object):
             fill.data[idx] = calc
         ## if data is calculated on raw values, but area-weighting is required
         ## aggregate the data using provided weights.
-        if self.agg:
+        if self.agg and self._is_aggregated_(fill) is False:
             ret = self.aggregate_spatial(fill)
         else:
             ret = fill
@@ -179,6 +179,16 @@ class OcgFunction(object):
         mask[:] = values.mask[0,0,:]
         fill = np.ma.array(fill,mask=mask)
         return(fill)
+    
+    def _is_aggregated_(self,fill):
+        '''
+        Based on the shape of `fill`, return True if the data is spatially aggregated.
+        '''
+        if np.all(fill[-2:] == (1,1)):
+            ret = True
+        else:
+            ret = False
+        return(ret)
         
     def format(self):
         raise(NotImplementedError)
@@ -229,7 +239,7 @@ class OcgCvArgFunction(OcgArgFunction):
                 calc = self._calculate_(**kwds)
                 calc = self.aggregate_temporal(calc)
                 fill[idx] = calc
-        if self.agg:
+        if self.agg and self._is_aggregated_(fill) is False:
             ret = self.aggregate_spatial(fill)
         else:
             ret = fill

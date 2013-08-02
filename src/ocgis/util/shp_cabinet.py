@@ -236,20 +236,13 @@ class ShpCabinet(object):
             except KeyError:
                 row = []
                 for h in headers:
-                    try:
-                        x = dct[h]
-                    except KeyError:
-                        x = dct[h.lower()]
+                    x = self._get_(dct,h)
                     row.append(x)
             writer.writerow(row)
             feat = ogr.Feature(feature_def)
             for o in ogr_fields:
                 args = [o.ogr_name,None]
-                try:
-                    args[1] = dct[o.ogr_name.lower()]
-                except KeyError:
-                    args[1] = dct[o.ogr_name]
-#                args = [o.ogr_name,o.convert(dct[o.ogr_name.lower()])]
+                args[1] = self._get_(dct,o.ogr_name)
                 try:
                     feat.SetField(*args)
                 except NotImplementedError:
@@ -267,7 +260,11 @@ class ShpCabinet(object):
         try:
             ret = dct[key]
         except KeyError:
-            ret = dct[key.lower()]
+            try:
+                ret = dct[key.lower()]
+            except KeyError:
+                mp = {key.lower():key for key in dct.keys()}
+                ret = dct[mp[key.lower()]]
         return(ret)
 
     def _get_ogr_fields_(self,headers,row):

@@ -128,7 +128,16 @@ class OgrField(object):
         if self._conv is None:
             return(val)
         else:
-            return(self._conv(val))
+            try:
+                return(self._conv(val))
+            except TypeError:
+                ## if the value is None, do not make the conversion but pass
+                ## through.
+                if val is None:
+                    return(val)
+                else:
+                    raise
+
         
 class FieldCache(object):
     """Manage shapefile fields names."""

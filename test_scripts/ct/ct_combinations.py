@@ -5,6 +5,7 @@ import itertools
 from tempfile import mkdtemp
 import shutil
 from ocgis.exc import DefinitionValidationError
+import datetime
 
 
 def get_parameters():
@@ -20,7 +21,7 @@ def get_parameter_class(name):
             if sc.name == name:
                 return(sc)
 
-def iter_combinations(start=0,execute=True):
+def iter_combinations(start=0,execute=True,verbose=False,debug=False):
     iterators = [parm() for parm in get_parameters()]
     klasses = get_parameters()
     for ctr,combo in enumerate(itertools.product(*iterators)):
@@ -49,16 +50,15 @@ def iter_combinations(start=0,execute=True):
                 continue
             ## execute the operation
             try:
-                print(ctr)
-                ocgis.env.VERBOSE = True
+                print(ctr,str(datetime.datetime.now()))
+                ocgis.env.VERBOSE = verbose
+                ocgis.env.DEBUG = debug
                 ops = ocgis.OcgOperations(**kwargs)
                 if execute:
                     print(ops)
                     ret = ops.execute()
             except DefinitionValidationError as e:
                 check_exception(kwargs,e)
-            except:
-                raise
         finally:
             shutil.rmtree(dir_output)
             
@@ -86,4 +86,5 @@ def check_exception(kwargs,e):
         raise(e)
         
         
-iter_combinations(start=5696,execute=True)
+iter_combinations(start=6210,execute=True,verbose=True,debug=False)
+#iter_combinations(start=0,execute=True,verbose=True)

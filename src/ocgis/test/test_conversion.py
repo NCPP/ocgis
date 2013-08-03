@@ -4,6 +4,9 @@ import ocgis
 import netCDF4 as nc
 import os
 from ocgis.util.helpers import ShpIterator
+from ocgis.api.operations import OcgOperations
+from collections import OrderedDict
+import fiona
 
 
 class Test(TestBase):
@@ -73,6 +76,23 @@ class Test(TestBase):
         with open(os.path.join(os.path.split(ret)[0],'ocgis_output_metadata.txt')) as f:
             lines = f.readlines()
         self.assertEqual(lines[3],'This is OpenClimateGIS-related metadata. Data-level metadata may be found in the file named: ocgis_output_source_metadata.txt\n')
+
+    def test_shp_with_frequency_duration(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2003,2004]}})
+        calc=[{'name': 'freq_duration', 'func': 'freq_duration', 'kwds': OrderedDict([('threshold', 250), ('operation', 'gte')])}]
+        ops = OcgOperations(dataset=rd,calc_grouping=('year',),output_format="shp",select_ugid=(14, 16),
+         aggregate=True,geom='state_boundaries',spatial_operation="clip",calc=calc,
+         )
+        ret = ops.execute()
+        
+        years = []
+        ugid = []
+        with fiona.open(ret,'r') as source:
+            for feature in source:
+                years.append(int(feature['properties']['YEAR']))
+                ugid.append(int(feature['properties']['UGID']))
+        self.assertEqual(set(years),set([2003,2004]))
+        self.assertEqual(set(ugid),set([14,16]))
 
 
 if __name__ == "__main__":

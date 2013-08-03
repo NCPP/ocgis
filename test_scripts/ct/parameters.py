@@ -162,7 +162,7 @@ class Geometry(AbstractParameter):
     
     @property
     def values(self):
-        states = ['state_boundaries',[14,16,32]]
+        states = ['state_boundaries',[14,16]]
         city_centroids = ['gg_city_centroids',None]
         us_counties = ['us_counties',[1337,1340]]
         huc8 = ['WBDHU8_June2013',[472]]
@@ -172,7 +172,7 @@ class Geometry(AbstractParameter):
 class OutputFormat(AbstractParameter):
     name = 'output_format'
     values = ['csv+','nc','shp','csv']
-    counters = [Counter(lambda x: x in ('shp','csv'),limit=1)]
+    counters = [Counter(lambda x: x in ('shp','csv'),limit=3)]
 
     
 class SpatialOperation(AbstractParameter):

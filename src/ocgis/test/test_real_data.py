@@ -75,6 +75,15 @@ class Test(TestBase):
                    calc_grouping=calc_grouping,prefix=key)
             ret = ops.execute()
             
+    def test_clip_aggregate(self):
+        ## this geometry was hanging
+#        ocgis.env.VERBOSE = True
+#        ocgis.env.DEBUG = True
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2003]}})
+        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[14,16],
+                            aggregate=False,spatial_operation='clip',output_format='csv+')
+        ret = ops.execute()
+            
     def test_QED_2013(self):
         raise(SkipTest('data changes rapidly - for development purposes only'))
         variable = 'tasmax'

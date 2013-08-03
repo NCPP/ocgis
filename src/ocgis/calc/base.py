@@ -184,7 +184,7 @@ class OcgFunction(object):
         '''
         Based on the shape of `fill`, return True if the data is spatially aggregated.
         '''
-        if np.all(fill[-2:] == (1,1)):
+        if np.all(fill.shape[-2:] == (1,1)):
             ret = True
         else:
             ret = False

@@ -66,7 +66,7 @@ class RequestDataset(object):
         self.time_range = deepcopy(time_range)
         self.time_region = deepcopy(time_region)
         self.level_range = deepcopy(level_range)
-        self.s_proj = s_proj
+        self.s_proj = deepcopy(s_proj)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did

@@ -124,7 +124,7 @@ def get_collection((so,geom,logger)):
     for request_dataset in so.ops.dataset:
         ## reference the request dataset alias
         alias = request_dataset.alias
-        ocgis_lh('processing',logger,level=logging.DEBUG,alias=alias,ugid=ugid)
+        ocgis_lh('processing',logger,level=logging.INFO,alias=alias,ugid=ugid)
         ## copy the geometry
         copy_geom = deepcopy(geom)
         ## reference the dataset object
@@ -167,7 +167,8 @@ def get_collection((so,geom,logger)):
                     temporal = None
                 else:
                     temporal = request_dataset.time_range or request_dataset.time_region
-
+                
+                ocgis_lh('executing get_subset',logger,level=logging.DEBUG)
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
                                      igeom=igeom,
                                      temporal=temporal,
@@ -243,5 +244,5 @@ def get_collection((so,geom,logger)):
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)
     else:
-        ocgis_lh('subset returning',logger,level=logging.DEBUG)
+        ocgis_lh('subset returning',logger,level=logging.INFO)
         return(coll)

@@ -37,19 +37,22 @@ class CsvPlusConverter(CsvConverter):
         build = True
         is_aggregated = self.ops.aggregate
         with open(self.path,'w') as f:
+            ocgis_lh(msg='opened csv file: {0}'.format(self.path),level=logging.DEBUG,
+                     logger='conv.csv+')
             writer = csv.writer(f,dialect=OcgDialect)
             for coll in self:
+                ocgis_lh('writing collection','conv.csv+',level=logging.DEBUG)
                 if build:
+                    ocgis_lh('starting build','conv.csv+',level=logging.DEBUG)
                     headers = coll.get_headers(upper=True)
                     if env.WRITE_TO_REFERENCE_PROJECTION:
                         projection = env.REFERENCE_PROJECTION
                     else:
                         projection = coll._archetype.spatial.projection
-#                    ugid_idx = headers.index('UGID')
-#                    gid_idx = headers.index('GID')
-#                    did_idx = headers.index('DID')
                     writer.writerow(headers)
                     build = False
+                    ocgis_lh(msg='build finished'.format(self.path),level=logging.DEBUG,
+                     logger='conv.csv+')
                 for geom,row,geom_ids in coll.get_iter(with_geometry_ids=True):
                     if not is_aggregated:
                         ugid = geom_ids['ugid']
@@ -60,16 +63,15 @@ class CsvPlusConverter(CsvConverter):
                         if did not in gid_file[ugid]:
                             gid_file[ugid][did] = OrderedDict()
                         gid_file[ugid][did][gid] = geom
-#                        gid_file.append({'geom':geom,'did':row[did_idx],
-#                                         'ugid':row[ugid_idx],'gid':row[gid_idx]})
                     writer.writerow(row)
+                ocgis_lh('finished writing collection','conv.csv+',level=logging.DEBUG)
         
         if is_aggregated is True:
             ocgis_lh('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.',
-                     'conv',
+                     'conv.csv+',
                      logging.WARN)
         else:
-            ocgis_lh('writing UGID-GID shapefile','conv',logging.DEBUG)
+            ocgis_lh('writing UGID-GID shapefile','conv.csv+',logging.DEBUG)
             sc = ShpCabinet()
             shp_dir = os.path.join(self.outdir,'shp')
             try:

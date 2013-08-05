@@ -168,11 +168,13 @@ class Test(TestBase):
         threshold = ret[2762].calc['tasmax']['threshold']
         self.assertEqual(threshold.flatten()[0],62)
     
-    def test_HeatIndex(self):
+    def test_heat_index(self):
         ocgis.env.OVERWRITE = True
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
         ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
+        geom = 'state_boundaries'
+        select_ugid = [25]
         
         ## operations on entire data arrays
         ops = OcgOperations(dataset=ds,calc=calc)
@@ -190,16 +192,16 @@ class Test(TestBase):
         self.assertTrue(hi.mask.any())
         
         ## snippet-based testing
-        ops = OcgOperations(dataset=ds,calc=calc,snippet=True)
+        ops = OcgOperations(dataset=ds,calc=calc,snippet=True,geom=geom,select_ugid=select_ugid)
         ret = ops.execute()
-        self.assertEqual(ret[1].calc['heat_index'].shape,(1,1,64,128))
+        self.assertEqual(ret[25].calc['heat_index'].shape,(1,1,5,4))
         ops = OcgOperations(dataset=ds,calc=calc,snippet=True,output_format='csv')
         ret = ops.execute()
                 
         # try temporal grouping
-        ops = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'])
+        ops = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'],geom='state_boundaries',select_ugid=select_ugid)
         ret = ops.execute()
-        self.assertEqual(ret[1].calc['heat_index'].shape,(12,1,64,128))
+        self.assertEqual(ret[25].calc['heat_index'].shape,(12,1,5,4))
         ret = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'],
                             output_format='csv',snippet=True).execute()
 

@@ -37,7 +37,7 @@ class Test(TestBase):
         ocgis.env.DIR_SHPCABINET = dir_shpcabinet or ocgis.env.DIR_SHPCABINET
         sc = ShpCabinet()
         ret = sc.keys()
-        target_keys = ['state_boundaries','us_counties','mi_watersheds','world_countries','climate_divisions','urban_areas_2000','co_watersheds']
+        target_keys = ['state_boundaries','world_countries']
         self.assertEqual(len(set(target_keys).intersection(set(ret))),len(target_keys))
         
     def test_load_all(self):
@@ -50,9 +50,10 @@ class Test(TestBase):
     def test_shapefiles_not_in_folders(self):
         for dirpath,dirnames,filenames in os.walk(ocgis.env.DIR_SHPCABINET):
             for filename in filenames:
-                dst = os.path.join(self._test_dir,filename)
-                src = os.path.join(dirpath,filename)
-                shutil.copy2(src,dst)
+                if filename.startswith('state_boundaries') or filename.startswith('world_countries'):
+                    dst = os.path.join(self._test_dir,filename)
+                    src = os.path.join(dirpath,filename)
+                    shutil.copy2(src,dst)
         self.test_get_keys(dir_shpcabinet=self._test_dir)
         
         sc = ShpCabinet(path=self._test_dir)

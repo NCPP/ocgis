@@ -2,7 +2,7 @@ from datetime import datetime
 from copy import deepcopy
 import os
 from ocgis import env
-from ocgis.util.helpers import locate
+from ocgis.util.helpers import locate, validate_time_subset
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
 from ocgis.util.inspect import Inspect
@@ -211,15 +211,15 @@ class RequestDataset(object):
         return(ret)
     
     def _format_(self):
-        ## only a time range or time region is acceptable
-        if self.time_range is not None and self.time_region is not None:
-            raise(DefinitionValidationError('dataset','only a time range or time region may be set - not both.'))
         if self.time_range is not None:
             self._format_time_range_()
         if self.time_region is not None:
             self._format_time_region_()
         if self.level_range is not None:
             self._format_level_range_()
+        ## ensure the time range and region overlaps
+        if not validate_time_subset(self.time_range,self.time_region):
+            raise(DefinitionValidationError('dataset','the time_range and time_region do not overlap'))
     
     def _format_time_range_(self):
         try:

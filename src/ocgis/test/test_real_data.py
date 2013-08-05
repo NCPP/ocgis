@@ -5,6 +5,8 @@ from unittest.case import SkipTest
 from ocgis.api.operations import OcgOperations
 from ocgis.interface.nc.dataset import NcDataset
 import webbrowser
+from datetime import datetime as dt
+from ocgis.exc import DefinitionValidationError
 
 
 class Test(TestBase):
@@ -13,7 +15,7 @@ class Test(TestBase):
         _output_format = ['numpy','nc','csv','csv+']
         for output_format in _output_format:
             rd = self.test_data.get_rd('cancm4_tas')
-            ops = OcgOperations(dataset=rd,geom='gg_city_centroids',output_format=output_format,
+            ops = OcgOperations(dataset=rd,geom='qed_city_centroids',output_format=output_format,
                                 prefix=output_format)
             ret = ops.execute()
             if output_format == 'numpy':
@@ -45,6 +47,23 @@ class Test(TestBase):
             
         for month,year in itertools.product(_month,_year):
             run_test(month,year)
+            
+    def test_time_range_time_region_subset(self):
+        time_range = [dt(2013,1,1),dt(2015,12,31)]
+        time_region = {'month':[6,7,8],'year':[2013,2014]}
+        kwds = {'time_range':time_range,'time_region':time_region}
+        rd = self.test_data.get_rd('cancm4_rhs',kwds=kwds)
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        ref = ret[25].variables['rhs']
+        years = set([obj.year for obj in ref.temporal.value])
+        self.assertFalse(2015 in years)
+        
+        time_range = [dt(2013,1,1),dt(2015,12,31)]
+        time_region = {'month':[6,7,8],'year':[2013,2014,2018]}
+        kwds = {'time_range':time_range,'time_region':time_region}
+        with self.assertRaises(DefinitionValidationError):
+            self.test_data.get_rd('cancm4_rhs',kwds=kwds)
             
     def test_maurer_2010(self):
         ## inspect the multi-file maurer datasets

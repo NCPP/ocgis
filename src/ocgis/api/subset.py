@@ -173,6 +173,12 @@ def get_collection((so,geom,logger)):
                                      igeom=igeom,
                                      temporal=temporal,
                                      level=request_dataset.level_range)
+                
+                ## for the case of time range and time region subset, apply the
+                ## time region subset following the time range subset.
+                if request_dataset.time_range is not None and request_dataset.time_region is not None:
+                    ods._temporal = ods.temporal.subset(request_dataset.time_region)
+                
                 ## aggregate the geometries and data if requested
                 if so.ops.aggregate:
                     ocgis_lh('aggregating target geometries and area-weighting values',

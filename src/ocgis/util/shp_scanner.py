@@ -11,9 +11,11 @@ from ConfigParser import SafeConfigParser, NoOptionError
 from sqlalchemy.orm.exc import NoResultFound
 from collections import OrderedDict
 import json
+from tempfile import mkstemp
 
 
-db_path = '/tmp/foo.sqlite'
+#db_path = '/tmp/foo.sqlite'
+fd,db_path = mkstemp(suffix='.sqlite')
 json_path = '/tmp/ocgis_geometries.json'
 connstr = 'sqlite:///{0}'.format(db_path)
 engine = create_engine(connstr)
@@ -131,6 +133,7 @@ def build_database():
             'state_boundaries',
             'us_counties',
             'WBDHU8_June2013',
+            'qed_city_centroids'
             ]
     
     for key in keys:

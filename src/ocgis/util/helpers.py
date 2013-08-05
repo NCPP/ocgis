@@ -18,6 +18,20 @@ import datetime
 
 
 def validate_time_subset(time_range,time_region):
+    '''
+    Ensure `time_range` and `time_region` overlap. If one of the values is `None`, the
+    function always returns `True`. Function will return `False` if the two time range
+    descriptions do not overlap.
+    
+    :param time_range: Sequence with two datetime elements.
+    :type time_range: sequence
+    :param time_region: Dictionary with two keys 'month' and 'year' each containing
+    an integer sequence corresponding to the respective time parts. For example:
+    >>> time_region = {'month':[1,2],'year':[2013]}
+    If a 'month' or 'year' key is missing, the key will be added with a default of `None`.
+    :type time_region: dict
+    :rtype: bool
+    '''
     
     def _between_(target,lower,upper):
         if target >= lower and target <= upper:

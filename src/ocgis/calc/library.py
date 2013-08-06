@@ -5,6 +5,7 @@ from ocgis.util.helpers import iter_array
 from ocgis.calc.base import KeyedFunctionOutput
 from ocgis.constants import np_int
 from ocgis.exc import DefinitionValidationError
+import datetime
 
 
 class FrequencyPercentile(OcgArgFunction):
@@ -201,6 +202,91 @@ class FrequencyDuration(KeyedFunctionOutput,Duration):
     def validate(cls,ops):
         KeyedFunctionOutput.validate(ops)
         Duration.validate(ops)
+        
+
+class QEDDynamicPercentileThreshold(OcgArgFunction):
+    name = 'qed_dynamic_perc'
+    nargs = 3
+    Group = groups.Thresholds
+    dtype = np.float32
+    description = 'Compares to a dynamic base dataset of daily thresholds. Only relevant for daily Maurer spatially coincident with QED City Centroids or North Carolina. Only works for "standard" calendars.'
+    
+    def __init__(self,*args,**kwds):
+        super(self.__class__,self).__init__(*args,**kwds)
+        self.__map_day_index = None
+    
+    def _calculate_(self,values,percentile=None,operation=None):
+        import ipdb;ipdb.set_trace()
+        
+    @property
+    def _map_day_index(self):
+        if self.__map_day_index is None:
+            self.__map_day_index = {key:self._get_day_index_reference_(year) for key,year in zip(['leap','noleap'],[1996,1995])}
+        return(self.__map_day_index)
+    
+    def _get_day_index_reference_(self,year):
+        store = []
+        delta = datetime.timedelta(days=1)
+        start = datetime.datetime(year,1,1)
+        ctr = 1
+        while start <= datetime.datetime(year,12,31):
+            store.append([start.month,start.day,ctr])
+            ctr += 1
+            start += delta
+        fill = np.empty(len(store),dtype=[('month',int),('day',int),('index',int)])
+        for ii,row in enumerate(store):
+            fill[ii] = tuple(row)
+        return(fill)
+    
+    def _get_day_index_(self,dates):
+        ## make date index
+        fill_day_idx = np.empty(len(dates),dtype=[('index',int),('is_leap',bool)])
+        ## make leap year designation
+        is_leap_year = np.array([self._get_is_leap_year_(dt.year) for dt in dates])
+        ## reference the day index
+        map_day_index = self._map_day_index
+        ## calculate index for each date
+        for ii,date in enumerate(dates.flat):
+            if is_leap_year[ii]:
+                key = 'leap'
+            else:
+                key = 'noleap'
+            ref_map_day_index = map_day_index[key]
+            idx1 = ref_map_day_index['month'] == date.month
+            idx2 = ref_map_day_index['day'] == date.day
+            idx = np.logical_and(idx1,idx2)
+            fill_day_idx[ii] = (ref_map_day_index[idx]['index'][0],is_leap_year[ii])
+        return(fill_day_idx)
+    
+    def _get_dynamic_index_(self,k):
+        ref_idx = k['index']
+        if k['is_leap']:
+            if ref_idx in (1,2):
+                ret = 1
+            elif ref_idx >= 3 and ref_idx <= 59:
+                ret = ref_idx - 2
+            elif ref_idx >= 60 and ref_idx <= 364:
+                ret = ref_idx - 3
+            elif ref_idx in (365,366):
+                ret = 361
+            else:
+                raise(NotImplementedError)
+        else:
+            if ref_idx in (1,2):
+                ret = 1
+            elif ref_idx >= 364:
+                ret = 361
+            else:
+                ret = ref_idx - 2
+        return(ret)
+        
+    def _get_is_leap_year_(self,year):
+        try:
+            datetime.datetime(year,2,29)
+            is_leap = True
+        except ValueError:
+            is_leap = False
+        return(is_leap)
 
 
 class Between(OcgArgFunction):

@@ -137,7 +137,7 @@ class AbstractVectorDimension(object):
         if self.bounds is None:
             bounds = None
         else:
-            bounds = self.bounds[slc,:]
+            bounds = np.atleast_2d(self.bounds[slc,:])
         uid = np.atleast_1d(self.uid[slc])
         real_idx = np.atleast_1d(self.real_idx[slc])
         ret = self.__class__(value=value,bounds=bounds,
@@ -218,7 +218,7 @@ class AbstractVectorDimension(object):
                 idx = np.logical_and(lidx,uidx)
                 if not idx.any():
                     raise(EmptyData('temporal subset returned empty'))
-            bounds = self.bounds[idx,:]
+            bounds = np.atleast_2d(self.bounds[idx,:])
 
         ret = self.__class__(value=self.value[idx],bounds=bounds,
                              uid=self.uid[idx],real_idx=self.real_idx[idx],
@@ -295,7 +295,9 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
             new_value[idx] = tuple(select[idx])
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
-
+        
+        new_bounds = np.atleast_2d(new_bounds)
+        new_value = np.atleast_1d(new_value)
         self.group = self._dtemporal_group_dimension(grouping,new_value,new_bounds,dgroups)
 
     
@@ -305,8 +307,8 @@ class AbstractTemporalGroupDimension(AbstractVectorDimension,AbstractInterfaceDi
     def __init__(self,grouping,value,bounds,dgroups,uid=None):
         self.grouping = grouping
 #        self.parent = parent
-        self.value = value
-        self.bounds = bounds
+        self.value = np.atleast_1d(value)
+        self.bounds = np.atleast_2d(bounds)
         self.dgroups = dgroups
         if uid is None:
             uid = np.arange(1,self.value.shape[0]+1,dtype=int)

@@ -9,15 +9,31 @@ from datetime import datetime as dt
 from ocgis.exc import DefinitionValidationError
 import numpy as np
 import datetime
+import netCDF4 as nc
+import os
 
 
 class Test(TestBase):
     
+    def test_qed_multifile(self):
+        raise(SkipTest('dev'))
+        ddir = '/usr/local/climate_data/QED-2013/multifile'
+        variable = 'txxmmedm'
+        ocgis.env.DIR_DATA = ddir
+        
+        uri = ['maurer02v2_median_txxmmedm_january_1971-2000.nc',
+               'maurer02v2_median_txxmmedm_february_1971-2000.nc',
+               'maurer02v2_median_txxmmedm_march_1971-2000.nc']
+        
+        rd = ocgis.RequestDataset(uri,variable)
+        ref = rd.ds
+    
     def test_maurer_concatenated_shp(self):
+        raise(SkipTest('dev'))
         ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
 #        filename = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
 #        variable = 'tasmax'
-        ocgis.env.VERBOSE = True
+#        ocgis.env.VERBOSE = True
         
         names = [
 #         [u'Maurer02new_OBS_dtr_daily.1971-2000.nc'],
@@ -99,7 +115,10 @@ class Test(TestBase):
             months = [dt.month for dt in ret.flat]
             
             if year is not None:
-                self.assertEqual(set(years),set(year))
+                try:
+                    self.assertEqual(set(years),set(year))
+                except:
+                    import ipdb;ipdb.set_trace()
             if month is not None:
                 self.assertEqual(set(months),set(month))
             
@@ -163,21 +182,21 @@ class Test(TestBase):
         ret = ops.execute()
             
     def test_QED_2013(self):
-        raise(SkipTest('data changes rapidly - for development purposes only'))
-        variable = 'tasmax'
-        ocgis.env.DIR_DATA = '/usr/local/climate_data/QED-2013'
-        files = ['Maurer_11day_double_tasmax.nc','Maurer_11day_float_tasmax.nc']
-        rds = [ocgis.RequestDataset(f,variable,alias=f) for f in files]
-        calc = [{'func':'mean','name':'mean'},{'func':'median','name':'median'}]
-        calc_grouping = ['month']
+        variable = 'rx1dayamina'
+        uri = '/home/local/WX/ben.koziol/climate_data/QED-2013/maurer02v2_min_rx1dayamina_annual_1971-2000.nc'
         
-        for rd in rds:
-            dct = rd.inspect_as_dct()
-            
-        ops = ocgis.OcgOperations(dataset=rds,snippet=False,select_ugid=[10,15],
-                   output_format='csv+',geom='state_boundaries',calc=calc,
-                   calc_grouping=calc_grouping)
+        rd = ocgis.RequestDataset(uri,variable,time_region={'year':[1991],'month':[5]},
+                                  time_range=[datetime.datetime(1971, 1, 1, 0, 0), datetime.datetime(2001, 1, 1, 0, 0)])
+        
+        ops = ocgis.OcgOperations(dataset=rd)
         ret = ops.execute()
+        ref = ret[1].variables['rx1dayamina']
+        ds = nc.Dataset('/home/local/WX/ben.koziol/climate_data/QED-2013/maurer02v2_min_rx1dayamina_annual_1971-2000.nc')
+        try:
+            ref2 = ds.variables['rx1dayamina'][:]
+            self.assertNumpyAll(ref.value,ref2)
+        finally:
+            ds.close()
         
     def test_narccap_point_subset_small(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')

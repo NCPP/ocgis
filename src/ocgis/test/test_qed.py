@@ -3,6 +3,7 @@ from ocgis.test.base import TestBase
 import ocgis
 from ocgis.calc.library import QEDDynamicPercentileThreshold
 import numpy as np
+from unittest.case import SkipTest
 
 
 class TestDynamicPercentiles(TestBase):
@@ -22,6 +23,7 @@ class TestDynamicPercentiles(TestBase):
         print(self.get_file(dir_output))
         
     def test_get_day_index(self):
+        raise(SkipTest('dev'))
         uri = '/home/local/WX/ben.koziol/climate_data/snippets/subset_1995-1997_Maurer02new_OBS_tasmax_daily.1971-2000.nc'
         variable = 'tasmax'
         rd = ocgis.RequestDataset(uri,variable)
@@ -32,16 +34,17 @@ class TestDynamicPercentiles(TestBase):
         return(di)
         
     def test_is_leap_year(self):
+        raise(SkipTest('dev'))
         years = np.array([1995,1996,1997])
         qdt = QEDDynamicPercentileThreshold()
         is_leap = map(qdt._get_is_leap_year_,years)
         self.assertNumpyAll(is_leap,[False,True,False])
         
     def test_get_dynamic_index(self):
+        raise(SkipTest('dev'))
         di = self.test_get_day_index()
         qdt = QEDDynamicPercentileThreshold()
         dyidx = map(qdt._get_dynamic_index_,di.flat)
-        import ipdb;ipdb.set_trace()
 
 
 if __name__ == "__main__":

@@ -115,10 +115,7 @@ class Test(TestBase):
             months = [dt.month for dt in ret.flat]
             
             if year is not None:
-                try:
-                    self.assertEqual(set(years),set(year))
-                except:
-                    import ipdb;ipdb.set_trace()
+                self.assertEqual(set(years),set(year))
             if month is not None:
                 self.assertEqual(set(months),set(month))
             
@@ -250,3 +247,34 @@ class Test(TestBase):
         ret = ops.execute()
         webbrowser.open(ret)
         import ipdb;ipdb.set_trace()
+        
+    def test_time_region_climatology(self):
+        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        
+        uri = 'climatology_TNn_monthly_max.nc'
+        variable = 'climatology_TNn_monthly_max'
+        rd = ocgis.RequestDataset(uri,variable,time_region={'year':[1989],'month':[6]})
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        ret = ops.execute()
+        ref = ret[16].variables['climatology_TNn_monthly_max']
+        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value]))
+        
+        rd = ocgis.RequestDataset('climatology_TNn_annual_min.nc','climatology_TNn_annual_min')
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        ret = ops.execute()
+        ref = ret[16].variables['climatology_TNn_annual_min']
+        
+        rd = ocgis.RequestDataset('climatology_TasMin_seasonal_max_of_seasonal_means.nc','climatology_TasMin_seasonal_max_of_seasonal_means')#,time_region={'year':[1989]})
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        ret = ops.execute()
+        ref = ret[16].variables['climatology_TasMin_seasonal_max_of_seasonal_means']
+        
+        uri = 'climatology_Tas_annual_max_of_annual_means.nc'
+        variable = 'climatology_Tas_annual_max_of_annual_means'
+        rd = ocgis.RequestDataset(uri,variable)
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        ret = ops.execute()
+        ref = ret[16].variables[variable]
+        
+if __name__ == '__main__':
+    unittest.main()

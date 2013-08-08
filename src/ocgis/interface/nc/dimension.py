@@ -156,22 +156,48 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                             start += delta
                         return(parts_months,parts_years)
                     
+                    ## get the temporal resolution
+                    try:
+                        res = self.resolution
+                        if res > 28 and res < 31:
+                            res = 'month'
+                        else:
+                            res = 'day'
+                    except TemporalResolutionError:
+                        res = 'day'
+                    
                     ## assemble ranges from the bounds
                     select_years = np.zeros(self.bounds.shape[0],dtype=bool)
                     select_months = np.zeros(self.bounds.shape[0],dtype=bool)
-                    for ii in range(self.bounds.shape[0]):
-                        row = self.bounds[ii]
-                        p_months,p_years = _get_parts_(row[0],row[1])
-                        if regions['month'] is not None:
-                            if any([month in p_months for month in regions['month']]):
-                                select_months[ii] = True
-                        else:
+                    if res == 'day':
+                        for ii in range(self.bounds.shape[0]):
+                            row = self.bounds[ii]
+                            p_months,p_years = _get_parts_(row[0],row[1])
+                            if regions['month'] is not None:
+                                if any([month in p_months for month in regions['month']]):
+                                    select_months[ii] = True
+                            else:
+                                select_months[:] = True
+                            if regions['year'] is not None:
+                                if any([year in p_years for year in regions['year']]):
+                                    select_years[ii] = True
+                            else:
+                                select_years[:] = True
+                    elif res == 'month':
+                        if regions['month'] is None:
                             select_months[:] = True
-                        if regions['year'] is not None:
-                            if any([year in p_years for year in regions['year']]):
-                                select_years[ii] = True
                         else:
+                            for ii in range(self.value.shape[0]):
+                                if self.value[ii].month in regions['month']:
+                                    select_months[ii] = True
+                        if regions['year'] is None:
                             select_years[:] = True
+                        else:
+                            for ii in range(self.bounds.shape[0]):
+                                row = self.bounds[ii]
+                                p_months,p_years = _get_parts_(row[0],row[1])
+                                if any([year in p_years for year in regions['year']]):
+                                    select_years[ii] = True
                     select = np.logical_and(select_years,select_months)
                     ret = self[select]
         return(ret)

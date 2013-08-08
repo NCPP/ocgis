@@ -113,10 +113,10 @@ class NcDataset(base.AbstractDataset):
             if self.spatial.vector._geom is not None:
                 self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
             
-            assert(self.value.shape[0],self.temporal.value.shape[0])
-            assert(self.value.shape[2:],self.spatial.grid.shape)
+            assert(self.value.shape[0] == self.temporal.value.shape[0])
+            assert(self.value.shape[2:] == self.spatial.grid.shape)
             try:
-                assert(self.value.shape[1],self.level.value.shape[0])
+                assert(self.value.shape[1] == self.level.value.shape[0])
             ## might be a dummy level
             except AttributeError:
                 if self.level is None:

@@ -187,6 +187,29 @@ class MultivariateCalcCollection(CalcCollection):
 
 class KeyedOutputCalcCollection(CalcCollection):
     
+    def get_headers(self,upper=False):
+        ## headers may have been overloaded by operations.
+        try:
+            if env.ops.headers is None: #@UndefinedVariable
+                headers = self._get_headers_()
+            else:
+                headers = env.ops.headers #@UndefinedVariable
+        except AttributeError:
+            ## env.ops likely not present
+            headers = self._get_headers_()
+            
+        ## needed in case headers are overloaded
+        ref = self._get_target_ref_()
+        for output_key in ref.output_keys:
+            if output_key not in headers:
+                headers = list(headers) + [output_key]
+                
+        if upper:
+            ret = [h.upper() for h in headers]
+        else:
+            ret = headers
+        return(ret)
+    
     def _get_iter_(self):
 #        headers = self._get_headers_()
         vid = 1

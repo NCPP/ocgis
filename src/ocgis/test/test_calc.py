@@ -85,6 +85,21 @@ class Test(TestBase):
                     pass
             else:
                 raise(dct['exception'])
+            
+    def test_frequency_duration_real_data(self):
+        uri = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
+        variable = 'tasmax'
+        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        
+        for output_format in ['csv','csv+','shp']:
+            ops = OcgOperations(dataset={'uri':uri,'variable':variable,'time_range':[datetime.datetime(1971, 1, 1, 0, 0), datetime.datetime(1972, 12, 31, 0, 0)]},
+                                output_format=output_format,prefix=output_format,
+                                calc=[{'name': 'Frequency Duration', 'func': 'freq_duration', 'kwds': {'threshold': 20.0, 'operation': 'gte'}}],
+                                calc_grouping=['month','year'],
+                                geom='qed_city_centroids',select_ugid=[1,2,3],aggregate=True,
+                                calc_raw=False,
+                                headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_name', 'value'],)
+            ret = ops.execute()
     
     def test_duration(self):
         duration = Duration()

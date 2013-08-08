@@ -213,6 +213,9 @@ class OcgOperations(object):
             assert(self.output_format == 'nc')
             assert(self.calc is not None)
         if self.output_format == 'nc':
+            if len(self.dataset) > 1:
+                msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
+                _raise_(msg,OutputFormat)
             if self.spatial_operation != 'intersects':
                 msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
                 _raise_(msg,OutputFormat)

@@ -22,7 +22,6 @@ class Test(TestBase):
         ocgis.env.DEBUG = True
         constants.test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
-        import ipdb;ipdb.set_trace()
     
     def test_entirely_bad_location(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir

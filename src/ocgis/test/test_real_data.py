@@ -259,6 +259,14 @@ class Test(TestBase):
         ref = ret[16].variables['climatology_TNn_monthly_max']
         self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value]))
         
+        uri = 'climatology_TNn_monthly_max.nc'
+        variable = 'climatology_TNn_monthly_max'
+        rd = ocgis.RequestDataset(uri,variable,time_region={'year':None,'month':[6]})
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        ret = ops.execute()
+        ref = ret[16].variables['climatology_TNn_monthly_max']
+        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value]))
+        
         rd = ocgis.RequestDataset('climatology_TNn_annual_min.nc','climatology_TNn_annual_min')
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
         ret = ops.execute()

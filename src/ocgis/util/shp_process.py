@@ -5,6 +5,7 @@ import os
 from collections import OrderedDict
 import shutil
 from warnings import warn
+import argparse
 
 
 class ShpProcess(object):
@@ -67,6 +68,23 @@ class ShpProcess(object):
                 yield(feature)
                 
                 
+def main(pargs):
+    sp = ShpProcess(pargs.in_shp)
+    if pargs.folder is None:
+        pargs.folder = os.getcwd()
+    sp.process(pargs.folder,pargs.key,ugid=pargs.ugid)
+                
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='add ugid to shapefile')
+    
+    parser.add_argument('--ugid',help='name of ugid variable, default is None',default=None)
+    parser.add_argument('--folder',help='path to the output folder')
+    parser.add_argument('in_shp',help='path to input shapefile')
+    parser.add_argument('key',help='output key for the shapefile. folder with same name will be created.')
+    
+    parser.set_defaults(func=main)
+    pargs = parser.parse_args()
+    pargs.func(pargs)
 
 
 #################################################################################

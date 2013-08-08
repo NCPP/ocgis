@@ -133,7 +133,8 @@ def build_database():
             'state_boundaries',
             'us_counties',
             'WBDHU8_June2013',
-            'qed_city_centroids'
+            'qed_city_centroids',
+            'eco_level_III_us',
             ]
     
     for key in keys:
@@ -149,7 +150,10 @@ def build_database():
         
         config = SafeConfigParser()
         config.read(cfg_path)
-        ugid = config.get('mapping','ugid')
+        try:
+            ugid = config.get('mapping','ugid')
+        except:
+            ugid = 'UGID'
         category = config.get('mapping','category')
         try:
             subcategory = config.get('mapping','subcategory')
@@ -175,6 +179,8 @@ def build_database():
                 
                 value_name = get_variant(name,feature)
                 value_name_ugid = get_variant(ugid,feature)
+                if len(value_name) > 25:
+                    value_name = value_name[0:25]+'...'
                 db_name = Geometry(value=value_name,ugid=value_name_ugid,category=db_category,
                                subcategory=db_subcategory)
                 session.add(db_name)

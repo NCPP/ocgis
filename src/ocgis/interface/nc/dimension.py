@@ -153,7 +153,7 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
             attrs = gi.metadata['variables'][ret.name]['attrs']
             ret.units = gi._t_units or attrs['units']
             ret.calendar = gi._t_calendar or attrs['calendar']
-            ret.value = nc.num2date(ret.value,ret.units,calendar=ret.calendar)
+            ret.value = np.atleast_1d(nc.num2date(ret.value,ret.units,calendar=ret.calendar))
             cls._to_datetime_(ret.value)
             if ret.bounds is not None:
                 ret.bounds = nc.num2date(ret.bounds,ret.units,calendar=ret.calendar)

@@ -7,6 +7,7 @@ from ocgis.interface.nc.dataset import NcDataset
 import webbrowser
 from datetime import datetime as dt
 from ocgis.exc import DefinitionValidationError
+import numpy as np
 
 
 class Test(TestBase):
@@ -20,6 +21,35 @@ class Test(TestBase):
             ret = ops.execute()
             if output_format == 'numpy':
                 self.assertEqual(len(ret),3)
+                
+    def test_maurer_concatenated_tasmax_region(self):
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
+        filename = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
+        variable = 'tasmax'
+#        ocgis.env.VERBOSE = True
+        
+        rd = ocgis.RequestDataset(filename,variable)
+        ops = ocgis.OcgOperations(dataset=rd,geom='us_counties',select_ugid=[2778],
+                                  output_format='numpy')
+        ret = ops.execute()
+        ref = ret[2778].variables['tasmax']
+        years = np.array([dt.year for dt in ret[2778].variables['tasmax'].temporal.value])
+        months = np.array([dt.month for dt in ret[2778].variables['tasmax'].temporal.value])
+        select = np.array([dt.month in (6,7,8) and dt.year in (1990,1991,1992,1993,1994,1995,1996,1997,1998,1999) for dt in ret[2778].variables['tasmax'].temporal.value])
+        time_subset = ret[2778].variables['tasmax'].value[select,:,:,:]
+        time_values = ref.temporal.value[select]
+        
+        rd = ocgis.RequestDataset(filename,variable,time_region={'month':[6,7,8],'year':[1990,1991,1992,1993,1994,1995,1996,1997,1998,1999]})
+        ops = ocgis.OcgOperations(dataset=rd,geom='us_counties',select_ugid=[2778],
+                                  output_format='numpy')
+        ret2 = ops.execute()
+        ref2 = ret2[2778].variables['tasmax']
+        
+        self.assertEqual(time_values.shape,ref2.temporal.shape)
+        self.assertEqual(time_subset.shape,ref2.value.shape)
+        self.assertNumpyAll(time_subset,ref2.value)
+        self.assertFalse(np.any(ref2.value < 0))
+        
     
     def test_time_region_subset(self):
         
@@ -66,6 +96,7 @@ class Test(TestBase):
             self.test_data.get_rd('cancm4_rhs',kwds=kwds)
             
     def test_maurer_2010(self):
+        raise(SkipTest('dev'))
         ## inspect the multi-file maurer datasets
         keys = ['maurer_2010_pr','maurer_2010_tas','maurer_2010_tasmin','maurer_2010_tasmax']
         calc = [{'func':'mean','name':'mean'},{'func':'median','name':'median'}]

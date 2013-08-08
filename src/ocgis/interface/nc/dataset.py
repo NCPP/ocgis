@@ -93,9 +93,16 @@ class NcDataset(base.AbstractDataset):
                 level_start,level_stop = level[0],level[-1]+1
             
             try:
-                self._value = self._get_numpy_data_(ref,time_start,time_stop,
+                self._value,time_indices = self._get_numpy_data_(ref,time_start,time_stop,
                  row_start,row_stop,column_start,column_stop,level_start=level_start,
-                 level_stop=level_stop)
+                 level_stop=level_stop,return_time_indices=True)
+                ocgis_lh('numpy data pulled','nc.dataset',level=logging.DEBUG)
+                ## apply a temporal subset if the shapes are different. we are
+                ## probably returning more data than is needed by the time region
+                if self._value.shape[0] != self.temporal.value.shape[0]:
+                    ocgis_lh(msg='regionated subset applied',logger='nc.dataset',level=logging.DEBUG)
+                    select = np.array([(self.temporal.real_idx == time_index).sum() == 1 for time_index in time_indices])
+                    self._value = self._value[select,]
             ## likely empty time
             except TypeError:
                 if time_start.shape[0] == 0:
@@ -105,7 +112,18 @@ class NcDataset(base.AbstractDataset):
             
             if self.spatial.vector._geom is not None:
                 self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
-                
+            
+            assert(self.value.shape[0],self.temporal.value.shape[0])
+            assert(self.value.shape[2:],self.spatial.grid.shape)
+            try:
+                assert(self.value.shape[1],self.level.value.shape[0])
+            ## might be a dummy level
+            except AttributeError:
+                if self.level is None:
+                    pass
+                else:
+                    raise
+            
         return(self._value)
     
     def aggregate(self,new_geom_id=1,clip_geom=None):
@@ -430,7 +448,8 @@ class NcDataset(base.AbstractDataset):
         return(mp)
     
     def _get_numpy_data_(self,variable,time_start,time_stop,row_start,row_stop,
-                         column_start,column_stop,level_start=None,level_stop=None):
+                         column_start,column_stop,level_start=None,level_stop=None,
+                         return_time_indices=False):
         if level_start is None:
             npd = variable[time_start:time_stop,row_start:row_stop,
                            column_start:column_stop]
@@ -441,7 +460,13 @@ class NcDataset(base.AbstractDataset):
             npd = np.ma.array(npd,mask=False)
         if len(npd.shape) == 3:
             npd = np.ma.expand_dims(npd,1)
-        return(npd)
+        ## if we return time_indices, add them to the tuple
+        if return_time_indices:
+            time_indices = np.arange(time_start,time_stop)
+            ret = npd,time_indices
+        else:
+            ret = npd
+        return(ret)
             
     def _guess_by_location_(self,dims,target):
         mp = {3:{0:'T',1:'Y',2:'X'},

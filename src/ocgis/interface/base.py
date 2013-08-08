@@ -133,13 +133,13 @@ class AbstractVectorDimension(object):
     __metaclass__ = ABCMeta
     
     def __getitem__(self,slc):
-        value = self.value[slc]
+        value = np.atleast_1d(self.value[slc])
         if self.bounds is None:
             bounds = None
         else:
             bounds = self.bounds[slc,:]
-        uid = self.uid[slc]
-        real_idx = self.real_idx[slc]
+        uid = np.atleast_1d(self.uid[slc])
+        real_idx = np.atleast_1d(self.real_idx[slc])
         ret = self.__class__(value=value,bounds=bounds,
                              uid=uid,real_idx=real_idx,name=self.name,
                              name_bounds=self.name_bounds,dataset=self.dataset)

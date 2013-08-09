@@ -351,7 +351,10 @@ class QEDDynamicPercentileThreshold(OcgArgFunction):
                     'tmin_qed_city_centroids':'DynPercTmin_19712000_maurer_citycentroids.csv',
                     'tmax_north_carolina':'DynPercTmax_19712000_maurer_NCarolina.csv',
                     'tmin_north_carolina':'DynPercTmin_19712000_maurer_NCarolina.csv'}
-        csv_path = os.path.join(bin_directory,data_map[select_key])
+        try:
+            csv_path = os.path.join(bin_directory,data_map[select_key])
+        except:
+            csv_path = os.path.join('/usr/local/ocgis/bin/QED_2013_dynamic_percentiles',data_map[select_key])
         percentile_key = 'q{0}{1}'.format(percentile,variable)
         
         store = {}

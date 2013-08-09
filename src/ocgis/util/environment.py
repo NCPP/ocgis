@@ -26,6 +26,7 @@ class Environment(object):
         self.REFERENCE_PROJECTION = ReferenceProjection()
         self.USE_CACHING = EnvParm('USE_CACHING',False,formatter=self._format_bool_)
         self.DIR_CACHE = EnvParm('DIR_CACHE',None)
+        self.DIR_BIN = EnvParm('DIR_BIN',None)
         
         self.ops = None
         

@@ -285,6 +285,7 @@ class RequestDataset(object):
                 '    Variable: {0}'.format(self.variable),
                 '    Alias: {0}'.format(self.alias),
                 '    Time Range: {0}'.format(tr),
+                '    Time Region/Selection: {0}'.format(self.time_region),
                 '    Level Range: {0}'.format(lr),
                 '    Overloaded Parameters:',
                 '      PROJ4 String: {0}'.format(self.s_proj),
@@ -388,7 +389,7 @@ class RequestDatasetCollection(object):
                  exc=ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             
     def _get_meta_rows_(self):
-        rows = ['dataset=']
+        rows = ['* dataset=']
         for value in self._s.itervalues():
             rows += value._get_meta_rows_()
             rows.append('')

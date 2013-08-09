@@ -128,7 +128,8 @@ class OcgCalculationEngine(object):
                         try:
                             ref = f['ref'](values=value,agg=self.agg,
                                            groups=var.temporal.group.dgroups,
-                                           kwds=f['kwds'],weights=weights)
+                                           kwds=f['kwds'],weights=weights,
+                                           dataset=var)
                         except AttributeError:
                             ## if there is no grouping, there is no need to calculate
                             ## sample size.

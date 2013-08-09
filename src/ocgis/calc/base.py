@@ -102,12 +102,14 @@ class OcgFunction(object):
     nargs = 0
     name = None
     
-    def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={}):
+    def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={},
+                 dataset=None):
         self.values = values
         self.groups = groups
         self.agg = agg
         self.weights = weights
         self.kwds = kwds
+        self.dataset = dataset
         
         self.text = self.__class__.__name__
         if self.name is None:
@@ -125,6 +127,7 @@ class OcgFunction(object):
         ## iterate over temporal groups and levels
         for idx,group in enumerate(self.groups):
             value_slice = self.values[group,:,:,:]
+            self._curr_group = group
             calc = self._calculate_(value_slice,**self.kwds)
             ## we want to leave the mask alone and only fill the data. calculations
             ## are not concerned with the global mask (though they can be).
@@ -192,13 +195,6 @@ class OcgFunction(object):
         
     def format(self):
         raise(NotImplementedError)
-#        ret = dict(text=self.text,
-#                   checked=self.checked,
-#                   leaf=True,
-#                   value=self.name,
-#                   desc=self.description,
-#                   nargs=self.nargs)
-#        return(ret)
 
 
 class OcgArgFunction(OcgFunction):
@@ -297,3 +293,4 @@ class KeyedFunctionOutput(object):
     def validate(cls,ops):
         if ops.calc_raw is True:
             raise(DefinitionValidationError('calc','Keyed function output may not have calc_raw=True.'))
+

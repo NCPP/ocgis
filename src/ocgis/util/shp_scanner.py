@@ -66,7 +66,7 @@ class Geometry(AbstractBase,Base):
     @property
     def label_formatted(self):
         if self.category.key == 'us_counties':
-            ret = '{0} Counties'.format(self.label)
+            ret = 'US Counties ({0})'.format(self.label)
         else:
             ret = self.label
         return(ret)

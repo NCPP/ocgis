@@ -70,6 +70,14 @@ class Geometry(AbstractBase,Base):
         else:
             ret = self.label
         return(ret)
+    
+    @property
+    def value_formatted(self):
+        if self.category.key == 'qed_tbw_basins':
+            ret = '{0} - {1}'.format(self.ugid,self.value)
+        else:
+            ret = self.value
+        return(ret)
 
  
 def get_variant(key,feature):
@@ -130,6 +138,8 @@ def build_database():
     sc = ShpCabinet()
     
     keys = [
+            'qed_tbw_basins',
+            'qed_tbw_watersheds',
             'state_boundaries',
             'us_counties',
             'WBDHU8_June2013',
@@ -199,7 +209,7 @@ for row in session.query(Geometry):
     except KeyError:
         to_dump[row.label_formatted] = {'key':row.category.key,'geometries':{}}
         ref = to_dump[row.label_formatted]['geometries']
-    ref.update({row.value:row.ugid})
+    ref.update({row.value_formatted:row.ugid})
     
 fmtd = json.dumps(to_dump)
 with open(json_path,'w') as f:

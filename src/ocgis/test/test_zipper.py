@@ -13,7 +13,12 @@ def test():
     tdata = TestBase.get_tdata()
     rd = tdata.get_rd('cancm4_tas')
     
-    output_formats = ['csv+','csv','nc','shp','numpy']
+    output_formats = [
+                      'csv+',
+                      'csv',
+                      'nc',
+                      'shp',
+                      'numpy']
     _with_auxiliary_files = [True,False]
     for output_format,with_auxiliary_files in itertools.product(output_formats,_with_auxiliary_files):
         dir_output = tempfile.mkdtemp()
@@ -22,10 +27,11 @@ def test():
             
             ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format=output_format,
                                       geom='state_boundaries',select_ugid=[23],
-                                      prefix=output_format)
+                                      prefix=output_format+'_data')
             ret_path = ops.execute()
         
             fmtd_ret = format_return(ret_path,ops,with_auxiliary_files=with_auxiliary_files)
+
             assert(os.path.exists(fmtd_ret))
             if output_format in ['csv','nc'] and with_auxiliary_files is False:
                 assert(fmtd_ret.endswith(output_format))
@@ -35,9 +41,12 @@ def test():
                 try:
                     namelist = zipf.namelist()
                     assert(len(namelist) > 0)
-                    if output_format in ['csv+','shp']:
+                    if output_format in ['csv+']:
                         test = [re.match('shp/.+'.format(output_format),name) != None for name in namelist]
                         assert(any(test))
+                    else:
+                        test = [re.match('shp/.+'.format(output_format),name) == None for name in namelist]
+                        assert(all(test))
                 finally:
                     zipf.close()
         ## numpy formats are not implemented

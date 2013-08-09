@@ -39,9 +39,8 @@ class Zipper(object):
 def get_items(folder):
     items = []
     for dirpath,dirnames,filenames in os.walk(folder):
-        has_shp = True if dirnames != ['shp'] else False
         for filename in filenames:
-            if has_shp:
+            if os.path.split(dirpath)[1] == 'shp':
                 arcname = os.path.join('shp',filename)
             else:
                 arcname = filename

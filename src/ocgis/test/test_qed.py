@@ -71,9 +71,9 @@ class TestDynamicPercentiles(TestBase):
         for tup in itertools.product(percentiles,operations,calc_groupings,uris_variables,geoms_select_ugids):
             print(tup)
             percentile,operation,calc_grouping,uri_variable,geom_select_ugid = tup
-            ops = OcgOperations(dataset={'uri':uri_variable[0],'variable':uri_variable[1],'time_region':{'year':[1995,1996]}},
+            ops = OcgOperations(dataset={'uri':uri_variable[0],'variable':uri_variable[1],'time_region':{'year':[1990],'month':[6,7,8]}},
                 geom=geom_select_ugid[0],select_ugid=geom_select_ugid[1],
-                calc=[{'func':'qed_dynamic_percentile','kwds':{'operation':operation,'percentile':percentile},'name':'dp'}],
+                calc=[{'func':'qed_dynamic_percentile_threshold','kwds':{'operation':operation,'percentile':percentile},'name':'dp'}],
                 calc_grouping=calc_grouping,output_format='numpy')
             ret = ops.execute()
         

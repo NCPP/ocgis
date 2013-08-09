@@ -38,6 +38,11 @@ class ShpProcess(object):
                     sink.write(feature)
             ## remove the cpg file. this raises many, many warnings on occasion
             os.remove(new_shp.replace('.shp','.cpg'))
+            ## try to copy the cfg file
+            try:
+                shutil.copy2(self.path.replace('.shp','.cfg'),new_shp.replace('.shp','.cfg'))
+            except:
+                warn('unable to copy configuration file - if it exists')
         except:
             ## remove the created folder on an exception
             shutil.rmtree(new_folder)
@@ -78,7 +83,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='add ugid to shapefile')
     
     parser.add_argument('--ugid',help='name of ugid variable, default is None',default=None)
-    parser.add_argument('--folder',help='path to the output folder')
+    parser.add_argument('--folder',help='path to the output folder',nargs='?')
     parser.add_argument('in_shp',help='path to input shapefile')
     parser.add_argument('key',help='output key for the shapefile. folder with same name will be created.')
     

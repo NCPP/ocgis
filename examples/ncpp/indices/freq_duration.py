@@ -1,9 +1,12 @@
 import ocgis
+import tempfile
 
 
 uri = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
 variable = 'tasmax'
 ocgis.env.DIR_DATA = '/data/maurer'
+#ocgis.env.DIR_DATA = '/usr/local/climate_data'
+ocgis.env.DIR_OUTPUT = tempfile.mkdtemp()
 
 for output_format in ['csv+','shp','csv']:
     ops = ocgis.OcgOperations(dataset={'uri':uri,

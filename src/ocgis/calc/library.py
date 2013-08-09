@@ -148,7 +148,11 @@ class Duration(OcgArgFunction):
             vec = arr[:,zidx,rowidx,colidx]
             ## check first if there is a longer series than 1
             if np.any(np.diff(ref[vec]) == 1):
-                split_idx = ref[np.diff(vec)] + 1
+                ## find locations where the values switch
+                diff_idx = np.diff(vec)
+                if diff_idx.shape != ref.shape:
+                    diff_idx = np.append(diff_idx,[False])
+                split_idx = ref[diff_idx] + 1
                 splits = np.array_split(vec,split_idx)
                 fill = [a.sum() for a in splits if np.all(a)]
             ## case of only a singular occurrence

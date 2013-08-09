@@ -6,6 +6,8 @@ from ocgis.calc.base import KeyedFunctionOutput
 from ocgis.constants import np_int
 from ocgis.exc import DefinitionValidationError
 import datetime
+import os
+import csv
 
 
 class FrequencyPercentile(OcgArgFunction):
@@ -205,10 +207,10 @@ class FrequencyDuration(KeyedFunctionOutput,Duration):
         
 
 class QEDDynamicPercentileThreshold(OcgArgFunction):
-    name = 'qed_dynamic_perc'
+    name = 'qed_dynamic_percentile_threshold'
     nargs = 3
     Group = groups.Thresholds
-    dtype = np.float32
+    dtype = np.int32
     description = 'Compares to a dynamic base dataset of daily thresholds. Only relevant for daily Maurer spatially coincident with QED City Centroids or North Carolina. Only works for "standard" calendars.'
     
     def __init__(self,*args,**kwds):
@@ -216,7 +218,40 @@ class QEDDynamicPercentileThreshold(OcgArgFunction):
         self.__map_day_index = None
     
     def _calculate_(self,values,percentile=None,operation=None):
-        import ipdb;ipdb.set_trace()
+        ## first map the dates to dynamic percentiles index days
+        from ocgis import env
+        day_idx = self._get_day_index_(self.dataset.temporal.value[self._curr_group])
+        dy_day_idx = map(self._get_dynamic_index_,day_idx.flat)
+        gp = self._get_geometries_with_percentiles_(env.ops.dataset[0].variable,env.ops.geom.key,env.DIR_BIN,percentile)
+        ## get threshold for each geometry
+        ## special case for north carolina counties
+        if env.ops.geom.key == 'us_counties':
+            select_ugid = 39
+        else:
+            select_ugid = self.dataset.spatial._ugid
+        ugid_ref = gp[select_ugid]
+        compare = np.empty_like(values,dtype=float)
+        for ii,jj,kk,ll in iter_array(values):
+            ## get the geometry id
+            gid = self.dataset.spatial.vector.uid[kk,ll]
+            gid_ref = ugid_ref[gid]
+            percentile_static = gid_ref[dy_day_idx[ii]]
+            compare[ii,jj,kk,ll] = percentile_static
+            
+        ## perform requested logical operation
+        if operation == 'gt':
+            idx = values > compare
+        elif operation == 'lt':
+            idx = values < compare
+        elif operation == 'gte':
+            idx = values >= compare
+        elif operation == 'lte':
+            idx = values <= compare
+        else:
+            raise(NotImplementedError('The operation "{0}" was not recognized.'.format(operation)))
+        
+        ret = np.ma.sum(idx,axis=0)
+        return(ret)
         
     @property
     def _map_day_index(self):
@@ -287,6 +322,49 @@ class QEDDynamicPercentileThreshold(OcgArgFunction):
         except ValueError:
             is_leap = False
         return(is_leap)
+    
+    def _get_geometries_with_percentiles_(self,variable,shp_key,bin_directory,percentile):
+        '''
+        :rtype: dict
+        :returns: {ugid(int):gid(int),...:window(int),...:dynamic_percent(float)}
+        '''
+        def _get_or_create_dict_(key,dct):
+            try:
+                ret = dct[key]
+            except KeyError:
+                dct.update({key:{}})
+                ret = dct[key]
+            return(ret)
+        
+        variable_map = {'tasmax':'tmax',
+                        'tasmin':'tmin'}
+        variable = variable_map[variable]
+        
+        if shp_key in ('state_boundaries','us_counties'):
+            shp_key = 'north_carolina'
+        select_key = variable + '_' + shp_key
+        data_map = {'tmax_qed_city_centroids':'DynPercTmax_19712000_maurer_citycentroids.csv',
+                    'tmin_qed_city_centroids':'DynPercTmin_19712000_maurer_citycentroids.csv',
+                    'tmax_north_carolina':'DynPercTmax_19712000_maurer_NCarolina.csv',
+                    'tmin_north_carolina':'DynPercTmin_19712000_maurer_NCarolina.csv'}
+        csv_path = os.path.join(bin_directory,data_map[select_key])
+        percentile_key = 'q{0}{1}'.format(percentile,variable)
+        
+        store = {}
+        with open(csv_path,'r') as f:
+            reader = csv.DictReader(f)
+            reader.fieldnames = [field.strip().lower() for field in reader.fieldnames]
+            for row in reader:
+                ugid = int(row['ugid'].strip())
+                gid = int(row['gid'].strip())
+                window = int(row['5-day window number'].strip())
+                dypercentile = float(row[percentile_key].strip())
+                
+                ref_ugid = _get_or_create_dict_(ugid,store)
+                ref_gid = _get_or_create_dict_(gid,ref_ugid)
+                ref_gid[window] = dypercentile
+        
+        return(store)
 
 
 class Between(OcgArgFunction):

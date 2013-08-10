@@ -1,5 +1,5 @@
 from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.exc import DefinitionValidationError
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
@@ -13,6 +13,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
+from ocgis import env
 
 
 class Abstraction(base.StringOptionParameter):
@@ -72,11 +73,7 @@ class Calc(base.IterableParameter,base.OcgParameter):
     unique = False
     
     def __repr__(self):
-        if self.value is None:
-            fill = None
-        else:
-            fill = self.get_url_string()
-        msg = '{0}={1}'.format(self.name,fill)
+        msg = '{0}={1}'.format(self.name,self.value)
         return(msg)
     
     def get_url_string(self):
@@ -218,29 +215,11 @@ class Dataset(base.OcgParameter):
     
     def _get_meta_(self): pass
     
-    def get_url_string(self):
-        if len(self.value) == 1:
-            end_integer_strings = ['']
-        else:
-            end_integer_strings = range(1,len(self.value)+1)
-        out_str = []
-        template = '{0}{1}={2}'
-        for ds,es in zip(self.value,end_integer_strings):
-            for key in ['uri','variable','alias','t_units','t_calendar','s_proj']:
-                app_value = ds[key]
-                if app_value is None:
-                    app_value = 'none'
-                app = template.format(key,es,app_value)
-                out_str.append(app)
-        out_str = '&'.join(out_str)
-        return(out_str)
-    
     def _parse_string_(self,lowered):
         raise(NotImplementedError)
     
     
 class DirOutput(base.StringParameter):
-    _in_url = False
     _lower_string = False
     name = 'dir_output'
     nullable = False
@@ -288,31 +267,6 @@ class Geom(base.OcgParameter):
         else:
             value = '<{0} geometry(s)>'.format(len(self.value))
         ret = '{0}={1}'.format(self.name,value)
-        return(ret)
-    
-#    @property
-#    def is_empty(self):
-#        if self.value[0]['geom'] is None:
-#            ret = True
-#        else:
-#            ret = False
-#        return(ret)
-    
-#    def _get_value_(self):
-#        ret = base.OcgParameter._get_value_(self)
-#        if ret is None:
-#            ret = self.default
-#        return(ret)
-#    value = property(_get_value_,base.OcgParameter._set_value_)
-    
-    def get_url_string(self):
-        if self.value is None:
-            ret = 'none'
-        elif len(self.value) > 1 and self._shp_key is None:
-            raise(CannotEncodeUrl('Too many custom geometries to encode.'))
-        else:
-            ret = str(self)
-            ret = ret.split('=')[1]
         return(ret)
     
     def parse(self,value):
@@ -383,7 +337,6 @@ class Headers(base.IterableParameter,base.OcgParameter):
     nullable = True
     element_type = str
     unique = True
-    _in_url = True
 
     def __repr__(self):
         try:
@@ -395,9 +348,6 @@ class Headers(base.IterableParameter,base.OcgParameter):
             else:
                 raise
         return(msg)
-        
-    def get_url_string(self):
-        return(self.__repr__().lower())
     
     def validate_all(self,values):
         if len(values) == 0:

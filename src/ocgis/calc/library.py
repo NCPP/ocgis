@@ -34,6 +34,8 @@ class SampleSize(OcgFunction):
     description = 'Statistical sample size.'
     Group = groups.BasicStatistics
     dtype = np.int32
+    units = 'NA'
+    long_name = 'Statistical Sample Size'
     
     def _calculate_(self,values):
         ret = np.empty(values.shape[-2:],dtype=int)
@@ -461,3 +463,61 @@ class HeatIndex(OcgCvArgFunction):
              c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
         
         return(hi)
+    
+
+class SnowfallWaterEquivalent(OcgCvArgFunction):
+    name = 'sfwe'
+    description = 'Snowfall water equivalent - total precipitation on days when temperature less than 0.'
+    Group = groups.MultivariateStatistics
+    dtype = np.float32
+    nargs = 3
+    keys = ['tas','pr']
+    long_name = 'Snowfall Water Equivalent'
+    standard_name = 'snowfall_water_equivalent'
+    units = 'mm'
+    
+    def _calculate_(self,tas=None,pr=None):
+        sfwe = pr.copy().astype(self.dtype)
+        sfwe_is_0 = tas >= 0
+        sfwe[sfwe_is_0] = 0.0
+        ## we want to maintain the precipitation mask regardless
+        sfwe.mask = pr.mask
+        return(sfwe)
+    
+    def _aggregate_temporal_(self,values):
+        return(np.ma.sum(values,axis=0))
+    
+    
+class Sum(OcgFunction):
+    name = 'sum'
+    description = 'Sum the data within the temporal aggregation.'
+    dtype = np.float32
+    Group = groups.MathematicalOperations
+    units = 'mm'
+    standard_name = 'P'
+    long_name = 'Precipitation for the Period'
+    
+    def _calculate_(self,values):
+        return(np.ma.sum(values,axis=0))
+
+
+class RatioSfweP(OcgCvArgFunction):
+    name = 'ratio_sfwe_p'
+    description = 'Divide the first array by the second.'
+    Group = groups.MathematicalOperations
+    dtype = np.float32
+    nargs = 2
+    keys = ['sfwe','p']
+    units = ''
+    long_name = 'Ratio SFWE/Pr'
+    standard_name = 'sfwe/p'
+    
+    def _calculate_(self,sfwe=None,p=None):
+        
+        ## index does not apply when there is no precipitation
+        p_is_0 = p == 0
+
+        ratio = np.ma.divide(sfwe,p)
+        ratio[p_is_0] = 0.0
+        return(ratio)
+    

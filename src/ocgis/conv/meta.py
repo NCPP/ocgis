@@ -49,14 +49,9 @@ class MetaConverter(object):
         lines.append('')
         lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
-        for k,v in sorted(self.ops.__dict__.iteritems()):
+        for v in sorted(self.ops.__dict__.itervalues()):
             if isinstance(v,OcgParameter):
                 lines.append(v.get_meta())
-        
-#        ## append the url representation of the data request
-#        lines.append('== URL Representation ==')
-#        lines.append('')
-#        lines.append(self.ops.as_url())
             
         ## collapse lists
         ret = []

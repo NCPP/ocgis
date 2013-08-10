@@ -2,7 +2,7 @@ from datetime import datetime
 from copy import deepcopy
 import os
 from ocgis import env
-from ocgis.util.helpers import locate, validate_time_subset
+from ocgis.util.helpers import locate, validate_time_subset, iter_arg
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
 from ocgis.util.inspect import Inspect
@@ -32,22 +32,23 @@ class RequestDataset(object):
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
     :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`.
     :type time_region: dict
-    
-    .. note:: Only one of `time_range` or `time_region` may be passed to the constructor.
-    
+        
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
     
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
-    :param s_proj: An ~`ocgis.interface.projection.OcgSpatialReference` object to overload the projectiona autodiscovery.
+    :param s_proj: An ~`ocgis.interface.projection.OcgSpatialReference` object to overload the projection autodiscovery.
     :type s_proj: `ocgis.interface.projection.OcgSpatialReference`
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
     :type t_calendar: str
+    :param s_abstraction: Abstract the geometry data to either 'point' or 'polygon'. If 'polygon' is not possible due to missing bounds, 'point' will be used instead.
+    :type s_abstraction: str
     
-    .. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
+    .. note:: The `abstraction` argument in the ~`ocgis.OcgOperations` will overload this.
+    
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
@@ -55,7 +56,7 @@ class RequestDataset(object):
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,
                  time_region=None,level_range=None,s_proj=None,t_units=None,
-                 t_calendar=None,did=None,meta=None):
+                 t_calendar=None,did=None,meta=None,s_abstraction=None):
         ## this variable is used in the __del__ method. set before any other
         ## operations to ensure smooth cleanup.
         self._ds = None
@@ -71,6 +72,10 @@ class RequestDataset(object):
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did
         self.meta = meta or {}
+        
+        self.s_abstraction = s_abstraction or 'polygon'
+        self.s_abstraction = self.s_abstraction.lower()
+        assert(self.s_abstraction in ('point','polygon'))
         
         self._format_()
     
@@ -104,15 +109,7 @@ class RequestDataset(object):
     @property
     def ds(self):
         if self._ds is None:
-            iface = self.interface
-            try:
-                iface.update({'request_dataset':self,
-                              'abstraction':env.ops.abstraction})
-            ## env likely not present
-            except AttributeError:
-                iface.update({'request_dataset':self,
-                              'abstraction':None})
-            self._ds = self._Dataset(**iface)
+            self._ds = self._Dataset(**self.interface)
         return(self._ds)
     
     def __del__(self):
@@ -124,8 +121,9 @@ class RequestDataset(object):
     
     @property
     def interface(self):
-        attrs = ['s_proj','t_units','t_calendar']
+        attrs = ['s_proj','t_units','t_calendar','s_abstraction']
         ret = {attr:getattr(self,attr) for attr in attrs}
+        ret.update({'request_dataset':self})
         return(ret)
     
     @property
@@ -160,10 +158,6 @@ class RequestDataset(object):
             parms.append(as_str)
         msg = msg.format(self.__class__.__name__,','.join(parms))
         return(msg)
-    
-    def __getitem__(self,item):
-        ret = getattr(self,item)
-        return(ret)
     
     def copy(self):
         return(deepcopy(self))
@@ -219,13 +213,11 @@ class RequestDataset(object):
             self._format_level_range_()
         ## ensure the time range and region overlaps
         if not validate_time_subset(self.time_range,self.time_region):
-            raise(DefinitionValidationError('dataset','the time_range and time_region do not overlap'))
+            raise(DefinitionValidationError('dataset','time_range and time_region do not overlap'))
     
     def _format_time_range_(self):
         try:
             ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
-#            ref = ret[1]
-#            ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
         except AttributeError:
             ret = self.time_range
         if ret[0] > ret[1]:
@@ -315,8 +307,8 @@ class RequestDatasetCollection(object):
     
     def __init__(self,request_datasets=[]):
         self._s = OrderedDict()
-        self._did = []
-        for rd in request_datasets:
+        self._did = []     
+        for rd in iter_arg(request_datasets):
             self.update(rd)
             
     def __eq__(self,other):

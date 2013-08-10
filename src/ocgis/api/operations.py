@@ -5,7 +5,7 @@ from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.calc.base import KeyedFunctionOutput
+from ocgis.calc.base import KeyedFunctionOutput, OcgCvArgFunction
 
 
 class OcgOperations(object):
@@ -97,7 +97,6 @@ class OcgOperations(object):
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
-        self.request_url = None
         
         # # Initial values have been set and global validation should now occur
         # # when any parameters are updated.
@@ -157,27 +156,6 @@ class OcgOperations(object):
             
         ops = OcgOperations(**kwds)
         return(ops)
-    
-    def as_qs(self):
-        """Return a query string representation of the request.
-        
-        :rtype: str"""
-        warnings.warn('use "as_url"', DeprecationWarning)
-        return(self.as_url())
-    
-    def as_url(self):
-        parts = []
-        for key, value in self.__dict__.iteritems():
-            if key in ['request_url']:
-                continue
-            if isinstance(value, OcgParameter):
-                if value._in_url:
-                    if isinstance(value,Dataset):
-                        parts.append(value.get_url_string())
-                    else:
-                        parts.append('{0}={1}'.format(value.name,value.get_url_string()))
-        ret = '/subset?' + '&'.join(parts)
-        return(ret)
         
     def as_dict(self):
         """:rtype: dictionary"""
@@ -209,13 +187,18 @@ class OcgOperations(object):
         if self.slice is not None:
             assert(self.geom is None)
         if self.file_only:
-            assert(len(self.dataset) == 1)
             assert(self.output_format == 'nc')
             assert(self.calc is not None)
         if self.output_format == 'nc':
-            if len(self.dataset) > 1:
+            if len(self.dataset) > 1 and self.calc is None:
                 msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
                 _raise_(msg,OutputFormat)
+            else:
+                if self.calc is not None and len(self.dataset) > 1:
+                    if sum([issubclass(calc['ref'],OcgCvArgFunction) for calc in self.calc]) != 1:
+                        msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
+                        _raise_(msg,OutputFormat)
+                
             if self.spatial_operation != 'intersects':
                 msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
                 _raise_(msg,OutputFormat)

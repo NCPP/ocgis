@@ -41,16 +41,6 @@ class DefinitionValidationError(OcgException):
         self.message = msg
 
 
-class CannotEncodeUrl(OcgException):
-    """Raised when a URL may not be encoded from an :func:`~ocgis.OcgOperations.as_qs` call."""
-    pass
-
-
-class DataNotCached(OcgException):
-    """"Raised when data is not cached."""
-    pass
-
-
 class ParameterFormattingError(OcgException):
     pass
     

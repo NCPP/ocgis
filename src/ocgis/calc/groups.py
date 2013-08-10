@@ -28,6 +28,10 @@ class OcgFunctionGroup(object):
         return(ret)
 
 
+class MathematicalOperations(OcgFunctionGroup):
+    name = 'Mathematical Operations'
+
+
 class BasicStatistics(OcgFunctionGroup):
     name = 'Basic Statistics'
     

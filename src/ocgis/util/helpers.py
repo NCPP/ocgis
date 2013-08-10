@@ -16,6 +16,17 @@ import sys
 import datetime
 
 
+def iter_arg(arg):
+    if isinstance(arg,basestring):
+        itr = [arg]
+    else:
+        try:
+            itr = iter(arg)
+        except TypeError:
+            itr = iter([arg])
+    for element in itr:
+        yield(element)
+
 
 def validate_time_subset(time_range,time_region):
     '''

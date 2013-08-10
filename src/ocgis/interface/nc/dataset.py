@@ -15,6 +15,7 @@ from shapely.wkb import loads
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+import itertools
 
 
 class NcDataset(base.AbstractDataset):
@@ -23,7 +24,7 @@ class NcDataset(base.AbstractDataset):
     _dspatial = NcSpatialDimension
 
     def __init__(self,*args,**kwds):
-        self._abstraction = kwds.pop('abstraction','polygon')
+        self._s_abstraction = kwds.pop('s_abstraction','polygon')
         self._t_calendar = kwds.pop('t_calendar',None)
         self._t_units = kwds.pop('t_units',None)
         self._s_proj = kwds.pop('s_proj',None)
@@ -111,7 +112,14 @@ class NcDataset(base.AbstractDataset):
                     raise
             
             if self.spatial.vector._geom is not None:
-                self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
+                ## update each time and level field mask by the geometry operation
+                ## mask.
+                shp_value = self._value.shape
+                ref_value_mask = self._value.mask
+                ref_geom_mask = self.spatial.vector._geom.mask
+                ref_logical_or = np.logical_or
+                for idx_time,idx_level in itertools.product(range(shp_value[0]),range(shp_value[1])):
+                    ref_value_mask[idx_time,idx_level,:,:] = ref_logical_or(ref_value_mask[idx_time,idx_level,:,:],ref_geom_mask)
             
             assert(self.value.shape[0] == self.temporal.value.shape[0])
             assert(self.value.shape[2:] == self.spatial.grid.shape)
@@ -192,7 +200,7 @@ class NcDataset(base.AbstractDataset):
         if type(self.spatial.projection) != type(ocgis.env.REFERENCE_PROJECTION) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
             project = True
             sr = self.spatial.projection.sr
-            to_sr = ocgis.env.REFERENCE_PROJECTION.sr
+            to_sr = ocgis.env.REFERENCE_PROJECTION.sr #@UndefinedVariable
         else:
             project = False
         
@@ -255,11 +263,7 @@ class NcDataset(base.AbstractDataset):
     
     def get_subset(self,temporal=None,level=None,spatial_operation=None,igeom=None):
         if temporal is not None:
-            ## time region requests come in as dictionaries
-            if isinstance(temporal,dict):
-                new_temporal = self.temporal.subset(temporal)
-            else:
-                new_temporal = self.temporal.subset(*temporal)
+            new_temporal = self.temporal.subset(temporal)
         else:
             new_temporal = self.temporal
         if level is not None:
@@ -358,8 +362,7 @@ class NcDataset(base.AbstractDataset):
 
         ## make the output array
         wshape = (value.shape[0],value.shape[1],1,1)
-        weighted = np.ma.array(np.empty(wshape,dtype=float),
-                                mask=False)
+        weighted = np.ma.array(np.empty(wshape,dtype=constants.np_float),mask=False)
         ## next, weight and sum the data accordingly
         for dim_time in range(value.shape[0]):
             for dim_level in range(value.shape[1]):

@@ -19,9 +19,6 @@ calc_month_centroid = 16
 calc_year_centroid_month = 7
 calc_year_centroid_day = 1
 
-## name of the CacheCabinet CFG file
-cache_cfg_name = '.ocgis_cache_cabinet.cfg'
-
 ## the number of values to use when calculation resolutions
 resolution_limit = 100
 

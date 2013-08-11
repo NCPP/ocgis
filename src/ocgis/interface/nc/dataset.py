@@ -15,6 +15,7 @@ from shapely.wkb import loads
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+import itertools
 
 
 class NcDataset(base.AbstractDataset):
@@ -111,7 +112,14 @@ class NcDataset(base.AbstractDataset):
                     raise
             
             if self.spatial.vector._geom is not None:
-                self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
+                ## update each time and level field mask by the geometry operation
+                ## mask.
+                shp_value = self._value.shape
+                ref_value_mask = self._value.mask
+                ref_geom_mask = self.spatial.vector._geom.mask
+                ref_logical_or = np.logical_or
+                for idx_time,idx_level in itertools.product(range(shp_value[0]),range(shp_value[1])):
+                    ref_value_mask[idx_time,idx_level,:,:] = ref_logical_or(ref_value_mask[idx_time,idx_level,:,:],ref_geom_mask)
             
             assert(self.value.shape[0] == self.temporal.value.shape[0])
             assert(self.value.shape[2:] == self.spatial.grid.shape)

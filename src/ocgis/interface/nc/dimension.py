@@ -5,25 +5,21 @@ from itertools import product
 from ocgis.util.helpers import make_poly, iter_array
 from shapely import prepared
 import netCDF4 as nc
-from abc import ABCMeta, abstractproperty
 from ocgis.exc import DummyDimensionEncountered, EmptyData,\
-    TemporalResolutionError, DataNotCached
+    TemporalResolutionError
 import datetime
 from ocgis.interface.projection import get_projection, RotatedPole
 from shapely.geometry.point import Point
 from ocgis.util.spatial.wrap import Wrapper
 from copy import copy
-from ocgis import env, constants
-from ocgis.util.cache import CacheCabinet, get_cache_state, get_cached_temporal,\
-    add_to_cache, get_key_mtime
-import os
+from ocgis import constants
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
+from ocgis import env
 
 
 class NcDimension(object):
-    __metaclass__ = ABCMeta
-    
-    @abstractproperty
-    def axis(self): str
+    axis = None
     
     @classmethod
     def _load_(cls,gi,subset_by=None):
@@ -34,7 +30,13 @@ class NcDimension(object):
                 ret = gi._load_axis_(cls)
             except DummyDimensionEncountered:
                 ret = None
+        if ret is not None:
+            cls._set_after_load_(ret,gi)
         return(ret)
+    
+    @classmethod
+    def _set_after_load_(cls,state,dataset):
+        pass
 
 
 class NcLevelDimension(NcDimension,base.AbstractLevelDimension):
@@ -66,36 +68,59 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
     
     def __init__(self,*args,**kwargs):
         super(self.__class__,self).__init__(*args,**kwargs)
-        ## the dataset is need for caching
         assert(self.dataset is not None)
+        self._value_datetime = None
+        self._bounds_datetime = None
+    
+    @property
+    def extent(self):
+        if self.bounds is None:
+            ret = (self.value_datetime.min(),self.value_datetime.max())
+        else:
+            ret = (self.bounds_datetime.min(),self.bounds_datetime.max())
+        return(ret)
         
-    def __del__(self):
-        try:
-            if get_cache_state():
-                request_dataset = self.dataset.request_dataset
-                self.dataset = None
-                add_to_cache(self,request_dataset)
-        except:
-            raise
+    @property
+    def value_datetime(self):
+        if self._value_datetime is None:
+            if self._get_optimized_('_value_datetime') is False:
+                ocgis_lh('getting value_datetime','nc.dimension',logging.DEBUG)
+                self._value_datetime = np.atleast_1d(self.get_datetime(self.value))
+        return(self._value_datetime)
+    
+    @property
+    def bounds_datetime(self):
+        if self.bounds is None:
+            pass
+        else:
+            if self._bounds_datetime is None:
+                if self._get_optimized_('_bounds_datetime') is False:
+                    self._bounds_datetime = np.atleast_2d(self.get_datetime(self.bounds))
+        return(self._bounds_datetime)
+    
+    def _get_optimized_(self,attr):
+        if env.OPTIMIZE_FOR_CALC:
+            setattr(self,attr,env._optimize_store[self.dataset.request_dataset.alias][attr])
+            ret = True
+        else:
+            ret = False
+        return(ret)
     
     @property
     def resolution(self):
-        diffs = np.array([],dtype=float)
-        value = self.value
-        resolution_limit = constants.resolution_limit
         ## resolution cannot be calculated from a single value
-        if value.shape[0] == 1:
+        if self.value.shape[0] == 1:
             raise(TemporalResolutionError)
-        for ii,(tidx,tval) in enumerate(iter_array(value,return_value=True),start=1):
+        datetimes = []
+        for ii in range(constants.resolution_limit):
             try:
-                diffs = np.append(diffs,
-                                np.abs((tval-value[tidx[0]+1]).days))
+                datetimes.append(self.get_datetime(self.value[ii])[0])
             except IndexError:
-                break
-            ## if enough values have been accrued, break
-            if ii == resolution_limit:
-                break
-        ret = diffs.mean()
+                if ii == self.value.shape[0]:
+                    break
+                else:
+                    raise
+        ret = np.mean([dt.days for dt in np.diff(datetimes).flat])
         return(ret)
     
     def __getitem__(self,*args,**kwds):
@@ -105,25 +130,43 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
         ret.name_bounds = self.name_bounds
         return(ret)
     
+    def get_datetime(self,arr):
+        arr = np.atleast_1d(nc.num2date(arr,self.units,calendar=self.calendar))
+        dt = datetime.datetime
+        for idx,t in iter_array(arr,return_value=True):
+            arr[idx] = dt(t.year,t.month,t.day,
+                          t.hour,t.minute,t.second)
+        return(arr)
+    
     def get_nc_time(self,values):
-        ret = nc.date2num(values,self.units,calendar=self.calendar)
+        ret = np.atleast_1d(nc.date2num(values,self.units,calendar=self.calendar))
         return(ret)
     
     def subset(self,*args,**kwds):
         try:
-            ret = super(self.__class__,self).subset(*args,**kwds)
+            if isinstance(args[0][0],datetime.datetime):
+                as_nc_time = self.get_nc_time(args[0])
+            else:
+                ## data may already by float, so try to subset with the float date
+                ## representations.
+                as_nc_time = args[0]
+            ret = super(self.__class__,self).subset(*as_nc_time,**kwds)
             ret.units = self.units
             ret.calendar = self.calendar
             ret.name_bounds = self.name_bounds
         ## likely a region subset
-        except TypeError:
+        except:
             regions = args[0]
+            assert(isinstance(regions,dict))
+            value = self.value_datetime
+            bounds = self.bounds_datetime
+            
             if regions['month'] is None and regions['year'] is None:
                 ret = self
             else:
-                if self.bounds is None:
+                if bounds is None:
                     ## get years and months from dates
-                    parts = np.array([[dt.year,dt.month] for dt in self.value],dtype=int)
+                    parts = np.array([[dt.year,dt.month] for dt in value],dtype=int)
                     ## get matching months
                     if regions['month'] is not None:
                         idx_months = np.zeros(parts.shape[0],dtype=bool)
@@ -167,11 +210,11 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                         res = 'day'
                     
                     ## assemble ranges from the bounds
-                    select_years = np.zeros(self.bounds.shape[0],dtype=bool)
-                    select_months = np.zeros(self.bounds.shape[0],dtype=bool)
+                    select_years = np.zeros(bounds.shape[0],dtype=bool)
+                    select_months = np.zeros(bounds.shape[0],dtype=bool)
                     if res == 'day':
-                        for ii in range(self.bounds.shape[0]):
-                            row = self.bounds[ii]
+                        for ii in range(bounds.shape[0]):
+                            row = bounds[ii]
                             p_months,p_years = _get_parts_(row[0],row[1])
                             if regions['month'] is not None:
                                 if any([month in p_months for month in regions['month']]):
@@ -187,14 +230,14 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
                         if regions['month'] is None:
                             select_months[:] = True
                         else:
-                            for ii in range(self.value.shape[0]):
-                                if self.value[ii].month in regions['month']:
+                            for ii in range(value.shape[0]):
+                                if value[ii].month in regions['month']:
                                     select_months[ii] = True
                         if regions['year'] is None:
                             select_years[:] = True
                         else:
                             for ii in range(self.bounds.shape[0]):
-                                row = self.bounds[ii]
+                                row = bounds[ii]
                                 p_months,p_years = _get_parts_(row[0],row[1])
                                 if any([year in p_years for year in regions['year']]):
                                     select_years[ii] = True
@@ -203,36 +246,10 @@ class NcTemporalDimension(NcDimension,base.AbstractTemporalDimension):
         return(ret)
     
     @classmethod
-    def _load_(cls,gi,subset_by=None):
-        
-        def _get_():
-            ret = NcDimension._load_.im_func(cls,gi,subset_by=subset_by)
-            attrs = gi.metadata['variables'][ret.name]['attrs']
-            ret.units = gi._t_units or attrs['units']
-            ret.calendar = gi._t_calendar or attrs['calendar']
-            ret.value = np.atleast_1d(nc.num2date(ret.value,ret.units,calendar=ret.calendar))
-            cls._to_datetime_(ret.value)
-            if ret.bounds is not None:
-                ret.bounds = nc.num2date(ret.bounds,ret.units,calendar=ret.calendar)
-                cls._to_datetime_(ret.bounds)
-                ret.bounds = np.atleast_2d(ret.bounds)
-            return(ret)
-        
-        if get_cache_state():
-            try:
-                ret = get_cached_temporal(gi.request_dataset)
-            except DataNotCached:
-                ret = _get_()
-        else:
-            ret = _get_()
-        return(ret)
-    
-    @staticmethod
-    def _to_datetime_(arr):
-        dt = datetime.datetime
-        for idx,t in iter_array(arr,return_value=True):
-            arr[idx] = dt(t.year,t.month,t.day,
-                          t.hour,t.minute,t.second)
+    def _set_after_load_(cls,state,dataset):
+        attrs = dataset.metadata['variables'][state.name]['attrs']
+        state.units = dataset._t_units or attrs['units']
+        state.calendar = dataset._t_calendar or attrs['calendar']
 
 
 class NcSpatialDimension(base.AbstractSpatialDimension):
@@ -278,8 +295,6 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
         
         if self.grid.column.bounds is None:
             pm = 0.0
-#            import ipdb;ipdb.set_trace()
-#            raise(NotImplementedError('Prime meridian only valid for bounded data.'))
         else:
             pm = 0.0
             ref = self.grid.column.bounds
@@ -367,7 +382,7 @@ class NcSpatialDimension(base.AbstractSpatialDimension):
                 ret = cls(grid=grid,projection=projection,abstraction='point')
             else:
                 ret = cls(row=row,column=column,projection=projection,
-                          abstraction=gi._abstraction)
+                          abstraction=gi._s_abstraction)
         return(ret)
 
 class NcGridDimension(base.AbstractSpatialGrid):

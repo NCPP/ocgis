@@ -17,6 +17,7 @@ from unittest.case import SkipTest
 from shapely.geometry.point import Point
 import ocgis
 from ocgis.exc import ExtentError
+from shapely.geometry.polygon import Polygon
 
 
 class TestSimpleBase(TestBase):
@@ -117,11 +118,11 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'output_format':'nc','file_only':True,
                                  'calc':[{'func':'mean','name':'my_mean'}],
                                  'calc_grouping':['month']})
-#        subprocess.call(['ncdump','-h',ret])
         try:
             ds = nc.Dataset(ret,'r')
             self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),
                             np.ma.core.MaskedConstant))
+            self.assertEqual(set(ds.variables['my_mean'].ncattrs()),set([u'_FillValue', u'units', u'long_name', u'standard_name']))
         finally:
             ds.close()
 
@@ -203,6 +204,13 @@ class TestSimple(TestSimpleBase):
         
         with self.assertRaises(ExtentError):
             ref = get_ref([1],None)
+            
+    def test_spatial_aggregate_arbitrary(self):
+#        ret = self.get_ret(kwds={'output_format':'shp','prefix':'orig'})
+        poly = Polygon(((-103.5,39.5),(-102.5,38.5),(-103.5,37.5),(-104.5,38.5)))
+        ret2 = self.get_ret(kwds={'output_format':'numpy','geom':poly,
+         'prefix':'subset','spatial_operation':'clip','aggregate':True})
+        self.assertEqual(ret2[1].variables['foo'].value.data.mean(),2.5)
 
     def test_spatial(self):
         ## intersects

@@ -33,10 +33,13 @@ class OcgCalculationEngine(object):
         else:
             self.use_agg = False
 
-    def _get_value_weights_(self,ds):
+    def _get_value_weights_(self,ds,file_only=False):
         '''
         :type ds: AbstractDataset
         '''
+        ## empty data only for the file
+        if file_only:
+            return(None,None)
         ## select the value source based on raw or aggregated switches
         if not self.use_agg:
             try:
@@ -95,13 +98,17 @@ class OcgCalculationEngine(object):
                 ## cv-controlled multivariate functions require collecting
                 ## data arrays before passing to function.
                 kwds = f['kwds'].copy()
+                ## reference the appropriate datasets to pass to the calculation
+                keyed_datasets = {}
                 for ii,key in enumerate(f['ref'].keys):
                     ## the name of the variable passed in the request
                     ## that should be mapped to the named argument
                     backref = kwds[key]
                     ## pull associated data
                     dref = coll.variables[backref]
-                    value,weights = self._get_value_weights_(dref)
+                    ## map the key to a dataset
+                    keyed_datasets.update({key:dref})
+                    value,weights = self._get_value_weights_(dref,file_only=file_only)
                     ## get the calculation groups and weights.
                     if ii == 0:
                         if self.grouping is None:
@@ -111,7 +118,8 @@ class OcgCalculationEngine(object):
                     ## update dict with properly reference data
                     kwds.update({key:value})
                 ## function object instance
-                ref = f['ref'](agg=self.agg,groups=dgroups,kwds=kwds,weights=weights)
+                ref = f['ref'](agg=self.agg,groups=dgroups,kwds=kwds,weights=weights,
+                               dataset=keyed_datasets,calc_name=f['name'],file_only=file_only)
                 calc = ref.calculate()
                 ## store calculation value
                 ret.calc[f['name']] = calc
@@ -120,28 +128,26 @@ class OcgCalculationEngine(object):
                 for alias,var in coll.variables.iteritems():
                     if alias not in ret.calc:
                         ret.calc[alias] = OrderedDict()
-                    if file_only:
-                        calc = np.ma.array(np.empty(0,dtype=f['ref'].dtype),fill_value=constants.fill_value)
-                    else:
-                        value,weights = self._get_value_weights_(var)
-                        ## make the function instance
-                        try:
-                            ref = f['ref'](values=value,agg=self.agg,
-                                           groups=var.temporal.group.dgroups,
-                                           kwds=f['kwds'],weights=weights,
-                                           dataset=var)
-                        except AttributeError:
-                            ## if there is no grouping, there is no need to calculate
-                            ## sample size.
-                            if self.grouping is None and f['ref'] == SampleSize:
-                                break
-                            elif self.grouping is None:
-                                e = NotImplementedError('Univariate calculations must have a temporal grouping.')
-                                ocgis_lh(exc=e,logger='calc.engine')
-                            else:
-                                raise
-                        ## calculate the values
-                        calc = ref.calculate()
+                    value,weights = self._get_value_weights_(var,file_only=file_only)
+                    ## make the function instance
+                    try:
+                        ref = f['ref'](values=value,agg=self.agg,
+                                       groups=var.temporal.group.dgroups,
+                                       kwds=f['kwds'],weights=weights,
+                                       dataset=var,calc_name=f['name'],
+                                       file_only=file_only)
+                    except AttributeError:
+                        ## if there is no grouping, there is no need to calculate
+                        ## sample size.
+                        if self.grouping is None and f['ref'] == SampleSize:
+                            break
+                        elif self.grouping is None:
+                            e = NotImplementedError('Univariate calculations must have a temporal grouping.')
+                            ocgis_lh(exc=e,logger='calc.engine')
+                        else:
+                            raise
+                    ## calculate the values
+                    calc = ref.calculate()
                     ## store the values
                     ret.calc[alias][f['name']] = calc
         return(ret)

@@ -99,17 +99,22 @@ class OcgFunction(object):
     @abc.abstractproperty
     def dtype(self): type
     
+    standard_name = ''
+    long_name = ''
+    units = ''
     nargs = 0
     name = None
     
     def __init__(self,values=None,groups=None,agg=False,weights=None,kwds={},
-                 dataset=None):
+                 dataset=None,calc_name=None,file_only=False):
         self.values = values
         self.groups = groups
         self.agg = agg
         self.weights = weights
         self.kwds = kwds
         self.dataset = dataset
+        self.calc_name = calc_name
+        self.file_only = file_only
         
         self.text = self.__class__.__name__
         if self.name is None:
@@ -122,22 +127,35 @@ class OcgFunction(object):
         
         :rtype: :class:`numpy.ma.MaskedArray`
         '''
-        ## holds output from calculation
-        fill = self._get_fill_(self.values)
-        ## iterate over temporal groups and levels
-        for idx,group in enumerate(self.groups):
-            value_slice = self.values[group,:,:,:]
-            self._curr_group = group
-            calc = self._calculate_(value_slice,**self.kwds)
-            ## we want to leave the mask alone and only fill the data. calculations
-            ## are not concerned with the global mask (though they can be).
-            fill.data[idx] = calc
-        ## if data is calculated on raw values, but area-weighting is required
-        ## aggregate the data using provided weights.
-        if self.agg and self._is_aggregated_(fill) is False:
-            ret = self.aggregate_spatial(fill)
+        ## return empty for file only
+        if self.file_only:
+            ret = self._get_file_only_fill_()
         else:
-            ret = fill
+            ## holds output from calculation
+            fill = self._get_fill_(self.values)
+            ## iterate over temporal groups and levels
+            for idx,group in enumerate(self.groups):
+                value_slice = self.values[group,:,:,:]
+                self._curr_group = group
+                calc = self._calculate_(value_slice,**self.kwds)
+                ## we want to leave the mask alone and only fill the data. calculations
+                ## are not concerned with the global mask (though they can be).
+                fill.data[idx] = calc
+            ## if data is calculated on raw values, but area-weighting is required
+            ## aggregate the data using provided weights.
+            if self.agg and self._is_aggregated_(fill) is False:
+                ret = self.aggregate_spatial(fill)
+            else:
+                ret = fill
+                
+        ## add calculation metadata
+        if self.dataset is not None:
+            if 'calculations' not in self.dataset.metadata:
+                self.dataset.metadata['calculations'] = {}
+            calculation_attrs = {self.calc_name:{'attrs':{'long_name':self.long_name,
+                                                     'standard_name':self.standard_name,
+                                                     'units':self.units}}}
+            self.dataset.metadata['calculations'].update(calculation_attrs)
         return(ret)
     
     def aggregate_spatial(self,fill):
@@ -183,6 +201,9 @@ class OcgFunction(object):
         fill = np.ma.array(fill,mask=mask)
         return(fill)
     
+    def _get_file_only_fill_(self):
+        return(np.ma.array(np.empty(0,dtype=self.dtype),mask=True))
+    
     def _is_aggregated_(self,fill):
         '''
         Based on the shape of `fill`, return True if the data is spatially aggregated.
@@ -220,25 +241,40 @@ class OcgCvArgFunction(OcgArgFunction):
     @abc.abstractproperty
     def keys(self): [str]
     
-    def __init__(self,groups=None,agg=False,weights=None,kwds={}):
-        super(OcgCvArgFunction,self).__init__(values=kwds,groups=groups,agg=agg,weights=weights,kwds=kwds)
+    def __init__(self,groups=None,agg=False,weights=None,kwds={},dataset=None,
+                 calc_name=None,file_only=False):
+        super(OcgCvArgFunction,self).__init__(values=kwds,groups=groups,agg=agg,
+                                              weights=weights,kwds=kwds,dataset=dataset,
+                                              calc_name=calc_name,file_only=file_only)
     
     def calculate(self):
-        if self.groups is None:
-            fill = self._calculate_(**self.kwds)
+        if self.file_only:
+            ret = self._get_file_only_fill_()
         else:
-            arch = self.kwds[self.keys[0]]
-            fill = self._get_fill_(arch)
-            ## iterate over temporal groups and levels
-            for idx,group in enumerate(self.groups):
-                kwds = self._subset_kwds_(group,self.kwds)
-                calc = self._calculate_(**kwds)
-                calc = self.aggregate_temporal(calc)
-                fill[idx] = calc
-        if self.agg and self._is_aggregated_(fill) is False:
-            ret = self.aggregate_spatial(fill)
-        else:
-            ret = fill
+            if self.groups is None:
+                fill = self._calculate_(**self.kwds)
+            else:
+                arch = self.kwds[self.keys[0]]
+                fill = self._get_fill_(arch)
+                ## iterate over temporal groups and levels
+                for idx,group in enumerate(self.groups):
+                    kwds = self._subset_kwds_(group,self.kwds)
+                    calc = self._calculate_(**kwds)
+                    calc = self.aggregate_temporal(calc)
+                    fill[idx] = calc
+            if self.agg and self._is_aggregated_(fill) is False:
+                ret = self.aggregate_spatial(fill)
+            else:
+                ret = fill
+            
+        ## add calculation metadata
+        if self.dataset is not None:
+            for dataset in self.dataset.values():
+                calculation_attrs = {self.calc_name:{'attrs':{'long_name':self.long_name,
+                                                         'standard_name':self.standard_name,
+                                                         'units':self.units}}}
+                dataset.metadata['calculations'] = calculation_attrs
+        
         return(ret)
     
     @abc.abstractmethod

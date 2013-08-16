@@ -6,9 +6,105 @@ import numpy as np
 import itertools
 from unittest.case import SkipTest
 from ocgis.api.operations import OcgOperations
+from datetime import datetime as dt
+from ocgis.util.large_array import compute
+from ocgis.api.request import RequestDatasetCollection, RequestDataset
+import netCDF4 as nc
 
 
-class TestDynamicPercentiles(TestBase):
+class TestQedBase(TestBase):
+    
+    def setUp(self):
+        raise(SkipTest('dev'))
+    
+    pass
+
+
+class TestSnowfallWaterEquivalent(TestQedBase):
+    
+    def setUp(self):
+        super(self.__class__,self).setUp()
+        ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
+    
+    @property
+    def maurer_pr(self):
+        ret = {'uri':'Maurer02new_OBS_pr_daily.1971-2000.nc','variable':'pr'}
+        return(ret)
+    
+    @property
+    def maurer_tas(self):
+        ret = {'uri':'Maurer02new_OBS_tas_daily.1971-2000.nc','variable':'tas'}
+        return(ret)
+    
+    def test_output_data(self):
+        uri = [
+               '/home/local/WX/ben.koziol/climate_data/QED-2013/sfwe/maurer02v2/sfwe_p/sfwe_p.nc',
+               '/home/local/WX/ben.koziol/climate_data/QED-2013/sfwe/maurer02v2/sfwe/sfwe.nc',
+               '/home/local/WX/ben.koziol/climate_data/QED-2013/sfwe/maurer02v2/pr/pr.nc'
+               ]
+        variable = [
+                    'sfwe_p',
+                    'sfwe',
+                    'p',
+                    ]
+        rds = [RequestDataset(u,v,time_region={'month':[7],'year':range(1990,2000)}) for u,v in zip(uri,variable)]
+        
+        ops = ocgis.OcgOperations(dataset=rds,geom='state_boundaries',select_ugid=[16],
+                                  spatial_operation='clip',aggregate=True)
+        ret = ops.execute()
+        ref = ret[16]
+        
+        sfwe_p = ref.variables['sfwe_p'].value
+        p = ref.variables['p'].value
+        sfwe = ref.variables['sfwe'].value
+        
+        idx_bad = sfwe_p > 1
+        bad_sfwe_p = sfwe_p[idx_bad]
+        self.assertEqual(bad_sfwe_p.compressed().shape[0],0)
+        
+        idx_bad = sfwe_p > 1
+        bad_sfwe = sfwe[idx_bad]
+        bad_p = p[idx_bad]
+        
+        rds = [RequestDataset(u,v) for u,v in zip(uri,variable)]
+        
+        ops = ocgis.OcgOperations(dataset=rds,geom='WBDHU8_June2013',select_ugid=[378],
+                                  spatial_operation='clip',aggregate=True)
+        ret = ops.execute()
+        ref = ret[378]
+        import ipdb;ipdb.set_trace()
+    
+    def test_calculate(self):
+#        ocgis.env.VERBOSE = True
+#        ocgis.env.DEBUG = True
+
+        calc = [{'func':'sfwe','name':'sfwe','kwds':{'tas':'tas','pr':'pr'}}]
+        time_range = [dt(1990,1,1),dt(1990,3,31)]
+        rds = []
+        for var in [self.maurer_pr,self.maurer_tas]:
+            var.update({'time_range':time_range})
+            rds.append(var)
+        geom = 'state_boundaries'
+        select_ugid = [16]
+        ops = OcgOperations(dataset=rds,geom=geom,select_ugid=select_ugid,
+                            calc=calc,calc_grouping=['month'],output_format='nc')
+        ret = ops.execute()
+        
+    def test_calculate_compute(self):
+#        ocgis.env.VERBOSE = True
+#        ocgis.env.DEBUG = True
+        calc = [{'func':'sfwe','name':'sfwe','kwds':{'tas':'tas','pr':'pr'}}]
+        time_range = None
+        rds = []
+        for var in [self.maurer_pr,self.maurer_tas]:
+            var.update({'time_range':time_range})
+            rds.append(var)
+        rdc = RequestDatasetCollection(rds)
+        sfwe = compute(rdc,calc,['month','year'],50,verbose=True,prefix='sfwe')
+        import ipdb;ipdb.set_trace()
+
+
+class TestDynamicPercentiles(TestQedBase):
     
     def setUp(self):
         raise(SkipTest('dev'))

@@ -135,7 +135,7 @@ class TestNcDataset(TestBase):
 
     def test_abstraction_point(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        ods = NcDataset(request_dataset=rd,abstraction='point')
+        ods = NcDataset(request_dataset=rd,s_abstraction='point')
         with self.assertRaises(AttributeError):
             ods.spatial.shape
         self.assertTrue(isinstance(ods.spatial.vector,NcPointDimension))

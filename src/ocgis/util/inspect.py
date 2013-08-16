@@ -83,8 +83,7 @@ class Inspect(object):
         return(self.ds.level)
         
     def get_temporal_report(self):
-        start_date = self._t.value.min()
-        end_date = self._t.value.max()
+        start_date,end_date = self._t.get_datetime([self._t.value.min(),self._t.value.max()])
         try:
             res = int(self._t.resolution)
         ## raised if the temporal dimension has a single value. possible with

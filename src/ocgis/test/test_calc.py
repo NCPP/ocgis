@@ -94,7 +94,7 @@ class Test(TestBase):
         for output_format in ['csv+','shp','csv']:
             ops = OcgOperations(dataset={'uri':uri,
                                          'variable':variable,
-                                         'time_region':{'year':None,'month':[7]}},
+                                         'time_region':{'year':[1991],'month':[7]}},
                                 output_format=output_format,prefix=output_format,
                                 calc=[{'name': 'Frequency Duration', 'func': 'freq_duration', 'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
                                 calc_grouping=['month','year'],
@@ -264,6 +264,8 @@ class Test(TestBase):
         ds = nc.Dataset(ret,'r')
         ref = ds.variables['time'][:]
         self.assertEqual(len(ref),12)
+        self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
+                         set([u'_FillValue', u'units', u'long_name', u'standard_name']))
         ds.close()
         
     def test_frequency_percentiles(self):
@@ -364,8 +366,8 @@ class Test(TestBase):
         ret = ops.execute()
         ref = ret[25].variables['tasmax'].temporal
         rdt = ref.group.representative_datetime
-        self.assertTrue(np.all(rdt == ref.value))
-        self.assertTrue(np.all(ref.bounds == ref.group.bounds))
+        self.assertTrue(np.all(rdt == ref.value_datetime))
+        self.assertTrue(np.all(ref.bounds_datetime == ref.group.bounds))
 
 
 class TestOcgCalculationEngine(TestBase):

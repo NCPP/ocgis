@@ -4,8 +4,7 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError,\
-    TemporalExtentError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
@@ -56,14 +55,14 @@ class SubsetOperation(object):
                     ## elegant way.
                     ods._load_slice.update({'T':slice(0,1)})
                 ## snippet for the computation. this currently requires loading
-                ## all the data for the time dimension into memory.
+                ## all the data from the time dimension into memory.
                 ##TODO: more efficiently pull dates for monthly grouping (for
                 ##example).
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
                     tgdim = ods.temporal.group
                     times = ods.temporal.value[tgdim.dgroups[0]]
-                    rd.time_range = [times.min(),times.max()]
+                    rd.time_range = list(ods.temporal.get_datetime([times.min(),times.max()]))
         
     def __iter__(self):
         ''':rtype: AbstractCollection'''
@@ -207,22 +206,25 @@ def get_collection((so,geom,logger)):
                         ocgis_lh('geometries wrapped',logger,alias=alias,
                                  ugid=ugid,level=logging.DEBUG)
                 ## check for all masked values
-                if not so.ops.file_only and ods.value.mask.all():
-                    if so.ops.snippet or so.ops.allow_empty:
-                        if so.ops.snippet:
-                            ocgis_lh('all masked data encountered but allowed for snippet',
-                                     logger,alias=alias,ugid=ugid,level=logging.WARN)
-                        if so.ops.allow_empty:
-                            ocgis_lh('all masked data encountered but empty returns allowed',
-                                     logger,alias=alias,ugid=ugid,level=logging.WARN)
-                        pass
-                    else:
-                        ## if the geometry is also masked, it is an empty spatial
-                        ## operation.
-                        if ods.spatial.vector.geom.mask.all():
-                            raise(EmptyData)
+                if env.OPTIMIZE_FOR_CALC is False and so.ops.file_only is False:
+                    if ods.value.mask.all():
+                        ## masked data may be okay depending on other opeartional
+                        ## conditions.
+                        if so.ops.snippet or so.ops.allow_empty:
+                            if so.ops.snippet:
+                                ocgis_lh('all masked data encountered but allowed for snippet',
+                                         logger,alias=alias,ugid=ugid,level=logging.WARN)
+                            if so.ops.allow_empty:
+                                ocgis_lh('all masked data encountered but empty returns allowed',
+                                         logger,alias=alias,ugid=ugid,level=logging.WARN)
+                            pass
                         else:
-                            ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
+                            ## if the geometry is also masked, it is an empty spatial
+                            ## operation.
+                            if ods.spatial.vector.geom.mask.all():
+                                raise(EmptyData)
+                            else:
+                                ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
             ## there may be no data returned - this may be real or could be an
             ## error. by default, empty returns are not allowed
             except EmptyData as ed:

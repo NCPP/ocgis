@@ -24,11 +24,10 @@ class Environment(object):
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
         self.REFERENCE_PROJECTION = ReferenceProjection()
-        self.USE_CACHING = EnvParm('USE_CACHING',False,formatter=self._format_bool_)
-        self.DIR_CACHE = EnvParm('DIR_CACHE',None)
         self.DIR_BIN = EnvParm('DIR_BIN',None)
         
         self.ops = None
+        self._optimize_store = {}
         
     def __str__(self):
         msg = []
@@ -47,7 +46,7 @@ class Environment(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        if isinstance(value,EnvParm) or name in ['ops','_use_logging']:
+        if isinstance(value,EnvParm) or name in ['ops','_optimize_store']:
             object.__setattr__(self,name,value)
         else:
             attr = object.__getattribute__(self,name)
@@ -61,6 +60,7 @@ class Environment(object):
                 value._value = 'use_env'
                 getattr(value,'value')
         env.ops = None
+        self._optimize_store = {}
                 
     def _format_bool_(self,value):
         '''Format a string to boolean.

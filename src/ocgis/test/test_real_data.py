@@ -77,9 +77,9 @@ class Test(TestBase):
                                   output_format='numpy')
         ret = ops.execute()
         ref = ret[2778].variables['tasmax']
-        years = np.array([dt.year for dt in ret[2778].variables['tasmax'].temporal.value])
-        months = np.array([dt.month for dt in ret[2778].variables['tasmax'].temporal.value])
-        select = np.array([dt.month in (6,7,8) and dt.year in (1990,1991,1992,1993,1994,1995,1996,1997,1998,1999) for dt in ret[2778].variables['tasmax'].temporal.value])
+        years = np.array([dt.year for dt in ret[2778].variables['tasmax'].temporal.value_datetime])
+        months = np.array([dt.month for dt in ret[2778].variables['tasmax'].temporal.value_datetime])
+        select = np.array([dt.month in (6,7,8) and dt.year in (1990,1991,1992,1993,1994,1995,1996,1997,1998,1999) for dt in ret[2778].variables['tasmax'].temporal.value_datetime])
         time_subset = ret[2778].variables['tasmax'].value[select,:,:,:]
         time_values = ref.temporal.value[select]
         
@@ -109,7 +109,7 @@ class Test(TestBase):
                                       select_ugid=[25])
             ret = ops.execute()
             
-            ret = ret[25].variables['rhs'].temporal.value
+            ret = ret[25].variables['rhs'].temporal.value_datetime
             
             years = [dt.year for dt in ret.flat]
             months = [dt.month for dt in ret.flat]
@@ -130,7 +130,7 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25])
         ret = ops.execute()
         ref = ret[25].variables['rhs']
-        years = set([obj.year for obj in ref.temporal.value])
+        years = set([obj.year for obj in ref.temporal.value_datetime])
         self.assertFalse(2015 in years)
         
         time_range = [dt(2013,1,1),dt(2015,12,31)]
@@ -257,7 +257,7 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
         ret = ops.execute()
         ref = ret[16].variables['climatology_TNn_monthly_max']
-        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value]))
+        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value_datetime]))
         
         uri = 'climatology_TNn_monthly_max.nc'
         variable = 'climatology_TNn_monthly_max'
@@ -265,7 +265,7 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
         ret = ops.execute()
         ref = ret[16].variables['climatology_TNn_monthly_max']
-        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value]))
+        self.assertEqual(set([6]),set([dt.month for dt in ref.temporal.value_datetime]))
         
         rd = ocgis.RequestDataset('climatology_TNn_annual_min.nc','climatology_TNn_annual_min')
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])

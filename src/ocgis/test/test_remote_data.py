@@ -7,7 +7,7 @@ from unittest.case import SkipTest
 class Test(TestBase):
 
     def test_geodataportal_prism(self):
-        raise(SkipTest('brings down the server'))
+#        raise(SkipTest('brings down the server'))
         uri = 'http://cida.usgs.gov/thredds/dodsC/prism'
         for variable in ['tmx','tmn','ppt']:
 #            ocgis.env.VERBOSE = True

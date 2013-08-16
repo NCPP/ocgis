@@ -25,7 +25,7 @@ def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None)
         ## load some data into the optimize store
         print('loading into optimize store...')
         for rd in dataset:
-            print('request dataset',rd.alias)
+            if verbose: print('request dataset',rd.alias)
             ocgis.env._optimize_store[rd.alias] = {}
             ocgis.env._optimize_store[rd.alias]['_value_datetime'] = rd.ds.temporal.value_datetime
             ocgis.env._optimize_store[rd.alias]['_bounds_datetime'] = rd.ds.temporal.bounds_datetime

@@ -64,7 +64,7 @@ class Test(TestBase):
                                 prefix=output_format)
             ret = ops.execute()
             if output_format == 'numpy':
-                self.assertEqual(len(ret),3)
+                self.assertEqual(len(ret),4)
                 
     def test_maurer_concatenated_tasmax_region(self):
         ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'

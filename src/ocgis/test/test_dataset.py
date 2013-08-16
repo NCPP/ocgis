@@ -241,7 +241,7 @@ class TestShpDataset(TestBase):
     def test_point_load(self):
         sds = ShpDataset('qed_city_centroids')
         self.assertIsInstance(sds.spatial.geom[0],Point)
-        self.assertEqual(sds.spatial.geom.shape[0],3)
+        self.assertEqual(sds.spatial.geom.shape[0],4)
         
         
 class TestGeometryDataset(TestBase):

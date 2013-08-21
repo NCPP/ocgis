@@ -19,7 +19,7 @@ class AbstractDataset(object):
     def _dspatial(self): AbstractSpatialDimension
     
     def __init__(self,request_dataset=None,temporal=None,level=None,spatial=None,
-                 metadata=None,value=None):
+                 metadata=None,value=None,ops=None):
         self.request_dataset = request_dataset
         
         self._temporal = temporal
@@ -27,6 +27,7 @@ class AbstractDataset(object):
         self._spatial = spatial
         self._metadata = metadata
         self._value = value
+        self._ops = ops
         
         self._dummy_level = False
         self._dummy_temporal = False
@@ -266,12 +267,22 @@ class AbstractTemporalDimension(AbstractVectorDimension,AbstractInterfaceDimensi
     def __init__(self,*args,**kwds):
         super(AbstractTemporalDimension,self).__init__(*args,**kwds)
         self.group = None
+        
+        ## try to get format time from operations if it is present
+        if self.dataset._ops is not None:
+            self.format_time = self.dataset._ops.format_time
+        else:
+            self.format_time = True
     
     @abstractproperty
     def _dtemporal_group_dimension(self): AbstractTemporalGroupDimension
     
     def _get_iter_value_bounds_ref(self):
-        return(self.value_datetime,self.bounds_datetime)
+        if self.format_time:
+            ret = self.value_datetime,self.bounds_datetime
+        else:
+            ret = self.value,self.bounds
+        return(ret)
     
     def set_grouping(self,grouping):
         

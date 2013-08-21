@@ -241,7 +241,14 @@ class FileOnly(base.BooleanParameter):
     meta_false = 'Actual data written to file.'
     default = False
     name = 'file_only'
-    
+
+
+class FormatTime(base.BooleanParameter):
+    name = 'format_time'
+    default = True
+    meta_true = 'Time values converted to datetime stamps.'
+    meta_false = 'Time values left in original form.'
+
 
 class Geom(base.OcgParameter):
     name = 'geom'

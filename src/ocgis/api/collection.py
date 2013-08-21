@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from ocgis import constants, env
+from ocgis import constants
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from copy import deepcopy
@@ -10,6 +10,9 @@ from ocgis.calc.base import KeyedFunctionOutput
 class AbstractCollection(object):
     '''Abstract base class for all collection types.'''
     __metaclass__ = ABCMeta
+    
+    def __init__(self,ops=None):
+        self.ops = ops
     
     @property
     def _archetype(self):
@@ -33,14 +36,12 @@ class AbstractCollection(object):
     
     def get_headers(self,upper=False):
         ## headers may have been overloaded by operations.
-        try:
-            if env.ops.headers is None: #@UndefinedVariable
-                headers = self._get_headers_()
-            else:
-                headers = env.ops.headers #@UndefinedVariable
-        except AttributeError:
-            ## env.ops likely not present
+        ops_headers = self._get_headers_from_ops_()
+        if ops_headers is None:
             headers = self._get_headers_()
+        else:
+            headers = ops_headers
+            
         if upper:
             ret = [h.upper() for h in headers]
         else:
@@ -65,15 +66,23 @@ class AbstractCollection(object):
     @abstractmethod
     def _get_headers_(self): list
     
+    def _get_headers_from_ops_(self):
+        if self.ops is None:
+            ret = None
+        else:
+            ret = self.ops.headers
+        return(ret)
+    
     @abstractmethod
     def _get_iter_(self): 'generator'
     
     
 class RawCollection(AbstractCollection):
     
-    def __init__(self,ugeom=None):
+    def __init__(self,ugeom=None,ops=None):
         self.ugeom = ugeom
         self.variables = OrderedDict()
+        super(RawCollection,self).__init__(ops=ops)
     
     def _get_iter_(self):
         ## we want to break out the date parts if any date parts are present
@@ -111,11 +120,12 @@ class RawCollection(AbstractCollection):
         
 class CalcCollection(AbstractCollection):
     
-    def __init__(self,raw_collection,funcs=None):
+    def __init__(self,raw_collection,funcs=None,ops=None):
         self.ugeom = raw_collection.ugeom
         self.variables = raw_collection.variables
         self.calc = OrderedDict()
         self.funcs = funcs
+        super(CalcCollection,self).__init__(ops=raw_collection.ops)
     
     def _get_iter_(self):
 #        headers = self.get_headers()
@@ -189,14 +199,11 @@ class KeyedOutputCalcCollection(CalcCollection):
     
     def get_headers(self,upper=False):
         ## headers may have been overloaded by operations.
-        try:
-            if env.ops.headers is None: #@UndefinedVariable
-                headers = self._get_headers_()
-            else:
-                headers = env.ops.headers #@UndefinedVariable
-        except AttributeError:
-            ## env.ops likely not present
+        ops_headers = self._get_headers_from_ops_()
+        if ops_headers is None:
             headers = self._get_headers_()
+        else:
+            headers = ops_headers
             
         ## needed in case headers are overloaded
         ref = self._get_target_ref_()

@@ -4,7 +4,6 @@ from ocgis.interface.nc.dataset import NcDataset
 from ocgis.exc import TemporalResolutionError
 from collections import OrderedDict
 import re
-import datetime
 from warnings import warn
 from ocgis.interface.nc.dimension import NcGridMatrixDimension
 
@@ -83,9 +82,17 @@ class Inspect(object):
         return(self.ds.level)
         
     def get_temporal_report(self):
-        start_date,end_date = self._t.get_datetime([self._t.value.min(),self._t.value.max()])
+        ## format the time for the temporal report
+        if self._t.format_time:
+            start_date,end_date = self._t.get_datetime([self._t.value.min(),self._t.value.max()])
+        else:
+            start_date,end_date = self._t.value.min(),self._t.value.max()
+            
         try:
-            res = int(self._t.resolution)
+            if self._t.format_time:
+                res = int(self._t.resolution)
+            else:
+                res = 'NA (non-formatted times requested)'
         ## raised if the temporal dimension has a single value. possible with
         ## snippet or a small dataset...
         except TemporalResolutionError:

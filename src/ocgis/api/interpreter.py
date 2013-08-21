@@ -93,8 +93,12 @@ class OcgInterpreter(Interpreter):
             
             ## set up environment ##############################################
             
-            ## add operations to environment
-            env.ops = self.ops
+#            ## add operations to environment
+#            env.ops = self.ops
+
+            ## construct dataset objects for each request dataset
+            for ds in self.ops.dataset:
+                ds._set_ds_(ops=self.ops)
                 
             self.check() ## run validation - doesn't do much now
                 
@@ -139,5 +143,5 @@ class OcgInterpreter(Interpreter):
 
             return(ret)
         finally:
-            env.ops = None
+#            env.ops = None
             ocgis_lh.shutdown()

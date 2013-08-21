@@ -111,6 +111,10 @@ class RequestDataset(object):
         if self._ds is None:
             self._ds = self._Dataset(**self.interface)
         return(self._ds)
+    def _set_ds_(self,ops=None):
+        kwds = self.interface
+        kwds.update({'ops':ops})
+        self._ds = self._Dataset(**kwds)
     
     def __del__(self):
         if self._ds is not None:
@@ -369,14 +373,16 @@ class RequestDatasetCollection(object):
         else:
             self._s.update({request_dataset.alias:request_dataset})
             
-    def validate(self):
+    def validate(self,ops=None):
         ## confirm projections are equivalent
         projections = []
         for rd in self:
             ocgis_lh('loading projection','request',alias=rd.alias)
             projections.append(rd.ds.spatial.projection.sr.ExportToProj4())
-        if len(set(projections)) == 2 and env.ops.output_format != 'numpy': #@UndefinedVariable
-            if ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
+        if len(set(projections)) > 1: #@UndefinedVariable
+            if ops is not None and ops.output_format == 'numpy':
+                pass
+            elif ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
                 ocgis_lh(None,'request',
                  exc=ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             

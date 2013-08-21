@@ -23,7 +23,7 @@ class SubsetOperation(object):
         
         if validate:
             ocgis_lh('validating request datasets',subset_log,level=logging.DEBUG)
-            ops.dataset.validate()
+            ops.dataset.validate(ops=ops)
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -115,7 +115,7 @@ def get_collection((so,geom,logger)):
     '''
     
     ## initialize the collection object to store the subsetted data.
-    coll = RawCollection(ugeom=geom)
+    coll = RawCollection(ugeom=geom,ops=so.ops)
     ## perform the operations on each request dataset
     ocgis_lh('{0} request dataset(s) to process'.format(len(so.ops.dataset)),logger)
     ## reference the geometry ugid

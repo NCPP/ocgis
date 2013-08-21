@@ -61,6 +61,8 @@ class OcgOperations(object):
     :type dir_output: str
     :param headers: A sequence of strings specifying the output headers.
     :type headers: sequence
+    :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass values through without a coercion attempt.
+    :type format_time: bool
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -68,7 +70,7 @@ class OcgOperations(object):
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice=None, file_only=False, headers=None):
+                 slice=None, file_only=False, headers=None, format_time=True):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -94,6 +96,7 @@ class OcgOperations(object):
         self.slice = Slice(slice)
         self.file_only = FileOnly(file_only)
         self.headers = Headers(headers)
+        self.format_time = FormatTime(format_time)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

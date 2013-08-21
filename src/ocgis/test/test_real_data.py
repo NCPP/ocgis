@@ -3,14 +3,12 @@ from ocgis.test.base import TestBase
 import itertools
 from unittest.case import SkipTest
 from ocgis.api.operations import OcgOperations
-from ocgis.interface.nc.dataset import NcDataset
 import webbrowser
 from datetime import datetime as dt
 from ocgis.exc import DefinitionValidationError
 import numpy as np
 import datetime
 import netCDF4 as nc
-import os
 
 
 class Test(TestBase):
@@ -247,6 +245,20 @@ class Test(TestBase):
         ret = ops.execute()
         webbrowser.open(ret)
         import ipdb;ipdb.set_trace()
+        
+    def test_bad_time_dimension(self):
+        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        uri = 'seasonalbias.nc'
+        variable = 'bias'
+        for output_format in ['csv','csv+','shp','numpy']:
+            ops = OcgOperations(dataset={'uri':uri,'variable':variable},output_format=output_format,
+                                format_time=False,prefix=output_format)
+            ret = ops.execute()
+            if output_format == 'numpy':
+                self.assertNumpyAll(ret[1].variables['bias'].temporal.value,
+                                    np.array([-712208.5,-712117. ,-712025. ,-711933.5]))
+                self.assertNumpyAll(ret[1].variables['bias'].temporal.bounds,
+                                    np.array([[-712254.,-712163.],[-712163.,-712071.],[-712071.,-711979.],[-711979.,-711888.]]))
         
     def test_time_region_climatology(self):
         ocgis.env.DIR_DATA = '/usr/local/climate_data'

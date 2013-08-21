@@ -28,8 +28,8 @@ class DefinitionValidationError(OcgException):
     def __init__(self,ocg_argument,msg):
         self.ocg_argument = ocg_argument
         
-        fmt = ('Operations validation raised an exception on the argument or operation '
-               '"{0}" with the message: "{1}"')
+        fmt = ('OcgOperations validation raised an exception on the argument/operation '
+               '"{0}" with the message: {1}')
         try:
             msg = fmt.format(ocg_argument.name,msg)
         except AttributeError:
@@ -39,11 +39,6 @@ class DefinitionValidationError(OcgException):
                 msg = fmt.format(ocg_argument,msg)
         
         self.message = msg
-
-
-class CannotEncodeUrl(OcgException):
-    """Raised when a URL may not be encoded from an :func:`~ocgis.OcgOperations.as_qs` call."""
-    pass
 
 
 class ParameterFormattingError(OcgException):
@@ -69,6 +64,17 @@ class TemporalResolutionError(OcgException):
 class SubsetException(OcgException):
     """Base class for all subset exceptions."""
     pass
+
+
+class OcgisEnvironmentError(OcgException):
+    
+    def __init__(self,env_parm,msg):
+        self.env_parm = env_parm
+        self.msg = msg
+        
+    def __str__(self):
+        new_msg = 'Error when setting the ocgis.env variable {0}. The message is: {1}'.format(self.env_parm.name,self.msg)
+        return(new_msg)
 
 
 class MaskedDataError(SubsetException):

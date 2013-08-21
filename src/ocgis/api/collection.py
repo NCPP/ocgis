@@ -1,14 +1,18 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from ocgis import constants, env
+from ocgis import constants
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from copy import deepcopy
+from ocgis.calc.base import KeyedFunctionOutput
 
 
 class AbstractCollection(object):
     '''Abstract base class for all collection types.'''
     __metaclass__ = ABCMeta
+    
+    def __init__(self,ops=None):
+        self.ops = ops
     
     @property
     def _archetype(self):
@@ -32,10 +36,12 @@ class AbstractCollection(object):
     
     def get_headers(self,upper=False):
         ## headers may have been overloaded by operations.
-        if env.ops.headers is None: #@UndefinedVariable
+        ops_headers = self._get_headers_from_ops_()
+        if ops_headers is None:
             headers = self._get_headers_()
         else:
-            headers = env.ops.headers #@UndefinedVariable
+            headers = ops_headers
+            
         if upper:
             ret = [h.upper() for h in headers]
         else:
@@ -60,18 +66,34 @@ class AbstractCollection(object):
     @abstractmethod
     def _get_headers_(self): list
     
+    def _get_headers_from_ops_(self):
+        if self.ops is None:
+            ret = None
+        else:
+            ret = self.ops.headers
+        return(ret)
+    
     @abstractmethod
     def _get_iter_(self): 'generator'
     
     
 class RawCollection(AbstractCollection):
     
-    def __init__(self,ugeom=None):
+    def __init__(self,ugeom=None,ops=None):
         self.ugeom = ugeom
         self.variables = OrderedDict()
+        super(RawCollection,self).__init__(ops=ops)
     
     def _get_iter_(self):
-#        headers = self._get_headers_()
+        ## we want to break out the date parts if any date parts are present
+        ## in the headers argument.
+        headers = self.get_headers()
+        intersection = set(headers).intersection(set(['year','month','day']))
+        if len(intersection) > 0:
+            add_date_parts = True
+        else:
+            add_date_parts = False
+
         vid = 1
         ugid = self.ugid
         for alias,ds in self.variables.iteritems():
@@ -83,7 +105,10 @@ class RawCollection(AbstractCollection):
                 attrs['variable'] = variable
                 attrs['vid'] = vid
                 attrs['ugid'] = ugid
-#                row = [attrs[key] for key in headers]
+                if add_date_parts:
+                    attrs['year'] = attrs['time'].year
+                    attrs['month'] = attrs['time'].month
+                    attrs['day'] = attrs['time'].day
                 if type(geom) == Polygon:
                     geom = MultiPolygon([geom])
                 yield(geom,attrs)
@@ -95,10 +120,12 @@ class RawCollection(AbstractCollection):
         
 class CalcCollection(AbstractCollection):
     
-    def __init__(self,raw_collection):
+    def __init__(self,raw_collection,funcs=None,ops=None):
         self.ugeom = raw_collection.ugeom
         self.variables = raw_collection.variables
         self.calc = OrderedDict()
+        self.funcs = funcs
+        super(CalcCollection,self).__init__(ops=raw_collection.ops)
     
     def _get_iter_(self):
 #        headers = self.get_headers()
@@ -166,3 +193,79 @@ class MultivariateCalcCollection(CalcCollection):
         else:
             headers = constants.multi_headers
         return(headers)
+
+
+class KeyedOutputCalcCollection(CalcCollection):
+    
+    def get_headers(self,upper=False):
+        ## headers may have been overloaded by operations.
+        ops_headers = self._get_headers_from_ops_()
+        if ops_headers is None:
+            headers = self._get_headers_()
+        else:
+            headers = ops_headers
+            
+        ## needed in case headers are overloaded
+        ref = self._get_target_ref_()
+        for output_key in ref.output_keys:
+            if output_key not in headers:
+                headers = list(headers) + [output_key]
+                
+        if upper:
+            ret = [h.upper() for h in headers]
+        else:
+            ret = headers
+        return(ret)
+    
+    def _get_iter_(self):
+#        headers = self._get_headers_()
+        vid = 1
+        cid = 1
+        ugid = self.ugid
+        output_keys = self._get_target_ref_().output_keys
+        for alias,calc in self.calc.iteritems():
+            ds = self.variables[alias]
+            did = ds.request_dataset.did
+            variable = ds.request_dataset.variable
+            for calc_name,calc_value in calc.iteritems():
+                is_sample_size = False
+                for geom,base_attrs in ds.get_iter_value(value=calc_value,temporal_group=True):
+                    ## try to get the shape of the structure arrays
+                    try:
+                        iter_shape = base_attrs['value'].shape[0]
+                    except IndexError:
+                        iter_shape = 1
+                    for ii_value in range(iter_shape):
+                        attrs = base_attrs.copy()
+                        for key in output_keys:
+                            try:
+                                attrs[key] = attrs['value'][key][ii_value]
+                            except IndexError:
+                                ## likely sample size
+                                is_sample_size = True
+                                attrs[key] = None
+                        if not is_sample_size:
+                            attrs['value'] = None
+                        attrs['did'] = did
+                        attrs['variable'] = variable
+                        attrs['alias'] = alias
+                        attrs['calc_name'] = calc_name
+                        attrs['vid'] = vid
+                        attrs['cid'] = cid
+                        attrs['ugid'] = ugid
+                        if type(geom) == Polygon:
+                            geom = MultiPolygon([geom])
+                        yield(geom,attrs)
+                cid += 1
+            vid += 1
+        
+    def _get_headers_(self):
+        headers = super(self.__class__,self)._get_headers_()
+        ref = self._get_target_ref_()
+        headers += ref.output_keys
+        return(headers)
+        
+    def _get_target_ref_(self):
+        for func in self.funcs:
+            if issubclass(func['ref'],KeyedFunctionOutput):
+                return(func['ref'])

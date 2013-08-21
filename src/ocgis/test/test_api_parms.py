@@ -50,9 +50,6 @@ class Test(TestBase):
         self.assertFalse(s.value)
         s.value = '0'
         self.assertFalse(s.value)
-        self.assertEqual(s.get_url_string(),'0')
-        s.value = 1
-        self.assertEqual(s.get_url_string(),'1')
         with self.assertRaises(DefinitionValidationError):
             s.value = 'none'
             
@@ -88,7 +85,6 @@ class Test(TestBase):
             so.value = '22.5'
         so = SelectUgid('22|23|24')
         self.assertEqual(so.value,(22,23,24))
-        self.assertEqual(so.get_url_string(),'22|23|24')
         with self.assertRaises(DefinitionValidationError):
             so.value = '22|23.5|24'
             
@@ -103,16 +99,12 @@ class Test(TestBase):
         self.assertEqual(cg.value,('day','month'))
         with self.assertRaises(DefinitionValidationError):
             cg.value = ['d','foo']
-        self.assertEqual(cg.get_url_string(),'day|month')
             
     def test_dataset(self):
         rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
-        us = dd.get_url_string()
-        self.assertEqual(us,'uri={0}&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none'.format(rd.uri))
         
         with open('/tmp/dd.pkl','w') as f:
-#            import ipdb;ipdb.set_trace()
             pickle.dump(dd,f)
         
         uri = '/a/bad/path'
@@ -134,7 +126,6 @@ class Test(TestBase):
         g = Geom('-120|40|-110|50')
         self.assertEqual(g.value.spatial.geom[0].bounds,(-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
-        self.assertEqual(g.get_url_string(),'-120.0|40.0|-110.0|50.0')
         
         g = Geom('mi_watersheds')
         self.assertEqual(str(g),'geom=mi_watersheds')
@@ -149,8 +140,6 @@ class Test(TestBase):
         
         geoms = GeometryDataset(uid=[1,2],geom=[geom,geom])
         g = Geom(geoms)
-        with self.assertRaises(CannotEncodeUrl):
-            g.get_url_string()
         
         bbox = [-120,40,-110,50]
         g = Geom(bbox)

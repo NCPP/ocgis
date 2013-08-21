@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 ## try to turn off fiona logging
 try:

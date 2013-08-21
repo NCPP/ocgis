@@ -12,7 +12,7 @@ Additional information on keyword arguments can be found below the initial docum
 These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
 :attr:`env.DIR_OUTPUT` = :meth:`tempfile.gettempdir()`
- The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the system's temporary directory.
+ The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the current working directory.
 
 :attr:`env.OVERWRITE` = `False`
  .. warning:: Use with caution.
@@ -62,6 +62,11 @@ A `dataset` is the target file(s) where data is stored. A `dataset` may be on th
 
 .. autoclass:: ocgis.RequestDatasetCollection
    :members: update
+
+dir_output
+~~~~~~~~~~
+
+This sets the output folder for any disk formats. If this is `None` and `env.DIR_OUTPUT` is `None`, then output will be written to the current working directory.
 
 spatial_operation
 ~~~~~~~~~~~~~~~~~
@@ -121,11 +126,13 @@ See the :ref:`computation_headline` page for more details.
 calc_grouping
 ~~~~~~~~~~~~~
 
-Any combination of :class:`datetime.datetime` attribute strings.
+Any combination of 'day', 'month', and 'year'.
 
->>> calc_grouping = ['year']
+>>> calc_grouping = ['day']
 >>> calc_grouping = ['month','year']
->>> calc_grouping = ['day','second']
+>>> calc_grouping = ['day','year']
+
+Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one.
 
 .. _calc_raw_headline:
 

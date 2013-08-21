@@ -37,6 +37,9 @@ class MetaConverter(object):
         lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__RELEASE__)]
         lines.append('  Generated (UTC): {0}'.format(datetime.datetime.utcnow()))
         lines.append('')
+        if self.ops.output_format != 'meta':
+            lines.append('This is OpenClimateGIS-related metadata. Data-level metadata may be found in the file named: {0}'.format(self.ops.prefix+'_source_metadata.txt'))
+            lines.append('')
         lines.append('== Potential Header Names with Definitions ==')
         lines.append('')
         sh = sorted(HEADERS)
@@ -46,14 +49,9 @@ class MetaConverter(object):
         lines.append('')
         lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
-        for k,v in sorted(self.ops.__dict__.iteritems()):
+        for v in sorted(self.ops.__dict__.itervalues()):
             if isinstance(v,OcgParameter):
                 lines.append(v.get_meta())
-        
-        ## append the url representation of the data request
-        lines.append('== URL Representation ==')
-        lines.append('')
-        lines.append(self.ops.as_url())
             
         ## collapse lists
         ret = []

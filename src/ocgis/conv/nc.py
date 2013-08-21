@@ -2,8 +2,7 @@ from ocgis.conv.base import OcgConverter
 import netCDF4 as nc
 from ocgis.interface.projection import WGS84
 from ocgis import constants
-from ocgis.api.collection import CalcCollection
-from ocgis import env
+from ocgis.api.collection import CalcCollection, MultivariateCalcCollection
 
     
 class NcConverter(OcgConverter):
@@ -84,19 +83,29 @@ class NcConverter(OcgConverter):
         
         ## time variable
         if temporal.group is not None:
-            time_nc_value = temporal.get_nc_time(temporal.group.date_centroid)
+            time_nc_value = temporal.get_nc_time(temporal.group.representative_datetime)
         else:
-            time_nc_value = temporal.get_nc_time(arch.temporal.value)
+            time_nc_value = arch.temporal.value
 #            time_nc_value = temporal.calculate(arch.temporal.value[:,1])
+
         ## if bounds are available for the time vector transform those as well
-        if temporal.bounds is not None:
+        if temporal.group is not None:
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
-            if temporal.group is not None:
-                time_bounds_nc_value = temporal.get_nc_time(temporal.group.bounds)
-            else:
-                time_bounds_nc_value = temporal.get_nc_time(temporal.bounds)
+            times_bounds = ds.createVariable('climatology_'+bounds_name,time_nc_value.dtype,
+                                             (dim_temporal._name,bounds_name))
+            times_bounds[:] = temporal.get_nc_time(temporal.group.bounds)
+        elif temporal.bounds is not None:
+            if dim_bnds is None:
+                dim_bnds = ds.createDimension(bounds_name,2)
+#            if temporal.group is not None:
+#                time_bounds_nc_value = temporal.get_nc_time(temporal.group.bounds)
+#            else:
+            time_bounds_nc_value = temporal.bounds
+#            if temporal.group is None:
             times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
+#            else:
+#                times_bounds = ds.createVariable('climatology_'+bounds_name,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
             times_bounds[:] = time_bounds_nc_value
             for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
                 setattr(times_bounds,key,value)
@@ -104,6 +113,10 @@ class NcConverter(OcgConverter):
         times[:] = time_nc_value
         for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
             setattr(times,key,value)
+        
+        ## add climatology bounds
+        if temporal.group is not None:
+            setattr(times,'climatology','climatology_'+bounds_name)
             
         ## level variable
         ## if there is no level on the variable no need to build one.
@@ -152,12 +165,20 @@ class NcConverter(OcgConverter):
         ## set the variable(s) #################################################
         
         ## loop through variables
-        if isinstance(coll,CalcCollection):
+        if type(coll) == CalcCollection:
             for calc_name,calc_value in coll.calc[coll.variables.keys()[0]].iteritems():
                 value = ds.createVariable(calc_name,calc_value.dtype,
                            value_dims,fill_value=calc_value.fill_value)
                 if not file_only:
                     value[:] = calc_value
+                for key,val in meta['calculations'][calc_name]['attrs'].iteritems():
+                    setattr(value,key,val)
+        elif type(coll) == MultivariateCalcCollection:
+            for calc_name,calc_value in coll.calc.iteritems():
+                value = ds.createVariable(calc_name,calc_value.dtype,
+                           value_dims,fill_value=calc_value.fill_value)
+                for key,val in meta['calculations'][calc_name]['attrs'].iteritems():
+                    setattr(value,key,val)
         else:
             if file_only: raise(NotImplementedError)
             for var_name,var_value in coll.variables.iteritems():

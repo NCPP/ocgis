@@ -4,8 +4,7 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env
 from ocgis.interface.shp import ShpDataset
 from ocgis.api.collection import RawCollection
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError,\
-    TemporalExtentError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError
 from ocgis.interface.projection import WGS84
 from ocgis.util.spatial.wrap import Wrapper
 from copy import deepcopy
@@ -24,7 +23,7 @@ class SubsetOperation(object):
         
         if validate:
             ocgis_lh('validating request datasets',subset_log,level=logging.DEBUG)
-            ops.dataset.validate()
+            ops.dataset.validate(ops=ops)
 
         ## create the calculation engine
         if self.ops.calc is None:
@@ -44,7 +43,8 @@ class SubsetOperation(object):
             for rd in self.ops.dataset:
                 ## snippet is not implemented for time regions
                 if rd.time_region is not None:
-                    raise(NotImplementedError('snippet is not implemented for time regions'))
+                    exc = NotImplementedError('snippet is not implemented for time regions')
+                    ocgis_lh(exc=exc,logger=subset_log)
                 
                 rd.level_range = [1,1]
                 ods = rd.ds
@@ -55,14 +55,14 @@ class SubsetOperation(object):
                     ## elegant way.
                     ods._load_slice.update({'T':slice(0,1)})
                 ## snippet for the computation. this currently requires loading
-                ## all the data for the time dimension into memory.
+                ## all the data from the time dimension into memory.
                 ##TODO: more efficiently pull dates for monthly grouping (for
                 ##example).
                 else:
                     ods.temporal.set_grouping(self.cengine.grouping)
                     tgdim = ods.temporal.group
                     times = ods.temporal.value[tgdim.dgroups[0]]
-                    rd.time_range = [times.min(),times.max()]
+                    rd.time_range = list(ods.temporal.get_datetime([times.min(),times.max()]))
         
     def __iter__(self):
         ''':rtype: AbstractCollection'''
@@ -90,7 +90,6 @@ class SubsetOperation(object):
         ''':rtype: tuple'''
         
         subset_log = ocgis_lh.get_logger('subset')
-        
         ## if there is no geometry, yield None.
         if self.ops.geom is None:
             ocgis_lh('returning entire spatial domain - no selection geometry',subset_log)
@@ -116,7 +115,7 @@ def get_collection((so,geom,logger)):
     '''
     
     ## initialize the collection object to store the subsetted data.
-    coll = RawCollection(ugeom=geom)
+    coll = RawCollection(ugeom=geom,ops=so.ops)
     ## perform the operations on each request dataset
     ocgis_lh('{0} request dataset(s) to process'.format(len(so.ops.dataset)),logger)
     ## reference the geometry ugid
@@ -124,7 +123,7 @@ def get_collection((so,geom,logger)):
     for request_dataset in so.ops.dataset:
         ## reference the request dataset alias
         alias = request_dataset.alias
-        ocgis_lh('processing',logger,level=logging.DEBUG,alias=alias,ugid=ugid)
+        ocgis_lh('processing',logger,level=logging.INFO,alias=alias,ugid=ugid)
         ## copy the geometry
         copy_geom = deepcopy(geom)
         ## reference the dataset object
@@ -167,11 +166,18 @@ def get_collection((so,geom,logger)):
                     temporal = None
                 else:
                     temporal = request_dataset.time_range or request_dataset.time_region
-
+                
+                ocgis_lh('executing get_subset',logger,level=logging.DEBUG)
                 ods = ods.get_subset(spatial_operation=so.ops.spatial_operation,
                                      igeom=igeom,
                                      temporal=temporal,
                                      level=request_dataset.level_range)
+                
+                ## for the case of time range and time region subset, apply the
+                ## time region subset following the time range subset.
+                if request_dataset.time_range is not None and request_dataset.time_region is not None:
+                    ods._temporal = ods.temporal.subset(request_dataset.time_region)
+                
                 ## aggregate the geometries and data if requested
                 if so.ops.aggregate:
                     ocgis_lh('aggregating target geometries and area-weighting values',
@@ -200,22 +206,25 @@ def get_collection((so,geom,logger)):
                         ocgis_lh('geometries wrapped',logger,alias=alias,
                                  ugid=ugid,level=logging.DEBUG)
                 ## check for all masked values
-                if not so.ops.file_only and ods.value.mask.all():
-                    if so.ops.snippet or so.ops.allow_empty:
-                        if so.ops.snippet:
-                            ocgis_lh('all masked data encountered but allowed for snippet',
-                                     logger,alias=alias,ugid=ugid,level=logging.WARN)
-                        if so.ops.allow_empty:
-                            ocgis_lh('all masked data encountered but empty returns allowed',
-                                     logger,alias=alias,ugid=ugid,level=logging.WARN)
-                        pass
-                    else:
-                        ## if the geometry is also masked, it is an empty spatial
-                        ## operation.
-                        if ods.spatial.vector.geom.mask.all():
-                            raise(EmptyData)
+                if env.OPTIMIZE_FOR_CALC is False and so.ops.file_only is False:
+                    if ods.value.mask.all():
+                        ## masked data may be okay depending on other opeartional
+                        ## conditions.
+                        if so.ops.snippet or so.ops.allow_empty:
+                            if so.ops.snippet:
+                                ocgis_lh('all masked data encountered but allowed for snippet',
+                                         logger,alias=alias,ugid=ugid,level=logging.WARN)
+                            if so.ops.allow_empty:
+                                ocgis_lh('all masked data encountered but empty returns allowed',
+                                         logger,alias=alias,ugid=ugid,level=logging.WARN)
+                            pass
                         else:
-                            ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
+                            ## if the geometry is also masked, it is an empty spatial
+                            ## operation.
+                            if ods.spatial.vector.geom.mask.all():
+                                raise(EmptyData)
+                            else:
+                                ocgis_lh(None,logger,exc=MaskedDataError(),alias=alias,ugid=ugid)
             ## there may be no data returned - this may be real or could be an
             ## error. by default, empty returns are not allowed
             except EmptyData as ed:
@@ -232,6 +241,7 @@ def get_collection((so,geom,logger)):
                     else:
                         msg = 'empty geometric operation'
                     ocgis_lh(msg,logger,exc=ExtentError(msg),alias=alias,ugid=ugid)
+        ods.spatial._ugid = ugid
         coll.variables.update({request_dataset.alias:ods})
 
     ## if there are calculations, do those now and return a new type of collection
@@ -243,5 +253,5 @@ def get_collection((so,geom,logger)):
     if so.ops.output_grouping is not None:
         raise(NotImplementedError)
     else:
-        ocgis_lh('subset returning',logger,level=logging.DEBUG)
+        ocgis_lh('subset returning',logger,level=logging.INFO)
         return(coll)

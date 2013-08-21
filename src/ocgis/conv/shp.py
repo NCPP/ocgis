@@ -42,8 +42,9 @@ class ShpConverter(OcgConverter):
                             geom_type = ogr.wkbMultiPolygon
                         else:
                             geom_type = ogr.wkbPoint
+                        ## select the output projection
                         if env.WRITE_TO_REFERENCE_PROJECTION:
-                            srs = constants.reference_projection.sr
+                            srs = env.REFERENCE_PROJECTION.sr
                         else:
                             srs = coll.projection.sr
                         layer = ds.CreateLayer(self.layer,srs=srs,geom_type=geom_type)
@@ -69,7 +70,6 @@ class ShpConverter(OcgConverter):
                     except RuntimeError:
                         test_geom = ogr.CreateGeometryFromWkb(geom.wkb)
                         if geom_type != test_geom.GetGeometryType():
-                            import ipdb;ipdb.set_trace()
                             msg = 'Shapefile geometry type and target geometry type do not match. This likely occurred because request datasets mix bounded and unbounded spatial data. Try setting "abstraction" to "point".'
                             raise(RuntimeError(msg))
                         else:
@@ -99,7 +99,8 @@ class OgrField(object):
                 np.int32:[ogr.OFTInteger,int],
                 np.float64:[ogr.OFTReal,float],
                 np.float32:[ogr.OFTReal,float],
-                np.int16:[ogr.OFTInteger,int]}
+                np.int16:[ogr.OFTInteger,int],
+                unicode:[ogr.OFTString,str]}
     
     def __init__(self,fcache,name,data_type,precision=6,width=255):
         self.orig_name = name
@@ -128,7 +129,16 @@ class OgrField(object):
         if self._conv is None:
             return(val)
         else:
-            return(self._conv(val))
+            try:
+                return(self._conv(val))
+            except TypeError:
+                ## if the value is None, do not make the conversion but pass
+                ## through.
+                if val is None:
+                    return(val)
+                else:
+                    raise
+
         
 class FieldCache(object):
     """Manage shapefile fields names."""

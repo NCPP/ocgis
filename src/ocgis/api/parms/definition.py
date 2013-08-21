@@ -1,5 +1,5 @@
 from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.exc import DefinitionValidationError
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from shapely.geometry.polygon import Polygon
 from ocgis.calc.base import OcgFunctionTree
@@ -13,6 +13,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
+from ocgis import env
 
 
 class Abstraction(base.StringOptionParameter):
@@ -72,11 +73,7 @@ class Calc(base.IterableParameter,base.OcgParameter):
     unique = False
     
     def __repr__(self):
-        if self.value is None:
-            fill = None
-        else:
-            fill = self.get_url_string()
-        msg = '{0}={1}'.format(self.name,fill)
+        msg = '{0}={1}'.format(self.name,self.value)
         return(msg)
     
     def get_url_string(self):
@@ -168,8 +165,8 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
     
     def _validate_(self,value):
         for val in value:
-            if val not in ['day','month','year','hour','minute','second']:
-                raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group.'.format(val)))
+            if val not in ['day','month','year']:
+                raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(val)))
             
             
 class CalcRaw(base.BooleanParameter):
@@ -218,29 +215,11 @@ class Dataset(base.OcgParameter):
     
     def _get_meta_(self): pass
     
-    def get_url_string(self):
-        if len(self.value) == 1:
-            end_integer_strings = ['']
-        else:
-            end_integer_strings = range(1,len(self.value)+1)
-        out_str = []
-        template = '{0}{1}={2}'
-        for ds,es in zip(self.value,end_integer_strings):
-            for key in ['uri','variable','alias','t_units','t_calendar','s_proj']:
-                app_value = ds[key]
-                if app_value is None:
-                    app_value = 'none'
-                app = template.format(key,es,app_value)
-                out_str.append(app)
-        out_str = '&'.join(out_str)
-        return(out_str)
-    
     def _parse_string_(self,lowered):
         raise(NotImplementedError)
     
     
-class DirOutput(base.OcgParameter):
-    _in_url = False
+class DirOutput(base.StringParameter):
     _lower_string = False
     name = 'dir_output'
     nullable = False
@@ -262,7 +241,14 @@ class FileOnly(base.BooleanParameter):
     meta_false = 'Actual data written to file.'
     default = False
     name = 'file_only'
-    
+
+
+class FormatTime(base.BooleanParameter):
+    name = 'format_time'
+    default = True
+    meta_true = 'Time values converted to datetime stamps.'
+    meta_false = 'Time values left in original form.'
+
 
 class Geom(base.OcgParameter):
     name = 'geom'
@@ -278,7 +264,7 @@ class Geom(base.OcgParameter):
         args = [self] + list(args)
         base.OcgParameter.__init__(*args,**kwds)
     
-    def __repr__(self):
+    def __str__(self):
         if self.value is None:
             value = None
         elif self._shp_key is not None:
@@ -290,31 +276,6 @@ class Geom(base.OcgParameter):
         ret = '{0}={1}'.format(self.name,value)
         return(ret)
     
-#    @property
-#    def is_empty(self):
-#        if self.value[0]['geom'] is None:
-#            ret = True
-#        else:
-#            ret = False
-#        return(ret)
-    
-#    def _get_value_(self):
-#        ret = base.OcgParameter._get_value_(self)
-#        if ret is None:
-#            ret = self.default
-#        return(ret)
-#    value = property(_get_value_,base.OcgParameter._set_value_)
-    
-    def get_url_string(self):
-        if self.value is None:
-            ret = 'none'
-        elif len(self.value) > 1 and self._shp_key is None:
-            raise(CannotEncodeUrl('Too many custom geometries to encode.'))
-        else:
-            ret = str(self)
-            ret = ret.split('=')[1]
-        return(ret)
-    
     def parse(self,value):
         if type(value) in [Polygon,MultiPolygon,Point]:
             ret = GeometryDataset(1,value)
@@ -322,7 +283,7 @@ class Geom(base.OcgParameter):
             if len(value) in (2,4):
                 ret = self.parse_string('|'.join(map(str,value)))
             else:
-                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 or 4.'))
+                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 (point) or 4 (bounding box).'))
         elif isinstance(value,ShpDataset):
             self._shp_key = value.key
             ret = value
@@ -383,7 +344,6 @@ class Headers(base.IterableParameter,base.OcgParameter):
     nullable = True
     element_type = str
     unique = True
-    _in_url = True
 
     def __repr__(self):
         try:
@@ -395,9 +355,6 @@ class Headers(base.IterableParameter,base.OcgParameter):
             else:
                 raise
         return(msg)
-        
-    def get_url_string(self):
-        return(self.__repr__().lower())
     
     def validate_all(self,values):
         if len(values) == 0:
@@ -420,7 +377,7 @@ class OutputFormat(base.StringOptionParameter):
         return(ret)
     
     
-class Prefix(base.OcgParameter):
+class Prefix(base.StringParameter):
     name = 'prefix'
     nullable = False
     default = 'ocgis_output'

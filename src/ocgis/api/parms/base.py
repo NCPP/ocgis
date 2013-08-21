@@ -11,7 +11,6 @@ class OcgParameter(object):
     :type init_value: Varies depending on overloaded parameter class.
     '''
     __metaclass__ = ABCMeta
-    _in_url = True #: if set to False, parameter will not be written to URL
     _lower_string = True #: if set to False, do not lower input strings
     _perform_deepcopy = True #: if False, do not perform deepcopy operation on value set
     
@@ -21,7 +20,7 @@ class OcgParameter(object):
         else:
             self.value = init_value
         
-    def __repr__(self):
+    def __str__(self):
         ret = '{0}={1}'.format(self.name,self.value)
         return(ret)
     
@@ -81,15 +80,10 @@ class OcgParameter(object):
         subrows = self._get_meta_()
         if isinstance(subrows,basestring):
             subrows = [subrows]
-        rows = [self.__repr__()]
-        for row in subrows:
-            rows.extend(justify_row(row))
-            rows.append('')
+        rows = ['* '+str(self)]
+        rows.extend(subrows)
+        rows.append('')
         return(rows)
-    
-    def get_url_string(self):
-        ''':rtype: str'''
-        return(str(self._get_url_string_()).lower())
     
     def parse(self,value):
         ''':rtype: varies depending on `ocgis.api.parms.base.OcgParamter` subclass'''
@@ -123,9 +117,6 @@ class OcgParameter(object):
     def _get_meta_(self):
         return(list)
     
-    def _get_url_string_(self):
-        return(self.value)
-    
     def _parse_(self,value):
         return(value)
         
@@ -153,10 +144,6 @@ class BooleanParameter(OcgParameter):
             ret = self.meta_false
         return(ret)
     
-    def _get_url_string_(self):
-        m = {True:1,False:0}
-        return(m[self.value])
-    
     def _parse_(self,value):
         if value == 0:
             ret = False
@@ -172,12 +159,23 @@ class BooleanParameter(OcgParameter):
         for k,v in m.iteritems():
             if value in v:
                 return(k)
+            
+            
+class StringParameter(OcgParameter):
+    __metaclass__ = ABCMeta
     
-    
-class StringOptionParameter(OcgParameter):
-    nullable = False
     return_type = str
     input_types = [str]
+    
+    def __str__(self):
+        ret = '{0}="{1}"'.format(self.name,self.value)
+        return(ret)
+    
+    
+class StringOptionParameter(StringParameter):
+    __metaclass__ = ABCMeta
+    
+    nullable = False
     
     @abstractproperty
     def valid(self): [str]
@@ -235,13 +233,6 @@ class IterableParameter(object):
     
     def validate_all(self,values):
         pass
-
-    def get_url_string(self):
-        if self.value is None:
-            ret = 'none'
-        else:
-            ret = self.split_string.join([self.element_to_string(element) for element in self.value]).lower()
-        return(ret)
     
     def element_to_string(self,element):
         return(str(element))

@@ -2,13 +2,14 @@ from datetime import datetime
 from copy import deepcopy
 import os
 from ocgis import env
-from ocgis.util.helpers import locate
+from ocgis.util.helpers import locate, validate_time_subset, iter_arg
 from ocgis.exc import DefinitionValidationError
 from collections import OrderedDict
 from ocgis.util.inspect import Inspect
 from ocgis.interface.nc.dataset import NcDataset
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
+import inspect
 
 
 class RequestDataset(object):
@@ -31,22 +32,23 @@ class RequestDataset(object):
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
     :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`.
     :type time_region: dict
-    
-    .. note:: Only one of `time_range` or `time_region` may be passed to the constructor.
-    
+        
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
     
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
-    :param s_proj: A `PROJ4 string`_ describing the dataset's spatial reference.
-    :type s_proj: str
+    :param s_proj: An ~`ocgis.interface.projection.OcgSpatialReference` object to overload the projection autodiscovery.
+    :type s_proj: `ocgis.interface.projection.OcgSpatialReference`
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
     :type t_calendar: str
+    :param s_abstraction: Abstract the geometry data to either 'point' or 'polygon'. If 'polygon' is not possible due to missing bounds, 'point' will be used instead.
+    :type s_abstraction: str
     
-    .. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
+    .. note:: The `abstraction` argument in the ~`ocgis.OcgOperations` will overload this.
+    
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
@@ -54,19 +56,26 @@ class RequestDataset(object):
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,
                  time_region=None,level_range=None,s_proj=None,t_units=None,
-                 t_calendar=None,did=None,meta=None):
+                 t_calendar=None,did=None,meta=None,s_abstraction=None):
+        ## this variable is used in the __del__ method. set before any other
+        ## operations to ensure smooth cleanup.
+        self._ds = None
+        
         self._uri = self._get_uri_(uri)
         self.variable = variable
         self.alias = self._str_format_(alias) or variable
         self.time_range = deepcopy(time_range)
         self.time_region = deepcopy(time_region)
         self.level_range = deepcopy(level_range)
-        self.s_proj = self._str_format_(s_proj)
+        self.s_proj = deepcopy(s_proj)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
         self.did = did
         self.meta = meta or {}
-        self._ds = None
+        
+        self.s_abstraction = s_abstraction or 'polygon'
+        self.s_abstraction = self.s_abstraction.lower()
+        assert(self.s_abstraction in ('point','polygon'))
         
         self._format_()
     
@@ -100,21 +109,25 @@ class RequestDataset(object):
     @property
     def ds(self):
         if self._ds is None:
-            iface = self.interface
-            try:
-                iface.update({'request_dataset':self,
-                              'abstraction':env.ops.abstraction})
-            ## env likely not present
-            except AttributeError:
-                iface.update({'request_dataset':self,
-                              'abstraction':None})
-            self._ds = self._Dataset(**iface)
+            self._ds = self._Dataset(**self.interface)
         return(self._ds)
+    def _set_ds_(self,ops=None):
+        kwds = self.interface
+        kwds.update({'ops':ops})
+        self._ds = self._Dataset(**kwds)
+    
+    def __del__(self):
+        if self._ds is not None:
+            try:
+                self._ds.close()
+            except:
+                pass
     
     @property
     def interface(self):
-        attrs = ['s_proj','t_units','t_calendar']
+        attrs = ['s_proj','t_units','t_calendar','s_abstraction']
         ret = {attr:getattr(self,attr) for attr in attrs}
+        ret.update({'request_dataset':self})
         return(ret)
     
     @property
@@ -131,13 +144,24 @@ class RequestDataset(object):
         else:
             return(False)
         
-    def __repr__(self):
-        msg = '<{0} ({1})>'.format(self.__class__.__name__,self.alias)
+    def __str__(self):
+        msg = '{0}({1})'
+        argspec = inspect.getargspec(self.__class__.__init__)
+        parms = []
+        for name in argspec.args:
+            if name == 'self':
+                continue
+            else:
+                as_str = '{0}={1}'
+                value = getattr(self,name)
+                if isinstance(value,basestring):
+                    fill = '"{0}"'.format(value)
+                else:
+                    fill = value
+                as_str = as_str.format(name,fill)
+            parms.append(as_str)
+        msg = msg.format(self.__class__.__name__,','.join(parms))
         return(msg)
-    
-    def __getitem__(self,item):
-        ret = getattr(self,item)
-        return(ret)
     
     def copy(self):
         return(deepcopy(self))
@@ -185,21 +209,19 @@ class RequestDataset(object):
         return(ret)
     
     def _format_(self):
-        ## only a time range or time region is acceptable
-        if self.time_range is not None and self.time_region is not None:
-            raise(DefinitionValidationError('dataset','only a time range or time region may be set - not both.'))
         if self.time_range is not None:
             self._format_time_range_()
         if self.time_region is not None:
             self._format_time_region_()
         if self.level_range is not None:
             self._format_level_range_()
+        ## ensure the time range and region overlaps
+        if not validate_time_subset(self.time_range,self.time_region):
+            raise(DefinitionValidationError('dataset','time_range and time_region do not overlap'))
     
     def _format_time_range_(self):
         try:
             ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
-#            ref = ret[1]
-#            ret[1] = datetime(ref.year,ref.month,ref.day,23,59,59)
         except AttributeError:
             ret = self.time_range
         if ret[0] > ret[1]:
@@ -259,6 +281,7 @@ class RequestDataset(object):
                 '    Variable: {0}'.format(self.variable),
                 '    Alias: {0}'.format(self.alias),
                 '    Time Range: {0}'.format(tr),
+                '    Time Region/Selection: {0}'.format(self.time_region),
                 '    Level Range: {0}'.format(lr),
                 '    Overloaded Parameters:',
                 '      PROJ4 String: {0}'.format(self.s_proj),
@@ -288,8 +311,8 @@ class RequestDatasetCollection(object):
     
     def __init__(self,request_datasets=[]):
         self._s = OrderedDict()
-        self._did = []
-        for rd in request_datasets:
+        self._did = []     
+        for rd in iter_arg(request_datasets):
             self.update(rd)
             
     def __eq__(self,other):
@@ -301,11 +324,11 @@ class RequestDatasetCollection(object):
     def __len__(self):
         return(len(self._s))
         
-    def __repr__(self):
-        msg = ['{0} RequestDataset(s) in collection:'.format(len(self))]
-        for rd in self:
-            msg.append('  {0}'.format(rd.__repr__()))
-        return('\n'.join(msg))
+    def __str__(self):
+        msg = '{0}([{1}])'
+        fill = [str(rd) for rd in self]
+        msg = msg.format(self.__class__.__name__,','.join(fill))
+        return(msg)
         
     def __iter__(self):
         for value in self._s.itervalues():
@@ -350,19 +373,21 @@ class RequestDatasetCollection(object):
         else:
             self._s.update({request_dataset.alias:request_dataset})
             
-    def validate(self):
+    def validate(self,ops=None):
         ## confirm projections are equivalent
         projections = []
         for rd in self:
             ocgis_lh('loading projection','request',alias=rd.alias)
             projections.append(rd.ds.spatial.projection.sr.ExportToProj4())
-        if len(set(projections)) == 2 and env.ops.output_format != 'numpy': #@UndefinedVariable
-            if ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
+        if len(set(projections)) > 1: #@UndefinedVariable
+            if ops is not None and ops.output_format == 'numpy':
+                pass
+            elif ocgis.env.WRITE_TO_REFERENCE_PROJECTION is False:
                 ocgis_lh(None,'request',
                  exc=ValueError('Projections for input datasets must be equivalent if env.WRITE_TO_REFERENCE_PROJECTION is False.'))
             
     def _get_meta_rows_(self):
-        rows = ['dataset=']
+        rows = ['* dataset=']
         for value in self._s.itervalues():
             rows += value._get_meta_rows_()
             rows.append('')

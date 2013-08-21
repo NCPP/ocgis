@@ -4,6 +4,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
+from shapely.geometry.multipoint import MultiPoint
 
 
 class Wrapper(object):
@@ -30,17 +31,29 @@ class Wrapper(object):
         return(Polygon(coords))
     
     def unwrap_point(self,geom):
-        if geom.x < 180:
-            ret = Point(geom.x+360,geom.y)
+        if isinstance(geom,MultiPoint):
+            pts = []
+            for pt in geom:
+                if pt.x < 180:
+                    n = Point(pt.x+360,pt.y)
+                else:
+                    n = pt
+                pts.append(n)
+            ret = MultiPoint(pts)
         else:
-            ret = geom
+            if geom.x < 180:
+                ret = Point(geom.x+360,geom.y)
+            else:
+                ret = geom
         return(ret)
 
     def unwrap(self,geom):
         '''geom : shapely.geometry'''
         
-        if isinstance(geom,Point):
+        if type(geom) in [MultiPoint,Point]:
             return(self.unwrap_point(geom))
+
+        assert(type(geom) in [Polygon,MultiPolygon])
         
         return_type = type(geom)
         

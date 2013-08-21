@@ -8,16 +8,14 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.point import Point
-from warnings import warn
 from ocgis import constants
-from ocgis.exc import DummyDimensionEncountered, EmptyData, TemporalExtentError
-import itertools
+from ocgis.exc import DummyDimensionEncountered, EmptyData
 from osgeo.ogr import CreateGeometryFromWkb
-from ocgis.constants import reference_projection
 from shapely.wkb import loads
 import ocgis
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+import itertools
 
 
 class NcDataset(base.AbstractDataset):
@@ -26,7 +24,7 @@ class NcDataset(base.AbstractDataset):
     _dspatial = NcSpatialDimension
 
     def __init__(self,*args,**kwds):
-        self._abstraction = kwds.pop('abstraction','polygon')
+        self._s_abstraction = kwds.pop('s_abstraction','polygon')
         self._t_calendar = kwds.pop('t_calendar',None)
         self._t_units = kwds.pop('t_units',None)
         self._s_proj = kwds.pop('s_proj',None)
@@ -96,9 +94,16 @@ class NcDataset(base.AbstractDataset):
                 level_start,level_stop = level[0],level[-1]+1
             
             try:
-                self._value = self._get_numpy_data_(ref,time_start,time_stop,
+                self._value,time_indices = self._get_numpy_data_(ref,time_start,time_stop,
                  row_start,row_stop,column_start,column_stop,level_start=level_start,
-                 level_stop=level_stop)
+                 level_stop=level_stop,return_time_indices=True)
+                ocgis_lh('numpy data pulled','nc.dataset',level=logging.DEBUG)
+                ## apply a temporal subset if the shapes are different. we are
+                ## probably returning more data than is needed by the time region
+                if self._value.shape[0] != self.temporal.value.shape[0]:
+                    ocgis_lh(msg='regionated subset applied',logger='nc.dataset',level=logging.DEBUG)
+                    select = np.array([(self.temporal.real_idx == time_index).sum() == 1 for time_index in time_indices])
+                    self._value = self._value[select,]
             ## likely empty time
             except TypeError:
                 if time_start.shape[0] == 0:
@@ -107,8 +112,26 @@ class NcDataset(base.AbstractDataset):
                     raise
             
             if self.spatial.vector._geom is not None:
-                self._value.mask[:,:,:,:] = np.logical_or(self._value.mask[0,:,:,:],self.spatial.vector._geom.mask)
-                
+                ## update each time and level field mask by the geometry operation
+                ## mask.
+                shp_value = self._value.shape
+                ref_value_mask = self._value.mask
+                ref_geom_mask = self.spatial.vector._geom.mask
+                ref_logical_or = np.logical_or
+                for idx_time,idx_level in itertools.product(range(shp_value[0]),range(shp_value[1])):
+                    ref_value_mask[idx_time,idx_level,:,:] = ref_logical_or(ref_value_mask[idx_time,idx_level,:,:],ref_geom_mask)
+            
+            assert(self.value.shape[0] == self.temporal.value.shape[0])
+            assert(self.value.shape[2:] == self.spatial.grid.shape)
+            try:
+                assert(self.value.shape[1] == self.level.value.shape[0])
+            ## might be a dummy level
+            except AttributeError:
+                if self.level is None:
+                    pass
+                else:
+                    raise
+            
         return(self._value)
     
     def aggregate(self,new_geom_id=1,clip_geom=None):
@@ -168,16 +191,16 @@ class NcDataset(base.AbstractDataset):
                 self.__ds = nc.Dataset(self.request_dataset.uri,'r')
             ## likely multiple uris...
             except TypeError:
-                self.__ds = nc.MFDataset(self.request_dataset.uri,'r')
+                self.__ds = nc.MFDataset(self.request_dataset.uri)
         return(self.__ds)
     
     def get_iter_value(self,add_bounds=True,add_masked=True,value=None,
                        temporal_group=False):        
         ## check if the reference projection is different than the dataset
-        if type(self.spatial.projection) != type(reference_projection) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
+        if type(self.spatial.projection) != type(ocgis.env.REFERENCE_PROJECTION) and ocgis.env.WRITE_TO_REFERENCE_PROJECTION:
             project = True
             sr = self.spatial.projection.sr
-            to_sr = reference_projection.sr
+            to_sr = ocgis.env.REFERENCE_PROJECTION.sr #@UndefinedVariable
         else:
             project = False
         
@@ -240,11 +263,7 @@ class NcDataset(base.AbstractDataset):
     
     def get_subset(self,temporal=None,level=None,spatial_operation=None,igeom=None):
         if temporal is not None:
-            ## time region requests come in as dictionaries
-            if isinstance(temporal,dict):
-                new_temporal = self.temporal.subset(temporal)
-            else:
-                new_temporal = self.temporal.subset(*temporal)
+            new_temporal = self.temporal.subset(temporal)
         else:
             new_temporal = self.temporal
         if level is not None:
@@ -343,8 +362,7 @@ class NcDataset(base.AbstractDataset):
 
         ## make the output array
         wshape = (value.shape[0],value.shape[1],1,1)
-        weighted = np.ma.array(np.empty(wshape,dtype=float),
-                                mask=False)
+        weighted = np.ma.array(np.empty(wshape,dtype=constants.np_float),mask=False)
         ## next, weight and sum the data accordingly
         for dim_time in range(value.shape[0]):
             for dim_level in range(value.shape[1]):
@@ -398,23 +416,43 @@ class NcDataset(base.AbstractDataset):
             intersection = list(bounds_names.intersection(set(var.ncattrs())))
             try:
                 bounds_var = ds.variables[getattr(var,intersection[0])]
+            except KeyError:
+                ## the data has listed a bounds variable, but the variable is not
+                ## actually present in the dataset.
+                ocgis_lh('Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.format(var._name,getattr(var,intersection[0])),
+                                 logger='nc.dataset',
+                                 level=logging.WARNING,
+                                 check_duplicate=True)
+                bounds_var = None
             except IndexError:
-                ocgis_lh('No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(var._name),
-                         logger='nc.dataset',
-                         level=logging.WARN,
-                         check_duplicate=True)
-#                warn('no bounds attribute found. searching variable dimensions for bounds information.')
-                bounds_names_copy = bounds_names.copy()
-                bounds_names_copy.update([value['dimension']])
-                for key2,value2 in self.metadata['variables'].iteritems():
-                    intersection = bounds_names_copy.intersection(set(value2['dimensions']))
-                    if len(intersection) == 2:
-                        bounds_var = ds.variables[key2]
+                ## if no bounds variable is found for time, it may be a climatological.
+                if key == 'T':
+                    try:
+                        bounds_var = ds.variables[getattr(value['variable'],'climatology')]
+                        ocgis_lh('Climatological bounds found for variable: {0}'.format(var._name),
+                                 logger='nc.dataset',
+                                 level=logging.INFO)
+                    ## climatology is not found on time axis
+                    except AttributeError:
+                        pass
+                ## bounds variable not found by other methods
+                if bounds_var is None:
+                    ocgis_lh('No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(var._name),
+                             logger='nc.dataset',
+                             level=logging.WARN,
+                             check_duplicate=True)
+                    bounds_names_copy = bounds_names.copy()
+                    bounds_names_copy.update([value['dimension']])
+                    for key2,value2 in self.metadata['variables'].iteritems():
+                        intersection = bounds_names_copy.intersection(set(value2['dimensions']))
+                        if len(intersection) == 2:
+                            bounds_var = ds.variables[key2]
             value.update({'bounds':bounds_var})
         return(mp)
     
     def _get_numpy_data_(self,variable,time_start,time_stop,row_start,row_stop,
-                         column_start,column_stop,level_start=None,level_stop=None):
+                         column_start,column_stop,level_start=None,level_stop=None,
+                         return_time_indices=False):
         if level_start is None:
             npd = variable[time_start:time_stop,row_start:row_stop,
                            column_start:column_stop]
@@ -425,7 +463,13 @@ class NcDataset(base.AbstractDataset):
             npd = np.ma.array(npd,mask=False)
         if len(npd.shape) == 3:
             npd = np.ma.expand_dims(npd,1)
-        return(npd)
+        ## if we return time_indices, add them to the tuple
+        if return_time_indices:
+            time_indices = np.arange(time_start,time_stop)
+            ret = npd,time_indices
+        else:
+            ret = npd
+        return(ret)
             
     def _guess_by_location_(self,dims,target):
         mp = {3:{0:'T',1:'Y',2:'X'},
@@ -457,7 +501,8 @@ class NcDataset(base.AbstractDataset):
                 name_bounds = None
             else:
                 raise
-        ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds)
+        ret = kls(value=value,name=name,bounds=bounds,name_bounds=name_bounds,
+                  dataset=self)
         return(ret)
     
     @staticmethod

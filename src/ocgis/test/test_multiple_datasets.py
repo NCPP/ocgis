@@ -5,7 +5,9 @@ from ocgis.test.base import TestBase
 from unittest.case import SkipTest
 from ocgis.interface.shp import ShpDataset
 import ocgis
-import itertools
+import fiona
+import os
+from ocgis.exc import DefinitionValidationError
 
 
 class Test(TestBase):
@@ -46,7 +48,7 @@ class Test(TestBase):
         return(ret[25])
     
     def test_keyed(self):
-        raise(SkipTest)
+        raise(SkipTest('keyed format currently deprecated'))
         ds = self.dataset
 #        ds.append(self.albisccp.copy())
         ds.append(self.tasmin.copy())
@@ -143,6 +145,27 @@ class Test(TestBase):
         self.assertTrue(np.all(values[0].value == values[1].value))
 
     def test_consolidating_projections(self):
+        
+        def assert_projection(path,check_ugid=True):
+            try:
+                source = [fiona.open(path,'r')]
+            except fiona.errors.DriverError:
+                shp_path = os.path.split(path)[0]
+                prefix = os.path.split(shp_path)[1]
+                shp_path = os.path.join(shp_path,'shp')
+                if check_ugid:
+                    ids = ['gid','ugid']
+                else:
+                    ids = ['gid']
+                source = [fiona.open(os.path.join(shp_path,prefix+'_'+suffix+'.shp')) for suffix in ids]
+            
+            try:
+                for src in source:
+                    self.assertDictEqual(src.meta['crs'],{u'no_defs': True, u'datum': u'WGS84', u'proj': u'longlat'})
+            finally:
+                for src in source:
+                    src.close()
+        
         ocgis.env.WRITE_TO_REFERENCE_PROJECTION = True
         
         rd1 = self.test_data.get_rd('narccap_rcm3')
@@ -154,23 +177,30 @@ class Test(TestBase):
               rd2
               ]
         
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  geom='state_boundaries',agg_selection=False,
-                                  select_ugid=[25],
-                                  prefix='ca')
-        ret = ops.execute()
-
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  geom='state_boundaries',agg_selection=False,
-                                  select_ugid=[4],
-                                  prefix='me')
-        ret = ops.execute()
-
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  geom='state_boundaries',agg_selection=True,
-                                  prefix='states')
-        ret = ops.execute()
+        for output_format in ['csv+','shp','nc']:
         
-        ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='shp',
-                                  prefix='rcm3_crcm_domain')
-        ret = ops.execute()
+            try:
+                ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format=output_format,
+                                      geom='state_boundaries',agg_selection=False,
+                                      select_ugid=[25],
+                                      prefix='ca'+output_format)
+                ret = ops.execute()
+            ## writing to a reference projection is currently not supported for
+            ## netCDF data.
+            except DefinitionValidationError:
+                if output_format == 'nc':
+                    continue
+                else:
+                    raise
+            assert_projection(ret)
+    
+            ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format=output_format,
+                                      geom='state_boundaries',agg_selection=True,
+                                      prefix='states'+output_format)
+            ret = ops.execute()
+            assert_projection(ret)
+            
+            ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format=output_format,
+                                      prefix='rcm3_crcm_domain'+output_format)
+            ret = ops.execute()
+            assert_projection(ret,check_ugid=False)

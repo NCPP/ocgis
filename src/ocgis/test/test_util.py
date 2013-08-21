@@ -1,12 +1,23 @@
 from ocgis.interface.shp import ShpDataset
 import numpy as np
-from ocgis.util.helpers import format_bool, iter_array
+from ocgis.util.helpers import format_bool, iter_array, validate_time_subset
 import itertools
 from ocgis.test.base import TestBase
 from ocgis.util.spatial.wrap import Wrapper
+from datetime import datetime as dt
 
 
 class TestHelpers(TestBase):
+    
+    def test_validate_time_subset(self):
+        time_range = [dt(2000,1,1),dt(2001,1,1)]
+        self.assertTrue(validate_time_subset(time_range,{'year':[2000,2001]}))
+        self.assertFalse(validate_time_subset(time_range,{'year':[2000,2001,2002]}))
+        self.assertTrue(validate_time_subset(time_range,{'month':[6,7,8]}))
+        self.assertTrue(validate_time_subset(time_range,{'month':[6,7,8],'year':[2000]}))
+        self.assertFalse(validate_time_subset(time_range,{'month':[6,7,8],'year':[2008]}))
+        self.assertFalse(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],{'month':[6,7,8],'year':[2008]}))
+        self.assertTrue(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],None))
 
     def test_iter_array(self):
         arrays = [

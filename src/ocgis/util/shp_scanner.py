@@ -10,9 +10,13 @@ from ocgis.util.shp_cabinet import ShpCabinet
 from ConfigParser import SafeConfigParser, NoOptionError
 from sqlalchemy.orm.exc import NoResultFound
 from collections import OrderedDict
+import json
+from tempfile import mkstemp
 
 
-db_path = '/tmp/foo.sqlite'
+#db_path = '/tmp/foo.sqlite'
+fd,db_path = mkstemp(suffix='.sqlite')
+json_path = '/tmp/ocgis_geometries.json'
 connstr = 'sqlite:///{0}'.format(db_path)
 engine = create_engine(connstr)
 metadata = MetaData(bind=engine)
@@ -62,9 +66,17 @@ class Geometry(AbstractBase,Base):
     @property
     def label_formatted(self):
         if self.category.key == 'us_counties':
-            ret = '{0} Counties'.format(self.label)
+            ret = 'US Counties ({0})'.format(self.label)
         else:
             ret = self.label
+        return(ret)
+    
+    @property
+    def value_formatted(self):
+        if self.category.key == 'qed_tbw_basins':
+            ret = '{0} - {1}'.format(self.ugid,self.value)
+        else:
+            ret = self.value
         return(ret)
 
  
@@ -91,7 +103,30 @@ def get_or_create(session,Model,**kwargs):
         session.commit()
     return(obj)
 
-def build():
+def build_huc_table(key,huc_attr):
+    sc = ShpCabinet()
+    ## get the HUC2 codes for reference
+    huc2_path = sc.get_shp_path('WBDHU2_June2013')
+    with fiona.open(huc2_path,'r') as source:
+        huc2 = {feature['properties']['HUC2']:feature['properties']['Name'] for feature in source}
+    
+    ## bring in the HUC8 features determining the category based on the the HUC2
+    ## codes.
+    session = Session()
+    huc_path = sc.get_shp_path(key)
+    with fiona.open(huc_path,'r') as source:
+        for feature in source:
+            code = feature['properties'][huc_attr]
+            name = feature['properties']['Name']
+            ugid = feature['properties']['UGID']
+            huc2_region = huc2[code[0:2]]
+            db_category = get_or_create(session,Category,value='{0} - {1}'.format(huc_attr,huc2_region),key=key)
+            db_geometry = Geometry(value=name,ugid=ugid,category=db_category,subcategory=None)
+            session.add(db_geometry)
+    session.commit()
+    session.close()
+
+def build_database():
     try:
         os.remove(db_path)
     except:
@@ -102,16 +137,33 @@ def build():
     
     sc = ShpCabinet()
     
-    keys = ['state_boundaries','us_counties']
+    keys = [
+            'qed_tbw_basins',
+            'qed_tbw_watersheds',
+            'state_boundaries',
+            'us_counties',
+            'WBDHU8_June2013',
+            'qed_city_centroids',
+            'eco_level_III_us',
+            ]
     
     for key in keys:
         print(key)
+        
+        ## special processing required for HUC tables
+        if key in ['WBDHU8_June2013']:
+            build_huc_table(key,'HUC8')
+            continue
+        
         shp_path = sc.get_shp_path(key)
         cfg_path = sc.get_cfg_path(key)
         
         config = SafeConfigParser()
         config.read(cfg_path)
-        ugid = config.get('mapping','ugid')
+        try:
+            ugid = config.get('mapping','ugid')
+        except:
+            ugid = 'UGID'
         category = config.get('mapping','category')
         try:
             subcategory = config.get('mapping','subcategory')
@@ -137,6 +189,8 @@ def build():
                 
                 value_name = get_variant(name,feature)
                 value_name_ugid = get_variant(ugid,feature)
+                if len(value_name) > 25:
+                    value_name = value_name[0:25]+'...'
                 db_name = Geometry(value=value_name,ugid=value_name_ugid,category=db_category,
                                subcategory=db_subcategory)
                 session.add(db_name)
@@ -144,9 +198,9 @@ def build():
     
     session.close()
 
-#build()
-
-json_path = '/tmp/ocgis_geometries.json'
+## first build the database
+build_database()
+## fill the json dictionary
 to_dump = OrderedDict()
 session = Session()
 for row in session.query(Geometry):
@@ -155,11 +209,11 @@ for row in session.query(Geometry):
     except KeyError:
         to_dump[row.label_formatted] = {'key':row.category.key,'geometries':{}}
         ref = to_dump[row.label_formatted]['geometries']
-    ref.update({row.value:row.ugid})
+    ref.update({row.value_formatted:row.ugid})
     
-#fmtd = json.dumps(to_dump)
-#with open(json_path,'w') as f:
-#    f.write(fmtd)
+fmtd = json.dumps(to_dump)
+with open(json_path,'w') as f:
+    f.write(fmtd)
 #
 #category = 'US State Boundaries'
 #geometry = ['Delaware']

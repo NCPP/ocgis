@@ -3,13 +3,11 @@ from ocgis import env, OcgOperations
 import os
 import tempfile
 from ocgis.test.base import TestBase
+from ocgis.interface.projection import WGS84, LambertConformalConic
+from ocgis.exc import OcgisEnvironmentError
 
 
-class Test(unittest.TestCase):
-    
-    @classmethod
-    def setUpClass(cls):
-        cls.test_data = TestBase.get_tdata()
+class Test(TestBase):
 
     def test_simple(self):
         self.assertEqual(env.OVERWRITE,False)
@@ -40,6 +38,20 @@ class Test(unittest.TestCase):
         finally:
             os.rmdir(out)
             env.reset()
+            
+    def test_reference_projection(self):
+        self.assertIsInstance(env.REFERENCE_PROJECTION,WGS84)
+        
+        ## the reference projection must be set at runtime.
+        os.environ['OCGIS_REFERENCE_PROJECTION'] = 'foo'
+        with self.assertRaises(OcgisEnvironmentError):
+            env.reset()
+        os.environ.pop('OCGIS_REFERENCE_PROJECTION')
+        
+    def test_str(self):
+        ret = str(env)
+        self.assertTrue(len(ret) > 300)
+
         
 
 if __name__ == "__main__":

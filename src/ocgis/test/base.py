@@ -10,6 +10,7 @@ import subprocess
 import ocgis
 from warnings import warn
 from subprocess import CalledProcessError
+import numpy as np
 
 
 class TestBase(unittest.TestCase):
@@ -44,12 +45,13 @@ class TestBase(unittest.TestCase):
         test_data.update(['maurer','2010'],'tasmin',['nldas_met_update.obs.daily.tasmin.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmin')
         test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmax.1991.nc'],key='maurer_2010_tasmax')
         test_data.update(['narccap'],'pr',['pr_WRFG_ncep_1981010103.nc','pr_WRFG_ncep_1986010103.nc'],key='narccap_pr_wrfg_ncep')
+        test_data.update(['snippets'],'dtr','snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',key='snippet_maurer_dtr')
         return(test_data)
     
     def setUp(self):
         if self._reset_env: env.reset()
         if self._create_dir:
-            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_',dir=env.DIR_OUTPUT)
+            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_')
             env.DIR_OUTPUT = self._test_dir
         else:
             self._create_dir = None
@@ -59,6 +61,12 @@ class TestBase(unittest.TestCase):
             if self._create_dir: shutil.rmtree(self._test_dir)
         finally:
             if self._reset_env: env.reset()
+            
+    def assertNumpyAll(self,arr1,arr2):
+        return(self.assertTrue(np.all(arr1 == arr2)))
+    
+    def assertNumpyNotAll(self,arr1,arr2):
+        return(self.assertFalse(np.all(arr1 == arr2)))
             
             
 class TestData(OrderedDict):
@@ -132,11 +140,14 @@ class TestData(OrderedDict):
                     os.makedirs(os.path.split(wget_dest)[0])
                 except OSError:
                     if os.path.exists(os.path.split(wget_dest)[0]):
-                        warn('Data download directory exists: {0}'.format())
+                        warn('Data download directory exists: {0}'.format(os.path.split(wget_dest)[0]))
                     else:
                         raise
                 try:
-                    cmd = ['wget','--quiet','-O',wget_dest,wget_url]
+                    if env.DEBUG:
+                        cmd = ['wget','-O',wget_dest,wget_url]
+                    else:
+                        cmd = ['wget','--quiet','-O',wget_dest,wget_url]
                     subprocess.check_call(cmd)
                 except CalledProcessError:
                     raise(ValueError('"wget" was unable to fetch the test data URL ({0}) to the destination location: {1}. The command list was: {2}'.format(wget_url,wget_dest,cmd)))

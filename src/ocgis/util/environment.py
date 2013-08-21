@@ -1,12 +1,15 @@
 import tempfile
 import os
+from ocgis.interface.projection import WGS84
+from ocgis.exc import OcgisEnvironmentError
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class Environment(object):
     
     def __init__(self):
         self.OVERWRITE = EnvParm('OVERWRITE',False,formatter=self._format_bool_)
-        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',tempfile.gettempdir())
+        self.DIR_OUTPUT = EnvParm('DIR_OUTPUT',os.getcwd())
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',None)
         self.DIR_DATA = EnvParm('DIR_DATA',None)
         self.DIR_TEST_DATA = EnvParm('DIR_TEST_DATA',None)
@@ -20,10 +23,19 @@ class Environment(object):
         self.WRITE_TO_REFERENCE_PROJECTION = EnvParm('WRITE_TO_REFERENCE_PROJECTION',False,formatter=self._format_bool_)
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
+        self.REFERENCE_PROJECTION = ReferenceProjection()
+        self.DIR_BIN = EnvParm('DIR_BIN',None)
         
         self.ops = None
-        ## pass logging flag between modules
-        self._use_logging = False
+        self._optimize_store = {}
+        
+    def __str__(self):
+        msg = []
+        for value in self.__dict__.itervalues():
+            if isinstance(value,EnvParm):
+                msg.append(str(value))
+        msg.sort()
+        return('\n'.join(msg))
         
     def __getattribute__(self,name):
         attr = object.__getattribute__(self,name)
@@ -34,7 +46,7 @@ class Environment(object):
         return(ret)
     
     def __setattr__(self,name,value):
-        if isinstance(value,EnvParm) or name in ['ops','_use_logging']:
+        if isinstance(value,EnvParm) or name in ['ops','_optimize_store']:
             object.__setattr__(self,name,value)
         else:
             attr = object.__getattribute__(self,name)
@@ -46,6 +58,9 @@ class Environment(object):
         for value in self.__dict__.itervalues():
             if isinstance(value,EnvParm):
                 value._value = 'use_env'
+                getattr(value,'value')
+        env.ops = None
+        self._optimize_store = {}
                 
     def _format_bool_(self,value):
         '''Format a string to boolean.
@@ -65,8 +80,8 @@ class EnvParm(object):
         self.default = default
         self._value = 'use_env'
         
-    def __repr__(self):
-        return(str(self.value))
+    def __str__(self):
+        return('{0}={1}'.format(self.name,self.value))
         
     @property
     def value(self):
@@ -75,14 +90,33 @@ class EnvParm(object):
             if ret is None:
                 ret = self.default
             else:
-                if self.formatter is not None:
-                    ret = self.formatter(ret)
+                ## attempt to use the parameter's format method.
+                try:
+                    ret = self.format(ret)
+                except NotImplementedError:
+                    if self.formatter is not None:
+                        ret = self.formatter(ret)
         else:
             ret = self._value
         return(ret)
     @value.setter
     def value(self,value):
         self._value = value
+        
+    def format(self,value):
+        raise(NotImplementedError)
+    
+    
+class ReferenceProjection(EnvParm):
+    
+    def __init__(self):
+        EnvParm.__init__(self,'REFERENCE_PROJECTION',WGS84())
+        
+    def format(self,value):
+        if os.environ.get(self.env_name) is not None:
+            msg = 'REFERENCE_PROJECTION may not be set as a system environment variable. It must be parameterized at runtime.'
+            e = OcgisEnvironmentError(self,msg)
+            ocgis_lh(exc=e,logger='env')
 
 
 env = Environment()

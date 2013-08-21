@@ -48,20 +48,26 @@ class ShpCabinet(object):
         """
         ret = []
         for dirpath,dirnames,filenames in os.walk(self.path):
-            for dn in dirnames:
-                for fn in os.listdir(os.path.join(dirpath,dn)):
-                    if fn.endswith('shp'):
-                        ret.append(os.path.splitext(fn)[0])
+            for fn in filenames:
+                if fn.endswith('shp'):
+                    ret.append(os.path.splitext(fn)[0])
         return(ret)
         
     def get_shp_path(self,key):
-        return(os.path.join(self.path,key,'{0}.shp'.format(key)))
+        return(self._get_path_(key,ext='shp'))
     
     def get_cfg_path(self,key):
-        return(os.path.join(self.path,key,'{0}.cfg'.format(key)))
+        return(self._get_path_(key,ext='cfg'))
     
-#    def get_geom_dict(self,*args,**kwds):
-#        return(self.get_geoms(*args,**kwds))
+    def _get_path_(self,key,ext='shp'):
+        ret = None
+        for dirpath,dirnames,filenames in os.walk(self.path):
+            for filename in filenames:
+                if filename.endswith(ext) and os.path.splitext(filename)[0] == key:
+                    ret = os.path.join(dirpath,filename)
+                    return(ret)
+        if ret is None:
+            raise(ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key,self.path)))
     
     def get_geoms(self,key,select_ugid=None):
         """Return geometries from a shapefile specified by `key`.
@@ -230,20 +236,13 @@ class ShpCabinet(object):
             except KeyError:
                 row = []
                 for h in headers:
-                    try:
-                        x = dct[h]
-                    except KeyError:
-                        x = dct[h.lower()]
+                    x = self._get_(dct,h)
                     row.append(x)
             writer.writerow(row)
             feat = ogr.Feature(feature_def)
             for o in ogr_fields:
                 args = [o.ogr_name,None]
-                try:
-                    args[1] = dct[o.ogr_name.lower()]
-                except KeyError:
-                    args[1] = dct[o.ogr_name]
-#                args = [o.ogr_name,o.convert(dct[o.ogr_name.lower()])]
+                args[1] = self._get_(dct,o.ogr_name)
                 try:
                     feat.SetField(*args)
                 except NotImplementedError:
@@ -261,7 +260,11 @@ class ShpCabinet(object):
         try:
             ret = dct[key]
         except KeyError:
-            ret = dct[key.lower()]
+            try:
+                ret = dct[key.lower()]
+            except KeyError:
+                mp = {key.lower():key for key in dct.keys()}
+                ret = dct[mp[key.lower()]]
         return(ret)
 
     def _get_ogr_fields_(self,headers,row):

@@ -4,6 +4,8 @@ from shapely.geometry.geo import shape, mapping
 import os
 from collections import OrderedDict
 import shutil
+from warnings import warn
+import argparse
 
 
 class ShpProcess(object):
@@ -34,8 +36,13 @@ class ShpProcess(object):
                     else:
                         feature['properties'].update({'UGID':int(feature['properties'][ugid])})
                     sink.write(feature)
-            ## remove the cpg file
+            ## remove the cpg file. this raises many, many warnings on occasion
             os.remove(new_shp.replace('.shp','.cpg'))
+            ## try to copy the cfg file
+            try:
+                shutil.copy2(self.path.replace('.shp','.cfg'),new_shp.replace('.shp','.cfg'))
+            except:
+                warn('unable to copy configuration file - if it exists')
         except:
             ## remove the created folder on an exception
             shutil.rmtree(new_folder)
@@ -50,15 +57,39 @@ class ShpProcess(object):
             for feature in source:
                 ## ensure the feature is valid
                 ## https://github.com/Toblerity/Fiona/blob/master/examples/with-shapely.py
-                geom = shape(feature['geometry'])
-                if not geom.is_valid:
-                    clean = geom.buffer(0.0)
-                    assert(clean.is_valid)
-                    assert(clean.geom_type == 'Polygon')
-                    geom = clean
-                feature['geometry'] = mapping(geom)
+                try:
+                    geom = shape(feature['geometry'])
+                    if not geom.is_valid:
+                        clean = geom.buffer(0.0)
+                        geom = clean
+                        feature['geometry'] = mapping(geom)
+                        assert(clean.is_valid)
+                        assert(clean.geom_type == 'Polygon')
+                except (AssertionError,AttributeError) as e:
+                    warn('{2}. Invalid geometry found with id={0} and properties: {1}'.format(feature['id'],
+                                                                                                feature['properties'],
+                                                                                                                e))
                 feature['shapely'] = geom
                 yield(feature)
+                
+                
+def main(pargs):
+    sp = ShpProcess(pargs.in_shp)
+    if pargs.folder is None:
+        pargs.folder = os.getcwd()
+    sp.process(pargs.folder,pargs.key,ugid=pargs.ugid)
+                
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='add ugid to shapefile')
+    
+    parser.add_argument('--ugid',help='name of ugid variable, default is None',default=None)
+    parser.add_argument('--folder',help='path to the output folder',nargs='?')
+    parser.add_argument('in_shp',help='path to input shapefile')
+    parser.add_argument('key',help='output key for the shapefile. folder with same name will be created.')
+    
+    parser.set_defaults(func=main)
+    pargs = parser.parse_args()
+    pargs.func(pargs)
 
 
 #################################################################################

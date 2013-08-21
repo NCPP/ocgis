@@ -4,6 +4,8 @@ import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
+from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.calc.base import KeyedFunctionOutput, OcgCvArgFunction
 
 
 class OcgOperations(object):
@@ -59,6 +61,8 @@ class OcgOperations(object):
     :type dir_output: str
     :param headers: A sequence of strings specifying the output headers.
     :type headers: sequence
+    :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass values through without a coercion attempt.
+    :type format_time: bool
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -66,7 +70,7 @@ class OcgOperations(object):
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice=None, file_only=False, headers=None):
+                 slice=None, file_only=False, headers=None, format_time=True):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -92,22 +96,23 @@ class OcgOperations(object):
         self.slice = Slice(slice)
         self.file_only = FileOnly(file_only)
         self.headers = Headers(headers)
+        self.format_time = FormatTime(format_time)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
-        self.request_url = None
         
         # # Initial values have been set and global validation should now occur
         # # when any parameters are updated.
         self._is_init = False
         self._validate_()
         
-    def __repr__(self):
-        msg = ['<{0}>:'.format(self.__class__.__name__)]
+    def __str__(self):
+        msg = ['{0}('.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
             if key == 'geom' and value is not None and len(value) > 1:
-                value = '{0} geometries...'.format(len(value))
-            msg.append(' {0}={1}'.format(key, value))
+                value = '{0} custom geometries...'.format(len(value))
+            msg.append(' {0},'.format(self._get_object_(key)))
+        msg.append('  )')
         msg = '\n'.join(msg)
         return(msg)
             
@@ -154,27 +159,6 @@ class OcgOperations(object):
             
         ops = OcgOperations(**kwds)
         return(ops)
-    
-    def as_qs(self):
-        """Return a query string representation of the request.
-        
-        :rtype: str"""
-        warnings.warn('use "as_url"', DeprecationWarning)
-        return(self.as_url())
-    
-    def as_url(self):
-        parts = []
-        for key, value in self.__dict__.iteritems():
-            if key in ['request_url']:
-                continue
-            if isinstance(value, OcgParameter):
-                if value._in_url:
-                    if isinstance(value,Dataset):
-                        parts.append(value.get_url_string())
-                    else:
-                        parts.append('{0}={1}'.format(value.name,value.get_url_string()))
-        ret = '/subset?' + '&'.join(parts)
-        return(ret)
         
     def as_dict(self):
         """:rtype: dictionary"""
@@ -198,13 +182,45 @@ class OcgOperations(object):
         return(object.__getattribute__(self, name))
     
     def _validate_(self):
+        
+        def _raise_(msg,obj=OutputFormat):
+            e = DefinitionValidationError(OutputFormat,msg)
+            ocgis_lh(exc=e,logger='operations')
+        
         if self.slice is not None:
             assert(self.geom is None)
         if self.file_only:
-            assert(len(self.dataset) == 1)
             assert(self.output_format == 'nc')
             assert(self.calc is not None)
         if self.output_format == 'nc':
-            assert(self.spatial_operation == 'intersects')
-            assert(self.aggregate is False)
-            assert(self.calc_raw is False)
+            if len(self.dataset) > 1 and self.calc is None:
+                msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
+                _raise_(msg,OutputFormat)
+            else:
+                if self.calc is not None and len(self.dataset) > 1:
+                    if sum([issubclass(calc['ref'],OcgCvArgFunction) for calc in self.calc]) != 1:
+                        msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
+                        _raise_(msg,OutputFormat)
+                
+            if self.spatial_operation != 'intersects':
+                msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
+                _raise_(msg,OutputFormat)
+            if self.aggregate:
+                msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
+                _raise_(msg,OutputFormat)
+            
+            if env.WRITE_TO_REFERENCE_PROJECTION is True:
+                msg = 'env.WRITE_TO_REFERENCE_PROJECTION must be False when writing to netCDF.'
+                _raise_(msg,OutputFormat)
+                
+            if self.calc is not None:
+                if self.calc_raw:
+                    msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
+                    _raise_(msg)
+                if any([issubclass(c['ref'],KeyedFunctionOutput) for c in self.calc]):
+                    msg = 'Keyed function output may not be written to netCDF.'
+                    _raise_(msg)
+        
+        if self.calc is not None:
+            for c in self.calc:
+                c['ref'].validate(self)

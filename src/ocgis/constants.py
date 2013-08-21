@@ -1,4 +1,4 @@
-from ocgis.interface.projection import WGS84
+import numpy as np
 
 
 name_bounds = ['bounds','bnds','bound','bnd']
@@ -8,9 +8,21 @@ ocgis_bounds = 'bounds'
 fill_value = 1e20
 
 raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','level','value']
-calc_headers = ['did','vid','cid','ugid','tgid','lid','gid','variable','alias','calc_name','year','month','day','hour','minute','level','value']
+calc_headers = ['did','vid','cid','ugid','tgid','lid','gid','variable','alias','calc_name','year','month','day','level','value']
 multi_headers = ['ugid','tid','lid','gid','calc_name','time','level','value']
 
-reference_projection = WGS84()
+#test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
+test_data_download_url_prefix = 'http://www.earthsystemmodeling.org/download/data/ocgis/nc/'
 
-test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
+## the day value to use for month centroid
+calc_month_centroid = 16
+calc_year_centroid_month = 7
+calc_year_centroid_day = 1
+
+## the number of values to use when calculation resolutions
+resolution_limit = 100
+
+## the data type to use for numpy integers
+np_int = np.int32
+## the data type to use for numpy floats
+np_float = np.float32

@@ -48,6 +48,11 @@ sudo ldconfig
 # INSTALL PROJ
 ##############
 
+## Note: If the error below is received, you may need to access the SVN trunk source code.
+##       jniproj.c:52:26: fatal error: org_proj4_PJ.h: No such file or directory
+## The SVN repo is here: http://svn.osgeo.org/metacrs/proj/trunk/proj
+## See this ticket: http://trac.osgeo.org/proj/ticket/153
+
 PROJ_VER=4.8.0
 PROJ_SRC=$SRCDIR/proj/v$PROJ_VER
 PROJ_DIR=$INSTALLDIR/proj/v$PROJ_VER
@@ -179,6 +184,20 @@ sudo pip install shapely
 #sudo ln -s /usr/local/geos/v3.3.5/include/geos_c.h geos_c.h
 #
 #sudo /home/local/WX/ben.koziol/Dropbox/.virtualenvs/ocg/bin/python setup.py install
+
+###############
+# INSTALL FIONA
+###############
+
+## Website: https://pypi.python.org/pypi/Fiona
+
+## Pluto installation
+module load gdal/1.9.1 python/2.7.2 gfortran/4.7.2/gcc/4.7.2/gcc geos/3.3.5 
+cd /home/local/WX/ben.koziol/src/fiona/v0.16.1
+wget --no-check-certificate https://pypi.python.org/packages/source/F/Fiona/Fiona-0.16.1.tar.gz
+tar -xzvf Fiona-0.16.1.tar.gz
+cd Fiona-0.16.1
+[sudo] python setup.py install
 
 #################
 # INSTALL POSTGIS

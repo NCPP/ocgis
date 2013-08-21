@@ -4,20 +4,24 @@ from ocgis.util.large_array import compute
 import netCDF4 as nc
 import numpy as np
 from ocgis.calc import tile
+from ocgis.api.request import RequestDatasetCollection
 
 
 class Test(TestBase):
 
     def test_compute(self):
+#        ocgis.env.VERBOSE = True
+#        ocgis.env.DEBUG = True
+
         verbose = False
         n_tile_dimensions = 1
         tile_range = [100,100]
-        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd = RequestDatasetCollection(self.test_data.get_rd('cancm4_tasmax_2011'))
         
         calc = [{'func':'mean','name':'my_mean'},
-                {'func':'freq_perc','name':'perc_90','kwds':{'perc':90,}},
-                {'func':'freq_perc','name':'perc_95','kwds':{'perc':95,}},
-                {'func':'freq_perc','name':'perc_99','kwds':{'perc':99,}}
+                {'func':'freq_perc','name':'perc_90','kwds':{'percentile':90,}},
+                {'func':'freq_perc','name':'perc_95','kwds':{'percentile':95,}},
+                {'func':'freq_perc','name':'perc_99','kwds':{'percentile':99,}}
                ]
         calc_grouping = ['month']
         

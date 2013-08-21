@@ -1,9 +1,14 @@
 import unittest
 from ocgis.test.base import TestBase
 import ocgis
+from unittest.case import SkipTest
+from ocgis import constants
 
 
 class Test(TestBase):
+    
+    def setUp(self):
+        raise(SkipTest('tests only for development purposes'))
 
     def test_data_download(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir
@@ -11,6 +16,12 @@ class Test(TestBase):
         ocgis.env.reset()
         rd2 = self.test_data.get_rd('cancm4_tas')
         self.assertEqual(rd1,rd2)
+        
+    def test_multifile_data_download(self):
+        ocgis.env.DIR_TEST_DATA = self._test_dir
+        ocgis.env.DEBUG = True
+        constants.test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
     
     def test_entirely_bad_location(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir
@@ -20,6 +31,10 @@ class Test(TestBase):
     def test_copy_files(self):
 #        self.test_data.copy_files(self._test_dir)
         self.test_data.copy_files('/home/local/WX/ben.koziol/htmp/transfer')
+        
+    def test_multifile(self):
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        self.assertEqual(len(rd.uri),2)
 
 
 if __name__ == "__main__":

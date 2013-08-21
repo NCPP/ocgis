@@ -1,7 +1,6 @@
-import unittest
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError, CannotEncodeUrl
+from ocgis.exc import DefinitionValidationError
 from ocgis.util.helpers import make_poly
 from ocgis import env
 import os.path
@@ -13,8 +12,7 @@ from nose.plugins.skip import SkipTest
 from ocgis.api.request import RequestDataset, RequestDatasetCollection
 from ocgis.interface.geometry import GeometryDataset
 from ocgis.interface.shp import ShpDataset
-from ocgis.interface.metadata import NcMetadata
-import netCDF4 as nc
+import itertools
 
 
 class Test(TestBase):
@@ -22,6 +20,12 @@ class Test(TestBase):
     def setUp(self):
         TestBase.setUp(self)
         env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
+        
+        ## data may need to be pulled from remote repository
+        self.test_data.get_rd('cancm4_tasmin_2001')
+        self.test_data.get_rd('cancm4_tasmax_2011')
+        self.test_data.get_rd('cancm4_tas')
+        
         uris = [
                 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
                 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
@@ -33,6 +37,11 @@ class Test(TestBase):
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_repr(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd)
+        ret = str(ops)
+
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)
         meta = ops.get_meta()
@@ -43,7 +52,6 @@ class Test(TestBase):
         meta = ops.get_meta()
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
-        self.assertTrue('/subset?' in meta)
 
     def test_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
@@ -96,7 +104,6 @@ class Test(TestBase):
         geoms = ShpDataset('mi_watersheds')
         g = definition.Geom(geoms)
         self.assertEqual(len(g.value),60)
-        self.assertEqual(g.get_url_string(),'mi_watersheds')
         
     def test_headers(self):
         headers = ['did','value']
@@ -130,28 +137,44 @@ class Test(TestBase):
                 self.assertEqual(obj.value,eq)
             except AssertionError:
                 self.assertEqual(obj.value,('day',))
+        
+        ## only month, year, and day combinations are currently supported
+        rd = self.test_data.get_rd('cancm4_tas')
+        calcs = [None,[{'func':'mean','name':'mean'}]]
+        acceptable = ['day','month','year']
+        for calc in calcs:
+            for length in [1,2,3,4,5]:
+                for combo in itertools.combinations(['day','month','year','hour','minute'],length):
+                    try:
+                        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=combo)
+                    except DefinitionValidationError:
+                        reraise = True
+                        for c in combo:
+                            if c not in acceptable:
+                                reraise = False
+                        if reraise:
+                            raise
                 
     def test_dataset(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        rd = RequestDataset('tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','tas')
+        reference_rd = self.test_data.get_rd('cancm4_tas')
+        rd = RequestDataset(reference_rd.uri,reference_rd.variable)
         ds = definition.Dataset(rd)
         self.assertEqual(ds.value,RequestDatasetCollection([rd]))
         
-        dsa = {'uri':'tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc','variable':'tas'}
+        dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
         ds = definition.Dataset(dsa)
-        self.assertEqual(ds.get_url_string(),'uri=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable=tas&alias=tas&t_units=none&t_calendar=none&s_proj=none')
         
-        dsb = [dsa,{'uri':'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc','variable':'albisccp','alias':'knight'}]
+        reference_rd2 = self.test_data.get_rd('narccap_crcm')
+        dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
         ds = definition.Dataset(dsb)
-        str_cmp = 'uri1=/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc&variable1=tas&alias1=tas&t_units1=none&t_calendar1=none&s_proj1=none&uri2=/usr/local/climate_data/CCSM4/albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc&variable2=albisccp&alias2=knight&t_units2=none&t_calendar2=none&s_proj2=none'
-        self.assertEqual(ds.get_url_string(),str_cmp)
         
     def test_abstraction(self):
         K = definition.Abstraction
         
         k = K()
         self.assertEqual(k.value,'polygon')
-        self.assertEqual(str(k),'abstraction=polygon')
+        self.assertEqual(str(k),'abstraction="polygon"')
         
         k = K('point')
         self.assertEqual(k.value,'point')
@@ -168,43 +191,13 @@ class Test(TestBase):
             obj = klass(v)
             self.assertEqual(obj.value,a)
             
-    def test_as_url(self):
-        raise(SkipTest)
-        ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4')
-        
-        ## build request datasets
-        filenames = [
-    #                 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                     'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
-                     ]
-        variables = [
-    #                 'rhsmax',
-                     'tasmax'
-                     ]
-        rds = [ocgis.RequestDataset(fn,var) for fn,var in zip(filenames,variables)]
-        
-        ## build calculations
-        funcs = ['mean','std']
-    #    funcs = ['mean','std','min','max','median']
-        calc = [{'func':func,'name':func} for func in funcs]
-        
-        ## operations
-        select_ugid = None
-        calc_grouping = ['month']
-        snippet = False
-        geom = 'climate_divisions'
-        output_format = 'csv'
-        ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,snippet=snippet,
-         output_format=output_format,geom=geom,calc=calc,calc_grouping=calc_grouping,
-         spatial_operation='clip',aggregate=True)
-        url = ops.as_url()
-        self.assertEqual(url,'/subset?snippet=0&abstraction=polygon&calc_raw=0&agg_selection=0&output_format=csv&spatial_operation=clip&uri=/usr/local/climate_data/CanCM4/tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc&variable=tasmax&alias=tasmax&t_units=none&t_calendar=none&s_proj=none&calc_grouping=month&prefix=ocgis_output&geom=climate_divisions&allow_empty=0&vector_wrap=1&aggregate=1&select_ugid=none&calc=mean~mean|std~std&backend=ocg')
-            
         
 class TestRequestDataset(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
+        ## download test data
+        self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
     
@@ -266,13 +259,11 @@ class TestRequestDataset(TestBase):
         with self.assertRaises(ValueError):
             RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
     
-    def test_RequestDataset(self):
-        rd = RequestDataset(self.uri,self.variable)
-        self.assertEqual(rd['uri'],self.uri)
-        self.assertEqual(rd['alias'],self.variable)
-        
+    def test_RequestDataset(self):        
         rd = RequestDataset(self.uri,self.variable,alias='an_alias')
         self.assertEqual(rd.alias,'an_alias')
+        rd = RequestDataset(self.uri,self.variable,alias=None)
+        self.assertEqual(rd.alias,self.variable)
         
     def test_RequestDataset_time_range(self):        
         tr = [dt(2000,1,1),dt(2000,12,31)]
@@ -298,8 +289,12 @@ class TestRequestDataset(TestBase):
     
     def test_RequestDatasetCollection(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        uris = ['tas_day_CanCM4_decadal2011_r2i1p1_20120101-20211231.nc',
-                'albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc']
+        
+        daymet = self.test_data.get_rd('daymet_tmax')
+        tas = self.test_data.get_rd('cancm4_tas')
+        
+        uris = [daymet.uri,
+                tas.uri]
         variables = ['foo1','foo2']
         rdc = RequestDatasetCollection()
         for uri,variable in zip(uris,variables):
@@ -327,10 +322,8 @@ class TestRequestDataset(TestBase):
         self.assertIsInstance(rdc['a2'],RequestDataset)
         
     def test_multiple_uris(self):
-        env.DIR_DATA = '/usr/local/climate_data/narccap'
-        uris = ['pr_CRCM_ccsm_1981010103.nc','pr_CRCM_ccsm_1986010103.nc']
-        variable = 'pr'
-        rd = RequestDataset(uri=uris,variable=variable)
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        self.assertEqual(len(rd.uri),2)
         rd.inspect()
         
     def test_time_region(self):

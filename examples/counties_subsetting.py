@@ -3,16 +3,17 @@ import os
 import tempfile
 
 
-## directory containing the CMIP netCDF data files
+## MODIFY: directory containing the CMIP netCDF data files
 ocgis.env.DIR_DATA = '/home/local/WX/ben.koziol/wc'
-## the directory to store the output
+## MODIFY: the directory to store the output
 ocgis.env.DIR_OUTPUT = tempfile.mkdtemp()
-## path to folder containing us_counties shapefile
+## MODIFY: path to folder containing us_counties shapefile
 ocgis.env.DIR_SHPCABINET = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp'
 
 ## these are the unique identifiers (UGID attribute) of the target counties
 select_ugid = [1375,2416,1340]
-## set this to False to extract all data
+## MODIFY: set this to False to extract all data - only first time slice pulled
+## when True
 snippet = True
 ## the key to the target shapefile
 geom = 'us_counties'

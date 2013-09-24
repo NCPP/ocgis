@@ -296,5 +296,12 @@ class Test(TestBase):
         ret = ops.execute()
         ref = ret[16].variables[variable]
         
+    def test_mfdataset_to_nc(self):
+        rd = self.test_data.get_rd('maurer_2010_pr')
+        ops = OcgOperations(dataset=rd,output_format='nc',calc=[{'func':'mean','name':'my_mean'}],
+                            calc_grouping=['year'],geom='state_boundaries',select_ugid=[23])
+        ret = ops.execute()
+
+        
 if __name__ == '__main__':
     unittest.main()

@@ -8,7 +8,7 @@ NCFILE = '/home/local/WX/ben.koziol/climate_data/projection-axis/Canada_Projecti
 ## directory to write projection files to
 OUTDIR = '/tmp/foo'
 ## string template for making unique output names
-OUT_TEMPLATE = 'Canada_Projections_p{0}.nc'
+OUT_TEMPLATE = 'Canada_Projections_Tavg_p{0}.nc'
 
 
 def write_projection_file(ds,pidx):

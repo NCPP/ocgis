@@ -1,5 +1,6 @@
 import netCDF4 as nc
 import os
+import ocgis
 
 
 ## path to input file
@@ -26,7 +27,10 @@ def write_projection_file(ds,pidx):
         for varname in ['time','latitude','longitude']:
             r_dvar = ds.variables[varname]
             var = ds_out.createVariable(varname,r_dvar.dtype,r_dvar.dimensions)
-            var.setncatts(r_dvar.__dict__)
+            ## remove bounds attribute as this does not exist in the dataset
+            new_attrs = r_dvar.__dict__.copy()
+            new_attrs.pop('bounds',None)
+            var.setncatts(new_attrs)
             ## this is where the data is pulled and assigned to the new variable.
             ## the sync at the end is not really necessary for smaller data blocks
             ## but may be useful for larger files
@@ -39,6 +43,8 @@ def write_projection_file(ds,pidx):
         data_var[:] = orig_var[pidx,:,:,:]
     finally:
         ds_out.close()
+    ## ensure data may be read by OCGIS
+    ocgis.Inspect(out_path,variable='Tavg')
 
 def main():
     ds = nc.Dataset(NCFILE,'r')

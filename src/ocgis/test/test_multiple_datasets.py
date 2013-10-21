@@ -117,12 +117,12 @@ class Test(TestBase):
         ret = ops.execute()
         
         ref = ret[25].calc['Prcp']
-        self.assertEquals(ref.keys(),['mean', 'std', 'n'])
+        self.assertEquals(ref.keys(),['mean', 'std'])
         for value in ref.itervalues():
             self.assertEqual(value.shape,(1,1,1,1))
             
         ref = ret[25].calc['tasmax']
-        self.assertEquals(ref.keys(),['mean', 'std', 'n'])
+        self.assertEquals(ref.keys(),['mean', 'std'])
         for value in ref.itervalues():
             self.assertEqual(value.shape,(10,1,1,1))
             

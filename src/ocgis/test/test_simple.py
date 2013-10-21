@@ -269,20 +269,28 @@ class TestSimple(TestSimpleBase):
         group = ['month','year']
         
         ## raw
-        ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
-        ref = ret[1].calc[self.var]
-        for value in ref.itervalues():
-            self.assertEqual(value.shape,(2,2,4,4))
-        n_foo = ref['n']
-        self.assertEqual(n_foo[0,:].mean(),31)
-        self.assertEqual(n_foo[1,:].mean(),30)
+        for c in [True,False]:
+            ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,'calc_sample_size':c})
+            ref = ret[1].calc[self.var]
+            for value in ref.itervalues():
+                self.assertEqual(value.shape,(2,2,4,4))
+            if c:
+                n_foo = ref['n']
+                self.assertEqual(n_foo[0,:].mean(),31)
+                self.assertEqual(n_foo[1,:].mean(),30)
+            else:
+                self.assertFalse('n' in ref)
 
         ## aggregated
-        for calc_raw in [True,False]:
+        for calc_raw,calc_sample_size in itertools.product([True,False],[True,False]):
             ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
-                                     'aggregate':True,'calc_raw':calc_raw})
+                                     'aggregate':True,'calc_raw':calc_raw,
+                                     'calc_sample_size':calc_sample_size})
             ref = ret[1].calc[self.var]
-            self.assertEqual(ref['n'].shape,(2,2,1,1))
+            if calc_sample_size:
+                self.assertEqual(ref['n'].shape,(2,2,1,1))
+            else:
+                self.assertTrue('n' not in ref)
             self.assertEqual(ref['my_mean'].shape,(2,2,1,1))
             self.assertEqual(ref['my_mean'].flatten().mean(),2.5)
             

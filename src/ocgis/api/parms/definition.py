@@ -72,6 +72,10 @@ class Calc(base.IterableParameter,base.OcgParameter):
     element_type = dict
     unique = False
     
+    def __init__(self,*args,**kwds):
+        self.calc_sample_size = kwds.pop('calc_sample_size')
+        base.OcgParameter.__init__(self,*args,**kwds)
+    
     def __repr__(self):
         msg = '{0}={1}'.format(self.name,self.value)
         return(msg)
@@ -94,7 +98,8 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def parse_all(self,values):
-        values.append(self._parse_({'func':'n','name':'n'}))
+        if self.calc_sample_size.value:
+            values.append(self._parse_({'func':'n','name':'n'}))
         return(values)
     
     def _get_meta_(self):
@@ -174,6 +179,13 @@ class CalcRaw(base.BooleanParameter):
     default = False
     meta_true = 'Raw values will be used for calculations. These are the original data values linked to a selection geometry.'
     meta_false = 'Aggregated values will be used during the calculation.'
+
+
+class CalcSampleSize(base.BooleanParameter):
+    name = 'calc_sample_size'
+    default = False
+    meta_true = 'Statistical sample size for calculations added to output files.'
+    meta_false = 'Statistical sample size not calculated.'
 
 
 class Dataset(base.OcgParameter):

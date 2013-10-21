@@ -63,6 +63,8 @@ class OcgOperations(object):
     :type headers: sequence
     :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass values through without a coercion attempt.
     :type format_time: bool
+    :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
+    :type calc_sample_size: bool
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -70,7 +72,8 @@ class OcgOperations(object):
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice=None, file_only=False, headers=None, format_time=True):
+                 slice=None, file_only=False, headers=None, format_time=True,
+                 calc_sample_size=False):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -79,7 +82,8 @@ class OcgOperations(object):
         self.dataset = Dataset(dataset)
         self.spatial_operation = SpatialOperation(spatial_operation)
         self.aggregate = Aggregate(aggregate)
-        self.calc = Calc(calc)
+        self.calc_sample_size = CalcSampleSize(calc_sample_size)
+        self.calc = Calc(calc,calc_sample_size=self._get_object_('calc_sample_size'))
         self.calc_grouping = CalcGrouping(calc_grouping)
         self.calc_raw = CalcRaw(calc_raw)
         self.abstraction = Abstraction(abstraction)

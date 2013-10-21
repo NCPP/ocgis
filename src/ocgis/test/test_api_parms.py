@@ -147,7 +147,7 @@ class Test(TestBase):
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]
-        cc = Calc(calc)
+        cc = Calc(calc,calc_sample_size=CalcSampleSize(True))
         eq = [{'ref':library.Mean,'name':'my_mean','func':'mean','kwds':{}}, 
               {'ref':library.SampleSize,'name':'n','func':'n','kwds':{}}]
         self.assertEqual(cc.value,eq)
@@ -160,7 +160,7 @@ class Test(TestBase):
         calc = [{'func':'mean','name':'my_mean'},
                 {'func':'mean','name':'my_mean'}]
         with self.assertRaises(DefinitionValidationError):
-            Calc(calc)
+            Calc(calc,calc_sample_size=CalcSampleSize(True))
 
 
 if __name__ == "__main__":

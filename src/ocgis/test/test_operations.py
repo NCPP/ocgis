@@ -119,6 +119,22 @@ class Test(TestBase):
         headers = []
         with self.assertRaises(DefinitionValidationError):
             hh = definition.Headers(headers)
+            
+    def test_calc(self):
+        with self.assertRaises(KeyError):
+            definition.Calc([{'func':'mean','name':'my_mean'}])
+        
+        for c in [True,False]:
+            css = definition.CalcSampleSize(c)
+            self.assertNotIsInstance(css,bool)
+            calc = definition.Calc([{'func':'mean','name':'my_mean'}],calc_sample_size=css)
+            funcs = set([f['func'] for f in calc.value])
+            if not c:
+                self.assertFalse('n' in funcs,msg=(funcs,c))
+                self.assertEqual(len(calc.value),1)
+            else:
+                self.assertTrue('n' in funcs,msg=(funcs,c))
+                self.assertEqual(len(calc.value),2)
                 
     def test_calc_grouping(self):
         _cg = [

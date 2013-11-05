@@ -131,8 +131,16 @@ class OcgCalculationEngine(object):
                     value,weights = self._get_value_weights_(var,file_only=file_only)
                     ## make the function instance
                     try:
+                        ## try to pull the groups, they may not be present
+                        try:
+                            groups = var.temporal.group.dgroups
+                        except AttributeError:
+                            if var.temporal.group is None:
+                                groups = None
+                            else:
+                                raise
                         ref = f['ref'](values=value,agg=self.agg,
-                                       groups=var.temporal.group.dgroups,
+                                       groups=groups,
                                        kwds=f['kwds'],weights=weights,
                                        dataset=var,calc_name=f['name'],
                                        file_only=file_only)
@@ -141,9 +149,6 @@ class OcgCalculationEngine(object):
                         ## sample size.
                         if self.grouping is None and f['ref'] == SampleSize:
                             break
-                        elif self.grouping is None:
-                            e = NotImplementedError('Univariate calculations must have a temporal grouping.')
-                            ocgis_lh(exc=e,logger='calc.engine')
                         else:
                             raise
                     ## calculate the values

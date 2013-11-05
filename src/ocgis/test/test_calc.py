@@ -8,10 +8,13 @@ import datetime
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 import itertools
-from ocgis.calc.library import Duration, FrequencyDuration, StandardDeviation
+from ocgis.calc.library import Duration, FrequencyDuration, StandardDeviation,\
+    DynamicDailyKernelPercentileThreshold
 from ocgis.exc import DefinitionValidationError
 import webbrowser
 from ocgis.calc.engine import OcgCalculationEngine
+from unittest.case import SkipTest
+from ocgis.api.request import RequestDataset
 
 
 class Test(TestBase):
@@ -404,6 +407,75 @@ class TestOcgCalculationEngine(TestBase):
                 self.assertNumpyNotAll(value.shape[-2:],shape[-2:])
             if raw is True and agg is False:
                 self.assertNumpyAll(shape[-3:],value.shape[-3:])
+
+
+class TestDynamicDailyKernelPercentileThreshold(TestBase):
+    
+    def get_percentile_reference(self):
+        years = [2001,2002,2003]
+        days = [3,4,5,6,7]
+        
+        dates = []
+        for year,day in itertools.product(years,days):
+            dates.append(datetime.datetime(year,6,day,12))
+            
+        ds = nc.Dataset(self.test_data.get_uri('cancm4_tas'))
+        try:
+            calendar = ds.variables['time'].calendar
+            units = ds.variables['time'].units
+            ncdates = nc.num2date(ds.variables['time'][:],units,calendar=calendar)
+            indices = []
+            for ii,ndate in enumerate(ncdates):
+                if ndate in dates:
+                    indices.append(ii)
+            tas = ds.variables['tas'][indices,:,:]
+            ret = np.percentile(tas,10,axis=0)
+        finally:
+            ds.close()
+            
+        return(ret)
+    
+    def test_constructor(self):
+        DynamicDailyKernelPercentileThreshold()
+    
+    def test_calculate(self):
+        ## daily data for three years is wanted for the test. subset a CMIP5
+        ## decadal simulation to use for input into the computation.
+        rd = self.test_data.get_rd('cancm4_tas')
+        ds = rd.ds.get_subset(temporal=[datetime.datetime(2001,1,1),
+                                        datetime.datetime(2003,12,31,23,59)])
+        ## the calculation will be for months and years. set the temporal grouping.
+        ds.temporal.set_grouping(['month','year'])
+        ## create calculation object
+        percentile = 10
+        width = 5
+        operation = 'lt'
+        kwds = dict(percentile=percentile,width=width,operation=operation)
+        dkp = DynamicDailyKernelPercentileThreshold(values=ds.value,groups=ds.temporal.group.dgroups,
+                                                    kwds=kwds,dataset=ds,calc_name='tg10p')
+        
+        dperc = dkp.daily_percentile
+        select = np.logical_and(dperc['month'] == 6,dperc['day'] == 5)
+        to_test = dperc[select]['percentile'][0]
+        ref = self.get_percentile_reference()
+        self.assertNumpyAll(to_test,ref)
+        
+        ret = dkp.calculate()
+        self.assertEqual(ret.shape,(36,1,64,128))
+        
+    def test_operations(self):
+        raise(SkipTest('dev'))
+        uri = self.test_data.get_uri('cancm4_tas')
+        rd = RequestDataset(uri=uri,
+                            variable='tas',
+#                            time_range=[datetime.datetime(2001,1,1),datetime.datetime(2003,12,31,23,59)]
+                            )
+        calc_grouping = ['month','year']
+        calc = [{'func':'dynamic_kernel_percentile_threshold','name':'tg10p','kwds':{'percentile':10,'width':5,'operation':'lt'}}]
+        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
+                            output_format='nc')
+        ret = ops.execute()
+            
 
 if __name__ == '__main__':
     unittest.main()

@@ -131,16 +131,20 @@ class OcgFunction(object):
         if self.file_only:
             ret = self._get_file_only_fill_()
         else:
-            ## holds output from calculation
-            fill = self._get_fill_(self.values)
-            ## iterate over temporal groups and levels
-            for idx,group in enumerate(self.groups):
-                value_slice = self.values[group,:,:,:]
-                self._curr_group = group
-                calc = self._calculate_(value_slice,**self.kwds)
-                ## we want to leave the mask alone and only fill the data. calculations
-                ## are not concerned with the global mask (though they can be).
-                fill.data[idx] = calc
+            ## no need for temporal aggregation if there are no groups
+            if self.groups is None:
+                fill = self._calculate_(self.values,**self.kwds)
+            else:
+                ## holds output from calculation
+                fill = self._get_fill_(self.values)
+                ## iterate over temporal groups and levels
+                for idx,group in enumerate(self.groups):
+                    value_slice = self.values[group,:,:,:]
+                    self._curr_group = group
+                    calc = self._calculate_(value_slice,**self.kwds)
+                    ## we want to leave the mask alone and only fill the data. calculations
+                    ## are not concerned with the global mask (though they can be).
+                    fill.data[idx] = calc
             ## if data is calculated on raw values, but area-weighting is required
             ## aggregate the data using provided weights.
             if self.agg and self._is_aggregated_(fill) is False:

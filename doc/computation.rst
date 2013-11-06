@@ -159,6 +159,11 @@ Percentiles
    :members: _calculate_
    :undoc-members:
 
+.. autoclass:: ocgis.calc.library.DynamicDailyKernelPercentileThreshold
+   :show-inheritance:
+   :members: _calculate_, get_daily_percentile
+   :undoc-members:
+
 Thresholds
 ~~~~~~~~~~
 

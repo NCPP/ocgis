@@ -137,6 +137,8 @@ class DynamicDailyKernelPercentileThreshold(OcgArgFunction):
                 select[ii] = dt_cday in cday_sub['index']
             
             ## calculate the percentile value for the window
+            percentile_subset = all_values[select]
+            assert(percentile_subset.shape[0] == 15)
             cday['percentile'][target_cday_index] = np.percentile(all_values[select],percentile,axis=0)
             
         return(cday)        

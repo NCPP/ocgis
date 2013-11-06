@@ -437,6 +437,23 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     
     def test_constructor(self):
         DynamicDailyKernelPercentileThreshold()
+        
+    def test_get_calendar_day_window_(self):
+        cday_index = np.arange(0,365)
+        rr = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_
+        width = 5
+        
+        target_cday_index = 0
+        ret = rr(cday_index,target_cday_index,width)
+        self.assertNumpyAll(ret,np.array([0,363,364,1,2]))
+        
+        target_cday_index = 15
+        ret = rr(cday_index,target_cday_index,width)
+        self.assertNumpyAll(ret,np.array([15,13,14,16,17]))
+        
+        target_cday_index = 363
+        ret = rr(cday_index,target_cday_index,width)
+        self.assertNumpyAll(ret,np.array([363,361,362,0,364]))
     
     def test_calculate(self):
         ## daily data for three years is wanted for the test. subset a CMIP5

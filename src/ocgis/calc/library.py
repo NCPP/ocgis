@@ -80,7 +80,8 @@ class DynamicDailyKernelPercentileThreshold(OcgArgFunction):
                                                                self.kwds['width'])
         return(self._daily_percentile)
     
-    def get_daily_percentile(self,all_values,temporal,percentile,width):
+    @staticmethod
+    def get_daily_percentile(all_values,temporal,percentile,width):
         '''
         :param all_values: Array holding all values to use for base percentile calculations.
         :type all_values: numpy.MaskedArray
@@ -95,8 +96,10 @@ class DynamicDailyKernelPercentileThreshold(OcgArgFunction):
         '''
         ## collect the days and months uniquely to use for the calendar attribution
         dmap = {}
+        years = set()
         for dt in temporal.flat:
-            day,month = dt.day,dt.month
+            day,month,year = dt.day,dt.month,dt.year
+            years.update([year])
             if month not in dmap:
                 dmap[month] = []
             if day not in dmap[month]:
@@ -122,7 +125,7 @@ class DynamicDailyKernelPercentileThreshold(OcgArgFunction):
             ## this function returns the calendar days part of the target calendar
             ## day's window. these are then used to subset the calendar day structure
             ## array.
-            window_days = self._get_calendar_day_window_(r_cday_index,target_cday_index,width)
+            window_days = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_(r_cday_index,target_cday_index,width)
             cday_select = np.zeros(cday_shape,dtype=bool)
             for wd in window_days:
                 cday_select = np.logical_or(cday_select,r_cday_index == wd)
@@ -138,7 +141,7 @@ class DynamicDailyKernelPercentileThreshold(OcgArgFunction):
             
             ## calculate the percentile value for the window
             percentile_subset = all_values[select]
-            assert(percentile_subset.shape[0] == 15)
+            assert(percentile_subset.shape[0] == len(years)*width)
             cday['percentile'][target_cday_index] = np.percentile(all_values[select],percentile,axis=0)
             
         return(cday)        

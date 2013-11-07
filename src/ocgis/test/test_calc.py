@@ -15,6 +15,7 @@ import webbrowser
 from ocgis.calc.engine import OcgCalculationEngine
 from unittest.case import SkipTest
 from ocgis.api.request import RequestDataset
+from ocgis.util.inspect import Inspect
 
 
 class Test(TestBase):
@@ -492,6 +493,48 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
                             output_format='nc')
         ret = ops.execute()
+        
+    def test_operations_two_steps(self):
+        ## get the request dataset to use as the basis for the percentiles
+        uri = self.test_data.get_uri('cancm4_tas')
+        variable = 'tas'
+        rd = RequestDataset(uri=uri,variable=variable)
+        ## this is the underly OCGIS dataset object
+        nc_basis = rd.ds
+        
+        ## NOTE: if you want to subset the basis by time, this step is necessary
+#        nc_basis = nc_basis.get_subset(temporal=[datetime.datetime(2001,1,1),
+#                                                 datetime.datetime(2003,12,31,23,59)])
+        
+        ## these are the values to use when calculating the percentile basis. it
+        ## may be good to wrap this in a function to have memory freed after the
+        ## percentile structure array is computed.
+        all_values = nc_basis.value
+        ## these are the datetime objects used for window creation
+        temporal = nc_basis.temporal.value_datetime
+        ## additional parameters for calculating the basis
+        percentile = 10
+        width = 5
+        ## get the structure array
+        from ocgis.calc.library import DynamicDailyKernelPercentileThreshold
+        daily_percentile = DynamicDailyKernelPercentileThreshold.get_daily_percentile(all_values,temporal,percentile,width)
+        
+        ## perform the calculation using the precomputed basis. in this case,
+        ## the basis and target datasets are the same, so the RequestDataset is
+        ## reused.
+        calc_grouping = ['month','year']
+        kwds = {'percentile':percentile,'width':width,'operation':'lt','daily_percentile':daily_percentile}
+        calc = [{'func':'dynamic_kernel_percentile_threshold','name':'tg10p','kwds':kwds}]
+        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
+                            output_format='nc')
+        ret = ops.execute()
+        
+        ## confirm we have values for each month and year (12*10)
+        ret_ds = nc.Dataset(ret)
+        try:
+            self.assertEqual(ret_ds.variables['tg10p'].shape,(120,64,128))
+        finally:
+            ret_ds.close()
             
 
 if __name__ == '__main__':

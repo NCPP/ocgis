@@ -13,7 +13,7 @@ class Test(TestBase):
         test_path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/test_data/test_shp_process'
         copy_path = os.path.join(self._test_dir,'test_shp_process')
         shutil.copytree(test_path,copy_path)
-        shp_path = os.path.join(copy_path,'wc.shp')
+        shp_path = os.path.join(copy_path,'wc_4326.shp')
         sp = ShpProcess(shp_path)
         out_folder = tempfile.mkdtemp(dir=self._test_dir)
         sp.process(out_folder,'world_countries',ugid=None)

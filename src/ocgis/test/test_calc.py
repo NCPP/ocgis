@@ -529,6 +529,25 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
                             output_format='nc')
         ret = ops.execute()
         
+        ## if we want to return the values as a three-dimenional numpy array the
+        ## method below will do this. note the interface arrangement for the next
+        ## release will alter this slightly.
+        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
+                            output_format='numpy')
+        arrs = ops.execute()
+        ## reference the returned numpy data. the first key is the geometry identifier.
+        ## 1 in this case as this is the default for no selection geometry. the second
+        ## key is the variable alias and the third is the calculation name.
+        tg10p = arrs[1].calc['tas']['tg10p']
+        ## if we want the date information for the temporal groups (again will
+        ## change in the next release to be more straightfoward)
+        date_groups = arrs[1].variables['tas'].temporal.group.value
+        assert(date_groups.shape[0] == tg10p.shape[0])
+        ## these are the representative datetime objects
+        rep_dt = arrs[1].variables['tas'].temporal.group.representative_datetime
+        ## and these are the lower and upper time bounds on the date groups
+        bin_bounds = arrs[1].variables['tas'].temporal.group.bounds
+        
         ## confirm we have values for each month and year (12*10)
         ret_ds = nc.Dataset(ret)
         try:

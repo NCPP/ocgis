@@ -143,5 +143,11 @@ class OcgInterpreter(Interpreter):
 
             return(ret)
         finally:
-#            env.ops = None
+            ## shut down logging
             ocgis_lh.shutdown()
+            ## attempt to close any dataset objects
+            for rd in self.ops.dataset:
+                try:
+                    rd.ds.close()
+                except:
+                    pass

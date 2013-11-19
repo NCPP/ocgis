@@ -35,9 +35,12 @@ class NcDataset(base.AbstractDataset):
         
     def __del__(self):
         try:
-            self._ds.close()
+            self.close()
         finally:
             pass
+        
+    def close(self):
+        self._ds.close()
         
     def __getitem__(self,slc):
         if self.level is None:

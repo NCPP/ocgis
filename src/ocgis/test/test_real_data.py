@@ -9,9 +9,18 @@ from ocgis.exc import DefinitionValidationError, MaskedDataError
 import numpy as np
 import datetime
 import netCDF4 as nc
+from copy import deepcopy
 
 
 class TestCMIP3Masking(TestBase):
+    
+    def test_many_request_datasets(self):
+        rd_base = self.test_data.get_rd('subset_test_Prcp')
+        geom = [-74.0, 40.0, -72.0, 42.0]
+        rds = [deepcopy(rd_base) for ii in range(500)]
+        for rd in rds:
+            ret = OcgOperations(dataset=rd,geom=geom).execute()
+            self.assertEqual(ret[1].variables['Prcp'].value.shape,(1800,1,1,1))
     
     def test(self):
         for key in ['subset_test_Prcp','subset_test_Tavg_sresa2','subset_test_Tavg']:

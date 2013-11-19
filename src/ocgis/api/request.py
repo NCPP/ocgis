@@ -117,11 +117,10 @@ class RequestDataset(object):
         self._ds = self._Dataset(**kwds)
     
     def __del__(self):
-        if self._ds is not None:
-            try:
-                self._ds.close()
-            except:
-                pass
+        try:
+            self.ds.close()
+        except:
+            pass
     
     @property
     def interface(self):

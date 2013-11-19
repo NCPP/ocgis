@@ -5,10 +5,33 @@ from unittest.case import SkipTest
 from ocgis.api.operations import OcgOperations
 import webbrowser
 from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, MaskedDataError
 import numpy as np
 import datetime
 import netCDF4 as nc
+
+
+class TestCMIP3Masking(TestBase):
+    
+    def test(self):
+        for key in ['subset_test_Prcp','subset_test_Tavg_sresa2','subset_test_Tavg']:
+            ## test method to return a RequestDataset
+            rd = self.test_data.get_rd(key)
+            geoms = [[-74.0, 40.0, -72.0, 42.0],
+                     [-74.0, 38.0, -72.0, 40.0]]
+            for geom in geoms:
+                try:
+                    ## this will raise the exception from the 38/40 bounding box
+                    OcgOperations(dataset=rd,output_format='shp',geom=geom,
+                                  prefix=str(geom[1])+'_'+key,allow_empty=False).execute()
+                except MaskedDataError:
+                    if geom[1] == 38.0:
+                        ## note all returned data is masked!
+                        ret = OcgOperations(dataset=rd,output_format='numpy',geom=geom,
+                                            prefix=str(geom[1])+'_'+key,allow_empty=True).execute()
+                        self.assertTrue(ret[1].variables[rd.variable].value.mask.all())
+                    else:
+                        raise
 
 
 class Test(TestBase):

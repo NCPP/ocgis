@@ -379,8 +379,12 @@ class TestSimpleMask(TestSimpleBase):
     def test_empty_mask(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
         with self.assertRaises(exc.MaskedDataError):
-            ret = self.get_ret(kwds={'geom':geom})
-        ret = self.get_ret(kwds={'geom':geom,'allow_empty':True})
+            self.get_ret(kwds={'geom':geom,'output_format':'shp'})
+        self.get_ret(kwds={'geom':geom,'allow_empty':True})
+        with self.assertRaises(exc.MaskedDataError):
+            self.get_ret(kwds={'geom':geom,'output_format':'numpy'})
+        ret = self.get_ret(kwds={'geom':geom,'output_format':'numpy','allow_empty':True})
+        self.assertTrue(ret[1].variables['foo'].value.mask.all())
         
         
 class TestSimple360(TestSimpleBase):

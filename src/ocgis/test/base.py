@@ -46,6 +46,10 @@ class TestBase(unittest.TestCase):
         test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmax.1991.nc'],key='maurer_2010_tasmax')
         test_data.update(['narccap'],'pr',['pr_WRFG_ncep_1981010103.nc','pr_WRFG_ncep_1986010103.nc'],key='narccap_pr_wrfg_ncep')
         test_data.update(['snippets'],'dtr','snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',key='snippet_maurer_dtr')
+        
+        test_data.update(['misc','subset_test'],'Tavg','Tavg_bccr_bcm2_0.1.sresa2.nc',key='subset_test_Tavg')
+        test_data.update(['misc','subset_test'],'Tavg','sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',key='subset_test_Tavg_sresa2')
+        test_data.update(['misc','subset_test'],'Prcp','sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',key='subset_test_Prcp')
         return(test_data)
     
     def setUp(self):

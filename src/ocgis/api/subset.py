@@ -210,12 +210,15 @@ def get_collection((so,geom,logger)):
                     if ods.value.mask.all():
                         ## masked data may be okay depending on other opeartional
                         ## conditions.
-                        if so.ops.snippet or so.ops.allow_empty:
+                        if so.ops.snippet or so.ops.allow_empty or (so.ops.output_format == 'numpy' and so.ops.allow_empty):
                             if so.ops.snippet:
                                 ocgis_lh('all masked data encountered but allowed for snippet',
                                          logger,alias=alias,ugid=ugid,level=logging.WARN)
                             if so.ops.allow_empty:
                                 ocgis_lh('all masked data encountered but empty returns allowed',
+                                         logger,alias=alias,ugid=ugid,level=logging.WARN)
+                            if so.ops.output_format == 'numpy':
+                                ocgis_lh('all masked data encountered but numpy data being returned allowed',
                                          logger,alias=alias,ugid=ugid,level=logging.WARN)
                             pass
                         else:

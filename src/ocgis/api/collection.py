@@ -1,271 +1,77 @@
-from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
+from ocgis.interface.base.crs import CFWGS84
 from ocgis import constants
-from shapely.geometry.polygon import Polygon
-from shapely.geometry.multipolygon import MultiPolygon
-from copy import deepcopy
-from ocgis.calc.base import KeyedFunctionOutput
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class AbstractCollection(object):
-    '''Abstract base class for all collection types.'''
-    __metaclass__ = ABCMeta
+class SpatialCollection(OrderedDict):
+    _default_headers = constants.raw_headers
     
-    def __init__(self,ops=None):
-        self.ops = ops
+    def __init__(self,meta=None,key=None,crs=None,headers=None,value_keys=None):
+        self.meta = meta
+        self.key = key
+        self.crs = crs or CFWGS84()
+        self.headers = headers or self._default_headers
+        self.value_keys = value_keys
     
+        self.geoms = {}
+        self.properties = OrderedDict()
+        
+        self._uid_ctr_field = 1
+
+        super(SpatialCollection,self).__init__()
+        
     @property
-    def _archetype(self):
-        return(self.variables[self.variables.keys()[0]])
-    
-    @property
-    def projection(self):
-        return(self._archetype.spatial.projection)
-    
-    @property
-    def ugid(self):
+    def _archetype_field(self):
+        ukey = self.keys()[0]
+        fkey = self[ukey].keys()[0]
+        return(self[ukey][fkey])
+        
+    def add_field(self,ugid,geom,alias,field,properties=None):
+        ## add field unique identifier if it does not exist
         try:
-            ret = self.ugeom.spatial.uid[0]
-        ## the geometry may be empty
-        except AttributeError:
-            if self.ugeom is None:
-                ret = 1
+            if field.uid is None:
+                field.uid = self._uid_ctr_field
+                self._uid_ctr_field += 1
+        ## likely a nonetype from an empty subset
+        except AttributeError as e:
+            if field is None:
+                pass
             else:
-                raise
-        return(ret)
-    
-    def get_headers(self,upper=False):
-        ## headers may have been overloaded by operations.
-        ops_headers = self._get_headers_from_ops_()
-        if ops_headers is None:
-            headers = self._get_headers_()
-        else:
-            headers = ops_headers
+                ocgis_lh(exc=e,loggger='collection')
             
-        if upper:
-            ret = [h.upper() for h in headers]
-        else:
-            ret = headers
-        return(ret)
-    
-    def get_iter(self,with_geometry_ids=False):
-        '''
-        :param with_geometry_ids: If True, return a dictionary containing geometry identifiers.
-        :type with_geometry_ids: bool
-        '''
-        headers = self.get_headers()
-        for geom,attrs in self._get_iter_():
-            row = [attrs[h] for h in headers]
-            if with_geometry_ids:
-                geom_ids = {'ugid':attrs['ugid'],'gid':attrs['gid'],'did':attrs['did']}
-                yld = (geom,row,geom_ids)
-            else:
-                yld = (geom,row)
-            yield(yld)
-    
-    @abstractmethod
-    def _get_headers_(self): list
-    
-    def _get_headers_from_ops_(self):
-        if self.ops is None:
-            ret = None
-        else:
-            ret = self.ops.headers
-        return(ret)
-    
-    @abstractmethod
-    def _get_iter_(self): 'generator'
-    
-    
-class RawCollection(AbstractCollection):
-    
-    def __init__(self,ugeom=None,ops=None):
-        self.ugeom = ugeom
-        self.variables = OrderedDict()
-        super(RawCollection,self).__init__(ops=ops)
-    
-    def _get_iter_(self):
-        ## we want to break out the date parts if any date parts are present
-        ## in the headers argument.
-        headers = self.get_headers()
-        intersection = set(headers).intersection(set(['year','month','day']))
-        if len(intersection) > 0:
-            add_date_parts = True
-        else:
-            add_date_parts = False
-
-        vid = 1
-        ugid = self.ugid
-        for alias,ds in self.variables.iteritems():
-            did = ds.request_dataset.did
-            variable = ds.request_dataset.variable
-            for geom,attrs in ds.get_iter_value():
-                attrs['did'] = did
-                attrs['alias'] = alias
-                attrs['variable'] = variable
-                attrs['vid'] = vid
-                attrs['ugid'] = ugid
-                if add_date_parts:
-                    attrs['year'] = attrs['time'].year
-                    attrs['month'] = attrs['time'].month
-                    attrs['day'] = attrs['time'].day
-                if type(geom) == Polygon:
-                    geom = MultiPolygon([geom])
-                yield(geom,attrs)
-            vid += 1
-            
-    def _get_headers_(self):
-        return(deepcopy(constants.raw_headers))
-        
-        
-class CalcCollection(AbstractCollection):
-    
-    def __init__(self,raw_collection,funcs=None,ops=None):
-        self.ugeom = raw_collection.ugeom
-        self.variables = raw_collection.variables
-        self.calc = OrderedDict()
-        self.funcs = funcs
-        super(CalcCollection,self).__init__(ops=raw_collection.ops)
-    
-    def _get_iter_(self):
-#        headers = self.get_headers()
-        vid = 1
-        cid = 1
-        ugid = self.ugid
-        for alias,calc in self.calc.iteritems():
-            ds = self.variables[alias]
-            did = ds.request_dataset.did
-            variable = ds.request_dataset.variable
-            for calc_name,calc_value in calc.iteritems():
-                for geom,attrs in ds.get_iter_value(value=calc_value,temporal_group=True):
-                    attrs['did'] = did
-                    attrs['variable'] = variable
-                    attrs['alias'] = alias
-                    attrs['calc_name'] = calc_name
-                    attrs['vid'] = vid
-                    attrs['cid'] = cid
-                    attrs['ugid'] = ugid
-#                    row = [attrs[key] for key in headers]
-                    if type(geom) == Polygon:
-                        geom = MultiPolygon([geom])
-                    yield(geom,attrs)
-                cid += 1
-            vid += 1
-            
-    def _get_headers_(self):
-        return(deepcopy(constants.calc_headers))
-            
-            
-class MultivariateCalcCollection(CalcCollection):
-    
-    def _get_iter_(self):
-        arch = self._archetype
-        ## determine if there is a temporal grouping
-        temporal_group = False if arch.temporal.group is None else True
-#        headers = self.get_headers()
-        cid = 1
-        ugid = self.ugid
-        for calc_name,calc_value in self.calc.iteritems():
-            for geom,attrs in arch.get_iter_value(value=calc_value,temporal_group=temporal_group,
-                                                  add_masked=True):
-                attrs['calc_name'] = calc_name
-                attrs['cid'] = cid
-                attrs['ugid'] = ugid
-#                row = [attrs[key] for key in headers]
-                if type(geom) == Polygon:
-                    geom = MultiPolygon([geom])
-                yield(geom,attrs)
-            cid += 1
-
-    def _get_headers_(self):
-        ## get the representative dataset
-        arch = self._archetype
-        ## determine if there is a temporal grouping
-        temporal_group = False if arch.temporal.group is None else True
-        if temporal_group:
-            headers = super(MultivariateCalcCollection,self)._get_headers_()
-#            headers = [h.upper() for h in deepcopy(super(MultivariateCalcCollection,self)._get_headers_())]
-            ## the variable name is not relevant for multivariate calculations
-            headers.remove('did')
-            headers.remove('alias')
-            headers.remove('variable')
-            headers.remove('vid')
-        else:
-            headers = constants.multi_headers
-        return(headers)
-
-
-class KeyedOutputCalcCollection(CalcCollection):
-    
-    def get_headers(self,upper=False):
-        ## headers may have been overloaded by operations.
-        ops_headers = self._get_headers_from_ops_()
-        if ops_headers is None:
-            headers = self._get_headers_()
-        else:
-            headers = ops_headers
-            
-        ## needed in case headers are overloaded
-        ref = self._get_target_ref_()
-        for output_key in ref.output_keys:
-            if output_key not in headers:
-                headers = list(headers) + [output_key]
+        self.geoms.update({ugid:geom})
+        self.properties.update({ugid:properties})
+        if ugid not in self:
+            self.update({ugid:{}})
+        assert(alias not in self[ugid])
+        self[ugid].update({alias:field})
                 
-        if upper:
-            ret = [h.upper() for h in headers]
+    def get_iter_dict(self,use_upper_keys=False,conversion_map=None):
+        r_headers = self.headers
+        use_conversion = False if conversion_map is None else True
+        for ugid,field_dict in self.iteritems():
+            for field in field_dict.itervalues():
+                for row in field.get_iter(value_keys=self.value_keys):
+                    row['ugid'] = ugid
+                    yld_row = {k:row[k] for k in r_headers}
+                    if use_conversion:
+                        for k,v in conversion_map.iteritems():
+                            yld_row[k] = v(yld_row[k])
+                    if use_upper_keys:
+                        yld_row = {k.upper():v for k,v in yld_row.iteritems()}
+                    yield(row['geom'],yld_row)
+                    
+    def get_iter_elements(self):
+        for ugid,fields in self.iteritems():
+            for field_alias,field in fields.iteritems():
+                for var_alias,variable in field.variables.iteritems():
+                    yield(ugid,field_alias,var_alias,variable)
+                
+    def gvu(self,ugid,alias_variable,alias_field=None):
+        ref = self[ugid]
+        if alias_field is None:
+            field = ref.values()[0]
         else:
-            ret = headers
-        return(ret)
-    
-    def _get_iter_(self):
-#        headers = self._get_headers_()
-        vid = 1
-        cid = 1
-        ugid = self.ugid
-        output_keys = self._get_target_ref_().output_keys
-        for alias,calc in self.calc.iteritems():
-            ds = self.variables[alias]
-            did = ds.request_dataset.did
-            variable = ds.request_dataset.variable
-            for calc_name,calc_value in calc.iteritems():
-                is_sample_size = False
-                for geom,base_attrs in ds.get_iter_value(value=calc_value,temporal_group=True):
-                    ## try to get the shape of the structure arrays
-                    try:
-                        iter_shape = base_attrs['value'].shape[0]
-                    except IndexError:
-                        iter_shape = 1
-                    for ii_value in range(iter_shape):
-                        attrs = base_attrs.copy()
-                        for key in output_keys:
-                            try:
-                                attrs[key] = attrs['value'][key][ii_value]
-                            except IndexError:
-                                ## likely sample size
-                                is_sample_size = True
-                                attrs[key] = None
-                        if not is_sample_size:
-                            attrs['value'] = None
-                        attrs['did'] = did
-                        attrs['variable'] = variable
-                        attrs['alias'] = alias
-                        attrs['calc_name'] = calc_name
-                        attrs['vid'] = vid
-                        attrs['cid'] = cid
-                        attrs['ugid'] = ugid
-                        if type(geom) == Polygon:
-                            geom = MultiPolygon([geom])
-                        yield(geom,attrs)
-                cid += 1
-            vid += 1
-        
-    def _get_headers_(self):
-        headers = super(self.__class__,self)._get_headers_()
-        ref = self._get_target_ref_()
-        headers += ref.output_keys
-        return(headers)
-        
-    def _get_target_ref_(self):
-        for func in self.funcs:
-            if issubclass(func['ref'],KeyedFunctionOutput):
-                return(func['ref'])
+            field = ref[alias_field]
+        return(field.variables[alias_variable].value)

@@ -76,32 +76,49 @@ If a function takes parameters, those parameters are documented in the :ref:`ava
 Defining Custom Functions
 -------------------------
 
-Currently, custom calculations must be added to the module :mod:`ocgis.calc.library` to be available to the software. This is a known inconvenience...
+Once a custom calculation is defined, it must be appended to :class:`ocgis.FunctionRegistry`.
+
+>>> from my_functions import MyCustomFunction
+>>> from ocgis import FunctionRegistry
+>>> FunctionRegistry.append(MyCustomFunction)
 
 Inheritance Structure
 ~~~~~~~~~~~~~~~~~~~~~
 
-All calculations are classes that inherit from one of three abstract base classes:
- 1. :class:`~ocgis.calc.base.OcgFunction`: Functions with no required parameters.
- 2. :class:`~ocgis.calc.base.OcgArgFunction`: Functions `with` required parameters.
- 3. :class:`~ocgis.calc.base.OcgCvArgFunction`: Functions with or without parameters, but requiring a mulivariate input. A heat index requiring both temperature and humidity is a good example.
+All calculations are classes that inherit from the following abstract base classes:
+ 1. :class:`~ocgis.calc.base.AbstractUnivariateFunction`: Functions with no required parameters operating on a single variable.
+ 2. :class:`~ocgis.calc.base.AbstractUnivariateSetFunction`: Functions with no required parameters opearting on a single variable and reducing along the temporal axis.
+ 3. :class:`~ocgis.calc.base.AbstractParameterizedFunction`: Functions with input parameters. Functions do not inherit directly from this base class. It used as part of a 'mix-in' to indiciate a function has parameters.
+ 4. :class:`~ocgis.calc.base.AbstractMultivariateFunction`: Functions operating on two or more variables.
 
 -------------------------------------------------
 
-.. autoclass:: ocgis.calc.base.OcgFunction
+.. autoclass:: ocgis.calc.base.AbstractFunction
    :show-inheritance:
-   :members: _calculate_, _aggregate_spatial_
+   :members: calculate, execute, aggregate_spatial, aggregate_temporal, get_output_units, validate
 
 -------------------------------------------------
 
-.. autoclass:: ocgis.calc.base.OcgArgFunction
+.. autoclass:: ocgis.calc.base.AbstractUnivariateFunction
    :show-inheritance:
 
 -------------------------------------------------
 
-.. autoclass:: ocgis.calc.base.OcgCvArgFunction
+.. autoclass:: ocgis.calc.base.AbstractUnivariateSetFunction
    :show-inheritance:
-   :members: _calculate_, _aggregate_temporal_
+   :members: aggregate_temporal
+
+-------------------------------------------------
+
+.. autoclass:: ocgis.calc.base.AbstractParameterizedFunction
+   :show-inheritance:
+   :members: parms_definition
+
+-------------------------------------------------
+
+.. autoclass:: ocgis.calc.base.AbstractMultivariateFunction
+   :show-inheritance:
+   :members: required_variables
 
 .. _available_functions:
 
@@ -113,78 +130,70 @@ Click on `Show Source` to the right of the function to get descriptive informati
 Basic Statistics
 ~~~~~~~~~~~~~~~~
 
-.. autoclass:: ocgis.calc.library.Max
+.. autoclass:: ocgis.calc.library.statistics.FrequencyPercentile
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.Mean
+.. autoclass:: ocgis.calc.library.statistics.Max
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.Median
+.. autoclass:: ocgis.calc.library.statistics.Mean
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.Min
+.. autoclass:: ocgis.calc.library.statistics.Median
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.SampleSize
+.. autoclass:: ocgis.calc.library.statistics.Min
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.StandardDeviation
+.. autoclass:: ocgis.calc.library.statistics.StandardDeviation
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-Multivariate Calculations
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Multivariate Calculations / Indices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: ocgis.calc.library.HeatIndex
+.. autoclass:: ocgis.calc.library.index.duration.FrequencyDuration
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-Percentiles
-~~~~~~~~~~~
-
-.. autoclass:: ocgis.calc.library.FrequencyPercentile
+.. autoclass:: ocgis.calc.library.index.duration.Duration
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.DynamicDailyKernelPercentileThreshold
+.. autoclass:: ocgis.calc.library.index.dynamic_kernel_percentile.DynamicDailyKernelPercentileThreshold
    :show-inheritance:
-   :members: _calculate_, get_daily_percentile
+   :members: calculate, get_daily_percentile
+   :undoc-members:
+
+.. autoclass:: ocgis.calc.library.index.heat_index.HeatIndex
+   :show-inheritance:
+   :members: calculate
    :undoc-members:
 
 Thresholds
 ~~~~~~~~~~
 
-.. autoclass:: ocgis.calc.library.Between
+.. autoclass:: ocgis.calc.library.thresholds.Between
    :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
-.. autoclass:: ocgis.calc.library.Duration
+.. autoclass:: ocgis.calc.library.thresholds.Threshold
    :show-inheritance:
-   :members: _calculate_
-   :undoc-members:
-
-.. autoclass:: ocgis.calc.library.FrequencyDuration
-   :show-inheritance:
-   :members: _calculate_
-   :undoc-members:
-
-.. autoclass:: ocgis.calc.library.Threshold
-   :show-inheritance:
-   :members: _calculate_
+   :members: calculate
    :undoc-members:
 
 .. _NumPy masked array functions: http://docs.scipy.org/doc/numpy/reference/maskedarray.html

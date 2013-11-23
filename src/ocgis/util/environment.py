@@ -1,8 +1,4 @@
-import tempfile
 import os
-from ocgis.interface.projection import WGS84
-from ocgis.exc import OcgisEnvironmentError
-from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class Environment(object):
@@ -20,10 +16,8 @@ class Environment(object):
         self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)
         self.VERBOSE = EnvParm('VERBOSE',False,formatter=self._format_bool_)
         self.OPTIMIZE_FOR_CALC = EnvParm('OPTIMIZE_FOR_CALC',False,formatter=self._format_bool_)
-        self.WRITE_TO_REFERENCE_PROJECTION = EnvParm('WRITE_TO_REFERENCE_PROJECTION',False,formatter=self._format_bool_)
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
-        self.REFERENCE_PROJECTION = ReferenceProjection()
         self.DIR_BIN = EnvParm('DIR_BIN',None)
         
         self.ops = None
@@ -105,18 +99,6 @@ class EnvParm(object):
         
     def format(self,value):
         raise(NotImplementedError)
-    
-    
-class ReferenceProjection(EnvParm):
-    
-    def __init__(self):
-        EnvParm.__init__(self,'REFERENCE_PROJECTION',WGS84())
-        
-    def format(self,value):
-        if os.environ.get(self.env_name) is not None:
-            msg = 'REFERENCE_PROJECTION may not be set as a system environment variable. It must be parameterized at runtime.'
-            e = OcgisEnvironmentError(self,msg)
-            ocgis_lh(exc=e,logger='env')
 
 
 env = Environment()

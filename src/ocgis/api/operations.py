@@ -1,11 +1,11 @@
 from ocgis.api.parms.definition import *  # @UnusedWildImport
 from ocgis.api.interpreter import OcgInterpreter
-import warnings
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
-from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.calc.base import KeyedFunctionOutput, OcgCvArgFunction
+from ocgis.calc.base import AbstractMultivariateFunction,\
+    AbstractKeyedOutputFunction
+from ocgis.interface.base.crs import CFRotatedPole, WGS84
 
 
 class OcgOperations(object):
@@ -39,9 +39,9 @@ class OcgOperations(object):
     :type calc_grouping: list of str
     :param calc_raw: If `True`, perform calculations on the "raw" data regardless of `aggregation` flag.
     :type calc_raw: bool
-    :param abstraction: The geometric abstraction to use for the dataset geometries.
+    :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the highest order geometry available.
     :type abstraction: str
-    :param snippet: If `True`, return a data "snippet" composed of the first time point/group, first level (if applicable), and the entire spatial domain.
+    :param snippet: If `True`, return a data "snippet" composed of the first time point, first level (if applicable), and the entire spatial domain.
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
@@ -59,21 +59,25 @@ class OcgOperations(object):
     :type allow_empty: bool
     :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
-    :param headers: A sequence of strings specifying the output headers.
+    :param headers: A sequence of strings specifying the output headers. Default value of ('did', 'ugid', 'gid') is always applied.
     :type headers: sequence
     :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass values through without a coercion attempt.
     :type format_time: bool
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
+    :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
+    :type output_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
+    :param search_radius_mult: This value is multiplied by a data's resolution to determine the buffer radius for point selection geometries.
+    :type search_radius_mult: float
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
-                 calc=None, calc_grouping=None, calc_raw=False, abstraction='polygon',
+                 calc=None, calc_grouping=None, calc_raw=False, abstraction=None,
                  snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, 
                  vector_wrap=True, allow_empty=False, dir_output=None, 
                  slice=None, file_only=False, headers=None, format_time=True,
-                 calc_sample_size=False):
+                 calc_sample_size=False, search_radius_mult=0.75, output_crs=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -83,7 +87,7 @@ class OcgOperations(object):
         self.spatial_operation = SpatialOperation(spatial_operation)
         self.aggregate = Aggregate(aggregate)
         self.calc_sample_size = CalcSampleSize(calc_sample_size)
-        self.calc = Calc(calc,calc_sample_size=self._get_object_('calc_sample_size'))
+        self.calc = Calc(calc)
         self.calc_grouping = CalcGrouping(calc_grouping)
         self.calc_raw = CalcRaw(calc_raw)
         self.abstraction = Abstraction(abstraction)
@@ -100,6 +104,8 @@ class OcgOperations(object):
         self.slice = Slice(slice)
         self.file_only = FileOnly(file_only)
         self.headers = Headers(headers)
+        self.output_crs = OutputCRS(output_crs)
+        self.search_radius_mult = SearchRadiusMultiplier(search_radius_mult)
         self.format_time = FormatTime(format_time)
         
         ## these values are left in to perhaps be added back in at a later date.
@@ -113,8 +119,8 @@ class OcgOperations(object):
     def __str__(self):
         msg = ['{0}('.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
-            if key == 'geom' and value is not None and len(value) > 1:
-                value = '{0} custom geometries...'.format(len(value))
+            if key == 'geom' and value is not None:
+                value = 'custom geometries'
             msg.append(' {0},'.format(self._get_object_(key)))
         msg.append('  )')
         msg = '\n'.join(msg)
@@ -186,45 +192,95 @@ class OcgOperations(object):
         return(object.__getattribute__(self, name))
     
     def _validate_(self):
+        ocgis_lh(logger='operations',msg='validating operations')
         
         def _raise_(msg,obj=OutputFormat):
             e = DefinitionValidationError(OutputFormat,msg)
             ocgis_lh(exc=e,logger='operations')
+            
+        ## collect projections for the dataset sets. None is returned if one
+        ## is not parsable. the WGS84 default is actually done in the RequestDataset
+        ## object.
+        projections = set([])
+        for rd in self.dataset:
+            crs = rd._get_crs_()
+            projections.update([crs])
+        ## if there is not output CRS and projections differ, raise an exception.
+        ## however, it is okay to have data with different projections in the
+        ## numpy output.
+        if len(set(projections)) > 1 and self.output_format != 'numpy': #@UndefinedVariable
+            if self.output_crs is None:
+                _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',obj=OutputCRS)
+        ## this projection may not be written to CF at this time due to the projection
+        ## utilty's mangling of rows and columns.
+        if CFRotatedPole in map(type,projections):
+            if self.output_format == 'nc':
+                _raise_('CFRotatedPole data may not be written to netCDF. Row and columns may not be reconstructed.',obj=OutputFormat)
+        ## only WGS84 may be written to to GeoJSON
+        if self.output_format == 'geojson':
+            if any([element != WGS84() for element in projections if element is not None]):
+                _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
+            if self.output_crs is not None:
+                if self.output_crs != WGS84():
+                    _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
         
+        ## snippet only relevant for subsetting not operations with a calculation
+        ## or time region
+        if self.snippet:
+            if self.calc is not None:
+                _raise_('Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',obj=Snippet)
+            for rd in self.dataset:
+                if rd.time_region is not None:
+                    _raise_('Snippets are not implemented for time regions.',obj=Snippet)
+        
+        ## no slicing with a geometry - can easily lead to extent errors
         if self.slice is not None:
             assert(self.geom is None)
+        
+        ## file only operations only valid for netCDF and calculations.
         if self.file_only:
-            assert(self.output_format == 'nc')
-            assert(self.calc is not None)
+            if self.output_format != 'nc':
+                _raise_('Only netCDF may be written with file_only as True.',obj=FileOnly)
+            if self.calc is None:
+                _raise_('File only outputs are only relevant for computations.',obj=FileOnly)
+        
+        ## there are a bunch of constraints on the netCDF format
         if self.output_format == 'nc':
+            ## we can only write one requestdataset to netCDF
             if len(self.dataset) > 1 and self.calc is None:
                 msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
                 _raise_(msg,OutputFormat)
+            ## we can write multivariate functions to netCDF however
             else:
                 if self.calc is not None and len(self.dataset) > 1:
-                    if sum([issubclass(calc['ref'],OcgCvArgFunction) for calc in self.calc]) != 1:
+                    if sum([issubclass(calc['ref'],AbstractMultivariateFunction) for calc in self.calc]) != 1:
                         msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
                         _raise_(msg,OutputFormat)
-                
+            ## clipped data which creates an arbitrary geometry may not be written
+            ## to netCDF
             if self.spatial_operation != 'intersects':
                 msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
                 _raise_(msg,OutputFormat)
+            ## data may not be aggregated either
             if self.aggregate:
                 msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
                 _raise_(msg,OutputFormat)
-            
-            if env.WRITE_TO_REFERENCE_PROJECTION is True:
-                msg = 'env.WRITE_TO_REFERENCE_PROJECTION must be False when writing to netCDF.'
+            ## either the input data CRS or WGS84 is required for data output
+            if self.output_crs is not None and not isinstance(self.output_crs,CFWGS84):
+                msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
                 _raise_(msg,OutputFormat)
-                
+            ## calculations on raw values are not relevant as not aggregation can
+            ## occur anyway.
             if self.calc is not None:
                 if self.calc_raw:
                     msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
                     _raise_(msg)
-                if any([issubclass(c['ref'],KeyedFunctionOutput) for c in self.calc]):
+                ## no keyed output functions to netCDF
+                if any([issubclass(c['ref'],AbstractKeyedOutputFunction) for c in self.calc]):
                     msg = 'Keyed function output may not be written to netCDF.'
                     _raise_(msg)
         
+        ## validate any calculations against the operations object
         if self.calc is not None:
             for c in self.calc:
                 c['ref'].validate(self)

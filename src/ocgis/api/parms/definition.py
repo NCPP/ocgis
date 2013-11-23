@@ -1,28 +1,32 @@
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError
-from ocgis.api.request import RequestDataset, RequestDatasetCollection
+from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from shapely.geometry.polygon import Polygon
-from ocgis.calc.base import OcgFunctionTree
-from ocgis.calc import library
 from collections import OrderedDict
 import ocgis
 from os.path import exists
-from ocgis.interface.geometry import GeometryDataset
-from ocgis.interface.shp import ShpDataset
 from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
-from ocgis import env
+from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.calc.library.register import FunctionRegistry
+from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
+from ocgis.util.logging_ocgis import ocgis_lh
+import logging
 
 
 class Abstraction(base.StringOptionParameter):
     name = 'abstraction'
-    default = 'polygon'
+    default = None
     valid = ('point','polygon')
+    nullable = True
     
     def _get_meta_(self):
-        msg = 'Spatial dimension abstracted to {0}.'.format(self.value)
+        if self.value is None:
+            msg = 'Highest order geometry available used for spatial output.'
+        else:
+            msg = 'Spatial dimension abstracted to {0}.'.format(self.value)
         return(msg)
 
 
@@ -72,35 +76,27 @@ class Calc(base.IterableParameter,base.OcgParameter):
     element_type = dict
     unique = False
     
-    def __init__(self,*args,**kwds):
-        self.calc_sample_size = kwds.pop('calc_sample_size')
-        base.OcgParameter.__init__(self,*args,**kwds)
-    
     def __repr__(self):
         msg = '{0}={1}'.format(self.name,self.value)
         return(msg)
     
     def get_url_string(self):
-        if self.value is None:
-            ret = 'none'
-        else:
-            elements = []
-            for element in self.value:
-                strings = []
-                template = '{0}~{1}'
-                if element['ref'] != library.SampleSize:
-                    strings.append(template.format(element['func'],element['name']))
-                    for k,v in element['kwds'].iteritems():
-                        strings.append(template.format(k,v))
-                if len(strings) > 0:
-                    elements.append('!'.join(strings))
-            ret = '|'.join(elements)
-        return(ret)
-    
-    def parse_all(self,values):
-        if self.calc_sample_size.value:
-            values.append(self._parse_({'func':'n','name':'n'}))
-        return(values)
+        raise(NotImplementedError)
+#        if self.value is None:
+#            ret = 'none'
+#        else:
+#            elements = []
+#            for element in self.value:
+#                strings = []
+#                template = '{0}~{1}'
+#                if element['ref'] != library.SampleSize:
+#                    strings.append(template.format(element['func'],element['name']))
+#                    for k,v in element['kwds'].iteritems():
+#                        strings.append(template.format(k,v))
+#                if len(strings) > 0:
+#                    elements.append('!'.join(strings))
+#            ret = '|'.join(elements)
+#        return(ret)
     
     def _get_meta_(self):
         if self.value is None:
@@ -112,11 +108,8 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def _parse_(self,value):
-        potentials = OcgFunctionTree.get_potentials()
-        for p in potentials:
-            if p[0] == value['func']:
-                value['ref'] = getattr(library,p[1])
-                break
+        fr = FunctionRegistry()
+        value['ref'] = fr[value['func']]
         if 'kwds' not in value:
             value['kwds'] = OrderedDict()
         else:
@@ -196,22 +189,25 @@ class Dataset(base.OcgParameter):
     return_type = RequestDatasetCollection
     
     def __init__(self,arg):
-        if isinstance(arg,RequestDatasetCollection):
-            init_value = arg
-        else:
-            if isinstance(arg,RequestDataset):
-                itr = [arg]
-            elif isinstance(arg,dict):
-                itr = [arg]
+        if arg is not None:
+            if isinstance(arg,RequestDatasetCollection):
+                init_value = arg
             else:
-                itr = arg
-            rdc = RequestDatasetCollection()
-            for rd in itr:
-                rdc.update(rd)
-            init_value = rdc
-        ## dereference any prior dataset connections
-        for rd in init_value:
-            rd._ds = None
+                if isinstance(arg,RequestDataset):
+                    itr = [arg]
+                elif isinstance(arg,dict):
+                    itr = [arg]
+                else:
+                    itr = arg
+                rdc = RequestDatasetCollection()
+                for rd in itr:
+                    rdc.update(rd)
+                init_value = rdc
+            ## dereference any prior dataset connections
+            for rd in init_value:
+                rd._ds = None
+        else:
+            init_value = arg
         super(Dataset,self).__init__(init_value)
         
     def parse_string(self,value):
@@ -266,8 +262,8 @@ class Geom(base.OcgParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [ShpDataset,GeometryDataset,list,tuple,Polygon,MultiPolygon]
-    return_type = [ShpDataset,GeometryDataset]
+    input_types = [list,tuple,Polygon,MultiPolygon,ShpCabinetIterator]
+    return_type = [list,ShpCabinetIterator]
     _shp_key = None
     _bounds = None
     
@@ -290,13 +286,32 @@ class Geom(base.OcgParameter):
     
     def parse(self,value):
         if type(value) in [Polygon,MultiPolygon,Point]:
-            ret = GeometryDataset(1,value)
+            ret = [{'geom':value,'properties':{'ugid':1},'crs':CFWGS84()}]
         elif type(value) in [list,tuple]:
-            if len(value) in (2,4):
-                ret = self.parse_string('|'.join(map(str,value)))
+            if all([isinstance(element,dict) for element in value]):
+                for ii,element in enumerate(value,start=1):
+                    if 'geom' not in element:
+                        ocgis_lh(exc=DefinitionValidationError(self,'Geometry dictionaries must have a "geom" key.'))
+                    if 'properties' not in element:
+                        element['properties'] = {'UGID':ii}
+                    if 'crs' not in element:
+                        element['crs'] = CFWGS84()
+                        ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.',level=logging.WARN,check_duplicate=True)
+                ret = value
             else:
-                raise(DefinitionValidationError(self,'Bounding coordinates passed with length not equal to 2 (point) or 4 (bounding box).'))
-        elif isinstance(value,ShpDataset):
+                if len(value) == 2:
+                    geom = Point(value[0],value[1])
+                elif len(value) == 4:
+                    minx,miny,maxx,maxy = value
+                    geom = Polygon(((minx,miny),
+                                    (minx,maxy),
+                                    (maxx,maxy),
+                                    (maxx,miny)))
+                if not geom.is_valid:
+                    raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
+                ret = [{'geom':geom,'properties':{'ugid':1},'crs':CFWGS84()}]
+                self._bounds = geom.bounds
+        elif isinstance(value,ShpCabinetIterator):
             self._shp_key = value.key
             ret = value
         else:
@@ -319,7 +334,7 @@ class Geom(base.OcgParameter):
                                 (maxx,miny)))
             if not geom.is_valid:
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-            ret = GeometryDataset(1,geom)
+            ret = [{'geom':geom,'properties':{'ugid':1}}]
             self._bounds = elements
         except ValueError:
             self._shp_key = value
@@ -332,7 +347,7 @@ class Geom(base.OcgParameter):
                 select_ugid = None
             else:
                 select_ugid = test_value
-            ret = ShpDataset(value,select_ugid=select_ugid)
+            ret = ShpCabinetIterator(value,select_ugid=select_ugid)
         return(ret)
     
     def _get_meta_(self):
@@ -368,6 +383,12 @@ class Headers(base.IterableParameter,base.OcgParameter):
                 raise
         return(msg)
     
+    def parse_all(self,value):
+        for header in constants.required_headers:
+            if header in value:
+                value.remove(header)
+        return(constants.required_headers+value)
+    
     def validate_all(self,values):
         if len(values) == 0:
             msg = 'At least one header value must be passed.'
@@ -378,11 +399,27 @@ class Headers(base.IterableParameter,base.OcgParameter):
 
     def _get_meta_(self):
         return('The following headers were used for file creation: {0}'.format(self.value))
+
+
+class OutputCRS(base.OcgParameter):
+    input_types = [CoordinateReferenceSystem]
+    name = 'output_crs'
+    nullable = True
+    return_type = [CoordinateReferenceSystem]
+    default = None
     
+    def _get_meta_(self):
+        if self.value is None:
+            ret = "No CRS associated with dataset. WGS84 Lat/Lon Geographic (EPSG:4326) assumed."
+        else:
+            ret = 'The PROJ.4 definition of the coordinate reference system is: "{0}"'.format(self.value.sr.ExportToProj4())
+        return(ret)
+
+
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
-    valid = ('numpy','shp','csv','meta','nc','csv+')
+    valid = constants.output_formats
     
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)
@@ -400,6 +437,21 @@ class Prefix(base.StringParameter):
     def _get_meta_(self):
         msg = 'Data output given the following prefix: {0}.'.format(self.value)
         return(msg)
+    
+
+class SearchRadiusMultiplier(base.OcgParameter):
+    input_types = [float]
+    name = 'search_radius_mult'
+    nullable = False
+    return_type = [float]
+    
+    def _get_meta_(self):
+        msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(self.value)
+        return(msg)
+    
+    def _validate_(self,value):
+        if value <= 0:
+            raise(DefinitionValidationError(self,msg='must be >= 0'))
     
 
 class SelectUgid(base.IterableParameter,base.OcgParameter):
@@ -429,8 +481,8 @@ class Slice(base.IterableParameter,base.OcgParameter):
     unique = False
     
     def validate_all(self,values):
-        if len(values) not in [3,4]:
-            raise(DefinitionValidationError(self,'Slices must have 3 or 4 values.'))
+        if len(values) != 5:
+            raise(DefinitionValidationError(self,'Slices must have 5 values.'))
     
     def _parse_(self,value):
         if value is None:
@@ -476,13 +528,3 @@ class VectorWrap(base.BooleanParameter):
     default = True
     meta_true = 'Geographic coordinates wrapped from -180 to 180 degrees longitude.'
     meta_false = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
-    
-    
-## determine the iterator mode for the converters
-def identify_iterator_mode(ops):
-    '''raw,agg,calc,multi'''
-    mode = 'raw'
-    if ops.calc is not None:
-        mode = 'calc'
-    ops.mode = mode
-

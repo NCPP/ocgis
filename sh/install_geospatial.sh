@@ -191,6 +191,9 @@ sudo pip install shapely
 
 ## Website: https://pypi.python.org/pypi/Fiona
 
+## try this first!
+sudo pip install fiona
+
 ## Pluto installation
 module load gdal/1.9.1 python/2.7.2 gfortran/4.7.2/gcc/4.7.2/gcc geos/3.3.5 
 cd /home/local/WX/ben.koziol/src/fiona/v0.16.1

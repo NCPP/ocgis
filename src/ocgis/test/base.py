@@ -1,7 +1,7 @@
 import unittest
 import abc
 import tempfile
-from ocgis import env, RequestDataset
+from ocgis import env
 import shutil
 from copy import deepcopy, copy
 import os
@@ -11,6 +11,8 @@ import ocgis
 from warnings import warn
 from subprocess import CalledProcessError
 import numpy as np
+from ocgis.api.request.base import RequestDataset
+import netCDF4 as nc
 
 
 class TestBase(unittest.TestCase):
@@ -23,6 +25,54 @@ class TestBase(unittest.TestCase):
     def __init__(self,*args,**kwds):
         self.test_data = self.get_tdata()
         super(TestBase,self).__init__(*args,**kwds)
+        
+    def assertNumpyAll(self,arr1,arr2):
+        return(self.assertTrue(np.all(arr1 == arr2)))
+    
+    def assertNumpyAllClose(self,arr1,arr2):
+        return(self.assertTrue(np.allclose(arr1,arr2)))
+    
+    def assertNumpyNotAll(self,arr1,arr2):
+        return(self.assertFalse(np.all(arr1 == arr2)))
+    
+    def assertDictEqual(self,d1,d2,msg=None):
+        try:
+            unittest.TestCase.assertDictEqual(self,d1,d2,msg=msg)
+        except AssertionError:
+            for k,v in d1.iteritems():
+                self.assertEqual(v,d2[k])
+            self.assertEqual(set(d1.keys()),set(d2.keys()))
+    
+    def assertNcEqual(self,uri_src,uri_dest,check_types=True):
+        src = nc.Dataset(uri_src)
+        dest = nc.Dataset(uri_dest)
+        
+        try:
+            for dimname,dim in src.dimensions.iteritems():
+                self.assertEqual(len(dim),len(dest.dimensions[dimname]))
+            self.assertEqual(set(src.dimensions.keys()),set(dest.dimensions.keys()))
+            
+            for varname,var in src.variables.iteritems():
+                dvar = dest.variables[varname]
+                try:
+                    self.assertNumpyAll(var[:],dvar[:])
+                except AssertionError:
+                    cmp = var[:] == dvar[:]
+                    if cmp.shape == (1,) and cmp.data[0] == True:
+                        pass
+                    else:
+                        raise
+                if check_types:
+                    self.assertEqual(var[:].dtype,dvar[:].dtype)
+                for k,v in var.__dict__.iteritems():
+                    self.assertNumpyAll(v,getattr(dvar,k))
+                self.assertEqual(var.dimensions,dvar.dimensions)
+            self.assertEqual(set(src.variables.keys()),set(dest.variables.keys()))
+            
+            self.assertDictEqual(src.__dict__,dest.__dict__)
+        finally:
+            src.close()
+            dest.close()
     
     @staticmethod
     def get_tdata():
@@ -38,6 +88,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['narccap'],'pr','pr_CRCM_ccsm_1981010103.nc',key='narccap_crcm')
         test_data.update(['narccap'],'pr','pr_RCM3_gfdl_1981010103.nc',key='narccap_rcm3')
         test_data.update(['narccap'],'pr','pr_HRM3_gfdl_1981010103.nc',key='narccap_hrm3')
+        test_data.update(['narccap'],'pr','pr_WRFG_ccsm_1986010103.nc',key='narccap_wrfg')
 #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
 #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
         test_data.update(['maurer','2010'],'pr',['nldas_met_update.obs.daily.pr.1990.nc','nldas_met_update.obs.daily.pr.1991.nc'],key='maurer_2010_pr')
@@ -45,8 +96,11 @@ class TestBase(unittest.TestCase):
         test_data.update(['maurer','2010'],'tasmin',['nldas_met_update.obs.daily.tasmin.1990.nc','nldas_met_update.obs.daily.tasmin.1991.nc'],key='maurer_2010_tasmin')
         test_data.update(['maurer','2010'],'tasmax',['nldas_met_update.obs.daily.tasmax.1990.nc','nldas_met_update.obs.daily.tasmax.1991.nc'],key='maurer_2010_tasmax')
         test_data.update(['narccap'],'pr',['pr_WRFG_ncep_1981010103.nc','pr_WRFG_ncep_1986010103.nc'],key='narccap_pr_wrfg_ncep')
+        test_data.update(['narccap'],'tas','tas_HRM3_gfdl_1981010103.nc',key='narccap_rotated_pole')
+        test_data.update(['narccap'],'pr','pr_WRFG_ccsm_1986010103.nc',key='narccap_lambert_conformal')
         test_data.update(['snippets'],'dtr','snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',key='snippet_maurer_dtr')
-        
+        test_data.update(['CMIP3'],'Tavg','Extraction_Tavg.nc',key='cmip3_extraction') 
+               
         test_data.update(['misc','subset_test'],'Tavg','Tavg_bccr_bcm2_0.1.sresa2.nc',key='subset_test_Tavg')
         test_data.update(['misc','subset_test'],'Tavg','sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',key='subset_test_Tavg_sresa2')
         test_data.update(['misc','subset_test'],'Prcp','sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',key='subset_test_Prcp')
@@ -65,12 +119,6 @@ class TestBase(unittest.TestCase):
             if self._create_dir: shutil.rmtree(self._test_dir)
         finally:
             if self._reset_env: env.reset()
-            
-    def assertNumpyAll(self,arr1,arr2):
-        return(self.assertTrue(np.all(arr1 == arr2)))
-    
-    def assertNumpyNotAll(self,arr1,arr2):
-        return(self.assertFalse(np.all(arr1 == arr2)))
             
             
 class TestData(OrderedDict):

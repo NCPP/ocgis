@@ -5,10 +5,32 @@ from unittest.case import SkipTest
 from ocgis import constants
 
 
+def longrunning(f):
+    if constants.test_run_long_tests:
+        ret = f
+    else:
+        def skip(*args):
+            raise SkipTest("long-running test")
+        skip.__name__ = f.__name__
+        ret = skip
+    return(ret)
+        
+    
+def dev(f):
+    if constants.test_run_dev_tests:
+        ret = f
+    else:
+        def skip(*args):
+            raise SkipTest("development-only test")
+        skip.__name__ = f.__name__
+        ret = skip
+    return(ret)
+
+
 class Test(TestBase):
     
     def setUp(self):
-        raise(SkipTest('tests only for development purposes'))
+        raise(SkipTest("development-only test"))
 
     def test_data_download(self):
         ocgis.env.DIR_TEST_DATA = self._test_dir

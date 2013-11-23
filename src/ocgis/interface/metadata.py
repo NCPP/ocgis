@@ -14,16 +14,15 @@ class AbstractMetadata(OrderedDict):
     
 class NcMetadata(AbstractMetadata):
     
-    def __init__(self,rootgrp):
+    def __init__(self,rootgrp=None):
         super(NcMetadata,self).__init__()
-        try:
-            self._parse_(rootgrp)
-        ## likely raised by an initialization following a copy.
-        except AttributeError:
-            if isinstance(rootgrp,NcMetadata):
+        
+        if rootgrp is not None:
+            try:
+                self._parse_(rootgrp)
+            ## likely raised by an initialization following a deepcopy
+            except AttributeError:
                 super(NcMetadata,self).__init__(rootgrp)
-            else:
-                raise
         
     def _parse_(self,rootgrp):
         ## get global metadata
@@ -31,6 +30,9 @@ class NcMetadata(AbstractMetadata):
         for attr in rootgrp.ncattrs():
             dataset.update({attr:getattr(rootgrp,attr)})
         self.update({'dataset':dataset})
+        
+        ## get file format
+        self.update({'file_format':rootgrp.file_format})
         
         ## get variables
         variables = OrderedDict()
@@ -41,7 +43,8 @@ class NcMetadata(AbstractMetadata):
                 subvar.update({attr:getattr(value,attr)})
             variables.update({key:{'dimensions':value.dimensions,
                                    'attrs':subvar,
-                                   'dtype':str(value.dtype)}})
+                                   'dtype':str(value.dtype),
+                                   'name':value._name}})
         self.update({'variables':variables})
         
         ## get dimensions

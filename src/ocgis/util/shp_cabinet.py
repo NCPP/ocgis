@@ -6,9 +6,27 @@ from shapely.geometry.multipolygon import MultiPolygon
 import csv
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.polygon import Polygon
-from osgeo.osr import SpatialReference
-from copy import deepcopy
 from shapely import wkb
+import fiona
+from ocgis.interface.base.crs import CoordinateReferenceSystem
+
+
+class ShpCabinetIterator(object):
+    '''
+    Iterate over a geometry selected by `key`.
+    '''
+    
+    def __init__(self,key,select_ugid=None):
+        self.key = key
+        self.select_ugid = select_ugid
+        self.sc = ShpCabinet()
+        
+    def __iter__(self):
+        '''
+        Return an iterator as from :meth:`ocgis.ShpCabinet.iter_geoms`
+        '''
+        for row in self.sc.iter_geoms(self.key,select_ugid=self.select_ugid):
+            yield(row)
 
 
 class ShpCabinet(object):
@@ -52,6 +70,11 @@ class ShpCabinet(object):
                 if fn.endswith('shp'):
                     ret.append(os.path.splitext(fn)[0])
         return(ret)
+    
+    def get_meta(self,key):
+        path = self.get_shp_path(key)
+        with fiona.open(path,'r') as source:
+            return(source.meta)
         
     def get_shp_path(self,key):
         return(self._get_path_(key,ext='shp'))
@@ -69,18 +92,19 @@ class ShpCabinet(object):
         if ret is None:
             raise(ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key,self.path)))
     
-    def get_geoms(self,key,select_ugid=None):
-        """Return geometries from a shapefile specified by `key`.
+    def iter_geoms(self,key,select_ugid=None):
+        """Iterate over geometries from a shapefile specified by `key`.
         
         >>> sc = ShpCabinet()
-        >>> geoms = sc.get_geoms('state_boundaries',select_ugid=[1,48])
-        >>> len(geoms)
+        >>> geoms = sc.iter_geoms('state_boundaries',select_ugid=[1,48])
+        >>> len(list(geoms))
         2
         
         :param key: The shapefile identifier.
         :type key: str
         :param select_ugid: Sequence of unique identifiers matching values from the shapefile's UGID attribute.
         :type select_ugid: sequence
+        :yields: dict
         """
         
         ## path to the target shapefile
@@ -88,6 +112,10 @@ class ShpCabinet(object):
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
             raise(RuntimeError('requested geometry with identifier "{0}" does not exist in the file system.'.format(key)))
+        
+        ## get the source CRS
+        meta = self.get_meta(key)
+        crs = CoordinateReferenceSystem(crs=meta['crs'])
         
         ## get the geometries
         ds = ogr.Open(shp_path)
@@ -106,66 +134,15 @@ class ShpCabinet(object):
             else:
                 features = lyr
             
-            geoms = [None]*len(features)
-            for idx,feature in enumerate(features):
-                attrs = feature.items()
-                attrs.update({'geom':wkb.loads(feature.geometry().ExportToWkb())})
-                geoms[idx] = attrs
+            for feature in features:
+                ## TODO: lowercase all properties, add crs definition to each geometry
+                yld = {'geom':wkb.loads(feature.geometry().ExportToWkb()),'properties':feature.items(),'crs':crs,
+                       'meta':meta}
+                assert('UGID' in yld['properties'])
+                yield(yld)
         finally:
             ds.Destroy()
             ds = None
-        
-#        cfg_path = self.get_cfg_path(key)
-#        config = ConfigParser()
-#        config.read(cfg_path)
-#        id_attr = config.get('mapping','ugid')
-#        ## adjust the id attribute name for auto-generation in the shapefile
-#        ## reader.
-#        if id_attr.lower() == 'none':
-#            id_attr = None
-#            make_id = True
-#        else:
-#            make_id = False
-#        other_attrs = config.get('mapping','attributes').split(',')
-#        ## allow for no attributes to be loaded.
-#        if len(other_attrs) == 1 and other_attrs[0].lower() == 'none':
-#            other_attrs = []
-#        ## allow for all attributes to be loaded
-#        elif len(other_attrs) == 1 and other_attrs[0].lower() == 'all':
-#            other_attrs = 'all'
-#        ## get the geometry objects.
-#        geoms = get_shp_as_multi(shp_path,
-#                                 uid_field=id_attr,
-#                                 attr_fields=other_attrs,
-#                                 make_id=make_id)
-#
-#        ## filter the returned geometries if an attribute filter is passed
-#        if attr_filter is not None:
-#            ## get the attribute
-#            attr = attr_filter.keys()[0].lower()
-##            ## rename ugid to id to prevent confusion on the front end.
-##            if attr == 'ugid':
-##                attr = 'id'
-#            ## get the target attribute data type
-#            dtype = type(geoms[0][attr])
-#            ## attempt to convert the filter values to that data type
-#            fvalues = [dtype(ii) for ii in attr_filter.values()[0]]
-#            ## if the filter data type is a string, do a conversion
-#            if dtype == str:
-#                fvalues = [f.lower() for f in fvalues]
-#            ## filter function
-#            def _filter_(x):
-#                ref = x[attr]
-#                ## attempt to lower the string value, otherwise move on
-#                try:
-#                    ref = ref.lower()
-#                except AttributeError:
-#                    pass
-#                if ref in fvalues: return(True)
-#            ## filter the geometry dictionary
-#            geoms = filter(_filter_,geoms)
-        
-        return(SelectionGeometry(geoms))
     
     def get_headers(self,geoms):
         ret = ['UGID']
@@ -276,57 +253,3 @@ class ShpCabinet(object):
             ogr_fields.append(OgrField(fcache,header,type(self._get_(row,header))))
         return(ogr_fields)
     
-    
-class ocgis(object):
-    
-    def __init__(self,selection_geometry):
-        self.selection_geometry = selection_geometry
-    
-    @property
-    def geom_type(self):
-        raise(NotImplementedError)
-    
-    @property
-    def sr(self):
-        sr = SpatialReference()
-        sr.ImportFromProj4(self._proj4_str)
-        return(sr)
-    
-    def get_aggregated(self):
-        raise(NotImplementedError)
-        
-    def get_projected(self,to_sr):
-        from_sr = self.sr
-        se = self.selection_geometry
-        len_se = len(se)
-        loads = wkb.loads
-        
-        ret = [None]*len_se
-        for idx in range(len_se):
-            gc = deepcopy(se[idx])
-            geom = CreateGeometryFromWkb(gc['geom'].wkb)
-            geom.AssignSpatialReference(from_sr)
-            geom.TransformTo(to_sr)
-            gc['geom'] = loads(geom.ExportToWkb())
-            ret[idx] = gc
-        
-        return(SelectionGeometry(ret,sr=to_sr))
-    
-    def get_unwrapped(self,axis):
-        raise(NotImplementedError)
-    
-    def get_wrapped(self,axis):
-        raise(NotImplementedError)
-
-
-class SelectionGeometry(list):
-    
-    def __init__(self,*args,**kwds):
-        self.ocgis = ocgis(self)
-        sr = kwds.pop('sr',None)
-        if sr is None:
-            sr = SpatialReference()
-            sr.ImportFromEPSG(4326)
-        self.ocgis._proj4_str = sr.ExportToProj4()
-        
-        super(SelectionGeometry,self).__init__(*args,**kwds)

@@ -6,6 +6,22 @@ class OcgException(Exception):
         
     def __str__(self):
         return(self.message)
+    
+    
+class CalculationException(OcgException):
+    
+    def __init__(self,function_klass,message=None):
+        self.function_klass = function_klass
+        OcgException.__init__(self,message=message)
+        
+    def __str__(self):
+        msg = 'The function class "{0}" raised an exception with message: "{1}"'.format(self.function_klass.__name__,
+                                                                                        self.message)
+        return(msg)
+        
+
+class SampleSizeNotImplemented(CalculationException):
+    pass
 
 
 class InterpreterException(OcgException):
@@ -13,6 +29,30 @@ class InterpreterException(OcgException):
 
 
 class InterpreterNotRecognized(InterpreterException):
+    pass
+
+
+class EmptyIterationError(OcgException):
+    
+    def __init__(self,obj):
+        self.message = 'Iteration on the object "{0}" requested, but the object is empty.'.format(obj)
+        
+        
+class CFException(OcgException):
+    pass
+
+
+class ProjectionCoordinateNotFound(CFException):
+    
+    def __init__(self,target):
+        self.message = 'The projection coordinate "{0}" was not found in the dataset.'.format(target)
+        
+        
+class ProjectionDoesNotMatch(CFException):
+    pass
+
+
+class DimensionNotFound(CFException):
     pass
 
 
@@ -55,10 +95,8 @@ class DummyDimensionEncountered(OcgException):
     pass
 
 
-class TemporalResolutionError(OcgException):
-    
-    def __init__(self):
-        self.message = 'Resolution may not be computed for a singleton temporal dimension.'
+class ResolutionError(OcgException):
+    pass
     
 
 class SubsetException(OcgException):
@@ -75,6 +113,14 @@ class OcgisEnvironmentError(OcgException):
     def __str__(self):
         new_msg = 'Error when setting the ocgis.env variable {0}. The message is: {1}'.format(self.env_parm.name,self.msg)
         return(new_msg)
+    
+
+class SpatialWrappingError(OcgException):
+    pass
+    
+    
+class ImproperPolygonBoundsError(OcgException):
+    pass
 
 
 class MaskedDataError(SubsetException):
@@ -107,3 +153,12 @@ class EmptyData(SubsetException):
     def __init__(self,message=None,origin=None):
         self.message = message or 'Empty data returned.'
         self.origin = origin
+        
+class EmptySubsetError(SubsetException):
+    
+    def __init__(self,origin=None):
+        self.origin = origin
+        
+    def __str__(self):
+        msg = 'A subset operation on dimension "{0}" returned empty.'.format(self.origin)
+        return(msg)

@@ -11,7 +11,7 @@ Additional information on keyword arguments can be found below the initial docum
 
 These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
-:attr:`env.DIR_OUTPUT` = :meth:`tempfile.gettempdir()`
+:attr:`env.DIR_OUTPUT` = `None` (defaults to current working directory)
  The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the current working directory.
 
 :attr:`env.OVERWRITE` = `False`
@@ -27,9 +27,6 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 
 :attr:`env.DIR_DATA` = `None`
  Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
-
-:attr:`env.WRITE_TO_REFERENCE_PROJECTION` = `False`
- If `True`, output vector data will be written to a common projection determined by :attr:`ocgis.constants.reference_projection`.
 
 ..
    :attr:`env.SERIAL` = `True`
@@ -91,18 +88,34 @@ This is a list of floats corresponding to: `[min x, min y, max x, max y]`. The c
 
 2. Point
 
-This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic.
+This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic. For point geometries, the geometry is actually buffered by `search_radius_mult` * (data resolution). Hence, output geometries are in fact polygons.
 
 >>> geom = [-120.4,36.5]
 
-3. Using :class:`ocgis.ShpDataset`
+3. Using :class:`ocgis.ShpCabinetIterator`
 
->>> from ocgis import ShpDataset
->>> geom = ShpDataset('state_boundaries')
+>>> from ocgis import ShpCabinetIterator
+>>> geom = ShpCabinetIterator('state_boundaries',select_ugid=[16])
 
-4. Using a :class:`ocgis.ShpDataset` Key
+4. Using a :class:`ocgis.ShpCabinet` Key
 
 >>> geom = 'state_boundaries'
+
+5. Custom Sequence of Shapely Geometry Dictionaries
+
+The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional. If not 'UGID' property is provided, defaults will be inserted.
+
+>>> geom = [{'geom':Point(x,y),'properties':{'UGID':23,'NAME':'geometry23'},'crs':CoordinateReferenceSystem(epsg=4326)},...]
+
+search_radius_mult
+~~~~~~~~~~~~~~~~~~
+
+This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. 
+
+output_crs
+~~~~~~~~~~
+
+By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then `output_crs` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for `output_crs` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
 
 aggregate
 ~~~~~~~~~
@@ -165,12 +178,14 @@ snippet
 
 .. note:: The entire spatial domain is returned unless `geom` is specified.
 
-====================== ========================================================================================
+.. note:: Only applies for pure subsetting for limiting computations use `time_range` and/or `time_region`.
+
+====================== ===========================================================================
 Value                  Description
-====================== ========================================================================================
-`True`                 Return only the first time point / time group and the first level slice (if applicable).
+====================== ===========================================================================
+`True`                 Return only the first time point and the first level slice (if applicable).
 `False` (default)      Return all data.
-====================== ========================================================================================
+====================== ===========================================================================
 
 .. _output_format_headline:
 
@@ -185,6 +200,7 @@ Value                  Description
 `csv`                  A CSV file representation of the data.
 `csv+`                 In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
 `nc`                   A NetCDF4 file.
+`geojson`              A GeoJSON representation of the data.
 ====================== ====================================================================================================================================================================
 
 agg_selection
@@ -239,7 +255,10 @@ Useful to limit the number of attributes included in an output file.
 =========================
 
 .. autoclass:: ocgis.ShpCabinet
-   :members: keys, get_geoms, write
+   :members: keys, iter_geoms
+
+.. autoclass:: ocgis.ShpCabinetIterator
+   :members: __iter__
 
 Adding Additional Shapefile Data
 --------------------------------
@@ -268,22 +287,38 @@ When the default output format (i.e. `numpy`) is returned by OpenClimateGIS, the
 >>> from ocgis import OcgOperations, RequestDataset
 ...
 >>> rd = RequestDataset('/path/to/data','tasmax')
+>>> ## default return type is NumPy
 >>> ops = OcgOperations(rd,snippet=True)
 >>> ret = ops.execute()
->>> coll = ret[1]
->>> tasmax = coll.variables['tasmax']
+>>> ## this the dictionary object mapping a Field to its alias
+>>> ret[1]
+{'tasmax':<Field object>}
+>>> ## this is the field object
+>>> tasmax_field = ret[1]['tasmax']
 >>> # Dimension and data values are accessed via instance attributes.
->>> tasmax.temporal.value
->>> tasmax.level.value
->>> tasmax.geom.value
+>>> tasmax.temporal...
+>>> tasmax.level...
+>>> tasmax.spatial...
 >>> # This is the actual data.
->>> tasmax.value 
+>>> tasmax_field.variables['tasmax']
+
+:mod:`ocgis.constants`
+======================
+
+.. automodule:: ocgis.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 :mod:`ocgis.exc`
 ================
 
 .. automodule:: ocgis.exc
    :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
 .. _shapely documentation: http://toblerity.github.com/shapely/manual.html
+
+    

@@ -18,7 +18,7 @@ def install(pargs,version='0.06b-dev'):
             'This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
 
     ## attempt package imports
-    pkgs = ['numpy','netCDF4','osgeo','shapely']
+    pkgs = ['numpy','netCDF4','osgeo','shapely','fiona']
     for pkg in pkgs:
         try:
             __import__(pkg)
@@ -94,6 +94,7 @@ def install_dependencies_ubuntu(pargs):
     call(['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev','python-setuptools','python-gdal'])
     print('installing shapely...')
     call(['easy_install','shapely'])
+    call(['easy_install','fiona'])
 
     prefix = '/usr/local'
 

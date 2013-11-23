@@ -1,11 +1,10 @@
 import netCDF4 as nc
 from ocgis.interface.metadata import NcMetadata
-from ocgis.interface.nc.dataset import NcDataset
-from ocgis.exc import TemporalResolutionError
+from ocgis.exc import ResolutionError
 from collections import OrderedDict
 import re
 from warnings import warn
-from ocgis.interface.nc.dimension import NcGridMatrixDimension
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class Inspect(object):
@@ -47,17 +46,17 @@ class Inspect(object):
                 finally:
                     rootgrp.close()
             else:
-                from ocgis.api.request import RequestDataset
+                from ocgis.api.request.base import RequestDataset
                 kwds = {'uri':uri,'variable':variable}
                 kwds.update(interface_overload)
                 rd = RequestDataset(**kwds)
-                self.ds = NcDataset(request_dataset=rd)
-                self.meta = self.ds.metadata
+                self.ds = rd.get()
+                self.meta = self.ds.meta
         else:
             self.uri = self.request_dataset.uri
             self.variable = self.request_dataset.variable
-            self.ds = self.request_dataset.ds
-            self.meta = self.request_dataset.ds.metadata
+            self.ds = self.request_dataset.get()
+            self.meta = self.ds.meta
             self.alias = self.request_dataset.alias
             self.did = self.request_dataset.did
         
@@ -82,21 +81,26 @@ class Inspect(object):
         return(self.ds.level)
         
     def get_temporal_report(self):
-        ## format the time for the temporal report
-        if self._t.format_time:
-            start_date,end_date = self._t.get_datetime([self._t.value.min(),self._t.value.max()])
-        else:
-            start_date,end_date = self._t.value.min(),self._t.value.max()
             
         try:
             if self._t.format_time:
                 res = int(self._t.resolution)
+                try:
+                    start_date,end_date = self._t.extent_datetime
+                ## the times may not be formattable
+                except ValueError as e:
+                    if e.message == 'year is out of range':
+                        start_date,end_date = self._t.extent
+                    else:
+                        ocgis_lh(exc=e,logger='inspect')
             else:
                 res = 'NA (non-formatted times requested)'
+                start_date,end_date = self._t.extent
         ## raised if the temporal dimension has a single value. possible with
         ## snippet or a small dataset...
-        except TemporalResolutionError:
-            res = 'NA (singleton)'
+        except ResolutionError:
+            res,start_date,end_date = ['NA (singleton)']*3
+            
         n = len(self._t.value)
         calendar = self._t.calendar
         units = self._t.units
@@ -119,20 +123,11 @@ class Inspect(object):
         return(lines)
     
     def get_spatial_report(self):
-        try:
-            res = self._s.grid.resolution
-        except NotImplementedError:
-            if isinstance(self._s.grid,NcGridMatrixDimension):
-                res = '<not implemented for grid matrices>'
-            else: raise
-        try:
-            extent = self._s.grid.extent
-        except NotImplementedError:
-            if isinstance(self._s.grid,NcGridMatrixDimension):
-                extent = '<not implemented for grid matrices>'
-            else: raise
-        itype = self._s.vector.__class__.__name__
-        projection = self.ds.spatial.projection
+        res = self._s.grid.resolution
+        extent = self._s.grid.extent
+
+        itype = self._s.geom.get_highest_order_abstraction().__class__.__name__
+        projection = self.ds.spatial.crs
         
         lines = []
         lines.append('Spatial Reference = {0}'.format(projection.__class__.__name__))

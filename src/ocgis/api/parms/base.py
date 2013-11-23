@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractproperty, abstractmethod
 from ocgis.exc import DefinitionValidationError
 from copy import deepcopy
-from ocgis.util.justify import justify_row
 from types import NoneType
 
 
@@ -66,7 +65,8 @@ class OcgParameter(object):
                         ret = self.return_type(ret)
                 except:
                     if type(ret) not in self.return_type:
-                        raise
+                        if not any([isinstance(value,rt) for rt in self.return_type]):
+                            raise
         except:
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)

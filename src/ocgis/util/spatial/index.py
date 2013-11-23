@@ -4,6 +4,13 @@ from ocgis.util.helpers import make_poly
 
     
 def shapely_grid(dim,rtup,ctup,target=None):
+
+    if dim is None:
+        ## construct an average of 10 polygons
+        row_dim = np.ceil(np.abs(rtup[0]-rtup[1])/5.0)
+        col_dim = np.ceil(np.abs(ctup[0]-ctup[1])/5.0)
+        dim = np.mean([row_dim,col_dim])
+        
     row_bounds = np.arange(rtup[0],rtup[1]+dim,dim)
     min_row = row_bounds[0:-1]
     max_row = row_bounds[1:]
@@ -22,6 +29,7 @@ def shapely_grid(dim,rtup,ctup,target=None):
                 polygons.append(polygon)
             elif target is None:
                 polygons.append(polygon)
+    
     return(MultiPolygon(polygons))
 
 
@@ -29,14 +37,15 @@ def build_index_grid(dim,target):
     bounds = target.bounds
     rtup = (bounds[1],bounds[3])
     ctup = (bounds[0],bounds[2])
-    grid = shapely_grid(float(dim),rtup,ctup,target=target)
+    dim = dim if dim is None else float(dim)
+    grid = shapely_grid(dim,rtup,ctup,target=target)
     return(grid)
 
 def build_index(target,grid):
     tree = {}
     for ii,polygon in enumerate(grid):
         if keep(target,polygon):
-            tree.update({ii:{'box':polygon,'geom':target.intersection(polygon)}})
+            tree.update({ii:{'box':polygon,'geom':target}})
     return(tree)
 
 def keep(target,selection):
@@ -49,7 +58,7 @@ def keep(target,selection):
 def index_intersects(target,index):
     ret = False
     for value in index.itervalues():
-        if keep(target,value['box']):
+        if target.intersects(value['box']):
             if keep(target,value['geom']):
                 ret = True
                 break

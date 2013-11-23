@@ -1,33 +1,46 @@
 from ocgis.conv.base import OcgConverter
 import netCDF4 as nc
-from ocgis.interface.projection import WGS84
 from ocgis import constants
-from ocgis.api.collection import CalcCollection, MultivariateCalcCollection
+from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.interface.base.crs import CFWGS84
+from ocgis.interface.nc.temporal import NcTemporalGroupDimension
 
     
 class NcConverter(OcgConverter):
     _ext = 'nc'
     
-    def _write_(self,file_only=False):
-        ## get the collection
-        for ii,coll in enumerate(self):
-            if ii > 0:
-                raise(ValueError('only one collection should be returned for NC conversion'))
-        arch = coll._archetype
+    def _finalize_(self,ds):
+        ds.close()
         
-        ## dataset object to write to
-        try:
-            ds = nc.Dataset(self.path,'w',format=arch.request_dataset.ds._ds.file_format)
-        except ValueError:
-            ## this may be a MFDataset in which case we need to pull the format differently
-            ## as the type is a list.
-            ds = nc.Dataset(self.path,'w',format=arch.request_dataset.ds._ds.file_format[0])
+    def _build_(self,coll):
+        ds = nc.Dataset(self.path,'w',format=self._get_file_format_())
+        return(ds)
+        
+    def _get_file_format_(self):
+        file_format = set()
+        for rd in self.ops.dataset:
+            rr = rd._source_metadata['file_format']
+            if isinstance(rr,basestring):
+                tu = [rr]
+            else:
+                tu = rr
+            file_format.update(tu)
+        if len(file_format) > 1:
+            exc = ValueError('Multiple file formats found: {0}'.format(file_format))
+            ocgis_lh(exc=exc,logger='conv.nc')
+        else:
+            return(list(file_format)[0])
+    
+    def _write_coll_(self,ds,coll):
+        
+        ## get the target field from the collection
+        arch = coll._archetype_field
         
         ## reference the interfaces
         grid = arch.spatial.grid
         temporal = arch.temporal
         level = arch.level
-        meta = arch.metadata
+        meta = arch.meta
         
         ## get or make the bounds dimensions
         try:
@@ -42,46 +55,47 @@ class NcConverter(OcgConverter):
         ## make dimensions #####################################################
         
         ## time dimensions
-        dim_temporal = ds.createDimension(temporal.name)
+        name_dim_temporal = meta['dim_map']['T']['dimension']
+        name_bounds_temporal = meta['dim_map']['T']['bounds']
+        name_variable_temporal = meta['dim_map']['T']['variable']
+        
+        dim_temporal = ds.createDimension(name_dim_temporal)
 
         ## spatial dimensions
-        dim_row = ds.createDimension(grid.row.name,grid.row.shape[0])
-        dim_col = ds.createDimension(grid.column.name,grid.column.shape[0])
-        if arch.spatial.grid.is_bounded:
-            dim_bnds = ds.createDimension(bounds_name,2)
-        else:
+        dim_row = ds.createDimension(grid.row.meta['dimensions'][0],grid.row.shape[0])
+        dim_col = ds.createDimension(grid.col.meta['dimensions'][0],grid.col.shape[0])
+        if grid.row.bounds is None:
             dim_bnds = None
+        else:
+            dim_bnds = ds.createDimension(bounds_name,2)
         
         ## set data + attributes ###############################################
         
         ## time variable
-        if temporal.group is not None:
-            time_nc_value = temporal.get_nc_time(temporal.group.representative_datetime)
-        else:
-            time_nc_value = arch.temporal.value
+        time_nc_value = arch.temporal.value
 
         ## if bounds are available for the time vector transform those as well
-        if temporal.group is not None:
+        if isinstance(temporal,NcTemporalGroupDimension):
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
             times_bounds = ds.createVariable('climatology_'+bounds_name,time_nc_value.dtype,
                                              (dim_temporal._name,bounds_name))
-            times_bounds[:] = temporal.get_nc_time(temporal.group.bounds)
+            times_bounds[:] = temporal.bounds
         elif temporal.bounds is not None:
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
             time_bounds_nc_value = temporal.bounds
-            times_bounds = ds.createVariable(temporal.name_bounds,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
+            times_bounds = ds.createVariable(name_bounds_temporal,time_bounds_nc_value.dtype,(dim_temporal._name,bounds_name))
             times_bounds[:] = time_bounds_nc_value
-            for key,value in meta['variables'][temporal.name_bounds]['attrs'].iteritems():
+            for key,value in meta['variables'][name_bounds_temporal]['attrs'].iteritems():
                 setattr(times_bounds,key,value)
-        times = ds.createVariable(temporal.name,time_nc_value.dtype,(dim_temporal._name,))
+        times = ds.createVariable(name_variable_temporal,time_nc_value.dtype,(dim_temporal._name,))
         times[:] = time_nc_value
-        for key,value in meta['variables'][temporal.name]['attrs'].iteritems():
+        for key,value in meta['variables'][name_variable_temporal]['attrs'].iteritems():
             setattr(times,key,value)
         
         ## add climatology bounds
-        if temporal.group is not None:
+        if isinstance(temporal,NcTemporalGroupDimension):
             setattr(times,'climatology','climatology_'+bounds_name)
             
         ## level variable
@@ -90,17 +104,21 @@ class NcConverter(OcgConverter):
             dim_level = None
         ## if there is a level, create the dimension and set the variable.
         else:
-            dim_level = ds.createDimension(level.name,len(arch.level.value))
-            levels = ds.createVariable(level.name,arch.level.value.dtype,(dim_level._name,))
+            name_dim_level = meta['dim_map']['Z']['dimension']
+            name_bounds_level = meta['dim_map']['Z']['bounds']
+            name_variable_level = meta['dim_map']['Z']['variable']
+            
+            dim_level = ds.createDimension(name_dim_level,len(arch.level.value))
+            levels = ds.createVariable(name_variable_level,arch.level.value.dtype,(dim_level._name,))
             levels[:] = arch.level.value
-            for key,value in meta['variables'][level.name]['attrs'].iteritems():
+            for key,value in meta['variables'][name_variable_level]['attrs'].iteritems():
                 setattr(levels,key,value)
             if level.bounds is not None:
                 if dim_bnds is None:
                     dim_bnds = ds.createDimension(bounds_name,2)
-                levels_bounds = ds.createVariable(level.name_bounds,arch.level.value.dtype,(dim_level._name,bounds_name))
+                levels_bounds = ds.createVariable(name_bounds_level,arch.level.value.dtype,(dim_level._name,bounds_name))
                 levels_bounds[:] = arch.level.bounds
-                for key,value in meta['variables'][level.name_bounds]['attrs'].iteritems():
+                for key,value in meta['variables'][name_bounds_level]['attrs'].iteritems():
                     setattr(levels,key,value)
         if dim_level is not None:
             value_dims = (dim_temporal._name,dim_level._name,dim_row._name,dim_col._name)
@@ -120,44 +138,30 @@ class NcConverter(OcgConverter):
             except KeyError:
                 pass
             return(ret)
-        ## set the spatial data
-        _make_spatial_variable_(ds,grid.row.name,grid.row.value,(dim_row,),meta)
-        _make_spatial_variable_(ds,grid.column.name,grid.column.value,(dim_col,),meta)
-        if grid.is_bounded:
-            _make_spatial_variable_(ds,grid.row.name_bounds,grid.row.bounds,(dim_row,dim_bnds),meta)
-            _make_spatial_variable_(ds,grid.column.name_bounds,grid.column.bounds,(dim_col,dim_bnds),meta)
+        ## set the spatial data        
+        _make_spatial_variable_(ds,grid.row.meta['axis']['variable'],grid.row.value,(dim_row,),meta)
+        _make_spatial_variable_(ds,grid.col.meta['axis']['variable'],grid.col.value,(dim_col,),meta)
+        if grid.row.bounds is not None:
+            _make_spatial_variable_(ds,grid.row.meta['axis']['bounds'],grid.row.bounds,(dim_row,dim_bnds),meta)
+            _make_spatial_variable_(ds,grid.col.meta['axis']['bounds'],grid.col.bounds,(dim_col,dim_bnds),meta)
         
         ## set the variable(s) #################################################
         
         ## loop through variables
-        if type(coll) == CalcCollection:
-            for calc_name,calc_value in coll.calc[coll.variables.keys()[0]].iteritems():
-                value = ds.createVariable(calc_name,calc_value.dtype,
-                           value_dims,fill_value=calc_value.fill_value)
-                if not file_only:
-                    value[:] = calc_value
-                for key,val in meta['calculations'][calc_name]['attrs'].iteritems():
-                    setattr(value,key,val)
-        elif type(coll) == MultivariateCalcCollection:
-            for calc_name,calc_value in coll.calc.iteritems():
-                value = ds.createVariable(calc_name,calc_value.dtype,
-                           value_dims,fill_value=calc_value.fill_value)
-                for key,val in meta['calculations'][calc_name]['attrs'].iteritems():
-                    setattr(value,key,val)
-        else:
-            if file_only: raise(NotImplementedError)
-            for var_name,var_value in coll.variables.iteritems():
-                ## create the value variable.
-                value = ds.createVariable(var_name,var_value.value.dtype,
-                               value_dims,fill_value=constants.fill_value)
-                if not file_only:
-                    value[:] = var_value.value
-                for key,val in meta['variables'][var_name]['attrs'].iteritems():
-                    setattr(value,key,val)
+        for variable in arch.variables.itervalues():
+            value = ds.createVariable(variable.alias,variable.value.dtype,value_dims,
+                                      fill_value=variable.value.fill_value)
+            if not self.ops.file_only:
+                try:
+                    value[:] = variable.value.reshape(*value.shape)
+                except:
+                    import ipdb;ipdb.set_trace()
+            value.setncatts(variable.meta['attrs'])
+            ## and the units, converting to string as passing a NoneType will raise
+            ## an exception.
+            value.units = '' if variable.units is None else variable.units
                     
         ## add projection variable if applicable ###############################
         
-        if not isinstance(arch.spatial.projection,WGS84):
-            arch.spatial.projection.write_to_rootgrp(ds,meta)
-        
-        ds.close()
+        if not isinstance(arch.spatial.crs,CFWGS84):
+            arch.spatial.crs.write_to_rootgrp(ds,meta)

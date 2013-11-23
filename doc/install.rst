@@ -19,6 +19,7 @@ A number of dependencies may be installed from the package repository and using 
    [sudo] apt-get update
    [sudo] apt-get install g++ libz-dev curl wget python-dev python-setuptools python-gdal
    [sudo] easy_install shapely
+   [sudo] easy_install fiona
 
 .. _netCDF4-python-install:
 

@@ -7,14 +7,175 @@ import tempfile
 import warnings
 from osgeo import ogr, osr
 from shapely import wkt, wkb
-from copy import deepcopy
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.ops import cascaded_union
 import re
 from ocgis.exc import DefinitionValidationError
 import sys
 import datetime
+from copy import deepcopy
+from ocgis.util.logging_ocgis import ocgis_lh
+from osgeo.ogr import CreateGeometryFromWkb
+from shapely.wkb import loads as wkb_loads
+import fiona
+from shapely.geometry.geo import mapping
 
+
+def get_is_date_between(lower,upper,month=None,year=None):
+    if month is not None:
+        attr = 'month'
+        to_test = month
+    else:
+        attr = 'year'
+        to_test = year
+        
+    part_lower,part_upper = getattr(lower,attr),getattr(upper,attr)
+    if part_lower != part_upper:
+        ret = np.logical_and(to_test >= part_lower,to_test < part_upper)
+    else:
+        ret = np.logical_and(to_test >= part_lower,to_test <= part_upper)
+    return(ret)
+
+
+class FionaMaker(object):
+            
+            def __init__(self,path,epsg=4326,driver='ESRI Shapefile',geometry='Polygon'):
+                assert(not os.path.exists(path))
+                self.path = path
+                self.crs = fiona.crs.from_epsg(epsg)
+                self.properties = {'UGID':'int','NAME':'str'}
+                self.geometry = geometry
+                self.driver = driver
+                self.schema = {'geometry':self.geometry,
+                               'properties':self.properties}
+                                
+            def __enter__(self):
+                self._ugid = 1
+                self._collection = fiona.open(self.path,'w',driver=self.driver,schema=self.schema,crs=self.crs)
+                return(self)
+            
+            def __exit__(self,*args,**kwds):
+                self._collection.close()
+                
+            def make_record(self,dct):
+                properties = dct.copy()
+                geom = wkt.loads(properties.pop('wkt'))
+                properties.update({'UGID':self._ugid})
+                self._ugid += 1
+                record = {'geometry':mapping(geom),
+                          'properties':properties}
+                return(record)
+            
+            def write(self,sequence_or_dct):
+                if isinstance(sequence_or_dct,dict):
+                    itr = [sequence_or_dct]
+                else:
+                    itr = sequence_or_dct
+                for element in itr:
+                    record = self.make_record(element)
+                    self._collection.write(record)
+    
+
+def project_shapely_geometry(geom,from_sr,to_sr):
+    if from_sr.IsSame(to_sr) == 1:
+        ret = geom
+    else:
+        ogr_geom = CreateGeometryFromWkb(geom.wkb)
+        ogr_geom.AssignSpatialReference(from_sr)
+        ogr_geom.TransformTo(to_sr)
+        ret = wkb_loads(ogr_geom.ExportToWkb())
+    return(ret)
+
+def assert_raise(test,**kwds):
+    try:
+        assert(test)
+    except AssertionError:
+        ocgis_lh(**kwds)
+        
+def get_iter(element,dtype=None):
+    if dtype is not None:
+        if isinstance(element,dtype):
+            element = [element]
+            
+    if isinstance(element,basestring) or isinstance(element,np.ndarray):
+        it = [element]
+    else:
+        try:
+            it = iter(element)
+        except TypeError:
+            it = [element]
+            
+    return(it)
+
+def get_default_or_apply(target,f,default=None):
+    if target is None:
+        ret = default
+    else:
+        ret = f(target)
+    return(ret)
+
+def get_none_or_1d(target):
+    if target is None:
+        ret = None
+    else:
+        ret = np.atleast_1d(target)
+    return(ret)
+
+def get_none_or_2d(target):
+    if target is None:
+        ret = None
+    else:
+        ret = np.atleast_2d(target)
+    return(ret)
+
+def get_none_or_slice(target,slc):
+    if target is None:
+        ret = None
+    else:
+        ret = target[slc]
+    return(ret)
+
+def get_reduced_slice(arr):
+    arr_min,arr_max = arr.min(),arr.max()
+    assert(arr_max-arr_min+1 == arr.shape[0])
+    ret = slice(arr_min,arr_max+1)
+    return(ret)
+
+def get_formatted_slice(slc,n_dims):
+    
+    def _format_(slc):
+        if isinstance(slc,int):
+            ret = slice(slc,slc+1)
+        elif isinstance(slc,slice):
+            ret = slc
+        elif isinstance(slc,np.ndarray):
+            ret = slc
+        else:
+            if len(slc) == 1:
+                ret = slice(slc[0])
+            elif len(slc) > 1:
+                ret = np.array(slc)
+            else:
+                raise(NotImplementedError(slc,n_dims))
+        return(ret)
+    
+    if isinstance(slc,slice) and slc == slice(None):
+        if n_dims == 1:
+            ret = slc
+        else:
+            ret = [slice(None)]*n_dims
+    elif n_dims == 1:
+        ret = _format_(slc)
+    elif n_dims > 1:
+        try:
+            assert(len(slc) == n_dims)
+        except (TypeError,AssertionError):
+            raise(IndexError("Only {0}-d slicing allowed.".format(n_dims)))
+        ret = map(_format_,slc)
+    else:
+        raise(NotImplementedError((slc,n_dims)))
+    
+    return(ret)
 
 def iter_arg(arg):
     if isinstance(arg,basestring):
@@ -27,6 +188,19 @@ def iter_arg(arg):
     for element in itr:
         yield(element)
 
+def get_date_list(start,stop,days):
+    ret = []
+    delta = datetime.timedelta(days=days)
+    check = start
+    while check <= stop:
+        ret.append(check)
+        check += delta
+    return(ret)
+
+def bbox_poly(minx,miny,maxx, maxy):
+    rtup = (miny,maxy)
+    ctup = (minx,maxx)
+    return(make_poly(rtup,ctup))
 
 def validate_time_subset(time_range,time_region):
     '''
@@ -156,87 +330,87 @@ def locate(pattern, root=os.curdir, followlinks=True):
         for filename in filter(lambda x: x == pattern,files):
             yield os.path.join(path, filename)
 
-def reduce_query(query):
-    ## parse keys into groups.
-    groups = {}
-    ungrouped = {}
-    exp_key = re.compile('^(\D+)\d+$')
-    exp_number = re.compile('^\D+(\d+)$')
-    for key,value in query.iteritems():
-        try:
-            m_key = re.match(exp_key,key).groups()[0]
-            m_number = int(re.match(exp_number,key).groups()[0])
-            if m_key not in groups:
-                groups[m_key] = []
-            groups[m_key].append(m_number)
-        except AttributeError:
-            ungrouped[key] = value
-    ## sort the groups
-    for value in groups.itervalues():
-        value.sort()
-    ## ensure the groups are the same. only applicable if there are any
-    ## grouped variables.
-    if len(groups) > 0:
-        arch = groups['uri']
-        for key,value in groups.iteritems():
-            try:
-                assert(arch == value)
-            except AssertionError:
-                if key in ['uri','variable']:
-                    raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
-                else:
-                    fill = [None]*len(arch)
-                    for integer in value:
-                        idx = arch.index(integer)
-                        fill[idx] = integer
-                    groups[key] = fill
-    ## replace integers with actual values
-    for key,value in groups.iteritems():
-        for idx in range(len(value)):
-            if value[idx] is None:
-                continue
-            pull_key = key + str(value[idx])
-            value[idx] = query[pull_key][0]
-        groups[key] = [value]
-    ## merge the grouped and ungrouped parameters
-    groups.update(ungrouped)
-    return(groups)
-        
-def union_geoms(ugeoms,new_id=1):
-    if len(ugeoms) == 1:
-        ret = deepcopy(ugeoms)
-    else:
-        to_union = []
-        for dct in ugeoms:
-            geom = dct['geom']
-            if isinstance(geom,MultiPolygon):
-                for poly in geom:
-                    to_union.append(poly)
-            else:
-                to_union.append(geom)
-        ugeom = cascaded_union(to_union)
-        ret = [{'ugid':new_id,'geom':ugeom}]
-    return(ret)
+#def reduce_query(query):
+#    ## parse keys into groups.
+#    groups = {}
+#    ungrouped = {}
+#    exp_key = re.compile('^(\D+)\d+$')
+#    exp_number = re.compile('^\D+(\d+)$')
+#    for key,value in query.iteritems():
+#        try:
+#            m_key = re.match(exp_key,key).groups()[0]
+#            m_number = int(re.match(exp_number,key).groups()[0])
+#            if m_key not in groups:
+#                groups[m_key] = []
+#            groups[m_key].append(m_number)
+#        except AttributeError:
+#            ungrouped[key] = value
+#    ## sort the groups
+#    for value in groups.itervalues():
+#        value.sort()
+#    ## ensure the groups are the same. only applicable if there are any
+#    ## grouped variables.
+#    if len(groups) > 0:
+#        arch = groups['uri']
+#        for key,value in groups.iteritems():
+#            try:
+#                assert(arch == value)
+#            except AssertionError:
+#                if key in ['uri','variable']:
+#                    raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
+#                else:
+#                    fill = [None]*len(arch)
+#                    for integer in value:
+#                        idx = arch.index(integer)
+#                        fill[idx] = integer
+#                    groups[key] = fill
+#    ## replace integers with actual values
+#    for key,value in groups.iteritems():
+#        for idx in range(len(value)):
+#            if value[idx] is None:
+#                continue
+#            pull_key = key + str(value[idx])
+#            value[idx] = query[pull_key][0]
+#        groups[key] = [value]
+#    ## merge the grouped and ungrouped parameters
+#    groups.update(ungrouped)
+#    return(groups)
+#        
+#def union_geoms(ugeoms,new_id=1):
+#    if len(ugeoms) == 1:
+#        ret = deepcopy(ugeoms)
+#    else:
+#        to_union = []
+#        for dct in ugeoms:
+#            geom = dct['geom']
+#            if isinstance(geom,MultiPolygon):
+#                for poly in geom:
+#                    to_union.append(poly)
+#            else:
+#                to_union.append(geom)
+#        ugeom = cascaded_union(to_union)
+#        ret = [{'ugid':new_id,'geom':ugeom}]
+#    return(ret)
+#
+#
+#def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
+#    if uid is None:
+#        uid = np.arange(1,value.shape[0]+1,dtype=int)
+#    ret = np.empty(value.shape[0],dtype=[(names['uid'],int),(names['value'],value.dtype,3)])
+#    ret[names['uid']] = uid
+#    ref = ret[names['value']]
+#    ref[:,1] = value
+#    if bounds is None:
+#        ref[:,0] = ref[:,1]
+#        ref[:,2] = ref[:,1]
+#    else:
+#        ref[:,0] = bounds[:,0]
+#        ref[:,2] = bounds[:,1]
+#    return(ret)
 
-
-def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
-    if uid is None:
-        uid = np.arange(1,value.shape[0]+1,dtype=int)
-    ret = np.empty(value.shape[0],dtype=[(names['uid'],int),(names['value'],value.dtype,3)])
-    ret[names['uid']] = uid
-    ref = ret[names['value']]
-    ref[:,1] = value
-    if bounds is None:
-        ref[:,0] = ref[:,1]
-        ref[:,2] = ref[:,1]
-    else:
-        ref[:,0] = bounds[:,0]
-        ref[:,2] = bounds[:,1]
-    return(ret)
-
-def append(arr,value):
-    arr.resize(arr.shape[0]+1,refcheck=False)
-    arr[arr.shape[0]-1] = value
+#def append(arr,value):
+#    arr.resize(arr.shape[0]+1,refcheck=False)
+#    arr[arr.shape[0]-1] = value
 
 def iter_array(arr,use_mask=True,return_value=False):
     try:
@@ -276,13 +450,13 @@ def iter_array(arr,use_mask=True,return_value=False):
             ret = idx
         yield(ret)
 
-def geom_to_mask(coll):
-    coll['geom'] = np.ma.array(coll['geom'],mask=coll['geom_mask'])
-    return(coll)
-
-def mask_to_geom(coll):
-    coll['geom'] = np.array(coll['geom'])
-    return(coll)
+#def geom_to_mask(coll):
+#    coll['geom'] = np.ma.array(coll['geom'],mask=coll['geom_mask'])
+#    return(coll)
+#
+#def mask_to_geom(coll):
+#    coll['geom'] = np.array(coll['geom'])
+#    return(coll)
     
 def itersubclasses(cls, _seen=None):
     """
@@ -388,65 +562,63 @@ def make_poly(rtup,ctup):
                     (ctup[1],rtup[1]),
                     (ctup[1],rtup[0])))
     
-def sub_range(a):
-    """
-    >>> vec = np.array([2,5,9])
-    >>> sub_range(vec)
-    array([2, 3, 4, 5, 6, 7, 8, 9])
-    """
-    a = np.array(a)
-#    ## for the special case of the array with one element
-#    if len(a) == 1:
-#        ret = np.arange(a[0],a[0]+1)
+#def get_sub_range(a):
+#    """
+#    >>> vec = np.array([2,5,9])
+#    >>> sub_range(vec)
+#    array([2, 3, 4, 5, 6, 7, 8, 9])
+#    """
+#    a = np.array(a)
+##    ## for the special case of the array with one element
+##    if len(a) == 1:
+##        ret = np.arange(a[0],a[0]+1)
+##    else:
+#    ret = np.arange(a.min(),a.max()+1)
+#    return(ret)
+#
+#def bounding_coords(polygon):
+#    min_x,min_y,max_x,max_y = polygon.bounds
+#    Bounds = namedtuple('Bounds',['min_x','min_y','max_x','max_y'])
+#    return(Bounds(min_x=min_x,
+#                  max_x=max_x,
+#                  min_y=min_y,
+#                  max_y=max_y))
+#    
+#def shapely_to_shp(obj,path,srs=None):
+#    from osgeo import osr, ogr
+#    
+##    path = os.path.join('/tmp',outname+'.shp')
+#    if srs is None:
+#        srs = osr.SpatialReference()
+#        srs.ImportFromEPSG(4326)
+#        
+#    if isinstance(obj,MultiPoint):
+#        test = ogr.CreateGeometryFromWkb(obj[0].wkb)
+#        ogr_geom = test.GetGeometryType()
 #    else:
-    ret = np.arange(a.min(),a.max()+1)
-    return(ret)
-
-def bounding_coords(polygon):
-    min_x,min_y,max_x,max_y = polygon.bounds
-    Bounds = namedtuple('Bounds',['min_x','min_y','max_x','max_y'])
-    return(Bounds(min_x=min_x,
-                  max_x=max_x,
-                  min_y=min_y,
-                  max_y=max_y))
-    
-def shapely_to_shp(obj,path,srs=None):
-    from osgeo import osr, ogr
-    
-#    path = os.path.join('/tmp',outname+'.shp')
-    if srs is None:
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326)
-        
-    if isinstance(obj,MultiPoint):
-        test = ogr.CreateGeometryFromWkb(obj[0].wkb)
-        ogr_geom = test.GetGeometryType()
-    else:
-        ogr_geom = 3
-    
-    dr = ogr.GetDriverByName('ESRI Shapefile')
-    ds = dr.CreateDataSource(path)
-    try:
-        if ds is None:
-            raise IOError('Could not create file on disk. Does it already exist?')
-            
-        layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
-        try:
-            feature_def = layer.GetLayerDefn()
-        except:
-            import ipdb;ipdb.set_trace()
-        feat = ogr.Feature(feature_def)
-        try:
-            iterator = iter(obj)
-        except TypeError:
-            iterator = iter([obj])
-        for geom in iterator:
-            feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
-            layer.CreateFeature(feat)
-    finally:
-        ds.Destroy()
-        
-
+#        ogr_geom = 3
+#    
+#    dr = ogr.GetDriverByName('ESRI Shapefile')
+#    ds = dr.CreateDataSource(path)
+#    try:
+#        if ds is None:
+#            raise IOError('Could not create file on disk. Does it already exist?')
+#            
+#        layer = ds.CreateLayer('lyr',srs=srs,geom_type=ogr_geom)
+#        try:
+#            feature_def = layer.GetLayerDefn()
+#        except:
+#            import ipdb;ipdb.set_trace()
+#        feat = ogr.Feature(feature_def)
+#        try:
+#            iterator = iter(obj)
+#        except TypeError:
+#            iterator = iter([obj])
+#        for geom in iterator:
+#            feat.SetGeometry(ogr.CreateGeometryFromWkb(geom.wkb))
+#            layer.CreateFeature(feat)
+#    finally:
+#        ds.Destroy()
 
 def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_prefix=None):
     """Return absolute path to a temporary file."""
@@ -481,130 +653,130 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_pref
             ret = f.name
     return(str(ret))
 
-def get_wkt_from_shp(path,objectid,layer_idx=0):
-    """
-    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
-    >>> objectid = 10
-    >>> wkt = get_wkt_from_shp(path,objectid)
-    >>> assert(wkt.startswith('POLYGON ((-91.730366281818348 43.499571367976877,'))
-    """
-    ds = ogr.Open(path)
-    try:
-        lyr = ds.GetLayerByIndex(layer_idx)
-        lyr_name = lyr.GetName()
-        if objectid is None:
-            sql = 'SELECT * FROM {0}'.format(lyr_name)
-        else:
-            sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
-        data = ds.ExecuteSQL(sql)
-        #import pdb; pdb.set_trace()
-        feat = data.GetNextFeature()
-        geom = feat.GetGeometryRef()
-        wkt = geom.ExportToWkt()
-        return(wkt)
-    finally:
-        ds.Destroy()
-
-   
-class ShpIterator(object):
-    
-    def __init__(self,path):
-        assert(os.path.exists(path))
-        self.path = path
-        
-    def get_fields(self):
-        ds = ogr.Open(self.path)
-        try:
-            lyr = ds.GetLayerByIndex(0)
-            lyr.ResetReading()
-            feat = lyr.GetNextFeature()
-            return(feat.keys())
-        finally:
-            ds.Destroy()
-        
-    def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False,
-                      to_shapely=False):
-        
-        ds = ogr.Open(self.path)
-        try:
-            lyr = ds.GetLayerByIndex(lyridx)
-            lyr.ResetReading()
-            for feat in lyr:
-                ## get the values
-                values = []
-                for field in fields:
-                    try:
-                        values.append(feat.GetField(field))
-                    except:
-                        try:
-                            if skiperrors is True:
-                                warnings.warn('Error in GetField("{0}")'.format(field))
-                            else:
-                                raise
-                        except ValueError:
-                            msg = 'Illegal field requested in GetField("{0}")'.format(field)
-                            raise ValueError(msg)
-#                values = [feat.GetField(field) for field in fields]
-                attrs = dict(zip(fields,values))
-                ## get the geometry
-                
-                wkt_str = feat.GetGeometryRef().ExportToWkt()
-#                geom_obj = feat.GetGeometryRef()
-#                geom_obj.TransformTo(to_sr)
-#                wkt_str = geom_obj.ExportToWkt()
-                
-                if to_shapely:
-                    ## additional load to clean geometries
-                    geom_data = wkt.loads(wkt_str)
-                    geom_data = wkb.loads(geom_data.wkb)
-                else:
-                    geom_data = wkt_str
-                attrs.update({geom:geom_data})
-                yield attrs
-        finally:
-            ds.Destroy()
-
-
-def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='ugid'):
-    """
-    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
-    >>> uid_field = 'objectid'
-    >>> ret = get_shp_as_multi(path,uid_field)
-    """
-    ## the iterator object instantiated here to make sure the shapefile exists
-    ## and there is access to the field acquisition.
-    shpitr = ShpIterator(path)
-    
-    if uid_field is None or uid_field == '':
-        uid_field = []
-    else:
-        uid_field = [str(uid_field)]
-    try:
-        fields = uid_field + attr_fields
-    except TypeError:
-        if attr_fields.lower() == 'all':
-            fields = shpitr.get_fields()
-            fields = [f.lower() for f in fields]
-            try:
-                if uid_field[0].lower() in fields:
-                    fields.pop(uid_field[0].lower())
-            except IndexError:
-                if len(uid_field) == 0:
-                    pass
-                else:
-                    raise
-            fields = uid_field + fields
-        else:
-            raise
-    data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
-    ## add unique identifier if requested and the passed uid field is none
-    for ii,gd in enumerate(data,start=1):
-        if len(uid_field) == 0 and make_id is True:
-            gd[id_name] = ii
-        else:
-            geom_id = gd.pop(uid_field[0])
-            gd[id_name] = int(geom_id)
-    
+#def get_wkt_from_shp(path,objectid,layer_idx=0):
+#    """
+#    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
+#    >>> objectid = 10
+#    >>> wkt = get_wkt_from_shp(path,objectid)
+#    >>> assert(wkt.startswith('POLYGON ((-91.730366281818348 43.499571367976877,'))
+#    """
+#    ds = ogr.Open(path)
+#    try:
+#        lyr = ds.GetLayerByIndex(layer_idx)
+#        lyr_name = lyr.GetName()
+#        if objectid is None:
+#            sql = 'SELECT * FROM {0}'.format(lyr_name)
+#        else:
+#            sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
+#        data = ds.ExecuteSQL(sql)
+#        #import pdb; pdb.set_trace()
+#        feat = data.GetNextFeature()
+#        geom = feat.GetGeometryRef()
+#        wkt = geom.ExportToWkt()
+#        return(wkt)
+#    finally:
+#        ds.Destroy()
+#
+#   
+#class ShpIterator(object):
+#    
+#    def __init__(self,path):
+#        assert(os.path.exists(path))
+#        self.path = path
+#        
+#    def get_fields(self):
+#        ds = ogr.Open(self.path)
+#        try:
+#            lyr = ds.GetLayerByIndex(0)
+#            lyr.ResetReading()
+#            feat = lyr.GetNextFeature()
+#            return(feat.keys())
+#        finally:
+#            ds.Destroy()
+#        
+#    def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False,
+#                      to_shapely=False):
+#        
+#        ds = ogr.Open(self.path)
+#        try:
+#            lyr = ds.GetLayerByIndex(lyridx)
+#            lyr.ResetReading()
+#            for feat in lyr:
+#                ## get the values
+#                values = []
+#                for field in fields:
+#                    try:
+#                        values.append(feat.GetField(field))
+#                    except:
+#                        try:
+#                            if skiperrors is True:
+#                                warnings.warn('Error in GetField("{0}")'.format(field))
+#                            else:
+#                                raise
+#                        except ValueError:
+#                            msg = 'Illegal field requested in GetField("{0}")'.format(field)
+#                            raise ValueError(msg)
+##                values = [feat.GetField(field) for field in fields]
+#                attrs = dict(zip(fields,values))
+#                ## get the geometry
+#                
+#                wkt_str = feat.GetGeometryRef().ExportToWkt()
+##                geom_obj = feat.GetGeometryRef()
+##                geom_obj.TransformTo(to_sr)
+##                wkt_str = geom_obj.ExportToWkt()
+#                
+#                if to_shapely:
+#                    ## additional load to clean geometries
+#                    geom_data = wkt.loads(wkt_str)
+#                    geom_data = wkb.loads(geom_data.wkb)
+#                else:
+#                    geom_data = wkt_str
+#                attrs.update({geom:geom_data})
+#                yield attrs
+#        finally:
+#            ds.Destroy()
+#
+#
+#def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='ugid'):
+#    """
+#    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
+#    >>> uid_field = 'objectid'
+#    >>> ret = get_shp_as_multi(path,uid_field)
+#    """
+#    ## the iterator object instantiated here to make sure the shapefile exists
+#    ## and there is access to the field acquisition.
+#    shpitr = ShpIterator(path)
+#    
+#    if uid_field is None or uid_field == '':
+#        uid_field = []
+#    else:
+#        uid_field = [str(uid_field)]
+#    try:
+#        fields = uid_field + attr_fields
+#    except TypeError:
+#        if attr_fields.lower() == 'all':
+#            fields = shpitr.get_fields()
+#            fields = [f.lower() for f in fields]
+#            try:
+#                if uid_field[0].lower() in fields:
+#                    fields.pop(uid_field[0].lower())
+#            except IndexError:
+#                if len(uid_field) == 0:
+#                    pass
+#                else:
+#                    raise
+#            fields = uid_field + fields
+#        else:
+#            raise
+#    data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
+#    ## add unique identifier if requested and the passed uid field is none
+#    for ii,gd in enumerate(data,start=1):
+#        if len(uid_field) == 0 and make_id is True:
+#            gd[id_name] = ii
+#        else:
+#            geom_id = gd.pop(uid_field[0])
+#            gd[id_name] = int(geom_id)
+#    
 #    ## check the WKT is a polygon and the unique identifier is a unique integer
 #    uids = []
 #    for feat in data:
@@ -612,12 +784,12 @@ def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='u
 #            feat[uid_field[0]] = int(feat[uid_field[0]])
 #            uids.append(feat[uid_field[0]])
 #    assert(len(uids) == len(set(uids)))
-    return(data)
-
-def get_sr(srid):
-    sr = osr.SpatialReference()
-    sr.ImportFromEPSG(srid)
-    return(sr)
+#    return(data)
+#
+#def get_sr(srid):
+#    sr = osr.SpatialReference()
+#    sr.ImportFromEPSG(srid)
+#    return(sr)
 
 def get_area(geom,sr_orig,sr_dest):
     geom = ogr.CreateGeometryFromWkb(geom.wkb)
@@ -625,7 +797,7 @@ def get_area(geom,sr_orig,sr_dest):
     geom.TransformTo(sr_dest)
     return(geom.GetArea())
 
-def get_area_srid(geom,srid_orig,srid_dest):
-    sr = get_sr(srid_orig)
-    sr2 = get_sr(srid_dest)
-    return(get_area(geom,sr,sr2))
+#def get_area_srid(geom,srid_orig,srid_dest):
+#    sr = get_sr(srid_orig)
+#    sr2 = get_sr(srid_dest)
+#    return(get_area(geom,sr,sr2))

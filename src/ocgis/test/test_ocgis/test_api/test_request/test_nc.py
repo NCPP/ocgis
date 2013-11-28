@@ -12,6 +12,7 @@ from shapely.geometry.geo import shape
 from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError,\
     DimensionNotFound
 import datetime
+from unittest.case import SkipTest
 
 
 class TestNcRequestDataset(TestBase):
@@ -231,6 +232,7 @@ class TestNcRequestDataset(TestBase):
         self.assertEqual(sub2.shape,(1, 124, 1, 1, 1))
         
     def test_load_remote(self):
+        raise(SkipTest("server IO errors"))
         uri = 'http://cida.usgs.gov/thredds/dodsC/maurer/maurer_brekke_w_meta.ncml'
         variable = 'sresa1b_bccr-bcm2-0_1_Tavg'
         rd = NcRequestDataset(uri,variable,time_region={'month':[1,10],'year':[2011,2013]})

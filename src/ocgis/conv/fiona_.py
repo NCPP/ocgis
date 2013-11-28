@@ -7,6 +7,7 @@ from collections import OrderedDict
 from shapely.geometry.geo import mapping
 from fiona.rfc3339 import FionaTimeType, FionaDateType
 import abc
+from ocgis.util.logging_ocgis import ocgis_lh
 
     
 class FionaConverter(OcgConverter):
@@ -60,6 +61,24 @@ class FionaConverter(OcgConverter):
         for header in coll.headers:
             fiona_field_type = _get_field_type_(header,type(arch_row[header]))
             fiona_properties.update({header.upper():fiona_field_type})
+            
+        ## we always want to convert the value. if the data is masked, it comes
+        ## through as a float when unmasked data is in fact a numpy data type.
+        ## however, this should only occur if 'value' is in the output headers!
+        if 'value' in coll.headers and 'value' not in fiona_conversion:
+            value_dtype = archetype_field.variables.values()[0].value.dtype
+            try:
+                to_update = self._fiona_conversion[value_dtype]
+            ## may have to do type comparisons
+            except KeyError as e:
+                to_update = None
+                for k,v in self._fiona_conversion.iteritems():
+                    if value_dtype == k:
+                        to_update = v
+                        break
+                if to_update is None:
+                    ocgis_lh(exc=e,logger='fiona_')
+            fiona_conversion.update({'value':to_update})
         
         ## polygon geometry types are always converted to multipolygons to avoid
         ## later collections having multipolygon geometries.
@@ -75,7 +94,7 @@ class FionaConverter(OcgConverter):
         for k,v in fiona_schema['properties'].iteritems():
             if v is None:
                 fiona_schema['properties'][k] = 'str:1'
-        
+
         fiona_object = fiona.open(self.path,'w',driver=self._driver,crs=fiona_crs,schema=fiona_schema)
         
         ret = {'fiona_object':fiona_object,'fiona_conversion':fiona_conversion}

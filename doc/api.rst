@@ -265,13 +265,7 @@ Adding Additional Shapefile Data
 
 .. warning:: Only add data WGS84 geographic data, ESPS=4326.
 
-In the directory specified by :attr:`env.DIR_SHPCABINET`, create a folder with the name you would like to use for the geometry's key. Copy all the shapefile component files to the new directory. Inside the directory, create a `.cfg` file with the same name as the containing folder. The `.cfg` file will containing the header `[mapping]` and two key-value pairs: `ugid` and `attributes`. The `ugid` key value is the name of the attribute for the shapefiles unique identifier. If the file does not contain a unique identifier, setting the value to `none` will cause OpenClimateGIS to generate unique identifiers. The `attributes` key value are the attributes you want OpenClimateGIS to read from the file. Setting this to `none` will result in no additional attributes being inserted into the geometry dictionary. Setting the `attributes` value to `all` results in all attributes being read.
-
-.. code-block:: ini
-
-   [mapping]
-   ugid=id
-   attributes=state_name,population
+Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. The shapefile's "geom key" is the name of the shapefile. It may have an alphanumeric name with no spaces and must only include underscores "_".
 
 :class:`ocgis.Inspect`
 =========================

@@ -49,6 +49,17 @@ class TestCMIP3Masking(TestBase):
 
 class Test(TestBase):
     
+    def test_value_conversion(self):
+        ## confirm value data types are properly converted
+        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        rd_maurer = ocgis.RequestDataset('Maurer02new_OBS_tasmax_daily.1971-2000.nc',
+                                     'tasmax',
+                                     alias='maurer_tasmax')
+
+        ops = ocgis.OcgOperations(dataset=rd_maurer,output_format='shp',snippet=True,
+                                  output_crs=ocgis.crs.WGS84())
+        ops.execute()
+    
     def test_qed_multifile(self):
         ddir = '/usr/local/climate_data/QED-2013/multifile'
         variable = 'txxmmedm'

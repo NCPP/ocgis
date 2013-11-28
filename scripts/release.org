@@ -1,17 +1,15 @@
 1. stage the release:
    - [X] git checkout staged-release
-   - [X] git merge dev
-2. run tests:
-   - [X] combinatorial
-   - [X] standard
+2. [ ] run tests
 3. update documents:
-   - [X] CoG page
-   - [X] RELEASE.md (use "release" label)
+   - [ ] CoG page
+         - [ ] Upload test report: http://www.earthsystemcog.org/projects/openclimategis/supportedplatforms
+         - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download
 4. update version number in:
-   - [X] setup.py
-   - [X] ocgis.__init__
+   - [x] setup.py
+   - [x] ocgis.__init__
 5. update links
-   - [X] update link in install.rst
+   - [ ] update link in install.rst
 6. merge development to master:
    - [ ] git commit
    - [ ] git checkout master
@@ -25,7 +23,5 @@
 7. put -dev back in version numbers:
    - [ ] setup.py
    - [ ] ocgis.__init__
-   - [ ] git commit -a -m 'added dev to version strings'
 8. finalize:
    - [ ] have silverio update link
-   - [ ] remove release label from issues

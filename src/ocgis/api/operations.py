@@ -22,8 +22,7 @@ class OcgOperations(object):
     >>> ops.aggregate = True
         
     The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
-    validation and formatting upon assignment and to properly return parameter 
-    values from internal objects.
+    validation and input formatting.
         
     :param dataset: The target dataset(s) for the request. This is the only required parameter.
     :type dataset: :class:`ocgis.RequestDatasetCollection` or :class:`ocgis.RequestDataset`

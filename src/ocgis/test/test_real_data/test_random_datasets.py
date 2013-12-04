@@ -13,6 +13,7 @@ from ocgis.api.request.base import RequestDataset
 from ocgis.test.test_simple.test_simple import nc_scope
 from copy import deepcopy
 from ocgis.test.test_base import longrunning
+from shapely.geometry.point import Point
 
 
 class TestCMIP3Masking(TestBase):
@@ -48,6 +49,45 @@ class TestCMIP3Masking(TestBase):
 
 
 class Test(TestBase):
+    
+    def test_selecting_single_value(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        lat_index = 32
+        lon_index = 97
+        with nc_scope(rd.uri) as ds:
+            lat_value = ds.variables['lat'][lat_index]
+            lon_value = ds.variables['lon'][lon_index]
+            data_values = ds.variables['tas'][:,lat_index,lon_index]
+        
+        ops = ocgis.OcgOperations(dataset=rd,geom=[lon_value,lat_value],search_radius_mult=0.1)
+        ret = ops.execute()
+        values = np.squeeze(ret[1]['tas'].variables['tas'].value)
+        self.assertNumpyAll(data_values,values)
+        
+        geom = Point(lon_value,lat_value).buffer(0.001)
+        ops = ocgis.OcgOperations(dataset=rd,geom=geom)
+        ret = ops.execute()
+        values = np.squeeze(ret[1]['tas'].variables['tas'].value)
+        self.assertNumpyAll(data_values,values)
+        
+        geom = Point(lon_value-360.,lat_value).buffer(0.001)
+        ops = ocgis.OcgOperations(dataset=rd,geom=geom)
+        ret = ops.execute()
+        values = np.squeeze(ret[1]['tas'].variables['tas'].value)
+        self.assertNumpyAll(data_values,values)
+        
+        geom = Point(lon_value-360.,lat_value).buffer(0.001)
+        ops = ocgis.OcgOperations(dataset=rd,geom=geom,aggregate=True,spatial_operation='clip')
+        ret = ops.execute()
+        values = np.squeeze(ret[1]['tas'].variables['tas'].value)
+        self.assertNumpyAll(data_values,values)
+        
+        ops = ocgis.OcgOperations(dataset=rd,geom=[lon_value,lat_value],
+                                  search_radius_mult=0.1,output_format='nc')
+        ret = ops.execute()
+        with nc_scope(ret) as ds:
+            values = np.squeeze(ds.variables['tas'][:])
+            self.assertNumpyAll(data_values,values)
     
     def test_value_conversion(self):
         ## confirm value data types are properly converted

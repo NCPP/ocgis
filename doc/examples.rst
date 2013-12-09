@@ -126,7 +126,7 @@ Advanced Subsetting
 
 In this example, a U.S. state boundary shapefile will be used to subset and aggregate three climate datasets. The aggregation will occur on a per-geometry + dataset basis. Hence, we will end up with daily aggregated "statewide" temperatures for the three climate variables. We also want to clip the climate data cells to the boundary of the selection geometry to take advantage of area-weighting and avoid data duplication.
 
-.. note:: With no output directory specified, data is written to an "ocgis_output" folder in the system's default temporary directory.
+.. note:: With no output directory specified, data is written to the current working directory.
 
 .. literalinclude:: sphinx_examples/advanced_subset.py
 

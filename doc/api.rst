@@ -22,6 +22,8 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.PREFIX` = 'ocgis_output'
  The default prefix to apply to output files. This is also the output folder name.
 
+.. _env.DIR_SHPCABINET:
+
 :attr:`env.DIR_SHPCABINET` = <path-to-directory>
  Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
 
@@ -75,6 +77,8 @@ Value                  Description
 `clip`                 A full geometric intersection is performed between source and selection geometries. New geometries may be created.
 ====================== ===================================================================================================================
 
+.. _geom:
+
 geom
 ~~~~
 
@@ -96,6 +100,8 @@ This is a list of floats corresponding to: `[longitude,latitude]`. The coordinat
 
 >>> from ocgis import ShpCabinetIterator
 >>> geom = ShpCabinetIterator('state_boundaries',select_ugid=[16])
+
+.. _geom key:
 
 4. Using a :class:`ocgis.ShpCabinet` Key
 
@@ -139,13 +145,25 @@ See the :ref:`computation_headline` page for more details.
 calc_grouping
 ~~~~~~~~~~~~~
 
-Any combination of 'day', 'month', and 'year'.
+There are two forms for this argument:
+
+ 1. Date Part Grouping: Any combination of 'day', 'month', and 'year'.
 
 >>> calc_grouping = ['day']
 >>> calc_grouping = ['month','year']
 >>> calc_grouping = ['day','year']
 
-Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one.
+Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one (i.e. one day per aggregation group).
+
+ 2. Seasonal Groups: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers).
+
+Month integers map as expected (1=January, 2=February, etc.). The example below constructs a single season composed of March, April, and May. Note the nested lists.
+
+>>> calc_grouping = [[3,4,5]]
+
+The next example consumes all the months in a year.
+
+>>> calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
 
 .. _calc_raw_headline:
 
@@ -192,35 +210,55 @@ Value                  Description
 output_format
 ~~~~~~~~~~~~~
 
-====================== ====================================================================================================================================================================
+====================== ===============================================================================================
 Value                  Description
-====================== ====================================================================================================================================================================
-`numpy` (default)      Return a dict with keys matching `ugid` (see `geom`_) and values of :class:`ocgis.api.collection.AbstractCollection`. The collection type depends on the operations.
+====================== ===============================================================================================
+`numpy` (default)      Return a `ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
 `shp`                  A shapefile representation of the data.
 `csv`                  A CSV file representation of the data.
 `csv+`                 In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
 `nc`                   A NetCDF4 file.
 `geojson`              A GeoJSON representation of the data.
-====================== ====================================================================================================================================================================
+====================== ===============================================================================================
 
 agg_selection
 ~~~~~~~~~~~~~
 
-================= ==========================================
+================= ===============================================
 Value             Description
-================= ==========================================
-`True`            Aggregate `geom`_ to a single geometry.
+================= ===============================================
+`True`            Aggregate (union) `geom`_ to a single geometry.
 `False` (default) Leave `geom`_ as is.
-================= ==========================================
+================= ===============================================
+
+The purpose of this data manipulation is to ease the method required to aggregate (union) geometries into arbitrary regions. A simple example would be unioning the U.S. state boundaries of Utah, Nevada, Arizona, and New Mexico into a single polygon representing a "Southwestern Region".
+
+.. _select_ugid:
 
 select_ugid
 ~~~~~~~~~~~
 
-Select specific geometries from `geom`.
+Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Adding Additional Shapefile Data`_.
 
 >>> select_ugid = [1, 2, 3]
 >>> select_ugid = [4, 55]
 >>> select_ugid = [1]
+
+As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_SHPCABINET`_) with the following attribute table:
+
+==== =======
+UGID Name
+==== =======
+1    Basin A
+2    Basin B
+3    Basin C
+==== =======
+
+If the goal is to subset the data by the boundary of "Basin A" and write the resulting data to netCDF, a call to OCGIS looks like:
+
+>>> import ocgis
+>>> rd = ocgis.RequestDataset(uri='/path/to/data.nc',variable='tas')
+>>> path = ocgis.OcgOperations(dataset=rd,geom='basins',select_ugid=[1],output_format='nc').execute()
 
 vector_wrap
 ~~~~~~~~~~~
@@ -265,7 +303,9 @@ Adding Additional Shapefile Data
 
 .. warning:: Only add data WGS84 geographic data, ESPS=4326.
 
-Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. The shapefile's "geom key" is the name of the shapefile. It may have an alphanumeric name with no spaces and must only include underscores "_".
+Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`select_ugid`_" argument to find specific geometries inside the shapefile.
+
+The shapefile's "`geom key`_" is the name of the shapefile. It must have an alphanumeric name with no spaces with the only allowable special character being underscores "_".
 
 :class:`ocgis.Inspect`
 =========================

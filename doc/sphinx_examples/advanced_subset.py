@@ -8,7 +8,7 @@ DATA_DIR = '/usr/local/climate_data/CanCM4'
 NCS = {'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc':'tasmin',
        'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc':'tas',
        'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc':'tasmax'}
-## Always start with a snippet.
+## Always start with a snippet (if there are no calculations!).
 SNIPPET = True
 ## Data returns will overwrite in this case. Use with caution!!
 env.OVERWRITE = True
@@ -21,12 +21,21 @@ rdc = RequestDatasetCollection([RequestDataset(
 
 ## Return In-Memory ############################################################
 
-## Data is returned as a dictionary with 51 keys (don't forget Puerto Rico...).
-## A key in the returned dictionary corresponds to a geometry "ugid" with the
-## value of type OcgCollection.
+## Data is returned as a dictionary-like object (SpatialCollection) with 51 keys
+## (don't forget Puerto Rico...). A key in the returned dictionary corresponds 
+## to a geometry "ugid" with the value of type OcgCollection.
 print('returning numpy...')
 ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
                     snippet=SNIPPET,geom='state_boundaries')
+ret = ops.execute()
+
+## Return a SpatialCollection, but only for a target state in a U.S. state
+## boundaries shapefile. In this case, the UGID attribute value of 23 is associated
+## with Nebraska.
+
+print('returning numpy for a state...')
+ops = OcgOperations(dataset=rdc,spatial_operation='clip',aggregate=True,
+                    snippet=SNIPPET,geom='state_boundaries',select_ugid=[23])
 ret = ops.execute()
 
 ## Write to Shapefile ##########################################################

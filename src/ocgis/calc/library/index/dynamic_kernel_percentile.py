@@ -53,7 +53,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
         ## construct the the comparison array
         b = np.empty_like(values)
         for ii in range(b.shape[0]):
-            b[ii] = daily_percentile[ii]['percentile']
+            b[ii] = daily_percentile[dp_indices[ii]]['percentile']
         
         ## perform requested logical operation
         if operation == 'gt':

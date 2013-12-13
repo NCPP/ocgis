@@ -205,8 +205,22 @@ class IterableParameter(object):
                 itr = iter([value])
             ret = [OcgParameter.parse(self,element) for element in itr]
             if self.unique:
-                if len(set(ret)) < len(value):
-                    raise(DefinitionValidationError(self,'Argument sequence must have unique elements.'))
+                try:
+                    if len(set(ret)) < len(value):
+                        raise(DefinitionValidationError(self,'Argument sequence must have unique elements.'))
+                ## elements may not be reduceable to a set. attempt to reduce
+                ## the individual elements and compare by this method.
+                except TypeError:
+                    for start_idx,element in enumerate(value):
+                        element_set = set(element)
+                        ## individual element sequences must be unique (i.e. [1,1,2] is not acceptable)
+                        if len(element_set) != len(element):
+                            raise(DefinitionValidationError(self,'Argument element sequences must be composed of unique values.'))
+                        ## this compares the uniqueness of an element in the sequence
+                        ## to other components in the sequence.
+                        for to_check in range(start_idx+1,len(value)):
+                            if len(element_set.intersection(set(value[to_check]))) > 0:
+                                raise(DefinitionValidationError(self,'Argument sequence must have unique elements.'))
             for idx in range(len(ret)):
                 try:
                     ret[idx] = self.element_type(ret[idx])

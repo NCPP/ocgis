@@ -12,16 +12,22 @@ from ocgis.util.helpers import get_is_date_between
 class TemporalDimension(base.VectorDimension):
     _date_parts = ('year','month','day','hour','minute','second','microsecond')
     _axis = 'T'
-    
+        
     def get_grouping(self,grouping):
+        ## map date parts to index positions in date part storage array and flip
+        ## they key-value pairs
         group_map = dict(zip(range(0,7),self._date_parts,))
         group_map_rev = dict(zip(self._date_parts,range(0,7),))
-
+        
+        ## this array will hold the value data constructed differently depending
+        ## on if temporal bounds are present
         value = np.empty((self.value.shape[0],3),dtype=object)
         
+        ## reference the value and bounds datetime object arrays
         value_datetime = self._get_datetime_value_()
         value_datetime_bounds = self._get_datetime_bounds_()
         
+        ## populate the value array depending on the presence of bounds
         if self.bounds is None:
             value[:,:] = value_datetime.reshape(-1,1)
         else:
@@ -32,43 +38,65 @@ class TemporalDimension(base.VectorDimension):
         def _get_attrs_(dt):
             return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
         
+        ## extract the date parts
         parts = np.empty((len(self.value),len(self._date_parts)),dtype=int)
         for row in range(parts.shape[0]):
             parts[row,:] = _get_attrs_(value[row,1])
         
-        unique = deque()
-        for idx in range(parts.shape[1]):
-            if group_map[idx] in grouping:
-                fill = np.unique(parts[:,idx])
-            else:
-#                fill = np.array([0])
-                fill = [None]
-            unique.append(fill)
-
-        select = deque()
-        idx2_seq = range(len(self._date_parts))
-        for idx in itertools.product(*[range(len(u)) for u in unique]):
-            select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
-        select = np.array(select)
-        dgroups = deque()
-        idx_cmp = [group_map_rev[group] for group in grouping]
-        keep_select = []
-        for idx in range(select.shape[0]):
-            match = select[idx,idx_cmp] == parts[:,idx_cmp]
-            dgrp = match.all(axis=1)
-            if dgrp.any():
-                keep_select.append(idx)
-                dgroups.append(dgrp)
-        select = select[keep_select,:]
-        assert(len(dgroups) == select.shape[0])
+        ## grouping is different for date part combinations v. seasonal
+        ## aggregation.
+        if isinstance(grouping[0],basestring):
+            unique = deque()
+            for idx in range(parts.shape[1]):
+                if group_map[idx] in grouping:
+                    fill = np.unique(parts[:,idx])
+                else:
+    #                fill = np.array([0])
+                    fill = [None]
+                unique.append(fill)
+    
+            select = deque()
+            idx2_seq = range(len(self._date_parts))
+            for idx in itertools.product(*[range(len(u)) for u in unique]):
+                select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
+            select = np.array(select)
+            dgroups = deque()
+            
+            idx_cmp = [group_map_rev[group] for group in grouping]
+                
+            keep_select = []
+            for idx in range(select.shape[0]):
+                match = select[idx,idx_cmp] == parts[:,idx_cmp]
+                dgrp = match.all(axis=1)
+                if dgrp.any():
+                    keep_select.append(idx)
+                    dgroups.append(dgrp)
+            select = select[keep_select,:]
+            assert(len(dgroups) == select.shape[0])
+            
+            dtype = [(dp,object) for dp in self._date_parts]
+        ## this is for seasonal aggregations
+        else:
+            dgroups = deque()
+            for group in grouping:
+                subgroup = np.zeros(value.shape[0],dtype=bool)
+                for idx in range(value.shape[0]):
+                    if parts[idx,1] in group:
+                        subgroup[idx] = True
+                dgroups.append(subgroup)
+            dtype = [('months',object)]
         
-        dtype = [(dp,object) for dp in self._date_parts]
+        ## init arrays to hold values and bounds for the grouped data
         new_value = np.empty((len(dgroups),),dtype=dtype)
         new_bounds = np.empty((len(dgroups),2),dtype=object)
-
+        
         for idx,dgrp in enumerate(dgroups):
             ## tuple conversion is required for structure arrays: http://docs.scipy.org/doc/numpy/user/basics.rec.html#filling-structured-arrays
-            new_value[idx] = tuple(select[idx])
+            try:
+                new_value[idx] = tuple(select[idx])
+            ## likely a seasonal aggregation with a different group representation
+            except UnboundLocalError:
+                new_value[idx] = (grouping[idx],)
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
         
@@ -160,46 +188,63 @@ class TemporalDimension(base.VectorDimension):
         ref_value = value
         ref_bounds = bounds
         ret = np.empty((ref_value.shape[0],),dtype=object)
-        set_grouping = set(grouping)
-        if set_grouping == set(['month']):
-            ref_calc_month_centroid = constants.calc_month_centroid
+        try:
+            set_grouping = set(grouping)
+            if set_grouping == set(['month']):
+                ref_calc_month_centroid = constants.calc_month_centroid
+                for idx in range(ret.shape[0]):
+                    month = ref_value[idx]['month']
+                    ## get the start year from the bounds data
+                    start_year = ref_bounds[idx][0].year
+                    ## create the datetime object
+                    ret[idx] = datetime.datetime(start_year,month,ref_calc_month_centroid)
+            elif set_grouping == set(['year']):
+                ref_calc_year_centroid_month = constants.calc_year_centroid_month
+                ref_calc_year_centroid_day = constants.calc_year_centroid_day
+                for idx in range(ret.shape[0]):
+                    year = ref_value[idx]['year']
+                    ## create the datetime object
+                    ret[idx] = datetime.datetime(year,ref_calc_year_centroid_month,ref_calc_year_centroid_day)
+            elif set_grouping == set(['month','year']):
+                ref_calc_month_centroid = constants.calc_month_centroid
+                for idx in range(ret.shape[0]):
+                    year,month = ref_value[idx]['year'],ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(year,month,ref_calc_month_centroid)
+            elif set_grouping == set(['day']):
+                for idx in range(ret.shape[0]):
+                    start_year,start_month = ref_bounds[idx][0].year,ref_bounds[idx][0].month
+                    ret[idx] = datetime.datetime(start_year,start_month,ref_value[idx]['day'],12)
+            elif set_grouping == set(['day','month']):
+                for idx in range(ret.shape[0]):
+                    start_year = ref_bounds[idx][0].year
+                    day,month = ref_value[idx]['day'],ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(start_year,month,day,12)
+            elif set_grouping == set(['day','year']):
+                for idx in range(ret.shape[0]):
+                    day,year = ref_value[idx]['day'],ref_value[idx]['year']
+                    ret[idx] = datetime.datetime(year,1,day,12)
+            elif set_grouping == set(['day','year','month']):
+                for idx in range(ret.shape[0]):
+                    day,year,month = ref_value[idx]['day'],ref_value[idx]['year'],ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(year,month,day,12)
+            else:
+                ocgis_lh(logger='interface.temporal',exc=NotImplementedError('grouping: {0}'.format(self.grouping)))
+        ## likely a seasonal aggregation
+        except TypeError:
+            ## set for testing if seasonal group crosses the end of a year
+            cross_months_set = set([12,1])
             for idx in range(ret.shape[0]):
-                month = ref_value[idx]['month']
-                ## get the start year from the bounds data
-                start_year = ref_bounds[idx][0].year
-                ## create the datetime object
-                ret[idx] = datetime.datetime(start_year,month,ref_calc_month_centroid)
-        elif set_grouping == set(['year']):
-            ref_calc_year_centroid_month = constants.calc_year_centroid_month
-            ref_calc_year_centroid_day = constants.calc_year_centroid_day
-            for idx in range(ret.shape[0]):
-                year = ref_value[idx]['year']
-                ## create the datetime object
-                ret[idx] = datetime.datetime(year,ref_calc_year_centroid_month,ref_calc_year_centroid_day)
-        elif set_grouping == set(['month','year']):
-            ref_calc_month_centroid = constants.calc_month_centroid
-            for idx in range(ret.shape[0]):
-                year,month = ref_value[idx]['year'],ref_value[idx]['month']
-                ret[idx] = datetime.datetime(year,month,ref_calc_month_centroid)
-        elif set_grouping == set(['day']):
-            for idx in range(ret.shape[0]):
-                start_year,start_month = ref_bounds[idx][0].year,ref_bounds[idx][0].month
-                ret[idx] = datetime.datetime(start_year,start_month,ref_value[idx]['day'],12)
-        elif set_grouping == set(['day','month']):
-            for idx in range(ret.shape[0]):
-                start_year = ref_bounds[idx][0].year
-                day,month = ref_value[idx]['day'],ref_value[idx]['month']
-                ret[idx] = datetime.datetime(start_year,month,day,12)
-        elif set_grouping == set(['day','year']):
-            for idx in range(ret.shape[0]):
-                day,year = ref_value[idx]['day'],ref_value[idx]['year']
-                ret[idx] = datetime.datetime(year,1,day,12)
-        elif set_grouping == set(['day','year','month']):
-            for idx in range(ret.shape[0]):
-                day,year,month = ref_value[idx]['day'],ref_value[idx]['year'],ref_value[idx]['month']
-                ret[idx] = datetime.datetime(year,month,day,12)
-        else:
-            ocgis_lh(logger='interface.temporal',exc=NotImplementedError('grouping: {0}'.format(self.grouping)))
+                r_bounds = bounds[idx,:]
+                ## if the season crosses into a new year, find the middles differently
+                r_value_months = value[idx]['months']
+                if cross_months_set.issubset(r_value_months):
+                    middle_index = int(np.floor(len(r_value_months)/2))
+                    center_month = r_value_months[middle_index]
+                else:
+                    center_month = int(np.floor(np.mean([r_bounds[0].month,r_bounds[1].month])))
+                center_year = int(np.floor(np.mean([r_bounds[0].year,r_bounds[1].year])))
+                fill = datetime.datetime(center_year,center_month,constants.calc_month_centroid)
+                ret[idx] = fill
         return(ret)
     
     def _get_iter_value_bounds_(self):

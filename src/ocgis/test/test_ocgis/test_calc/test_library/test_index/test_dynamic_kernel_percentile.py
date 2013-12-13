@@ -80,7 +80,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         
         ret = dkp.execute()
         self.assertEqual(ret['tg10p_tas'].value.shape,(1,36,1,64,128))
-        self.assertAlmostEqual(ret['tg10p_tas'].value.mean(),10.394866943359375)
+        self.assertAlmostEqual(ret['tg10p_tas'].value.mean(),3.6267225477430554)
     
     @longrunning
     def test_operations(self):
@@ -97,7 +97,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         
         with nc_scope(ret) as ds:
             ref = ds.variables['tg10p_tas'][:]
-            self.assertAlmostEqual(ref.mean(),9.8857737223307289)
+            self.assertAlmostEqual(ref.mean(),2.9763946533203125)
     
     @longrunning
     def test_operations_two_steps(self):

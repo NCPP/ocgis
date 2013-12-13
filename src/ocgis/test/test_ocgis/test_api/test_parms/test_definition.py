@@ -5,7 +5,6 @@ import pickle
 import tempfile
 import os
 from ocgis.test.base import TestBase
-from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.calc.library.statistics import Mean
 
 
@@ -100,6 +99,22 @@ class Test(TestBase):
         self.assertEqual(cg.value,('day','month'))
         with self.assertRaises(DefinitionValidationError):
             cg.value = ['d','foo']
+    
+    def test_calc_grouping_seasonal_aggregation(self):
+        cg = CalcGrouping([[1,2,3],[4,5,6]])
+        self.assertEqual(cg.value,([1,2,3],[4,5,6]))
+        
+        ## element groups must be composed of unique elements
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1,2,3],[4,4,6]])
+        
+        ## element groups must have an empty intersection
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1,2,3],[1,4,6]])
+        
+        ## months must be between 1 and 12
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1,2,3],[4,5,66]])
             
     def test_dataset(self):
         rd = self.test_data.get_rd('cancm4_tas')

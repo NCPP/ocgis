@@ -151,7 +151,7 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
     input_types = [list,tuple]
     return_type = tuple
     default = None
-    element_type = str
+    element_type = [str,list]
     unique = True
     
     def _get_meta_(self):
@@ -162,10 +162,17 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
         return(msg)
     
     def _validate_(self,value):
-        for val in value:
-            if val not in ['day','month','year']:
-                raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(val)))
-            
+        try:
+            for val in value:
+                if val not in ['day','month','year']:
+                    raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(val)))
+        ## the grouping may not be a date part but a seasonal aggregation
+        except DefinitionValidationError:
+            months = range(1,13)
+            for element in value:
+                for month in element:
+                    if month not in months:
+                        raise(DefinitionValidationError(self,'Month integer value is not recognized: {0}'.format(month)))
             
 class CalcRaw(base.BooleanParameter):
     name = 'calc_raw'

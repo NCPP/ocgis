@@ -10,7 +10,7 @@ import tempfile
 import tarfile
 
 
-VERSION = '0.07b-snapshot-01'
+VERSION = '0.07b-snapshot-02'
 
 
 class UninstallCommand(Command):

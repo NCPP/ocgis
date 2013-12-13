@@ -34,8 +34,8 @@ class OcgOperations(object):
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.
     :type calc: list of dictionaries
-    :param calc_grouping: Temporal grouping to apply during calculation.
-    :type calc_grouping: list of str
+    :param calc_grouping: Temporal grouping to apply for calculations.
+    :type calc_grouping: list of str or int
     :param calc_raw: If `True`, perform calculations on the "raw" data regardless of `aggregation` flag.
     :type calc_raw: bool
     :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the highest order geometry available.
@@ -66,7 +66,7 @@ class OcgOperations(object):
     :type calc_sample_size: bool
     :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
     :type output_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
-    :param search_radius_mult: This value is multiplied by a data's resolution to determine the buffer radius for point selection geometries.
+    :param search_radius_mult: This value is multiplied by the target data's spatial resolution to determine the buffer radius for point selection geometries.
     :type search_radius_mult: float
     """
     

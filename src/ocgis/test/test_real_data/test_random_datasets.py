@@ -10,7 +10,7 @@ from ocgis.interface.base.crs import CFWGS84
 import fiona
 from csv import DictReader
 from ocgis.api.request.base import RequestDataset
-from ocgis.test.test_simple.test_simple import nc_scope
+from ocgis.test.test_simple.test_simple import nc_scope, ToTest
 from copy import deepcopy
 from ocgis.test.test_base import longrunning
 from shapely.geometry.point import Point
@@ -49,6 +49,51 @@ class TestCMIP3Masking(TestBase):
 
 
 class Test(TestBase):
+    
+    def test_seasonal_calc(self):
+        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
+        calc_grouping = [[3,4,5]]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  calc_sample_size=True,geom='state_boundaries',
+                                  select_ugid=[23])
+        ret = ops.execute()
+        self.assertEqual(ret[23]['tas'].variables['n_my_std_tas'].value.mean(),920.0)
+        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,1,1,4,3))
+        
+        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
+        calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  calc_sample_size=True,geom='state_boundaries',
+                                  select_ugid=[23])
+        ret = ops.execute()
+        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,4,1,4,3))
+        self.assertNumpyAll(ret[23]['tas'].temporal.value,np.array([ 56955.,  56680.,  56771.,  56863.]))
+        
+        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
+        calc_grouping = [[12,1],[2,3]]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  calc_sample_size=True,geom='state_boundaries',
+                                  select_ugid=[23])
+        ret = ops.execute()
+        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,2,1,4,3))
+        self.assertNumpyAll(ret[23]['tas'].temporal.bounds,np.array([[ 55115.,  58765.],[ 55146.,  58490.]]))
+
+    def test_seasonal_calc_dkp(self):        
+        key = 'dynamic_kernel_percentile_threshold'
+        calc = [{'func':key,'name':'dkp','kwds':{'operation':'lt','percentile':90,'width':5}}]
+        calc_grouping = [[3,4,5]]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                  calc_sample_size=False,geom='state_boundaries',
+                                  select_ugid=[23])
+        ret = ops.execute()
+        to_test = ret[23]['tas'].variables['dkp_tas'].value
+        reference = np.ma.array(data=[[[[[0,0,838],[831,829,834],[831,830,834],[831,835,830]]]]],
+                                mask=[[[[[True,True,False],[False,False,False],[False,False,False],[False,False,False]]]]])
+        self.assertNumpyAll(to_test,reference)
     
     def test_selecting_single_value(self):
         rd = self.test_data.get_rd('cancm4_tas')

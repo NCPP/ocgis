@@ -127,6 +127,49 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_missing_calendar_attribute(self):
+        ## path to the test data file
+        out_nc = os.path.join(self._test_dir,self.fn)
+        
+        ## case of calendar being set to an empty string
+        with nc_scope(out_nc,'a') as ds:
+            ds.variables['time'].calendar = ''
+        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
+        ## the default for the calendar overload is standard
+        self.assertEqual(rd.t_calendar,'standard')
+        
+        ## case of a calendar being set a bad value but read anyway
+        with nc_scope(out_nc,'a') as ds:
+            ds.variables['time'].calendar = 'foo'
+        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
+        field = rd.get()
+        self.assertEqual(field.temporal.calendar,'foo')
+        ## calendar is only access when the float values are converted to datetime
+        ## objects
+        with self.assertRaises(ValueError):
+            field.temporal.value_datetime
+        
+        ## case of a missing calendar attribute altogether
+        with nc_scope(out_nc,'a') as ds:
+            ds.variables['time'].delncattr('calendar')
+        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
+        self.assertEqual(rd.t_calendar,'standard')
+        self.assertIsInstance(rd.inspect_as_dct(),OrderedDict)
+        field = rd.get()
+        ## the standard calendar name should be available at the dataset level
+        self.assertEqual(field.temporal.calendar,'standard')
+        ## test different forms of inspect ensuring the standard calendar is
+        ## correctly propagated
+        ips = [ocgis.Inspect(request_dataset=rd),ocgis.Inspect(uri=out_nc,variable='foo')]
+        for ip in ips:
+            self.assertNotIn('calendar',ip.meta['variables']['time']['attrs'])
+            self.assertTrue(ip.get_temporal_report()[2].endswith('standard'))
+        ip = ocgis.Inspect(uri=out_nc)
+        ## this method is only applicable when a variable is present
+        with self.assertRaises(AttributeError):
+            ip.get_report()
+        self.assertIsInstance(ip.get_report_no_variable(),list)
+    
     def test_agg_selection(self):
         features = [
          {'NAME':'a','wkt':'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},

@@ -167,6 +167,11 @@ class Inspect(object):
         return(lines)
     
     def get_report(self):
+        
+        ## a variable target is required for this method
+        if self.variable is None:
+            raise(AttributeError('A "variable" target is required.'))
+        
         mp = [
               {'=== Temporal =============':self.get_temporal_report},
               {'=== Spatial ==============':self.get_spatial_report},

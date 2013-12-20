@@ -27,7 +27,7 @@ class NcRequestDataset(object):
     
     def __init__(self,uri=None,variable=None,alias=None,time_range=None,
                  time_region=None,level_range=None,s_crs=None,t_units=None,
-                 t_calendar=None,did=None,meta=None,s_abstraction=None,
+                 t_calendar='standard',did=None,meta=None,s_abstraction=None,
                  dimension_map=None):
         
         self._uri = self._get_uri_(uri)
@@ -93,8 +93,11 @@ class NcRequestDataset(object):
     def get(self,format_time=True):
         
         def _get_temporal_adds_(ref_attrs):
+            ## calendar should default to standard if it is not present.
+            calendar = ref_attrs.get('calendar',None) or self.t_calendar
+            
             return({'units':self.t_units or ref_attrs['units'],
-                    'calendar':self.t_calendar or ref_attrs['calendar'],
+                    'calendar':calendar,
                     'format_time':format_time})
         
         ## parameters for the loading loop

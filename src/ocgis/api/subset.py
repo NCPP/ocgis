@@ -103,7 +103,9 @@ class SubsetOperation(object):
         ocgis_lh('processing...',self._subset_log,alias=alias)
         ## return the field object
         try:
-            field = [rd.get(format_time=self.ops.format_time) for rd in rds]
+            field = [rd.get(format_time=self.ops.format_time,
+                            interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) 
+                     for rd in rds]
             if len(field) > 1:
                 field[0].variables.add_variable(field[1].variables.first())
             field = field[0]
@@ -141,7 +143,6 @@ class SubsetOperation(object):
             
             ## reference variables from the geometry dictionary
             geom = gd.get('geom')
-            
             crs = gd.get('crs')
             
             if 'properties' in gd and 'UGID' in gd['properties']:

@@ -1,16 +1,10 @@
 import numpy as np
 import itertools
 from shapely.geometry.polygon import Polygon
-from collections import namedtuple
 import os
 import tempfile
-import warnings
-from osgeo import ogr, osr
-from shapely import wkt, wkb
-from shapely.geometry.multipolygon import MultiPolygon
-from shapely.ops import cascaded_union
-import re
-from ocgis.exc import DefinitionValidationError
+from osgeo import ogr
+from shapely import wkt
 import sys
 import datetime
 from copy import deepcopy
@@ -20,6 +14,58 @@ from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
 
+
+def get_interpolated_bounds(centroids):
+    '''
+    :param centroids: Vector representing center coordinates from which
+     to interpolate bounds.
+    :type centroids: np.ndarray
+    :raises: NotImplementedError, ValueError
+    
+    >>> import numpy as np
+    >>> centroids = np.array([1,2,3])
+    >>> get_interpolated_bounds(centroids)
+    np.array([[0, 1],[1, 2],[2, 3]])
+    '''
+    
+    if len(centroids) < 2:
+        raise(ValueError('Centroid arrays must have length >= 2.'))
+    
+    ## will hold the mean midpoints between coordinate elements
+    mids = np.zeros(centroids.shape[0]-1,dtype=centroids.dtype)
+    ## this is essentially a two-element span moving average kernel
+    for ii in range(mids.shape[0]):
+        try:
+            mids[ii] = np.mean(centroids[ii:ii+2])
+        ## if the data type is datetime.datetime raise a more verbose error
+        ## message
+        except TypeError:
+            if isinstance(centroids[ii],datetime.datetime):
+                raise(NotImplementedError('Bounds interpolation is not implemented for datetime.datetime objects.'))
+            else:
+                raise
+    ## account for edge effects by averaging the difference of the
+    ## midpoints. if there is only a single value, use the different of the
+    ## original values instead.
+    if len(mids) == 1:
+        diff = np.diff(centroids)
+    else:
+        diff = np.mean(np.diff(mids))
+    ## appends for the edges shifting the nearest coordinate by the mean
+    ## difference
+    mids = np.append([mids[0]-diff],mids)
+    mids = np.append(mids,[mids[-1]+diff])
+
+    ## loop to fill the bounds array
+    bounds = np.zeros((centroids.shape[0],2),dtype=centroids.dtype)
+    for ii in range(mids.shape[0]):
+        try:
+            bounds[ii,0] = mids[ii]
+            bounds[ii,1] = mids[ii+1]
+        except IndexError:
+            break
+        
+    return(bounds)
 
 def get_is_date_between(lower,upper,month=None,year=None):
     if month is not None:

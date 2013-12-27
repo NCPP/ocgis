@@ -408,6 +408,13 @@ class Headers(base.IterableParameter,base.OcgParameter):
         return('The following headers were used for file creation: {0}'.format(self.value))
 
 
+class InterpolateSpatialBounds(base.BooleanParameter):
+    name = 'interpolate_spatial_bounds'
+    default = False
+    meta_true = 'If no bounds are present on the coordinate variables, an attempt will be made to interpolate boundary polygons.'
+    meta_false = 'If no bounds are present on the coordinate variables, no attempt will be made to interpolate boundary polygons.'
+
+
 class OutputCRS(base.OcgParameter):
     input_types = [CoordinateReferenceSystem]
     name = 'output_crs'

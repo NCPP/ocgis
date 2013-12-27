@@ -27,9 +27,11 @@ from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from copy import deepcopy
 from contextlib import contextmanager
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc,\
-    SimpleNcNoBounds, SimpleMaskNc, SimpleNc360, SimpleNcProjection
+    SimpleNcNoBounds, SimpleMaskNc, SimpleNc360, SimpleNcProjection,\
+    SimpleNcNoSpatialBounds
 from csv import DictReader
 from ocgis.test.test_base import longrunning
+import webbrowser
 
 
 @contextmanager
@@ -126,6 +128,20 @@ class TestSimple(TestSimpleBase):
                            [3.0,3.0,4.0,4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+    
+    def test_multiple_request_datasets(self):
+        aliases = ['foo1','foo2','foo3','foo4']
+        rds = []
+        for alias in aliases:
+            rd = self.get_dataset()
+            rd['alias'] = alias
+            rds.append(rd)
+        ops = ocgis.OcgOperations(dataset=rds,output_format='csv')
+        ret = ops.execute()
+        with open(ret,'r') as f:
+            reader = csv.DictReader(f)
+            test_aliases = set([row['ALIAS'] for row in reader])
+        self.assertEqual(set(aliases),test_aliases)
     
     def test_missing_calendar_attribute(self):
         ## path to the test data file
@@ -988,6 +1004,24 @@ class TestSimple(TestSimpleBase):
             to_test = list(f)
             self.assertEqual(f.meta,{'crs': {u'no_defs': True, u'ellps': u'WGS84', u'proj': u'longlat'}, 'driver': u'ESRI Shapefile', 'schema': {'geometry': 'Polygon', 'properties': OrderedDict([(u'UGID', 'int:10')])}})
         self.assertEqual(to_test,[{'geometry': {'type': 'Polygon', 'coordinates': [[(-104.0, 38.0), (-104.0, 39.0), (-103.0, 39.0), (-103.0, 38.0), (-104.0, 38.0)]]}, 'type': 'Feature', 'id': '0', 'properties': OrderedDict([(u'UGID', 1)])}])
+
+
+class TestSimpleNoSpatialBounds(TestSimpleBase):
+    base_value = np.array([[1.0,1.0,2.0,2.0],
+                           [1.0,1.0,2.0,2.0],
+                           [3.0,3.0,4.0,4.0],
+                           [3.0,3.0,4.0,4.0]])
+    nc_factory = SimpleNcNoSpatialBounds
+    fn = 'test_simple_spatial_no_bounds_01.nc'
+    
+    def test_interpolate_bounds(self):
+        ret = self.get_ops(kwds={'interpolate_spatial_bounds':False}).execute()
+        with self.assertRaises(ImproperPolygonBoundsError):
+            ret[1]['foo'].spatial.geom.polygon
+            
+        ret = self.get_ops(kwds={'interpolate_spatial_bounds':True}).execute()
+        polygons = ret[1]['foo'].spatial.geom.polygon.value
+        self.assertIsInstance(polygons[0,0],Polygon)
 
 
 class TestSimpleMask(TestSimpleBase):

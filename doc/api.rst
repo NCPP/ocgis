@@ -289,6 +289,11 @@ Useful to limit the number of attributes included in an output file.
 
 >>> headers = ['did','time','value']
 
+interpolate_spatial_bounds
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If `True`, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
+
 :class:`ocgis.ShpCabinet`
 =========================
 

@@ -10,7 +10,7 @@ from ocgis.interface.base.crs import CFWGS84
 import fiona
 from csv import DictReader
 from ocgis.api.request.base import RequestDataset
-from ocgis.test.test_simple.test_simple import nc_scope, ToTest
+from ocgis.test.test_simple.test_simple import nc_scope
 from copy import deepcopy
 from ocgis.test.test_base import longrunning
 from shapely.geometry.point import Point

@@ -3,7 +3,8 @@ import numpy as np
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
     SpatialGridDimension, SpatialGeometryPointDimension
-from ocgis.util.helpers import iter_array, make_poly
+from ocgis.util.helpers import iter_array, make_poly, get_interpolated_bounds,\
+    get_date_list
 import fiona
 from fiona.crs import from_epsg
 from shapely.geometry import shape, mapping
@@ -12,6 +13,8 @@ from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError
 from ocgis.test.base import TestBase
 from ocgis.interface.base.crs import CoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.test.test_simple.test_simple import ToTest
+import datetime
 
 
 class TestSpatialBase(TestBase):
@@ -81,6 +84,37 @@ class TestSpatialBase(TestBase):
 
 
 class TestSpatialDimension(TestSpatialBase):
+    
+    def test_get_interpolated_bounds(self):
+        
+        sdim = self.get_sdim(bounds=False)
+        test_sdim = self.get_sdim(bounds=True)
+        
+        row_bounds = get_interpolated_bounds(sdim.grid.row.value)
+        col_bounds = get_interpolated_bounds(sdim.grid.col.value)
+        
+        self.assertNumpyAll(row_bounds,test_sdim.grid.row.bounds)
+        self.assertNumpyAll(col_bounds,test_sdim.grid.col.bounds)
+        
+        across_180 = np.array([-180,-90,0,90,180],dtype=float)
+        bounds_180 = get_interpolated_bounds(across_180)
+        self.assertEqual(bounds_180.tostring(),'\x00\x00\x00\x00\x00 l\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00 l@')
+        
+        dates = get_date_list(datetime.datetime(2000,1,31),datetime.datetime(2002,12,31),1)
+        with self.assertRaises(NotImplementedError):
+            get_interpolated_bounds(np.array(dates))
+        
+        with self.assertRaises(ValueError):    
+            get_interpolated_bounds(np.array([0],dtype=float))
+            
+        just_two = get_interpolated_bounds(np.array([50,75],dtype=float))
+        self.assertEqual(just_two.tostring(),'\x00\x00\x00\x00\x00\xc0B@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xe0U@')
+        
+        just_two_reversed = get_interpolated_bounds(np.array([75,50],dtype=float))
+        self.assertEqual(just_two_reversed.tostring(),'\x00\x00\x00\x00\x00\xe0U@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xc0B@')
+
+        zero_origin = get_interpolated_bounds(np.array([0,50,100],dtype=float))
+        self.assertEqual(zero_origin.tostring(),'\x00\x00\x00\x00\x00\x009\xc0\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00@_@')
                 
     def test_get_clip(self):
         sdim = self.get_sdim(bounds=True)

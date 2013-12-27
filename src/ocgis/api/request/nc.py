@@ -90,7 +90,7 @@ class NcRequestDataset(object):
                 ds.close()
         return(self.__source_metadata)
         
-    def get(self,format_time=True):
+    def get(self,format_time=True,interpolate_spatial_bounds=False):
         
         def _get_temporal_adds_(ref_attrs):
             ## calendar should default to standard if it is not present.
@@ -99,12 +99,16 @@ class NcRequestDataset(object):
             return({'units':self.t_units or ref_attrs['units'],
                     'calendar':calendar,
                     'format_time':format_time})
+            
+        ## this dictionary contains additional keyword arguments for the row
+        ## and column dimensions.
+        adds_row_col = {'interpolate_bounds':interpolate_spatial_bounds}
         
         ## parameters for the loading loop
         to_load = {'temporal':{'cls':NcTemporalDimension,'adds':_get_temporal_adds_,'axis':'T','name_uid':'tid','name_value':'time'},
                    'level':{'cls':NcVectorDimension,'adds':None,'axis':'Z','name_uid':'lid','name_value':'level'},
-                   'row':{'cls':NcVectorDimension,'adds':None,'axis':'Y','name_uid':'row_id','name_value':'row'},
-                   'col':{'cls':NcVectorDimension,'adds':None,'axis':'X','name_uid':'col_id','name_value':'col'},
+                   'row':{'cls':NcVectorDimension,'adds':adds_row_col,'axis':'Y','name_uid':'row_id','name_value':'row'},
+                   'col':{'cls':NcVectorDimension,'adds':adds_row_col,'axis':'X','name_uid':'col_id','name_value':'col'},
                    'realization':{'cls':NcVectorDimension,'adds':None,'axis':'R','name_uid':'rlz_id','name_value':'rlz'}}
         loaded = {}
         
@@ -138,8 +142,14 @@ class NcRequestDataset(object):
                 ## the class.
                 kwds = dict(name_uid=v['name_uid'],name_value=v['name_value'],src_idx=src_idx,
                             data=self,meta=ref_variable,axis=axis_value,name=ref_variable.get('name'))
+                ## there may be additional parameters for each dimension.
                 if v['adds'] is not None:
-                    kwds.update(v['adds'](ref_variable['attrs']))
+                    try:
+                        kwds.update(v['adds'](ref_variable['attrs']))
+                    ## adds may not be a callable object. assume they are a
+                    ## dictionary.
+                    except TypeError:
+                        kwds.update(v['adds'])
                 kwds.update({'name':ref_variable.get('name')})
                 fill = v['cls'](**kwds)
                 

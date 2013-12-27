@@ -12,6 +12,15 @@ class TestVectorDimension(unittest.TestCase):
     def assertNumpyNotAll(self,arr1,arr2):
         return(self.assertFalse(np.all(arr1 == arr2)))
     
+    def test_interpolate_bounds(self):
+        value = [10,20,30,40,50]
+        
+        vdim = VectorDimension(value=value)
+        self.assertEqual(vdim.bounds,None)
+        
+        vdim = VectorDimension(value=value,interpolate_bounds=True)
+        self.assertEqual(vdim.bounds.tostring(),'\x05\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x007\x00\x00\x00\x00\x00\x00\x00')
+    
     def test_get_iter(self):
         vdim = VectorDimension(value=[10,20,30,40,50])
         with self.assertRaises(ValueError):

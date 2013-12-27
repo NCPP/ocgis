@@ -3,7 +3,7 @@ import numpy as np
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
-    get_formatted_slice, assert_raise
+    get_formatted_slice, assert_raise, get_interpolated_bounds
 from copy import copy
 from ocgis.exc import EmptySubsetError, ResolutionError
 from operator import mul
@@ -135,6 +135,9 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         bounds = kwds.pop('bounds',None)
         self.name_bounds = kwds.pop('name_bounds',None)
         self._axis = kwds.pop('axis',None)
+        ## if True, an attempt will be made to interpolate bounds if None are
+        ## provided.
+        self._interpolate_bounds = kwds.pop('interpolate_bounds',False)
         
         AbstractSourcedVariable.__init__(self,kwds.pop('data',None),src_idx=kwds.pop('src_idx',None),value=kwds.get('value'))
         AbstractUidValueDimension.__init__(self,*args,**kwds)
@@ -154,6 +157,12 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         ## always load the value first. any bounds read from source are set during
         ## this process. bounds without values are meaningless!
         self.value
+        
+        ## if the bounds are None, check if an attempt should be made to interpolate
+        ## bounds from the value itself.
+        if self._interpolate_bounds and self._bounds is None:
+            self._bounds = get_interpolated_bounds(self.value)
+        
         ## if no error is encountered, then the bounds should have been set during
         ## loading from source. simply return the value. it will be none, if no
         ## bounds were present in the source data.

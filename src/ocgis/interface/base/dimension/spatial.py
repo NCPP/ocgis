@@ -2,7 +2,7 @@ import base
 import numpy as np
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import iter_array, get_none_or_slice, \
-    get_formatted_slice, get_reduced_slice, make_poly
+    get_formatted_slice, get_reduced_slice
 from shapely.geometry.point import Point
 from ocgis import constants
 import itertools
@@ -676,11 +676,11 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
         
         if self._value is None:
             if self.grid.row is None:
-                ocgis_lh(exc=ImproperPolygonBoundsError('Polygon dimensions require a row and column dimension with bounds.'))
+                raise(ImproperPolygonBoundsError('Polygon dimensions require a row and column dimension with bounds.'))
             else:
                 if self.grid.row.bounds is None:
-                    ocgis_lh(exc=ImproperPolygonBoundsError('Polygon dimensions require row and column dimension bounds to have delta > 0.'))
-    
+                    raise(ImproperPolygonBoundsError('Polygon dimensions require row and column dimension bounds to have delta > 0.'))
+                    
     @property
     def area(self):
         r_value = self.value

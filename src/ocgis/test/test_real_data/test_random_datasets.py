@@ -314,6 +314,7 @@ class Test(TestBase):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         geom = [-97.74278,30.26694]
 #        ocgis.env.VERBOSE = True
+#        ocgis.env.DEBUG = True
     
         calc = [{'func':'mean','name':'mean'},
                 {'func':'median','name':'median'},

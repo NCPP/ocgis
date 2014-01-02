@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 
 ## try to turn off fiona logging
 try:
@@ -20,6 +19,7 @@ class OcgisLogging(object):
         
     def __call__(self,msg=None,logger=None,level=logging.INFO,alias=None,ugid=None,exc=None,
                  check_duplicate=False):
+        
         if self.null:
             if exc is None:
                 pass
@@ -96,9 +96,6 @@ class OcgisLogging(object):
             logging.shutdown()
         except:
             pass
-    
-#    def _reset_handlers_(self):
-#        logging.getLogger('ocgis').handlers = []
 
 
 ocgis_lh = OcgisLogging()

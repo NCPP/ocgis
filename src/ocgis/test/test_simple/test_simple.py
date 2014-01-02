@@ -171,6 +171,8 @@ class TestSimple(TestSimpleBase):
         rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
         self.assertEqual(rd.t_calendar,'standard')
         self.assertIsInstance(rd.inspect_as_dct(),OrderedDict)
+        self.assertEqual(rd.inspect_as_dct()['derived']['Calendar'],
+                         'None (will assume "standard")')
         field = rd.get()
         ## the standard calendar name should be available at the dataset level
         self.assertEqual(field.temporal.calendar,'standard')
@@ -179,7 +181,7 @@ class TestSimple(TestSimpleBase):
         ips = [ocgis.Inspect(request_dataset=rd),ocgis.Inspect(uri=out_nc,variable='foo')]
         for ip in ips:
             self.assertNotIn('calendar',ip.meta['variables']['time']['attrs'])
-            self.assertTrue(ip.get_temporal_report()[2].endswith('standard'))
+            self.assertTrue(ip.get_temporal_report()[2].endswith(('will assume "standard")')))
         ip = ocgis.Inspect(uri=out_nc)
         ## this method is only applicable when a variable is present
         with self.assertRaises(AttributeError):

@@ -102,7 +102,12 @@ class Inspect(object):
             res,start_date,end_date = ['NA (singleton)']*3
             
         n = len(self._t.value)
-        calendar = self._t.calendar
+        
+        ## if the calendar attribute is not set, the feature should not be masked
+        calendar = self.meta['variables'][self._t.name]['attrs'].get('calendar')
+        if calendar is None:
+            calendar = 'None (will assume "standard")'
+        
         units = self._t.units
         
         lines = []

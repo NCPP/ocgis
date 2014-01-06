@@ -296,7 +296,7 @@ class TestField(AbstractTestField):
                 self.assertNumpyAll(ret.variables['tmax'].value,field.variables['tmax'].value[0:1,:,:,:,:])
                 
             ret = field.get_between('temporal',dt(2000,1,15),dt(2000,1,30))
-            self.assertEqual(ret.temporal.value[0],dt(2000,1,14,12))
+            self.assertEqual(ret.temporal.value[0],dt(2000,1,15,12))
             self.assertEqual(ret.temporal.value[-1],dt(2000,1,30,12))
     
     def test_empty(self):

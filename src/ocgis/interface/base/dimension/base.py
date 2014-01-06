@@ -209,20 +209,48 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
     def get_between(self,lower,upper,return_indices=False,closed=False):
         assert(lower <= upper)
         
+        ## determine if data bounds are contiguous (if bounds exists for the
+        ## data). bounds must also have more than one row
+        is_contiguous = False
+        if self.bounds is not None:
+            if len(set(self.bounds[0,:]).intersection(set(self.bounds[1,:]))) > 0:
+                is_contiguous = True
+        
+        ## subset operation when bounds are not present
         if self.bounds is None:
             if closed:
                 select = np.logical_and(self.value > lower,self.value < upper)
             else:
                 select = np.logical_and(self.value >= lower,self.value <= upper)
+        ## subset operation in the presence of bounds
         else:
-            bounds_min = np.min(self.bounds,axis=1)
-            bounds_max = np.max(self.bounds,axis=1)
+            ## determine which bound column contains the minimum
+            if self.bounds[0,0] <= self.bounds[0,1]:
+                lower_index = 0
+                upper_index = 1
+            else:
+                lower_index = 1
+                upper_index = 0
+            ## reference the minimum and maximum bounds
+            bounds_min = self.bounds[:,lower_index]
+            bounds_max = self.bounds[:,upper_index]
+            
+            ## if closed is True, then we are working on a closed interval and
+            ## are not concerned if the values at the bounds are equivalent. it
+            ## does not matter if the bounds are contiguous.
             if closed:
                 select_lower = np.logical_or(bounds_min > lower,bounds_max > lower)
                 select_upper = np.logical_or(bounds_min < upper,bounds_max < upper)
             else:
-                select_lower = np.logical_or(bounds_min >= lower,bounds_max >= lower)
-                select_upper = np.logical_or(bounds_min <= upper,bounds_max <= upper)
+                ## if the bounds are contigous, then preference is given to the
+                ## lower bound to avoid duplicate containers (contiguous bounds
+                ## share a coordinate)
+                if is_contiguous:
+                    select_lower = np.logical_or(bounds_min >= lower,bounds_max > lower)
+                    select_upper = np.logical_or(bounds_min <= upper,bounds_max < upper)
+                else:
+                    select_lower = np.logical_or(bounds_min >= lower,bounds_max >= lower)
+                    select_upper = np.logical_or(bounds_min <= upper,bounds_max <= upper)
             select = np.logical_and(select_lower,select_upper)
         
         if select.any() == False:

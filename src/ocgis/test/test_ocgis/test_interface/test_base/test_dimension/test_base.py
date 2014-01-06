@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from ocgis.exc import EmptySubsetError, ResolutionError
 from ocgis.interface.base.dimension.base import VectorDimension
+from copy import deepcopy
 
 
 class TestVectorDimension(unittest.TestCase):
@@ -110,6 +111,12 @@ class TestVectorDimension(unittest.TestCase):
             VectorDimension()
         
     def test_get_between(self):
+        
+        ## TODO: test lower v upper contiguous rank
+        ## TODO: test non-contiguous data
+        ## TODO: test closed v. not closed
+        ## TODO: test for single value
+        
         vdim = VectorDimension(value=[0])
         with self.assertRaises(EmptySubsetError):
             vdim.get_between(100,200)
@@ -119,13 +126,50 @@ class TestVectorDimension(unittest.TestCase):
         self.assertEqual(len(vdim_between),2)
     
     def test_get_between_bounds(self):
-        vdim = VectorDimension(value=[0.,5.,10.],bounds=[[-2.5,2.5],[2.5,7.5],[7.5,12.5]])
-        vdim_between = vdim.get_between(1,3)
-        self.assertEqual(len(vdim_between),2)
-        self.assertEqual(vdim.resolution,5.0)
+        value = [0.,5.,10.]
+        bounds = [[-2.5,2.5],[2.5,7.5],[7.5,12.5]]
         
-        vdim_between = vdim.get_between(2.5,2.5)
-        self.assertEqual(len(vdim_between),2)
+        ## a reversed copy of these bounds are created here
+        value_reverse = deepcopy(value)
+        value_reverse.reverse()
+        bounds_reverse = deepcopy(bounds)
+        bounds_reverse.reverse()
+        for ii in range(len(bounds)):
+            bounds_reverse[ii].reverse()
+        
+        data = {'original':{'value':value,'bounds':bounds},
+                'reversed':{'value':value_reverse,'bounds':bounds_reverse}}
+        for key in ['original','reversed']:
+            vdim = VectorDimension(value=data[key]['value'],
+                                   bounds=data[key]['bounds'])
+            
+            vdim_between = vdim.get_between(1,3)
+            self.assertEqual(len(vdim_between),2)
+            if key == 'original':
+                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
+            else:
+                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
+            self.assertEqual(vdim.resolution,5.0)
+            
+            ## preference is given to the lower bound in the case of "ties" where
+            ## the value could be assumed part of the lower or upper cell
+            vdim_between = vdim.get_between(2.5,2.5)
+            self.assertEqual(len(vdim_between),1)
+            if key == 'original':
+                self.assertNumpyAll(vdim_between.bounds,np.array([[2.5,7.5]]))
+            else:
+                self.assertNumpyAll(vdim_between.bounds,np.array([[7.5,2.5]]))
+            
+            ## if the interval is closed and the subset range falls only on bounds
+            ## value then the subset will be empty
+            with self.assertRaises(EmptySubsetError):
+                vdim.get_between(2.5,2.5,closed=True)
+                
+            vdim_between = vdim.get_between(2.5,7.5)
+            if key == 'original':
+                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
+            else:
+                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
         
 
 if __name__ == "__main__":

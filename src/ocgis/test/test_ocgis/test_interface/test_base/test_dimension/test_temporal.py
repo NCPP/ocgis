@@ -8,6 +8,19 @@ import datetime
 
 class TestTemporalDimension(TestBase):
     
+    def test_get_grouping(self):
+        dates = get_date_list(datetime.datetime(1899,1,1,12),datetime.datetime(1901,12,31,12),days=1)
+        delta = datetime.timedelta(hours=12)
+        lower = np.array(dates) - delta
+        upper = np.array(dates) + delta
+        bounds = np.empty((lower.shape[0],2),dtype=object)
+        bounds[:,0] = lower
+        bounds[:,1] = upper
+        td = TemporalDimension(value=dates,bounds=bounds)
+        td = td.get_between(datetime.datetime(1900,1,1),datetime.datetime(1900,12,31,23,59))
+        tgd = td.get_grouping(['year'])
+        self.assertEqual(tgd.value,np.array([datetime.datetime(1900,7,1)]))
+    
     def test_time_range_subset(self):
         dt1 = datetime.datetime(1950,01,01,12)
         dt2 = datetime.datetime(1950,12,31,12)

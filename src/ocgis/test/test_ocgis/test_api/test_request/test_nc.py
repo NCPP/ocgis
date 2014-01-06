@@ -137,9 +137,9 @@ class TestNcRequestDataset(TestBase):
         uri = self.test_data.get_uri('cancm4_tas')
         rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,time_range=[dt(2005,2,15),dt(2007,4,18)])
         field = rd.get()
-        self.assertEqual(field.temporal.value_datetime[0],dt(2005, 2, 14, 12, 0))
+        self.assertEqual(field.temporal.value_datetime[0],dt(2005, 2, 15, 12, 0))
         self.assertEqual(field.temporal.value_datetime[-1],dt(2007, 4, 18, 12, 0))
-        self.assertEqual(field.shape,(1,794,1,64,128))
+        self.assertEqual(field.shape,(1,793,1,64,128))
         
     def test_load_time_region(self):
         ref_test = self.test_data['cancm4_tas']

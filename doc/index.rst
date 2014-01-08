@@ -25,6 +25,7 @@ Contents:
    computation
    examples
    utility
+   appendix
 
 .. Indices and tables
 ..  ==================

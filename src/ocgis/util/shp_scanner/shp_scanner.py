@@ -1,14 +1,11 @@
-import os
 import fiona
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator
 from ConfigParser import SafeConfigParser, NoOptionError
 from sqlalchemy.orm.exc import NoResultFound
-from collections import OrderedDict
 import json
 import labels
 from ocgis.util.shp_scanner import db
 import webbrowser
-from sqlalchemy.exc import IntegrityError
 
 
 KEYS = {
@@ -21,7 +18,23 @@ KEYS = {
         }
 METADATA_ATTRS = ['download_url','metadata_url','download_date','description','history']
 OUT_JSON_PATH = '/tmp/ocgis_geometries.json'
+#: if True, remove geometries overlapping the geometries returned by
+#: get_filter_geometries.
+FILTER_GEOMETRIES = True
 
+
+def get_filter_geometries():
+    '''
+    >>> geoms = get_filter_geometries()
+    >>> len(geoms)
+    2
+    '''
+    state_names = ['Hawaii','Alaska']
+    geoms = []
+    for row in ShpCabinetIterator('state_boundaries'):
+        if row['properties']['STATE_NAME'] in state_names:
+            geoms.append(row['geom'])
+    return(geoms)
 
 def get_or_create(session,Model,**kwargs):
     try:
@@ -54,7 +67,12 @@ def build_key(key,session):
     kwds['key'] = key
     category = db.Category(**kwds)
     
-    for row in KEYS[key][1](key):
+    if FILTER_GEOMETRIES:
+        filter_geometries = get_filter_geometries()
+    else:
+        filter_geometries = None
+    
+    for row in KEYS[key][1](key,filter_geometries=filter_geometries):
         try:
             subcategory = get_or_create(session,db.Subcategory,label=row['subcategory_label'],category=category)
         except KeyError:
@@ -111,130 +129,9 @@ def get_metadata(key):
 def main():
     build_database()
     write_json(OUT_JSON_PATH)
-
-#def build_huc_table(key,huc_attr):
-#    sc = ShpCabinet()
-#    ## get the HUC2 codes for reference
-#    huc2_path = sc.get_shp_path('WBDHU2_June2013')
-#    with fiona.open(huc2_path,'r') as source:
-#        huc2 = {feature['properties']['HUC2']:feature['properties']['Name'] for feature in source}
-#    
-#    ## bring in the HUC8 features determining the category based on the the HUC2
-#    ## codes.
-#    session = Session()
-#    huc_path = sc.get_shp_path(key)
-#    with fiona.open(huc_path,'r') as source:
-#        for feature in source:
-#            code = feature['properties'][huc_attr]
-#            name = feature['properties']['Name']
-#            ugid = feature['properties']['UGID']
-#            huc2_region = huc2[code[0:2]]
-#            db_category = get_or_create(session,Category,value='{0} - {1}'.format(huc_attr,huc2_region),key=key)
-#            db_geometry = Geometry(value=name,ugid=ugid,category=db_category,subcategory=None)
-#            session.add(db_geometry)
-#    session.commit()
-#    session.close()
-
-#def abuild_database():
-#    try:
-#        os.remove(db_path)
-#    except:
-#        pass
-#    
-#    metadata.create_all()
-#    session = Session()
-#    
-#    sc = ShpCabinet()
-#    
-#    keys = [
-##            'qed_tbw_basins',
-##            'qed_tbw_watersheds',
-#            'state_boundaries',
-#            'us_counties',
-#            'WBDHU8_June2013',
-##            'qed_city_centroids',
-#            'eco_level_III_us',
-#            ]
-#    
-#    for key in keys:
-#        print(key)
-#        
-#        ## special processing required for HUC tables
-#        if key in ['WBDHU8_June2013']:
-#            build_huc_table(key,'HUC8')
-#            continue
-#        
-#        shp_path = sc.get_shp_path(key)
-#        cfg_path = sc.get_cfg_path(key)
-#        
-#        config = SafeConfigParser()
-#        config.read(cfg_path)
-#        try:
-#            ugid = config.get('mapping','ugid')
-#        except:
-#            ugid = 'UGID'
-#        category = config.get('mapping','category')
-#        try:
-#            subcategory = config.get('mapping','subcategory')
-#        except NoOptionError:
-#            subcategory = None
-#        name = config.get('mapping','name')
-#        
-#        db_category = Category(value=category,key=key)
-#        session.add(db_category)
-#        session.commit()
-#        
-#        with fiona.open(shp_path, 'r') as source:
-#            n = len(source)
-#            for ctr,feature in enumerate(source):
-#                if ctr % 1000 == 0:
-#                    print('{0} of {1}'.format(ctr,n))
-#                
-#                if subcategory is None:
-#                    db_subcategory = None
-#                else:
-#                    value_subcategory = get_variant(subcategory,feature)
-#                    db_subcategory = get_or_create(session,Subcategory,value=value_subcategory,category=db_category)
-#                
-#                value_name = get_variant(name,feature)
-#                value_name_ugid = get_variant(ugid,feature)
-#                if len(value_name) > 25:
-#                    value_name = value_name[0:25]+'...'
-#                db_name = Geometry(value=value_name,ugid=value_name_ugid,category=db_category,
-#                               subcategory=db_subcategory)
-#                session.add(db_name)
-#            session.commit()
-#    
-#    session.close()
     
 
 if __name__ == '__main__':
+#    import doctest
+#    doctest.testmod()
     main()
-
-### first build the database
-#build_database()
-### fill the json dictionary
-#to_dump = OrderedDict()
-#session = Session()
-#for row in session.query(Geometry):
-#    try:
-#        ref = to_dump[row.label_formatted]['geometries']
-#    except KeyError:
-#        to_dump[row.label_formatted] = {'key':row.category.key,'geometries':{}}
-#        ref = to_dump[row.label_formatted]['geometries']
-#    ref.update({row.value_formatted:row.ugid})
-#    
-#fmtd = json.dumps(to_dump)
-#with open(json_path,'w') as f:
-#    f.write(fmtd)
-#
-#category = 'US State Boundaries'
-#geometry = ['Delaware']
-#
-#with open(json_path,'r') as f:
-#    mapping = json.load(f)
-#    
-#geom = mapping[category]['key']
-#select_ugid = [mapping[category]['geometries'][g] for g in geometry]
-
-#webbrowser.open(json_path)

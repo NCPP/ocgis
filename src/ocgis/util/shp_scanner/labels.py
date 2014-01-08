@@ -1,39 +1,48 @@
 import abc
 from ocgis.util.shp_cabinet import ShpCabinetIterator
-
-
-class NoSubcategoryError(Exception):
-    pass
-
-
-class MalformedLabel(Exception):
-    
-    def __init__(self,label,key,reason='comma'):
-        self.label = label
-        self.reason = reason
-        self.key = key
-        
-    def __str__(self):
-        msg = 'A {0} is present in the label "{1}" contained in shapefile dataset with key "{2}"'.format(self.reason,self.label,self.key)
-        return(msg)
+from exc import *
 
 
 class AbstractLabelMaker(object):
+    '''
+    :param key: The shapefile's key or name.
+    :type key: str
+    :param filter_geometries: Sequence of geometries to use as a not filter.
+    :type filter_geometries: sequence
+    :param make_labels: If True, added geometry and subcategory labels. 
+    :type make_labels: bool
+    '''
     __metaclass__ = abc.ABCMeta
     _malformed_map = {}
     
-    def __init__(self,key):
+    def __init__(self,key,filter_geometries=None,make_labels=True):
         self.key = key
+        self.filter_geometries = filter_geometries
+        self.make_labels = make_labels
         
     def __iter__(self):
         sci = ShpCabinetIterator(self.key)
         for row in sci:
+            
+            ## if there is overlap with a filter geometry, the geometry should
+            ## not be included
+            if self.filter_geometries is not None:
+                exclude = False
+                for filter_geometry in self.filter_geometries:
+                    if filter_geometry.intersects(row['geom']) and not filter_geometry.touches(row['geom']):
+                        exclude = True
+                        break
+                if exclude:
+                    continue
+                
             row['envelope'] = row['geom'].envelope.wkt
-            row['geometry_label'] = self.get_geometry_label(row['properties'])
-            try:
-                row['subcategory_label'] = self.get_subcategory_label(row['properties'])
-            except NoSubcategoryError:
-                pass
+            
+            if self.make_labels:
+                row['geometry_label'] = self.get_geometry_label(row['properties'])
+                try:
+                    row['subcategory_label'] = self.get_subcategory_label(row['properties'])
+                except NoSubcategoryError:
+                    pass
             yield(row)
     
     def get_geometry_label(self,properties):
@@ -69,7 +78,9 @@ class Huc8Boundaries(AbstractLabelMaker):
         AbstractLabelMaker.__init__(self,*args,**kwds)
         
         ## collect state boundary geometries
-        self.states = list(ShpCabinetIterator('state_boundaries'))
+        self.states = list(StateBoundaries('state_boundaries',
+                                           filter_geometries=kwds.get('filter_geometries'),
+                                           make_labels=False))
         
     def __iter__(self):
         sci = ShpCabinetIterator(self.key)

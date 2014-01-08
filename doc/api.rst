@@ -70,12 +70,12 @@ This sets the output folder for any disk formats. If this is `None` and `env.DIR
 spatial_operation
 ~~~~~~~~~~~~~~~~~
 
-====================== ===================================================================================================================
-Value                  Description
-====================== ===================================================================================================================
-`intersects` (default) Source geometries touching or overlapping selection geometries are returned.
-`clip`                 A full geometric intersection is performed between source and selection geometries. New geometries may be created.
-====================== ===================================================================================================================
+======================== =============================================================================================================================================
+Value                    Description
+======================== =============================================================================================================================================
+``intersects`` (default) Source geometries touching or overlapping selection geometries are returned (see :ref:`appendix-intersects`).
+``clip``                 A full geometric intersection is performed between source and selection geometries. New geometries may be created. (see :ref:`appendix-clip`)
+======================== =============================================================================================================================================
 
 .. _geom:
 
@@ -113,10 +113,12 @@ The `crs` key is optional. If it is not included, WGS84 is assumed. The `propert
 
 >>> geom = [{'geom':Point(x,y),'properties':{'UGID':23,'NAME':'geometry23'},'crs':CoordinateReferenceSystem(epsg=4326)},...]
 
+.. _search_radius_mult key:
+
 search_radius_mult
 ~~~~~~~~~~~~~~~~~~
 
-This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. 
+This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``0.75``.
 
 output_crs
 ~~~~~~~~~~
@@ -126,12 +128,12 @@ By default, the coordinate reference system (CRS) is the CRS of the input :class
 aggregate
 ~~~~~~~~~
 
-====================== ========================================================
-Value                  Description
-====================== ========================================================
-`True`                 Selected geometries are combined into a single geometry.
-`False` (default)      Selected geometries are not combined.
-====================== ========================================================
+=================== ========================================================================================
+Value               Description
+=================== ========================================================================================
+``True``            Selected geometries are combined into a single geometry (see :ref:`appendix-aggregate`).
+``False`` (default) Selected geometries are not combined.
+=================== ========================================================================================
 
 .. _calc_headline:
 
@@ -147,15 +149,17 @@ calc_grouping
 
 There are two forms for this argument:
 
- 1. Date Part Grouping: Any combination of 'day', 'month', and 'year'.
+1. **Date Part Grouping**: Any combination of 'day', 'month', and 'year'.
 
 >>> calc_grouping = ['day']
 >>> calc_grouping = ['month','year']
 >>> calc_grouping = ['day','year']
 
+Temporal aggregation splits date/time coordinates into parts and groups them according to `unique combinations` of those parts. If data is grouped by month, then all of the January times would be in one group with all of the August times in another. If a grouping of month and year are applied, then all of the January 2000 times would be in a group with all of the January 2001 times and so on.
+
 Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one (i.e. one day per aggregation group).
 
- 2. Seasonal Groups: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representatative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
+2. **Seasonal Groups**: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representatative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
 
 Month integers map as expected (1=January, 2=February, etc.). The example below constructs a single season composed of March, April, and May. Note the nested lists.
 
@@ -164,6 +168,10 @@ Month integers map as expected (1=January, 2=February, etc.). The example below 
 The next example consumes all the months in a year.
 
 >>> calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
+
+It is also possible to group the seasons by year.
+
+>>> calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11],'year']
 
 .. _calc_raw_headline:
 

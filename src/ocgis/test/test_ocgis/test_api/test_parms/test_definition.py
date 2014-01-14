@@ -99,6 +99,10 @@ class Test(TestBase):
         self.assertEqual(cg.value,('day','month'))
         with self.assertRaises(DefinitionValidationError):
             cg.value = ['d','foo']
+            
+    def test_calc_grouping_all(self):
+        cg = CalcGrouping('all')
+        self.assertEqual(cg.value,'all')
     
     def test_calc_grouping_seasonal_aggregation(self):
         cg = CalcGrouping([[1,2,3],[4,5,6]])

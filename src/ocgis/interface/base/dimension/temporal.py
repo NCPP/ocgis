@@ -12,8 +12,54 @@ from ocgis.util.helpers import get_is_date_between
 class TemporalDimension(base.VectorDimension):
     _date_parts = ('year','month','day','hour','minute','second','microsecond')
     _axis = 'T'
-        
+    
     def get_grouping(self,grouping):
+        ## there is no need to go through the process of breaking out datetime
+        ## parts when the grouping is 'all'.
+        if grouping == 'all':
+            new_bounds,date_parts,repr_dt,dgroups = self._get_grouping_all_()
+        else:
+            new_bounds,date_parts,repr_dt,dgroups = self._get_grouping_other_(grouping)
+
+        tgd = self._get_temporal_group_dimension_(
+                    grouping=grouping,date_parts=date_parts,bounds=new_bounds,
+                    dgroups=dgroups,value=repr_dt,name_value='time',name_uid='tid',
+                    name=self.name,meta=self.meta,units=self.units)
+        
+        return(tgd)
+    
+    def _get_grouping_all_(self):
+        '''
+        Applied when the grouping is 'all'.
+        '''
+        
+        value = self._get_datetime_value_()
+        bounds = self._get_datetime_bounds_()
+        try:
+            lower = bounds.min()
+            upper = bounds.max()
+        ## bounds may be None
+        except AttributeError:
+            lower = value.min()
+            upper = value.max()
+        
+        ## new bounds are simply the minimum and maximum values chosen either from
+        ## the value or bounds array. bounds are given preference.
+        new_bounds = np.array([lower,upper]).reshape(-1,2)
+        ## date parts are not needed for the all case
+        date_parts = None
+        ## the group should be set to select all data.
+        dgroups = [slice(None)]
+        ## the representative datetime is the center of the value array.
+        repr_dt = np.array([value[int((self.value.shape[0]/2)-1)]])
+        
+        return(new_bounds,date_parts,repr_dt,dgroups)
+    
+    def _get_grouping_other_(self,grouping):
+        '''
+        Applied to groups other than 'all'.
+        '''
+        
         ## map date parts to index positions in date part storage array and flip
         ## they key-value pairs
         group_map = dict(zip(range(0,7),self._date_parts,))
@@ -51,7 +97,6 @@ class TemporalDimension(base.VectorDimension):
                 if group_map[idx] in grouping:
                     fill = np.unique(parts[:,idx])
                 else:
-    #                fill = np.array([0])
                     fill = [None]
                 unique.append(fill)
     
@@ -102,12 +147,10 @@ class TemporalDimension(base.VectorDimension):
         
         new_bounds = np.atleast_2d(new_bounds).reshape(-1,2)
         date_parts = np.atleast_1d(new_value)
+        ## this is the representative center time for the temporal group
         repr_dt = self._get_grouping_representative_datetime_(grouping,new_bounds,date_parts)
-
-        return(self._get_temporal_group_dimension_(
-                    grouping=grouping,date_parts=date_parts,bounds=new_bounds,
-                    dgroups=dgroups,value=repr_dt,name_value='time',name_uid='tid',
-                    name=self.name,meta=self.meta,units=self.units))
+        
+        return(new_bounds,date_parts,repr_dt,dgroups)
         
     def get_iter(self,*args,**kwds):
         r_name_value = self.name_value

@@ -8,18 +8,38 @@ import datetime
 
 class TestTemporalDimension(TestBase):
     
-    def test_get_grouping(self):
+    def get_temporal_dimension(self,add_bounds=True):
         dates = get_date_list(datetime.datetime(1899,1,1,12),datetime.datetime(1901,12,31,12),days=1)
-        delta = datetime.timedelta(hours=12)
-        lower = np.array(dates) - delta
-        upper = np.array(dates) + delta
-        bounds = np.empty((lower.shape[0],2),dtype=object)
-        bounds[:,0] = lower
-        bounds[:,1] = upper
+        if add_bounds:
+            delta = datetime.timedelta(hours=12)
+            lower = np.array(dates) - delta
+            upper = np.array(dates) + delta
+            bounds = np.empty((lower.shape[0],2),dtype=object)
+            bounds[:,0] = lower
+            bounds[:,1] = upper
+        else:
+            bounds = None
         td = TemporalDimension(value=dates,bounds=bounds)
+        return(td)
+    
+    def test_get_grouping(self):
+        td = self.get_temporal_dimension()
         td = td.get_between(datetime.datetime(1900,1,1),datetime.datetime(1900,12,31,23,59))
         tgd = td.get_grouping(['year'])
         self.assertEqual(tgd.value,np.array([datetime.datetime(1900,7,1)]))
+        
+    def test_get_grouping_for_all(self):
+        for b in [True,False]:
+            td = self.get_temporal_dimension(add_bounds=b)
+            tgd = td.get_grouping('all')
+            self.assertEqual(tgd.dgroups,[slice(None)])
+            self.assertEqual(td.value[546],tgd.value[0])
+            if b:
+                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1),
+                                                          datetime.datetime(1902,1,1)]]))
+            else:
+                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1,12),
+                                                          datetime.datetime(1901,12,31,12)]]))
     
     def test_time_range_subset(self):
         dt1 = datetime.datetime(1950,01,01,12)

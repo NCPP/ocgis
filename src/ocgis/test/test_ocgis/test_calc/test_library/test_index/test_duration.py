@@ -8,6 +8,7 @@ import csv
 from ocgis.api.request.base import RequestDataset
 import webbrowser
 from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
+from ocgis.test.test_base import longrunning
 
 
 class TestDuration(AbstractCalcBase):
@@ -53,14 +54,15 @@ class TestDuration(AbstractCalcBase):
         values = np.ma.array(values,mask=False)
         ret = duration.calculate(values,4,operation='gte',summary='mean')
         self.assertNumpyAll(np.array([ 4. ,  2. ,  1.5,  1.5]),ret.flatten())
-        
+    
+    def test_standard_operations(self):
         ret = self.run_standard_operations(
          [{'func':'duration','name':'max_duration','kwds':{'operation':'gt','threshold':2,'summary':'max'}}],
          capture=True)
         for cap in ret:
             reraise = True
             if isinstance(cap['exception'],DefinitionValidationError):
-                if cap['parms']['calc_grouping'] == ['month']:
+                if cap['parms']['calc_grouping'] in [['month'],'all']:
                     reraise = False
             if reraise:
                 raise(cap['exception'])
@@ -91,7 +93,8 @@ class TestFrequencyDuration(AbstractCalcBase):
                     pass
             else:
                 raise(dct['exception'])
-            
+    
+    @longrunning
     def test_real_data_multiple_datasets(self):
         ocgis.env.DIR_DATA = '/usr/local/climate_data'
         

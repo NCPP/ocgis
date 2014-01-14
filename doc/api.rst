@@ -147,7 +147,7 @@ See the :ref:`computation_headline` page for more details.
 calc_grouping
 ~~~~~~~~~~~~~
 
-There are two forms for this argument:
+There are three forms for this argument:
 
 1. **Date Part Grouping**: Any combination of 'day', 'month', and 'year'.
 
@@ -159,7 +159,11 @@ Temporal aggregation splits date/time coordinates into parts and groups them acc
 
 Any temporal aggregation applied to a dataset should be consistent with the input data's temporal resolution. For example, aggregating by day, month, and year on daily input dataset is not a reasonable aggregation as the data selected for aggregation will have a sample size of one (i.e. one day per aggregation group).
 
-2. **Seasonal Groups**: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representatative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
+2. **Summarize Over All**: The string ``'all'`` indicates the entire time domain should be summarized.
+
+>>> calc_grouping = 'all'
+
+3. **Seasonal Groups**: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representatative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
 
 Month integers map as expected (1=January, 2=February, etc.). The example below constructs a single season composed of March, April, and May. Note the nested lists.
 

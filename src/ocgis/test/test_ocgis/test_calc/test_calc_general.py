@@ -1,6 +1,5 @@
 import unittest
 import numpy as np
-from ocgis.calc import library
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 import ocgis
@@ -8,14 +7,9 @@ import datetime
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 import itertools
-from ocgis.exc import DefinitionValidationError
-import webbrowser
 from ocgis.calc.engine import OcgCalculationEngine
-from unittest.case import SkipTest
-from ocgis.util.inspect import Inspect
-from ocgis.calc.library.statistics import StandardDeviation, Mean
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.calc.library.index.duration import Duration
+from ocgis.test.test_simple.test_simple import ToTest
 
 
 
@@ -29,7 +23,7 @@ class AbstractCalcBase(TestBase):
     
     def run_standard_operations(self,calc,capture=False,output_format=None):
         _aggregate = [False,True]
-        _calc_grouping = [['month'],['month','year']]
+        _calc_grouping = [['month'],['month','year'],'all']
         _output_format = output_format or ['numpy','csv+','nc']
         captured = []
         for ii,tup in enumerate(itertools.product(_aggregate,_calc_grouping,_output_format)):
@@ -50,6 +44,8 @@ class AbstractCalcBase(TestBase):
                         space_shape = [5,4]
                     if calc_grouping == ['month']:
                         shp1 = [12]
+                    elif calc_grouping == 'all':
+                        raise(NotImplementedError('calc_grouping all'))
                     else:
                         shp1 = [24]
                     test_shape = [1] + shp1 + [1] + space_shape
@@ -78,6 +74,20 @@ class Test(AbstractCalcBase):
      * Data is required to be 4-dimensional:
          arr.shape = (t,1,m,n)
     '''
+    
+    def test_date_groups_all(self):
+        calc = [{'func':'mean','name':'mean'}]
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        
+        calc_grouping = 'all'
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        self.assertEqual(ret[25]['tasmax'].variables['mean_tasmax'].parents['tasmax'].value.shape,
+                         (1,3650,1,5,4))
+        self.assertEqual(ret[25]['tasmax'].shape,(1,1,1,5,4))
+        self.assertNumpyAll(np.ma.mean(ret[25]['tasmax'].variables['mean_tasmax'].parents['tasmax'].value,axis=1).astype('float32').reshape(1,1,1,5,4),
+                            ret[25]['tasmax'].variables['mean_tasmax'].value)
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}
@@ -293,152 +303,6 @@ class TestOcgCalculationEngine(TestBase):
             if agg is True:
                 self.assertNumpyAll(value.shape[-2:],(1,1))
 
-
-#class TestDynamicDailyKernelPercentileThreshold(TestBase):
-#    
-#    def get_percentile_reference(self):
-#        years = [2001,2002,2003]
-#        days = [3,4,5,6,7]
-#        
-#        dates = []
-#        for year,day in itertools.product(years,days):
-#            dates.append(datetime.datetime(year,6,day,12))
-#            
-#        ds = nc.Dataset(self.test_data.get_uri('cancm4_tas'))
-#        try:
-#            calendar = ds.variables['time'].calendar
-#            units = ds.variables['time'].units
-#            ncdates = nc.num2date(ds.variables['time'][:],units,calendar=calendar)
-#            indices = []
-#            for ii,ndate in enumerate(ncdates):
-#                if ndate in dates:
-#                    indices.append(ii)
-#            tas = ds.variables['tas'][indices,:,:]
-#            ret = np.percentile(tas,10,axis=0)
-#        finally:
-#            ds.close()
-#            
-#        return(ret)
-#    
-#    def test_constructor(self):
-#        DynamicDailyKernelPercentileThreshold()
-#        
-#    def test_get_calendar_day_window_(self):
-#        cday_index = np.arange(0,365)
-#        rr = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_
-#        width = 5
-#        
-#        target_cday_index = 0
-#        ret = rr(cday_index,target_cday_index,width)
-#        self.assertNumpyAll(ret,np.array([0,363,364,1,2]))
-#        
-#        target_cday_index = 15
-#        ret = rr(cday_index,target_cday_index,width)
-#        self.assertNumpyAll(ret,np.array([15,13,14,16,17]))
-#        
-#        target_cday_index = 363
-#        ret = rr(cday_index,target_cday_index,width)
-#        self.assertNumpyAll(ret,np.array([363,361,362,0,364]))
-#    
-#    def test_calculate(self):
-#        ## daily data for three years is wanted for the test. subset a CMIP5
-#        ## decadal simulation to use for input into the computation.
-#        rd = self.test_data.get_rd('cancm4_tas')
-#        ds = rd.ds.get_subset(temporal=[datetime.datetime(2001,1,1),
-#                                        datetime.datetime(2003,12,31,23,59)])
-#        ## the calculation will be for months and years. set the temporal grouping.
-#        ds.temporal.set_grouping(['month','year'])
-#        ## create calculation object
-#        percentile = 10
-#        width = 5
-#        operation = 'lt'
-#        kwds = dict(percentile=percentile,width=width,operation=operation)
-#        dkp = DynamicDailyKernelPercentileThreshold(values=ds.value,groups=ds.temporal.group.dgroups,
-#                                                    kwds=kwds,dataset=ds,calc_name='tg10p')
-#        
-#        dperc = dkp.daily_percentile
-#        select = np.logical_and(dperc['month'] == 6,dperc['day'] == 5)
-#        to_test = dperc[select]['percentile'][0]
-#        ref = self.get_percentile_reference()
-#        self.assertNumpyAll(to_test,ref)
-#        
-#        ret = dkp.calculate()
-#        self.assertEqual(ret.shape,(36,1,64,128))
-#        
-#    def test_operations(self):
-#        raise(SkipTest('dev'))
-#        uri = self.test_data.get_uri('cancm4_tas')
-#        rd = RequestDataset(uri=uri,
-#                            variable='tas',
-##                            time_range=[datetime.datetime(2001,1,1),datetime.datetime(2003,12,31,23,59)]
-#                            )
-#        calc_grouping = ['month','year']
-#        calc = [{'func':'dynamic_kernel_percentile_threshold','name':'tg10p','kwds':{'percentile':10,'width':5,'operation':'lt'}}]
-#        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
-#                            output_format='nc')
-#        ret = ops.execute()
-#        
-#    def test_operations_two_steps(self):
-#        ## get the request dataset to use as the basis for the percentiles
-#        uri = self.test_data.get_uri('cancm4_tas')
-#        variable = 'tas'
-#        rd = RequestDataset(uri=uri,variable=variable)
-#        ## this is the underly OCGIS dataset object
-#        nc_basis = rd.ds
-#        
-#        ## NOTE: if you want to subset the basis by time, this step is necessary
-##        nc_basis = nc_basis.get_subset(temporal=[datetime.datetime(2001,1,1),
-##                                                 datetime.datetime(2003,12,31,23,59)])
-#        
-#        ## these are the values to use when calculating the percentile basis. it
-#        ## may be good to wrap this in a function to have memory freed after the
-#        ## percentile structure array is computed.
-#        all_values = nc_basis.value
-#        ## these are the datetime objects used for window creation
-#        temporal = nc_basis.temporal.value_datetime
-#        ## additional parameters for calculating the basis
-#        percentile = 10
-#        width = 5
-#        ## get the structure array
-#        from ocgis.calc.library import DynamicDailyKernelPercentileThreshold
-#        daily_percentile = DynamicDailyKernelPercentileThreshold.get_daily_percentile(all_values,temporal,percentile,width)
-#        
-#        ## perform the calculation using the precomputed basis. in this case,
-#        ## the basis and target datasets are the same, so the RequestDataset is
-#        ## reused.
-#        calc_grouping = ['month','year']
-#        kwds = {'percentile':percentile,'width':width,'operation':'lt','daily_percentile':daily_percentile}
-#        calc = [{'func':'dynamic_kernel_percentile_threshold','name':'tg10p','kwds':kwds}]
-#        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
-#                            output_format='nc')
-#        ret = ops.execute()
-#        
-#        ## if we want to return the values as a three-dimenional numpy array the
-#        ## method below will do this. note the interface arrangement for the next
-#        ## release will alter this slightly.
-#        ops = OcgOperations(dataset=rd,calc_grouping=calc_grouping,calc=calc,
-#                            output_format='numpy')
-#        arrs = ops.execute()
-#        ## reference the returned numpy data. the first key is the geometry identifier.
-#        ## 1 in this case as this is the default for no selection geometry. the second
-#        ## key is the variable alias and the third is the calculation name.
-#        tg10p = arrs[1].calc['tas']['tg10p']
-#        ## if we want the date information for the temporal groups (again will
-#        ## change in the next release to be more straightfoward)
-#        date_groups = arrs[1].variables['tas'].temporal.group.value
-#        assert(date_groups.shape[0] == tg10p.shape[0])
-#        ## these are the representative datetime objects
-#        rep_dt = arrs[1].variables['tas'].temporal.group.representative_datetime
-#        ## and these are the lower and upper time bounds on the date groups
-#        bin_bounds = arrs[1].variables['tas'].temporal.group.bounds
-#        
-#        ## confirm we have values for each month and year (12*10)
-#        ret_ds = nc.Dataset(ret)
-#        try:
-#            self.assertEqual(ret_ds.variables['tg10p'].shape,(120,64,128))
-#        finally:
-#            ret_ds.close()
-            
 
 if __name__ == '__main__':
     unittest.main()

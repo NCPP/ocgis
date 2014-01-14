@@ -71,9 +71,14 @@ class OcgParameter(object):
             raise(DefinitionValidationError(self,'Return type does not match.'))
         self.validate(ret)
         self._value = ret
+        ## final hook for any modifications to the object
+        self.finalize()
     ## Return the value associated with the paramter. Note it does not return
     ## the object.
     value = property(_get_value_,_set_value_)
+    
+    def finalize(self):
+        pass
         
     def get_meta(self):
         ''':rtype: list of strings'''

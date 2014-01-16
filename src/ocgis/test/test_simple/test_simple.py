@@ -152,7 +152,7 @@ class TestSimple(TestSimpleBase):
             ds.variables['time'].calendar = ''
         rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
         ## the default for the calendar overload is standard
-        self.assertEqual(rd.t_calendar,'standard')
+        self.assertEqual(rd.t_calendar,None)
         
         ## case of a calendar being set a bad value but read anyway
         with nc_scope(out_nc,'a') as ds:
@@ -164,12 +164,18 @@ class TestSimple(TestSimpleBase):
         ## objects
         with self.assertRaises(ValueError):
             field.temporal.value_datetime
+        ## now overload the value and ensure the field datetimes may be loaded
+        rd = ocgis.RequestDataset(uri=out_nc,variable='foo',t_calendar='standard')
+        self.assertEqual(rd._source_metadata['variables']['time']['attrs']['calendar'],'foo')
+        field = rd.get()
+        self.assertEqual(field.temporal.calendar,'standard')
+        field.temporal.value_datetime
         
         ## case of a missing calendar attribute altogether
         with nc_scope(out_nc,'a') as ds:
             ds.variables['time'].delncattr('calendar')
         rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
-        self.assertEqual(rd.t_calendar,'standard')
+        self.assertEqual(rd.t_calendar,None)
         self.assertIsInstance(rd.inspect_as_dct(),OrderedDict)
         self.assertEqual(rd.inspect_as_dct()['derived']['Calendar'],
                          'None (will assume "standard")')

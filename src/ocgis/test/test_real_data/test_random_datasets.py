@@ -142,7 +142,8 @@ class Test(TestBase):
                                      alias='maurer_tasmax')
 
         ops = ocgis.OcgOperations(dataset=rd_maurer,output_format='shp',snippet=True,
-                                  output_crs=ocgis.crs.WGS84())
+                                  output_crs=ocgis.crs.WGS84(),geom='state_boundaries',
+                                  select_ugid=[25])
         ops.execute()
     
     def test_qed_multifile(self):

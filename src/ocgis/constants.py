@@ -43,5 +43,5 @@ np_int = np.int32
 np_float = np.float32
 
 
-test_run_long_tests = True
+test_run_long_tests = False
 test_run_dev_tests = False

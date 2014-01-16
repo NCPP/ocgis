@@ -7,6 +7,10 @@ from ocgis.test.base import TestBase
 import os
 import pickle
 from datetime import datetime as dt
+import shutil
+from ocgis.test.test_simple.test_simple import nc_scope
+import datetime
+from ocgis.api.operations import OcgOperations
 
 
 class TestRequestDataset(TestBase):
@@ -86,7 +90,7 @@ class TestRequestDataset(TestBase):
         with self.assertRaises(ValueError):
             RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
     
-    def test_RequestDataset(self):        
+    def test_RequestDataset_with_alias(self):        
         rd = RequestDataset(self.uri,self.variable,alias='an_alias')
         self.assertEqual(rd.alias,'an_alias')
         rd = RequestDataset(self.uri,self.variable,alias=None)
@@ -147,6 +151,80 @@ class TestRequestDataset(TestBase):
             self.assertIsInstance(row,RequestDataset)
         self.assertIsInstance(rdc[0],RequestDataset)
         self.assertIsInstance(rdc['a2'],RequestDataset)
+        
+    def test_RequestDatasetCollection_with_overloads(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        ## loaded calendar should match file metadata
+        self.assertEqual(field.temporal.calendar,'365_day')
+        ## the overloaded calendar in the request dataset should still be None
+        self.assertEqual(rd.t_calendar,None)
+        
+        dataset = [{'time_region': None,
+                    'uri':[rd.uri],
+                    'alias': u'tas', 
+                    't_units': u'days since 1940-01-01 00:00:00',
+                    'variable': u'tas',
+                    't_calendar': u'will_not_work'}]
+        rdc = RequestDatasetCollection(dataset)
+        rd2 = RequestDataset(**dataset[0])
+        ## the overloaded calendar should be passed to the request dataset
+        self.assertEqual(rd2.t_calendar,'will_not_work')
+        self.assertEqual(rdc[0].t_calendar,'will_not_work')
+        ## when this bad calendar value is used it should raise an exception
+        with self.assertRaises(ValueError):
+            rdc[0].get().temporal.value_datetime
+            
+        dataset = [{'time_region': None,
+                    'uri':[rd.uri],
+                    'alias': u'tas', 
+                    't_units': u'days since 1940-01-01 00:00:00',
+                    'variable': u'tas'}]
+        rdc = RequestDatasetCollection(dataset)
+        ## ensure the overloaded units are properly passed
+        self.assertEqual(rdc[0].get().temporal.units,'days since 1940-01-01 00:00:00')
+        ## the calendar was not overloaded and the value should be read from
+        ## the metadata
+        self.assertEqual(rdc[0].get().temporal.calendar,'365_day')
+        
+    def test_RequestDatasetCollection_with_overloads_real_data(self):
+        ## copy the test file as the calendar attribute will be modified
+        rd = self.test_data.get_rd('cancm4_tas')
+        filename = os.path.split(rd.uri)[1]
+        dest = os.path.join(self._test_dir,filename)
+        shutil.copy2(rd.uri,dest)
+        ## modify the calendar attribute
+        with nc_scope(dest,'a') as ds:
+            self.assertEqual(ds.variables['time'].calendar,'365_day')
+            ds.variables['time'].calendar = '365_days'
+        ## assert the calendar is in fact changed on the source file
+        with nc_scope(dest,'r') as ds:
+            self.assertEqual(ds.variables['time'].calendar,'365_days')
+        rd2 = RequestDataset(uri=dest,variable='tas')
+        field = rd2.get()
+        ## the bad calendar will raise a value error when the datetimes are
+        ## converted.
+        with self.assertRaises(ValueError):
+            field.temporal.value_datetime
+        ## overload the calendar and confirm the datetime values are the same
+        ## as the datetime values from the original good file
+        rd3 = RequestDataset(uri=dest,variable='tas',t_calendar='365_day')
+        field = rd3.get()
+        self.assertNumpyAll(field.temporal.value_datetime,rd.get().temporal.value_datetime)
+        
+        ## pass as a dataset collection to operations and confirm the data may
+        ## be written to a flat file. dates are converted in the process.
+        time_range = (datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2011, 1, 1, 0, 0))
+        dataset = [{'time_region': None, 
+          'uri': dest, 
+          'time_range': time_range,
+          'alias': u'tas',
+          't_units': u'days since 1850-1-1',
+          'variable': u'tas',
+          't_calendar': u'365_day'}]
+        rdc = RequestDatasetCollection(dataset)
+        ops = OcgOperations(dataset=rdc,geom='state_boundaries',select_ugid=[25],output_format='csv+')
+        ops.execute()
         
     def test_multiple_uris(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')

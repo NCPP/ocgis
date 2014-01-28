@@ -86,9 +86,7 @@ else:
 
 # set up sendcounts, number of items to send each array
 sendcounts = ()
-send_mult = 1
-if my_N >= 9:
-   send_mult +=1
+send_mult = 2
 print send_mult
 for x in range(r_N):
     sendcounts = sendcounts + ((my_N + 1) * send_mult,)

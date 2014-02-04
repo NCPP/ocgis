@@ -50,6 +50,14 @@ class TestCMIP3Masking(TestBase):
 
 class Test(TestBase):
     
+    def test_empty_subset_multi_geometry_wrapping(self):
+        ## adjacent state boundaries were causing an error with wrapping where
+        ## a reference to the source field was being updated.
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[5,6,7])
+        ret = ops.execute()
+        self.assertEqual(set(ret.keys()),set([5,6,7]))
+    
     def test_seasonal_calc(self):
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[3,4,5]]

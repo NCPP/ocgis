@@ -12,6 +12,7 @@ from ocgis.calc.base import AbstractMultivariateFunction,\
     AbstractKeyedOutputFunction
 from ocgis.util.helpers import project_shapely_geometry
 from shapely.geometry.multipoint import MultiPoint
+from copy import deepcopy
 
 
 class SubsetOperation(object):
@@ -217,6 +218,9 @@ class SubsetOperation(object):
                     if CFWGS84.get_is_360(sfield.spatial):
                         if self.ops.output_format != 'nc' and self.ops.vector_wrap:
                             ocgis_lh('wrapping output geometries',self._subset_log,alias=alias,ugid=ugid)
+                            ## modifying these values in place will change the values
+                            ## in the base field. a copy is necessary.
+                            sfield.spatial = deepcopy(sfield.spatial)
                             sfield.spatial.crs.wrap(sfield.spatial)
                             
                 ## check for all masked values

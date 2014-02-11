@@ -10,6 +10,7 @@ from util.zipper import format_return
 from interface.base import crs
 from calc.library.register import FunctionRegistry
 
-from osgeo import ogr
-## tell ogr to raise exceptions
+from osgeo import ogr, osr
+## tell ogr/osr to raise exceptions
 ogr.UseExceptions()
+osr.UseExceptions()

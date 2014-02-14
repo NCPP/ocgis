@@ -67,7 +67,7 @@ class OcgConverter(object):
         
         try:
             build = True
-            if self._add_ugeom and self.ops.geom is not None:
+            if self._add_ugeom and self.ops is not None and self.ops.geom is not None:
                 write_geom = True
             else:
                 write_geom = False
@@ -155,42 +155,46 @@ class OcgConverter(object):
                     except UnboundLocalError:
                         pass
         
-        ## added OCGIS metadata output if requested.
-        if self.add_meta:
-            ocgis_lh('adding OCGIS metadata file','conv',logging.DEBUG)
-            lines = MetaConverter(self.ops).write()
-            out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
-            with open(out_path,'w') as f:
-                f.write(lines)
-        
-        ## add the dataset descriptor file if specified
-        if self._add_did_file:
-            ocgis_lh('writing dataset description (DID) file','conv',logging.DEBUG)
-            from ocgis.conv.csv_ import OcgDialect
+        ## the metadata and dataset descriptor files may only be written if
+        ## OCGIS operations are present.
+        if self.ops is not None:
+            ## added OCGIS metadata output if requested.
+            if self.add_meta:
+                ocgis_lh('adding OCGIS metadata file','conv',logging.DEBUG)
+                lines = MetaConverter(self.ops).write()
+                out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
+                with open(out_path,'w') as f:
+                    f.write(lines)
             
-            headers = ['DID','VARIABLE','ALIAS','URI','STANDARD_NAME','UNITS','LONG_NAME']
-            out_path = os.path.join(self.outdir,self.prefix+'_did.csv')
-            with open(out_path,'w') as f:
-                writer = csv.writer(f,dialect=OcgDialect)
-                writer.writerow(headers)
+            ## add the dataset descriptor file if specified and OCGIS operations
+            ## are present.
+            if self._add_did_file:
+                ocgis_lh('writing dataset description (DID) file','conv',logging.DEBUG)
+                from ocgis.conv.csv_ import OcgDialect
+                
+                headers = ['DID','VARIABLE','ALIAS','URI','STANDARD_NAME','UNITS','LONG_NAME']
+                out_path = os.path.join(self.outdir,self.prefix+'_did.csv')
+                with open(out_path,'w') as f:
+                    writer = csv.writer(f,dialect=OcgDialect)
+                    writer.writerow(headers)
+                    for rd in self.ops.dataset:
+                        row = [rd.did,rd.variable,rd.alias,rd.uri]
+                        ref_variable = rd._source_metadata['variables'][rd.variable]['attrs']
+                        row.append(ref_variable.get('standard_name',None))
+                        row.append(ref_variable.get('units',None))
+                        row.append(ref_variable.get('long_name',None))
+                        writer.writerow(row)
+                
+            ## add source metadata if requested
+            if self._add_source_meta:
+                ocgis_lh('writing source metadata file','conv',logging.DEBUG)
+                out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
+                to_write = []
                 for rd in self.ops.dataset:
-                    row = [rd.did,rd.variable,rd.alias,rd.uri]
-                    ref_variable = rd._source_metadata['variables'][rd.variable]['attrs']
-                    row.append(ref_variable.get('standard_name',None))
-                    row.append(ref_variable.get('units',None))
-                    row.append(ref_variable.get('long_name',None))
-                    writer.writerow(row)
-            
-        ## add source metadata if requested
-        if self._add_source_meta:
-            ocgis_lh('writing source metadata file','conv',logging.DEBUG)
-            out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
-            to_write = []
-            for rd in self.ops.dataset:
-                ip = Inspect(request_dataset=rd)
-                to_write += ip.get_report()
-            with open(out_path,'w') as f:
-                f.writelines('\n'.join(to_write))
+                    ip = Inspect(request_dataset=rd)
+                    to_write += ip.get_report()
+                with open(out_path,'w') as f:
+                    f.writelines('\n'.join(to_write))
         
         ## return the internal path unless overloaded by subclasses.
         ret = self._get_return_()

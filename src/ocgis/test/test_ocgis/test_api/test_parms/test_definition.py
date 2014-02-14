@@ -6,6 +6,7 @@ import tempfile
 import os
 from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
+from ocgis.util.shp_cabinet import ShpCabinet
 
 
 class Test(TestBase):
@@ -164,17 +165,22 @@ class Test(TestBase):
         bbox = [-120,40,-110,50]
         g = Geom(bbox)
         self.assertEqual(g.value[0]['geom'].bounds,tuple(map(float,bbox)))
+        
+    def test_geom_using_shp_path(self):
+        ## pass a path to a shapefile as opposed to a key
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        ocgis.env.DIR_SHPCABINET = None
+        ## make sure there is path associated with the ShpCabinet
+        with self.assertRaises(ValueError):
+            ShpCabinet().keys()
+        g = Geom(path)
+        self.assertEqual(g._shp_key,path)
+        self.assertEqual(len(list(g.value)),51)
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]
         cc = Calc(calc)
         eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{}}]
-        
-#=======
-#        cc = Calc(calc,calc_sample_size=CalcSampleSize(True))
-#        eq = [{'ref':library.Mean,'name':'my_mean','func':'mean','kwds':{}}, 
-#              {'ref':library.SampleSize,'name':'n','func':'n','kwds':{}}]
-#>>>>>>> master:src/ocgis/test/test_api_parms.py
 
         self.assertEqual(cc.value,eq)
         cc.value = 'mean~my_mean'

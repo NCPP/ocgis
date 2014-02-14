@@ -9,15 +9,35 @@ from shapely.geometry.polygon import Polygon
 from shapely import wkb
 import fiona
 from ocgis.interface.base.crs import CoordinateReferenceSystem
+from ocgis.util.helpers import assert_raise
 
 
 class ShpCabinetIterator(object):
     '''
-    Iterate over a geometry selected by `key`.
+    Iterate over a geometry selected by ``key`` or ``path``.
+    
+    :param key: Unique key identifier for a shapefile contained in the ShpCabinet
+     directory.
+    :type key: str
+    
+    >>> key = 'state_boundaries'
+    
+    :param select_ugid: Sequence of unique identifiers matching values from the 
+     shapefile's UGID attribute.
+    :type select_ugid: sequence
+    
+    >>> select_ugid = [23,24]
+    
+    :param path: Path to the target shapefile to iterate over. If ``key`` is
+     provided it will override ``path``.
+    :type path: str
+    
+    >>> path = '/path/to/shapefile.shp'
     '''
     
-    def __init__(self,key,select_ugid=None):
+    def __init__(self,key=None,select_ugid=None,path=None):
         self.key = key
+        self.path = path
         self.select_ugid = select_ugid
         self.sc = ShpCabinet()
         
@@ -25,7 +45,8 @@ class ShpCabinetIterator(object):
         '''
         Return an iterator as from :meth:`ocgis.ShpCabinet.iter_geoms`
         '''
-        for row in self.sc.iter_geoms(self.key,select_ugid=self.select_ugid):
+        for row in self.sc.iter_geoms(key=self.key,select_ugid=self.select_ugid,
+                                      path=self.path):
             yield(row)
 
 
@@ -71,8 +92,8 @@ class ShpCabinet(object):
                     ret.append(os.path.splitext(fn)[0])
         return(ret)
     
-    def get_meta(self,key):
-        path = self.get_shp_path(key)
+    def get_meta(self,key=None,path=None):
+        path = path or self.get_shp_path(key)
         with fiona.open(path,'r') as source:
             return(source.meta)
         
@@ -92,29 +113,50 @@ class ShpCabinet(object):
         if ret is None:
             raise(ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key,self.path)))
     
-    def iter_geoms(self,key,select_ugid=None):
-        """Iterate over geometries from a shapefile specified by `key`.
+    def iter_geoms(self,key=None,select_ugid=None,path=None):
+        """Iterate over geometries from a shapefile specified by ``key`` or ``path``.
         
         >>> sc = ShpCabinet()
         >>> geoms = sc.iter_geoms('state_boundaries',select_ugid=[1,48])
         >>> len(list(geoms))
         2
         
-        :param key: The shapefile identifier.
+        :param key: Unique key identifier for a shapefile contained in the ShpCabinet
+         directory.
         :type key: str
-        :param select_ugid: Sequence of unique identifiers matching values from the shapefile's UGID attribute.
+        
+        >>> key = 'state_boundaries'
+        
+        :param select_ugid: Sequence of unique identifiers matching values from the 
+         shapefile's UGID attribute.
         :type select_ugid: sequence
+        
+        >>> select_ugid = [23,24]
+        
+        :param path: Path to the target shapefile to iterate over. If ``key`` is
+         provided it will override ``path``.
+        :type path: str
+        
+        >>> path = '/path/to/shapefile.shp'
+    
         :yields: dict
         """
         
         ## path to the target shapefile
-        shp_path = self.get_shp_path(key)
+        if key is None:
+            try:
+                assert(path != None)
+            except AssertionError:
+                raise(ValueError('If no key is passed, then a path must be provided.'))
+            shp_path = path
+        else:
+            shp_path = self.get_shp_path(key)
         ## make sure requested geometry exists
         if not os.path.exists(shp_path):
-            raise(RuntimeError('requested geometry with identifier "{0}" does not exist in the file system.'.format(key)))
+            raise(RuntimeError('Requested geometry with path "{0}" does not exist in the file system.'.format(shp_path)))
         
         ## get the source CRS
-        meta = self.get_meta(key)
+        meta = self.get_meta(path=shp_path)
         crs = CoordinateReferenceSystem(crs=meta['crs'])
         
         ## get the geometries

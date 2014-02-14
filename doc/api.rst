@@ -82,7 +82,9 @@ Value                    Description
 geom
 ~~~~
 
-If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Again, supplying a value of `None` (the default) results in the return of the entire spatial domain. There are four ways to parameterize the `geom` keyword argument:
+If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Again, supplying a value of `None` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute called `UGID` and have a WGS84 latitude/longitude geographic coordinate system.
+
+There are a number of ways to parameterize the `geom` keyword argument:
 
 1. Bounding Box
 
@@ -112,6 +114,10 @@ This is a list of floats corresponding to: `[longitude,latitude]`. The coordinat
 The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional. If not 'UGID' property is provided, defaults will be inserted.
 
 >>> geom = [{'geom':Point(x,y),'properties':{'UGID':23,'NAME':'geometry23'},'crs':CoordinateReferenceSystem(epsg=4326)},...]
+
+6. Path to a Shapefile
+
+>>> geom = '/path/to/shapefile.shp'
 
 .. _search_radius_mult key:
 

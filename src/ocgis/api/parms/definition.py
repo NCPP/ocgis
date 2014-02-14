@@ -14,6 +14,8 @@ from ocgis.calc.library.register import FunctionRegistry
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+import os
+from copy import deepcopy
 
 
 class Abstraction(base.StringOptionParameter):
@@ -284,6 +286,7 @@ class Geom(base.OcgParameter):
     
     def __init__(self,*args,**kwds):
         self.select_ugid = kwds.pop('select_ugid',None)
+        
         args = [self] + list(args)
         base.OcgParameter.__init__(*args,**kwds)
     
@@ -327,7 +330,7 @@ class Geom(base.OcgParameter):
                 ret = [{'geom':geom,'properties':{'ugid':1},'crs':CFWGS84()}]
                 self._bounds = geom.bounds
         elif isinstance(value,ShpCabinetIterator):
-            self._shp_key = value.key
+            self._shp_key = value.key or value.path
             ret = value
         else:
             ret = value
@@ -351,18 +354,30 @@ class Geom(base.OcgParameter):
                 raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
             ret = [{'geom':geom,'properties':{'ugid':1}}]
             self._bounds = elements
+        ## try the value as a key or path
         except ValueError:
+            ## if the path exists, then assume it is a path to a shapefile,
+            ## otherwise assume it is a key
+            kwds = {}
+            if os.path.exists(value):
+                kwds['path'] = value
+            else:
+                kwds['key'] = value
+            ## this is saved for later use by the openclimategis metadata output
+            ## as the input value is inherently transformed
             self._shp_key = value
-            ## get the select_ugid test value.
+            ## get the select_ugid test value
             try:
                 test_value = self.select_ugid.value
+            ## it may not have been passed as a parameter object
             except AttributeError:
                 test_value = self.select_ugid
             if test_value is None:
                 select_ugid = None
             else:
                 select_ugid = test_value
-            ret = ShpCabinetIterator(value,select_ugid=select_ugid)
+            kwds['select_ugid'] = select_ugid
+            ret = ShpCabinetIterator(**kwds)
         return(ret)
     
     def _get_meta_(self):

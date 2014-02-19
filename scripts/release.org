@@ -1,16 +1,4 @@
-1. stage the release:
-   - [X] git checkout staged-release
-2. [ ] run tests
-3. update documents:
-   - [ ] CoG page
-         - [ ] Upload test report: http://www.earthsystemcog.org/projects/openclimategis/supportedplatforms
-         - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download
-4. update version number in:
-   - [x] setup.py
-   - [x] ocgis.__init__
-5. update links
-   - [ ] update link in install.rst
-6. merge development to master:
+1. merge development to master:
    - [ ] git commit
    - [ ] git checkout master
    - [ ] git merge staged-release
@@ -19,9 +7,25 @@
    - [ ] git push origin --tags
    - [ ] build and push documentation
    - [ ] git checkout dev
-   - [ ] git merge master
-7. put -dev back in version numbers:
+   - [ ] git merge masterstage the release:
+   - [X] git checkout staged-release
+2. [ ] run tests
+3. write the release announcement
+4. update documents:
+   - [ ] CoG page
+         - [ ] Upload test report: http://www.earthsystemcog.org/projects/openclimategis/supportedplatforms
+         - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download
+         - [ ] Update release schedule: if needed
+         
+5. update ocgis_info mailing list (if necessary) 
+
+5. update version number in:
+   - [x] setup.py
+   - [x] ocgis.__init__
+6. update links
+   - [ ] update link in install.rst (update the documentation)
+8. put -trunk back in version numbers:
    - [ ] setup.py
    - [ ] ocgis.__init__
-8. finalize:
-   - [ ] have silverio update link
+9. finalize:
+   - [ ] have silverio update link on the download registration page

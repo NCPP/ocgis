@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
+from ocgis import constants
 
 
 class AbstractMetadata(OrderedDict):
@@ -41,10 +42,22 @@ class NcMetadata(AbstractMetadata):
             for attr in value.ncattrs():
                 if attr.startswith('_'): continue
                 subvar.update({attr:getattr(value,attr)})
+                
+            ## make two attempts at missing value attributes otherwise assume
+            ## the default
+            try:
+                fill_value = value.fill_value
+            except AttributeError:
+                try:
+                    fill_value = value.missing_value
+                except AttributeError:
+                    fill_value = constants.fill_value
+                    
             variables.update({key:{'dimensions':value.dimensions,
                                    'attrs':subvar,
                                    'dtype':str(value.dtype),
-                                   'name':value._name}})
+                                   'name':value._name,
+                                   'fill_value':fill_value}})
         self.update({'variables':variables})
         
         ## get dimensions

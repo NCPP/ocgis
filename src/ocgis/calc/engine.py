@@ -2,6 +2,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.interface.base.variable import VariableCollection
 from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
 from ocgis.calc.base import AbstractMultivariateFunction
+import logging
 
 
 class OcgCalculationEngine(object):
@@ -67,14 +68,33 @@ class OcgCalculationEngine(object):
         ## iterate over functions
         for ugid,dct in coll.iteritems():
             for alias_field,field in dct.iteritems():
+                ## choose a representative data type based on the first variable
+                dtype = field.variables.values()[0].dtype
+                
                 new_temporal = self.tgds.get(alias_field)
                 out_vc = VariableCollection()
                 for f in self.funcs:
                     ocgis_lh('calculating: {0}'.format(f),logger='calc.engine')
-                    function = f['ref'](alias=f['name'],dtype=None,field=field,file_only=file_only,vc=out_vc,
+                    
+                    ## initialize the function
+                    function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
                          parms=f['kwds'],tgd=new_temporal,use_raw_values=self.use_raw_values,
                          calc_sample_size=self.calc_sample_size)
+                    ocgis_lh('calculation initialized',logger='calc.engine',level=logging.DEBUG)
+                    
+                    ## return the variable collection from the calculations
                     out_vc = function.execute()
+                    
+                    for dv in out_vc.itervalues():
+                        ## any outgoing variables from a calculation must have a 
+                        ## data type associated with it
+                        assert(dv.dtype != None)
+                        ## if this is a file only operation, then there should
+                        ## be no values.
+                        if file_only:
+                            assert(dv._value == None)
+                    
+                    ocgis_lh('calculation finished',logger='calc.engine',level=logging.DEBUG)
                 new_temporal = new_temporal or field.temporal
                 new_field = klass(variables=out_vc,temporal=new_temporal,spatial=field.spatial,
                                   level=field.level,realization=field.realization,meta=field.meta,

@@ -120,6 +120,20 @@ class Test(TestBase):
         ## months must be between 1 and 12
         with self.assertRaises(DefinitionValidationError):
             CalcGrouping([[1,2,3],[4,5,66]])
+    
+    def test_calc_grouping_seasonal_aggregation_with_year(self):
+        cg = CalcGrouping([[1,2,3],[4,5,6],'year'])
+        self.assertEqual(cg.value,([1,2,3],[4,5,6],'year'))
+        
+    def test_calc_grouping_seasonal_aggregation_with_unique(self):
+        cg = CalcGrouping([[1,2,3],[4,5,6],'unique'])
+        self.assertEqual(cg.value,([1,2,3],[4,5,6],'unique'))
+        
+    def test_calc_grouping_seasonal_aggregation_with_bad_flag(self):
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1,2,3],[4,5,6],'foo'])
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1,2,3],[4,5,6],'fod'])
             
     def test_dataset(self):
         rd = self.test_data.get_rd('cancm4_tas')

@@ -75,7 +75,16 @@ class NcConverter(OcgConverter):
         time_nc_value = arch.temporal.value
 
         ## if bounds are available for the time vector transform those as well
+        
+        ## flag to indicate climatology bounds are present and hence the normal
+        ## bounds attribute should be not be added.
+        has_climatology_bounds = False
+        
         if isinstance(temporal,NcTemporalGroupDimension):
+            ## update flag to indicate climatology bounds are present on the
+            ## output dataset
+            has_climatology_bounds = True
+            
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
             times_bounds = ds.createVariable('climatology_'+bounds_name,time_nc_value.dtype,
@@ -91,13 +100,19 @@ class NcConverter(OcgConverter):
                 setattr(times_bounds,key,value)
         times = ds.createVariable(name_variable_temporal,time_nc_value.dtype,(dim_temporal._name,))
         times[:] = time_nc_value
+
+        ## add time attributes
         for key,value in meta['variables'][name_variable_temporal]['attrs'].iteritems():
+            ## leave off the normal bounds attribute
+            if has_climatology_bounds and key == 'bounds':
+                if key == 'bounds':
+                    continue
             setattr(times,key,value)
-        
+
         ## add climatology bounds
         if isinstance(temporal,NcTemporalGroupDimension):
             setattr(times,'climatology','climatology_'+bounds_name)
-            
+                        
         ## level variable
         ## if there is no level on the variable no need to build one.
         if level is None:
@@ -149,13 +164,12 @@ class NcConverter(OcgConverter):
         
         ## loop through variables
         for variable in arch.variables.itervalues():
-            value = ds.createVariable(variable.alias,variable.value.dtype,value_dims,
-                                      fill_value=variable.value.fill_value)
+            value = ds.createVariable(variable.alias,variable.dtype,value_dims,
+                                      fill_value=variable.fill_value)
+            ## if this is a file only operation, set the value, otherwise leave
+            ## it empty for now.
             if not self.ops.file_only:
-                try:
-                    value[:] = variable.value.reshape(*value.shape)
-                except:
-                    import ipdb;ipdb.set_trace()
+                value[:] = variable.value.reshape(*value.shape)
             value.setncatts(variable.meta['attrs'])
             ## and the units, converting to string as passing a NoneType will raise
             ## an exception.

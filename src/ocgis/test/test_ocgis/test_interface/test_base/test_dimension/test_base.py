@@ -36,8 +36,9 @@ class TestVectorDimension(unittest.TestCase):
         self.assertEqual(tt[3],(3, {'hi': 4, 'foo': 40, 'foo_bnds_lower': 35, 'foo_bnds_upper': 45}))
     
     def test_bad_keywords(self):
+        ## there should be keyword checks on the bad keywords names
         with self.assertRaises(ValueError):
-            VectorDimension(value=40,bounds=[38,42],dtype=float)
+            VectorDimension(value=40,bounds=[38,42],ddtype=float)
             
     def test_bad_dtypes(self):
         vd = VectorDimension(value=181.5,bounds=[181,182])

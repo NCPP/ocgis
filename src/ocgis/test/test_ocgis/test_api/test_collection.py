@@ -11,6 +11,7 @@ from copy import copy
 from ocgis.calc.library.math import Divide
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.library.thresholds import Threshold
+import numpy as np
 
 
 class TestSpatialCollection(AbstractTestField):
@@ -59,7 +60,7 @@ class TestSpatialCollection(AbstractTestField):
         
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field,tgd=tgd,alias='my_mean')
+        mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64)
         ret = mu.execute()
         
         kwds = copy(field.__dict__)
@@ -95,7 +96,7 @@ class TestSpatialCollection(AbstractTestField):
         
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field,tgd=tgd,alias='my_mean')
+        mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64)
         ret = mu.execute()
         thresh = Threshold(field=field,vc=ret,tgd=tgd,alias='a_treshold',parms={'operation':'gte','threshold':0.5})
         ret = thresh.execute()
@@ -136,7 +137,8 @@ class TestSpatialCollection(AbstractTestField):
         field.level.name_uid = 'lid'
         field.spatial.geom.name_uid = 'gid'
         
-        div = Divide(field=field,parms={'arr1':'tmin','arr2':'tmax'},alias='some_division')
+        div = Divide(field=field,parms={'arr1':'tmin','arr2':'tmax'},alias='some_division',
+                     dtype=np.float64)
         ret = div.execute()
         
         cfield = DerivedMultivariateField(variables=ret,realization=field.realization,temporal=field.temporal,level=field.level,

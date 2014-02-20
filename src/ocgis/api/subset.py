@@ -122,7 +122,7 @@ class SubsetOperation(object):
                     return
             else:
                 ocgis_lh(exc=ExtentError(message=str(e)),alias=rd.alias,logger=self._subset_log)
-                
+        
         ## set iterator based on presence of slice. slice always overrides geometry.
         if self.ops.slice is not None:
             itr = [{}]
@@ -206,7 +206,7 @@ class SubsetOperation(object):
                         ocgis_lh(exc=ExtentError(message=str(e)),alias=alias,logger=self._subset_log)
             else:
                 sfield = field
-            
+                        
             ## if empty returns are allowed, there be an empty field
             if sfield is not None:
                 ## aggregate if requested
@@ -287,7 +287,7 @@ class SubsetOperation(object):
                              self._subset_log,
                              alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
-                    coll = self.cengine.execute(coll)
+                    coll = self.cengine.execute(coll,file_only=self.ops.file_only)
                 
                 ## conversion of groups.
                 if self.ops.output_grouping is not None:

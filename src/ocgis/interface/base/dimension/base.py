@@ -115,7 +115,7 @@ class AbstractUidValueDimension(AbstractValueDimension,AbstractUidDimension):
     def __init__(self,*args,**kwds):
         for key in kwds.keys():
             try:
-                assert(key in ('value','name_value','units','meta','name','uid','name_uid','properties'))
+                assert(key in ('value','name_value','units','meta','name','uid','name_uid','properties','dtype','fill_value'))
             except AssertionError:
                 ocgis_lh(exc=ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key,self.__class__.__name__)))
                

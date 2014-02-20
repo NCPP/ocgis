@@ -155,6 +155,31 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
     default = None
     element_type = [str,list]
     unique = True
+    _flags = ('unique','year')
+    _standard_groups = ('day','month','year')
+    
+    def parse(self,value):
+        try:
+            ## not interested in looking for unique letters in the "_flags"
+            parse_value = list(deepcopy(value))
+            ## if we do remove a flag, be sure and append it back
+            add_back = None
+            for flag in self._flags:
+                if flag in parse_value:
+                    parse_value.remove(flag)
+                    add_back = flag
+            ## call superclass method to parse the value for iteration
+            ret = base.IterableParameter.parse(self,parse_value,check_basestrings=False)
+            ## add the value back if it has been set
+            if add_back is not None:
+                ret.append(add_back)
+        ## value is likely a NoneType
+        except TypeError as e:
+            if value is None:
+                ret = None
+            else:
+                raise(e)
+        return(ret)
     
     def finalize(self):
         if self._value == ('all',):
@@ -174,15 +199,23 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
         else:
             try:
                 for val in value:
-                    if val not in ['day','month','year']:
+                    if val not in self._standard_groups:
                         raise(DefinitionValidationError(self,'"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(val)))
             ## the grouping may not be a date part but a seasonal aggregation
             except DefinitionValidationError:
                 months = range(1,13)
                 for element in value:
-                    for month in element:
-                        if month not in months:
-                            raise(DefinitionValidationError(self,'Month integer value is not recognized: {0}'.format(month)))
+                    ## the keyword year and unique are okay for seasonal aggregations
+                    if element in self._flags:
+                        continue
+                    elif isinstance(element,basestring):
+                        if element not in self._flags:
+                            raise(DefinitionValidationError(self,'Seasonal flag not recognized: "{0}".'.format(element)))
+                    else:
+                        for month in element:
+                            if month not in months:
+                                raise(DefinitionValidationError(self,'Month integer value is not recognized: {0}'.format(month)))
+
             
 class CalcRaw(base.BooleanParameter):
     name = 'calc_raw'

@@ -182,8 +182,10 @@ class NcRequestDataset(object):
         
         variable_meta = self._source_metadata['variables'][self.variable]
         variable_units = variable_meta['attrs'].get('units')
+        dtype = np.dtype(variable_meta['dtype'])
+        fill_value = variable_meta['fill_value']
         variable = Variable(self.variable,self.alias,variable_units,meta=variable_meta,
-                            data=self)
+                            data=self,dtype=dtype,fill_value=fill_value)
         vc = VariableCollection(variables=[variable])
         
         ret = NcField(variables=vc,spatial=spatial,temporal=loaded['temporal'],level=loaded['level'],

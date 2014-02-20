@@ -6,7 +6,8 @@ from ocgis.api.request.base import RequestDatasetCollection
 import numpy as np
 
 
-def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None):
+def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None,
+            dir_output=None):
     '''
     :type dataset: RequestDatasetCollection
     '''
@@ -33,7 +34,8 @@ def compute(dataset,calc,calc_grouping,tile_dimension,verbose=False,prefix=None)
         if verbose: print('getting fill file...')
         fill_file = ocgis.OcgOperations(dataset=dataset,file_only=True,
                                       calc=calc,calc_grouping=calc_grouping,
-                                      output_format='nc',prefix=prefix).execute()
+                                      output_format='nc',prefix=prefix,
+                                      dir_output=dir_output).execute()
         if verbose: print('output file is: {0}'.format(fill_file))
         if verbose:
             lschema = len(schema)

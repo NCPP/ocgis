@@ -1,10 +1,11 @@
 from ocgis.calc import base
 import numpy as np
+from ocgis import constants
 
 
 class HeatIndex(base.AbstractMultivariateFunction,base.AbstractParameterizedFunction):
     description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation. Output units are Fahrenheit.'
-    dtype = np.float32
+    dtype = constants.np_float
     parms_definition = {'units':str}
     required_variables = ['tas','rhs']
     key = 'heat_index'

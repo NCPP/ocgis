@@ -11,6 +11,8 @@ import itertools
 import ocgis
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.test.test_simple.test_simple import ToTest, nc_scope
+import datetime
 
 
 class Test(TestBase):
@@ -116,7 +118,7 @@ class Test(TestBase):
         hh = definition.Headers(headers)
         self.assertEqual(hh.value,tuple(constants.required_headers))
                 
-    def test_calc_grouping(self):
+    def test_calc_grouping_none_date_parts(self):
         _cg = [
                None,
                ['day','month'],
@@ -150,6 +152,28 @@ class Test(TestBase):
                                 reraise = False
                         if reraise:
                             raise
+                        
+    def test_calc_grouping_seasonal_with_year(self):
+        calc_grouping = [[1,2,3],'year']
+        calc = [{'func':'mean','name':'mean'}]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            geom='state_boundaries',select_ugid=[25])
+        ret = ops.execute()
+        self.assertEqual(ret[25]['tas'].shape,(1,10,1,5,4))
+        
+    def test_calc_grouping_seasonal_with_unique(self):
+        calc_grouping = [[12,1,2],'unique']
+        calc = [{'func':'mean','name':'mean'}]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc_grouping=calc_grouping,geom='state_boundaries',
+                                  select_ugid=[27],output_format='nc',calc=calc)
+        ret = ops.execute()
+        rd2 = ocgis.RequestDataset(uri=ret,variable='mean_tas')
+        field = rd2.get()
+        self.assertNotEqual(field.temporal.bounds,None)
+        self.assertEqual(field.temporal.bounds_datetime.tolist(),[[datetime.datetime(2002, 1, 1, 12, 0), datetime.datetime(2002, 2, 28, 12, 0)], [datetime.datetime(2003, 1, 1, 12, 0), datetime.datetime(2003, 2, 28, 12, 0)], [datetime.datetime(2004, 1, 1, 12, 0), datetime.datetime(2004, 2, 28, 12, 0)], [datetime.datetime(2005, 1, 1, 12, 0), datetime.datetime(2005, 2, 28, 12, 0)], [datetime.datetime(2006, 1, 1, 12, 0), datetime.datetime(2006, 2, 28, 12, 0)], [datetime.datetime(2007, 1, 1, 12, 0), datetime.datetime(2007, 2, 28, 12, 0)], [datetime.datetime(2008, 1, 1, 12, 0), datetime.datetime(2008, 2, 28, 12, 0)], [datetime.datetime(2009, 1, 1, 12, 0), datetime.datetime(2009, 2, 28, 12, 0)], [datetime.datetime(2010, 1, 1, 12, 0), datetime.datetime(2010, 2, 28, 12, 0)]])
+        self.assertEqual(field.shape,(1, 9, 1, 3, 3))
                 
     def test_dataset(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA

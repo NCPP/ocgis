@@ -153,7 +153,8 @@ class EmptyData(SubsetException):
     def __init__(self,message=None,origin=None):
         self.message = message or 'Empty data returned.'
         self.origin = origin
-        
+
+
 class EmptySubsetError(SubsetException):
     
     def __init__(self,origin=None):
@@ -161,4 +162,19 @@ class EmptySubsetError(SubsetException):
         
     def __str__(self):
         msg = 'A subset operation on dimension "{0}" returned empty.'.format(self.origin)
+        return(msg)
+    
+    
+class IncompleteSeasonError(OcgException):
+            
+    def __init__(self,season,year=None,month=None):
+        self.season = season
+        self.year = year
+        self.month = month
+        
+    def __str__(self):
+        if self.year is not None:
+            msg = 'The season specification "{0}" is missing the year "{1}".'.format(self.season,self.year+1)
+        if self.month is not None:
+            msg = 'The season specification "{0}" is missing the month "{1}".'.format(self.season,self.month)
         return(msg)

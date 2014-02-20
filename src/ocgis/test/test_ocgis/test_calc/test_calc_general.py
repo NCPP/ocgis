@@ -59,6 +59,8 @@ class AbstractCalcBase(TestBase):
                             self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0,0,0,0,0]]))
             except ValueError:
                 raise
+            except AssertionError:
+                raise
             except Exception as e:
                 if capture:
                     parms = dict(aggregate=aggregate,calc_grouping=calc_grouping,output_format=output_format)

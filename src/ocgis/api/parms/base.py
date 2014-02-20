@@ -200,7 +200,7 @@ class IterableParameter(object):
     @abstractproperty
     def unique(self): bool
     
-    def parse(self,value):
+    def parse(self,value,check_basestrings=True):
         if value is None:
             ret = None
         else:
@@ -217,6 +217,11 @@ class IterableParameter(object):
                 ## the individual elements and compare by this method.
                 except TypeError:
                     for start_idx,element in enumerate(value):
+                        ## some element sequences may have string flags which should
+                        ## be ignored.
+                        if check_basestrings == False:
+                            if isinstance(element,basestring):
+                                continue
                         element_set = set(element)
                         ## individual element sequences must be unique (i.e. [1,1,2] is not acceptable)
                         if len(element_set) != len(element):

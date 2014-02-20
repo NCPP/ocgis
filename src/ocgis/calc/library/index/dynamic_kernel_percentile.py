@@ -2,12 +2,13 @@ from ocgis.util.logging_ocgis import ocgis_lh
 import numpy as np
 from ocgis.calc.base import AbstractParameterizedFunction, \
     AbstractUnivariateSetFunction
+from ocgis import constants
 
 
 class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,AbstractParameterizedFunction):
     key = 'dynamic_kernel_percentile_threshold'
     parms_definition = {'operation':str,'percentile':float,'daily_percentile':None,'width':int}
-    dtype = np.int32
+    dtype = constants.np_int
     description = 'Implementation of moving window percentile threshold calculations similar to ECA indices: http://eca.knmi.nl/documents/atbd.pdf'
     
     def __init__(self,*args,**kwds):

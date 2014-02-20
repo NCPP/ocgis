@@ -4,13 +4,38 @@ from collections import OrderedDict
 from ocgis.util.helpers import get_iter
 import numpy as np
 from ocgis import constants
+from copy import copy
 
 
 class AbstractValueVariable(object):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,value=None):
+    def __init__(self,value=None,dtype=None,fill_value=None):
         self._value = value
+        self._dtype = dtype
+        self._fill_value = fill_value
+        
+    @property
+    def dtype(self):
+        if self._dtype is None:
+            if self._value is None:
+                raise(ValueError('dtype not specified at object initialization and value has not been loaded.'))
+            else:
+                ret = self.value.dtype
+        else:
+            ret = self._dtype
+        return(ret)
+    
+    @property
+    def fill_value(self):
+        if self._fill_value is None:
+            if self._value is None:
+                raise(ValueError('fill_value not specified at object initialization and value has not been loaded.'))
+            else:
+                ret = self.value.fill_value
+        else:
+            ret = self._fill_value
+        return(ret)
     
     @property
     def value(self):
@@ -34,7 +59,8 @@ class AbstractValueVariable(object):
 class AbstractSourcedVariable(AbstractValueVariable):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,data,src_idx=None,value=None,debug=False,did=None):
+    def __init__(self,data,src_idx=None,value=None,debug=False,did=None,dtype=None,
+                 fill_value=None):
         if not debug and value is None and data is None:
             ocgis_lh(exc=ValueError('Sourced variables require a data source if no value is passed.'))
         self._data = data
@@ -42,7 +68,8 @@ class AbstractSourcedVariable(AbstractValueVariable):
         self._debug = debug
         self.did = did
         
-        super(AbstractSourcedVariable,self).__init__(value=value)
+        super(AbstractSourcedVariable,self).__init__(value=value,dtype=dtype,
+                                                     fill_value=fill_value)
         
     @property
     def _src_idx(self):
@@ -74,22 +101,21 @@ class AbstractSourcedVariable(AbstractValueVariable):
 class Variable(AbstractSourcedVariable):
     
     def __init__(self,name=None,alias=None,units=None,meta=None,uid=None,
-                 value=None,data=None,debug=False,did=None):
+                 value=None,data=None,debug=False,did=None,fill_value=None,
+                 dtype=None):
         self.name = name
         self.alias = alias or name
         self.units = units
         self.meta = meta or {}
         self.uid = uid
         
-        super(Variable,self).__init__(value=value,data=data,debug=debug,did=did)
+        super(Variable,self).__init__(value=value,data=data,debug=debug,did=did,
+                                      dtype=dtype,fill_value=fill_value)
         
     def __getitem__(self,slc):
-        if self._value is None:
-            value = None
-        else:
-            value = self._value[slc]
-        ret = Variable(name=self.name,alias=self.alias,units=self.units,meta=self.meta,
-                       uid=self.uid,value=value,data=self._data,debug=self._debug)
+        ret = copy(self)
+        if ret._value is not None:
+            ret._value = self._value[slc]
         return(ret)
                 
     def __repr__(self):

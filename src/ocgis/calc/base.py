@@ -43,17 +43,24 @@ class AbstractFunction(object):
     
     @abc.abstractproperty
     def description(self): str
-    dtype = None
+    @abc.abstractproperty
+    def dtype(self): None
     Group = None
     @abc.abstractproperty
     def key(self): str
     long_name = ''
     standard_name = ''
     
+    ## standard empty dictionary to use for calculation outputs when the operation
+    ## is file only
+    _empty_fill = {'fill':None,'sample_size':None}
+    
     def __init__(self,alias=None,dtype=None,field=None,file_only=False,vc=None,
-                 parms=None,tgd=None,use_raw_values=False,calc_sample_size=False):
+                 parms=None,tgd=None,use_raw_values=False,calc_sample_size=False,
+                 fill_value=None):
         self.alias = alias or self.key
         self.dtype = dtype or self.dtype
+        self.fill_value = fill_value or constants.fill_value
         self.vc = vc or VariableCollection()
         self.field = field
         self.file_only = file_only
@@ -128,7 +135,13 @@ class AbstractFunction(object):
         '''
         pass
     
-    def _add_to_collection_(self,units=None,value=None,parent_variables=None,alias=None):
+    def _add_to_collection_(self,units=None,value=None,parent_variables=None,alias=None,
+                            dtype=None,fill_value=None):
+        
+        ## dtype and fill_value should come in with each new variable
+        assert(dtype is not None)
+        assert(fill_value is not None)
+        
         ## the value parameters should come in as a dictionary with two keys
         try:
             fill = value['fill']
@@ -145,8 +158,17 @@ class AbstractFunction(object):
         meta = {'attrs':{'standard_name':self.standard_name,
                          'long_name':self.long_name}}
         parents = VariableCollection(variables=parent_variables)
+        
+        ## if the operation is file only, creating a variable with an empty
+        ## value will raise an exception. pass a dummy data source because even
+        ## if the value is trying to be loaded it should not be accessible!
+        if self.file_only:
+            data = 'foo_data_source'
+        else:
+            data = None
         dv = DerivedVariable(name=self.key,alias=alias,units=units,value=fill,
-                             fdef=fdef,parents=parents,meta=meta)
+                             fdef=fdef,parents=parents,meta=meta,data=data,
+                             dtype=dtype,fill_value=fill_value)
         self.vc.add_variable(dv)
         
         ## add the sample size if it is present in the fill dictionary
@@ -154,7 +176,8 @@ class AbstractFunction(object):
             meta = {'attrs':{'standard_name':'sample_size',
                              'long_name':'Statistical Sample Size'}}
             dv = DerivedVariable(name=None,alias='n_'+dv.alias,units=None,value=sample_size,
-                                 fdef=None,parents=parents,meta=meta)
+                                 fdef=None,parents=parents,meta=meta,dtype=constants.np_int,
+                                 fill_value=fill_value)
             self.vc.add_variable(dv)
         
     @abc.abstractmethod
@@ -261,19 +284,29 @@ class AbstractUnivariateFunction(AbstractFunction):
         
     def _execute_(self):
         for variable in self.field.variables.itervalues():
-            fill = self.calculate(variable.value,**self.parms)
-            dtype = self.dtype or variable.value.dtype
-            if dtype != fill.dtype:
-                fill = fill.astype(dtype)
-            assert(fill.shape == self.field.shape)
-            if self.tgd is not None:
-                fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
+            
+            if self.file_only:
+                fill = self._empty_fill
             else:
-                if self.calc_sample_size:
-                    msg = 'Sample sizes not relevant for scalar transforms.'
-                    ocgis_lh(msg=msg,logger='calc.base',level=logging.WARN)
-                fill = self._get_or_pass_spatial_agg_fill_(fill)
-            self._add_to_collection_(value=fill,parent_variables=[variable])
+                fill = self.calculate(variable.value,**self.parms)
+                
+            dtype = self.dtype or variable.dtype
+            if not self.file_only:
+                if dtype != fill.dtype:
+                    fill = fill.astype(dtype)
+                assert(fill.shape == self.field.shape)
+            
+            if not self.file_only:
+                if self.tgd is not None:
+                    fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
+                else:
+                    if self.calc_sample_size:
+                        msg = 'Sample sizes not relevant for scalar transforms.'
+                        ocgis_lh(msg=msg,logger='calc.base',level=logging.WARN)
+                    fill = self._get_or_pass_spatial_agg_fill_(fill)
+                    
+            self._add_to_collection_(value=fill,parent_variables=[variable],
+                                     dtype=self.dtype,fill_value=self.fill_value)
 
 
 class AbstractParameterizedFunction(AbstractFunction):
@@ -331,13 +364,18 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
         shp_fill = list(self.field.shape)
         shp_fill[1] = len(self.tgd.dgroups)
         for variable in self.field.variables.itervalues():
-            
-            ## some calculations need information from the current variable iteration
-            self._curr_variable = variable
-            
-            value = self.get_variable_value(variable)
-            fill = self._get_temporal_agg_fill_(value,shp_fill=shp_fill)
-            self._add_to_collection_(value=fill,parent_variables=[variable])
+            if self.file_only:
+                fill = self._empty_fill
+            else:
+                ## some calculations need information from the current variable iteration
+                self._curr_variable = variable
+                ## return the value from the variable
+                value = self.get_variable_value(variable)
+                ## execute the calculations
+                fill = self._get_temporal_agg_fill_(value,shp_fill=shp_fill)
+            ## add the output to the variable collection
+            self._add_to_collection_(value=fill,parent_variables=[variable],
+                                     dtype=self.dtype,fill_value=self.fill_value)
             
     @classmethod
     def validate(cls,ops):
@@ -375,20 +413,26 @@ class AbstractMultivariateFunction(AbstractFunction):
         for k,v in self.parms.iteritems():
             if k not in self.required_variables:
                 parms.update({k:v})
-        fill = self.calculate(**parms)
-        if self.dtype is not None:
-            fill = fill.astype(self.dtype)
-        if not self.use_raw_values:
-            assert(fill.shape == self.field.shape)
+        
+        if self.file_only:
+            fill = self._empty_fill
         else:
-            assert(fill.shape[0:3] == self.field.shape[0:3])
-        if self.tgd is not None:
-            fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
-        else:
-            fill = self._get_or_pass_spatial_agg_fill_(fill)
+            fill = self.calculate(**parms)
+            if self.dtype is not None:
+                fill = fill.astype(self.dtype)
+            if not self.use_raw_values:
+                assert(fill.shape == self.field.shape)
+            else:
+                assert(fill.shape[0:3] == self.field.shape[0:3])
+            if self.tgd is not None:
+                fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
+            else:
+                fill = self._get_or_pass_spatial_agg_fill_(fill)
+                
         units = self.get_output_units()
+        
         self._add_to_collection_(units=units,value=fill,parent_variables=self.field.variables.values(),
-                                 alias=self.alias)
+                                 alias=self.alias,dtype=self.dtype,fill_value=self.fill_value)
         
     def get_output_units(self):
         return('undefined')

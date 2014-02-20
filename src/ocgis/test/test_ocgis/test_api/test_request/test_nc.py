@@ -13,6 +13,8 @@ from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError,\
     DimensionNotFound
 import datetime
 from unittest.case import SkipTest
+import ocgis
+from ocgis.test.test_simple.test_simple import nc_scope
 
 
 class TestNcRequestDataset(TestBase):
@@ -79,6 +81,15 @@ class TestNcRequestDataset(TestBase):
         field = rd.get()
         self.assertEqual(field.temporal.extent_datetime,(datetime.datetime(1981, 1, 1, 0, 0), datetime.datetime(1991, 1, 1, 0, 0)))
         self.assertAlmostEqual(field.temporal.resolution,0.125)
+        
+    def test_load_dtype_fill_value(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        ## dtype and fill_value should be read from metadata. when accessed they
+        ## should not load the value.
+        self.assertEqual(field.variables['tas'].dtype,np.float32)
+        self.assertEqual(field.variables['tas'].fill_value,np.float32(1e20))
+        self.assertEqual(field.variables['tas']._value,None)
         
     def test_load_datetime_slicing(self):
         ref_test = self.test_data['cancm4_tas']
@@ -298,6 +309,16 @@ class TestNcRequestDataset(TestBase):
         to_test = ds.variables['Tavg']
         self.assertNumpyAll(to_test[15,:,:,:],sub.variables[variable].value.squeeze().data)
         ds.close()
+        
+    def test_load_climatology_bounds(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,output_format='nc',geom='state_boundaries',
+                                  select_ugid=[27],calc=[{'func':'mean','name':'mean'}],
+                                  calc_grouping=['month'])
+        ret = ops.execute()
+        rd = NcRequestDataset(uri=ret,variable='mean_tas')
+        field = rd.get()
+        self.assertNotEqual(field.temporal.bounds,None)
 
 
 if __name__ == "__main__":

@@ -5,8 +5,9 @@ import itertools
 import datetime
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.exc import EmptySubsetError
+from ocgis.exc import EmptySubsetError, IncompleteSeasonError
 from ocgis.util.helpers import get_is_date_between
+from copy import deepcopy
 
 
 class TemporalDimension(base.VectorDimension):
@@ -18,15 +19,43 @@ class TemporalDimension(base.VectorDimension):
         ## parts when the grouping is 'all'.
         if grouping == 'all':
             new_bounds,date_parts,repr_dt,dgroups = self._get_grouping_all_()
+        ## the process for getting "unique" seasons is also specialized
+        elif 'unique' in grouping:
+            new_bounds,date_parts,repr_dt,dgroups = self._get_grouping_seasonal_unique_(grouping)
+        ## for standard groups ("['month']") or seasons across entire time range
         else:
             new_bounds,date_parts,repr_dt,dgroups = self._get_grouping_other_(grouping)
-
+        
         tgd = self._get_temporal_group_dimension_(
                     grouping=grouping,date_parts=date_parts,bounds=new_bounds,
                     dgroups=dgroups,value=repr_dt,name_value='time',name_uid='tid',
                     name=self.name,meta=self.meta,units=self.units)
         
         return(tgd)
+    
+    def _get_grouping_seasonal_unique_(self,grouping):
+        '''
+        Returns a :class:`TemporalGroupDimension` arguments for unique seasons.
+        '''
+        ## remove the unique keyword from the list
+        grouping = list(deepcopy(grouping))
+        grouping.remove('unique')
+        grouping = get_sorted_seasons(grouping)
+        ## turn the seasons into time regions
+        time_regions = get_time_regions(grouping,self._get_datetime_value_(),raise_if_incomplete=False)
+        ## holds the boolean selection arrays
+        dgroups = deque()
+        new_bounds = np.array([],dtype=object).reshape(-1,2)
+        repr_dt = np.array([],dtype=object)
+        ## return temporal dimensions and convert to groups
+        for dgroup,sub in iter_boolean_groups_from_time_regions(time_regions,self,yield_subset=True,raise_if_incomplete=False):
+            dgroups.append(dgroup)
+            sub_value_datetime = sub._get_datetime_value_()
+            new_bounds = np.vstack((new_bounds,[min(sub_value_datetime),max(sub_value_datetime)]))
+            repr_dt = np.append(repr_dt,sub_value_datetime[int(sub.shape[0]/2)])
+        ## no date parts yet...
+        date_parts = None
+        return(new_bounds,date_parts,repr_dt,dgroups)
     
     def _get_grouping_all_(self):
         '''
@@ -76,6 +105,7 @@ class TemporalDimension(base.VectorDimension):
         ## populate the value array depending on the presence of bounds
         if self.bounds is None:
             value[:,:] = value_datetime.reshape(-1,1)
+        ## bounds are currently not used for the grouping mechanism
         else:
             value[:,0] = value_datetime_bounds[:,0]
             value[:,1] = value_datetime
@@ -91,7 +121,7 @@ class TemporalDimension(base.VectorDimension):
         
         ## grouping is different for date part combinations v. seasonal
         ## aggregation.
-        if isinstance(grouping[0],basestring):
+        if all([isinstance(ii,basestring) for ii in grouping]):
             unique = deque()
             for idx in range(parts.shape[1]):
                 if group_map[idx] in grouping:
@@ -122,14 +152,35 @@ class TemporalDimension(base.VectorDimension):
             dtype = [(dp,object) for dp in self._date_parts]
         ## this is for seasonal aggregations
         else:
+            ## we need to remove the year string from the grouping and do
+            ## not want to modify the original list
+            grouping = deepcopy(grouping)
+            ## search for a year flag, which will break the temporal groups by
+            ## years
+            if 'year' in grouping:
+                has_year = True
+                grouping = list(grouping)
+                grouping.remove('year')
+                years = np.unique(parts[:,0])
+            else:
+                has_year = False
+                years = [None]
+            
             dgroups = deque()
-            for group in grouping:
+            grouping_season = deque()
+            for season,year in itertools.product(grouping,years):
                 subgroup = np.zeros(value.shape[0],dtype=bool)
                 for idx in range(value.shape[0]):
-                    if parts[idx,1] in group:
-                        subgroup[idx] = True
+                    if has_year:
+                        if parts[idx,1] in season and year == parts[idx,0]:
+                            subgroup[idx] = True
+                    else:
+                        if parts[idx,1] in season:
+                            subgroup[idx] = True
                 dgroups.append(subgroup)
-            dtype = [('months',object)]
+                grouping_season.append([season,year])
+            dtype = [('months',object),('year',int)]
+            grouping = grouping_season
         
         ## init arrays to hold values and bounds for the grouped data
         new_value = np.empty((len(dgroups),),dtype=dtype)
@@ -141,7 +192,12 @@ class TemporalDimension(base.VectorDimension):
                 new_value[idx] = tuple(select[idx])
             ## likely a seasonal aggregation with a different group representation
             except UnboundLocalError:
-                new_value[idx] = (grouping[idx],)
+                try:
+                    new_value[idx] = (grouping[idx][0],grouping[idx][1])
+                ## there is likely no year associated with the seasonal aggregation
+                ## and it is a Nonetype
+                except TypeError:
+                    new_value[idx]['months'] = grouping[idx][0]
             sel = value[dgrp][:,(0,2)]
             new_bounds[idx,:] = [sel.min(),sel.max()]
         
@@ -305,3 +361,150 @@ class TemporalGroupDimension(TemporalDimension):
         self.date_parts = kwds.pop('date_parts')
                 
         TemporalDimension.__init__(self,*args,**kwds)
+
+
+def iter_boolean_groups_from_time_regions(time_regions,temporal_dimension,yield_subset=False,
+                                          raise_if_incomplete=True):
+    '''
+    :param time_regions: Sequence of nested time region dictionaries.
+    
+    >>> [[{'month':[1,2],'year':[2024]},...],...]
+    
+    :param temporal_dimension: :class:`TemporalDimension`
+    :yields: boolean ndarray vector with yld.shape == temporal_dimension.shape
+    '''
+    for sub_time_regions in time_regions:
+        ## incomplete seasons are searched for in the nested loop. this indicates
+        ## if a time region group should be considered a season.
+        is_complete = True
+        idx_append = np.array([],dtype=int)
+        for time_region in sub_time_regions:
+            sub,idx = temporal_dimension.get_time_region(time_region,return_indices=True)
+            ## insert a check to ensure there are months present for each time region
+            months = set([d.month for d in sub._get_datetime_value_()])
+            try:
+                assert(months == set(time_region['month']))
+            except AssertionError:
+                if raise_if_incomplete:
+                    for m in time_region['month']:
+                        if m not in months:
+                            raise(IncompleteSeasonError(time_region,month=m))
+                else:
+                    is_complete = False
+            idx_append = np.append(idx_append,idx)
+        ## if the season is complete append, otherwise pass to next iteration.
+        if is_complete:
+            dgroup = np.zeros(temporal_dimension.shape[0],dtype=bool)
+            dgroup[idx_append] = True
+        else:
+            continue
+        
+        if yield_subset:
+            yld = (dgroup,sub)
+        else:
+            yld = dgroup
+        
+        yield(yld)
+        
+def get_is_interannual(sequence):
+    '''
+    Returns ``True`` if an integer sequence representing a season crosses a year
+    boundary.
+    
+    >>> sequence = [11,12,1]
+    >>> get_is_interannual(sequence)
+    True
+    '''
+    
+    if 12 in sequence and 1 in sequence:
+        ret = True
+    else:
+        ret = False
+    return(ret)
+
+
+def get_sorted_seasons(seasons):
+    '''
+    Sorts `seasons` sequence by max value.
+    
+    >>> seasons = [[9,10,11],[12,1,2],[6,7,8]]
+    >>> get_sorted_seasons(seasons)
+    [[6,7,8],[9,10,11],[12,1,2]]
+    '''
+    
+    season_map = {}
+    for ii,season in enumerate(seasons):
+        season_map[ii] = season
+    max_map = {}
+    for key,value in season_map.iteritems():
+        max_map[max(value)] = key
+    sorted_maxes = sorted(max_map)
+    ret = [seasons[max_map[s]] for s in sorted_maxes]
+    ret = deepcopy(ret)
+    return(ret)
+
+def get_time_regions(seasons,dates,raise_if_incomplete=True):
+    '''
+    >>> seasons = [[6,7,8],[9,10,11],[12,1,2]]
+    >>> dates = <vector of datetime objects>
+    '''
+    ## extract the years from the data vector collapsing them to a unique
+    ## set then sort in ascending order
+    years = list(set([d.year for d in dates]))
+    years.sort()
+    ## determine if any of the seasons are interannual
+    interannual_check = map(get_is_interannual,seasons)
+    ## holds the return value
+    time_regions = []
+    ## the interannual cases requires two time region sequences to
+    ## properly extract
+    if any(interannual_check):
+        ## loop over years first to ensure each year is accounted for
+        ## in the time region output
+        for ii_year,year in enumerate(years):
+            ## the interannual flag is used internally for simple optimization
+            for ic,cg in itertools.izip(interannual_check,seasons):
+                ## if no exception is raised for an incomplete season,
+                ## this flag indicate whether to append to the output
+                append_to_time_regions = True
+                if ic:
+                    ## copy and sort in descending order the season because
+                    ## december of the current year should be first.
+                    _cg = deepcopy(cg)
+                    _cg.sort()
+                    _cg.reverse()
+                    ## look for the interannual break and split the season
+                    ## into the current year and next year.
+                    diff = np.abs(np.diff(_cg))
+                    split_base = np.arange(1,len(_cg))
+                    split_indices = split_base[diff > 1]
+                    split = np.split(_cg,split_indices)
+                    ## will hold the sub-element time regions
+                    sub_time_region = []
+                    for ii_split,s in enumerate(split):
+                        try:
+                            to_append_sub = {'year':[years[ii_year+ii_split]],'month':s.tolist()}
+                            sub_time_region.append(to_append_sub)
+                        ## there may not be another year of data for an
+                        ## interannual season. we DO NOT keep incomplete
+                        ## seasons.
+                        except IndexError:
+                            ## don't just blow through an incomplete season
+                            ## unless asked to
+                            if raise_if_incomplete:
+                                raise(IncompleteSeasonError(_cg,year))
+                            else:
+                                append_to_time_regions = False
+                                continue
+                    to_append = sub_time_region
+                else:
+                    to_append = [{'year':[year],'month':cg}]
+                if append_to_time_regions:
+                    time_regions.append(to_append)
+    ## without interannual seasons the time regions are unique combos of
+    ## the years and seasons designations
+    else:
+        for year,season in itertools.product(years,seasons):
+            time_regions.append([{'year':[year],'month':season}])
+            
+    return(time_regions)

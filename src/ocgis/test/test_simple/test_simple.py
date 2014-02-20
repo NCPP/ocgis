@@ -592,6 +592,12 @@ class TestSimple(TestSimpleBase):
         try:
             for alias in ['my_mean_foo','my_stdev_foo']:
                 self.assertEqual(ds.variables[alias].shape,(2,2,4,4))
+            
+            ## output variable should not have climatology bounds and no time
+            ## bounds directly
+            with self.assertRaises(AttributeError):
+                ds.variables['time'].bounds
+                
             self.assertEqual(ds.variables['time'].climatology,'climatology_bound')
             self.assertEqual(ds.variables['climatology_bound'].shape,(2,2))
         finally:

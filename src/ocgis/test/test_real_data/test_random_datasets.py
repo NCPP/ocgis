@@ -142,6 +142,7 @@ class Test(TestBase):
             values = np.squeeze(ds.variables['tas'][:])
             self.assertNumpyAll(data_values,values)
     
+    @longrunning
     def test_value_conversion(self):
         ## confirm value data types are properly converted
         ocgis.env.DIR_DATA = '/usr/local/climate_data'

@@ -9,7 +9,9 @@ from collections import OrderedDict
 class Duration(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):
     key = 'duration'
     parms_definition = {'threshold':float,'operation':str,'summary':str}
-    dtype = np.float32
+    ## output data type will vary by the summary operation (e.g. float for mean,
+    ## int for max)
+    dtype = constants.np_float
     description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
     
     def calculate(self,values,threshold=None,operation=None,summary='mean'):
@@ -46,7 +48,7 @@ class Duration(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunc
         ## update the output mask. this only applies to geometries so pick the
         ## first masked time field
         store = np.ma.array(store,mask=values.mask[0,:,:])
-        
+                
         return(store)
     
     def _iter_consecutive_(self,values,threshold,operation):

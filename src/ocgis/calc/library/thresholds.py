@@ -1,11 +1,12 @@
 from ocgis.calc import base
 import numpy as np
+from ocgis import constants
 
 
 class Between(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):
     description = 'Count of values falling within the limits lower and upper (inclusive).'
     parms_definition = {'lower':float,'upper':float}
-    dtype = np.int32
+    dtype = constants.np_int
     key = 'between'
     
     def calculate(self,values,lower=None,upper=None):
@@ -23,7 +24,7 @@ class Between(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunct
 class Threshold(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):
     description = 'Count of values where the logical operation returns TRUE.'
     parms_definition = {'threshold':float,'operation':str}
-    dtype = np.int32
+    dtype = constants.np_int
     key = 'threshold'
     
     def calculate(self,values,threshold=None,operation=None):

@@ -1,5 +1,5 @@
 import unittest
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, NoUnitsError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
 from ocgis import env
@@ -8,9 +8,11 @@ import os
 import pickle
 from datetime import datetime as dt
 import shutil
-from ocgis.test.test_simple.test_simple import nc_scope
+from ocgis.test.test_simple.test_simple import nc_scope, ToTest
 import datetime
 from ocgis.api.operations import OcgOperations
+import numpy as np
+from cfunits.cfunits import Units
 
 
 class TestRequestDataset(TestBase):
@@ -21,6 +23,73 @@ class TestRequestDataset(TestBase):
         self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
+        
+    def test_with_units(self):
+        units = 'celsius'
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'units':units})
+        self.assertEqual(rd.units,'celsius')
+    
+    def test_without_units_attempting_conform(self):
+        ## this will work because the units read from the metadata are equivalent
+        self.test_data.get_rd('cancm4_tas',kwds={'conform_units_to':'celsius'})
+        ## this will not work because the units are not equivalent
+        with self.assertRaises(ValueError):
+            self.test_data.get_rd('cancm4_tas',kwds={'conform_units_to':'coulomb'})
+            
+    def test_with_bad_units_attempting_conform(self):
+        ## pass bad units to the constructor and an attempt a conform. values from
+        ## the source dataset are not used for overload.
+        with self.assertRaises(ValueError):
+            self.test_data.get_rd(
+             'cancm4_tas',
+             kwds={'conform_units_to':'celsius','units':'coulomb'})
+            
+    def test_nonsense_units(self):
+        with self.assertRaises(ValueError):
+            self.test_data.get_rd('cancm4_tas',
+                                  kwds={'units':'nonsense','conform_units_to':'celsius'})
+            
+    def test_with_bad_units_passing_to_field(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'units':'celsius'})
+        field = rd.get()
+        self.assertEqual(field.variables['tas'].units,'celsius')
+        
+    def test_get_field_with_overloaded_units(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'conform_units_to':'celsius'})
+        preload = [False,True]
+        for pre in preload:
+            field = rd.get()
+            ## conform units argument needs to be attached to a field variable
+            self.assertEqual(field.variables['tas']._conform_units_to,'celsius')
+            sub = field.get_time_region({'year':[2009],'month':[5]})
+            if pre:
+                ## if we wanted to load the data prior to subset then do so and
+                ## manually perform the units conversion
+                to_test = Units.conform(sub.variables['tas'].value,sub.variables['tas'].cfunits,Units('celsius'))
+            ## assert the conform attribute makes it though the subset
+            self.assertEqual(sub.variables['tas']._conform_units_to,'celsius')
+            value = sub.variables['tas'].value
+            self.assertAlmostEqual(np.ma.mean(value),5.9219375118132564)
+            self.assertAlmostEqual(np.ma.median(value),10.745431900024414)
+            if pre:
+                ## assert the manually converted array matches the loaded
+                ## value
+                self.assertNumpyAll(to_test,value)
+                
+    def test_get_field_nonequivalent_units_in_source_data(self):
+        new_path = self.test_data.copy_file('cancm4_tas',self._test_dir)
+        
+        ## put non-equivalent units on the source data and attempto to conform
+        with nc_scope(new_path,'a') as ds:
+            ds.variables['tas'].units = 'coulomb'
+        with self.assertRaises(ValueError):
+            RequestDataset(uri=new_path,variable='tas',conform_units_to='celsius')
+        
+        ## remove units altogether
+        with nc_scope(new_path,'a') as ds:
+            ds.variables['tas'].delncattr('units')
+        with self.assertRaises(NoUnitsError):
+            RequestDataset(uri=new_path,variable='tas',conform_units_to='celsius')
     
     def test_pickle(self):
         rd = RequestDataset(uri=self.uri,variable=self.variable)
@@ -90,13 +159,13 @@ class TestRequestDataset(TestBase):
         with self.assertRaises(ValueError):
             RequestDataset('rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',variable='rhs')
     
-    def test_RequestDataset_with_alias(self):        
+    def test_with_alias(self):        
         rd = RequestDataset(self.uri,self.variable,alias='an_alias')
         self.assertEqual(rd.alias,'an_alias')
         rd = RequestDataset(self.uri,self.variable,alias=None)
         self.assertEqual(rd.alias,self.variable)
         
-    def test_RequestDataset_time_range(self):        
+    def test_time_range(self):        
         tr = [dt(2000,1,1),dt(2000,12,31)]
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
         self.assertEqual(rd.time_range,tr)
@@ -110,15 +179,49 @@ class TestRequestDataset(TestBase):
         with self.assertRaises(DefinitionValidationError):
             rd = RequestDataset(self.uri,self.variable,time_range=tr)
             
-    def test_RequestDataset_level_range(self):
+    def test_level_range(self):
         lr = '1|1'
         rd = RequestDataset(self.uri,self.variable,level_range=lr)
         self.assertEqual(rd.level_range,[1,1])
         
         with self.assertRaises(DefinitionValidationError):
             rd = RequestDataset(self.uri,self.variable,level_range=[2,1])
+        
+    def test_multiple_uris(self):
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        self.assertEqual(len(rd.uri),2)
+        rd.inspect()
+        
+    def test_time_region(self):
+        tr1 = {'month':[6],'year':[2001]}
+        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr1)
+        self.assertEqual(rd.time_region,tr1)
+        
+        tr2 = {'bad':15}
+        with self.assertRaises(DefinitionValidationError):
+            RequestDataset(uri=self.uri,variable=self.variable,time_region=tr2)
+        
+        with self.assertRaises(NotImplementedError):
+            tr_str = 'month~6|year~2001'
+            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+            self.assertEqual(rd.time_region,tr1)
+            
+            tr_str = 'month~6-8|year~2001-2003'
+            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':[2001,2002,2003]})
+            
+            tr_str = 'month~6-8'
+            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
+            
+            tr_str = 'month~6-8|year~none'
+            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
+            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
+
+
+class TestRequestDatasetCollection(TestBase):
     
-    def test_RequestDatasetCollection(self):
+    def test(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         
         daymet = self.test_data.get_rd('daymet_tmax')
@@ -152,7 +255,7 @@ class TestRequestDataset(TestBase):
         self.assertIsInstance(rdc[0],RequestDataset)
         self.assertIsInstance(rdc['a2'],RequestDataset)
         
-    def test_RequestDatasetCollection_with_overloads(self):
+    def test_with_overloads(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         ## loaded calendar should match file metadata
@@ -187,7 +290,7 @@ class TestRequestDataset(TestBase):
         ## the metadata
         self.assertEqual(rdc[0].get().temporal.calendar,'365_day')
         
-    def test_RequestDatasetCollection_with_overloads_real_data(self):
+    def test_with_overloads_real_data(self):
         ## copy the test file as the calendar attribute will be modified
         rd = self.test_data.get_rd('cancm4_tas')
         filename = os.path.split(rd.uri)[1]
@@ -225,38 +328,7 @@ class TestRequestDataset(TestBase):
         rdc = RequestDatasetCollection(dataset)
         ops = OcgOperations(dataset=rdc,geom='state_boundaries',select_ugid=[25],output_format='csv+')
         ops.execute()
-        
-    def test_multiple_uris(self):
-        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
-        self.assertEqual(len(rd.uri),2)
-        rd.inspect()
-        
-    def test_time_region(self):
-        tr1 = {'month':[6],'year':[2001]}
-        rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr1)
-        self.assertEqual(rd.time_region,tr1)
-        
-        tr2 = {'bad':15}
-        with self.assertRaises(DefinitionValidationError):
-            RequestDataset(uri=self.uri,variable=self.variable,time_region=tr2)
-        
-        with self.assertRaises(NotImplementedError):
-            tr_str = 'month~6|year~2001'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,tr1)
-            
-            tr_str = 'month~6-8|year~2001-2003'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':[2001,2002,2003]})
-            
-            tr_str = 'month~6-8'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
-            
-            tr_str = 'month~6-8|year~none'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
-
+    
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

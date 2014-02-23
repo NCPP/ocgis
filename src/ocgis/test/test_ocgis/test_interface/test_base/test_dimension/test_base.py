@@ -3,6 +3,8 @@ import numpy as np
 from ocgis.exc import EmptySubsetError, ResolutionError
 from ocgis.interface.base.dimension.base import VectorDimension
 from copy import deepcopy
+from cfunits.cfunits import Units
+from ocgis.util.helpers import get_interpolated_bounds
 
 
 class TestVectorDimension(unittest.TestCase):
@@ -98,6 +100,32 @@ class TestVectorDimension(unittest.TestCase):
     def test_resolution_with_units(self):
         vdim = VectorDimension(value=[5,10,15],units='large')
         self.assertEqual(vdim.resolution,5.0)
+        
+    def test_with_units(self):
+        vdim = VectorDimension(value=[5,10,15],units='celsius')
+        self.assertEqual(vdim.cfunits,Units('celsius'))
+        vdim.cfunits_conform(Units('kelvin'))
+        self.assertNumpyAll(vdim.value,np.array([278.15,283.15,288.15]))
+    
+    def test_with_units_and_bounds_interpolation(self):
+        vdim = VectorDimension(value=[5.,10.,15.],units='celsius',interpolate_bounds=True)
+        vdim.cfunits_conform(Units('kelvin'))
+        self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
+        
+    def test_with_units_and_bounds_convert_after_load(self):
+        vdim = VectorDimension(value=[5.,10.,15.],units='celsius',interpolate_bounds=True)
+        vdim.bounds
+        vdim.cfunits_conform(Units('kelvin'))
+        self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
+        
+    def test_units_with_bounds(self):
+        for i in [True,False]:
+            value = [5.,10.,15.]
+            vdim = VectorDimension(value=value,units='celsius',
+                                   bounds=get_interpolated_bounds(np.array(value)),
+                                   interpolate_bounds=i)
+            vdim.cfunits_conform(Units('kelvin'))
+            self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
     
     def test_load_from_source(self):
         vdim = VectorDimension(src_idx=[0,1,2,3],data='foo')

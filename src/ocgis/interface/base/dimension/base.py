@@ -4,7 +4,7 @@ from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
     get_formatted_slice, assert_raise, get_interpolated_bounds
-from copy import copy
+from copy import copy, deepcopy
 from ocgis.exc import EmptySubsetError, ResolutionError
 from operator import mul
 from ocgis.interface.base.variable import AbstractValueVariable,\
@@ -68,9 +68,10 @@ class AbstractValueDimension(AbstractValueVariable,AbstractDimension):
     
     def __init__(self,*args,**kwds):
         self.name_value = kwds.pop('name_value',None)
-        self.units = kwds.pop('units',None)
         
-        AbstractValueVariable.__init__(self,value=kwds.pop('value',None))
+        AbstractValueVariable.__init__(self,
+                                       value=kwds.pop('value',None),
+                                       units=kwds.pop('units',None))
         AbstractDimension.__init__(self,*args,**kwds)
         
         if self.name_value is None:
@@ -138,8 +139,14 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         ## if True, an attempt will be made to interpolate bounds if None are
         ## provided.
         self._interpolate_bounds = kwds.pop('interpolate_bounds',False)
+        ## if True, bounds were interpolated. if False, they were loaded from
+        ## source data
+        self._has_interpolated_bounds = False
         
-        AbstractSourcedVariable.__init__(self,kwds.pop('data',None),src_idx=kwds.pop('src_idx',None),value=kwds.get('value'))
+        AbstractSourcedVariable.__init__(self,
+                                         kwds.pop('data',None),
+                                         src_idx=kwds.pop('src_idx',None),
+                                         value=kwds.get('value'))
         AbstractUidValueDimension.__init__(self,*args,**kwds)
         
         ## setting bounds requires checking the data type of value set in a
@@ -162,6 +169,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         ## bounds from the value itself.
         if self._interpolate_bounds and self._bounds is None:
             self._bounds = get_interpolated_bounds(self.value)
+            self._has_interpolated_bounds = True
         
         ## if no error is encountered, then the bounds should have been set during
         ## loading from source. simply return the value. it will be none, if no
@@ -205,6 +213,30 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
     @property
     def shape(self):
         return(self.uid.shape)
+    
+    def cfunits_conform(self,to_units):
+        ## get the original units for bounds conversion. the "cfunits_conform"
+        ## method updates the object's internal "units" attribute.
+        original_units = deepcopy(self.cfunits)
+        ## call the superclass unit conversion
+        AbstractValueVariable.cfunits_conform(self,to_units)
+        ## if the bounds are already loaded, convert
+        if self._bounds is not None:
+            AbstractValueVariable.cfunits_conform(self,to_units,value=self._bounds,from_units=original_units)
+        ## if the bound are not set, they may be interpolated
+        elif self.bounds is not None:
+            ## if the bounds were interpolated, then this should be set to 
+            ## "None" so the units conforming will use the source value units 
+            ## spec.
+            if self._has_interpolated_bounds:
+                from_units = None
+            else:
+                from_units = original_units
+            ## conform the bounds value
+            AbstractValueVariable.cfunits_conform(self,
+                                                  to_units,
+                                                  value=self.bounds,
+                                                  from_units=from_units)
     
     def get_between(self,lower,upper,return_indices=False,closed=False):
         assert(lower <= upper)

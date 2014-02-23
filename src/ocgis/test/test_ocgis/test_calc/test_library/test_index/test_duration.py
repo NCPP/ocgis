@@ -118,7 +118,8 @@ class TestFrequencyDuration(AbstractCalcBase):
             reader = csv.DictReader(f)
             variables = [row['VARIABLE'] for row in reader]
         self.assertEqual(set(variables),set(['tasmax','tasmin']))
-            
+    
+    @longrunning
     def test_real_data(self):
         uri = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
         variable = 'tasmax'

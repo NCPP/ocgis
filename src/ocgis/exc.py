@@ -165,6 +165,20 @@ class EmptySubsetError(SubsetException):
         return(msg)
     
     
+class NoUnitsError(OcgException):
+    '''
+    Raised when a :class:`cfunits.Units` object is constructed from a NoneType
+    value.
+    '''
+    
+    def __str__(self):
+        if self.message is None:
+            msg = 'Variable has not been assigned units. Set the "units" attribute to continue.'
+        else:
+            msg = self.message
+        return(msg)
+
+
 class IncompleteSeasonError(OcgException):
             
     def __init__(self,season,year=None,month=None):

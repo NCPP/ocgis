@@ -202,6 +202,32 @@ tar -xzvf Fiona-0.16.1.tar.gz
 cd Fiona-0.16.1
 [sudo] python setup.py install
 
+#########################
+# INSTALL CF-UNITS-PYTHON
+#########################
+
+# Website for UDUNITS: http://www.unidata.ucar.edu/software/udunits/
+# Website for cfunits-python: https://code.google.com/p/cfunits-python/
+
+CFUNITS_VER=0.9.6
+CFUNITS_SRC=$SRCDIR/cfunits-python/v$CFUNITS_VER
+CFUNITS_TARBALL=cfunits-$CFUNITS_VER.tar.gz
+CFUNITS_URL=https://cfunits-python.googlecode.com/files/$CFUNITS_TARBALL
+CFUNITS_INSTALL_DIR=/usr/local/lib/python2.7/dist-packages/cfunits
+
+## install udunits C library
+[sudo] apt-get install libudunits2-0
+
+## install cfunits-python
+mkdir -p $CFUNITS_SRC
+cd $CFUNITS_SRC
+wget $CFUNITS_URL
+tar -xzvf $CFUNITS_TARBALL
+cd cfunits-$CFUNITS_VER
+[sudo] python setup.py install
+# installation does not copy UDUNITS database
+[sudo] cp -r cfunits/etc $CFUNITS_INSTALL_DIR
+
 #################
 # INSTALL POSTGIS
 #################

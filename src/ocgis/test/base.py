@@ -140,6 +140,12 @@ class TestData(OrderedDict):
                 print('copying: {0}...'.format(dst))
                 shutil.copy2(to_copy_uri,dst)
         print('copy completed.')
+        
+    def copy_file(self,key,dest):
+        src = self.get_uri(key)
+        dest = os.path.join(dest,self[key]['filename'])
+        shutil.copy2(src,dest)
+        return(dest)
     
     def get_rd(self,key,kwds=None):
         ref = self[key]

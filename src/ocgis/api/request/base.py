@@ -30,7 +30,7 @@ class RequestDataset(NcRequestDataset):
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
     :type level_range: [int, int]
     :param s_crs: An ~`ocgis.interface.base.crs.CoordinateReferenceSystem` object to overload the projection autodiscovery.
-    :type s_proj: `ocgis.interface.base.crs.CoordinateReferenceSystem`
+    :type s_crs: `ocgis.interface.base.crs.CoordinateReferenceSystem`
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
@@ -45,15 +45,21 @@ class RequestDataset(NcRequestDataset):
     
     >>> dimension_map = {'T':'time','X':'longitude','Y':'latitude','R':'projection'}
     
+    :param units: The units of the source variable. This will be read from metadata
+     if this value is ``None``.
+    :type units: str or :class:`cfunits.Units`
+    :param conform_units_to: Destination units for conversion. If this parameter is
+     set, then the :mod:`cfunits` module must be installed.
+    :type conform_units_to: str or :class:`cfunits.Units`
+    
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     '''
-    pass
+    pass  
 
 
 class RequestDatasetCollection(object):
-    '''Contains business logic ensuring multiple :class:`ocgis.RequestDataset` objects are
-    compatible.
+    '''A set of :class:`ocgis.RequestDataset` objects.
     
     >>> from ocgis import RequestDatasetCollection, RequestDataset
     >>> uris = ['http://some.opendap.dataset1', 'http://some.opendap.dataset2']
@@ -140,3 +146,4 @@ class RequestDatasetCollection(object):
             rows += value._get_meta_rows_()
             rows.append('')
         return(rows)
+

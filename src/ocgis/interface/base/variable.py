@@ -4,17 +4,33 @@ from collections import OrderedDict
 from ocgis.util.helpers import get_iter
 import numpy as np
 from ocgis import constants
+from ocgis.exc import NoUnitsError
 from copy import copy
 
 
 class AbstractValueVariable(object):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,value=None,dtype=None,fill_value=None):
+    def __init__(self,value=None,units=None,dtype=None,fill_value=None):
         self._value = value
         self._dtype = dtype
         self._fill_value = fill_value
+        ## if the units value is not None, then convert to string. cfunits.Units
+        ## may be easily handled this way without checking for the module presence.
+        self.units = str(units) if units is not None else None
         
+    @property
+    def cfunits(self):
+        ## the cfunits-python module is not a dependency of ocgis and should be
+        ## imported on demand
+        from cfunits import Units
+        ## while NoneType units are accepted in cfunits, any unit conversion in
+        ## ocgis require they be present
+        if self.units is None:
+            raise(NoUnitsError)
+        
+        return(Units(self.units))
+    
     @property
     def dtype(self):
         if self._dtype is None:
@@ -54,13 +70,42 @@ class AbstractValueVariable(object):
     @abc.abstractmethod
     def _format_private_value_(self,value):
         return(value)
+    
+    def cfunits_conform(self,to_units,value=None,from_units=None):
+        '''
+        Conform units of value variable in-place using :mod:`cfunits`.
+        
+        :param to_units: Target conform units.
+        :type t_units: str or :class:`cfunits.Units`
+        :param value: Optional value array to use in place of the object's value.
+        :type value: :class:`numpy.ma.array`
+        :param from_units: Source units to use in place of the object's value.
+        :type from_units: str or :class:`cfunits.Units`
+        '''
+        ## allow string unit representations to be passed
+        from cfunits import Units
+        if not isinstance(to_units,Units):
+            to_units = Units(to_units)
+        ## pick the value to convert. this is added to keep the import of the
+        ## units library in the AbstractValueVariable.cfunits property
+        convert_value = self.value if value is None else value
+        ## use the overloaded "from_units" if passed, otherwise use the object-level
+        ## attribute
+        from_units = self.cfunits if from_units is None else from_units
+        ## units are always converted in place. users need to execute their own
+        ## deep copies
+        self.cfunits.conform(convert_value,from_units,to_units,inplace=True)
+        ## update the units attribute with the destination units
+        self.units = str(to_units)
+        
+        return(convert_value)
 
 
 class AbstractSourcedVariable(AbstractValueVariable):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,data,src_idx=None,value=None,debug=False,did=None,dtype=None,
-                 fill_value=None):
+    def __init__(self,data,src_idx=None,value=None,debug=False,did=None,units=None,
+                 dtype=None,fill_value=None):
         if not debug and value is None and data is None:
             ocgis_lh(exc=ValueError('Sourced variables require a data source if no value is passed.'))
         self._data = data
@@ -68,8 +113,8 @@ class AbstractSourcedVariable(AbstractValueVariable):
         self._debug = debug
         self.did = did
         
-        super(AbstractSourcedVariable,self).__init__(value=value,dtype=dtype,
-                                                     fill_value=fill_value)
+        super(AbstractSourcedVariable,self).__init__(value=value,units=units,
+                                                     dtype=dtype,fill_value=fill_value)
         
     @property
     def _src_idx(self):
@@ -99,18 +144,43 @@ class AbstractSourcedVariable(AbstractValueVariable):
 
 
 class Variable(AbstractSourcedVariable):
+    '''
+    :param name: Representative name for the variable.
+    :type name: str
+    :param alias: Optional unique name for the variable.
+    :type alias: str
+    :param units: Variable units. If :mod:`cfunits-python` is installed, this will be
+     transformed into a :class:`cfunits.Units` object.
+    :type units: str
+    :param meta: Optional metadata dictionary or object.
+    :type meta: dict or object
+    :param uid: Optional unique identifier for the Variable.
+    :type uid: int
+    :param value: Value associated with the variable.
+    :type value: np.ndarray
+    :param data: Optional data source if no value is passed.
+    :type data: object
+    :param did: Optional unique identifier for the data source.
+    :type did: int
+    :param dtype: Optional data type of the object.
+    :type dtype: type
+    :param fill_value: Option fill value for masked array elements.
+    :type fill_value: int or float
+    :param conform_units_to: Target units for conversion.
+    :type conform_units_to: str convertible to :class:`cfunits.Units`
+    '''
     
     def __init__(self,name=None,alias=None,units=None,meta=None,uid=None,
-                 value=None,data=None,debug=False,did=None,fill_value=None,
-                 dtype=None):
+                 value=None,did=None,data=None,debug=False,conform_units_to=None,
+                 dtype=None,fill_value=None):
         self.name = name
         self.alias = alias or name
-        self.units = units
         self.meta = meta or {}
         self.uid = uid
+        self._conform_units_to = conform_units_to
         
         super(Variable,self).__init__(value=value,data=data,debug=debug,did=did,
-                                      dtype=dtype,fill_value=fill_value)
+                                      units=units,dtype=dtype,fill_value=fill_value)
         
     def __getitem__(self,slc):
         ret = copy(self)
@@ -139,8 +209,13 @@ class Variable(AbstractSourcedVariable):
         return(self._value)
     
     def _set_value_from_source_(self):
+        ## load the value from source using the referenced field
         self._value = self._field._get_value_from_source_(self._data,self.name)
+        ## ensure the new value has the geometry masked applied
         self._field._set_new_value_mask_(self._field,self._field.spatial.get_mask())
+        ## if there are units to conform to, execute this now
+        if self._conform_units_to:
+            self.cfunits_conform(self._conform_units_to,self.value)
     
     
 class VariableCollection(object):

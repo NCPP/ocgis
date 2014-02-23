@@ -1,5 +1,5 @@
 from ocgis.exc import DefinitionValidationError, ProjectionDoesNotMatch,\
-    DimensionNotFound
+    DimensionNotFound, NoUnitsError
 from copy import deepcopy, copy
 import inspect
 import os
@@ -25,9 +25,9 @@ from ocgis.util.inspect import Inspect
 
 class NcRequestDataset(object):
     
-    def __init__(self,uri=None,variable=None,alias=None,time_range=None,
-                 time_region=None,level_range=None,s_crs=None,t_units=None,
-                 t_calendar=None,did=None,meta=None,s_abstraction=None,
+    def __init__(self,uri=None,variable=None,alias=None,units=None,time_range=None,
+                 time_region=None,level_range=None,conform_units_to=None,s_crs=None,
+                 t_units=None,t_calendar=None,did=None,meta=None,s_abstraction=None,
                  dimension_map=None):
         
         self._uri = self._get_uri_(uri)
@@ -46,6 +46,10 @@ class NcRequestDataset(object):
         self.did = did
         self.meta = meta or {}
         
+        self.__source_metadata = None
+        self.units = units
+        self.conform_units_to = conform_units_to
+        
         self.s_abstraction = s_abstraction
         try:
             self.s_abstraction = self.s_abstraction.lower()
@@ -58,13 +62,42 @@ class NcRequestDataset(object):
         
         self._format_()
         
-        self.__source_metadata = None
-        
     def _open_(self):
         try:
             ret = nc.Dataset(self.uri,'r')
         except TypeError:
             ret = nc.MFDataset(self.uri)
+        return(ret)
+    
+    @property
+    def conform_units_to(self):
+        return(self._conform_units_to)
+    @conform_units_to.setter
+    def conform_units_to(self,value):
+        if value is not None:
+            ## import the cfunits package and attempt to construct a units object.
+            ## if this is okay, save the units string
+            from cfunits import Units
+            dest = Units(value)
+            ## the units of the source data need to be specified or available
+            ## in the metadata.
+            try:
+                src = self.units or self._get_units_from_metadata_()
+            except KeyError:
+                exc = NoUnitsError(message='Units could not be read from source metadata. The "units" keyword argument may be needed.')
+                ocgis_lh(exc=exc)
+            src = Units(src)
+            ## units must be equivalent.
+            try:
+                assert(src.equivalent(dest))
+            except AssertionError:
+                ocgis_lh(exc=ValueError('The units specified in "conform_units_to" ("{0}") are not equivalent to the source units "{1}".'.format(dest.format(names=True),src.format(names=True))))
+            self._conform_units_to = value
+        else:
+            self._conform_units_to = None
+            
+    def _get_units_from_metadata_(self):
+        ret = self._source_metadata['variables'][self.variable]['attrs']['units']
         return(ret)
             
     @property
@@ -181,11 +214,12 @@ class NcRequestDataset(object):
         spatial = SpatialDimension(name_uid='gid',grid=grid,crs=crs,abstraction=self.s_abstraction)
         
         variable_meta = self._source_metadata['variables'][self.variable]
-        variable_units = variable_meta['attrs'].get('units')
+        variable_units = self.units or variable_meta['attrs'].get('units')
         dtype = np.dtype(variable_meta['dtype'])
         fill_value = variable_meta['fill_value']
-        variable = Variable(self.variable,self.alias,variable_units,meta=variable_meta,
-                            data=self,dtype=dtype,fill_value=fill_value)
+        variable = Variable(self.variable,self.alias,units=variable_units,meta=variable_meta,
+                            data=self,conform_units_to=self.conform_units_to,dtype=dtype,
+                            fill_value=fill_value)
         vc = VariableCollection(variables=[variable])
         
         ret = NcField(variables=vc,spatial=spatial,temporal=loaded['temporal'],level=loaded['level'],

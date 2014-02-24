@@ -191,8 +191,8 @@ class OcgConverter(object):
                 out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
                 to_write = []
                 for rd in self.ops.dataset:
-                    ip = Inspect(request_dataset=rd)
-                    to_write += ip.get_report()
+                    ip = Inspect(meta=rd._source_metadata)
+                    to_write += ip.get_report_no_variable()
                 with open(out_path,'w') as f:
                     f.writelines('\n'.join(to_write))
         

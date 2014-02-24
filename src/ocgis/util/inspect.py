@@ -27,11 +27,14 @@ class Inspect(object):
     :type variable: str
     :param interface_overload: Overloads for autodiscover.
     :type interface_overload: dict
+    :param meta: Optional overload for the :class:`ocgis.NcMetadata` creation.
+    :type meta: :class:`ocgis.NcMetadata`
     
     .. _ncdump: http://www.unidata.ucar.edu/software/netcdf/docs/netcdf/ncdump.html
     """
     
-    def __init__(self,uri=None,variable=None,interface_overload={},request_dataset=None):
+    def __init__(self,uri=None,variable=None,interface_overload={},request_dataset=None,
+                 meta=None):
         self.request_dataset = request_dataset
         if self.request_dataset is None:
             self.uri = uri
@@ -39,12 +42,15 @@ class Inspect(object):
             self.alias = None
             self.did = None
             if self.variable is None:
-                try:
-                    self.ds = None
-                    rootgrp = nc.Dataset(uri)
-                    self.meta = NcMetadata(rootgrp)
-                finally:
-                    rootgrp.close()
+                if meta is None:
+                    try:
+                        self.ds = None
+                        rootgrp = nc.Dataset(uri)
+                        self.meta = NcMetadata(rootgrp)
+                    finally:
+                        rootgrp.close()
+                else:
+                    self.meta = meta
             else:
                 from ocgis.api.request.base import RequestDataset
                 kwds = {'uri':uri,'variable':variable}

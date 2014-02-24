@@ -29,11 +29,7 @@ class Test(TestBase):
         
         with open(meta,'r') as f:
             lines = f.readlines()
-        self.assertTrue(len(lines) > 199)
-        
-#        import subprocess
-#        subprocess.call(['nautilus',os.path.split(ret)[0]])
-#        import ipdb;ipdb.set_trace()
+        self.assertTrue(len(lines) > 50)
 
     def test_csv_plus_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')

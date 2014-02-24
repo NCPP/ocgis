@@ -11,7 +11,7 @@ from copy import deepcopy
 
 
 class TemporalDimension(base.VectorDimension):
-    _date_parts = ('year','month','day','hour','minute','second','microsecond')
+    _date_parts = ('year','month','day','hour','minute','second')
     _axis = 'T'
     
     def get_grouping(self,grouping):
@@ -91,8 +91,8 @@ class TemporalDimension(base.VectorDimension):
         
         ## map date parts to index positions in date part storage array and flip
         ## they key-value pairs
-        group_map = dict(zip(range(0,7),self._date_parts,))
-        group_map_rev = dict(zip(self._date_parts,range(0,7),))
+        group_map = dict(zip(range(0,len(self._date_parts)),self._date_parts,))
+        group_map_rev = dict(zip(self._date_parts,range(0,len(self._date_parts)),))
         
         ## this array will hold the value data constructed differently depending
         ## on if temporal bounds are present
@@ -112,7 +112,7 @@ class TemporalDimension(base.VectorDimension):
             value[:,2] = value_datetime_bounds[:,1]
         
         def _get_attrs_(dt):
-            return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second,dt.microsecond])
+            return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second])
         
         ## extract the date parts
         parts = np.empty((len(self.value),len(self._date_parts)),dtype=int)

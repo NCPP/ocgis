@@ -52,8 +52,15 @@ class NcTemporalDimension(NcVectorDimension,TemporalDimension):
         arr = np.atleast_1d(nc.num2date(arr,self.units,calendar=self.calendar))
         dt = datetime.datetime
         for idx,t in iter_array(arr,return_value=True):
-            arr[idx] = dt(t.year,t.month,t.day,
-                          t.hour,t.minute,t.second)
+            ## attempt to convert times to datetime objects
+            try:
+                arr[idx] = dt(t.year,t.month,t.day,
+                              t.hour,t.minute,t.second)
+            ## this may fail for some calendars, in that case maintain the instance
+            ## object returned from netcdftime see:
+            ## http://netcdf4-python.googlecode.com/svn/trunk/docs/netcdftime.netcdftime.datetime-class.html
+            except ValueError:
+                arr[idx] = arr[idx]
         return(arr)
     
     def get_nc_time(self,values):

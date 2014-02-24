@@ -2,7 +2,7 @@ import unittest
 from ocgis.exc import DefinitionValidationError, NoUnitsError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
-from ocgis import env
+from ocgis import env, constants
 from ocgis.test.base import TestBase
 import os
 import pickle
@@ -23,6 +23,11 @@ class TestRequestDataset(TestBase):
         self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
+        
+    def test_source_index_matches_constant_value(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        self.assertEqual(field.temporal._src_idx.dtype,constants.np_int)
         
     def test_with_units(self):
         units = 'celsius'

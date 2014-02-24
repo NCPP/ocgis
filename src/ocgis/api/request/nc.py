@@ -170,7 +170,7 @@ class NcRequestDataset(object):
                 ## extract the data length to use when creating the source index
                 ## arrays.
                 length = self._source_metadata['dimensions'][ref_axis['dimension']]['len']
-                src_idx = np.arange(0,length)
+                src_idx = np.arange(0,length,dtype=constants.np_int)
                 
                 ## assemble parameters for creating the dimension class then initialize
                 ## the class.

@@ -24,11 +24,6 @@ class AbstractValueVariable(object):
         ## the cfunits-python module is not a dependency of ocgis and should be
         ## imported on demand
         from cfunits import Units
-        ## while NoneType units are accepted in cfunits, any unit conversion in
-        ## ocgis require they be present
-        if self.units is None:
-            raise(NoUnitsError)
-        
         return(Units(self.units))
     
     @property
@@ -82,8 +77,11 @@ class AbstractValueVariable(object):
         :param from_units: Source units to use in place of the object's value.
         :type from_units: str or :class:`cfunits.Units`
         '''
-        ## allow string unit representations to be passed
         from cfunits import Units
+        ## units are required for conversion
+        if self.cfunits == Units(None):
+            raise(NoUnitsError)
+        ## allow string unit representations to be passed
         if not isinstance(to_units,Units):
             to_units = Units(to_units)
         ## pick the value to convert. this is added to keep the import of the

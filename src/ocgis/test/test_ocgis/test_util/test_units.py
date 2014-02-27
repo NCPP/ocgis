@@ -71,6 +71,19 @@ class TestVariableUnits(TestBase):
         self.assertNumpyAll(var.value,np.array([278.15]*3))
         self.assertEqual(var.cfunits,Units('kelvin'))
         self.assertEqual(var.units,'kelvin')
+        
+    def test_conform_no_units(self):
+        ## if there are no units associate with a variable, conforming the units
+        ## should fail
+        var = Variable(name='tas',units=None,value=self.value)
+        with self.assertRaises(NoUnitsError):
+            var.cfunits_conform(Units('kelvin'))
+            
+    def test_conform_nonequivalent_units(self):
+        ## conversion should fail for nonequivalent units
+        var = Variable(name='tas',units='kelvin',value=self.value)
+        with self.assertRaises(ValueError):
+            var.cfunits_conform(Units('grams'))
     
     def test_as_object(self):
         ## constructor with units objects v. string
@@ -81,8 +94,8 @@ class TestVariableUnits(TestBase):
     def test_no_units(self):
         ## test no units
         var = Variable(name='tas',units=None,value=self.value)
-        with self.assertRaises(NoUnitsError):
-            var.cfunits
+        self.assertEqual(var.units,None)
+        self.assertEqual(var.cfunits,Units(None))
             
     def test_masked_array(self):
         ## assert mask is respected by inplace unit conversion

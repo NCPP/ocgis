@@ -20,3 +20,6 @@ class NaturalLogarithm(base.AbstractUnivariateFunction):
     
     def calculate(self,values):
         return(np.ma.log(values))
+    
+    def get_output_units(self,*args,**kwds):
+        return(None)

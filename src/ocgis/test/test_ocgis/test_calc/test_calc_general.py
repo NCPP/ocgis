@@ -12,7 +12,6 @@ from ocgis.calc.library.thresholds import Threshold
 from ocgis.test.test_simple.test_simple import ToTest
 
 
-
 class AbstractCalcBase(TestBase):
     
     def get_reshaped(self,arr):
@@ -120,33 +119,6 @@ class Test(AbstractCalcBase):
         ret = ops.execute()
         threshold = ret[2762]['tasmax'].variables['threshold_tasmax'].value
         self.assertEqual(threshold.flatten()[0],62)
-    
-    def test_heat_index(self):
-        ocgis.env.OVERWRITE = True
-        kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
-        ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
-        calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax','units':'k'}}]
-        select_ugid = [25]
-        
-        ## operations on entire data arrays
-        ops = OcgOperations(dataset=ds,calc=calc)
-        self.assertEqual(ops.calc_grouping,None)
-        ret = ops.execute()
-        ref = ret[1]
-        self.assertEqual(ref.keys(),['tasmax_rhsmax'])
-        self.assertEqual(ref['tasmax_rhsmax'].variables.keys(),['heat_index'])
-        hi = ref['tasmax_rhsmax'].variables['heat_index'].value
-        self.assertEqual(hi.shape,(1,365,1,64,128))
-        
-        ## confirm no masked geometries
-        self.assertFalse(ref['tasmax_rhsmax'].spatial.geom.point.value.mask.any())
-        ## confirm some masked data in calculation output
-        self.assertTrue(hi.mask.any())
-                
-        # try temporal grouping
-        ops = OcgOperations(dataset=ds,calc=calc,calc_grouping=['month'],geom='state_boundaries',select_ugid=select_ugid)
-        ret = ops.execute()
-        self.assertEqual(ret[25]['tasmax_rhsmax'].variables['heat_index'].value.shape,(1,12,1,5,4))
         
     def test_computational_nc_output(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})

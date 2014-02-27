@@ -937,7 +937,7 @@ class TestSimple(TestSimpleBase):
         with open(did_file,'r') as f:
             reader = csv.DictReader(f)
             row = reader.next()
-            self.assertDictEqual(row,{'ALIAS': 'foo', 'DID': '1', 'URI': uri, 'UNITS': 'huge', 'STANDARD_NAME': 'foo', 'VARIABLE': 'foo', 'LONG_NAME': 'foo_foo'})
+            self.assertDictEqual(row,{'ALIAS': 'foo', 'DID': '1', 'URI': uri, 'UNITS': 'K', 'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo', 'LONG_NAME': 'foo_foo'})
         
         with open(ret,'r') as f:
             reader = csv.DictReader(f)

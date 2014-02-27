@@ -3,19 +3,14 @@ import numpy as np
 from ocgis import constants
 
 
-class HeatIndex(base.AbstractMultivariateFunction,base.AbstractParameterizedFunction):
+class HeatIndex(base.AbstractMultivariateFunction):
     description = 'Heat Index following: http://en.wikipedia.org/wiki/Heat_index. If temperature is < 80F or relative humidity is < 40%, the value is masked during calculation. Output units are Fahrenheit.'
     dtype = constants.np_float
-    parms_definition = {'units':str}
     required_variables = ['tas','rhs']
+    required_units = {'tas':'fahrenheit','rhs':'percent'}
     key = 'heat_index'
     
-    def calculate(self,tas=None,rhs=None,units=None):
-        if units == 'k':
-            tas = 1.8*(tas - 273.15) + 32
-        else:
-            raise(NotImplementedError)
-        
+    def calculate(self,tas=None,rhs=None):
         c1 = -42.379
         c2 = 2.04901523
         c3 = 10.14333127
@@ -38,3 +33,6 @@ class HeatIndex(base.AbstractMultivariateFunction,base.AbstractParameterizedFunc
              c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
         
         return(hi)
+
+    def get_output_units(self,*args,**kwargs):
+        return(None)

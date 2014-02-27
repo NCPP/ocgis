@@ -95,7 +95,7 @@ All calculations are classes that inherit from the following abstract base class
 
 .. autoclass:: ocgis.calc.base.AbstractFunction
    :show-inheritance:
-   :members: calculate, execute, aggregate_spatial, aggregate_temporal, get_output_units, validate
+   :members: calculate, execute, aggregate_spatial, aggregate_temporal, get_output_units, validate, validate_units
 
 -------------------------------------------------
 
@@ -118,7 +118,7 @@ All calculations are classes that inherit from the following abstract base class
 
 .. autoclass:: ocgis.calc.base.AbstractMultivariateFunction
    :show-inheritance:
-   :members: required_variables
+   :members: required_units,required_variables
 
 .. _available_functions:
 

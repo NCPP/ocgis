@@ -6,7 +6,8 @@ from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis import constants
 import logging
-from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError
+from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError,\
+    UnitsValidationError
 
 
 class AbstractFunction(object):
@@ -109,7 +110,7 @@ class AbstractFunction(object):
         '''
         Return the output units of the function.
         '''
-        return(None)
+        return(variable.units)
     
     def get_sample_size(self,values):
         to_sum = np.invert(values.mask)
@@ -132,6 +133,12 @@ class AbstractFunction(object):
     def validate(self,ops):
         '''
         Optional method to overload that validates the input :class:`ocgis.OcgOperations`.
+        '''
+        pass
+    
+    def validate_units(self,*args,**kwargs):
+        '''
+        Optional method to overload for units validation at the calculation level.
         '''
         pass
     
@@ -285,6 +292,8 @@ class AbstractUnivariateFunction(AbstractFunction):
     def _execute_(self):
         for variable in self.field.variables.itervalues():
             
+            self.validate_units(variable)
+            
             if self.file_only:
                 fill = self._empty_fill
             else:
@@ -305,8 +314,11 @@ class AbstractUnivariateFunction(AbstractFunction):
                         ocgis_lh(msg=msg,logger='calc.base',level=logging.WARN)
                     fill = self._get_or_pass_spatial_agg_fill_(fill)
                     
+            units = self.get_output_units(variable)
+                    
             self._add_to_collection_(value=fill,parent_variables=[variable],
-                                     dtype=self.dtype,fill_value=self.fill_value)
+                                     dtype=self.dtype,fill_value=self.fill_value,
+                                     units=units)
 
 
 class AbstractParameterizedFunction(AbstractFunction):
@@ -364,6 +376,9 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
         shp_fill = list(self.field.shape)
         shp_fill[1] = len(self.tgd.dgroups)
         for variable in self.field.variables.itervalues():
+            
+            self.validate_units(variable)
+            
             if self.file_only:
                 fill = self._empty_fill
             else:
@@ -373,9 +388,12 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
                 value = self.get_variable_value(variable)
                 ## execute the calculations
                 fill = self._get_temporal_agg_fill_(value,shp_fill=shp_fill)
+            ## get the ouput units
+            units = self.get_output_units(variable)
             ## add the output to the variable collection
             self._add_to_collection_(value=fill,parent_variables=[variable],
-                                     dtype=self.dtype,fill_value=self.fill_value)
+                                     dtype=self.dtype,fill_value=self.fill_value,
+                                     units=units)
             
     @classmethod
     def validate(cls,ops):
@@ -390,6 +408,9 @@ class AbstractMultivariateFunction(AbstractFunction):
     Base class for functions operating on multivariate inputs.
     '''
     __metaclass__ = abc.ABCMeta
+    #: Optional dictionary mapping unit definitions for required variables.
+    #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
+    required_units = None
     
     def __init__(self,*args,**kwds):
         if kwds.get('calc_sample_size') is True:
@@ -409,6 +430,9 @@ class AbstractMultivariateFunction(AbstractFunction):
         [str]
     
     def _execute_(self):
+        
+        self.validate_units()
+        
         parms = {k:self.get_variable_value(self.field.variables[self.parms[k]]) for k in self.required_variables}
         for k,v in self.parms.iteritems():
             if k not in self.required_variables:
@@ -458,6 +482,20 @@ class AbstractMultivariateFunction(AbstractFunction):
             from ocgis.api.parms.definition import Calc
             exc = DefinitionValidationError(Calc,'Variable aliases are missing for multivariate function "{0}". Required variable aliases are: {1}.'.format(cls.__name__,cls.required_variables))
             ocgis_lh(exc=exc,logger='calc.base')
+            
+    def validate_units(self):
+        if self.required_units is not None:
+            for required_variable in self.required_variables:
+                alias_variable = self.parms[required_variable]
+                variable = self.field.variables[alias_variable]
+                try:
+                    from cfunits import Units
+                    match = variable.cfunits.equals(Units(self.required_units[required_variable]))
+                except ImportError:
+                    match = variable.units.lower() == self.required_units[required_variable].lower()
+                if match == False:
+                    raise(UnitsValidationError(variable,self.required_units[required_variable],
+                                               self.key))
     
 class AbstractKeyedOutputFunction(object):
     __metaclass__ = abc.ABCMeta

@@ -6,6 +6,7 @@ import itertools
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.test.test_simple.test_simple import ToTest, nc_scope
 import ocgis
+from cfunits.cfunits import Units
 
 
 class TestFrequencyPercentile(AbstractTestField):
@@ -22,6 +23,16 @@ class TestFrequencyPercentile(AbstractTestField):
 
 
 class TestMean(AbstractTestField):
+    
+    def test_units_are_maintained(self):
+        field = self.get_field(with_value=True,month_count=2)
+        self.assertEqual(field.variables['tmax'].cfunits,Units('kelvin'))
+        grouping = ['month']
+        tgd = field.temporal.get_grouping(grouping)
+        mu = Mean(field=field,tgd=tgd,alias='my_mean',calc_sample_size=False,
+                  dtype=np.float64)
+        dvc = mu.execute()
+        self.assertEqual(dvc['my_mean_tmax'].cfunits,Units('kelvin'))
     
     def test(self):
         field = self.get_field(with_value=True,month_count=2)

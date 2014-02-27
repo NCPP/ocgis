@@ -21,6 +21,12 @@ class Test(AbstractTestField):
         ret = ln.execute()
         self.assertNotIn('n_ln_tmax',ret.keys())
         
+    def test_NaturalLogarithm_units_dimensionless(self):
+        field = self.get_field(with_value=True,month_count=2)
+        ln = NaturalLogarithm(field=field,alias='ln')
+        dvc = ln.execute()
+        self.assertEqual(dvc['ln_tmax'].units,None)
+        
     def test_NaturalLogarithm_grouped(self):
         field = self.get_field(with_value=True,month_count=2)
         grouping = ['month']

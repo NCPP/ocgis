@@ -9,6 +9,7 @@
    - [ ] git checkout dev
    - [ ] git merge masterstage the release:
    - [X] git checkout staged-release
+2. [ ] run doctests
 2. [ ] run tests
 3. write the release announcement
 4. update documents:

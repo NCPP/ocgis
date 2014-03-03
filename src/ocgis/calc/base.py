@@ -8,6 +8,7 @@ from ocgis import constants
 import logging
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError,\
     UnitsValidationError
+from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 
 
 class AbstractFunction(object):
@@ -288,6 +289,16 @@ class AbstractUnivariateFunction(AbstractFunction):
     Base class for functions accepting a single univariate input.
     '''
     __metaclass__ = abc.ABCMeta
+    #: Optional sequence of acceptable string units defintions for input variables.
+    #: If this is set to ``None``, no unit validation will occur.
+    required_units = None
+    
+    def validate_units(self,variable):
+        if self.required_units is not None:
+            matches = [get_are_units_equal_by_string_or_cfunits(variable.units,target,try_cfunits=True) \
+                       for target in self.required_units]
+            if not any(matches):
+                raise(UnitsValidationError(variable,self.required_units,self.key))
         
     def _execute_(self):
         for variable in self.field.variables.itervalues():
@@ -488,14 +499,11 @@ class AbstractMultivariateFunction(AbstractFunction):
             for required_variable in self.required_variables:
                 alias_variable = self.parms[required_variable]
                 variable = self.field.variables[alias_variable]
-                try:
-                    from cfunits import Units
-                    match = variable.cfunits.equals(Units(self.required_units[required_variable]))
-                except ImportError:
-                    match = variable.units.lower() == self.required_units[required_variable].lower()
+                source = variable.units
+                target = self.required_units[required_variable]
+                match = get_are_units_equal_by_string_or_cfunits(source,target,try_cfunits=True)
                 if match == False:
-                    raise(UnitsValidationError(variable,self.required_units[required_variable],
-                                               self.key))
+                    raise(UnitsValidationError(variable,target,self.key))
     
 class AbstractKeyedOutputFunction(object):
     __metaclass__ = abc.ABCMeta

@@ -191,9 +191,9 @@ class UnitsValidationError(OcgException):
         
     def __str__(self):
         msg = ('There was an error in units validation for calculation'
-                       ' with key "{3}". The units on variable "{0}" (units="{2}")'
-                       ' do not match the required units "{1}". The units should'
-                       ' be conformed or overloaded if incorrectly attributed.').\
+               ' with key "{3}". The units on variable "{0}" (units="{2}")'
+               ' do not match the required units "{1}". The units should'
+               ' be conformed or overloaded if incorrectly attributed.').\
                        format(self.variable.alias,self.required_units,
                               self.variable.units,self.calculation_key)
         return(msg)

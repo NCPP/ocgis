@@ -3,8 +3,9 @@ from ocgis.test.base import TestBase
 from ocgis.interface.base.variable import Variable
 import numpy as np
 from cfunits.cfunits import Units
-from ocgis.exc import NoUnitsError
-from ocgis.util.units import get_are_units_equivalent, get_are_units_equal
+from ocgis.exc import NoUnitsError, UnitsValidationError
+from ocgis.util.units import get_are_units_equivalent, get_are_units_equal,\
+    get_are_units_equal_by_string_or_cfunits
 
 
 class TestField(TestBase):
@@ -47,6 +48,26 @@ class TestUnits(unittest.TestCase):
         units = [Units('celsius')]
         with self.assertRaises(ValueError):
             get_are_units_equal(units)
+            
+    def test_get_are_units_equal_by_string_or_cfunits(self):
+        _try_cfunits = [True,False]
+        
+        source = 'K'
+        target = 'K'
+        for try_cfunits in _try_cfunits:
+            match = get_are_units_equal_by_string_or_cfunits(source,target,try_cfunits=try_cfunits)
+            self.assertTrue(match)
+            
+        source = 'K'
+        target = 'Kelvin'
+        for try_cfunits in _try_cfunits:
+            match = get_are_units_equal_by_string_or_cfunits(source,target,try_cfunits=try_cfunits)
+            ## cfunits.Units will allow comparison of abbreviated and full name
+            ## form while string comparison will not
+            if try_cfunits:
+                self.assertTrue(match)
+            else:
+                self.assertFalse(match)
 
 
 class TestVariableUnits(TestBase):

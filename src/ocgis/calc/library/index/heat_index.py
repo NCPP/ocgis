@@ -9,6 +9,7 @@ class HeatIndex(base.AbstractMultivariateFunction):
     required_variables = ['tas','rhs']
     required_units = {'tas':'fahrenheit','rhs':'percent'}
     key = 'heat_index'
+    units = None
     
     def calculate(self,tas=None,rhs=None):
         c1 = -42.379
@@ -33,6 +34,3 @@ class HeatIndex(base.AbstractMultivariateFunction):
              c7*tas_sq*rhs + c8*tas*rhs_sq + c9*tas_sq*rhs_sq
         
         return(hi)
-
-    def get_output_units(self,*args,**kwargs):
-        return(None)

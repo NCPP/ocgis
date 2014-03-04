@@ -50,8 +50,16 @@ class AbstractFunction(object):
     Group = None
     @abc.abstractproperty
     def key(self): str
+    #: The calculation's long name. Default is the empty string.
     long_name = ''
+    #: The calculation's standard name. Default is the empty string.
     standard_name = ''
+    #: The calculation's output units. Modify :meth:`get_output_units` for more
+    #: complex units calculations. If the units are left as the default '_input'
+    #: then the input variable units are maintained. Otherwise, they will be set
+    #: to units attribute value. The string flag is used to allow ``None`` units
+    #: to be applied.
+    units = '_input_'
     
     ## standard empty dictionary to use for calculation outputs when the operation
     ## is file only
@@ -95,12 +103,16 @@ class AbstractFunction(object):
         :param kwds: Any keyword parameters for the function.
         :rtype: `numpy.ma.MaskedArray`
         '''
+        pass
     
     def execute(self):
         '''
         Execute the computation over the input field.
         '''
+        ## call the subclass execute method
         self._execute_()
+        ## allow the field metadata to be modified
+        self.set_field_metadata()
         return(self.vc)
     
     def get_function_definition(self):
@@ -109,9 +121,13 @@ class AbstractFunction(object):
     
     def get_output_units(self,variable):
         '''
-        Return the output units of the function.
+        Get the output units.
         '''
-        return(variable.units)
+        if self.units == '_input_':
+            ret = variable.units
+        else:
+            ret = self.units
+        return(ret)
     
     def get_sample_size(self,values):
         to_sum = np.invert(values.mask)
@@ -129,6 +145,18 @@ class AbstractFunction(object):
         else:
             ret = variable.value
         return(ret)
+    
+    def set_field_metadata(self):
+        '''
+        Modify the :class:~`ocgis.interface.base.field.Field` metadata dictionary.
+        '''
+        pass
+    
+    def set_variable_metadata(self,variable):
+        '''
+        Set variable level metadata.
+        '''
+        pass
     
     @classmethod
     def validate(self,ops):
@@ -160,7 +188,6 @@ class AbstractFunction(object):
             fill = value
             sample_size = None
         
-        units = units or self.get_output_units(parent_variables[0])
         alias = alias or '{0}_{1}'.format(self.alias,parent_variables[0].alias)
         fdef = self.get_function_definition()
         meta = {'attrs':{'standard_name':self.standard_name,
@@ -177,6 +204,10 @@ class AbstractFunction(object):
         dv = DerivedVariable(name=self.key,alias=alias,units=units,value=fill,
                              fdef=fdef,parents=parents,meta=meta,data=data,
                              dtype=dtype,fill_value=fill_value)
+        
+        ## allow more complex manipulations of metadata
+        self.set_variable_metadata(dv)
+        ## add the variable to the variable collection
         self.vc.add_variable(dv)
         
         ## add the sample size if it is present in the fill dictionary
@@ -326,7 +357,7 @@ class AbstractUnivariateFunction(AbstractFunction):
                     fill = self._get_or_pass_spatial_agg_fill_(fill)
                     
             units = self.get_output_units(variable)
-                    
+                                        
             self._add_to_collection_(value=fill,parent_variables=[variable],
                                      dtype=self.dtype,fill_value=self.fill_value,
                                      units=units)
@@ -399,7 +430,7 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
                 value = self.get_variable_value(variable)
                 ## execute the calculations
                 fill = self._get_temporal_agg_fill_(value,shp_fill=shp_fill)
-            ## get the ouput units
+            ## get the variable's output units
             units = self.get_output_units(variable)
             ## add the output to the variable collection
             self._add_to_collection_(value=fill,parent_variables=[variable],
@@ -439,6 +470,9 @@ class AbstractMultivariateFunction(AbstractFunction):
         >>> ['tas','rhs']
         '''
         [str]
+        
+    def get_output_units(self,*args,**kwds):
+        return(None)
     
     def _execute_(self):
         
@@ -465,12 +499,10 @@ class AbstractMultivariateFunction(AbstractFunction):
                 fill = self._get_or_pass_spatial_agg_fill_(fill)
                 
         units = self.get_output_units()
-        
-        self._add_to_collection_(units=units,value=fill,parent_variables=self.field.variables.values(),
-                                 alias=self.alias,dtype=self.dtype,fill_value=self.fill_value)
-        
-    def get_output_units(self):
-        return('undefined')
+                        
+        self._add_to_collection_(value=fill,parent_variables=self.field.variables.values(),
+                                 alias=self.alias,dtype=self.dtype,fill_value=self.fill_value,
+                                 units=units)
     
     @classmethod
     def validate(cls,ops):

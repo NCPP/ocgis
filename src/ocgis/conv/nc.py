@@ -4,6 +4,8 @@ from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.interface.nc.temporal import NcTemporalGroupDimension
+import logging
+import numpy as np
 
     
 class NcConverter(OcgConverter):
@@ -18,18 +20,23 @@ class NcConverter(OcgConverter):
         
     def _get_file_format_(self):
         file_format = set()
-        for rd in self.ops.dataset:
-            rr = rd._source_metadata['file_format']
-            if isinstance(rr,basestring):
-                tu = [rr]
-            else:
-                tu = rr
-            file_format.update(tu)
-        if len(file_format) > 1:
-            exc = ValueError('Multiple file formats found: {0}'.format(file_format))
-            ocgis_lh(exc=exc,logger='conv.nc')
+        ## if no operations are present, use the default data model
+        if self.ops is None:
+            ret = constants.netCDF_default_data_model
         else:
-            return(list(file_format)[0])
+            for rd in self.ops.dataset:
+                rr = rd._source_metadata['file_format']
+                if isinstance(rr,basestring):
+                    tu = [rr]
+                else:
+                    tu = rr
+                file_format.update(tu)
+            if len(file_format) > 1:
+                exc = ValueError('Multiple file formats found: {0}'.format(file_format))
+                ocgis_lh(exc=exc,logger='conv.nc')
+            else:
+                ret = list(file_format)[0]
+        return(ret)
     
     def _write_coll_(self,ds,coll):
         
@@ -164,11 +171,20 @@ class NcConverter(OcgConverter):
         
         ## loop through variables
         for variable in arch.variables.itervalues():
+            ## try to convert the fill value on the variable. if this fails,
+            ## use the default provided by netCDF4-python.
+            try:
+                np.array([variable.fill_value],dtype=variable.dtype)
+                fill_value = variable.fill_value
+            except OverflowError:
+                msg = 'Variable with alias "{0}" will use default "fill_value" provided by "netCDF4-python".'
+                ocgis_lh(logger='conv.nc',level=logging.WARNING,msg=msg)
+                fill_value = None
             value = ds.createVariable(variable.alias,variable.dtype,value_dims,
-                                      fill_value=variable.fill_value)
+                                      fill_value=fill_value)
             ## if this is a file only operation, set the value, otherwise leave
             ## it empty for now.
-            if not self.ops.file_only:
+            if self.ops is not None and not self.ops.file_only:
                 value[:] = variable.value.reshape(*value.shape)
             value.setncatts(variable.meta['attrs'])
             ## and the units, converting to string as passing a NoneType will raise

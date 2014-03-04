@@ -10,7 +10,7 @@ from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
 from ocgis.util.shp_cabinet import ShpCabinetIterator
-from ocgis.calc.library.register import FunctionRegistry
+from ocgis.calc.library import register
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
@@ -110,10 +110,37 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def _parse_(self,value):
-        fr = FunctionRegistry()
-        value['ref'] = fr[value['func']]
+        fr = register.FunctionRegistry()
+        
+        ## get the function key string form the calculation definition dictionary
+        function_key = value['func']
+        ## this is the message for the DefinitionValidationError if this key
+        ## may not be found.
+        dve_msg = 'The function key "{0}" is not available in the function registry.'.format(function_key)
+        
+        ## retrieve the calculation class reference from the function registry
+        try:
+            value['ref'] = fr[function_key]
+        ## if the function cannot be found, it may be part of a contributed
+        ## library of calculations not registered by default as the external
+        ## library is an optional dependency.
+        except KeyError:
+            ## this will register the icclim indices.
+            if function_key.startswith('{0}_'.format(constants.prefix_icclim_function_key)):
+                register.register_icclim(fr)
+            else:
+                raise(DefinitionValidationError(self,dve_msg))
+        ## make another attempt to register the function
+        try:
+            value['ref'] = fr[function_key]
+        except KeyError:
+            raise(DefinitionValidationError(self,dve_msg))
+        
+        ## parameters will be set to empty if none are present in the calculation
+        ## dictionary.
         if 'kwds' not in value:
             value['kwds'] = OrderedDict()
+        ## make the keyword parameter definitions lowercase.
         else:
             value['kwds'] = OrderedDict(value['kwds'])
             for k,v in value['kwds'].iteritems():

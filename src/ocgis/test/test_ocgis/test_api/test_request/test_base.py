@@ -24,6 +24,15 @@ class TestRequestDataset(TestBase):
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
         
+    def test_source_dictionary_is_deepcopied(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        self.assertEqual(rd._source_metadata,field.meta)
+        ## the source metadata dictionary should be deepcopied prior to passing
+        ## to a request dataset
+        rd._source_metadata['dim_map'] = None
+        self.assertNotEqual(rd._source_metadata,field.meta)
+        
     def test_source_index_matches_constant_value(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()

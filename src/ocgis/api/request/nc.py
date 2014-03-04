@@ -213,7 +213,7 @@ class NcRequestDataset(object):
             
         spatial = SpatialDimension(name_uid='gid',grid=grid,crs=crs,abstraction=self.s_abstraction)
         
-        variable_meta = self._source_metadata['variables'][self.variable]
+        variable_meta = deepcopy(self._source_metadata['variables'][self.variable])
         variable_units = self.units or variable_meta['attrs'].get('units')
         dtype = np.dtype(variable_meta['dtype'])
         fill_value = variable_meta['fill_value']
@@ -223,7 +223,7 @@ class NcRequestDataset(object):
         vc = VariableCollection(variables=[variable])
         
         ret = NcField(variables=vc,spatial=spatial,temporal=loaded['temporal'],level=loaded['level'],
-                      realization=loaded['realization'],meta=self._source_metadata,uid=self.did)
+                      realization=loaded['realization'],meta=deepcopy(self._source_metadata),uid=self.did)
         
         ## apply any subset parameters after the field is loaded
         if self.time_range is not None:

@@ -101,6 +101,7 @@ All calculations are classes that inherit from the following abstract base class
 
 .. autoclass:: ocgis.calc.base.AbstractUnivariateFunction
    :show-inheritance:
+   :members: required_units
 
 -------------------------------------------------
 

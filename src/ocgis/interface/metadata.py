@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from ocgis import constants
+import numpy as np
 
 
 class AbstractMetadata(OrderedDict):
@@ -44,14 +44,14 @@ class NcMetadata(AbstractMetadata):
                 subvar.update({attr:getattr(value,attr)})
                 
             ## make two attempts at missing value attributes otherwise assume
-            ## the default
+            ## the default from a numpy masked array
             try:
                 fill_value = value.fill_value
             except AttributeError:
                 try:
                     fill_value = value.missing_value
                 except AttributeError:
-                    fill_value = constants.fill_value
+                    fill_value = np.ma.array([],dtype=value.dtype).fill_value
                     
             variables.update({key:{'dimensions':value.dimensions,
                                    'attrs':subvar,

@@ -70,7 +70,7 @@ class AbstractFunction(object):
                  fill_value=None):
         self.alias = alias or self.key
         self.dtype = dtype or self.dtype
-        self.fill_value = fill_value or constants.fill_value
+        self.fill_value = fill_value
         self.vc = vc or VariableCollection()
         self.field = field
         self.file_only = file_only
@@ -174,9 +174,11 @@ class AbstractFunction(object):
     def _add_to_collection_(self,units=None,value=None,parent_variables=None,alias=None,
                             dtype=None,fill_value=None):
         
-        ## dtype and fill_value should come in with each new variable
+        ## dtype should come in with each new variable
         assert(dtype is not None)
-        assert(fill_value is not None)
+        ## if there is no fill value, use the default for the data type
+        if fill_value is None:
+            fill_value = np.ma.array([],dtype=dtype).fill_value
         
         ## the value parameters should come in as a dictionary with two keys
         try:
@@ -300,7 +302,7 @@ class AbstractFunction(object):
         ## we need to transfer the data mask from the fill to the sample size
         if self.calc_sample_size:
             fill_sample_size.mask = fill.mask.copy()
-            
+
         return({'fill':fill,'sample_size':fill_sample_size})
     
     def _get_or_pass_spatial_agg_fill_(self,values):

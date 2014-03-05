@@ -465,8 +465,8 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             shp = len(self.row),len(self.col)
         else:
             shp = self._value.shape[1],self._value.shape[2]
-        ret = np.arange(1,(shp[0]*shp[1])+1).reshape(shp)
-        ret = np.ma.array(ret,mask=False,fill_value=constants.fill_value)
+        ret = np.arange(1,(shp[0]*shp[1])+1,dtype=constants.np_int).reshape(shp)
+        ret = np.ma.array(ret,mask=False)
         return(ret)
     
     def _get_value_(self):
@@ -620,7 +620,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         with fiona.open(path,'w',driver=driver,crs=crs,schema=schema) as f:
             for (ii,jj),geom in iter_array(self.value,return_value=True):
                 geom = ref_prep(geom)
-                uid = ref_uid[ii,jj]
+                uid = int(ref_uid[ii,jj])
                 feature = {'properties':{'UGID':uid},'geometry':mapping(geom)}
                 f.write(feature)
                 feature = {'UGID'}

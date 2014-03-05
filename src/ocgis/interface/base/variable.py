@@ -196,7 +196,7 @@ class Variable(AbstractSourcedVariable):
         else:
             assert(isinstance(value,np.ndarray))
             if not isinstance(value,np.ma.MaskedArray):
-                ret = np.ma.array(value,mask=False,fill_value=constants.fill_value)
+                ret = np.ma.array(value,mask=False)
             else:
                 ret = value
         return(ret)

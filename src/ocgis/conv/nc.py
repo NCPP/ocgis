@@ -171,17 +171,8 @@ class NcConverter(AbstractConverter):
         
         ## loop through variables
         for variable in arch.variables.itervalues():
-            ## try to convert the fill value on the variable. if this fails,
-            ## use the default provided by netCDF4-python.
-            try:
-                np.array([variable.fill_value],dtype=variable.dtype)
-                fill_value = variable.fill_value
-            except OverflowError:
-                msg = 'Variable with alias "{0}" will use default "fill_value" provided by "netCDF4-python".'
-                ocgis_lh(logger='conv.nc',level=logging.WARNING,msg=msg)
-                fill_value = None
             value = ds.createVariable(variable.alias,variable.dtype,value_dims,
-                                      fill_value=fill_value)
+                                      fill_value=variable.fill_value)
             ## if this is a file only operation, set the value, otherwise leave
             ## it empty for now.
             if self.ops is not None and not self.ops.file_only:

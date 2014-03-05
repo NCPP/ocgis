@@ -36,7 +36,7 @@ class AbstractIcclimFunction(AbstractUnivariateSetFunction):
     standard_name = 'ECA_indice'
     
     def calculate(self,values):
-        return(_icclim_function_map[self.key]['func'](values,self.fill_value))
+        return(_icclim_function_map[self.key]['func'](values,values.fill_value))
     
     def set_field_metadata(self):
         sim = NcDatasetSimulator(self.field.meta)

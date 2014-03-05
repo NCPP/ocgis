@@ -6,9 +6,6 @@ name_bounds.extend(['d_'+b for b in name_bounds])
 #: Standard bounds name used when none is available from the input data.
 ocgis_bounds = 'bounds'
 
-#: Default fill value for masked data.
-fill_value = 1e20
-
 #: Default netCDF4 output file type
 netCDF_default_data_model = 'NETCDF4'
 

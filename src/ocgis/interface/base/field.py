@@ -97,7 +97,6 @@ class Field(object):
             return(ret)
         
         is_masked = np.ma.is_masked
-        masked_value = constants.fill_value
         
         ## there is not level, these keys will need to be provided a None value
         has_level = True if self.level is not None else False
@@ -111,13 +110,14 @@ class Field(object):
         for variable in self.variables.itervalues():
             yld = self._get_variable_iter_yield_(variable)
             ref_value = variable.value
+            masked_value = ref_value.fill_value
             iters = map(_get_dimension_iterator_1d_,['realization','temporal','level'])
             iters.append(self.spatial.get_geom_iter())
             for [(ridx,rlz),(tidx,t),(lidx,l),(sridx,scidx,geom,gid)] in itertools.product(*iters):
                 to_yld = deepcopy(yld)
                 ref_idx = ref_value[ridx,tidx,lidx,sridx,scidx]
                 
-                ## determin if the data is masked
+                ## determine if the data is masked
                 if is_masked(ref_idx):
                     if add_masked_value:
                         ref_idx = masked_value
@@ -144,7 +144,12 @@ class Field(object):
                 if has_value_keys:
                     for ii in range(ref_idx.shape[0]):
                         for vk in value_keys:
-                            to_yld[vk] = ref_idx[vk][ii]
+                            try:
+                                to_yld[vk] = ref_idx[vk][ii]
+                            ## attempt to access the data directly. masked determination
+                            ## is done above.
+                            except ValueError:
+                                to_yld[vk] = ref_idx.data[vk][ii]
                         yield(to_yld)
                 else:
                     to_yld['value'] = ref_idx

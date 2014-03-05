@@ -106,8 +106,8 @@ class AbstractUidDimension(AbstractDimension):
             ret = None
         else:
             n = reduce(mul,self.value.shape)
-            ret = np.arange(1,n+1).reshape(self.value.shape)
-            ret = np.ma.array(ret,mask=False,fill_value=constants.fill_value)
+            ret = np.arange(1,n+1,dtype=constants.np_int).reshape(self.value.shape)
+            ret = np.ma.array(ret,mask=False)
         return(ret)
 
 

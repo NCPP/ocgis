@@ -32,6 +32,7 @@ class FionaConverter(AbstractConverter):
                            np.float32:'float',
                            np.float16:'float',
                            np.int16:'int',
+                           np.int32:'int',
                            str:'str'}
     
     def _finalize_(self,f):

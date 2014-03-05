@@ -91,12 +91,14 @@ class NcConverter(AbstractConverter):
             ## update flag to indicate climatology bounds are present on the
             ## output dataset
             has_climatology_bounds = True
-            
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
             times_bounds = ds.createVariable('climatology_'+bounds_name,time_nc_value.dtype,
                                              (dim_temporal._name,bounds_name))
             times_bounds[:] = temporal.bounds
+            ## place units and calendar on time dimensions
+            times_bounds.units = temporal.units
+            times_bounds.calendar = temporal.calendar
         elif temporal.bounds is not None:
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
@@ -105,8 +107,15 @@ class NcConverter(AbstractConverter):
             times_bounds[:] = time_bounds_nc_value
             for key,value in meta['variables'][name_bounds_temporal]['attrs'].iteritems():
                 setattr(times_bounds,key,value)
+            ## place units and calendar on time dimensions
+            times_bounds.units = temporal.units
+            times_bounds.calendar = temporal.calendar
         times = ds.createVariable(name_variable_temporal,time_nc_value.dtype,(dim_temporal._name,))
         times[:] = time_nc_value
+        
+        ## always place calendar and units on time dimension
+        times.units = temporal.units
+        times.calendar = temporal.calendar
 
         ## add time attributes
         for key,value in meta['variables'][name_variable_temporal]['attrs'].iteritems():

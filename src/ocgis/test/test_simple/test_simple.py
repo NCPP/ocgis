@@ -130,6 +130,25 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_units_calendar_on_time_bounds(self):
+        rd = self.get_dataset()
+        ops = ocgis.OcgOperations(dataset=rd,output_format='nc')
+        ret = ops.execute()
+        with nc_scope(ret) as ds:
+            self.assertEqual(dict(ds.variables['time'].__dict__),
+                             dict(ds.variables['time_bnds'].__dict__))
+            
+    def test_units_calendar_on_time_bounds_calculation(self):
+        rd = self.get_dataset()
+        ops = ocgis.OcgOperations(dataset=rd,output_format='nc',calc=[{'func':'mean','name':'my_mean'}],
+                                  calc_grouping=['month'])
+        ret = ops.execute()
+        with nc_scope(ret) as ds:
+            time = ds.variables['time']
+            bound = ds.variables['climatology_bound']
+            self.assertEqual(time.units,bound.units)
+            self.assertEqual(bound.calendar,bound.calendar)
+    
     def test_add_auxiliary_files_false_csv_nc(self):
         rd = self.get_dataset()
         for output_format in ['csv','nc']:
@@ -141,7 +160,7 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(os.listdir(ops.dir_output),[filename])
             self.assertEqual(ret,os.path.join(dir_output,filename))
             
-            ## attemping the operation again will raise an exception even if env.OVERWRITE
+            ## attempting the operation again will raise an exception even if env.OVERWRITE
             ## is True. only directories may be removed (i.e. add_auxiliary_files=True
             ocgis.env.OVERWRITE = True
             ops = ocgis.OcgOperations(dataset=rd,output_format=output_format,add_auxiliary_files=False,
@@ -199,6 +218,11 @@ class TestSimple(TestSimpleBase):
         self.assertIsInstance(rd.inspect_as_dct(),OrderedDict)
         self.assertEqual(rd.inspect_as_dct()['derived']['Calendar'],
                          'None (will assume "standard")')
+        ## write the data to a netCDF and ensure the calendar is written.
+        ret = ocgis.OcgOperations(dataset=rd,output_format='nc').execute()
+        with nc_scope(ret) as ds:
+            self.assertEqual(ds.variables['time'].calendar,'standard')
+            self.assertEqual(ds.variables['time_bnds'].calendar,'standard')
         field = rd.get()
         ## the standard calendar name should be available at the dataset level
         self.assertEqual(field.temporal.calendar,'standard')

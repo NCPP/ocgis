@@ -1,0 +1,81 @@
+from ocgis.test.base import TestBase
+from ocgis.api.collection import SpatialCollection
+from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
+import ocgis
+import os
+from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
+from ocgis.conv.nc import NcConverter
+import itertools
+from copy import deepcopy
+import tempfile
+
+
+class AbstractTestConverter(TestBase):
+    
+    def get_spatial_collection(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()[:,0,:,0,0]
+        coll = SpatialCollection()
+        coll.add_field(1,None,'tas',field)
+        return(coll)
+
+
+class TestAbstractConverter(AbstractTestConverter):
+    _auxiliary_file_list = ['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_did.csv']
+    
+    def run_auxiliary_file_tst(self,Converter,file_list,auxiliary_file_list=None):
+        auxiliary_file_list = auxiliary_file_list or self._auxiliary_file_list
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
+        coll = ops.execute()
+        
+        _ops = [None,ops]
+        _add_auxiliary_files = [True,False]
+        for ops_arg,add_auxiliary_files in itertools.product(_ops,_add_auxiliary_files):
+            ## make a new output directory as to not deal with overwrites
+            outdir = tempfile.mkdtemp(dir=self._test_dir)
+            try:
+                conv = Converter([coll],outdir,'ocgis_output',add_auxiliary_files=add_auxiliary_files,ops=ops_arg)
+            ## CsvPlusConverter requires an operations argument
+            except ValueError as e:
+                if Converter == CsvPlusConverter and ops_arg is None:
+                    continue
+                else:
+                    raise(e)
+            conv.write()
+            files = os.listdir(outdir)
+            ## auxiliary files require an operations argument
+            if add_auxiliary_files == True and ops_arg is not None:
+                to_test = deepcopy(file_list)
+                to_test.extend(auxiliary_file_list)
+            else:
+                to_test = file_list
+            self.assertEqual(set(files),set(to_test))
+            
+    def test_overwrite_csv(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
+        coll = ops.execute()
+
+        outdir = tempfile.mkdtemp(dir=self._test_dir)
+        conv = CsvConverter([coll],outdir,'ocgis_output')
+        conv.write()
+        
+        with self.assertRaises(IOError):
+            CsvConverter([coll],outdir,'ocgis_output')
+
+    def test_add_auxiliary_files_csv(self):        
+        self.run_auxiliary_file_tst(CsvConverter,['ocgis_output.csv'])
+        
+    def test_add_auxiliary_files_geojson(self):        
+        self.run_auxiliary_file_tst(GeoJsonConverter,['ocgis_output.json'])
+        
+    def test_add_auxiliary_files_nc(self): 
+        self.run_auxiliary_file_tst(NcConverter,['ocgis_output.nc'])
+            
+    def test_add_auxiliary_files_csv_shp(self):
+        self.run_auxiliary_file_tst(CsvPlusConverter,['ocgis_output.csv', 'shp'])
+    
+    def test_add_auxiliary_files_shp(self):        
+        self.run_auxiliary_file_tst(ShpConverter,['ocgis_output.dbf', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output.cpg', 'ocgis_output.prj'])
+    

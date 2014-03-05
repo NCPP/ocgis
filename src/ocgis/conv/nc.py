@@ -1,4 +1,4 @@
-from ocgis.conv.base import OcgConverter
+from ocgis.conv.base import AbstractConverter
 import netCDF4 as nc
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -8,7 +8,7 @@ import logging
 import numpy as np
 
     
-class NcConverter(OcgConverter):
+class NcConverter(AbstractConverter):
     _ext = 'nc'
     
     def _finalize_(self,ds):

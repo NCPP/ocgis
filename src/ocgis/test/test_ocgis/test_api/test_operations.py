@@ -13,6 +13,7 @@ from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 from ocgis.test.test_simple.test_simple import ToTest, nc_scope
 import datetime
+from ocgis.conv.base import AbstractConverter
 
 
 class Test(TestBase):

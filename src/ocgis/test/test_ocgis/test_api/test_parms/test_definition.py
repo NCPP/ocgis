@@ -11,6 +11,13 @@ from ocgis.util.shp_cabinet import ShpCabinet
 
 class Test(TestBase):
     
+    def test_add_auxiliary_files(self):
+        for val in [True,False]:
+            p = AddAuxiliaryFiles(val)
+            self.assertEqual(p.value,val)
+        p = AddAuxiliaryFiles()
+        self.assertEqual(p.value,True)
+    
     def test_dir_output(self):
         ## raise an exception if the directory does not exist
         do = '/does/not/exist'

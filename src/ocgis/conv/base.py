@@ -1,7 +1,6 @@
 from ocgis.conv.meta import MetaConverter
 import os.path
 import abc
-from abc import ABCMeta
 import csv
 from ocgis.util.inspect import Inspect
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -13,8 +12,7 @@ from shapely.geometry.geo import mapping
 from csv import DictWriter
 
 
-class OcgConverter(object):
-    __metaclass__ = ABCMeta
+class AbstractConverter(object):
     '''Base converter object. Intended for subclassing.
     
     :param colls: A sequence of `~ocgis.OcgCollection` objects.
@@ -33,21 +31,32 @@ class OcgConverter(object):
     _add_ugeom_nest = True ## nest the user geometry in a shp folder
     _add_source_meta = True ## add a source metadata file
         
-    def __init__(self,colls,outdir,prefix,ops=None,add_meta=True):
+    def __init__(self,colls,outdir,prefix,ops=None,add_meta=True,add_auxiliary_files=True):
         self.colls = colls
         self.ops = ops
         self.prefix = prefix
         self.outdir = outdir
         self.add_meta = add_meta
+        self.add_auxiliary_files = add_auxiliary_files
         self._log = ocgis_lh.get_logger('conv')
         
         if self._ext is None:
             self.path = self.outdir
         else:
             self.path = os.path.join(self.outdir,prefix+'.'+self._ext)
+            if os.path.exists(self.path):
+                msg = 'Output path exists "{0}" and must be removed before proceeding.'.format(self.path)
+                ocgis_lh(logger=self._log,exc=IOError(msg))
+            
         ocgis_lh('converter initialized',level=logging.DEBUG,logger=self._log)
         
     def _build_(self,*args,**kwds): raise(NotImplementedError)
+    
+    def _clean_outdir_(self):
+        '''
+        Remove previous output file from outdir.
+        '''
+        pass
         
     def _get_return_(self):
         return(self.path)
@@ -157,7 +166,7 @@ class OcgConverter(object):
         
         ## the metadata and dataset descriptor files may only be written if
         ## OCGIS operations are present.
-        if self.ops is not None:
+        if self.ops is not None and self.add_auxiliary_files == True:
             ## added OCGIS metadata output if requested.
             if self.add_meta:
                 ocgis_lh('adding OCGIS metadata file','conv',logging.DEBUG)
@@ -200,17 +209,9 @@ class OcgConverter(object):
         ret = self._get_return_()
         
         return(ret)
-        
+    
     @classmethod
-    def get_converter(cls,output_format):
-        '''Return the converter based on output extensions or key.
-        
-        output_format :: str
-        
-        returns
-        
-        OcgConverter'''
-        
+    def get_converter_map(cls):
         from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
         from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
         from ocgis.conv.numpy_ import NumpyConverter
@@ -226,5 +227,16 @@ class OcgConverter(object):
 #                'shpidx':ShpIdxConverter,
 #                'keyed':KeyedConverter,
                 'nc':NcConverter}
+        return(mmap)
         
-        return(mmap[output_format])
+    @classmethod
+    def get_converter(cls,output_format):
+        '''Return the converter based on output extensions or key.
+        
+        output_format :: str
+        
+        returns
+        
+        AbstractConverter'''
+        
+        return(cls.get_converter_map()[output_format])

@@ -1,8 +1,8 @@
-from ocgis.conv.base import OcgConverter
+from ocgis.conv.base import AbstractConverter
 from ocgis.api.collection import SpatialCollection
 
     
-class NumpyConverter(OcgConverter):
+class NumpyConverter(AbstractConverter):
     _create_directory = False
         
     def __iter__(self):

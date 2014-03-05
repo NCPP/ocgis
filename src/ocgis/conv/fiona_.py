@@ -1,4 +1,4 @@
-from ocgis.conv.base import OcgConverter
+from ocgis.conv.base import AbstractConverter
 import datetime
 import numpy as np
 from types import NoneType
@@ -10,7 +10,7 @@ import abc
 from ocgis.util.logging_ocgis import ocgis_lh
 
     
-class FionaConverter(OcgConverter):
+class FionaConverter(AbstractConverter):
     __metaclass__ = abc.ABCMeta
     
     _add_ugeom = True

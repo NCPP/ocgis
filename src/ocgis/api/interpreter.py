@@ -1,12 +1,11 @@
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
 from ocgis import exc, env
-from ocgis.api.parms import definition
 from ocgis.conv.meta import MetaConverter
-from ocgis.conv.base import OcgConverter
 from subset import SubsetOperation
 import os
 import shutil
+from ocgis.conv.base import AbstractConverter
 
 ## TODO: add method to estimate request size
 
@@ -52,20 +51,23 @@ class OcgInterpreter(Interpreter):
         if self.ops.output_format == 'numpy':
             outdir = None
         else:
-            outdir = os.path.join(self.ops.dir_output,prefix)
-            if os.path.exists(outdir):
-                if env.OVERWRITE:
-                    shutil.rmtree(outdir)
-                else:
-                    raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
-            os.mkdir(outdir)
+            if self.ops.add_auxiliary_files:
+                outdir = os.path.join(self.ops.dir_output,prefix)
+                if os.path.exists(outdir):
+                    if env.OVERWRITE:
+                        shutil.rmtree(outdir)
+                    else:
+                        raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
+                os.mkdir(outdir)
+            else:
+                outdir = self.ops.dir_output
             
         try:
             ## configure logging ###################################################
             
             ## if file logging is enable, perform some logic based on the operational
             ## parameters.
-            if env.ENABLE_FILE_LOGGING:
+            if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files == True:
                 if self.ops.output_format == 'numpy':
                     to_file = None
                 else:
@@ -113,10 +115,10 @@ class OcgInterpreter(Interpreter):
                 ## if there is no grouping on the output files, a singe converter is
                 ## is needed
                 if self.ops.output_grouping is None:
-                    Conv = OcgConverter.get_converter(self.ops.output_format)
+                    Conv = AbstractConverter.get_converter(self.ops.output_format)
                     ocgis_lh('initializing converter',interpreter_log,
                              level=logging.DEBUG)
-                    conv = Conv(so,outdir,prefix,ops=self.ops)
+                    conv = Conv(so,outdir,prefix,ops=self.ops,add_auxiliary_files=self.ops.add_auxiliary_files)
                     ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format),interpreter_log,
                              level=logging.DEBUG)
                     ret = conv.write()

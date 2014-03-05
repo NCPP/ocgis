@@ -30,6 +30,13 @@ class Abstraction(base.StringOptionParameter):
         else:
             msg = 'Spatial dimension abstracted to {0}.'.format(self.value)
         return(msg)
+    
+    
+class AddAuxiliaryFiles(base.BooleanParameter):
+    name = 'add_auxiliary_files'
+    default = True
+    meta_true = 'Auxiliary metadata files added. A new directory was created.'
+    meta_false = 'Auxiliary metadata files not added. Output file created in the output directory.'
 
 
 class AllowEmpty(base.BooleanParameter):

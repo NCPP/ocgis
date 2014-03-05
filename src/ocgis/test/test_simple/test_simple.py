@@ -32,6 +32,7 @@ from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc,\
 from csv import DictReader
 from ocgis.test.test_base import longrunning
 import webbrowser
+import tempfile
 
 
 @contextmanager
@@ -128,6 +129,25 @@ class TestSimple(TestSimpleBase):
                            [3.0,3.0,4.0,4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+    
+    def test_add_auxiliary_files_false_csv_nc(self):
+        rd = self.get_dataset()
+        for output_format in ['csv','nc']:
+            dir_output = tempfile.mkdtemp(dir=self._test_dir)
+            ops = ocgis.OcgOperations(dataset=rd,output_format=output_format,add_auxiliary_files=False,
+                                      dir_output=dir_output)
+            ret = ops.execute()
+            filename = 'ocgis_output.{0}'.format(output_format)
+            self.assertEqual(os.listdir(ops.dir_output),[filename])
+            self.assertEqual(ret,os.path.join(dir_output,filename))
+            
+            ## attemping the operation again will raise an exception even if env.OVERWRITE
+            ## is True. only directories may be removed (i.e. add_auxiliary_files=True
+            ocgis.env.OVERWRITE = True
+            ops = ocgis.OcgOperations(dataset=rd,output_format=output_format,add_auxiliary_files=False,
+                                      dir_output=dir_output)
+            with self.assertRaises(IOError):
+                ops.execute()
     
     def test_multiple_request_datasets(self):
         aliases = ['foo1','foo2','foo3','foo4']

@@ -70,6 +70,9 @@ class OcgOperations(object):
     :type search_radius_mult: float
     :param interpolate_spatial_bounds: If True and no bounds are available, attempt to interpolate bounds from centroids.
     :type interpolate_spatial_bounds: bool
+    :param bool add_auxiliary_files: If True, create a new directory and add metadata 
+     and other informational files in addition to the converted file. If False, write
+     the target file only to :attribute:`dir_output` and do not create a new directory.
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -79,7 +82,7 @@ class OcgOperations(object):
                  vector_wrap=True, allow_empty=False, dir_output=None, 
                  slice=None, file_only=False, headers=None, format_time=True,
                  calc_sample_size=False, search_radius_mult=0.75, output_crs=None,
-                 interpolate_spatial_bounds=False):
+                 interpolate_spatial_bounds=False, add_auxiliary_files=True):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -110,6 +113,7 @@ class OcgOperations(object):
         self.search_radius_mult = SearchRadiusMultiplier(search_radius_mult)
         self.format_time = FormatTime(format_time)
         self.interpolate_spatial_bounds = InterpolateSpatialBounds(interpolate_spatial_bounds)
+        self.add_auxiliary_files = AddAuxiliaryFiles(add_auxiliary_files)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

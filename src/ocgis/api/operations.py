@@ -6,6 +6,8 @@ from ocgis.conv.meta import MetaConverter
 from ocgis.calc.base import AbstractMultivariateFunction,\
     AbstractKeyedOutputFunction
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
+from ocgis.api.subset import SubsetOperation
+import numpy as np
 
 
 class OcgOperations(object):
@@ -152,6 +154,26 @@ class OcgOperations(object):
                 object.__setattr__(self, name, value)
         if self._is_init is False:
             self._validate_()
+            
+    def get_base_request_size(self):
+        '''
+        Return the estimated request size in kilobytes. This is the estimated size
+        of the requested data not the returned data product.
+        
+        :returns: Dictionary with keys ``'total'`` and ``'variables'``. The ``'variables'``
+         key maps a variable's alias to its estimated request size.
+        :return type: dict
+        '''
+        ops_size = deepcopy(self)
+        subset = SubsetOperation(ops_size,request_base_size_only=True)
+        ret = dict(variables={})
+        for coll in subset:
+            for row in coll.get_iter_melted():
+                elements = reduce(lambda x,y: x*y,row['field'].shape)
+                nbytes = np.array([1],dtype=row['variable'].dtype).nbytes
+                ret['variables'][row['variable_alias']] = int((elements*nbytes)/1024)
+        ret['total'] = int(sum(ret['variables'].values()))
+        return(ret)
     
     def get_meta(self):
         meta_converter = MetaConverter(self)

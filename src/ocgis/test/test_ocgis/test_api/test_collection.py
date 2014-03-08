@@ -6,7 +6,8 @@ import datetime
 from ocgis import constants
 from ocgis.calc.library.statistics import Mean
 from ocgis.interface.base.variable import Variable
-from ocgis.interface.base.field import DerivedField, DerivedMultivariateField
+from ocgis.interface.base.field import DerivedField, DerivedMultivariateField,\
+    Field
 from copy import copy
 from ocgis.calc.library.math import Divide
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
@@ -15,8 +16,8 @@ import numpy as np
 
 
 class TestSpatialCollection(AbstractTestField):
-
-    def test_constructor(self):
+    
+    def get_collection(self):
         field = self.get_field(with_value=True)
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
@@ -24,12 +25,26 @@ class TestSpatialCollection(AbstractTestField):
         for row in sc.iter_geoms('state_boundaries'):
             sp.add_field(row['properties']['UGID'],row['geom'],field.variables.keys()[0],
                          field,properties=row['properties'])
+        return(sp)
+
+    def test_constructor(self):
+        sp = self.get_collection()
         self.assertEqual(len(sp),51)
         self.assertIsInstance(sp.geoms[25],MultiPolygon)
         self.assertIsInstance(sp.properties[25],dict)
         self.assertEqual(sp[25]['tmax'].variables['tmax'].value.shape,(2, 31, 2, 3, 4))
+        
+    def test_get_iter_melted(self):
+        sp = self.get_collection()
+        for row in sp.get_iter_melted():
+            self.assertEqual(set(['ugid','field_alias','field','variable_alias','variable']),set(row.keys()))
+            self.assertIsInstance(row['ugid'],int)
+            self.assertIsInstance(row['field_alias'],basestring)
+            self.assertIsInstance(row['field'],Field)
+            self.assertIsInstance(row['variable_alias'],basestring)
+            self.assertIsInstance(row['variable'],Variable)
     
-    def test_iteration(self):
+    def test_iteration_methods(self):
         field = self.get_field(with_value=True)
         
         field.temporal.name_uid = 'tid'

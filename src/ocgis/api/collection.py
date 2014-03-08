@@ -67,6 +67,12 @@ class SpatialCollection(OrderedDict):
             for field_alias,field in fields.iteritems():
                 for var_alias,variable in field.variables.iteritems():
                     yield(ugid,field_alias,var_alias,variable)
+                    
+    def get_iter_melted(self):
+        for ugid,container in OrderedDict.iteritems(self):
+            for field_alias,field in container.iteritems():
+                for variable_alias,variable in field.variables.iteritems():
+                    yield(dict(ugid=ugid,field_alias=field_alias,field=field,variable_alias=variable_alias,variable=variable))
                 
     def gvu(self,ugid,alias_variable,alias_field=None):
         ref = self[ugid]

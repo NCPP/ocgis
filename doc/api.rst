@@ -44,7 +44,7 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 ============================
 
 .. autoclass:: ocgis.OcgOperations
-   :members: execute
+   :members: execute, get_base_request_size
 
 Detailed Argument Information
 -----------------------------

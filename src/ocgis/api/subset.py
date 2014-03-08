@@ -16,11 +16,17 @@ from copy import deepcopy
 
 
 class SubsetOperation(object):
+    '''
+    :param :class:~`ocgis.OcgOperations` ops:
+    :param bool request_base_size_only: If ``True``, return field objects following
+     the spatial subset performing as few operations as possible.
+    '''
     
-    def __init__(self,ops,serial=True,nprocs=1):
+    def __init__(self,ops,request_base_size_only=False,serial=True,nprocs=1):
         self.ops = ops
         self.serial = serial
         self.nprocs = nprocs
+        self._request_base_size_only = request_base_size_only
         
         self._subset_log = ocgis_lh.get_logger('subset')
 
@@ -68,6 +74,11 @@ class SubsetOperation(object):
             raise(ocgis_lh(exc=NotImplementedError('multiprocessing is not available')))
 
     def _process_geometries_(self,rds):
+        '''
+        :param rds: Sequence of :class:~`ocgis.RequestDataset` objects.
+        :type rds: sequence
+        :yields: :class:~`ocgis.SpatialCollection`
+        '''
         ocgis_lh(msg='entering _process_geometries_',logger=self._subset_log,level=logging.DEBUG)
         
         ## select headers
@@ -206,56 +217,59 @@ class SubsetOperation(object):
                         ocgis_lh(exc=ExtentError(message=str(e)),alias=alias,logger=self._subset_log)
             else:
                 sfield = field
-                        
-            ## if empty returns are allowed, there be an empty field
-            if sfield is not None:
-                ## aggregate if requested
-                if self.ops.aggregate:
-                    sfield = sfield.get_spatially_aggregated(new_spatial_uid=ugid)
-                
-                ## wrap the returned data.
-                if not env.OPTIMIZE_FOR_CALC:
-                    if CFWGS84.get_is_360(sfield.spatial):
-                        if self.ops.output_format != 'nc' and self.ops.vector_wrap:
-                            ocgis_lh('wrapping output geometries',self._subset_log,alias=alias,ugid=ugid)
-                            ## modifying these values in place will change the values
-                            ## in the base field. a copy is necessary.
-                            sfield.spatial = deepcopy(sfield.spatial)
-                            sfield.spatial.crs.wrap(sfield.spatial)
-                            
-                ## check for all masked values
-                if env.OPTIMIZE_FOR_CALC is False and self.ops.file_only is False:
-                    for variable in sfield.variables.itervalues():
-                        if variable.value.mask.all():
-                            ## masked data may be okay depending on other opeartional
-                            ## conditions.
-                            if self.ops.snippet or self.ops.allow_empty or (self.ops.output_format == 'numpy' and self.ops.allow_empty):
-                                if self.ops.snippet:
-                                    ocgis_lh('all masked data encountered but allowed for snippet',
-                                             self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
-                                if self.ops.allow_empty:
-                                    ocgis_lh('all masked data encountered but empty returns allowed',
-                                             self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
-                                if self.ops.output_format == 'numpy':
-                                    ocgis_lh('all masked data encountered but numpy data being returned allowed',
-                                             logger=self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
-                            else:
-                                ## if the geometry is also masked, it is an empty spatial
-                                ## operation.
-                                if sfield.spatial.abstraction_geometry.value.mask.all():
-                                    ocgis_lh(exc=EmptyData,logger=self._subset_log)
-                                ## if none of the other conditions are met, raise the masked data error
-                                else:
-                                    ocgis_lh(logger=self._subset_log,exc=MaskedDataError(),alias=alias,ugid=ugid)
             
-            ## update the coordinate system of the data output
-            if self.ops.output_crs is not None:
-                ## if the geometry is not None, it may need to be projected to match
-                ## the output crs.
-                if geom is not None and crs != self.ops.output_crs:
-                    geom = project_shapely_geometry(geom,crs.sr,self.ops.output_crs.sr)
+            ## if the base size is being requested, bypass the rest of the
+            ## operations.
+            if self._request_base_size_only == False:            
+                ## if empty returns are allowed, there be an empty field
+                if sfield is not None:
+                    ## aggregate if requested
+                    if self.ops.aggregate:
+                        sfield = sfield.get_spatially_aggregated(new_spatial_uid=ugid)
                     
-                sfield.spatial.update_crs(self.ops.output_crs)
+                    ## wrap the returned data.
+                    if not env.OPTIMIZE_FOR_CALC:
+                        if CFWGS84.get_is_360(sfield.spatial):
+                            if self.ops.output_format != 'nc' and self.ops.vector_wrap:
+                                ocgis_lh('wrapping output geometries',self._subset_log,alias=alias,ugid=ugid)
+                                ## modifying these values in place will change the values
+                                ## in the base field. a copy is necessary.
+                                sfield.spatial = deepcopy(sfield.spatial)
+                                sfield.spatial.crs.wrap(sfield.spatial)
+                                
+                    ## check for all masked values
+                    if env.OPTIMIZE_FOR_CALC is False and self.ops.file_only is False:
+                        for variable in sfield.variables.itervalues():
+                            if variable.value.mask.all():
+                                ## masked data may be okay depending on other opeartional
+                                ## conditions.
+                                if self.ops.snippet or self.ops.allow_empty or (self.ops.output_format == 'numpy' and self.ops.allow_empty):
+                                    if self.ops.snippet:
+                                        ocgis_lh('all masked data encountered but allowed for snippet',
+                                                 self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
+                                    if self.ops.allow_empty:
+                                        ocgis_lh('all masked data encountered but empty returns allowed',
+                                                 self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
+                                    if self.ops.output_format == 'numpy':
+                                        ocgis_lh('all masked data encountered but numpy data being returned allowed',
+                                                 logger=self._subset_log,alias=alias,ugid=ugid,level=logging.WARN)
+                                else:
+                                    ## if the geometry is also masked, it is an empty spatial
+                                    ## operation.
+                                    if sfield.spatial.abstraction_geometry.value.mask.all():
+                                        ocgis_lh(exc=EmptyData,logger=self._subset_log)
+                                    ## if none of the other conditions are met, raise the masked data error
+                                    else:
+                                        ocgis_lh(logger=self._subset_log,exc=MaskedDataError(),alias=alias,ugid=ugid)
+                
+                ## update the coordinate system of the data output
+                if self.ops.output_crs is not None:
+                    ## if the geometry is not None, it may need to be projected to match
+                    ## the output crs.
+                    if geom is not None and crs != self.ops.output_crs:
+                        geom = project_shapely_geometry(geom,crs.sr,self.ops.output_crs.sr)
+                        
+                    sfield.spatial.update_crs(self.ops.output_crs)
             
             ## update the spatial abstraction to match the operations value. sfield
             ## will be none if the operation returns empty and it is allowed to have
@@ -268,16 +282,18 @@ class SubsetOperation(object):
             yield(coll)
     
     def _iter_collections_(self):
-        
+        '''
+        :yields: :class:~`ocgis.SpatialCollection`
+        '''
         ocgis_lh('{0} request dataset(s) to process'.format(len(self.ops.dataset)),'conv._iter_collections_')
         
-        if self.cengine is None:
-            itr_rd = ([rd] for rd in self.ops.dataset)
+        ## multivariate calculations require datasets come in as a list with all
+        ## variable inputs part of the same sequence.
+        if self.cengine is not None and self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
+            itr_rd = [[r for r in self.ops.dataset]]
+        ## otherwise, process geometries expects a single element sequence
         else:
-            if self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
-                itr_rd = [[r for r in self.ops.dataset]]
-            else:
-                itr_rd = ([rd] for rd in self.ops.dataset)
+            itr_rd = ([rd] for rd in self.ops.dataset)
         
         for rds in itr_rd:
             for coll in self._process_geometries_(rds):

@@ -14,6 +14,7 @@ from ocgis.util.shp_cabinet import ShpCabinetIterator
 from ocgis.test.test_simple.test_simple import ToTest, nc_scope
 import datetime
 from ocgis.conv.base import AbstractConverter
+from copy import deepcopy
 
 
 class Test(TestBase):
@@ -37,6 +38,34 @@ class Test(TestBase):
         level_range = [2,2]
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+
+    def test_get_base_request_size(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd)
+        size = ops.get_base_request_size()
+        self.assertEqual(size['total'],116800)
+        
+    def test_get_base_request_size_with_geom(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[23])
+        size = ops.get_base_request_size()
+        self.assertEqual(size,{'variables': {'tas': 171}, 'total': 171})
+        
+    def test_get_base_request_size_multifile(self):
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        rds = [rd1,rd2]
+        ops = OcgOperations(dataset=rds)
+        size = ops.get_base_request_size()
+        self.assertEqual({'variables': {'pr': 1666909, 'tas': 116800}, 'total': 1783709},size)
+        
+    def test_get_base_request_size_multifile_with_geom(self):
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        rds = [rd1,rd2]
+        ops = OcgOperations(dataset=rds,geom='state_boundaries',select_ugid=[23])
+        size = ops.get_base_request_size()
+        self.assertEqual(size,{'variables': {'pr': 21341, 'tas': 171}, 'total': 21512})
 
     def test_repr(self):
         rd = self.test_data.get_rd('cancm4_tas')

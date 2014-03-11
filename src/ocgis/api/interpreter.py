@@ -118,7 +118,8 @@ class OcgInterpreter(Interpreter):
                     Conv = AbstractConverter.get_converter(self.ops.output_format)
                     ocgis_lh('initializing converter',interpreter_log,
                              level=logging.DEBUG)
-                    conv = Conv(so,outdir,prefix,ops=self.ops,add_auxiliary_files=self.ops.add_auxiliary_files)
+                    conv = Conv(so,outdir,prefix,ops=self.ops,add_auxiliary_files=self.ops.add_auxiliary_files,
+                                overwrite=env.OVERWRITE)
                     ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format),interpreter_log,
                              level=logging.DEBUG)
                     ret = conv.write()

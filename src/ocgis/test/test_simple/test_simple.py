@@ -130,6 +130,18 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_overwrite_add_auxiliary_files(self):
+        ## if overwrite is true, we should be able to write the nc output
+        ## multiple times
+        env.OVERWRITE = True
+        kwds = {'output_format':'nc','add_auxiliary_files':False}
+        self.get_ret(kwds=kwds)
+        self.get_ret(kwds=kwds)
+        ## switching the argment to false will result in an IOError
+        env.OVERWRITE = False
+        with self.assertRaises(IOError):
+            self.get_ret(kwds=kwds)
+    
     def test_units_calendar_on_time_bounds(self):
         rd = self.get_dataset()
         ops = ocgis.OcgOperations(dataset=rd,output_format='nc')
@@ -160,13 +172,11 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(os.listdir(ops.dir_output),[filename])
             self.assertEqual(ret,os.path.join(dir_output,filename))
             
-            ## attempting the operation again will raise an exception even if env.OVERWRITE
-            ## is True. only directories may be removed (i.e. add_auxiliary_files=True
+            ## attempting the operation again will work if overwrite is True
             ocgis.env.OVERWRITE = True
             ops = ocgis.OcgOperations(dataset=rd,output_format=output_format,add_auxiliary_files=False,
                                       dir_output=dir_output)
-            with self.assertRaises(IOError):
-                ops.execute()
+            ops.execute()
     
     def test_multiple_request_datasets(self):
         aliases = ['foo1','foo2','foo3','foo4']

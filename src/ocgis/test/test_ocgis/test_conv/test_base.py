@@ -8,6 +8,7 @@ from ocgis.conv.nc import NcConverter
 import itertools
 from copy import deepcopy
 import tempfile
+import time
 
 
 class AbstractTestConverter(TestBase):
@@ -52,17 +53,45 @@ class TestAbstractConverter(AbstractTestConverter):
                 to_test = file_list
             self.assertEqual(set(files),set(to_test))
             
-    def test_overwrite_csv(self):
+    def run_overwrite_true_tst(self,Converter,include_ops=False):
+        rd = self.test_data.get_rd('cancm4_tas')
+        _ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
+        coll = _ops.execute()
+        
+        ops = _ops if include_ops else None
+        outdir = tempfile.mkdtemp(dir=self._test_dir)
+        conv = Converter([coll],outdir,'ocgis_output',ops=ops)
+        conv.write()
+        mtimes = [os.path.getmtime(os.path.join(outdir,f)) for f in os.listdir(outdir)]
+
+        Converter([coll],outdir,'ocgis_output',overwrite=True,ops=ops).write()
+        mtimes2 = [os.path.getmtime(os.path.join(outdir,f)) for f in os.listdir(outdir)]
+        ## if the file is overwritten the modification time will be more recent!
+        self.assertTrue(all([m2 > m for m2,m in zip(mtimes2,mtimes)]))
+            
+    def test_overwrite_false_csv(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
         coll = ops.execute()
-
+        
         outdir = tempfile.mkdtemp(dir=self._test_dir)
         conv = CsvConverter([coll],outdir,'ocgis_output')
         conv.write()
         
         with self.assertRaises(IOError):
             CsvConverter([coll],outdir,'ocgis_output')
+            
+    def test_overwrite_true_csv(self):
+        self.run_overwrite_true_tst(CsvConverter)
+        
+    def test_overwrite_true_nc(self):
+        self.run_overwrite_true_tst(NcConverter)
+        
+    def test_overwrite_true_shp(self):
+        self.run_overwrite_true_tst(ShpConverter)
+        
+    def test_overwrite_true_csv_shp(self):
+        self.run_overwrite_true_tst(CsvPlusConverter,include_ops=True)
 
     def test_add_auxiliary_files_csv(self):        
         self.run_auxiliary_file_tst(CsvConverter,['ocgis_output.csv'])

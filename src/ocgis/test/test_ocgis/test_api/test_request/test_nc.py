@@ -14,7 +14,7 @@ from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError,\
 import datetime
 from unittest.case import SkipTest
 import ocgis
-from ocgis.test.test_simple.test_simple import nc_scope
+from ocgis.test.test_simple.test_simple import nc_scope, ToTest
 
 
 class TestNcRequestDataset(TestBase):
@@ -47,6 +47,16 @@ class TestNcRequestDataset(TestBase):
         geom = SpatialGeometryDimension(polygon=poly)
         sdim = SpatialDimension(geom=geom,properties=attrs,crs=WGS84())
         return(sdim)
+    
+    def test_load_dtype_on_dimensions(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        with nc_scope(rd.uri) as ds:
+            test_dtype_temporal = ds.variables['time'].dtype
+            test_dtype_value = ds.variables['tas'].dtype
+        self.assertEqual(field.temporal.dtype,test_dtype_temporal)
+        self.assertEqual(field.variables['tas'].dtype,test_dtype_value)
+        self.assertEqual(field.temporal.dtype,np.float64)
 
     def test_load(self):
         ref_test = self.test_data['cancm4_tas']

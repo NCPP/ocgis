@@ -172,10 +172,22 @@ class NcRequestDataset(object):
                 length = self._source_metadata['dimensions'][ref_axis['dimension']]['len']
                 src_idx = np.arange(0,length,dtype=constants.np_int)
                 
+                ## get the target data type for the dimension
+                try:
+                    dtype = np.dtype(ref_variable['dtype'])
+                ## the realization dimension may not be a associated with a variable
+                except KeyError:
+                    if k == 'realization' and ref_variable['axis']['variable'] == None:
+                        dtype = None
+                    else:
+                        raise
+                
                 ## assemble parameters for creating the dimension class then initialize
                 ## the class.
                 kwds = dict(name_uid=v['name_uid'],name_value=v['name_value'],src_idx=src_idx,
-                            data=self,meta=ref_variable,axis=axis_value,name=ref_variable.get('name'))
+                        data=self,meta=ref_variable,axis=axis_value,name=ref_variable.get('name'),
+                        dtype=dtype)
+
                 ## there may be additional parameters for each dimension.
                 if v['adds'] is not None:
                     try:

@@ -14,7 +14,7 @@ class NcTemporalDimension(NcVectorDimension,TemporalDimension):
         self.format_time = kwds.pop('format_time',True)
         self._value_datetime = kwds.pop('value_datetime',None)
         self._bounds_datetime = kwds.pop('bounds_datetime',None)
-        
+
         NcVectorDimension.__init__(self,*args,**kwds)
         
         assert(self.units != None)

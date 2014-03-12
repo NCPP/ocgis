@@ -161,18 +161,58 @@ class OcgOperations(object):
         of the requested data not the returned data product.
         
         :returns: Dictionary with keys ``'total'`` and ``'variables'``. The ``'variables'``
-         key maps a variable's alias to its estimated request size.
+         key maps a variable's alias to its estimated value and dimension sizes.
         :return type: dict
+        
+        >>> ret = ops.get_base_request_size()
+        {'total':555.,
+         'variables':{'tas':{'value':500.,
+                             'temporal':50.,
+                             'level':0.,
+                             'realization':0.,
+                             'row':2.5.
+                             'col':2.5.}}}
         '''
+        
+        def _get_kb_(dtype,elements):
+            nbytes = np.array([1],dtype=dtype).nbytes
+            return(float((elements*nbytes)/1024.0))
+        
+        def _get_zero_or_kb_(dimension):
+            if dimension is None:
+                ret = 0.0
+            else:
+                try:
+                    ret = _get_kb_(dimension.dtype,dimension.shape[0])
+                ## dtype may not be available, check if it is the realization dimension.
+                ## this is often not associated with a variable.
+                except ValueError:
+                    if dimension._axis == 'R':
+                        ret = 0.0
+                    else:
+                        raise
+            return(ret)
+        
         ops_size = deepcopy(self)
         subset = SubsetOperation(ops_size,request_base_size_only=True)
         ret = dict(variables={})
         for coll in subset:
             for row in coll.get_iter_melted():
                 elements = reduce(lambda x,y: x*y,row['field'].shape)
-                nbytes = np.array([1],dtype=row['variable'].dtype).nbytes
-                ret['variables'][row['variable_alias']] = int((elements*nbytes)/1024)
-        ret['total'] = int(sum(ret['variables'].values()))
+                kb = _get_kb_(row['variable'].dtype,elements)
+                ret['variables'][row['variable_alias']] = {}
+                ret['variables'][row['variable_alias']]['value'] = kb
+                ret['variables'][row['variable_alias']]['realization'] = _get_zero_or_kb_(row['field'].realization)
+                ret['variables'][row['variable_alias']]['temporal'] = _get_zero_or_kb_(row['field'].temporal)
+                ret['variables'][row['variable_alias']]['level'] = _get_zero_or_kb_(row['field'].level)
+                ret['variables'][row['variable_alias']]['row'] = _get_zero_or_kb_(row['field'].spatial.grid.row)
+                ret['variables'][row['variable_alias']]['col'] = _get_zero_or_kb_(row['field'].spatial.grid.col)
+
+        total = 0.0
+        for v in ret.itervalues():
+            for v2 in v.itervalues():
+                total += float(sum(v2.values()))
+        ret['total'] = total
         return(ret)
     
     def get_meta(self):

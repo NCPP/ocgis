@@ -13,6 +13,11 @@ from ocgis.interface.base.variable import AbstractValueVariable,\
 
 class AbstractDimension(object):
     __metaclass__ = abc.ABCMeta
+    '''
+    :param dict meta:
+    :param str name:
+    :param array-like properties:
+    '''
     
     @abc.abstractproperty
     def _axis(self): ['R','T','Z','X','Y','GEOM','GRID','POINT','POLYGON',None]
@@ -63,23 +68,20 @@ class AbstractDimension(object):
             return(None)
     
     
-class AbstractValueDimension(AbstractValueVariable,AbstractDimension):
+class AbstractValueDimension(AbstractValueVariable):
+    '''
+    +
+    :param str name_value:
+    '''
     __metaclass__ = abc.ABCMeta
     
     def __init__(self,*args,**kwds):
         self.name_value = kwds.pop('name_value',None)
         
-        AbstractValueVariable.__init__(self,
-                                       value=kwds.pop('value',None),
-                                       units=kwds.pop('units',None))
-        AbstractDimension.__init__(self,*args,**kwds)
-        
+        AbstractValueVariable.__init__(self,*args,**kwds)
+
         if self.name_value is None:
             self.name_value = self.name
-    
-    @property
-    def shape(self):
-        return(self.value.shape)
     
     
 class AbstractUidDimension(AbstractDimension):
@@ -114,14 +116,18 @@ class AbstractUidDimension(AbstractDimension):
 class AbstractUidValueDimension(AbstractValueDimension,AbstractUidDimension):
     
     def __init__(self,*args,**kwds):
+        kwds_value = ['value','name_value','units','name','dtype','fill_value']
+        kwds_uid = ['uid','name_uid','meta','properties','name']
+        
+        kwds_all = kwds_value + kwds_uid
         for key in kwds.keys():
             try:
-                assert(key in ('value','name_value','units','meta','name','uid','name_uid','properties','dtype','fill_value'))
+                assert(key in kwds_all)
             except AssertionError:
                 ocgis_lh(exc=ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key,self.__class__.__name__)))
                
-        kwds_value = {key:kwds.get(key,None) for key in ('value','name_value','units','meta','name','properties')}
-        kwds_uid = {key:kwds.get(key,None) for key in ('uid','name_uid','meta','name')}
+        kwds_value = {key:kwds.get(key,None) for key in kwds_value}
+        kwds_uid = {key:kwds.get(key,None) for key in kwds_uid}
 
         AbstractValueDimension.__init__(self,*args,**kwds_value)
         AbstractUidDimension.__init__(self,*args,**kwds_uid)
@@ -146,9 +152,10 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         AbstractSourcedVariable.__init__(self,
                                          kwds.pop('data',None),
                                          src_idx=kwds.pop('src_idx',None),
-                                         value=kwds.get('value'))
+                                         value=kwds.get('value'),
+                                         dtype=kwds.get('dtype'))
         AbstractUidValueDimension.__init__(self,*args,**kwds)
-        
+                
         ## setting bounds requires checking the data type of value set in a
         ## superclass.
         self.bounds = bounds

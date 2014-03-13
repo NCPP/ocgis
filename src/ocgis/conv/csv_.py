@@ -96,6 +96,15 @@ class CsvPlusConverter(CsvConverter):
                         converted_did = int(did)
                     except TypeError:
                         converted_did = None
+                        
                     feature = {'properties':{'GID':int(gid),'UGID':int(ugid),'DID':converted_did},
                                'geometry':mapping(geom)}
-                    file_fiona.write(feature)
+                    try:
+                        file_fiona.write(feature)
+                    except ValueError as e:
+                        if feature['geometry']['type'] != file_fiona.meta['schema']['geometry']:
+                            msg = 'Spatial abstractions do not match. You may need to override "abstraction" and/or "s_abstraction"'
+                            msg = '{0}. Original error message from Fiona is "ValueError({1})".'.format(msg,e.message)
+                            raise(ValueError(msg))
+                        else:
+                            raise

@@ -130,6 +130,13 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_to_csv_shp_and_shape_with_point_subset(self):
+        rd = RequestDataset(**self.get_dataset())
+        geom = [-103.5,38.5]
+        for of in ['csv+','shp']:
+            ops = ocgis.OcgOperations(dataset=rd,geom=geom,output_format=of,prefix=of)
+            ops.execute()
+    
     def test_overwrite_add_auxiliary_files(self):
         ## if overwrite is true, we should be able to write the nc output
         ## multiple times

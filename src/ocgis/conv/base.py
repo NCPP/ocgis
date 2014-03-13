@@ -120,7 +120,7 @@ class AbstractConverter(object):
                         ## regardless if they began as points. points are buffered
                         ## during the subsetting process.
                         fiona_meta['schema']['geometry'] = 'MultiPolygon'
-                        
+
                         fiona_object = fiona.open(fiona_path,'w',**fiona_meta)
                         csv_file = open(csv_path,'w')
                         

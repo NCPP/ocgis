@@ -353,3 +353,4 @@ class OcgOperations(object):
         if self.calc is not None:
             for c in self.calc:
                 c['ref'].validate(self)
+        

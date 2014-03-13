@@ -155,6 +155,8 @@ class SubsetOperation(object):
             
             ## reference variables from the geometry dictionary
             geom = gd.get('geom')
+            ## keep this around for the collection creation
+            coll_geom = deepcopy(geom)
             crs = gd.get('crs')
             
             if 'properties' in gd and 'UGID' in gd['properties']:
@@ -195,6 +197,8 @@ class SubsetOperation(object):
             if type(geom) in [Point,MultiPoint]:
                 ocgis_lh(logger=self._subset_log,msg='buffering point geometry',level=logging.DEBUG)
                 geom = geom.buffer(self.ops.search_radius_mult*field.spatial.grid.resolution)
+                ## update the geometry to store in the collection
+                coll_geom = deepcopy(geom)
             ## unwrap the data if it is geographic and 360
             if geom is not None and crs == CFWGS84():
                 if CFWGS84.get_is_360(field.spatial):
@@ -277,7 +281,9 @@ class SubsetOperation(object):
             if sfield is not None:
                 sfield.spatial.abstraction = self.ops.abstraction
             
-            coll.add_field(ugid,geom,alias,sfield,properties=gd.get('properties'))
+            ## the geometry may need to be wrapped or unwrapped depending on
+            ## the vector wrap situation
+            coll.add_field(ugid,coll_geom,alias,sfield,properties=gd.get('properties'))
             
             yield(coll)
     

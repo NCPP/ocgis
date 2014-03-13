@@ -98,6 +98,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['narccap'],'pr',['pr_WRFG_ncep_1981010103.nc','pr_WRFG_ncep_1986010103.nc'],key='narccap_pr_wrfg_ncep')
         test_data.update(['narccap'],'tas','tas_HRM3_gfdl_1981010103.nc',key='narccap_rotated_pole')
         test_data.update(['narccap'],'pr','pr_WRFG_ccsm_1986010103.nc',key='narccap_lambert_conformal')
+        test_data.update(['narccap'],'tas','tas_RCM3_gfdl_1981010103.nc',key='narccap_tas_rcm3_gfdl')
         test_data.update(['snippets'],'dtr','snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',key='snippet_maurer_dtr')
         test_data.update(['CMIP3'],'Tavg','Extraction_Tavg.nc',key='cmip3_extraction') 
                

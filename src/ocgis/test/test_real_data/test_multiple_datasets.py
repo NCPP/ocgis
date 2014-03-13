@@ -106,7 +106,6 @@ class Test(TestBase):
         self.assertEquals(set(ref.variables.keys()),set(['mean_Prcp', 'std_Prcp']))
         for value in ref.variables.itervalues():
             self.assertEqual(value.value.shape,(1,1,1,1,1))
-            
         ref = ret[25]['tasmax']
         self.assertEquals(set(ref.variables.keys()),set(['mean_tasmax', 'std_tasmax']))
         for value in ref.variables.itervalues():

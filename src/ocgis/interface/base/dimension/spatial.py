@@ -52,6 +52,8 @@ class SpatialDimension(base.AbstractUidDimension):
                 ocgis_lh(exc=ValueError('A SpatialDimension without "grid" or "geom" arguments requires a "row" and "column".'))
         
         super(SpatialDimension,self).__init__(*args,**kwds)
+        
+        assert(self.abstraction in ('point','polygon',None))
     
     @property
     def abstraction_geometry(self):
@@ -150,6 +152,11 @@ class SpatialDimension(base.AbstractUidDimension):
     
     def get_intersects(self,polygon,return_indices=False):
         ret = copy(self)
+        
+        ## based on the set spatial abstraction, decide if bounds should be used
+        ## for subsetting the row and column dimensions
+        use_bounds = False if self.abstraction == 'point' else True
+        
         if type(polygon) in (Point,MultiPoint):
             exc = ValueError('Only Polygons and MultiPolygons are acceptable geometry types for intersects operations.')
             ocgis_lh(exc=exc,logger='dimension.spatial')
@@ -164,11 +171,14 @@ class SpatialDimension(base.AbstractUidDimension):
                 ## reset the geometries
                 ret._geom = None
                 ## subset the grid by its bounding box
-                ret.grid,slc = self.grid.get_subset_bbox(minx,miny,maxx,maxy,return_indices=True)
+                ret.grid,slc = self.grid.get_subset_bbox(minx,miny,maxx,maxy,
+                                                         return_indices=True,
+                                                         use_bounds=use_bounds)
                 ## update the unique identifier to copy the grid uid
                 ret.uid = ret.grid.uid
                 ## attempt to mask the polygons
                 try:
+                    ## only use the polygons if the abstraction indicates as much
                     ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon)
                     grid_mask = ret.geom.polygon.value.mask
                 except ImproperPolygonBoundsError:
@@ -354,7 +364,8 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             ret = len(self.row),len(self.col)
         return(ret)
         
-    def get_subset_bbox(self,min_col,min_row,max_col,max_row,return_indices=False,closed=True):
+    def get_subset_bbox(self,min_col,min_row,max_col,max_row,return_indices=False,closed=True,
+                        use_bounds=True):
         assert(min_row <= max_row)
         assert(min_col <= max_col)
         
@@ -386,42 +397,11 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             
             new_mask = np.invert(np.logical_or(idx_row,idx_col)[row_slc,col_slc])
             
-#            import ipdb;ipdb.set_trace()
-#            idx_row_start = None
-#            idx_row_stop = None
-#            for ii in range(idx_row.shape[0]):
-#                if not idx_row[ii,:].any():
-#                    continue
-#                else:
-#                    if idx_row_start is None:
-#                        idx_row_start = ii
-#            import ipdb;ipdb.set_trace()
-#                
-#            ## if all data is returned the indices are equivalent to the size
-#            ## of the array.
-#            if not r_value_mask.any():
-#                row_slc = slice(0,r_value.shape[1])
-#                col_slc = slice(0,r_value.shape[2])
-#            else:
-#                import ipdb;ipdb.set_trace()
         else:
-            new_row,row_indices = self.row.get_between(min_row,max_row,return_indices=True,closed=closed)
-            new_col,col_indices = self.col.get_between(min_col,max_col,return_indices=True,closed=closed)
+            new_row,row_indices = self.row.get_between(min_row,max_row,return_indices=True,closed=closed,use_bounds=use_bounds)
+            new_col,col_indices = self.col.get_between(min_col,max_col,return_indices=True,closed=closed,use_bounds=use_bounds)
             row_slc = get_reduced_slice(row_indices)
             col_slc = get_reduced_slice(col_indices)
-            
-#        new_uid = self.uid[row_slc,col_slc]
-#            
-#        if self._value is None:
-#            new_value = None
-#        else:
-#            new_value = self._value[:,row_slc,col_slc]
-#        
-#        ret = copy(self)
-#        ret._value = new_value
-#        ret.row = new_row
-#        ret.col = new_col
-#        ret.uid = new_uid
         
         ret = self[row_slc,col_slc]
         

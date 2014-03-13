@@ -350,6 +350,7 @@ class Geom(base.OcgParameter):
     return_type = [list,ShpCabinetIterator]
     _shp_key = None
     _bounds = None
+    _ugid_key = 'UGID'
     
     def __init__(self,*args,**kwds):
         self.select_ugid = kwds.pop('select_ugid',None)
@@ -371,14 +372,14 @@ class Geom(base.OcgParameter):
     
     def parse(self,value):
         if type(value) in [Polygon,MultiPolygon,Point]:
-            ret = [{'geom':value,'properties':{'ugid':1},'crs':CFWGS84()}]
+            ret = [{'geom':value,'properties':{self._ugid_key:1},'crs':CFWGS84()}]
         elif type(value) in [list,tuple]:
             if all([isinstance(element,dict) for element in value]):
                 for ii,element in enumerate(value,start=1):
                     if 'geom' not in element:
                         ocgis_lh(exc=DefinitionValidationError(self,'Geometry dictionaries must have a "geom" key.'))
                     if 'properties' not in element:
-                        element['properties'] = {'UGID':ii}
+                        element['properties'] = {self._ugid_key:ii}
                     if 'crs' not in element:
                         element['crs'] = CFWGS84()
                         ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.',level=logging.WARN,check_duplicate=True)
@@ -394,7 +395,7 @@ class Geom(base.OcgParameter):
                                     (maxx,miny)))
                 if not geom.is_valid:
                     raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-                ret = [{'geom':geom,'properties':{'ugid':1},'crs':CFWGS84()}]
+                ret = [{'geom':geom,'properties':{self._ugid_key:1},'crs':CFWGS84()}]
                 self._bounds = geom.bounds
         elif isinstance(value,ShpCabinetIterator):
             self._shp_key = value.key or value.path

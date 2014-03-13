@@ -143,6 +143,14 @@ class TestVectorDimension(unittest.TestCase):
     def test_empty(self):
         with self.assertRaises(ValueError):
             VectorDimension()
+            
+    def test_get_between_use_bounds(self):
+        value = [3.,5.]
+        bounds = [[2.,4.],[4.,6.]]
+        vdim = VectorDimension(value=value,bounds=bounds)
+        ret = vdim.get_between(3,4.5,use_bounds=False)
+        self.assertNumpyAll(ret.value,np.array([3.]))
+        self.assertNumpyAll(ret.bounds,np.array([[2.,4.]]))
         
     def test_get_between(self):
         

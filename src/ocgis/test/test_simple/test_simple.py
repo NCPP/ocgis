@@ -130,6 +130,16 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_operations_abstraction_used_for_subsetting(self):
+        ret = self.get_ret(kwds={'abstraction':'point'})
+        ref = ret[1]['foo']
+        self.assertEqual(ref.spatial.abstraction,'point')
+        self.assertIsInstance(ref.spatial.abstraction_geometry.value[0,0],Point)
+        with self.assertRaises(ValueError):
+            ref.get_intersects(Point(-103.,38.))
+        sub = ref.get_intersects(Point(-103.,38.).buffer(0.75))
+        self.assertEqual(sub.shape,(1,61,2,1,1))
+    
     def test_to_csv_shp_and_shape_with_point_subset(self):
         rd = RequestDataset(**self.get_dataset())
         geom = [-103.5,38.5]
@@ -1154,16 +1164,34 @@ class TestSimple360(TestSimpleBase):
         
         self.assertTrue(np.all(longs_unwrap-360 == longs_wrap))
         
+    def test_spatial_touch_only(self):
+        geom = [make_poly((38.2,39.3),(-93,-92))]
+        geom.append(make_poly((38,39),(-93.1,-92.1)))
+        
+        for abstraction,g in itertools.product(['polygon','point'],geom):
+            try:
+                ret = self.get_ret(kwds={'geom':g,'abstraction':abstraction})
+                self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),4)
+                self.get_ret(kwds={'vector_wrap':False})
+                ret = self.get_ret(kwds={'geom':g,'vector_wrap':False,'abstraction':abstraction})
+                self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),4)
+            except ExtentError:
+                if abstraction == 'point':
+                    pass
+                else:
+                    raise
+                
     def test_spatial(self):
-        geom = make_poly((38,39),(-93,-92))
+        geom = make_poly((38.1,39.1),(-93.1,-92.1))
         
         for abstraction in ['polygon','point']:
-            ret = self.get_ret(kwds={'geom':geom,'abstraction':abstraction})
-            self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),4)
-            
+            n = 1 if abstraction == 'point' else 4
+            ops = self.get_ops(kwds={'geom':geom,'abstraction':abstraction})
+            ret = ops.execute()
+            self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),n)
             self.get_ret(kwds={'vector_wrap':False})
             ret = self.get_ret(kwds={'geom':geom,'vector_wrap':False,'abstraction':abstraction})
-            self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),4)
+            self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),n)
 
 
 class TestSimpleProjected(TestSimpleBase):

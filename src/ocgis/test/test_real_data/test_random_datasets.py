@@ -15,6 +15,7 @@ from copy import deepcopy
 from ocgis.test.test_base import longrunning
 from shapely.geometry.point import Point
 from ocgis.util.shp_cabinet import ShpCabinetIterator
+import os
 
 
 class TestCMIP3Masking(TestBase):
@@ -51,7 +52,7 @@ class TestCMIP3Masking(TestBase):
 
 class Test(TestBase):
     
-    def test_narccap_cancm4_point_subset(self):
+    def test_narccap_cancm4_point_subset_no_abstraction(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
         rd.alias = 'tas_narccap'
@@ -62,10 +63,49 @@ class Test(TestBase):
                                   snippet=True)
         with self.assertRaises(ValueError):
             ops.execute()
+            
+    def test_narccap_cancm4_point_subset_with_abstraction(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
+        rd2.alias = 'tas_narccap'
+        rds = [
+               rd,
+               rd2
+               ]
+        geom = [-105.2751,39.9782]
+        ops = ocgis.OcgOperations(dataset=rds,geom=geom,output_format='numpy',
+                                  prefix='ncar_point',add_auxiliary_files=True,output_crs=ocgis.crs.CFWGS84(),
+                                  snippet=True,abstraction='point')
+        ret = ops.execute()
+        
+        ## only two geometries returned
+        self.assertEqual(ret[1]['tas'].spatial.shape,(1,2))
+        ## different buffer radii should have unique identifiers
+        self.assertEqual(ret.keys(),[1,2])
+        ## the first buffer radius is larger
+        self.assertTrue(ret.geoms[1].area > ret.geoms[2].area)
+        
+    def test_narccap_cancm4_point_subset_with_abstraction_to_csv_shp(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
+        rd.alias = 'tas_narccap'
+        rds = [
+               rd,
+               rd2
+               ]
+        geom = [-105.2751,39.9782]
+        ops = ocgis.OcgOperations(dataset=rds,geom=geom,output_format='csv+',
+                                  prefix='ncar_point',add_auxiliary_files=True,output_crs=ocgis.crs.CFWGS84(),
+                                  snippet=True,abstraction='point')
+        ret = ops.execute()
+        ugid_shp_path = os.path.join(os.path.split(ret)[0],'shp',ops.prefix+'_ugid.shp')
+        with fiona.open(ugid_shp_path) as ds:
+            rows = list(ds)
+        self.assertEqual(set([row['properties']['UGID'] for row in rows]),set([1,2]))
     
     def test_collection_field_geometries_equivalent(self):
         rd = self.test_data.get_rd('cancm4_tas',kwds=dict(time_region={'month':[6,7,8]}))
-        geom = ['state_boundaries',[{'properties':{'ugid':16},'geom':Point([-99.80780059778753,41.52315831343389])}]]
+        geom = ['state_boundaries',[{'properties':{'UGID':16},'geom':Point([-99.80780059778753,41.52315831343389])}]]
         for vw,g in itertools.product([True,False],geom):
             ops = ocgis.OcgOperations(dataset=rd,select_ugid=[16,32],geom=g,
                                       aggregate=True,vector_wrap=vw,spatial_operation='clip')

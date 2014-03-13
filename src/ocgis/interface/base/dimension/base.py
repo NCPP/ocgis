@@ -245,7 +245,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
                                                   value=self.bounds,
                                                   from_units=from_units)
     
-    def get_between(self,lower,upper,return_indices=False,closed=False):
+    def get_between(self,lower,upper,return_indices=False,closed=False,use_bounds=True):
         assert(lower <= upper)
         
         ## determine if data bounds are contiguous (if bounds exists for the
@@ -256,7 +256,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
                 is_contiguous = True
         
         ## subset operation when bounds are not present
-        if self.bounds is None:
+        if self.bounds is None or use_bounds == False:
             if closed:
                 select = np.logical_and(self.value > lower,self.value < upper)
             else:

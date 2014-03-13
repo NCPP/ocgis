@@ -63,7 +63,9 @@ class SubsetOperation(object):
         ''':rtype: AbstractCollection'''
         
         ocgis_lh('beginning iteration',logger='conv.__iter__',level=logging.DEBUG)
-                
+        self._ugid_unique_store = []
+        self._geom_unique_store = []
+        
         ## simple iterator for serial operations
         if self.serial:
             for coll in self._iter_collections_():
@@ -118,6 +120,12 @@ class SubsetOperation(object):
             field = [rd.get(format_time=self.ops.format_time,
                             interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) 
                      for rd in rds]
+            ## update the spatial abstraction to match the operations value. sfield
+            ## will be none if the operation returns empty and it is allowed to have
+            ## empty returns.
+            for f in field:
+                f.spatial.abstraction = self.ops.abstraction
+                
             if len(field) > 1:
                 field[0].variables.add_variable(field[1].variables.first())
             field = field[0]
@@ -142,6 +150,8 @@ class SubsetOperation(object):
                 
         ## loop over the iterator
         for gd in itr:
+            ## always work with a new geometry dictionary
+            gd = deepcopy(gd)
             ## initialize the collection object to store the subsetted data. if
             ## the output CRS differs from the field's CRS, adjust accordingly 
             ## when initilizing.
@@ -158,19 +168,8 @@ class SubsetOperation(object):
             ## keep this around for the collection creation
             coll_geom = deepcopy(geom)
             crs = gd.get('crs')
-            
-            if 'properties' in gd and 'UGID' in gd['properties']:
-                ugid = gd['properties']['UGID']
-            else:
-                ## try to get lowercase ugid in case the shapefile is not perfectly
-                ## formed. however, if there is no geometry accept the error and
-                ## use the default geometry identifier.
-                if len(gd) == 0:
-                    ugid = 1
-                else:
-                    ugid = gd['properties']['ugid']
                     
-            ocgis_lh('processing',self._subset_log,level=logging.DEBUG,alias=alias,ugid=ugid)
+            ocgis_lh('processing',self._subset_log,level=logging.DEBUG,alias=alias)
             
             ## if there is a spatial abstraction, ensure it may be loaded.
             if self.ops.abstraction is not None:
@@ -199,6 +198,36 @@ class SubsetOperation(object):
                 geom = geom.buffer(self.ops.search_radius_mult*field.spatial.grid.resolution)
                 ## update the geometry to store in the collection
                 coll_geom = deepcopy(geom)
+            
+            ## get the ugid following geometry manipulations
+            if 'properties' in gd and 'UGID' in gd['properties']:
+                ugid = gd['properties']['UGID']
+            else:
+                ugid = 1
+                
+            ## check for unique ugids. this is an issue with point subsetting
+            ## as the buffer radius changes by dataset.
+            if ugid in self._ugid_unique_store and geom is not None:
+                ## only update if the geometry is unique
+                if not any([__.almost_equals(geom) for __ in self._geom_unique_store]):
+                    prev_ugid = ugid
+                    ugid = max(self._ugid_unique_store) + 1
+                    self._ugid_unique_store.append(ugid)
+                    msg = 'Updating UGID {0} to {1} to maintain uniqueness.'.format(prev_ugid,ugid)
+                    ocgis_lh(msg,self._subset_log,level=logging.WARN,alias=alias,ugid=ugid)
+                else:
+                    self._geom_unique_store.append(geom)
+            else:
+                self._ugid_unique_store.append(ugid)
+                self._geom_unique_store.append(geom)
+                            
+            ## try to update the properties
+            try:
+                gd['properties']['UGID'] = ugid
+            except KeyError:
+                if not isinstance(gd,dict):
+                    raise
+                
             ## unwrap the data if it is geographic and 360
             if geom is not None and crs == CFWGS84():
                 if CFWGS84.get_is_360(field.spatial):
@@ -272,14 +301,9 @@ class SubsetOperation(object):
                     ## the output crs.
                     if geom is not None and crs != self.ops.output_crs:
                         geom = project_shapely_geometry(geom,crs.sr,self.ops.output_crs.sr)
+                        coll_geom = deepcopy(geom)
                         
                     sfield.spatial.update_crs(self.ops.output_crs)
-            
-            ## update the spatial abstraction to match the operations value. sfield
-            ## will be none if the operation returns empty and it is allowed to have
-            ## empty returns.
-            if sfield is not None:
-                sfield.spatial.abstraction = self.ops.abstraction
             
             ## the geometry may need to be wrapped or unwrapped depending on
             ## the vector wrap situation

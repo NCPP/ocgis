@@ -231,7 +231,7 @@ class SubsetOperation(object):
             ## unwrap the data if it is geographic and 360
             if geom is not None and crs == CFWGS84():
                 if CFWGS84.get_is_360(field.spatial):
-                    ocgis_lh('unwrapping selection geometry',self._subset_log,alias=alias,ugid=ugid)
+                    ocgis_lh('unwrapping selection geometry',self._subset_log,alias=alias,ugid=ugid,level=logging.DEBUG)
                     geom = Wrapper().unwrap(geom)
             ## perform the spatial operation
             if geom is not None:
@@ -258,13 +258,15 @@ class SubsetOperation(object):
                 if sfield is not None:
                     ## aggregate if requested
                     if self.ops.aggregate:
+                        ocgis_lh('executing spatial average',self._subset_log,alias=alias,ugid=ugid)
                         sfield = sfield.get_spatially_aggregated(new_spatial_uid=ugid)
                     
                     ## wrap the returned data.
                     if not env.OPTIMIZE_FOR_CALC:
                         if CFWGS84.get_is_360(sfield.spatial):
                             if self.ops.output_format != 'nc' and self.ops.vector_wrap:
-                                ocgis_lh('wrapping output geometries',self._subset_log,alias=alias,ugid=ugid)
+                                ocgis_lh('wrapping output geometries',self._subset_log,alias=alias,ugid=ugid,
+                                         level=logging.DEBUG)
                                 ## modifying these values in place will change the values
                                 ## in the base field. a copy is necessary.
                                 sfield.spatial = deepcopy(sfield.spatial)

@@ -67,5 +67,4 @@ class Test(TestBase):
         log = os.path.join(folder,ops.prefix+'.log')
         with open(log) as f:
             lines = f.readlines()
-            self.assertTrue(len(lines) > 5)
-#        webbrowser.open(log)
+            self.assertTrue(len(lines) >= 4)

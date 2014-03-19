@@ -326,7 +326,7 @@ class TestNcRequestDataset(TestBase):
                                   select_ugid=[27],calc=[{'func':'mean','name':'mean'}],
                                   calc_grouping=['month'])
         ret = ops.execute()
-        rd = NcRequestDataset(uri=ret,variable='mean_tas')
+        rd = NcRequestDataset(uri=ret,variable='mean')
         field = rd.get()
         self.assertNotEqual(field.temporal.bounds,None)
 

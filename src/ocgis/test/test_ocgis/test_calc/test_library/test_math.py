@@ -14,18 +14,18 @@ class Test(AbstractTestField):
         field = self.get_field(with_value=True,month_count=2)
         ln = NaturalLogarithm(field=field)
         ret = ln.execute()
-        self.assertEqual(ret['ln_tmax'].value.shape,(2, 60, 2, 3, 4))
-        self.assertNumpyAllClose(ret['ln_tmax'].value,np.log(field.variables['tmax'].value))
+        self.assertEqual(ret['ln'].value.shape,(2, 60, 2, 3, 4))
+        self.assertNumpyAllClose(ret['ln'].value,np.log(field.variables['tmax'].value))
         
         ln = NaturalLogarithm(field=field,calc_sample_size=True)
         ret = ln.execute()
-        self.assertNotIn('n_ln_tmax',ret.keys())
+        self.assertNotIn('n_ln',ret.keys())
         
     def test_NaturalLogarithm_units_dimensionless(self):
         field = self.get_field(with_value=True,month_count=2)
         ln = NaturalLogarithm(field=field,alias='ln')
         dvc = ln.execute()
-        self.assertEqual(dvc['ln_tmax'].units,None)
+        self.assertEqual(dvc['ln'].units,None)
         
     def test_NaturalLogarithm_grouped(self):
         field = self.get_field(with_value=True,month_count=2)
@@ -33,22 +33,22 @@ class Test(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         ln = NaturalLogarithm(field=field,tgd=tgd)
         ret = ln.execute()
-        self.assertEqual(ret['ln_tmax'].value.shape,(2, 2, 2, 3, 4))
+        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
         
         to_test = np.log(field.variables['tmax'].value)
         to_test = np.ma.mean(to_test[0,tgd.dgroups[0],0,:,:],axis=0)
-        to_test2 = ret['ln_tmax'].value[0,0,0,:,:]
+        to_test2 = ret['ln'].value[0,0,0,:,:]
         self.assertNumpyAllClose(to_test,to_test2)
         
         ln = NaturalLogarithm(field=field,tgd=tgd,calc_sample_size=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln_tmax'].value.shape,(2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln_tmax'].value.mean(),30.0)
+        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].value.mean(),30.0)
         
         ln = NaturalLogarithm(field=field,tgd=tgd,calc_sample_size=True,use_raw_values=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln_tmax'].value.shape,(2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln_tmax'].value.mean(),30.0)
+        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].value.mean(),30.0)
         
     def test_Divide(self):
         field = self.get_field(with_value=True,month_count=2)
@@ -127,8 +127,8 @@ class Test(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         dv = Threshold(field=field,parms={'threshold':0.5,'operation':'gte'},tgd=tgd)
         ret = dv.execute()
-        self.assertEqual(ret['threshold_tmax'].value.shape,(2,2,2,3,4))
-        self.assertNumpyAllClose(ret['threshold_tmax'].value[1,1,1,0,:],
+        self.assertEqual(ret['threshold'].value.shape,(2,2,2,3,4))
+        self.assertNumpyAllClose(ret['threshold'].value[1,1,1,0,:],
          np.ma.array([13,16,15,12],mask=False,fill_value=1e20))
 
 

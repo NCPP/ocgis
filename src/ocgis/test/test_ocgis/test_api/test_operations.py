@@ -212,7 +212,7 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,calc_grouping=calc_grouping,geom='state_boundaries',
                                   select_ugid=[27],output_format='nc',calc=calc)
         ret = ops.execute()
-        rd2 = ocgis.RequestDataset(uri=ret,variable='mean_tas')
+        rd2 = ocgis.RequestDataset(uri=ret,variable='mean')
         field = rd2.get()
         self.assertNotEqual(field.temporal.bounds,None)
         self.assertEqual(field.temporal.bounds_datetime.tolist(),[[datetime.datetime(2002, 1, 1, 12, 0), datetime.datetime(2002, 2, 28, 12, 0)], [datetime.datetime(2003, 1, 1, 12, 0), datetime.datetime(2003, 2, 28, 12, 0)], [datetime.datetime(2004, 1, 1, 12, 0), datetime.datetime(2004, 2, 28, 12, 0)], [datetime.datetime(2005, 1, 1, 12, 0), datetime.datetime(2005, 2, 28, 12, 0)], [datetime.datetime(2006, 1, 1, 12, 0), datetime.datetime(2006, 2, 28, 12, 0)], [datetime.datetime(2007, 1, 1, 12, 0), datetime.datetime(2007, 2, 28, 12, 0)], [datetime.datetime(2008, 1, 1, 12, 0), datetime.datetime(2008, 2, 28, 12, 0)], [datetime.datetime(2009, 1, 1, 12, 0), datetime.datetime(2009, 2, 28, 12, 0)], [datetime.datetime(2010, 1, 1, 12, 0), datetime.datetime(2010, 2, 28, 12, 0)]])

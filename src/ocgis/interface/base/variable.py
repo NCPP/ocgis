@@ -242,8 +242,11 @@ class VariableCollection(object):
             for variable in get_iter(variables,dtype=Variable):
                 self.add_variable(variable)
                 
-    def __getitem__(self,*args,**kwds):
-        return(self._storage.__getitem__(*args,**kwds))
+    def __contains__(self,key):
+        return(self._storage.__contains__(key))
+                
+    def __getitem__(self,*args,**kwargs):
+        return(self._storage.__getitem__(*args,**kwargs))
     
     def __len__(self):
         return(len(self._storage))

@@ -36,7 +36,7 @@ class AbstractCalcBase(TestBase):
                        aggregate=aggregate,prefix=('standard_ops_'+str(ii)))
                 ret = ops.execute()
                 if output_format == 'numpy':
-                    ref = ret[25]['tas'].variables[calc[0]['name']+'_tas'].value
+                    ref = ret[25]['tas'].variables[calc[0]['name']].value
                     if aggregate:
                         space_shape = [1,1]
                     else:
@@ -84,11 +84,11 @@ class Test(AbstractCalcBase):
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                             geom='state_boundaries',select_ugid=[25])
         ret = ops.execute()
-        self.assertEqual(ret[25]['tasmax'].variables['mean_tasmax'].parents['tasmax'].value.shape,
+        self.assertEqual(ret[25]['tasmax'].variables['mean'].parents['tasmax'].value.shape,
                          (1,3650,1,5,4))
         self.assertEqual(ret[25]['tasmax'].shape,(1,1,1,5,4))
-        self.assertNumpyAll(np.ma.mean(ret[25]['tasmax'].variables['mean_tasmax'].parents['tasmax'].value,axis=1).astype('float32').reshape(1,1,1,5,4),
-                            ret[25]['tasmax'].variables['mean_tasmax'].value)
+        self.assertNumpyAll(np.ma.mean(ret[25]['tasmax'].variables['mean'].parents['tasmax'].value,axis=1).astype('float32').reshape(1,1,1,5,4),
+                            ret[25]['tasmax'].variables['mean'].value)
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}
@@ -117,7 +117,7 @@ class Test(AbstractCalcBase):
                                  aggregate=aggregate,calc_raw=calc_raw,geom=geom,
                                  select_ugid=select_ugid,output_format='numpy')
         ret = ops.execute()
-        threshold = ret[2762]['tasmax'].variables['threshold_tasmax'].value
+        threshold = ret[2762]['tasmax'].variables['threshold'].value
         self.assertEqual(threshold.flatten()[0],62)
         
     def test_computational_nc_output(self):
@@ -136,14 +136,14 @@ class Test(AbstractCalcBase):
         self.assertEqual(ref[:].shape[0],12)
         ds.close()
 
-        ops = ocgis.OcgOperations(dataset={'uri':ret,'variable':calc[0]['name']+'_tasmax'},
+        ops = ocgis.OcgOperations(dataset={'uri':ret,'variable':calc[0]['name']},
                                   output_format='nc',prefix='subset_climatology')
         ret = ops.execute()
         
         ds = nc.Dataset(ret,'r')
         ref = ds.variables['time'][:]
         self.assertEqual(len(ref),12)
-        self.assertEqual(set(ds.variables['tasmax_mean_tasmax'].ncattrs()),
+        self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
                          set([u'_FillValue', u'units', u'long_name', u'standard_name']))
         ds.close()
         
@@ -272,7 +272,7 @@ class TestOcgCalculationEngine(TestBase):
             coll = self.get_collection(aggregate=agg)
             ce = OcgCalculationEngine(grouping,funcs,raw,agg)
             ret = ce.execute(coll)
-            value = ret[25]['tas'].variables['threshold_tas'].value
+            value = ret[25]['tas'].variables['threshold'].value
             ## aggregated data should have a (1,1) spatial dimension
             if agg is True:
                 self.assertNumpyAll(value.shape[-2:],(1,1))

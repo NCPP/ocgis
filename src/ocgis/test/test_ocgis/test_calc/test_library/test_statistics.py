@@ -17,7 +17,7 @@ class TestFrequencyPercentile(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         fp = FrequencyPercentile(field=field,tgd=tgd,parms={'percentile':99})
         ret = fp.execute()
-        self.assertNumpyAllClose(ret['freq_perc_tmax'].value[0,1,1,0,:],
+        self.assertNumpyAllClose(ret['freq_perc'].value[0,1,1,0,:],
          np.ma.array(data=[0.92864656,0.98615474,0.95269281,0.98542988],
                      mask=False,fill_value=1e+20))
 
@@ -32,7 +32,7 @@ class TestMean(AbstractTestField):
         mu = Mean(field=field,tgd=tgd,alias='my_mean',calc_sample_size=False,
                   dtype=np.float64)
         dvc = mu.execute()
-        self.assertEqual(dvc['my_mean_tmax'].cfunits,Units('kelvin'))
+        self.assertEqual(dvc['my_mean'].cfunits,Units('kelvin'))
     
     def test(self):
         field = self.get_field(with_value=True,month_count=2)
@@ -40,9 +40,9 @@ class TestMean(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64)
         dvc = mu.execute()
-        dv = dvc['my_mean_tmax']
+        dv = dvc['my_mean']
         self.assertEqual(dv.name,'mean')
-        self.assertEqual(dv.alias,'my_mean_tmax')
+        self.assertEqual(dv.alias,'my_mean')
         self.assertIsInstance(dv,DerivedVariable)
         self.assertEqual(dv.value.shape,(2,2,2,3,4))
         self.assertNumpyAll(np.ma.mean(field.variables['tmax'].value[1,tgd.dgroups[1],0,:,:],axis=0),
@@ -55,15 +55,15 @@ class TestMean(AbstractTestField):
         mu = Mean(field=field,tgd=tgd,alias='my_mean',calc_sample_size=True,
                   dtype=np.float64)
         dvc = mu.execute()
-        dv = dvc['my_mean_tmax']
+        dv = dvc['my_mean']
         self.assertEqual(dv.name,'mean')
-        self.assertEqual(dv.alias,'my_mean_tmax')
+        self.assertEqual(dv.alias,'my_mean')
         self.assertIsInstance(dv,DerivedVariable)
         self.assertEqual(dv.value.shape,(2,2,2,3,4))
         self.assertNumpyAll(np.ma.mean(field.variables['tmax'].value[1,tgd.dgroups[1],0,:,:],axis=0),
                             dv.value[1,1,0,:,:])
-        
-        ret = dvc['n_my_mean_tmax']
+
+        ret = dvc['n_my_mean']
         self.assertNumpyAll(ret.value[0,0,0],
                             np.ma.array(data=[[31,31,31,31],[31,31,31,31],[31,31,31,31]],
                                         mask=[[False,False,False,False],[False,False,False,False],
@@ -72,7 +72,7 @@ class TestMean(AbstractTestField):
         
         mu = Mean(field=field,tgd=tgd,alias='my_mean',calc_sample_size=False)
         dvc = mu.execute()
-        self.assertNotIn('n_my_mean_tmax',dvc.keys())
+        self.assertNotIn('n_my_mean',dvc.keys())
         
     def test_two_variables(self):
         field = self.get_field(with_value=True,month_count=2)
@@ -84,6 +84,19 @@ class TestMean(AbstractTestField):
         ret = mu.execute()
         self.assertEqual(len(ret),2)
         self.assertAlmostEqual(5.0,abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
+        
+    def test_two_variables_sample_size(self):
+        field = self.get_field(with_value=True,month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
+                                              name='tmin',alias='tmin'))
+        grouping = ['month']
+        tgd = field.temporal.get_grouping(grouping)
+        mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64,calc_sample_size=True)
+        ret = mu.execute()
+        self.assertEqual(len(ret),4)
+        self.assertAlmostEqual(5.0,abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
+        self.assertEqual(set(['my_mean_tmax', 'n_my_mean_tmax', 'my_mean_tmin', 'n_my_mean_tmin']),
+                         set(ret.keys()))
         
     def test_file_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -112,7 +125,7 @@ class TestMean(AbstractTestField):
         ret = ops.execute()
         with nc_scope(rd.uri) as ds:
             var_dtype = ds.variables['tas'].dtype
-        self.assertEqual(ret[27]['tas'].variables['mean_tas'].dtype,var_dtype)
+        self.assertEqual(ret[27]['tas'].variables['mean'].dtype,var_dtype)
             
     def test_file_only_by_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -121,7 +134,7 @@ class TestMean(AbstractTestField):
                                   select_ugid=[27],file_only=True,output_format='nc')
         ret = ops.execute()
         with nc_scope(ret) as ds:
-            var = ds.variables['mean_tas']
+            var = ds.variables['mean']
             ## all data should be masked since this is file only
             self.assertTrue(var[:].mask.all())
         

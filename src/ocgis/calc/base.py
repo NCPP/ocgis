@@ -190,7 +190,7 @@ class AbstractFunction(object):
             fill = value
             sample_size = None
         
-        alias = alias or '{0}_{1}'.format(self.alias,parent_variables[0].alias)
+        alias = alias or self.alias
         fdef = self.get_function_definition()
         meta = {'attrs':{'standard_name':self.standard_name,
                          'long_name':self.long_name}}
@@ -210,6 +210,7 @@ class AbstractFunction(object):
         ## allow more complex manipulations of metadata
         self.set_variable_metadata(dv)
         ## add the variable to the variable collection
+        self._set_derived_variable_alias_(dv,parent_variables)
         self.vc.add_variable(dv)
         
         ## add the sample size if it is present in the fill dictionary
@@ -316,6 +317,16 @@ class AbstractFunction(object):
         else:
             ret = values
         return(ret)
+    
+    def _set_derived_variable_alias_(self,dv,parent_variables):
+        '''
+        Set the alias of the derived variable.
+        '''
+        if len(self.field.variables) > 1:
+            original_alias = dv.alias
+            dv.alias = '{0}_{1}'.format(dv.alias,parent_variables[0].alias)
+            msg = 'Alias updated to maintain uniquencess Changing "{0}" to "{1}".'.format(original_alias,dv.alias)
+            ocgis_lh(logger='calc.base',level=logging.WARNING,msg=msg)
         
 class AbstractUnivariateFunction(AbstractFunction):
     '''
@@ -538,6 +549,12 @@ class AbstractMultivariateFunction(AbstractFunction):
                 match = get_are_units_equal_by_string_or_cfunits(source,target,try_cfunits=True)
                 if match == False:
                     raise(UnitsValidationError(variable,target,self.key))
+                
+    def _set_derived_variable_alias_(self,dv,parent_variables):
+        '''
+        Set the alias of the derived variable.
+        '''
+        pass
     
 class AbstractKeyedOutputFunction(object):
     __metaclass__ = abc.ABCMeta

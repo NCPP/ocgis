@@ -8,7 +8,7 @@ from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.api.operations import OcgOperations
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.test.test_simple.test_simple import ToTest, nc_scope
+from ocgis.test.test_simple.test_simple import nc_scope
 import ocgis
 from ocgis.test.test_base import longrunning
 
@@ -48,8 +48,8 @@ class TestTG(TestBase):
             ops_icclim = OcgOperations(calc=calc_icclim,calc_grouping=cg,slice=slc,
                                       dataset=rd)
             ret_icclim = ops_icclim.execute()
-            self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean_tas'].value,
-                                ret_icclim[1]['tas'].variables['TG_tas'].value)
+            self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value,
+                                ret_icclim[1]['tas'].variables['TG'].value)
             
     def test_calculation_operations_to_nc(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -63,7 +63,7 @@ class TestTG(TestBase):
         with nc_scope(ret) as ds:
             self.assertIn('Calculation of TG indice (monthly climatology)',ds.history)
             self.assertEqual(ds.title,'ECA temperature indice TG')
-            var = ds.variables['TG_tas']
+            var = ds.variables['TG']
             to_test = dict(var.__dict__)
             to_test.pop('_FillValue')
             self.assertEqual(to_test,{u'units': u'K', u'standard_name': AbstractIcclimFunction.standard_name, u'long_name': u'Mean of daily mean temperature'})
@@ -78,7 +78,7 @@ class TestTG(TestBase):
             ret_icclim = itg.execute()
             mean = Mean(field=field,tgd=tgd)
             ret_ocgis = mean.execute()
-            self.assertNumpyAll(ret_icclim['icclim_TG_tas'].value,ret_ocgis['mean_tas'].value)
+            self.assertNumpyAll(ret_icclim['icclim_TG'].value,ret_ocgis['mean'].value)
             
             
 class TestSU(TestBase):
@@ -93,7 +93,7 @@ class TestSU(TestBase):
             ret_icclim = itg.execute()
             threshold = Threshold(field=field,tgd=tgd,parms={'threshold':298.15,'operation':'gt'})
             ret_ocgis = threshold.execute()
-            self.assertNumpyAll(ret_icclim['icclim_SU_tasmax'].value,ret_ocgis['threshold_tasmax'].value)
+            self.assertNumpyAll(ret_icclim['icclim_SU'].value,ret_ocgis['threshold'].value)
             
     def test_calculation_operations_bad_units(self):
         rd = self.test_data.get_rd('daymet_tmax')
@@ -126,7 +126,7 @@ class TestSU(TestBase):
         ## before testing if the netCDFs are equal...
         with nc_scope(ret_icclim,'a') as ds_icclim:
             with nc_scope(ret_ocgis,'a') as ds_ocgis:
-                ds_ocgis.variables['SU_tasmax'].setncatts(ds_icclim.variables['SU_tasmax'].__dict__)
+                ds_ocgis.variables['SU'].setncatts(ds_icclim.variables['SU'].__dict__)
                 ds_ocgis.setncatts(ds_icclim.__dict__)
         
         self.assertNcEqual(ret_icclim,ret_ocgis)

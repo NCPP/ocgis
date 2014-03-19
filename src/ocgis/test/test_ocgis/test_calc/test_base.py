@@ -34,7 +34,7 @@ class TestAbstractUnivariateFunction(AbstractTestField):
         fnu = FooNeedsUnits(field=field)
         ret = fnu.execute()
         self.assertNumpyAll(field.variables['tmax'].value.astype(FooNeedsUnits.dtype),
-                            ret['fnu_tmax'].value)
+                            ret['fnu'].value)
         
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)

@@ -138,7 +138,7 @@ class TestFrequencyDuration(AbstractCalcBase):
             ret = ops.execute()
             
             if output_format == 'numpy':
-                ref = ret[2778]['tasmax'].variables['Frequency Duration_tasmax'].value
+                ref = ret[2778]['tasmax'].variables['Frequency Duration'].value
                 self.assertEqual(ref.compressed()[0].shape,(2,))
             
             if output_format == 'csv+':

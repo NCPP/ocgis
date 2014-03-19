@@ -79,8 +79,8 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         self.assertNumpyAll(to_test,ref)
         
         ret = dkp.execute()
-        self.assertEqual(ret['tg10p_tas'].value.shape,(1,36,1,64,128))
-        self.assertAlmostEqual(ret['tg10p_tas'].value.mean(),3.6267225477430554)
+        self.assertEqual(ret['tg10p'].value.shape,(1,36,1,64,128))
+        self.assertAlmostEqual(ret['tg10p'].value.mean(),3.6267225477430554)
     
     @longrunning
     def test_operations(self):
@@ -96,7 +96,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         ret = ops.execute()
         
         with nc_scope(ret) as ds:
-            ref = ds.variables['tg10p_tas'][:]
+            ref = ds.variables['tg10p'][:]
             self.assertAlmostEqual(ref.mean(),2.9763946533203125)
     
     @longrunning
@@ -145,7 +145,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         ## key is the request dataset alias and the third is the calculation name.
         ## the variable name is appended to the end of the calculation to maintain
         ## a unique identifier.
-        tg10p = arrs[1]['tas'].variables['tg10p_tas'].value
+        tg10p = arrs[1]['tas'].variables['tg10p'].value
         ## if we want the date information for the temporal groups date attributes
         date_parts = arrs[1]['tas'].temporal.date_parts
         assert(date_parts.shape[0] == tg10p.shape[1])
@@ -157,6 +157,6 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         ## confirm we have values for each month and year (12*10)
         ret_ds = nc.Dataset(ret)
         try:
-            self.assertEqual(ret_ds.variables['tg10p_tas'].shape,(120,64,128))
+            self.assertEqual(ret_ds.variables['tg10p'].shape,(120,64,128))
         finally:
             ret_ds.close()

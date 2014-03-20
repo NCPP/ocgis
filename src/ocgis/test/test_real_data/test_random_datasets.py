@@ -131,8 +131,8 @@ class Test(TestBase):
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
         ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['n_my_std_tas'].value.mean(),920.0)
-        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,1,1,4,3))
+        self.assertEqual(ret[23]['tas'].variables['n_my_std'].value.mean(),920.0)
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,1,1,4,3))
         
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
@@ -141,7 +141,7 @@ class Test(TestBase):
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
         ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,4,1,4,3))
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,4,1,4,3))
         self.assertNumpyAll(ret[23]['tas'].temporal.value,np.array([ 56955.,  56680.,  56771.,  56863.]))
         
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
@@ -151,7 +151,7 @@ class Test(TestBase):
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
         ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['my_std_tas'].value.shape,(1,2,1,4,3))
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,2,1,4,3))
         self.assertNumpyAll(ret[23]['tas'].temporal.bounds,np.array([[ 55115.,  58765.],[ 55146.,  58490.]]))
 
     def test_seasonal_calc_dkp(self):        
@@ -163,7 +163,7 @@ class Test(TestBase):
                                   calc_sample_size=False,geom='state_boundaries',
                                   select_ugid=[23])
         ret = ops.execute()
-        to_test = ret[23]['tas'].variables['dkp_tas'].value
+        to_test = ret[23]['tas'].variables['dkp'].value
         reference = np.ma.array(data=[[[[[0,0,838],[831,829,834],[831,830,834],[831,835,830]]]]],
                                 mask=[[[[[True,True,False],[False,False,False],[False,False,False],[False,False,False]]]]])
         self.assertNumpyAll(to_test,reference)
@@ -369,7 +369,6 @@ class Test(TestBase):
                    calc_grouping=calc_grouping)
             ret = ops.execute()
             for calc_name in ['mean','median']:
-                calc_name = calc_name+'_'+rd.alias
                 self.assertEqual(ret[10][rd.alias].variables[calc_name].value.shape[1],12)
                 
             ops = ocgis.OcgOperations(dataset=rd,snippet=False,select_ugid=[10,15],
@@ -401,7 +400,7 @@ class Test(TestBase):
                                   snippet=False,allow_empty=False,output_crs=CFWGS84())
         ret = ops.execute()
         ref = ret[1]['pr']
-        self.assertEqual(set(ref.variables.keys()),set(['mean_pr', 'median_pr', 'max_pr', 'min_pr']))
+        self.assertEqual(set(ref.variables.keys()),set(['mean', 'median', 'max', 'min']))
         
     def test_bad_time_dimension(self):
         ocgis.env.DIR_DATA = '/usr/local/climate_data'
@@ -477,7 +476,7 @@ class Test(TestBase):
         ops = OcgOperations(dataset=rd,output_format='nc',calc=[{'func':'mean','name':'my_mean'}],
                             calc_grouping=['year'],geom='state_boundaries',select_ugid=[23])
         ret = ops.execute()
-        field = RequestDataset(ret,'my_mean_pr').get()
+        field = RequestDataset(ret,'my_mean').get()
         self.assertNumpyAll(field.temporal.value,np.array([ 18444.,  18809.]))
 
         

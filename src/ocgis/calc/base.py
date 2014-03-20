@@ -327,6 +327,7 @@ class AbstractFunction(object):
             dv.alias = '{0}_{1}'.format(dv.alias,parent_variables[0].alias)
             msg = 'Alias updated to maintain uniquencess Changing "{0}" to "{1}".'.format(original_alias,dv.alias)
             ocgis_lh(logger='calc.base',level=logging.WARNING,msg=msg)
+
         
 class AbstractUnivariateFunction(AbstractFunction):
     '''
@@ -551,10 +552,8 @@ class AbstractMultivariateFunction(AbstractFunction):
                     raise(UnitsValidationError(variable,target,self.key))
                 
     def _set_derived_variable_alias_(self,dv,parent_variables):
-        '''
-        Set the alias of the derived variable.
-        '''
         pass
+
     
 class AbstractKeyedOutputFunction(object):
     __metaclass__ = abc.ABCMeta

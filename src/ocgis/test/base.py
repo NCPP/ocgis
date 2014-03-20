@@ -26,6 +26,12 @@ class TestBase(unittest.TestCase):
         self.test_data = self.get_tdata()
         super(TestBase,self).__init__(*args,**kwds)
         
+    @property
+    def _test_bin_dir(self):
+        base_dir = os.path.split(__file__)[0]
+        ret = os.path.join(base_dir,'bin')
+        return(ret)
+        
     def assertNumpyAll(self,arr1,arr2):
         return(self.assertTrue(np.all(arr1 == arr2)))
     

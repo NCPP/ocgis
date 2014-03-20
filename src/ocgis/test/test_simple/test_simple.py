@@ -339,9 +339,9 @@ class TestSimple(TestSimpleBase):
                                  'calc_grouping':['month']})
         try:
             ds = nc.Dataset(ret,'r')
-            self.assertTrue(isinstance(ds.variables['my_mean_foo'][:].sum(),
+            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),
                             np.ma.core.MaskedConstant))
-            self.assertEqual(set(ds.variables['my_mean_foo'].ncattrs()),set([u'_FillValue', u'units', u'long_name', u'standard_name']))
+            self.assertEqual(set(ds.variables['my_mean'].ncattrs()),set([u'_FillValue', u'units', u'long_name', u'standard_name']))
         finally:
             ds.close()
             
@@ -520,7 +520,7 @@ class TestSimple(TestSimpleBase):
         
         ## raw
         ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
-        ref = ret.gvu(1,'my_mean_foo')
+        ref = ret.gvu(1,'my_mean')
         self.assertEqual(ref.shape,(1,2,2,4,4))
         with self.assertRaises(KeyError):
             ret.gvu(1,'n')
@@ -529,7 +529,7 @@ class TestSimple(TestSimpleBase):
         for calc_raw in [True,False]:
             ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
                                      'aggregate':True,'calc_raw':calc_raw})
-            ref = ret.gvu(1,'my_mean_foo')
+            ref = ret.gvu(1,'my_mean')
             self.assertEqual(ref.shape,(1,2,2,1,1))
             self.assertEqual(ref.flatten().mean(),2.5)
             
@@ -558,26 +558,26 @@ class TestSimple(TestSimpleBase):
         rd2['alias'] = 'var2'
         
         dataset = [
-                   RequestDatasetCollection([rd1]),
+#                   RequestDatasetCollection([rd1]),
                    RequestDatasetCollection([rd1,rd2])
                    ]
         calc_sample_size = [
                             True,
-                            False
+#                            False
                             ]
         calc = [
                 [{'func':'mean','name':'mean'},{'func':'max','name':'max'}],
-                [{'func':'ln','name':'ln'}],
-                None,
-                [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
+#                [{'func':'ln','name':'ln'}],
+#                None,
+#                [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
                 ]
         calc_grouping = [
-                         None,
+#                         None,
                          ['month'],
-                         ['month','year']
+#                         ['month','year']
                          ]
-        output_format = constants.output_formats
-#        output_format = ['numpy']
+#        output_format = constants.output_formats
+        output_format = ['numpy']
         
         for ii,tup in enumerate(itertools.product(dataset,calc_sample_size,calc,calc_grouping,output_format)):
             kwds = dict(zip(['dataset','calc_sample_size','calc','calc_grouping','output_format'],tup))
@@ -618,7 +618,7 @@ class TestSimple(TestSimpleBase):
                     if kwds['calc'] is not None and kwds['calc'][0]['func'] == 'mean':
                         with nc_scope(ret) as ds:
                             self.assertEqual(sum([v.startswith('n_') for v in ds.variables.keys()]),2)
-                            self.assertEqual(ds.variables['n_max_var1'][:].mean(),30.5)
+                            self.assertEqual(ds.variables['n_max'][:].mean(),30.5)
                         
             if kwds['output_format'] == 'csv':
                 if kwds['calc'] is not None and kwds['calc'][0]['func'] == 'mean':
@@ -627,9 +627,9 @@ class TestSimple(TestSimpleBase):
                         alias_set = set([row['CALC_ALIAS'] for row in reader])
                         if len(kwds['dataset']) == 1:
                             if kwds['calc_sample_size']:
-                                self.assertEqual(alias_set,set(['max_var1','n_max_var1','n_mean_var1','mean_var1']))
+                                self.assertEqual(alias_set,set(['max','n_max','n_mean','mean']))
                             else:
-                                self.assertEqual(alias_set,set(['max_var1','mean_var1']))
+                                self.assertEqual(alias_set,set(['max','mean']))
                         else:
                             if kwds['calc_sample_size']:
                                 self.assertEqual(alias_set,set(['max_var1','n_max_var1','n_mean_var1','mean_var1',
@@ -661,7 +661,7 @@ class TestSimple(TestSimpleBase):
         
         ds = nc.Dataset(ret)
         try:
-            for alias in ['my_mean_foo','my_stdev_foo']:
+            for alias in ['my_mean','my_stdev']:
                 self.assertEqual(ds.variables[alias].shape,(2,2,4,4))
             
             ## output variable should not have climatology bounds and no time
@@ -1027,7 +1027,24 @@ class TestSimple(TestSimpleBase):
         with open(ret,'r') as f:
             reader = csv.DictReader(f)
             row = reader.next()
-            self.assertDictEqual(row,{'LID': '1', 'UGID': '1', 'VID': '1', 'CID': '1', 'DID': '1', 'YEAR': '2000', 'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'my_mean_foo', 'VALUE': '1.0', 'MONTH': '3', 'VARIABLE': 'foo', 'ALIAS': 'foo', 'GID': '1', 'CALC_KEY': 'mean', 'TID': '1', 'LEVEL': '50', 'DAY': '16'})
+            self.assertDictEqual(row,{'LID': '1', 'UGID': '1', 'VID': '1', 'CID': '1', 'DID': '1', 'YEAR': '2000', 'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'my_mean', 'VALUE': '1.0', 'MONTH': '3', 'VARIABLE': 'foo', 'ALIAS': 'foo', 'GID': '1', 'CALC_KEY': 'mean', 'TID': '1', 'LEVEL': '50', 'DAY': '16'})
+    
+    def test_csv_calc_conversion_two_calculations(self):
+        calc = [{'func':'mean','name':'my_mean'},{'func':'min','name':'my_min'}]
+        calc_grouping = ['month','year']
+        d1 = self.get_dataset()
+        d1['alias'] = 'var1'
+        d2 = self.get_dataset()
+        d2['alias'] = 'var2'
+        ops = OcgOperations(dataset=[d1,d2],output_format='csv',calc=calc,calc_grouping=calc_grouping)
+        ret = ops.execute()
+
+        with open(ret,'r') as f:
+            with open(os.path.join(self._test_bin_dir,'test_csv_calc_conversion_two_calculations.csv')) as f2:
+                reader = csv.DictReader(f)
+                reader2 = csv.DictReader(f2)
+                for row,row2 in zip(reader,reader2):
+                    self.assertDictEqual(row,row2)
     
     def test_calc_multivariate_conversion(self):
         rd1 = self.get_dataset()

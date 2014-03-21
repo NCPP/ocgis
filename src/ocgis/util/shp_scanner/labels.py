@@ -27,12 +27,8 @@ class AbstractLabelMaker(object):
             ## if there is overlap with a filter geometry, the geometry should
             ## not be included
             if self.filter_geometries is not None:
-                exclude = False
-                for filter_geometry in self.filter_geometries:
-                    if filter_geometry.intersects(row['geom']) and not filter_geometry.touches(row['geom']):
-                        exclude = True
-                        break
-                if exclude:
+                from ocgis.util.shp_scanner.shp_scanner import get_does_intersect
+                if not get_does_intersect(self.filter_geometries,row['geom']):
                     continue
                 
             row['envelope'] = row['geom'].envelope.wkt

@@ -6,12 +6,115 @@ import numpy as np
 from ocgis.calc import tile
 from ocgis.api.request.base import RequestDatasetCollection
 from ocgis.test.test_base import longrunning
+from copy import deepcopy
+import time
 
 
 class Test(TestBase):
     
     @longrunning
-    def test_compute(self):
+    def test_timing_use_optimizations(self):
+        n = range(10)
+        t = {True:[],False:[]}
+        
+        for use_optimizations in [True,False]:
+            for ii in n:
+                t1 = time.time()
+                rd = self.test_data.get_rd('cancm4_tas')
+                ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
+                                          calc_grouping=['month'],output_format='nc',
+                                          geom='state_boundaries',
+                                          select_ugid=[2,9,12,23,25],
+                                          add_auxiliary_files=False,
+                                          prefix=str(ii)+str(use_optimizations))
+                compute(ops,5,verbose=False,use_optimizations=use_optimizations)
+                t2 = time.time()
+                t[use_optimizations].append(t2-t1)
+        tmean = {k:{'mean':np.array(v).mean(),'stdev':np.array(v).std()} for k,v in t.iteritems()}
+        self.assertTrue(tmean[True]['mean'] < tmean[False]['mean'])
+    
+    def test_multivariate_computation(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        rd2 = deepcopy(rd)
+        rd2.alias = 'tas2'
+        calc = [{'func':'divide','name':'ln','kwds':{'arr1':'tas','arr2':'tas2'}}]
+        ops = ocgis.OcgOperations(dataset=[rd,rd2],calc=calc,
+                                  calc_grouping=['month'],output_format='nc',
+                                  geom='state_boundaries',
+                                  select_ugid=[2,9,12,23,25],
+                                  add_auxiliary_files=False)
+        ret = compute(ops,5,verbose=False)
+        
+        ops.prefix = 'ocgis'
+        ret_ocgis = ops.execute()
+        self.assertNcEqual(ret,ret_ocgis)
+    
+    def test_with_no_calc_grouping(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'ln','name':'ln'}],
+                                  calc_grouping=None,output_format='nc',
+                                  geom='state_boundaries',
+                                  select_ugid=[2,9,12,23,25],
+                                  add_auxiliary_files=False)
+        ret = compute(ops,5,verbose=False)
+        
+        ops.prefix = 'ocgis'
+        ret_ocgis = ops.execute()
+        self.assertNcEqual(ret,ret_ocgis)
+    
+    def test_compute_with_time_region(self):
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
+                                  calc_grouping=['month'],output_format='nc',
+                                  geom='state_boundaries',
+                                  select_ugid=[2,9,12,23,25],
+                                  add_auxiliary_files=False)
+        ret = compute(ops,5,verbose=False)
+        
+        ops.prefix = 'ocgis'
+        ret_ocgis = ops.execute()
+        self.assertNcEqual(ret,ret_ocgis)
+    
+    def test_compute_with_geom(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
+                                  calc_grouping=['month'],output_format='nc',
+                                  geom='state_boundaries',
+                                  select_ugid=[2,9,12,23,25],
+                                  add_auxiliary_files=False)
+        ret = compute(ops,5,verbose=False)
+        
+        ops.prefix = 'ocgis'
+        ret_ocgis = ops.execute()
+        self.assertNcEqual(ret,ret_ocgis)
+    
+    def test_compute_small(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        
+        ## use a smaller netCDF as target
+        ops = ocgis.OcgOperations(dataset=rd,
+                                  geom='state_boundaries',
+                                  select_ugid=[2,9,12,23,25],
+                                  output_format='nc',
+                                  prefix='sub',
+                                  add_auxiliary_files=False)
+        sub = ops.execute()
+        
+        ## use the compute function
+        rd_sub = ocgis.RequestDataset(sub,'tas')
+        ops = ocgis.OcgOperations(dataset=rd_sub,calc=[{'func':'mean','name':'mean'}],
+                                  calc_grouping=['month'],output_format='nc',
+                                  add_auxiliary_files=False)
+        ret_compute = compute(ops,5,verbose=False)
+        
+        ## now just run normally and ensure the answers are the same!
+        ops.prefix = 'ocgis_compare'
+        ops.add_auxiliary_files = False
+        ret_ocgis = ops.execute()
+        self.assertNcEqual(ret_compute,ret_ocgis)
+    
+    @longrunning
+    def test_compute_large(self):
 #        ocgis.env.VERBOSE = True
 #        ocgis.env.DEBUG = True
 
@@ -27,6 +130,10 @@ class Test(TestBase):
                ]
         calc_grouping = ['month']
         
+        ## construct the operational arguments to compute
+        ops_compute = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                          output_format='nc',prefix='tile')
+        
         ## perform computations the standard way
         if verbose: print('computing standard file...')
         ops = ocgis.OcgOperations(dataset=rd,output_format='nc',calc=calc,
@@ -39,8 +146,7 @@ class Test(TestBase):
             tile_dimension = np.random.random_integers(tile_range[0],tile_range[1])
             if verbose: print('tile dimension: {0}'.format(tile_dimension))
             ## perform computations using tiling
-            tile_file = compute(rd,calc,calc_grouping,tile_dimension,verbose=verbose,
-                                 prefix='tile')
+            tile_file = compute(ops_compute,tile_dimension,verbose=verbose)
             
             ## ensure output paths are different
             self.assertNotEqual(tile_file,std_file)

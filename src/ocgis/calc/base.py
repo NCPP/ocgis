@@ -154,7 +154,9 @@ class AbstractFunction(object):
     
     def set_variable_metadata(self,variable):
         '''
-        Set variable level metadata.
+        Set variable level metadata. If units are to be updated, this must be
+        done on the "units" attribute of the variable as this value is read 
+        directly from the variable object during conversion.
         '''
         pass
     
@@ -231,7 +233,16 @@ class AbstractFunction(object):
     def _get_parms_(self):
         return(self.parms)
     
-    def _get_temporal_agg_fill_(self,value,f=None,parms=None,shp_fill=None):
+    def _get_slice_and_calculation_(self,f,ir,il,parms,value=None):
+        ## subset the values by the current temporal group
+        values = value[ir,self._curr_group,il,:,:]
+        ## only 3-d data should be sent to the temporal aggregation method
+        assert(len(values.shape) == 3)
+        ## execute the temporal aggregation or calculation
+        cc = f(values,**parms)
+        return(cc,values)
+    
+    def _get_temporal_agg_fill_(self,value=None,f=None,parms=None,shp_fill=None):
         ## if a default data type was provided at initialization, use this value
         ## otherwise use the data type from the input value.
         dtype = self.dtype or value.dtype
@@ -265,12 +276,7 @@ class AbstractFunction(object):
             ## reference for the current iteration group used by some computations
             self._curr_group = self.tgd.dgroups[it]
             
-            ## subset the values by the current temporal group
-            values = value[ir,self._curr_group,il,:,:]
-            ## only 3-d data should be sent to the temporal aggregation method
-            assert(len(values.shape) == 3)
-            ## execute the temporal aggregation or calculation
-            cc = f(values,**parms)
+            cc,values = self._get_slice_and_calculation_(f,ir,il,parms,value=value)
             
             ## compute the sample size of the computation if requested
             if self.calc_sample_size:
@@ -422,7 +428,7 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
     '''
     __metaclass__ = abc.ABCMeta
     
-    def aggregate_temporal(self):
+    def aggregate_temporal(self,*args,**kwargs):
         '''
         This operations is always implicit to :meth:`~ocgis.calc.base.AbstractFunction.calculate`.
         '''
@@ -467,6 +473,9 @@ class AbstractMultivariateFunction(AbstractFunction):
     #: Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
     required_units = None
+    #: If True, time aggregation is external to the calculation and will require
+    #: running the standard time aggregation methods.
+    time_aggregation_external = True
     
     def __init__(self,*args,**kwds):
         if kwds.get('calc_sample_size') is True:
@@ -488,11 +497,30 @@ class AbstractMultivariateFunction(AbstractFunction):
     def get_output_units(self,*args,**kwds):
         return(None)
     
+    def _get_slice_and_calculation_(self,f,ir,il,parms,value=None):
+        if self.time_aggregation_external:
+            ret = AbstractFunction._get_slice_and_calculation_(self,f,ir,il,parms,value=value)
+        else:
+            new_parms = {}
+            for k,v in parms.iteritems():
+                if k in self.required_variables:
+                    new_parms[k] = v[ir,self._curr_group,il,:,:]
+                else:
+                    new_parms[k] = v
+            cc = f(**new_parms)
+            ret = (cc,None)
+        return(ret)
+    
     def _execute_(self):
         
         self.validate_units()
         
-        parms = {k:self.get_variable_value(self.field.variables[self.parms[k]]) for k in self.required_variables}
+        try:
+            parms = {k:self.get_variable_value(self.field.variables[self.parms[k]]) for k in self.required_variables}
+        ## try again without the parms dictionary
+        except KeyError:
+            parms = {k:self.get_variable_value(self.field.variables[k]) for k in self.required_variables}
+            
         for k,v in self.parms.iteritems():
             if k not in self.required_variables:
                 parms.update({k:v})
@@ -500,17 +528,21 @@ class AbstractMultivariateFunction(AbstractFunction):
         if self.file_only:
             fill = self._empty_fill
         else:
-            fill = self.calculate(**parms)
-            if self.dtype is not None:
-                fill = fill.astype(self.dtype)
-            if not self.use_raw_values:
-                assert(fill.shape == self.field.shape)
+            if self.time_aggregation_external:
+                fill = self.calculate(**parms)
+                
+                if self.dtype is not None:
+                    fill = fill.astype(self.dtype)
+                if not self.use_raw_values:
+                    assert(fill.shape == self.field.shape)
+                else:
+                    assert(fill.shape[0:3] == self.field.shape[0:3])
+                if self.tgd is not None:
+                    fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
+                else:
+                    fill = self._get_or_pass_spatial_agg_fill_(fill)
             else:
-                assert(fill.shape[0:3] == self.field.shape[0:3])
-            if self.tgd is not None:
-                fill = self._get_temporal_agg_fill_(fill,f=self.aggregate_temporal,parms={})
-            else:
-                fill = self._get_or_pass_spatial_agg_fill_(fill)
+                fill = self._get_temporal_agg_fill_(parms=parms)
                 
         units = self.get_output_units()
                         

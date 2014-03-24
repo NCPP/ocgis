@@ -154,7 +154,7 @@ class TestSpatialDimension(TestSpatialBase):
             ret = sdim.get_intersects(poly)
             to_test = np.ma.array([[[38]],[[-100]]],mask=False)
             self.assertNumpyAll(ret.grid.value,to_test)
-            self.assertNumpyAll(ret.uid,np.array([[9]]))
+            self.assertNumpyAll(ret.uid,np.ma.array([[9]]))
             self.assertEqual(ret.shape,(1,1))
             to_test = ret.geom.point.value.compressed()[0]
             self.assertTrue(to_test.almost_equals(Point(-100,38)))
@@ -269,7 +269,7 @@ class TestSpatialDimension(TestSpatialBase):
         sdim = self.get_sdim(bounds=True)
         sdim_slc = sdim.grid[0,:]
         self.assertEqual(sdim_slc.value.shape,(2,1,4))
-        self.assertNumpyAll(sdim_slc.value.data,np.ma.array([[[40,40,40,40]],[[-100,-99,-98,-97]]],mask=False))
+        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40,40,40,40]],[[-100,-99,-98,-97]]],mask=False))
         self.assertEqual(sdim_slc.row.value[0],40)
         self.assertNumpyAll(sdim_slc.col.value,np.array([-100,-99,-98,-97]))
     
@@ -373,12 +373,12 @@ class TestSpatialDimension(TestSpatialBase):
         pts = np.array([[pt,pt2]],dtype=object)
         g = SpatialGeometryPointDimension(value=pts)
         self.assertEqual(g.value.mask.any(),False)
-        self.assertNumpyAll(g.uid,np.array([[1,2]]))
+        self.assertNumpyAll(g.uid,np.ma.array([[1,2]]))
         
         sgdim = SpatialGeometryDimension(point=g)
         sdim = SpatialDimension(geom=sgdim)
         self.assertEqual(sdim.shape,(1,2))
-        self.assertNumpyAll(sdim.uid,np.array([[1,2]]))
+        self.assertNumpyAll(sdim.uid,np.ma.array([[1,2]]))
         sdim_slc = sdim[:,1]
         self.assertEqual(sdim_slc.shape,(1,1))
         self.assertTrue(sdim_slc.geom.point.value[0,0].almost_equals(pt2))
@@ -389,7 +389,7 @@ class TestSpatialDimension(TestSpatialBase):
             bg = sdim.grid.get_subset_bbox(-99,39,-98,39,closed=False)
             self.assertEqual(bg._value,None)
             self.assertEqual(bg.uid.shape,(1,2))
-            self.assertNumpyAll(bg.uid,np.array([[6,7]]))
+            self.assertNumpyAll(bg.uid,np.ma.array([[6,7]]))
             with self.assertRaises(EmptySubsetError):
                 sdim.grid.get_subset_bbox(1000,1000,1001,10001)
                 

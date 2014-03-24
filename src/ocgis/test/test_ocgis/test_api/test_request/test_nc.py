@@ -75,7 +75,7 @@ class TestNcRequestDataset(TestBase):
         
         tdt = field.temporal.value_datetime
         self.assertEqual(tdt[4],dt(2001,1,5,12))
-        self.assertNumpyAll(field.temporal.bounds_datetime[1001],[dt(2003,9,29),dt(2003,9,30)])
+        self.assertNumpyAll(field.temporal.bounds_datetime[1001],np.array([dt(2003,9,29),dt(2003,9,30)]))
         
         rv = field.temporal.value_datetime[100]
         rb = field.temporal.bounds_datetime[100]
@@ -304,7 +304,7 @@ class TestNcRequestDataset(TestBase):
         
         ds = nc.Dataset(uri,'r')
         to_test = ds.variables['Tavg']
-        self.assertNumpyAll(to_test[:],field.variables['Tavg'].value.squeeze().data)
+        self.assertNumpyAll(to_test[:],field.variables['Tavg'].value.squeeze())
         ds.close()
         
     def test_load_projection_axes_slicing(self):
@@ -317,7 +317,7 @@ class TestNcRequestDataset(TestBase):
         
         ds = nc.Dataset(uri,'r')
         to_test = ds.variables['Tavg']
-        self.assertNumpyAll(to_test[15,:,:,:],sub.variables[variable].value.squeeze().data)
+        self.assertNumpyAll(to_test[15,:,:,:],sub.variables[variable].value.squeeze())
         ds.close()
         
     def test_load_climatology_bounds(self):

@@ -130,6 +130,42 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
     
+    def test_optimizations_in_calculations(self):
+        ## pass optimizations to the calculation engine using operations and
+        ## ensure the output values are equivalent
+        rd = RequestDataset(**self.get_dataset())
+        field = rd.get()
+        tgd = field.temporal.get_grouping(['month'])
+        optimizations = {'tgds':{rd.alias:tgd}}
+        calc = [{'func':'mean','name':'mean'}]
+        calc_grouping = ['month']
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            optimizations=optimizations)
+        ret_with_optimizations = ops.execute()
+        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                            optimizations=None)
+        ret_without_optimizations = ops.execute()
+        t1 = ret_with_optimizations[1]['foo'].variables['mean']
+        t2 = ret_without_optimizations[1]['foo'].variables['mean']
+        self.assertNumpyAll(t1.value,t2.value)
+        
+    def test_optimizations_in_calculations_bad_calc_grouping(self):
+        ## bad calculations groupings in the optimizations should be caught
+        ## and raise a value error
+        rd = RequestDataset(**self.get_dataset())
+        field = rd.get()
+        tgd1 = field.temporal.get_grouping('all')
+        tgd2 = field.temporal.get_grouping(['year','month'])
+        tgd3 = field.temporal.get_grouping([[3]])
+        for t in [tgd1,tgd2,tgd3]:
+            optimizations = {'tgds':{rd.alias:t}}
+            calc = [{'func':'mean','name':'mean'}]
+            calc_grouping = ['month']
+            ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+                                optimizations=optimizations)
+            with self.assertRaises(ValueError):
+                ops.execute()
+    
     def test_operations_abstraction_used_for_subsetting(self):
         ret = self.get_ret(kwds={'abstraction':'point'})
         ref = ret[1]['foo']
@@ -499,10 +535,12 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ret[1]['foo'],None)
         
     def test_snippet(self):
-        
         ret = self.get_ret(kwds={'snippet':True})
         ref = ret.gvu(1,self.var)
         self.assertEqual(ref.shape,(1,1,1,4,4))
+        with nc_scope(os.path.join(self._test_dir,self.fn)) as ds:
+            to_test = ds.variables['foo'][0,0,:,:]
+            self.assertNumpyAll(to_test,ref.data)
         
         calc = [{'func':'mean','name':'my_mean'}]
         group = ['month','year']

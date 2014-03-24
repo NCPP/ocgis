@@ -4,7 +4,7 @@ from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class SpatialCollection(OrderedDict):
+class SpatialCollection(object):
     _default_headers = constants.raw_headers
     
     def __init__(self,meta=None,key=None,crs=None,headers=None,value_keys=None):
@@ -18,8 +18,40 @@ class SpatialCollection(OrderedDict):
         self.properties = OrderedDict()
         
         self._uid_ctr_field = 1
-
-        super(SpatialCollection,self).__init__()
+        self._ugid = OrderedDict()
+        
+    def __getitem__(self,key):
+        return(self._ugid[key])
+        
+    def __iter__(self):
+        for ugid in self._ugid.iterkeys():
+            yield(ugid)
+            
+    def __len__(self):
+        return(len(self._ugid))
+            
+    def __repr__(self):
+        ret = self._ugid.__repr__()
+        try:
+            ret = ret.replace('OrderedDict',self.__class__.__name__)
+        except:
+            pass
+        return(ret)
+            
+    def keys(self):
+        return(self._ugid.keys())
+            
+    def items(self):
+        return(self._ugid.items())
+    
+    def iteritems(self):
+        return(self._ugid.iteritems())
+    
+    def itervalues(self):
+        return(self._ugid.itervalues())
+            
+    def update(self,value):
+        self._ugid.update(value)
         
     @property
     def _archetype_field(self):
@@ -69,7 +101,7 @@ class SpatialCollection(OrderedDict):
                     yield(ugid,field_alias,var_alias,variable)
                     
     def get_iter_melted(self):
-        for ugid,container in OrderedDict.iteritems(self):
+        for ugid,container in self.iteritems():
             for field_alias,field in container.iteritems():
                 for variable_alias,variable in field.variables.iteritems():
                     yield(dict(ugid=ugid,field_alias=field_alias,field=field,variable_alias=variable_alias,variable=variable))

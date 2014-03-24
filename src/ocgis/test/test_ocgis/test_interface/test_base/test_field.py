@@ -107,6 +107,13 @@ class AbstractTestField(TestBase):
 
 class TestField(AbstractTestField):
     
+    def test_shape_as_dict(self):
+        field = self.get_field(with_value=False)
+        to_test = field.shape_as_dict
+        for variable in field.variables.values():
+            self.assertEqual(variable._value,None)
+        self.assertEqual(to_test,{'Y': 3, 'X': 4, 'Z': 2, 'R': 2, 'T': 31})
+    
     def test_slicing(self):
         field = self.get_field(with_value=True)
         with self.assertRaises(IndexError):
@@ -159,7 +166,7 @@ class TestField(AbstractTestField):
             self.assertEqual(field_slc.shape,(1,1,1,1,1))
             if iv:
                 self.assertEqual(field_slc.variables['tmax'].value.shape,(1,1,1,1,1))
-                self.assertNumpyAll(field_slc.variables['tmax'].value,field.variables['tmax'].value[0,0,0,0,0])
+                self.assertNumpyAll(field_slc.variables['tmax'].value,np.ma.array(field.variables['tmax'].value[0,0,0,0,0]))
             else:
                 self.assertEqual(field_slc.variables['tmax']._value,None)
                 self.assertEqual(field_slc.variables['tmax']._value,field.variables['tmax']._value)

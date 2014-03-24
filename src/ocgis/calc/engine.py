@@ -13,6 +13,7 @@ class OcgCalculationEngine(object):
     :type raw: bool
     :param agg: If True, data needs to be spatially aggregated (using weights) following a calculation.
     :type agg: bool
+    :param bool calc_sample_size:
     '''
     
     def __init__(self,grouping,funcs,raw=False,agg=False,calc_sample_size=False):
@@ -34,9 +35,10 @@ class OcgCalculationEngine(object):
         else:
             raise(NotImplementedError)
 
-        self.tgds = {}
+        self._tgds = {}
     
-    def _check_calculation_members_(self,funcs,klass):
+    @staticmethod
+    def _check_calculation_members_(funcs,klass):
         '''
         Return True if a subclass of type `klass` is contained in the calculation
         list.
@@ -48,22 +50,37 @@ class OcgCalculationEngine(object):
         ret = True if any(check) else False
         return(ret)
         
-    def execute(self,coll,file_only=False):
-        
+    def execute(self,coll,file_only=False,tgds=None):
+        '''
+        :param :class:~`ocgis.SpatialCollection` coll:
+        :param bool file_only:
+        :param dict tgds: {'field_alias': :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`,...}
+        '''
         ## switch field type based on the types of calculations present
         if self._check_calculation_members_(self.funcs,AbstractMultivariateFunction):
             klass = DerivedMultivariateField
         else:
             klass = DerivedField
-                        
+        
+        ## select which dictionary will hold the temporal group dimensions
+        if tgds == None:
+            tgds_to_use = self._tgds
+            tgds_overloaded = False
+        else:
+            tgds_to_use = tgds
+            tgds_overloaded = True
+                                    
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
         if self.grouping is not None:
             ocgis_lh('setting temporal grouping(s)','calc.engine')
             for v in coll.itervalues():
                 for k2,v2 in v.iteritems():
-                    if k2 not in self.tgds:
-                        self.tgds[k2] = v2.temporal.get_grouping(self.grouping)
+                    if tgds_overloaded:
+                        assert(k2 in tgds_to_use)
+                    else:
+                        if k2 not in tgds_to_use:
+                            tgds_to_use[k2] = v2.temporal.get_grouping(self.grouping)
 
         ## iterate over functions
         for ugid,dct in coll.iteritems():
@@ -71,7 +88,20 @@ class OcgCalculationEngine(object):
                 ## choose a representative data type based on the first variable
                 dtype = field.variables.values()[0].dtype
                 
-                new_temporal = self.tgds.get(alias_field)
+                new_temporal = tgds_to_use.get(alias_field)
+                ## if the engine has a grouping, ensure it is equivalent to the
+                ## new temporal dimension.
+                if self.grouping is not None:
+                    try:
+                        compare = set(new_temporal.grouping) == set(self.grouping)
+                    ## types may be unhashable, compare directly
+                    except TypeError:
+                        compare = new_temporal.grouping == self.grouping
+                    if compare == False:
+                        msg = ('Engine temporal grouping and field temporal grouping '
+                               'are not equivalent. Perhaps optimizations are incorrect?')
+                        ocgis_lh(logger='calc.engine',exc=ValueError(msg))
+                
                 out_vc = VariableCollection()
                 for f in self.funcs:
                     ocgis_lh('calculating: {0}'.format(f),logger='calc.engine')

@@ -180,25 +180,29 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,geom=[lon_value,lat_value],search_radius_mult=0.1)
         ret = ops.execute()
         values = np.squeeze(ret[1]['tas'].variables['tas'].value)
-        self.assertNumpyAll(data_values,values)
+        self.assertNumpyAll(data_values,values.data)
+        self.assertFalse(np.any(values.mask))
         
         geom = Point(lon_value,lat_value).buffer(0.001)
         ops = ocgis.OcgOperations(dataset=rd,geom=geom)
         ret = ops.execute()
         values = np.squeeze(ret[1]['tas'].variables['tas'].value)
-        self.assertNumpyAll(data_values,values)
+        self.assertNumpyAll(data_values,values.data)
+        self.assertFalse(np.any(values.mask))
         
         geom = Point(lon_value-360.,lat_value).buffer(0.001)
         ops = ocgis.OcgOperations(dataset=rd,geom=geom)
         ret = ops.execute()
         values = np.squeeze(ret[1]['tas'].variables['tas'].value)
-        self.assertNumpyAll(data_values,values)
+        self.assertNumpyAll(data_values,values.data)
+        self.assertFalse(np.any(values.mask))
         
         geom = Point(lon_value-360.,lat_value).buffer(0.001)
         ops = ocgis.OcgOperations(dataset=rd,geom=geom,aggregate=True,spatial_operation='clip')
         ret = ops.execute()
         values = np.squeeze(ret[1]['tas'].variables['tas'].value)
-        self.assertNumpyAll(data_values,values)
+        self.assertNumpyAll(data_values,values.data)
+        self.assertFalse(np.any(values.mask))
         
         ops = ocgis.OcgOperations(dataset=rd,geom=[lon_value,lat_value],
                                   search_radius_mult=0.1,output_format='nc')

@@ -124,6 +124,10 @@ class NcRequestDataset(object):
         return(self.__source_metadata)
         
     def get(self,format_time=True,interpolate_spatial_bounds=False):
+        '''
+        :param bool format_time:
+        :param bool interpolate_spatial_bounds:
+        '''
         
         def _get_temporal_adds_(ref_attrs):
             ## calendar should default to standard if it is not present and the

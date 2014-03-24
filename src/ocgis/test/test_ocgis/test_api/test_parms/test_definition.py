@@ -7,9 +7,27 @@ import os
 from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.shp_cabinet import ShpCabinet
+import numpy as np
 
 
 class Test(TestBase):
+    
+    def test_optimizations(self):
+        o = Optimizations()
+        self.assertEqual(o.value,None)
+        with self.assertRaises(DefinitionValidationError):
+            Optimizations({})
+        with self.assertRaises(DefinitionValidationError):
+            Optimizations({'foo':'foo'})
+        o = Optimizations({'tgds':{'tas':'TemporalGroupDimension'}})
+        self.assertEqual(o.value,{'tgds':{'tas':'TemporalGroupDimension'}})
+        
+    def test_optimizations_deepcopy(self):
+        ## we should not deepcopy optimizations
+        arr = np.array([1,2,3,4])
+        value = {'tgds':{'tas':arr}}
+        o = Optimizations(value)
+        self.assertTrue(np.may_share_memory(o.value['tgds']['tas'],arr))
     
     def test_add_auxiliary_files(self):
         for val in [True,False]:

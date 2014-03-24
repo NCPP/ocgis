@@ -1,7 +1,7 @@
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env, constants
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError,\
-    ImproperPolygonBoundsError
+    ImproperPolygonBoundsError, VariableInCollectionError
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
@@ -117,9 +117,13 @@ class SubsetOperation(object):
         ocgis_lh('processing...',self._subset_log,alias=alias)
         ## return the field object
         try:
-            field = [rd.get(format_time=self.ops.format_time,
-                            interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) 
-                     for rd in rds]
+            ## look for field optimizations
+            if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
+                field = [self.ops.optimizations['fields'][rd.alias] for rd in rds]
+            else:
+                field = [rd.get(format_time=self.ops.format_time,
+                                interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) 
+                         for rd in rds]
             ## update the spatial abstraction to match the operations value. sfield
             ## will be none if the operation returns empty and it is allowed to have
             ## empty returns.
@@ -127,7 +131,14 @@ class SubsetOperation(object):
                 f.spatial.abstraction = self.ops.abstraction
                 
             if len(field) > 1:
-                field[0].variables.add_variable(field[1].variables.first())
+                try:
+                    field[0].variables.add_variable(field[1].variables.first())
+                ## this will fail for optimizations as the fields are already joined
+                except VariableInCollectionError:
+                    if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
+                        pass
+                    else:
+                        raise
             field = field[0]
         except EmptySubsetError as e:
             if self.ops.allow_empty:
@@ -335,7 +346,15 @@ class SubsetOperation(object):
                              self._subset_log,
                              alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
-                    coll = self.cengine.execute(coll,file_only=self.ops.file_only)
+                    
+                    ## look for any optimizations for temporal grouping.
+                    if self.ops.optimizations is None:
+                        tgds = None
+                    else:
+                        tgds = self.ops.optimizations.get('tgds')
+                    ## execute the calculations
+                    coll = self.cengine.execute(coll,file_only=self.ops.file_only,
+                                                tgds=tgds)
                 
                 ## conversion of groups.
                 if self.ops.output_grouping is not None:

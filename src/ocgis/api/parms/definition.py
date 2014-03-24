@@ -506,6 +506,32 @@ class InterpolateSpatialBounds(base.BooleanParameter):
     meta_false = 'If no bounds are present on the coordinate variables, no attempt will be made to interpolate boundary polygons.'
 
 
+class Optimizations(base.OcgParameter):
+    name = 'optimizations'
+    default = None
+    input_types = [dict]
+    nullable = True
+    return_type = [dict]
+    #: 'tgds' - dictionary mapping field aliases to TemporalGroupDimension objects
+    _allowed_keys = ['tgds','fields']
+    _perform_deepcopy = False
+    
+    def _get_meta_(self):
+        if self.value is None:
+            ret = 'No optimizations were used.'
+        else:
+            ret = 'The following optimizations were used: {0}.'.format(self.value.keys())
+        return(ret)
+    
+    def _validate_(self,value):
+        if len(value) == 0:
+            msg = 'Empty dictionaries are not allowed for optimizations. Use None instead.'
+            raise(DefinitionValidationError(self,msg))
+        if set(value.keys()).issubset(set(self._allowed_keys)) == False:
+            msg = 'Allowed optimization keys are "{0}".'.format(self._allowed_keys)
+            raise(DefinitionValidationError(self,msg))
+
+
 class OutputCRS(base.OcgParameter):
     input_types = [CoordinateReferenceSystem]
     name = 'output_crs'

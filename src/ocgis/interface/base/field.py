@@ -56,6 +56,10 @@ class Field(object):
         return(ret)
     
     @property
+    def shape_as_dict(self):
+        return(dict(zip(self._axes,self.shape)))
+    
+    @property
     def variables(self):
         return(self._variables)
     @variables.setter

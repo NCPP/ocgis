@@ -20,6 +20,16 @@ class CalculationException(OcgException):
         return(msg)
         
 
+class VariableInCollectionError(OcgException):
+    
+    def __init__(self,variable):
+        self.variable = variable
+        
+    def __str__(self):
+        msg = 'Variable alias already in collection: {0}'.format(self.variable.alias)
+        return(msg)
+
+
 class SampleSizeNotImplemented(CalculationException):
     pass
 

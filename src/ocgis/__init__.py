@@ -9,6 +9,7 @@ from api.request.base import RequestDataset, RequestDatasetCollection
 from util.zipper import format_return
 from interface.base import crs
 from calc.library.register import FunctionRegistry
+from api.collection import SpatialCollection
 
 from osgeo import ogr, osr
 ## tell ogr/osr to raise exceptions

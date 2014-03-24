@@ -89,7 +89,7 @@ class TestVariableUnits(TestBase):
         ## conversion of celsius units to kelvin
         var = Variable(name='tas',units='celsius',value=self.value)
         var.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(var.value,np.array([278.15]*3))
+        self.assertNumpyAll(var.value,np.ma.array([278.15]*3))
         self.assertEqual(var.cfunits,Units('kelvin'))
         self.assertEqual(var.units,'kelvin')
         

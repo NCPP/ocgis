@@ -4,7 +4,7 @@ from collections import OrderedDict
 from ocgis.util.helpers import get_iter
 import numpy as np
 from ocgis import constants
-from ocgis.exc import NoUnitsError
+from ocgis.exc import NoUnitsError, VariableInCollectionError
 from copy import copy
 
 
@@ -253,7 +253,10 @@ class VariableCollection(object):
                 
     def add_variable(self,variable):
         assert(isinstance(variable,Variable))
-        assert(variable.alias not in self._storage)
+        try:
+            assert(variable.alias not in self._storage)
+        except AssertionError:
+            raise(VariableInCollectionError(variable))
         if variable.uid is None:
             variable.uid = self._uid_ctr
             self._uid_ctr += 1

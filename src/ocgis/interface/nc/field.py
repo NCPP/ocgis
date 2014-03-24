@@ -22,9 +22,10 @@ class NcField(Field):
             axis_slc['R'] = self.realization._src_idx
         if self.level is not None:
             axis_slc['Z'] = self.level._src_idx
-        ## check for singletons in the indices and convert those from NumPy arrays.
-        ## an index error is raised otherwise.
-        axis_slc = {k:v if len(v) > 1 else slice(v[0],v[0]+1) for k,v in axis_slc.iteritems()}
+            
+#        ## check for singletons in the indices and convert those from NumPy arrays.
+#        ## an index error is raised otherwise.
+#        axis_slc_mod = {k:v if len(v) > 1 else slice(v[0],v[0]+1) for k,v in axis_slc.iteritems()}
         
         dim_map = data._source_metadata['dim_map']
         slc = [None for v in dim_map.values() if v is not None]
@@ -43,26 +44,20 @@ class NcField(Field):
         try:
             try:
                 raw = ds.variables[variable_name].__getitem__(slc)
+            ## if the slc list are all single element numpy vectors, convert to
+            ## slice objects to avoid index error.
             except IndexError:
-                ocgis_lh(logger='nc.field',exc=IndexError('variable: {0}'.format(variable_name)))
+                if all([len(a) == 1 for a in slc]):
+                    slc2 = [slice(a[0],a[0]+1) for a in slc]
+                    raw = ds.variables[variable_name].__getitem__(slc2)
+                else:
+                    raise
+            ## always return a masked array
             if not isinstance(raw,np.ma.MaskedArray):
                 raw = np.ma.array(raw,mask=False)
             ## reshape the data adding singleton axes where necessary
-            new_shape = []
-            for axis in self._axes:
-                if axis in axes:
-                    try:    
-                        to_append = raw.shape[axes.index(axis)]
-                    except IndexError as e:
-                        ## it may be a singleton index request
-                        if len(slc[axes.index(axis)]) == 1:
-                            to_append = 1
-                        else:
-                            ocgis_lh(logger='nc.field',exc=e)
-                else:
-                    to_append = 1
-                new_shape.append(to_append)
-            raw = raw.reshape(new_shape)
+            new_shape = [1 if e is None else len(e) for e in [axis_slc.get(a) for a in self._axes]]
+            raw = raw.reshape(*new_shape)
             
             return(raw)
 #            ## apply any spatial mask if the geometries have been loaded

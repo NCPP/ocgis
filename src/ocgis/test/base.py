@@ -33,12 +33,15 @@ class TestBase(unittest.TestCase):
         return(ret)
         
     def assertNumpyAll(self,arr1,arr2):
+        self.assertEqual(type(arr1),type(arr2))
         return(self.assertTrue(np.all(arr1 == arr2)))
     
     def assertNumpyAllClose(self,arr1,arr2):
+        self.assertEqual(type(arr1),type(arr2))
         return(self.assertTrue(np.allclose(arr1,arr2)))
     
     def assertNumpyNotAll(self,arr1,arr2):
+        self.assertEqual(type(arr1),type(arr2))
         return(self.assertFalse(np.all(arr1 == arr2)))
     
     def assertDictEqual(self,d1,d2,msg=None):

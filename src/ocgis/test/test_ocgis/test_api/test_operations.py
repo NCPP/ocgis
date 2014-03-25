@@ -11,10 +11,8 @@ import itertools
 import ocgis
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
-from ocgis.test.test_simple.test_simple import ToTest, nc_scope
 import datetime
-from ocgis.conv.base import AbstractConverter
-from copy import deepcopy
+from numpy import dtype
 
 
 class Test(TestBase):
@@ -43,13 +41,13 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         size = ops.get_base_request_size()
-        self.assertEqual(size,{'variables': {'tas': {'level': 0.0, 'temporal': 28.515625, 'value': 116800.0, 'realization': 0.0, 'col': 1.0, 'row': 0.5}}, 'total': 116830.015625})
+        self.assertEqual(size,{'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')}, 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}}, 'total': 116830.015625})
         
     def test_get_base_request_size_with_geom(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[23])
         size = ops.get_base_request_size()
-        self.assertEqual(size,{'variables': {'tas': {'level': 0.0, 'temporal': 28.515625, 'value': 171.09375, 'realization': 0.0, 'col': 0.0234375, 'row': 0.03125}}, 'total': 199.6640625})
+        self.assertEqual(size,{'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0234375, 'shape': (3,), 'dtype': dtype('float64')}, 'row': {'kb': 0.03125, 'shape': (4,), 'dtype': dtype('float64')}}}, 'total': 199.6640625})
         
     def test_get_base_request_size_multifile(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
@@ -57,7 +55,7 @@ class Test(TestBase):
         rds = [rd1,rd2]
         ops = OcgOperations(dataset=rds)
         size = ops.get_base_request_size()
-        self.assertEqual({'variables': {'pr': {'level': 0.0, 'temporal': 228.25, 'value': 1666909.75, 'realization': 0.0, 'col': 1.046875, 'row': 0.8515625}, 'tas': {'level': 0.0, 'temporal': 28.515625, 'value': 116800.0, 'realization': 0.0, 'col': 1.0, 'row': 0.5}}, 'total': 1783969.9140625},size)
+        self.assertEqual({'variables': {'pr': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 228.25, 'shape': (29216,), 'dtype': dtype('float64')}, 'value': {'kb': 1666909.75, 'shape': (1, 29216, 1, 109, 134), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.046875, 'shape': (134,), 'dtype': dtype('float64')}, 'row': {'kb': 0.8515625, 'shape': (109,), 'dtype': dtype('float64')}}, 'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')}, 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}}, 'total': 1783969.9140625},size)
         
     def test_get_base_request_size_multifile_with_geom(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
@@ -65,7 +63,7 @@ class Test(TestBase):
         rds = [rd1,rd2]
         ops = OcgOperations(dataset=rds,geom='state_boundaries',select_ugid=[23])
         size = ops.get_base_request_size()
-        self.assertEqual(size,{'variables': {'pr': {'level': 0.0, 'temporal': 228.25, 'value': 21341.375, 'realization': 0.0, 'col': 0.0859375, 'row': 0.1328125}, 'tas': {'level': 0.0, 'temporal': 28.515625, 'value': 171.09375, 'realization': 0.0, 'col': 0.0234375, 'row': 0.03125}}, 'total': 21769.5078125})
+        self.assertEqual(size,{'variables': {'pr': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 228.25, 'shape': (29216,), 'dtype': dtype('float64')}, 'value': {'kb': 21341.375, 'shape': (1, 29216, 1, 17, 11), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0859375, 'shape': (11,), 'dtype': dtype('float64')}, 'row': {'kb': 0.1328125, 'shape': (17,), 'dtype': dtype('float64')}}, 'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0234375, 'shape': (3,), 'dtype': dtype('float64')}, 'row': {'kb': 0.03125, 'shape': (4,), 'dtype': dtype('float64')}}}, 'total': 21769.5078125})
 
     def test_get_base_request_size_test_data(self):
         for key in self.test_data.keys():

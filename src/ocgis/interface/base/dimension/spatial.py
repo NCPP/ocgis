@@ -318,9 +318,6 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         ret._value = value
         ret.row = row
         ret.col = col
-
-#        ret = SpatialGridDimension(value=value,uid=uid,row=row,col=col,name_value=self.name_value,
-#                                   units=self.units,meta=self.meta,name=self.name,name_uid=self.name_uid)
             
         return(ret)
     

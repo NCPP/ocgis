@@ -219,13 +219,13 @@ class NcRequestDataset(object):
                      'request',logging.WARN)
             crs = CFWGS84()
             
-        ## rotated pole coordinate systems require transforming the coordinates to
-        ## WGS84 before they may be loaded.
-        if isinstance(crs,CFRotatedPole):
-            msg = 'CFRotatedPole projection found. Transforming coordinates to WGS84 and replacing the CRS with CFWGS84'
-            ocgis_lh(msg=msg,logger='request.nc',level=logging.WARN)
-            grid = get_rotated_pole_spatial_grid_dimension(crs,grid)
-            crs = CFWGS84()
+#        ## rotated pole coordinate systems require transforming the coordinates to
+#        ## WGS84 before they may be loaded.
+#        if isinstance(crs,CFRotatedPole):
+#            msg = 'CFRotatedPole projection found. Transforming coordinates to WGS84 and replacing the CRS with CFWGS84'
+#            ocgis_lh(msg=msg,logger='request.nc',level=logging.WARN)
+#            grid = get_rotated_pole_spatial_grid_dimension(crs,grid)
+#            crs = CFWGS84()
             
         spatial = SpatialDimension(name_uid='gid',grid=grid,crs=crs,abstraction=self.s_abstraction)
         
@@ -452,62 +452,7 @@ class NcRequestDataset(object):
                 '      Time Units: {0}'.format(self.t_units),
                 '      Time Calendar: {0}'.format(self.t_calendar)]
         return(rows)
-    
 
-def get_rotated_pole_spatial_grid_dimension(crs,grid):
-        import csv
-        import itertools
-        import subprocess
-        import tempfile
-        class ProjDialect(csv.excel):
-            lineterminator = '\n'
-            delimiter = '\t'
-        f = tempfile.NamedTemporaryFile()
-        writer = csv.writer(f,dialect=ProjDialect)
-        _row = grid.row.value
-        _col = grid.col.value
-        shp = (_row.shape[0],_col.shape[0])
-        uid = np.arange(1,(shp[0]*shp[1])+1,dtype=int).reshape(*shp)
-        uid = np.ma.array(data=uid,mask=False)
-        for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_col.shape[0])):
-            writer.writerow([_col[col_idx],_row[row_idx]])
-        f.flush()
-        cmd = crs._trans_proj.split(' ')
-        cmd.append(f.name)
-        cmd = ['proj','-f','"%.6f"','-m','57.2957795130823'] + cmd
-        capture = subprocess.check_output(cmd)
-        f.close()
-        coords = capture.split('\n')
-        new_coords = []
-        for ii,coord in enumerate(coords):
-            coord = coord.replace('"','')
-            coord = coord.split('\t')
-            try:
-                coord = map(float,coord)
-            ## likely empty string
-            except ValueError:
-                if coord[0] == '':
-                    continue
-                else:
-                    raise
-            new_coords.append(coord)
-            
-        new_coords = np.array(new_coords)
-        new_row = new_coords[:,1].reshape(*shp)
-        new_col = new_coords[:,0].reshape(*shp)
-        
-        new_grid = copy(grid)
-        new_grid._row_src_idx = new_grid.row._src_idx
-        new_grid._col_src_idx = new_grid.col._src_idx
-        new_grid.row = None
-        new_grid.col = None
-        new_value = np.zeros([2]+list(new_row.shape))
-        new_value = np.ma.array(new_value,mask=False)
-        new_value[0,:,:] = new_row
-        new_value[1,:,:] = new_col
-        new_grid._value = new_value
-                
-        return(new_grid)
     
 def get_axis(dimvar,dims,dim):
     try:

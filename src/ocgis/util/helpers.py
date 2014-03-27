@@ -7,13 +7,105 @@ from osgeo import ogr
 from shapely import wkt
 import sys
 import datetime
-from copy import deepcopy
+from copy import deepcopy, copy
 from ocgis.util.logging_ocgis import ocgis_lh
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
 
+
+def get_rotated_pole_spatial_grid_dimension(crs,grid,inverse=False,rc_original=None):
+    '''
+    http://osgeo-org.1560.x6.nabble.com/Rotated-pole-coordinate-system-a-howto-td3885700.html
+    
+    :param :class:`ocgis.interface.base.crs.CFRotatedPole` crs:
+    :param :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension` grid:
+    :param bool inverse: If True, this is an inverse transformation.
+    :param dict rc_original: Contains original metadata information for the row and
+     column dimensions.
+    :returns :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension`:
+    '''
+    import csv
+    import subprocess
+    class ProjDialect(csv.excel):
+        lineterminator = '\n'
+        delimiter = '\t'
+    f = tempfile.NamedTemporaryFile()
+    writer = csv.writer(f,dialect=ProjDialect)
+    new_mask = grid.value.mask.copy()
+    if inverse:
+        _row = grid.value[0,:,:].data
+        _col = grid.value[1,:,:].data
+        shp = (_row.shape[0],_col.shape[1])
+        
+        def _itr_writer_(_row,_col):
+            for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_row.shape[1])):
+                yield(_col[row_idx,col_idx],_row[row_idx,col_idx])
+    else:
+        _row = grid.row.value
+        _col = grid.col.value
+        shp = (_row.shape[0],_col.shape[0])
+        
+        def _itr_writer_(row,col):
+            for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_col.shape[0])):
+                yield(_col[col_idx],_row[row_idx])
+#    uid = np.arange(1,(shp[0]*shp[1])+1,dtype=int).reshape(*shp)
+#    uid = np.ma.array(data=uid,mask=False)
+#    for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_col.shape[0])):
+    for xy in _itr_writer_(_row,_col):
+        writer.writerow(xy)
+    f.flush()
+    cmd = crs._trans_proj.split(' ')
+    cmd.append(f.name)
+    if inverse:
+        program = 'invproj'
+    else:
+        program = 'proj'
+    cmd = [program,'-f','"%.6f"','-m','57.2957795130823'] + cmd
+    capture = subprocess.check_output(cmd)
+    f.close()
+    coords = capture.split('\n')
+    new_coords = []
+    for ii,coord in enumerate(coords):
+        coord = coord.replace('"','')
+        coord = coord.split('\t')
+        try:
+            coord = map(float,coord)
+        ## likely empty string
+        except ValueError:
+            if coord[0] == '':
+                continue
+            else:
+                raise
+        new_coords.append(coord)
+        
+    new_coords = np.array(new_coords)
+    new_row = new_coords[:,1].reshape(*shp)
+    new_col = new_coords[:,0].reshape(*shp)
+    
+    new_grid = copy(grid)
+    ## reset geometries
+    new_grid._geom = None
+    if inverse:
+        from ocgis.interface.base.dimension.base import VectorDimension
+        new_row = new_row[:,0]
+        new_col = new_col[0,:]
+        new_grid.row = VectorDimension(value=new_row,name=rc_original['row']['name'],meta=rc_original['row']['meta'])
+        new_grid.col = VectorDimension(value=new_col,name=rc_original['col']['name'],meta=rc_original['col']['meta'])
+        new_col,new_row = np.meshgrid(new_col,new_row)
+    else:
+        new_grid._row_src_idx = new_grid.row._src_idx
+        new_grid._col_src_idx = new_grid.col._src_idx
+        new_grid.row = None
+        new_grid.col = None
+    new_value = np.zeros([2]+list(new_row.shape))
+    new_value = np.ma.array(new_value,mask=new_mask)
+    new_value[0,:,:] = new_row
+    new_value[1,:,:] = new_col
+    new_grid._value = new_value
+            
+    return(new_grid)
 
 def get_interpolated_bounds(centroids):
     '''

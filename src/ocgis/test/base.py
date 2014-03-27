@@ -52,7 +52,8 @@ class TestBase(unittest.TestCase):
                 self.assertEqual(v,d2[k])
             self.assertEqual(set(d1.keys()),set(d2.keys()))
     
-    def assertNcEqual(self,uri_src,uri_dest,check_types=True):
+    def assertNcEqual(self,uri_src,uri_dest,check_types=True,close=False,
+                      metadata_only=False):
         src = nc.Dataset(uri_src)
         dest = nc.Dataset(uri_dest)
         
@@ -64,7 +65,11 @@ class TestBase(unittest.TestCase):
             for varname,var in src.variables.iteritems():
                 dvar = dest.variables[varname]
                 try:
-                    self.assertNumpyAll(var[:],dvar[:])
+                    if not metadata_only:
+                        if close:
+                            self.assertNumpyAllClose(var[:],dvar[:])
+                        else:
+                            self.assertNumpyAll(var[:],dvar[:])
                 except AssertionError:
                     cmp = var[:] == dvar[:]
                     if cmp.shape == (1,) and cmp.data[0] == True:

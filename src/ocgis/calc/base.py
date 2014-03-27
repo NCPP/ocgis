@@ -198,6 +198,12 @@ class AbstractFunction(object):
                          'long_name':self.long_name}}
         parents = VariableCollection(variables=parent_variables)
         
+        ## attempt to copy the grid_mapping attribute for the derived variable
+        try:
+            meta['attrs']['grid_mapping'] = parents.first().meta['attrs']['grid_mapping']
+        except KeyError:
+            pass
+        
         ## if the operation is file only, creating a variable with an empty
         ## value will raise an exception. pass a dummy data source because even
         ## if the value is trying to be loaded it should not be accessible!

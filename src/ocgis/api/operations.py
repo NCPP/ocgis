@@ -288,11 +288,20 @@ class OcgOperations(object):
         if len(set(projections)) > 1 and self.output_format != 'numpy': #@UndefinedVariable
             if self.output_crs is None:
                 _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',obj=OutputCRS)
-        ## this projection may not be written to CF at this time due to the projection
-        ## utilty's mangling of rows and columns.
+        ## clip and/or aggregation operations may not be written back to CFRotatedPole
+        ## at this time. hence, the output crs must be set to CFWGS84.
         if CFRotatedPole in map(type,projections):
-            if self.output_format == 'nc':
-                _raise_('CFRotatedPole data may not be written to netCDF. Row and columns may not be reconstructed.',obj=OutputFormat)
+            if self.output_crs is not None and not isinstance(self.output_crs,WGS84):
+                msg = ('{0} data may only be written to the same coordinate system (i.e. "output_crs=None") '
+                       'or {1}.').format(CFRotatedPole.__name__,CFWGS84.__name__)
+                _raise_(msg,obj=OutputCRS)
+            if self.aggregate or self.spatial_operation == 'clip':
+                msg = ('{0} data if clipped or spatially averaged must be written to '
+                       '{1}. The "output_crs" is being updated to {2}.').format(
+                       CFRotatedPole.__name__,CFWGS84.__name__,
+                       CFWGS84.__name__)
+                ocgis_lh(level=logging.WARN,msg=msg,logger='operations')
+                self._get_object_('output_crs')._value = CFWGS84()
         ## only WGS84 may be written to to GeoJSON
         if self.output_format == 'geojson':
             if any([element != WGS84() for element in projections if element is not None]):

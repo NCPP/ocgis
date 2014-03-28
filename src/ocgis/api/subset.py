@@ -75,8 +75,47 @@ class SubsetOperation(object):
         ## for the parallel case
         else:
             raise(ocgis_lh(exc=NotImplementedError('multiprocessing is not available')))
+        
+    def _iter_collections_(self):
+        '''
+        :yields: :class:~`ocgis.SpatialCollection`
+        '''
+        ocgis_lh('{0} request dataset(s) to process'.format(len(self.ops.dataset)),'conv._iter_collections_')
+        
+        ## multivariate calculations require datasets come in as a list with all
+        ## variable inputs part of the same sequence.
+        if self.cengine is not None and self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
+            itr_rd = [[r for r in self.ops.dataset]]
+        ## otherwise, process geometries expects a single element sequence
+        else:
+            itr_rd = ([rd] for rd in self.ops.dataset)
+        
+        for rds in itr_rd:
+            for coll in self._process_subsettables_(rds):
+                ## if there are calculations, do those now and return a new type of collection
+                if self.cengine is not None:
+                    ocgis_lh('performing computations',
+                             self._subset_log,
+                             alias=coll.items()[0][1].keys()[0],
+                             ugid=coll.keys()[0])
+                    
+                    ## look for any optimizations for temporal grouping.
+                    if self.ops.optimizations is None:
+                        tgds = None
+                    else:
+                        tgds = self.ops.optimizations.get('tgds')
+                    ## execute the calculations
+                    coll = self.cengine.execute(coll,file_only=self.ops.file_only,
+                                                tgds=tgds)
+                
+                ## conversion of groups.
+                if self.ops.output_grouping is not None:
+                    raise(NotImplementedError)
+                else:
+                    ocgis_lh('subset yielding',self._subset_log,level=logging.DEBUG)
+                    yield(coll)
 
-    def _process_geometries_(self,rds):
+    def _process_subsettables_(self,rds):
         '''
         :param rds: Sequence of :class:~`ocgis.RequestDataset` objects.
         :type rds: sequence
@@ -161,7 +200,24 @@ class SubsetOperation(object):
             itr = [{}]
         else:
             itr = [{}] if self.ops.geom is None else self.ops.geom
-                
+        
+        for coll in self._process_geometries_(itr,field,headers,value_keys,alias):
+            yield(coll)
+    
+    def _process_geometries_(self,itr,field,headers,value_keys,alias):
+        '''
+        :param sequence itr: Contains geometry dictionaries to process. If there
+         are no geometries to process, this will be a sequence of one element with
+         an empty dictionary.
+        :param :class:`ocgis.interface.Field` field: The field object to use for
+         operations.
+        :param sequence headers: Sequence of strings to use as headers for the
+         creation of the collection.
+        :param sequence value_keys: Sequence of strings to use as headers for the
+         keyed output functions.
+        :param str alias: The request data alias currently being processed.
+        :yields: :class:~`ocgis.SpatialCollection`
+        '''
         ## loop over the iterator
         for gd in itr:
             ## always work with a new geometry dictionary
@@ -375,42 +431,3 @@ class SubsetOperation(object):
             coll.add_field(ugid,coll_geom,alias,sfield,properties=gd.get('properties'))
             
             yield(coll)
-    
-    def _iter_collections_(self):
-        '''
-        :yields: :class:~`ocgis.SpatialCollection`
-        '''
-        ocgis_lh('{0} request dataset(s) to process'.format(len(self.ops.dataset)),'conv._iter_collections_')
-        
-        ## multivariate calculations require datasets come in as a list with all
-        ## variable inputs part of the same sequence.
-        if self.cengine is not None and self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
-            itr_rd = [[r for r in self.ops.dataset]]
-        ## otherwise, process geometries expects a single element sequence
-        else:
-            itr_rd = ([rd] for rd in self.ops.dataset)
-        
-        for rds in itr_rd:
-            for coll in self._process_geometries_(rds):
-                ## if there are calculations, do those now and return a new type of collection
-                if self.cengine is not None:
-                    ocgis_lh('performing computations',
-                             self._subset_log,
-                             alias=coll.items()[0][1].keys()[0],
-                             ugid=coll.keys()[0])
-                    
-                    ## look for any optimizations for temporal grouping.
-                    if self.ops.optimizations is None:
-                        tgds = None
-                    else:
-                        tgds = self.ops.optimizations.get('tgds')
-                    ## execute the calculations
-                    coll = self.cengine.execute(coll,file_only=self.ops.file_only,
-                                                tgds=tgds)
-                
-                ## conversion of groups.
-                if self.ops.output_grouping is not None:
-                    raise(NotImplementedError)
-                else:
-                    ocgis_lh('subset yielding',self._subset_log,level=logging.DEBUG)
-                    yield(coll)

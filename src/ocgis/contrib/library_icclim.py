@@ -1,7 +1,7 @@
 from ocgis.calc.base import AbstractUnivariateSetFunction,\
     AbstractMultivariateFunction
-import icclim
 from ocgis import constants
+from icclim import calc_indice
 from icclim import set_longname_units as slu
 from icclim import set_globattr
 import abc
@@ -12,12 +12,12 @@ import json
 
 
 _icclim_function_map = {
-                        'icclim_TG':{'func':icclim.TG_calculation,'meta':slu.TG_setvarattr},
-                        'icclim_TN':{'func':icclim.TN_calculation,'meta':slu.TN_setvarattr},
-                        'icclim_TX':{'func':icclim.TX_calculation,'meta':slu.TX_setvarattr},
-                        'icclim_SU':{'func':icclim.SU_calculation,'meta':slu.SU_setvarattr},
-                        'icclim_DTR':{'func':icclim.DTR_calculation,'meta':slu.DTR_setvarattr},
-                        'icclim_ETR':{'func':icclim.ETR_calculation,'meta':slu.ETR_setvarattr}
+                        'icclim_TG':{'func':calc_indice.TG_calculation,'meta':slu.TG_setvarattr},
+                        'icclim_TN':{'func':calc_indice.TN_calculation,'meta':slu.TN_setvarattr},
+                        'icclim_TX':{'func':calc_indice.TX_calculation,'meta':slu.TX_setvarattr},
+                        'icclim_SU':{'func':calc_indice.SU_calculation,'meta':slu.SU_setvarattr},
+                        'icclim_DTR':{'func':calc_indice.DTR_calculation,'meta':slu.DTR_setvarattr},
+                        'icclim_ETR':{'func':calc_indice.ETR_calculation,'meta':slu.ETR_setvarattr}
                         }
 
 
@@ -81,15 +81,15 @@ class AbstractIcclimFunction(object):
         
         ## update global attributes using ICCLIM functions
         indice_name = self.key.split('_')[1]
-        set_globattr.set_history_globattr(sim,
-                                          self.tgd.grouping,
-                                          indice_name,
-                                          [self.field.temporal.value_datetime.min(),
-                                           self.field.temporal.value_datetime.max()])
-        set_globattr.set_title_globattr(sim,indice_name)
-        set_globattr.set_references_globattr(sim)
-        set_globattr.set_institution_globattr(sim,'Climate impact portal (http://climate4impact.eu)')
-        set_globattr.set_comment_globattr(sim,indice_name)
+        set_globattr.history(sim,
+                             self.tgd.grouping,
+                             indice_name,
+                             [self.field.temporal.value_datetime.min(),
+                             self.field.temporal.value_datetime.max()])
+        set_globattr.title(sim,indice_name)
+        set_globattr.references(sim)
+        set_globattr.institution(sim,'Climate impact portal (http://climate4impact.eu)')
+        set_globattr.comment(sim,indice_name)
     
     def set_variable_metadata(self,variable):
         sim = NcVariableSimulator(variable.meta)

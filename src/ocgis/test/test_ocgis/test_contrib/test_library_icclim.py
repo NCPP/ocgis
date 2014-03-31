@@ -193,10 +193,21 @@ class TestSU(TestBase):
         
         ## variable and datasets will have different attributes, so adjust those
         ## before testing if the netCDFs are equal...
-        with nc_scope(ret_icclim,'a') as ds_icclim:
+        with nc_scope(ret_icclim,'r') as ds_icclim:
             with nc_scope(ret_ocgis,'a') as ds_ocgis:
-                ds_ocgis.variables['SU'].setncatts(ds_icclim.variables['SU'].__dict__)
-                ds_ocgis.setncatts(ds_icclim.__dict__)
+                ## strip the current attributes
+                for key in ds_ocgis.ncattrs():
+                    ds_ocgis.delncattr(key)
+                for key in ds_ocgis.variables['SU'].ncattrs():
+                    if not key.startswith('_'):
+                        ds_ocgis.variables['SU'].delncattr(key)
+                ## make equivalent attributes
+                for key in ds_icclim.ncattrs():
+                    setattr(ds_ocgis,key,getattr(ds_icclim,key))
+                ## update the target variable attributes
+                for key,value in ds_icclim.variables['SU'].__dict__.iteritems():
+                    if not key.startswith('_'):
+                        setattr(ds_ocgis.variables['SU'],key,value)
         
         self.assertNcEqual(ret_icclim,ret_ocgis)
 

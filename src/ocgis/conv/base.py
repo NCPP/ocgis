@@ -76,8 +76,26 @@ class AbstractConverter(object):
             os.mkdir(path)
         return(path)
     
+    def _get_should_append_to_unique_geometry_store_(self,store,geom,ugid):
+        '''
+        :param sequence store:
+        :param :class:`shapely.Geometry` geom:
+        :param int ugid:
+        '''
+        ret = True
+        test_all = []
+        for row in store:
+            test_geom = row['geom'].almost_equals(geom)
+            test_ugid = row['ugid'] == ugid
+            test_all.append(all([test_geom,test_ugid]))
+        if any(test_all):
+            ret = False
+        return(ret)
+    
     def write(self):
         ocgis_lh('starting write method',self._log,logging.DEBUG)
+        
+        unique_geometry_store = []
         
         try:
             build = True
@@ -135,13 +153,23 @@ class AbstractConverter(object):
                     r_geom = coll.geoms.values()[0]
                     if isinstance(r_geom,Polygon):
                         r_geom = MultiPolygon([r_geom])
-                    to_write = {'geometry':mapping(r_geom),
-                                'properties':{k.upper():v for k,v in coll.properties.values()[0].iteritems()}}
-                    fiona_object.write(to_write)
+                    ## see if this geometry is in the unique geometry store
+                    should_append = self._get_should_append_to_unique_geometry_store_(
+                     unique_geometry_store,
+                     r_geom,
+                     coll.properties.values()[0]['UGID'])
+                    if should_append:
+                        unique_geometry_store.append({'geom':r_geom,
+                                                      'ugid':coll.properties.values()[0]['UGID']})
                     
-                    ## write the geometry attributes to the corresponding shapefile
-                    for row in coll.properties.itervalues():
-                        csv_object.writerow({k.upper():v for k,v in row.iteritems()})
+                        ## if it is unique write the geometry to the output files
+                        to_write = {'geometry':mapping(r_geom),
+                                    'properties':{k.upper():v for k,v in coll.properties.values()[0].iteritems()}}
+                        fiona_object.write(to_write)
+                        
+                        ## write the geometry attributes to the corresponding shapefile
+                        for row in coll.properties.itervalues():
+                            csv_object.writerow({k.upper():v for k,v in row.iteritems()})
                     
         finally:
             

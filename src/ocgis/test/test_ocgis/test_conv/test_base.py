@@ -8,7 +8,6 @@ from ocgis.conv.nc import NcConverter
 import itertools
 from copy import deepcopy
 import tempfile
-import time
 
 
 class AbstractTestConverter(TestBase):

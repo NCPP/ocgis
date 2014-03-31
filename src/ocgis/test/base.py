@@ -119,6 +119,8 @@ class TestBase(unittest.TestCase):
         test_data.update(['misc','subset_test'],'Tavg','Tavg_bccr_bcm2_0.1.sresa2.nc',key='subset_test_Tavg')
         test_data.update(['misc','subset_test'],'Tavg','sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',key='subset_test_Tavg_sresa2')
         test_data.update(['misc','subset_test'],'Prcp','sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',key='subset_test_Prcp')
+        
+        test_data.update(['misc','month_in_time_units'],'clt','clt.nc',key='clt_month_units')
         return(test_data)
     
     def setUp(self):

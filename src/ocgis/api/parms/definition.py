@@ -354,6 +354,9 @@ class Geom(base.OcgParameter):
     
     def __init__(self,*args,**kwds):
         self.select_ugid = kwds.pop('select_ugid',None)
+        ## just store the value if it is a parameter object
+        if isinstance(self.select_ugid,SelectUgid):
+            self.select_ugid = self.select_ugid._value
         
         args = [self] + list(args)
         base.OcgParameter.__init__(*args,**kwds)
@@ -369,6 +372,12 @@ class Geom(base.OcgParameter):
             value = '<{0} geometry(s)>'.format(len(self.value))
         ret = '{0}={1}'.format(self.name,value)
         return(ret)
+    
+    def _get_value_(self):
+        if isinstance(self._value,ShpCabinetIterator):
+            self._value.select_ugid = self.select_ugid
+        return(base.OcgParameter._get_value_(self))
+    value = property(_get_value_,base.OcgParameter._set_value_)
     
     def parse(self,value):
         if type(value) in [Polygon,MultiPolygon,Point]:

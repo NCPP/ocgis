@@ -144,6 +144,13 @@ class Test(TestBase):
         self.assertEqual(len(list(g.value)),60)
         self.assertEqual(g._shp_key,'mi_watersheds')
         
+    def test_geom_having_changed_select_ugid(self):
+        ops = OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
+                            geom='state_boundaries')
+        self.assertEqual(len(list(ops.geom)),51)
+        ops.select_ugid = [16,17]
+        self.assertEqual(len(list(ops.geom)),2)
+        
     def test_headers(self):
         headers = ['did','value']
         for htype in [list,tuple]:

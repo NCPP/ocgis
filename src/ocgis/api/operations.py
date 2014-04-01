@@ -155,6 +155,7 @@ class OcgOperations(object):
             except AttributeError:
                 object.__setattr__(self, name, value)
         if self._is_init is False:
+            self._update_dependents_()
             self._validate_()
             
     def get_base_request_size(self):
@@ -267,6 +268,12 @@ class OcgOperations(object):
     
     def _get_object_(self, name):
         return(object.__getattribute__(self, name))
+    
+    def _update_dependents_(self):
+        ## the select_ugid parameter must always connect to the geometry selection
+        geom = self._get_object_('geom')
+        svalue = self._get_object_('select_ugid')._value
+        geom.select_ugid = svalue
     
     def _validate_(self):
         ocgis_lh(logger='operations',msg='validating operations')

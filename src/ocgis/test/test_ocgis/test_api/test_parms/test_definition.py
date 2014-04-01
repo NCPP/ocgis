@@ -215,6 +215,18 @@ class Test(TestBase):
         g = Geom(path)
         self.assertEqual(g._shp_key,path)
         self.assertEqual(len(list(g.value)),51)
+        
+    def test_geom_with_changing_select_ugid(self):
+        select_ugid = [16,17]
+        g = Geom('state_boundaries',select_ugid=select_ugid)
+        self.assertEqual(len(list(g.value)),2)
+        select_ugid.append(22)
+        self.assertEqual(len(list(g.value)),3)
+        
+        g = Geom('state_boundaries')
+        self.assertEqual(len(list(g.value)),51)
+        g.select_ugid = [16,17]
+        self.assertEqual(len(list(g.value)),2)
             
     def test_calc(self):
         calc = [{'func':'mean','name':'my_mean'}]

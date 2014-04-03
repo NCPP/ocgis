@@ -389,8 +389,22 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             keep_row = np.any(idx_row,axis=1)
             keep_col = np.any(idx_col,axis=0)
             
-            row_slc = get_reduced_slice(real_idx_row[keep_row])
-            col_slc = get_reduced_slice(real_idx_col[keep_col])
+            ## slice reduction may fail due to empty bounding box returns. catch
+            ## these value errors and repurpose as subset errors.
+            try:
+                row_slc = get_reduced_slice(real_idx_row[keep_row])
+            except ValueError:
+                if real_idx_row[keep_row].shape[0] == 0:
+                    raise(EmptySubsetError(origin='Y'))
+                else:
+                    raise
+            try:
+                col_slc = get_reduced_slice(real_idx_col[keep_col])
+            except ValueError:
+                if real_idx_col[keep_col].shape[0] == 0:
+                    raise(EmptySubsetError(origin='X'))
+                else:
+                    raise
             
             new_mask = np.invert(np.logical_or(idx_row,idx_col)[row_slc,col_slc])
             

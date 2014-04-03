@@ -340,7 +340,8 @@ class SubsetOperation(object):
                         ocgis_lh(alias=alias,ugid=ugid,msg='empty geometric operation but empty returns allowed',level=logging.WARN)
                         sfield = None
                     else:
-                        ocgis_lh(exc=ExtentError(message=str(e)),alias=alias,logger=self._subset_log)
+                        msg = str(e) + ' This typically means the selection geometry falls outside the spatial domain of the target dataset.'
+                        ocgis_lh(exc=ExtentError(message=msg),alias=alias,logger=self._subset_log)
             else:
                 sfield = field
             

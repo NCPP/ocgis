@@ -121,6 +121,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['misc','subset_test'],'Prcp','sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',key='subset_test_Prcp')
         
         test_data.update(['misc','month_in_time_units'],'clt','clt.nc',key='clt_month_units')
+        test_data.update(['misc','rotated_pole'],'tas','tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc',key='rotated_pole_ichec')
         return(test_data)
     
     def setUp(self):

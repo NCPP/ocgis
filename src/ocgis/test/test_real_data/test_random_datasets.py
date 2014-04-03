@@ -3,7 +3,7 @@ from ocgis.test.base import TestBase
 import itertools
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError, MaskedDataError
+from ocgis.exc import DefinitionValidationError, MaskedDataError, ExtentError
 import numpy as np
 import unittest
 from ocgis.interface.base.crs import CFWGS84
@@ -51,6 +51,18 @@ class TestCMIP3Masking(TestBase):
 
 
 class Test(TestBase):
+    
+    def test_ichec_rotated_pole(self):
+        ## this point is far outside the domain
+        ocgis.env.OVERWRITE = True
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        for geom in [[-100.,45.],[-100,45,-99,46]]:
+            ops = ocgis.OcgOperations(dataset=rd,output_format='nc',
+                              calc=[{'func':'mean','name':'mean'}],
+                              calc_grouping=['month'],
+                              geom=geom)
+            with self.assertRaises(ExtentError):
+                ops.execute()
     
     def test_narccap_cancm4_point_subset_no_abstraction(self):
         rd = self.test_data.get_rd('cancm4_tas')

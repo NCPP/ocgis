@@ -229,6 +229,25 @@ cd cfunits-$CFUNITS_VER
 [sudo] cp -r cfunits/etc $CFUNITS_INSTALL_DIR
 
 #################
+# INSTALL BASEMAP
+#################
+
+cd /usr/local/src/basemap
+wget https://github.com/matplotlib/basemap/archive/v1.0.7rel.tar.gz
+tar -xzvf v1.0.7rel.tar.gz
+cd v1.0.7rel
+export GEOS_DIR=/usr/local/geos/v3.3.5
+sudo -E python setup.py install
+
+#################
+# INSTALL CARTOPY
+#################
+
+cd /usr/local/src/cartopy
+wget https://github.com/SciTools/cartopy/archive/v0.10.0.tar.gz
+
+
+#################
 # INSTALL POSTGIS
 #################
 

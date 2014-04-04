@@ -1,6 +1,6 @@
 import unittest
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
-    CFAlbersEqualArea, CFLambertConformal
+    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
@@ -12,7 +12,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from ocgis.util.helpers import get_temp_path
 import netCDF4 as nc
 from ocgis.interface.metadata import NcMetadata
-from ocgis.test.test_simple.test_simple import ToTest
+import ocgis
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -24,7 +24,8 @@ class TestCoordinateReferenceSystem(TestBase):
         crs2 = CoordinateReferenceSystem(prjs='+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ')
         self.assertTrue(crs == crs2)
         self.assertFalse(crs != crs2)
-
+        self.assertFalse(crs == None)   
+        self.assertFalse(None == crs)
 
 class TestWGS84(TestBase):
     
@@ -110,6 +111,27 @@ class TestCFLambertConformalConic(TestBase):
         self.assertNumpyAll(np.array([ 30.,  60.]),crs.map_parameters_values.pop('standard_parallel'))
         self.assertEqual(crs.map_parameters_values,{u'latitude_of_projection_origin': 47.5, u'longitude_of_central_meridian': -97.0, u'false_easting': 3325000.0, u'false_northing': 2700000.0, 'units': u'm'})
         ds.close()
+        
+        
+class TestCFRotatedPole(TestBase):
+    
+    def test_load_from_metadata(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        self.assertIsInstance(rd.get().spatial.crs,CFRotatedPole)
+        
+    def test_equal(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd2 = deepcopy(rd)
+        self.assertEqual(rd.get().spatial.crs,rd2.get().spatial.crs)
+        
+    def test_in_operations(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd2 = deepcopy(rd)
+        rd2.alias = 'tas2'
+        ## these projections are equivalent so it is okay to write them to a 
+        ## common output file
+        ops = ocgis.OcgOperations(dataset=[rd,rd2],output_format='csv',snippet=True)
+        ops.execute()
         
 
 if __name__ == "__main__":

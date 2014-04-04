@@ -76,6 +76,24 @@ class TestETR(TestBase):
         dtr = IcclimETR(field=field,tgd=tgd)
         ret = dtr.execute()
         self.assertEqual(ret['icclim_ETR'].value.shape,(1, 12, 1, 25, 25))
+        
+    def test_calculate_rotated_pole(self):
+        tasmin_fake = self.test_data.get_rd('rotated_pole_ichec')
+        tasmin_fake.alias = 'tasmin'
+        tasmax_fake = deepcopy(tasmin_fake)
+        tasmax_fake.alias = 'tasmax'
+        rds = [tasmin_fake,tasmax_fake]
+        for rd in rds:
+            rd.time_region = {'year':[1973]}
+        calc_ETR = [{'func':'icclim_ETR','name':'ETR','kwds':{'tasmin':'tasmin','tasmax':'tasmax'}}]
+        ops = ocgis.OcgOperations(dataset=[tasmin_fake,tasmax_fake],
+                          calc=calc_ETR,
+                          calc_grouping=['year', 'month'],
+                          prefix = 'ETR_ocgis_icclim',
+                          output_format = 'nc',
+                          add_auxiliary_files=False)
+        with nc_scope(ops.execute()) as ds:
+            self.assertEqual(ds.variables['ETR'][:].shape,(12,103,106))
 
 
 class TestTx(TestBase):

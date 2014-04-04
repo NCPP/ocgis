@@ -45,10 +45,17 @@ class CoordinateReferenceSystem(object):
             ocgis_lh(logger='crs',exc=ValueError('Empty CRS: The conversion to PROJ4 may have failed. The CRS value is: {0}'.format(crs)))
     
     def __eq__(self,other):
-        if self.sr.IsSame(other.sr) == 1:
-            ret = True
-        else:
-            ret = False
+        try:
+            if self.sr.IsSame(other.sr) == 1:
+                ret = True
+            else:
+                ret = False
+        except AttributeError:
+            ## likely a nonetype
+            if other == None:
+                ret = False
+            else:
+                raise
         return(ret)
     
     def __ne__(self,other):
@@ -375,3 +382,4 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         super(CFRotatedPole,self).__init__(*args,**kwds)
         self._trans_proj = self._template.format(lon_pole=kwds['grid_north_pole_longitude'],
                                                  lat_pole=kwds['grid_north_pole_latitude'])
+

@@ -37,6 +37,16 @@ class Test(TestBase):
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_nc_package_validation_raised_first(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('rotated_pole_ichec',kwds={'alias':'tas2'})
+        try:
+            ocgis.OcgOperations(dataset=[rd,rd2],output_format='nc')
+        except DefinitionValidationError as e:
+            self.assertIn('Data packages (i.e. more than one RequestDataset) may not be written to netCDF.',
+                          e.message)
+            pass
+    
     def test_get_base_request_size(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)

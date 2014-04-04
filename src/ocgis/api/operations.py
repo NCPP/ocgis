@@ -282,17 +282,58 @@ class OcgOperations(object):
             e = DefinitionValidationError(OutputFormat,msg)
             ocgis_lh(exc=e,logger='operations')
             
+        ## there are a bunch of constraints on the netCDF format
+        if self.output_format == 'nc':
+            ## we can only write one requestdataset to netCDF
+            if len(self.dataset) > 1 and self.calc is None:
+                msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
+                       'There are currently {dcount} RequestDatasets. Note, this is different than a '
+                       'multifile dataset.'.format(dcount=len(self.dataset)))
+                _raise_(msg,OutputFormat)
+            ## we can write multivariate functions to netCDF however
+            else:
+                if self.calc is not None and len(self.dataset) > 1:
+                    if sum([issubclass(calc['ref'],AbstractMultivariateFunction) for calc in self.calc]) != 1:
+                        msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
+                               'There are currently {dcount} RequestDatasets. Note, this is different than a '
+                               'multifile dataset.'.format(dcount=len(self.dataset)))
+                        _raise_(msg,OutputFormat)
+            ## clipped data which creates an arbitrary geometry may not be written
+            ## to netCDF
+            if self.spatial_operation != 'intersects':
+                msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
+                _raise_(msg,OutputFormat)
+            ## data may not be aggregated either
+            if self.aggregate:
+                msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
+                _raise_(msg,OutputFormat)
+            ## either the input data CRS or WGS84 is required for data output
+            if self.output_crs is not None and not isinstance(self.output_crs,CFWGS84):
+                msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
+                _raise_(msg,OutputFormat)
+            ## calculations on raw values are not relevant as not aggregation can
+            ## occur anyway.
+            if self.calc is not None:
+                if self.calc_raw:
+                    msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
+                    _raise_(msg)
+                ## no keyed output functions to netCDF
+                if any([issubclass(c['ref'],AbstractKeyedOutputFunction) for c in self.calc]):
+                    msg = 'Keyed function output may not be written to netCDF.'
+                    _raise_(msg)
+            
         ## collect projections for the dataset sets. None is returned if one
         ## is not parsable. the WGS84 default is actually done in the RequestDataset
         ## object.
-        projections = set([])
+        projections = []
         for rd in self.dataset:
             crs = rd._get_crs_()
-            projections.update([crs])
+            if not any([_ == crs for _ in projections]):
+                projections.append(crs)
         ## if there is not output CRS and projections differ, raise an exception.
         ## however, it is okay to have data with different projections in the
         ## numpy output.
-        if len(set(projections)) > 1 and self.output_format != 'numpy': #@UndefinedVariable
+        if len(projections) > 1 and self.output_format != 'numpy': #@UndefinedVariable
             if self.output_crs is None:
                 _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',obj=OutputCRS)
         ## clip and/or aggregation operations may not be written back to CFRotatedPole
@@ -336,42 +377,6 @@ class OcgOperations(object):
                 _raise_('Only netCDF may be written with file_only as True.',obj=FileOnly)
             if self.calc is None:
                 _raise_('File only outputs are only relevant for computations.',obj=FileOnly)
-        
-        ## there are a bunch of constraints on the netCDF format
-        if self.output_format == 'nc':
-            ## we can only write one requestdataset to netCDF
-            if len(self.dataset) > 1 and self.calc is None:
-                msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
-                _raise_(msg,OutputFormat)
-            ## we can write multivariate functions to netCDF however
-            else:
-                if self.calc is not None and len(self.dataset) > 1:
-                    if sum([issubclass(calc['ref'],AbstractMultivariateFunction) for calc in self.calc]) != 1:
-                        msg = 'Data packages (i.e. more than one RequestDataset may not be written to netCDF).'
-                        _raise_(msg,OutputFormat)
-            ## clipped data which creates an arbitrary geometry may not be written
-            ## to netCDF
-            if self.spatial_operation != 'intersects':
-                msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
-                _raise_(msg,OutputFormat)
-            ## data may not be aggregated either
-            if self.aggregate:
-                msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
-                _raise_(msg,OutputFormat)
-            ## either the input data CRS or WGS84 is required for data output
-            if self.output_crs is not None and not isinstance(self.output_crs,CFWGS84):
-                msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
-                _raise_(msg,OutputFormat)
-            ## calculations on raw values are not relevant as not aggregation can
-            ## occur anyway.
-            if self.calc is not None:
-                if self.calc_raw:
-                    msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
-                    _raise_(msg)
-                ## no keyed output functions to netCDF
-                if any([issubclass(c['ref'],AbstractKeyedOutputFunction) for c in self.calc]):
-                    msg = 'Keyed function output may not be written to netCDF.'
-                    _raise_(msg)
         
         ## validate any calculations against the operations object
         if self.calc is not None:

@@ -32,7 +32,7 @@ class SubsetOperation(object):
         self._subset_log = ocgis_lh.get_logger('subset')
 
         ## create the calculation engine
-        if self.ops.calc is None:
+        if self.ops.calc == None or self._request_base_size_only == True:
             self.cengine = None
         else:
             ocgis_lh('initializing calculation engine',self._subset_log,level=logging.DEBUG)

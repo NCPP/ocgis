@@ -87,6 +87,13 @@ class Test(TestBase):
                 ops = OcgOperations(dataset=rd)
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
+            
+    def test_get_base_request_size_with_calculation(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
+                            calc_grouping=['month'])
+        size = ops.get_base_request_size()
+        self.assertEqual(size['variables']['tas']['temporal']['shape'][0],3650)
 
     def test_repr(self):
         rd = self.test_data.get_rd('cancm4_tas')

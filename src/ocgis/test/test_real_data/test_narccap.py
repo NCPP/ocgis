@@ -41,11 +41,16 @@ class TestRotatedPole(TestBase):
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
         ret = ops.execute()
         ref = ret.gvu(16,'tas')
-        self.assertEqual(ref.shape,(1, 248, 1, 31, 22))
+        self.assertEqual(ref.shape,(1, 248, 1, 7, 15))
         self.assertAlmostEqual(np.ma.mean(ref),269.83076809598742)
-        self.assertNumpyAll(ref.mask[0,0,0,0],np.array([ True,  True,  True,  True,  True,  True,  True,  True,  True,
-                                                         False, False, False, False, False, False, False, False, False,
-                                                         False, False,  True,  True], dtype=bool),)
+        self.assertNumpyAll(ref.mask.squeeze()[0,:,:],
+                            np.array([[True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
+                                      [True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
+                                      [True,True,True,True,False,False,False,False,False,False,False,False,False,False,True],
+                                      [False,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
+                                      [False,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
+                                      [True,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
+                                      [True,False,False,False,False,False,False,False,False,False,True,True,True,True,True]],dtype=bool))
         
     def test_clip_aggregate(self):
         rd = self.test_data.get_rd('narccap_rotated_pole',kwds=dict(time_region={'month':[12],'year':[1982]}))

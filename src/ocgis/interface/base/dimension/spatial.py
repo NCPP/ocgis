@@ -2,7 +2,8 @@ import base
 import numpy as np
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import iter_array, get_none_or_slice, \
-    get_formatted_slice, get_reduced_slice
+    get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
+    get_added_slice
 from shapely.geometry.point import Point
 from ocgis import constants
 import itertools
@@ -188,8 +189,19 @@ class SpatialDimension(base.AbstractUidDimension):
                 ret.grid.value.mask[:,:,:] = grid_mask.copy()
         else:
             raise(NotImplementedError)
+        
+        ## barbed and circular geometries may result in rows and or columns being
+        ## entirely masked. these rows and columns should be trimmed.
+        trimmed,adjust = get_trimmed_array_by_mask(ret.get_mask(),return_adjustments=True)
+        ## use the adjustments to trim the returned data object
+        ret = ret[adjust['row'],adjust['col']]
+        
         if return_indices:
-            ret = (ret,slc)
+            ## adjust the returned slices if necessary
+            ret_slc = [None,None]
+            ret_slc[0] = get_added_slice(slc[0],adjust['row'])
+            ret_slc[1] = get_added_slice(slc[1],adjust['col'])
+            ret = (ret,tuple(ret_slc))
         
         return(ret)
     

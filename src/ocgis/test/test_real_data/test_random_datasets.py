@@ -90,6 +90,8 @@ class Test(TestBase):
                                   snippet=True,abstraction='point')
         ret = ops.execute()
         
+        ## ensure array is trimmed and masked geometries removed
+        self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(2,1))
         ## only two geometries returned
         self.assertEqual(ret[1]['tas'].spatial.shape,(1,2))
         ## different buffer radii should have unique identifiers

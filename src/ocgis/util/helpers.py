@@ -15,6 +15,97 @@ import fiona
 from shapely.geometry.geo import mapping
 
 
+def get_added_slice(slice1,slice2):
+            '''
+            :param slice slice1:
+            :param slice slice2:
+            :raises AssertionError:
+            :returns slice:
+            '''
+            assert(slice1.step == None)
+            assert(slice2.step == None)
+            
+            def _add_(a,b):
+                a = a or 0
+                b = b or 0
+                return(a+b)
+            
+            start = _add_(slice1.start,slice2.start)
+            stop = _add_(slice1.stop,slice2.stop)
+            
+            return(slice(start,stop))
+                
+def get_trimmed_array_by_mask(arr,return_adjustments=False):
+            '''
+            Returns a slice of the masked array ``arr`` with masked rows and columns
+            removed.
+            
+            :param arr: Two-dimensional array object.
+            :type arr: :class:`numpy.ma.MaskedArray` or bool :class:`numpy.ndarray`
+            :param bool return_adjustments: If ``True``, return a dictionary with
+             values of index adjustments that may be added to a slice object.
+            :raises NotImplementedError:
+            :returns: :class:`numpy.ma.MaskedArray` or (:class:`numpy.ma.MaskedArray', {'row':slice(...),'col':slice(...)})
+            '''
+            try:
+                _mask = arr.mask
+            except AttributeError:
+                ## likely a boolean array
+                if arr.dtype == np.dtype(bool):
+                    _mask = arr
+                else:
+                    raise(NotImplementedError('Array type is not implemented.'))
+            ## row 0 to end
+            start_row = 0
+            for idx_row in range(arr.shape[0]):
+                if _mask[idx_row,:].all():
+                    start_row += 1
+                else:
+                    break
+                
+            ## row end to 0
+            stop_row = 0
+            idx_row_adjust = 1
+            for __ in range(arr.shape[0]):
+                if _mask[stop_row-idx_row_adjust,:].all():
+                    idx_row_adjust += 1
+                else:
+                    idx_row_adjust -= 1
+                    break
+            if idx_row_adjust == 0:
+                stop_row = None
+            else:
+                stop_row = stop_row - idx_row_adjust
+                
+            ## col 0 to end
+            start_col = 0
+            for idx_col in range(arr.shape[1]):
+                if _mask[:,idx_col].all():
+                    start_col += 1
+                else:
+                    break
+                
+            ## col end to 0
+            stop_col = 0
+            idx_col_adjust = 1
+            for __ in range(arr.shape[0]):
+                if _mask[:,stop_col-idx_col_adjust,].all():
+                    idx_col_adjust += 1
+                else:
+                    idx_col_adjust -= 1
+                    break
+            if idx_col_adjust == 0:
+                stop_col = None
+            else:
+                stop_col = stop_col - idx_col_adjust
+            
+            ret = arr[start_row:stop_row,start_col:stop_col]
+            
+            if return_adjustments:
+                ret = (ret,{'row':slice(start_row,stop_row),'col':slice(start_col,stop_col)})
+                
+            return(ret)
+        
 def get_rotated_pole_spatial_grid_dimension(crs,grid,inverse=False,rc_original=None):
     '''
     http://osgeo-org.1560.x6.nabble.com/Rotated-pole-coordinate-system-a-howto-td3885700.html

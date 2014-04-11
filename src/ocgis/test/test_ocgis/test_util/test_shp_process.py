@@ -13,9 +13,9 @@ class Test(TestBase):
         copy_path = os.path.join(self._test_dir,'test_shp_process')
         shutil.copytree(test_path,copy_path)
         shp_path = os.path.join(copy_path,'wc_4326.shp')
-        sp = ShpProcess(shp_path)
         out_folder = tempfile.mkdtemp(dir=self._test_dir)
-        sp.process(out_folder,'world_countries',ugid=None)
+        sp = ShpProcess(shp_path,out_folder)
+        sp.process(key='world_countries',ugid=None)
             
         sc = ShpCabinet(path=out_folder)
         select_ugid = [33,126,199]

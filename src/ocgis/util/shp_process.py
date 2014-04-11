@@ -9,44 +9,54 @@ import argparse
 
 
 class ShpProcess(object):
+    '''
+    :param str path: Path to shapefile to process.
+    :param out_folder: Path to the folder to write processed shapefiles to.
+    '''
     
-    def __init__(self,path):
+    def __init__(self,path,out_folder):
         self.path = path
+        self.out_folder = out_folder
         
-    def process(self,out_folder,key,ugid=None):
-        ## make the output folder
-        new_folder = os.path.join(out_folder,key)
-        os.mkdir(new_folder)
+    def process(self,key=None,ugid=None):
+        '''
+        :param str key: The name of the new output shapefile.
+        :param str ugid: The integer attribute to copy as the unique identifier.
+        '''
+        ## get the original shapefile file name
+        original_name = os.path.split(self.path)[1]
+        ## get the new name if a key is passed
+        if key == None:
+            new_name = original_name
+        else:
+            new_name = key+'.shp'
+        ## the name of the new shapefile
+        new_shp = os.path.join(self.out_folder,new_name)
+        ## update the schema to include UGID
+        meta = self._get_meta_()
+        if 'UGID' in meta['schema']['properties']:
+            meta['schema']['properties'].pop('UGID')
+        new_properties = OrderedDict({'UGID':'int'})
+        new_properties.update(meta['schema']['properties'])
+        meta['schema']['properties'] = new_properties
+        ctr = 1
+        with fiona.open(new_shp, 'w',**meta) as sink:
+            for feature in self._iter_source_():
+                if ugid is None:
+                    feature['properties'].update({'UGID':ctr})
+                    ctr += 1
+                else:
+                    feature['properties'].update({'UGID':int(feature['properties'][ugid])})
+                sink.write(feature)
+        ## remove the cpg file. this raises many, many warnings on occasion
+        os.remove(new_shp.replace('.shp','.cpg'))
+        ## try to copy the cfg file
         try:
-            ## the name of the new shapefile
-            new_shp = os.path.join(new_folder,key+'.shp')
-            ## update the schema to include UGID
-            meta = self._get_meta_()
-            if 'UGID' in meta['schema']['properties']:
-                meta['schema']['properties'].pop('UGID')
-            new_properties = OrderedDict({'UGID':'int'})
-            new_properties.update(meta['schema']['properties'])
-            meta['schema']['properties'] = new_properties
-            ctr = 1
-            with fiona.open(new_shp, 'w',**meta) as sink:
-                for feature in self._iter_source_():
-                    if ugid is None:
-                        feature['properties'].update({'UGID':ctr})
-                        ctr += 1
-                    else:
-                        feature['properties'].update({'UGID':int(feature['properties'][ugid])})
-                    sink.write(feature)
-            ## remove the cpg file. this raises many, many warnings on occasion
-            os.remove(new_shp.replace('.shp','.cpg'))
-            ## try to copy the cfg file
-            try:
-                shutil.copy2(self.path.replace('.shp','.cfg'),new_shp.replace('.shp','.cfg'))
-            except:
-                warn('unable to copy configuration file - if it exists')
+            shutil.copy2(self.path.replace('.shp','.cfg'),new_shp.replace('.shp','.cfg'))
         except:
-            ## remove the created folder on an exception
-            shutil.rmtree(new_folder)
-            raise
+            warn('unable to copy configuration file - if it exists')
+            
+        return(new_shp)
                 
     def _get_meta_(self):
         with fiona.open(self.path,'r') as source:

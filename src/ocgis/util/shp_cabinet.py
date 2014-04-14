@@ -9,7 +9,7 @@ from shapely.geometry.polygon import Polygon
 from shapely import wkb
 import fiona
 from ocgis.interface.base.crs import CoordinateReferenceSystem
-from ocgis.util.helpers import assert_raise
+from copy import deepcopy
 
 
 class ShpCabinetIterator(object):
@@ -33,12 +33,16 @@ class ShpCabinetIterator(object):
     :type path: str
     
     >>> path = '/path/to/shapefile.shp'
+    
+    :param bool load_geoms: If ``False``, do not load geometries, excluding
+     the ``'geom'`` key from the output dictionary.
     '''
     
-    def __init__(self,key=None,select_ugid=None,path=None):
+    def __init__(self,key=None,select_ugid=None,path=None,load_geoms=True):
         self.key = key
         self.path = path
         self.select_ugid = select_ugid
+        self.load_geoms = load_geoms
         self.sc = ShpCabinet()
         
     def __iter__(self):
@@ -46,7 +50,7 @@ class ShpCabinetIterator(object):
         Return an iterator as from :meth:`ocgis.ShpCabinet.iter_geoms`
         '''
         for row in self.sc.iter_geoms(key=self.key,select_ugid=self.select_ugid,
-                                      path=self.path):
+                                      path=self.path,load_geoms=self.load_geoms):
             yield(row)
 
 
@@ -113,7 +117,7 @@ class ShpCabinet(object):
         if ret is None:
             raise(ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key,self.path)))
     
-    def iter_geoms(self,key=None,select_ugid=None,path=None):
+    def iter_geoms(self,key=None,select_ugid=None,path=None,load_geoms=True):
         """Iterate over geometries from a shapefile specified by ``key`` or ``path``.
         
         >>> sc = ShpCabinet()
@@ -128,7 +132,7 @@ class ShpCabinet(object):
         >>> key = 'state_boundaries'
         
         :param select_ugid: Sequence of unique identifiers matching values from the 
-         shapefile's UGID attribute.
+         shapefile's UGID attribute. Ascending order only.
         :type select_ugid: sequence
         
         >>> select_ugid = [23,24]
@@ -138,9 +142,19 @@ class ShpCabinet(object):
         :type path: str
         
         >>> path = '/path/to/shapefile.shp'
-    
+        
+        :param bool load_geoms: If ``False``, do not load geometries, excluding
+         the ``'geom'`` key from the output dictionary.
+        
+        :raises: ValueError, RuntimeError
         :yields: dict
         """
+        ## ensure select ugid is in ascending order
+        if select_ugid is not None:
+            test_select_ugid = list(deepcopy(select_ugid))
+            test_select_ugid.sort()
+            if test_select_ugid != list(select_ugid):
+                raise(ValueError('"select_ugid" must be sorted in ascending order.'))
         
         ## path to the target shapefile
         if key is None:
@@ -176,12 +190,23 @@ class ShpCabinet(object):
             else:
                 features = lyr
             
-            for feature in features:
+            for ctr,feature in enumerate(features):
                 ## TODO: lowercase all properties, add crs definition to each geometry
-                yld = {'geom':wkb.loads(feature.geometry().ExportToWkb()),'properties':feature.items(),'crs':crs,
-                       'meta':meta}
+                if load_geoms:
+                    yld = {'geom':wkb.loads(feature.geometry().ExportToWkb())}
+                else:
+                    yld = {}
+                yld.update({'properties':feature.items(),'crs':crs,
+                            'meta':meta})
                 assert('UGID' in yld['properties'])
                 yield(yld)
+            try:
+                assert(ctr >= 0)
+            except UnboundLocalError:
+                ## occurs if there were not feature returned by the iterator.
+                ## raise a more clear exception.
+                msg = 'No features returned from target shapefile. Were features appropriately selected?'
+                raise(ValueError(msg))
         finally:
             ds.Destroy()
             ds = None

@@ -5,9 +5,27 @@ from osgeo import ogr
 from ocgis.test.base import TestBase
 import os
 import shutil
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
 
 
-class Test(TestBase):
+class TestShpCabinetIterator(TestBase):
+    
+    def test_select_ugids_absent_raises_exception(self):
+        sci = ShpCabinetIterator(key='state_boundaries',select_ugid=[999])
+        with self.assertRaises(ValueError):
+            list(sci)
+            
+        ops = ocgis.OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
+                                  geom='state_boundaries',
+                                  select_ugid=[9999])
+        with self.assertRaises(ValueError):
+            ops.execute()
+    
+    def test_iteration_no_geoms(self):
+        sci = ShpCabinetIterator(key='state_boundaries',load_geoms=False)
+        for geom in sci:
+            self.assertNotIn('geom',geom)
     
     def test_iteration_by_path(self):
         ## test that a shapefile may be retrieved by passing a full path to the
@@ -16,7 +34,9 @@ class Test(TestBase):
         ocgis.env.DIR_SHPCABINET = None
         sci = ShpCabinetIterator(path=path)
         self.assertEqual(len(list(sci)),51)
-    
+        for geom in sci:
+            self.assertIn(type(geom['geom']),(Polygon,MultiPolygon))
+
     def test_iteration_by_path_with_bad_path(self):
         ## if the path does not exist on the filesystem, then an exception should
         ## be raised
@@ -29,6 +49,23 @@ class Test(TestBase):
         ## the key always takes preference over the path
         sci = ShpCabinetIterator(key='state_boundaries',path='/foo/foo/foo/foo/foo')
         self.assertEqual(len(list(sci)),51)
+            
+
+class TestShpCabinet(TestBase):
+    
+    def test_iter_geoms_select_ugid_is_sorted(self):
+        sc = ShpCabinet()
+        with self.assertRaises(ValueError):
+            list(sc.iter_geoms('state_boundaries',select_ugid=[23,18]))
+    
+    def test_iter_geoms_no_load_geoms(self):
+        sc = ShpCabinet()
+        it = sc.iter_geoms('state_boundaries',load_geoms=False)
+        geoms = list(it)
+        self.assertEqual(len(geoms),51)
+        self.assertEqual(geoms[12]['properties']['STATE_NAME'],'New Hampshire')
+        for geom in geoms:
+            self.assertNotIn('geom',geom)
     
     def test_iter_geoms(self):
         sc = ShpCabinet()
@@ -36,6 +73,8 @@ class Test(TestBase):
         geoms = list(it)
         self.assertEqual(len(geoms),51)
         self.assertEqual(geoms[12]['properties']['STATE_NAME'],'New Hampshire')
+        for geom in geoms:
+            self.assertIn(type(geom['geom']),(Polygon,MultiPolygon))
         
     def test_iter_geoms_select_ugid(self):
         sc = ShpCabinet()

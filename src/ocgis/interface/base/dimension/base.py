@@ -1,7 +1,6 @@
 import abc
 import numpy as np
 from ocgis import constants
-from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
     get_formatted_slice, assert_raise, get_interpolated_bounds
 from copy import copy, deepcopy
@@ -124,7 +123,7 @@ class AbstractUidValueDimension(AbstractValueDimension,AbstractUidDimension):
             try:
                 assert(key in kwds_all)
             except AssertionError:
-                ocgis_lh(exc=ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key,self.__class__.__name__)))
+                raise(ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key,self.__class__.__name__)))
                
         kwds_value = {key:kwds.get(key,None) for key in kwds_value}
         kwds_uid = {key:kwds.get(key,None) for key in kwds_uid}
@@ -208,7 +207,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
     @property
     def resolution(self):
         if self.bounds is None and self.value.shape[0] < 2:
-            ocgis_lh(exc=ResolutionError('With no bounds and a single coordinate, approximate resolution may not be determined.'))
+            raise(ResolutionError('With no bounds and a single coordinate, approximate resolution may not be determined.'))
         elif self.bounds is None:
             res_array = np.diff(self.value[0:constants.resolution_limit])
         else:
@@ -293,7 +292,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
             select = np.logical_and(select_lower,select_upper)
         
         if select.any() == False:
-            ocgis_lh(exc=EmptySubsetError(origin=self.name))
+            raise(EmptySubsetError(origin=self.name))
             
         ret = self[select]
         
@@ -358,10 +357,15 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
             self._value = self._value
     
     def _validate_bounds_(self):
+        ## bounds must be two-dimensional
+        if self._bounds.shape[1] != 2:
+            raise(ValueError('Bounds array must be two-dimensional.'))
+        ## bounds and value arrays must have matching data types. if they do
+        ## not match, attempt to cast the bounds.
         try:
             assert(self._bounds.dtype == self._value.dtype)
         except AssertionError:
             try:
                 self._bounds = np.array(self._bounds,dtype=self._value.dtype)
             except:
-                ocgis_lh(exc=ValueError('Value and bounds data types do not match and types could not be casted.'))
+                raise(ValueError('Value and bounds data types do not match and types could not be casted.'))

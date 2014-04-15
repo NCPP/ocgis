@@ -15,6 +15,17 @@ class TestVectorDimension(unittest.TestCase):
     def assertNumpyNotAll(self,arr1,arr2):
         return(self.assertFalse(np.all(arr1 == arr2)))
     
+    def test_bounds_only_two_dimensional(self):
+        value = [10,20,30,40,50]
+        bounds = [
+                  [[b-5,b+5,b+10] for b in value],
+                  value,
+                  5
+                  ]
+        for b in bounds:
+            with self.assertRaises(ValueError):
+                VectorDimension(value=value,bounds=b)
+    
     def test_dtype(self):
         value = [10,20,30,40,50]
         vdim = VectorDimension(value=value)

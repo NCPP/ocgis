@@ -9,19 +9,6 @@ import datetime
 ## to get CPU info:
 ##     $ cat /proc/cpuinfo | grep 'model name'
 
-'''
-Intel(R) Core(TM) i7-2640M CPU @ 2.80GHz
-commit 2e43c043ea3eda6eef71409c2cb472bc45f217c0
-2014-04-09 14:47:18.687301
-target: ocgis/test/test_simple/test_simple.py
-     n: 10
-  mean: 8.9257232666
- stdev: 0.0821190555739
-   min: 8.78502821922
-   max: 9.08388280869
-59 tests
-'''
-
 
 def run_benchmark(test_target,n_iterations):
     logging.basicConfig(level=logging.INFO,format='%(message)s')
@@ -51,3 +38,39 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    
+'''
+Intel(R) Core(TM) i7-2640M CPU @ 2.80GHz
+commit 2e43c043ea3eda6eef71409c2cb472bc45f217c0
+2014-04-09 14:47:18.687301
+target: ocgis/test/test_simple/test_simple.py
+     n: 10
+  mean: 8.9257232666
+ stdev: 0.0821190555739
+   min: 8.78502821922
+   max: 9.08388280869
+59 tests
+
+Intel(R) Core(TM) i7-2640M CPU @ 2.80GHz
+commit 02b326251bad2fca689b69e86f948e5118df3416
+2014-04-15 12:02:27.721346
+target: ocgis/test/
+     n: 10
+  mean: 170.726558924
+ stdev: 18.9688195447
+   min: 162.347140074
+   max: 227.572077036
+457 tests
+
+Intel(R) Core(TM) i7-2640M CPU @ 2.80GHz
+
+2014-04-15 12:20:10.324579
+target: ocgis/test/
+     n: 5
+  mean: 180.061199999
+ stdev: 0.825256828725
+   min: 178.627699137
+   max: 180.979352951
+467 tests
+'''

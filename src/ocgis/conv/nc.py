@@ -4,8 +4,6 @@ from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.interface.nc.temporal import NcTemporalGroupDimension
-import logging
-import numpy as np
 
     
 class NcConverter(AbstractConverter):
@@ -93,7 +91,7 @@ class NcConverter(AbstractConverter):
             has_climatology_bounds = True
             if dim_bnds is None:
                 dim_bnds = ds.createDimension(bounds_name,2)
-            times_bounds = ds.createVariable('climatology_'+bounds_name,time_nc_value.dtype,
+            times_bounds = ds.createVariable('climatology_bounds',time_nc_value.dtype,
                                              (dim_temporal._name,bounds_name))
             times_bounds[:] = temporal.bounds
             ## place units and calendar on time dimensions
@@ -127,7 +125,7 @@ class NcConverter(AbstractConverter):
 
         ## add climatology bounds
         if isinstance(temporal,NcTemporalGroupDimension):
-            setattr(times,'climatology','climatology_'+bounds_name)
+            setattr(times,'climatology','climatology_bounds')
                         
         ## level variable
         ## if there is no level on the variable no need to build one.

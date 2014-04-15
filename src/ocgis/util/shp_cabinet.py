@@ -52,6 +52,23 @@ class ShpCabinetIterator(object):
         for row in self.sc.iter_geoms(key=self.key,select_ugid=self.select_ugid,
                                       path=self.path,load_geoms=self.load_geoms):
             yield(row)
+            
+    def __len__(self):
+        ## get the path to the output shapefile
+        shp_path = self.sc._get_path_by_key_or_direct_path_(key=self.key,path=self.path)
+        
+        if self.select_ugid is not None:
+            ret = len(self.select_ugid)
+        else:
+            ## get the geometries
+            ds = ogr.Open(shp_path)
+            try:
+                features = self.sc._get_features_object_(ds,select_ugid=self.select_ugid)
+                ret = len(features)
+            finally:
+                ds.Destroy()
+                ds = None
+        return(ret)
 
 
 class ShpCabinet(object):
@@ -156,40 +173,18 @@ class ShpCabinet(object):
             if test_select_ugid != list(select_ugid):
                 raise(ValueError('"select_ugid" must be sorted in ascending order.'))
         
-        ## path to the target shapefile
-        if key is None:
-            try:
-                assert(path != None)
-            except AssertionError:
-                raise(ValueError('If no key is passed, then a path must be provided.'))
-            shp_path = path
-        else:
-            shp_path = self.get_shp_path(key)
-        ## make sure requested geometry exists
-        if not os.path.exists(shp_path):
-            raise(RuntimeError('Requested geometry with path "{0}" does not exist in the file system.'.format(shp_path)))
+        ## get the path to the output shapefile
+        shp_path = self._get_path_by_key_or_direct_path_(key=key,path=path)
         
         ## get the source CRS
         meta = self.get_meta(path=shp_path)
         crs = CoordinateReferenceSystem(crs=meta['crs'])
         
-        ## get the geometries
+        ## open the target shapefile
         ds = ogr.Open(shp_path)
         try:
-            lyr = ds.GetLayerByIndex(0)
-            lyr.ResetReading()
-            if select_ugid is not None:
-                lyr_name = lyr.GetName()
-                ## format where statement different for singletons
-                if len(select_ugid) == 1:
-                    sql_where = 'UGID = {0}'.format(select_ugid[0])
-                else:
-                    sql_where = 'UGID IN {0}'.format(tuple(select_ugid))
-                sql = 'SELECT * FROM {0} WHERE {1}'.format(lyr_name,sql_where)
-                features = ds.ExecuteSQL(sql)
-            else:
-                features = lyr
-            
+            ## return the features iterator
+            features = self._get_features_object_(ds,select_ugid=select_ugid)
             for ctr,feature in enumerate(features):
                 ## TODO: lowercase all properties, add crs definition to each geometry
                 if load_geoms:
@@ -208,8 +203,52 @@ class ShpCabinet(object):
                 msg = 'No features returned from target shapefile. Were features appropriately selected?'
                 raise(ValueError(msg))
         finally:
+            ## close the dataset object
             ds.Destroy()
             ds = None
+            
+    def _get_path_by_key_or_direct_path_(self,key=None,path=None):
+        '''
+        :param str key:
+        :param str path:
+        '''
+        ## path to the target shapefile
+        if key is None:
+            try:
+                assert(path != None)
+            except AssertionError:
+                raise(ValueError('If no key is passed, then a path must be provided.'))
+            shp_path = path
+        else:
+            shp_path = self.get_shp_path(key)
+        ## make sure requested geometry exists
+        if not os.path.exists(shp_path):
+            raise(RuntimeError('Requested geometry with path "{0}" does not exist in the file system.'.format(shp_path)))
+        return(shp_path)
+    
+    @staticmethod
+    def _get_features_object_(ds,select_ugid=None):
+        '''
+        :param ds: Path to shapefile.
+        :type ds: Open OGR dataset object
+        :param sequence select_ugid: Sequence of integers mapping to unique
+         geometry identifiers.
+        '''
+        ## get the geometries
+        lyr = ds.GetLayerByIndex(0)
+        lyr.ResetReading()
+        if select_ugid is not None:
+            lyr_name = lyr.GetName()
+            ## format where statement different for singletons
+            if len(select_ugid) == 1:
+                sql_where = 'UGID = {0}'.format(select_ugid[0])
+            else:
+                sql_where = 'UGID IN {0}'.format(tuple(select_ugid))
+            sql = 'SELECT * FROM {0} WHERE {1}'.format(lyr_name,sql_where)
+            features = ds.ExecuteSQL(sql)
+        else:
+            features = lyr
+        return(features)
     
     def get_headers(self,geoms):
         ret = ['UGID']

@@ -1,29 +1,79 @@
 import unittest
 from ocgis.test.base import TestBase
 from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction,\
-    IcclimDTR, IcclimETR, IcclimTN, IcclimTX
+    IcclimDTR, IcclimETR, IcclimTN, IcclimTX,\
+    AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction
 from ocgis.calc.library.statistics import Mean
-from ocgis.api.parms.definition import Calc
+from ocgis.api.parms.definition import Calc, CalcGrouping
 from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.api.operations import OcgOperations
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.test.test_simple.test_simple import nc_scope
+from ocgis.test.test_simple.test_simple import nc_scope, ToTest
 import ocgis
 from ocgis.test.test_base import longrunning
 import numpy as np
 import json
 from collections import OrderedDict
 from copy import deepcopy
+from ocgis.util.helpers import itersubclasses
+from ocgis.contrib import library_icclim
 
 
 class TestLibraryIcclim(TestBase):
+    
+#    @longrunning
+    def test_standard_AbstractIcclimFunction(self):
+        shapes = ([('month',), 12],[('month', 'year'), 24],[('year',),2])
+        ocgis.env.OVERWRITE = True
+        keys = set(library_icclim._icclim_function_map.keys())
+        for klass in [
+                      AbstractIcclimUnivariateSetFunction,
+                      AbstractIcclimMultivariateFunction]:
+            for subclass in itersubclasses(klass):
+                keys.remove(subclass.key)
+                self.assertEqual([('month',),('month','year'),('year',)],subclass._allowed_temporal_groupings)
+                for cg in CalcGrouping.iter_possible():
+                    calc = [{'func':subclass.key,'name':subclass.key.split('_')[1]}]
+                    if klass == AbstractIcclimUnivariateSetFunction:
+                        rd = self.test_data.get_rd('cancm4_tas')
+                        rd.time_region = {'year':[2001,2002]}
+                        calc = [{'func':subclass.key,'name':subclass.key.split('_')[1]}]
+                    else:
+                        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
+                        tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
+                        rd = [tasmin,tasmax]
+                        for r in rd:
+                            r.time_region = {'year':[2001,2002]}
+                        calc[0].update({'kwds':{'tasmin':'tasmin','tasmax':'tasmax'}})
+                    try:
+                        ops = ocgis.OcgOperations(dataset=rd,
+                                                  output_format='nc',
+                                                  calc=calc,
+                                                  calc_grouping=cg,
+                                                  geom=[3.39,40.62,10.54,52.30])
+                        ret = ops.execute()
+                        to_test = None
+                        for shape in shapes:
+                            if shape[0] == cg:
+                                to_test = shape[1]
+                        with nc_scope(ret) as ds:
+                            var = ds.variables[calc[0]['name']]
+                            self.assertEqual(var.dtype,subclass.dtype)
+                            self.assertEqual(var.shape,(to_test,5,4))
+                    except DefinitionValidationError as e:
+                        if e.message.startswith('''OcgOperations validation raised an exception on the argument/operation "calc_grouping" with the message: The following temporal groupings are supported for ICCLIM: [('month',), ('month', 'year'), ('year',)]. The requested temporal group is:'''):
+                            pass
+                        else:
+                            raise(e)
+        self.assertEqual(len(keys),0)
     
     def test_register_icclim(self):
         fr = FunctionRegistry()
         self.assertNotIn('icclim_TG',fr)
         register_icclim(fr)
         self.assertIn('icclim_TG',fr)
+        self.assertIn('icclim_vDTR',fr)
     
     def test_calc_argument_to_operations(self):
         value = [{'func':'icclim_TG','name':'TG'}]
@@ -49,6 +99,20 @@ class TestDTR(TestBase):
         dtr = IcclimDTR(field=field,tgd=tgd)
         ret = dtr.execute()
         self.assertEqual(ret['icclim_DTR'].value.shape,(1, 12, 1, 25, 25))
+        
+    def test_bad_keyword_mapping(self):
+        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
+        tas = self.test_data.get_rd('cancm4_tas')
+        rds = [tasmin,tas]
+        calc = [{'func':'icclim_DTR','name':'DTR','kwds':{'tas':'tasmin','tasmax':'tasmax'}}]
+        with self.assertRaises(DefinitionValidationError):
+            ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=['month'],
+                                output_format='nc')
+            
+        calc = [{'func':'icclim_DTR','name':'DTR'}]
+        with self.assertRaises(DefinitionValidationError):
+            ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=['month'],
+                                output_format='nc')
         
     def test_calculation_operations(self):
         ## note the kwds must contain a map of the required variables to their
@@ -167,7 +231,7 @@ class TestSU(TestBase):
     def test_calculation_operations_bad_units(self):
         rd = self.test_data.get_rd('daymet_tmax')
         calc_icclim = [{'func':'icclim_SU','name':'SU'}]
-        ops_icclim = OcgOperations(calc=calc_icclim,calc_grouping=['year'],dataset=rd)
+        ops_icclim = OcgOperations(calc=calc_icclim,calc_grouping=['month','year'],dataset=rd)
         with self.assertRaises(UnitsValidationError):
             ops_icclim.execute()
             

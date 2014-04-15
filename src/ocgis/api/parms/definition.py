@@ -16,6 +16,8 @@ from ocgis.util.logging_ocgis import ocgis_lh
 import logging
 import os
 from copy import deepcopy
+from types import FunctionType
+import itertools
 
 
 class Abstraction(base.StringOptionParameter):
@@ -74,6 +76,21 @@ class Backend(base.StringOptionParameter):
         else:
             raise(NotImplementedError)
         return(ret)
+    
+    
+class Callback(base.OcgParameter):
+    input_types = [FunctionType]
+    name = 'callback'
+    nullable = True
+    default = None
+    return_type = [FunctionType]
+    
+    def _get_meta_(self):
+        if self.value is None:
+            msg = 'No callback function provided.'
+        else:
+            msg = 'Callback enabled.'
+        return(msg)
     
     
 class Calc(base.IterableParameter,base.OcgParameter):
@@ -191,6 +208,23 @@ class CalcGrouping(base.IterableParameter,base.OcgParameter):
     unique = True
     _flags = ('unique','year')
     _standard_groups = ('day','month','year')
+    
+    @classmethod
+    def iter_possible(cls):
+        standard_seasons = [[3,4,5],[6,7,8],[9,10,11],[12,1,2]]
+        for r in [1,2,3]:
+            for combo in itertools.combinations(cls._standard_groups,r):
+                yield(combo)
+        for one in ['all']:
+            yield(one)
+        flags = list(cls._flags) + [None]
+        for flag in flags:
+            if flag is not None:
+                yld = deepcopy(standard_seasons)
+                yld.insert(0,flag)
+            else:
+                yld = standard_seasons
+            yield(yld)
     
     def parse(self,value):
         try:

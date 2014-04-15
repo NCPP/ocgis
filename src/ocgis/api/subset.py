@@ -3,7 +3,7 @@ from ocgis import env, constants
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError,\
     ImproperPolygonBoundsError, VariableInCollectionError
 from ocgis.util.spatial.wrap import Wrapper
-from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 import logging
 from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WGS84
@@ -11,7 +11,7 @@ from shapely.geometry.point import Point
 from ocgis.calc.base import AbstractMultivariateFunction,\
     AbstractKeyedOutputFunction
 from ocgis.util.helpers import project_shapely_geometry,\
-    get_rotated_pole_spatial_grid_dimension
+    get_rotated_pole_spatial_grid_dimension, get_default_or_apply
 from shapely.geometry.multipoint import MultiPoint
 from copy import deepcopy
 
@@ -21,15 +21,14 @@ class SubsetOperation(object):
     :param :class:~`ocgis.OcgOperations` ops:
     :param bool request_base_size_only: If ``True``, return field objects following
      the spatial subset performing as few operations as possible.
+    :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
     '''
     
-    def __init__(self,ops,request_base_size_only=False,serial=True,nprocs=1):
+    def __init__(self,ops,request_base_size_only=False,progress=None):
         self.ops = ops
-        self.serial = serial
-        self.nprocs = nprocs
         self._request_base_size_only = request_base_size_only
-        
         self._subset_log = ocgis_lh.get_logger('subset')
+        self._progress = progress or ProgressOcgOperations()
 
         ## create the calculation engine
         if self.ops.calc == None or self._request_base_size_only == True:
@@ -40,7 +39,8 @@ class SubsetOperation(object):
                                            self.ops.calc,
                                            raw=self.ops.calc_raw,
                                            agg=self.ops.aggregate,
-                                           calc_sample_size=self.ops.calc_sample_size)
+                                           calc_sample_size=self.ops.calc_sample_size,
+                                           progress=self._progress)
             
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
@@ -68,19 +68,13 @@ class SubsetOperation(object):
         self._geom_unique_store = []
         
         ## simple iterator for serial operations
-        if self.serial:
-            for coll in self._iter_collections_():
-                yield(coll)
-        ## use a multiprocessing pool returning unordered geometries
-        ## for the parallel case
-        else:
-            raise(ocgis_lh(exc=NotImplementedError('multiprocessing is not available')))
+        for coll in self._iter_collections_():
+            yield(coll)
         
     def _iter_collections_(self):
         '''
         :yields: :class:~`ocgis.SpatialCollection`
         '''
-        ocgis_lh('{0} request dataset(s) to process'.format(len(self.ops.dataset)),'conv._iter_collections_')
         
         ## multivariate calculations require datasets come in as a list with all
         ## variable inputs part of the same sequence.
@@ -88,13 +82,36 @@ class SubsetOperation(object):
             itr_rd = [[r for r in self.ops.dataset]]
         ## otherwise, process geometries expects a single element sequence
         else:
-            itr_rd = ([rd] for rd in self.ops.dataset)
+            itr_rd = [[rd] for rd in self.ops.dataset]
         
+        ## configure the progress object
+        self._progress.n_subsettables = len(itr_rd)
+        self._progress.n_geometries = get_default_or_apply(self.ops.geom,len,default=1)
+        self._progress.n_calculations = get_default_or_apply(self.ops.calc,len,default=0)
+        ## send some messages
+        msg = '{0} dataset collection(s) to process.'.format(self._progress.n_subsettables)
+        ocgis_lh(msg=msg,logger=self._subset_log)
+        if self.ops.geom is None:
+            msg = 'Entire spatial domain returned. No selection geometries requested.'
+        else:
+            msg = 'Each data collection will be subsetted by {0} selection geometries.'.format(self._progress.n_geometries)
+        ocgis_lh(msg=msg,logger=self._subset_log)
+        if self._progress.n_calculations == 0:
+            msg = 'No calculations requested.'
+        else:
+            msg = 'The following calculations will be applied to each data collection: {0}.'.\
+             format(', '.join([_['func'] for _ in self.ops.calc]))
+        ocgis_lh(msg=msg,logger=self._subset_log)
+        
+        ## process the data collections
         for rds in itr_rd:
+            msg = 'Processing URI(s): {0}'.format([rd.uri for rd in rds])
+            ocgis_lh(msg=msg,logger=self._subset_log)
+            
             for coll in self._process_subsettables_(rds):
                 ## if there are calculations, do those now and return a new type of collection
                 if self.cengine is not None:
-                    ocgis_lh('performing computations',
+                    ocgis_lh('Starting calculations.',
                              self._subset_log,
                              alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
@@ -107,6 +124,10 @@ class SubsetOperation(object):
                     ## execute the calculations
                     coll = self.cengine.execute(coll,file_only=self.ops.file_only,
                                                 tgds=tgds)
+                else:
+                    ## if there are no calculations, mark progress to indicate
+                    ## a geometry has been completed.
+                    self._progress.mark()
                 
                 ## conversion of groups.
                 if self.ops.output_grouping is not None:
@@ -154,7 +175,7 @@ class SubsetOperation(object):
             value_keys = None
                     
         alias = '_'.join([r.alias for r in rds])
-        ocgis_lh('processing...',self._subset_log,alias=alias)
+        ocgis_lh('processing...',self._subset_log,alias=alias,level=logging.DEBUG)
         ## return the field object
         try:
             ## look for field optimizations
@@ -261,8 +282,6 @@ class SubsetOperation(object):
             ## keep this around for the collection creation
             coll_geom = deepcopy(geom)
             crs = gd.get('crs')
-                    
-            ocgis_lh('processing',self._subset_log,level=logging.DEBUG,alias=alias)
             
             ## if there is a spatial abstraction, ensure it may be loaded.
             if self.ops.abstraction is not None:
@@ -297,6 +316,12 @@ class SubsetOperation(object):
                 ugid = gd['properties']['UGID']
             else:
                 ugid = 1
+                
+            if geom is None:
+                msg = 'No selection geometry. Returning all data. Assiging UGID as 1.'
+            else:
+                msg = 'Subsetting with selection geometry having UGID={0}'.format(ugid)
+            ocgis_lh(msg=msg,logger=self._subset_log)
                 
             ## check for unique ugids. this is an issue with point subsetting
             ## as the buffer radius changes by dataset.
@@ -369,6 +394,8 @@ class SubsetOperation(object):
                     ## check for all masked values
                     if env.OPTIMIZE_FOR_CALC is False and self.ops.file_only is False:
                         for variable in sfield.variables.itervalues():
+                            ocgis_lh(msg='Fetching data for variable with alias "{0}".'.format(variable.alias),
+                                     logger=self._subset_log)
                             if variable.value.mask.all():
                                 ## masked data may be okay depending on other opeartional
                                 ## conditions.

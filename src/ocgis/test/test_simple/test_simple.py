@@ -210,7 +210,7 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
         with nc_scope(ret) as ds:
             time = ds.variables['time']
-            bound = ds.variables['climatology_bound']
+            bound = ds.variables['climatology_bounds']
             self.assertEqual(time.units,bound.units)
             self.assertEqual(bound.calendar,bound.calendar)
     
@@ -707,8 +707,8 @@ class TestSimple(TestSimpleBase):
             with self.assertRaises(AttributeError):
                 ds.variables['time'].bounds
                 
-            self.assertEqual(ds.variables['time'].climatology,'climatology_bound')
-            self.assertEqual(ds.variables['climatology_bound'].shape,(2,2))
+            self.assertEqual(ds.variables['time'].climatology,'climatology_bounds')
+            self.assertEqual(ds.variables['climatology_bounds'].shape,(2,2))
         finally:
             ds.close()
             

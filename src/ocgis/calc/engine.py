@@ -14,9 +14,11 @@ class OcgCalculationEngine(object):
     :param agg: If True, data needs to be spatially aggregated (using weights) following a calculation.
     :type agg: bool
     :param bool calc_sample_size:
+    :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
     '''
     
-    def __init__(self,grouping,funcs,raw=False,agg=False,calc_sample_size=False):
+    def __init__(self,grouping,funcs,raw=False,agg=False,calc_sample_size=False,
+                 progress=None):
         self.raw = raw
         self.agg = agg
         self.grouping = grouping
@@ -36,6 +38,7 @@ class OcgCalculationEngine(object):
             raise(NotImplementedError)
 
         self._tgds = {}
+        self._progress = progress
     
     @staticmethod
     def _check_calculation_members_(funcs,klass):
@@ -73,7 +76,7 @@ class OcgCalculationEngine(object):
         ## group the variables. if grouping is None, calculations are performed
         ## on each element. array computations are taken advantage of.
         if self.grouping is not None:
-            ocgis_lh('setting temporal grouping(s)','calc.engine')
+            ocgis_lh('Setting temporal groups: {0}'.format(self.grouping),'calc.engine')
             for v in coll.itervalues():
                 for k2,v2 in v.iteritems():
                     if tgds_overloaded:
@@ -104,7 +107,7 @@ class OcgCalculationEngine(object):
                 
                 out_vc = VariableCollection()
                 for f in self.funcs:
-                    ocgis_lh('calculating: {0}'.format(f),logger='calc.engine')
+                    ocgis_lh('Calculating: {0}'.format(f['func']),logger='calc.engine')
                     
                     ## initialize the function
                     function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
@@ -125,6 +128,13 @@ class OcgCalculationEngine(object):
                             assert(dv._value == None)
                     
                     ocgis_lh('calculation finished',logger='calc.engine',level=logging.DEBUG)
+                    
+                    ## try to mark progress
+                    try:
+                        self._progress.mark()
+                    except AttributeError:
+                        pass
+                    
                 new_temporal = new_temporal or field.temporal
                 new_field = klass(variables=out_vc,temporal=new_temporal,spatial=field.spatial,
                                   level=field.level,realization=field.realization,meta=field.meta,

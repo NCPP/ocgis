@@ -30,19 +30,24 @@ class OcgOperations(object):
     :type dataset: :class:`ocgis.RequestDatasetCollection` or :class:`ocgis.RequestDataset`
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
-    :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial domain.
+    :param geom: The selection geometry(s) used for the spatial subset. If `None`, 
+     selection defaults to entire spatial domain.
     :type geom: list of dict, list of float, str
-    :param aggregate: If `True`, dataset geometries are aggregated to coincident selection geometries.
+    :param aggregate: If `True`, dataset geometries are aggregated to coincident 
+     selection geometries.
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.
     :type calc: list of dictionaries
     :param calc_grouping: Temporal grouping to apply for calculations.
     :type calc_grouping: list of str or int
-    :param calc_raw: If `True`, perform calculations on the "raw" data regardless of `aggregation` flag.
+    :param calc_raw: If `True`, perform calculations on the "raw" data regardless 
+     of `aggregation` flag.
     :type calc_raw: bool
-    :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the highest order geometry available.
+    :param abstraction: The geometric abstraction to use for the dataset geometries. 
+     If `None` (the default), use the highest order geometry available.
     :type abstraction: str
-    :param snippet: If `True`, return a data "snippet" composed of the first time point, first level (if applicable), and the entire spatial domain.
+    :param snippet: If `True`, return a data "snippet" composed of the first time 
+     point, first level (if applicable), and the entire spatial domain.
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
@@ -50,31 +55,44 @@ class OcgOperations(object):
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str
-    :param agg_selection: If `True`, the selection geometry will be aggregated prior to any spatial operations.
+    :param agg_selection: If `True`, the selection geometry will be aggregated prior 
+     to any spatial operations.
     :type agg_selection: bool
-    :param select_ugid: The unique identifiers of specific geometries contained in canned geometry datasets. These unique identifiers will be selected and used for spatial operations.
+    :param select_ugid: The unique identifiers of specific geometries contained 
+     in canned geometry datasets. These unique identifiers will be selected and 
+     used for spatial operations.
     :type select_ugid: list of integers
     :param vector_wrap: If `True`, keep any vector output on a -180 to 180 longitudinal domain.
     :type vector_wrap: bool
-    :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
+    :param allow_empty: If `True`, do not raise an exception in the case of an empty 
+     geometric selection.
     :type allow_empty: bool
-    :param dir_output: The output directory to which any disk format folders are written. If the directory does not exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
+    :param dir_output: The output directory to which any disk format folders are 
+     written. If the directory does not exist, an exception will be raised. This 
+     will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
-    :param headers: A sequence of strings specifying the output headers. Default value of ('did', 'ugid', 'gid') is always applied.
+    :param headers: A sequence of strings specifying the output headers. Default 
+     value of ('did', 'ugid', 'gid') is always applied.
     :type headers: sequence
-    :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass values through without a coercion attempt.
+    :param format_time: If `True` (the default), attempt to coerce time values to 
+     datetime stamps. If `False`, pass values through without a coercion attempt.
     :type format_time: bool
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
-    :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
+    :param output_crs: If provided, all output geometries will be projected to match 
+     the provided CRS.
     :type output_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
-    :param search_radius_mult: This value is multiplied by the target data's spatial resolution to determine the buffer radius for point selection geometries.
+    :param search_radius_mult: This value is multiplied by the target data's spatial 
+     resolution to determine the buffer radius for point selection geometries.
     :type search_radius_mult: float
-    :param interpolate_spatial_bounds: If True and no bounds are available, attempt to interpolate bounds from centroids.
+    :param interpolate_spatial_bounds: If True and no bounds are available, attempt 
+     to interpolate bounds from centroids.
     :type interpolate_spatial_bounds: bool
     :param bool add_auxiliary_files: If True, create a new directory and add metadata 
      and other informational files in addition to the converted file. If False, write
-     the target file only to :attribute:`dir_output` and do not create a new directory.
+     the target file only to :attr:`dir_output` and do not create a new directory.
+    :param function callback: A function taking two parameters: ``percent_complete``
+     and ``message``.
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -85,7 +103,7 @@ class OcgOperations(object):
                  slice=None, file_only=False, headers=None, format_time=True,
                  calc_sample_size=False, search_radius_mult=0.75, output_crs=None,
                  interpolate_spatial_bounds=False, add_auxiliary_files=True,
-                 optimizations=None):
+                 optimizations=None,callback=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -118,6 +136,7 @@ class OcgOperations(object):
         self.interpolate_spatial_bounds = InterpolateSpatialBounds(interpolate_spatial_bounds)
         self.add_auxiliary_files = AddAuxiliaryFiles(add_auxiliary_files)
         self.optimizations = Optimizations(optimizations)
+        self.callback = Callback(callback)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

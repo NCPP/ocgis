@@ -130,9 +130,9 @@ class Test(AbstractCalcBase):
         ret = ops.execute()
         ds = nc.Dataset(ret,'r')
         ref = ds.variables['time']
-        self.assertEqual(ref.climatology,'climatology_bnds')
+        self.assertEqual(ref.climatology,'climatology_bounds')
         self.assertEqual(len(ref[:]),12)
-        ref = ds.variables['climatology_bnds']
+        ref = ds.variables['climatology_bounds']
         self.assertEqual(ref[:].shape[0],12)
         ds.close()
 

@@ -47,6 +47,26 @@ class Test(TestBase):
                           e.message)
             pass
     
+    def test_with_callback(self):
+        
+        app = []
+        def callback(perc,msg,app=app):
+            app.append((perc,msg))
+#            print(perc,msg)
+            
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
+        dataset = [rd,rd2]
+        for ds in dataset:
+            ds.time_region = {'month':[6]}
+        ops = ocgis.OcgOperations(dataset=dataset,geom='state_boundaries',select_ugid=[16,17],
+                                  calc_grouping=['month'],calc=[{'func':'mean','name':'mean'},{'func':'median','name':'median'}],
+                                  callback=callback)
+        ops.execute()
+        
+        self.assertTrue(len(app) > 15)
+        self.assertEqual(app[-1][0],100.0)
+    
     def test_get_base_request_size(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)

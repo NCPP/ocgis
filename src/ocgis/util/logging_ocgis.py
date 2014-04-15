@@ -1,13 +1,51 @@
 import logging
 import os
+import fiona
 
-## try to turn off fiona logging
-try:
-    import fiona
-    fiona_logger = logging.getLogger('Fiona')
-    fiona_logger.setLevel(logging.ERROR)
-except ImportError:
-    pass
+
+## try to turn off fiona logging except for errors
+fiona_logger = logging.getLogger('Fiona')
+fiona_logger.setLevel(logging.ERROR)
+ 
+ 
+class ProgressOcgOperations(object):
+    '''
+    :param function callback: A function taking two parameters: ``percent_complete``
+     and ``message``.
+    :param int n_subsettables: The number of data objects to subset and/or manipulate.
+    :param int n_geometries: The number of geometries to use for subsetting.
+    :param int n_calculations: The number of calculations to apply.
+    '''
+    
+    def __init__(self,callback=None,n_subsettables=1,n_geometries=1,n_calculations=0):
+        assert(n_subsettables > 0)
+        assert(n_geometries > 0)
+        
+        self.callback = callback
+        self.n_subsettables = n_subsettables
+        self.n_geometries = n_geometries
+        self.n_calculations = n_calculations
+        self.n_completed_operations = 0
+        
+    def __call__(self,message=None):
+        if self.callback is not None:
+            return(self.callback(self.percent_complete,message))
+    
+    @property
+    def n_operations(self):
+        if self.n_calculations == 0:
+            nc = 1
+        else:
+            nc = self.n_calculations
+        return(self.n_subsettables*self.n_geometries*nc)
+    
+    @property
+    def percent_complete(self):
+        return(100*(self.n_completed_operations/float(self.n_operations)))
+        
+    def mark(self):
+        self.n_completed_operations += 1
+
 
 class OcgisLogging(object):
     
@@ -16,10 +54,19 @@ class OcgisLogging(object):
         self.null = True ## pass through if not configured
         self.parent = None
         self.duplicates = set()
+        self.callback = None
+        self.callback_level = None
         
     def __call__(self,msg=None,logger=None,level=logging.INFO,alias=None,ugid=None,exc=None,
                  check_duplicate=False):
         
+        if self.callback is not None and self.callback_level <= level:
+            if msg is not None:
+                self.callback(msg)
+            elif exc is not None:
+                callback_msg = '{0}: {1}'.format(exc.__class__.__name__,exc)
+                self.callback(callback_msg)
+                
         if self.null:
             if exc is None:
                 pass
@@ -45,7 +92,11 @@ class OcgisLogging(object):
                 dest_logger.exception(msg)
                 raise(exc)
     
-    def configure(self,to_file=None,to_stream=False,level=logging.INFO):
+    def configure(self,to_file=None,to_stream=False,level=logging.INFO,callback=None,
+                  callback_level=logging.INFO):
+        ## set the callback arguments
+        self.callback = callback
+        self.callback_level = callback_level
         ## no need to configure loggers
         if to_file is None and not to_stream:
             self.null = True
@@ -91,7 +142,7 @@ class OcgisLogging(object):
         return(ret)
     
     def shutdown(self):
-        self.null = True
+        self.__init__()
         try:
             logging.shutdown()
         except:

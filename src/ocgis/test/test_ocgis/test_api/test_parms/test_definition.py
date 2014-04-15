@@ -3,7 +3,6 @@ from ocgis.api.parms.definition import *
 from ocgis.util.helpers import make_poly
 import pickle
 import tempfile
-import os
 from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.shp_cabinet import ShpCabinet
@@ -11,6 +10,19 @@ import numpy as np
 
 
 class Test(TestBase):
+    
+    def test_callback(self):
+        c = Callback()
+        self.assertEqual(c.value,None)
+        
+        with self.assertRaises(DefinitionValidationError):
+            Callback('foo')
+            
+        def callback(percent,message):
+            pass
+        
+        c = Callback(callback)
+        self.assertEqual(callback,c.value)
     
     def test_optimizations(self):
         o = Optimizations()

@@ -30,13 +30,6 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.DIR_DATA` = `None`
  Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
 
-..
-   :attr:`env.SERIAL` = `True`
-    If `True`, execute in serial. Only set to `False` if you are confident in your grasp of the software and its internal operation.
-
-   :attr:`env.CORES` = 6
-    If operating in parallel (i.e. :attr:`env.SERIAL` = `False`), specify the number of cores to use.
-
 :attr:`env.VERBOSE` = `False`
  Indicate if additional output information should be printed to terminal. (Currently not very useful.)
 
@@ -324,6 +317,14 @@ interpolate_spatial_bounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If `True`, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
+
+callback
+~~~~~~~~
+
+A callback function that may be used for custom messaging. This function integrates with the log handler and will receive messages at or above the :attr:`logging.INFO` level.
+
+>>> def callback(percent,message):
+>>>     print(percent,message)
 
 :class:`ocgis.ShpCabinet`
 =========================

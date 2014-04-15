@@ -27,6 +27,13 @@ class TestShpCabinetIterator(TestBase):
         for geom in sci:
             self.assertNotIn('geom',geom)
     
+    def test_len(self):
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        sci = ShpCabinetIterator(path=path)
+        self.assertEqual(len(sci),51)
+        sci = ShpCabinetIterator(path=path,select_ugid=[16,19])
+        self.assertEqual(len(sci),2)
+    
     def test_iteration_by_path(self):
         ## test that a shapefile may be retrieved by passing a full path to the
         ## file

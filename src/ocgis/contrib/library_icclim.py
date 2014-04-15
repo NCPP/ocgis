@@ -9,6 +9,8 @@ import numpy as np
 from collections import OrderedDict
 from copy import deepcopy
 import json
+from ocgis.exc import DefinitionValidationError
+from ocgis.api.parms.definition import CalcGrouping
 
 
 _icclim_function_map = {
@@ -17,7 +19,19 @@ _icclim_function_map = {
                         'icclim_TX':{'func':calc_indice.TX_calculation,'meta':slu.TX_setvarattr},
                         'icclim_SU':{'func':calc_indice.SU_calculation,'meta':slu.SU_setvarattr},
                         'icclim_DTR':{'func':calc_indice.DTR_calculation,'meta':slu.DTR_setvarattr},
-                        'icclim_ETR':{'func':calc_indice.ETR_calculation,'meta':slu.ETR_setvarattr}
+                        'icclim_ETR':{'func':calc_indice.ETR_calculation,'meta':slu.ETR_setvarattr},
+                        'icclim_TXx':{'func':calc_indice.TXx_calculation,'meta':slu.TXx_setvarattr},
+                        'icclim_TXn':{'func':calc_indice.TXn_calculation,'meta':slu.TXn_setvarattr},
+                        'icclim_TNx':{'func':calc_indice.TNx_calculation,'meta':slu.TNx_setvarattr},
+                        'icclim_TNn':{'func':calc_indice.TNn_calculation,'meta':slu.TNn_setvarattr},
+                        'icclim_CSU':{'func':calc_indice.CSU_calculation,'meta':slu.CSU_setvarattr},
+                        'icclim_TR':{'func':calc_indice.TR_calculation,'meta':slu.TR_setvarattr},
+                        'icclim_FD':{'func':calc_indice.FD_calculation,'meta':slu.FD_setvarattr},
+                        'icclim_CFD':{'func':calc_indice.CFD_calculation,'meta':slu.CFD_setvarattr},
+                        'icclim_ID':{'func':calc_indice.ID_calculation,'meta':slu.ID_setvarattr},
+                        'icclim_HD17':{'func':calc_indice.HD17_calculation,'meta':slu.HD17_setvarattr},
+                        'icclim_GD4':{'func':calc_indice.GD4_calculation,'meta':slu.GD4_setvarattr},
+                        'icclim_vDTR':{'func':calc_indice.vDTR_calculation,'meta':slu.vDTR_setvarattr},
                         }
 
 
@@ -45,6 +59,7 @@ class AbstractIcclimFunction(object):
     standard_name = 'ECA_indice'
     _global_attributes_maintain = ['history']
     _global_attribute_source_name = 'source_data_global_attributes'
+    _allowed_temporal_groupings = [('month',),('month','year'),('year',)]
     
     def set_field_metadata(self):
         sim = NcDatasetSimulator(self.field.meta)
@@ -113,6 +128,21 @@ class AbstractIcclimFunction(object):
                 pass
             dct[k] = v
         return(json.dumps(dct))
+    
+    @staticmethod
+    def validate_icclim(klass,ops):
+        should_raise = False
+        allowed = [set(_) for _ in klass._allowed_temporal_groupings]
+        try:
+            if set(ops.calc_grouping) not in allowed:
+                should_raise = True
+        except TypeError:
+            ## this is a seasonal grouping
+            should_raise = True
+        if should_raise:
+            msg = 'The following temporal groupings are supported for ICCLIM: {0}. '.format(klass._allowed_temporal_groupings)
+            msg += 'The requested temporal group is: {0}.'.format(ops.calc_grouping)
+            raise(DefinitionValidationError(CalcGrouping,msg))
         
 
 class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction,AbstractUnivariateSetFunction):
@@ -121,9 +151,19 @@ class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction,AbstractUnivari
     def calculate(self,values):
         return(_icclim_function_map[self.key]['func'](values,values.fill_value))
     
+    @classmethod
+    def validate(cls,ops):
+        cls.validate_icclim(cls,ops)
+        super(AbstractIcclimUnivariateSetFunction,cls).validate(ops)
+    
     
 class AbstractIcclimMultivariateFunction(AbstractIcclimFunction,AbstractMultivariateFunction):
     __metaclass__ = abc.ABCMeta
+    
+    @classmethod
+    def validate(cls,ops):
+        cls.validate_icclim(cls,ops)
+        super(AbstractIcclimMultivariateFunction,cls).validate(ops)
     
         
 class IcclimTG(AbstractIcclimUnivariateSetFunction):
@@ -137,9 +177,58 @@ class IcclimTN(IcclimTG):
 
 class IcclimTX(IcclimTG):
     key = 'icclim_TX'
+    
+    
+class IcclimTXx(IcclimTG):
+    key = 'icclim_TXx'
+    
+    
+class IcclimTXn(IcclimTG):
+    key = 'icclim_TXn'
 
 
-class IcclimSU(AbstractIcclimUnivariateSetFunction):
+class IcclimTNx(IcclimTG):
+    key = 'icclim_TNx'
+
+
+class IcclimTNn(IcclimTG):
+    key = 'icclim_TNn'
+
+
+class IcclimCSU(AbstractIcclimUnivariateSetFunction):
+    dtype = constants.np_int
+    key = 'icclim_CSU'
+
+
+class IcclimTR(IcclimCSU):
+    key = 'icclim_TR'
+
+
+class IcclimFD(IcclimCSU):
+    key = 'icclim_FD'
+
+
+class IcclimCFD(IcclimCSU):
+    key = 'icclim_CFD'
+
+
+class IcclimID(IcclimCSU):
+    key = 'icclim_ID'
+
+
+class IcclimHD17(IcclimTG):
+    dtype = constants.np_float
+    key = 'icclim_HD17'
+    required_units = ['K','kelvin']
+
+
+class IcclimGD4(IcclimTG):
+    dtype = constants.np_float
+    key = 'icclim_GD4'
+    required_units = ['K','kelvin']
+
+
+class IcclimSU(IcclimCSU):
     dtype = constants.np_int
     key = 'icclim_SU'
     required_units = ['K','kelvin']
@@ -161,3 +250,7 @@ class IcclimDTR(AbstractIcclimMultivariateFunction):
 
 class IcclimETR(IcclimDTR):
     key = 'icclim_ETR'
+    
+    
+class IcclimvDTR(IcclimDTR):
+    key = 'icclim_vDTR'

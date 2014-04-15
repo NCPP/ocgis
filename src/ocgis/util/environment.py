@@ -9,8 +9,6 @@ class Environment(object):
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET',None)
         self.DIR_DATA = EnvParm('DIR_DATA',None)
         self.DIR_TEST_DATA = EnvParm('DIR_TEST_DATA',None)
-        self.SERIAL = EnvParm('SERIAL',True,formatter=self._format_bool_)
-        self.CORES = EnvParm('CORES',6,formatter=int)
         self.MODE = EnvParm('MODE','raw')
         self.PREFIX = EnvParm('PREFIX','ocgis_output')
         self.FILL_VALUE = EnvParm('FILL_VALUE',1e20,formatter=float)

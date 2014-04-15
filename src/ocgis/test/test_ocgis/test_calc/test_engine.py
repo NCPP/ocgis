@@ -2,8 +2,9 @@ from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.calc.engine import OcgCalculationEngine
 import ocgis
-from copy import deepcopy, copy
+from copy import deepcopy
 import numpy as np
+from ocgis.util.logging_ocgis import ProgressOcgOperations
 
 
 class TestOcgCalculationEngine(TestBase):
@@ -21,7 +22,8 @@ class TestOcgCalculationEngine(TestBase):
         return(OcgCalculationEngine(self.grouping,self.funcs,**kwds))
     
     def test_constructor(self):
-        self.get_engine()
+        for kwds in [None,{'progress':ProgressOcgOperations()}]:
+            self.get_engine(kwds=kwds)
         
     def test_execute(self):
         rd = self.test_data.get_rd('cancm4_tas')

@@ -1,4 +1,4 @@
-from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 import logging
 from ocgis import exc, env
 from ocgis.conv.meta import MetaConverter
@@ -86,12 +86,16 @@ class OcgInterpreter(Interpreter):
                 level = logging.DEBUG
             else:
                 level = logging.INFO
-            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,level=level)
+            ## this wraps the callback function with methods to capture the
+            ## completion of major operations.
+            progress = ProgressOcgOperations(callback=self.ops.callback)
+            ocgis_lh.configure(to_file=to_file,to_stream=to_stream,level=level,
+                               callback=progress,callback_level=level)
             
             ## create local logger
             interpreter_log = ocgis_lh.get_logger('interpreter')
             
-            ocgis_lh('executing: {0}'.format(self.ops.prefix),interpreter_log)
+            ocgis_lh('Initializing...',interpreter_log)
             
             ## set up environment ##############################################
                 
@@ -111,7 +115,7 @@ class OcgInterpreter(Interpreter):
             else:
                 ## the operations object performs subsetting and calculations
                 ocgis_lh('initializing subset',interpreter_log,level=logging.DEBUG)
-                so = SubsetOperation(self.ops,serial=env.SERIAL,nprocs=env.CORES)
+                so = SubsetOperation(self.ops,progress=progress)
                 ## if there is no grouping on the output files, a singe converter is
                 ## is needed
                 if self.ops.output_grouping is None:
@@ -130,7 +134,7 @@ class OcgInterpreter(Interpreter):
                 else:
                     raise(NotImplementedError)
             
-            ocgis_lh('execution complete: {0}'.format(self.ops.prefix),interpreter_log)
+            ocgis_lh('Operations successful.'.format(self.ops.prefix),interpreter_log)
 
             return(ret)
         finally:

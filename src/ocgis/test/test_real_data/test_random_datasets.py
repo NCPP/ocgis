@@ -52,6 +52,21 @@ class TestCMIP3Masking(TestBase):
 
 class Test(TestBase):
     
+    def test_cccma_rotated_pole(self):
+        ## with rotated pole, the uid mask was not being updated correctly following
+        ## a transformation back to rotated pole. this needed to be updated explicitly
+        ## in subset.py
+        rd = self.test_data.get_rd('rotated_pole_cccma')
+        geom = (5.87161922454834, 47.26985931396479, 15.03811264038086, 55.05652618408209)
+        ops = ocgis.OcgOperations(dataset=rd,output_format='shp',geom=geom,
+                                  select_ugid=[1],snippet=True)
+        ret = ops.execute()
+        with fiona.open(ret) as source:
+            self.assertEqual(len(source),285)
+            gid = [row['properties']['GID'] for row in source]
+            for element in gid:
+                self.assertTrue(element > 4000)
+    
     def test_ichec_rotated_pole(self):
         ## this point is far outside the domain
         ocgis.env.OVERWRITE = True

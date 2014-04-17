@@ -122,6 +122,7 @@ class TestBase(unittest.TestCase):
         
         test_data.update(['misc','month_in_time_units'],'clt','clt.nc',key='clt_month_units')
         test_data.update(['misc','rotated_pole'],'tas','tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc',key='rotated_pole_ichec')
+        test_data.update(['misc','rotated_pole'],'tas','tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc',key='rotated_pole_cccma')
         return(test_data)
     
     def setUp(self):

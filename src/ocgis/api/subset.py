@@ -430,6 +430,8 @@ class SubsetOperation(object):
                             sfield.spatial.grid = get_rotated_pole_spatial_grid_dimension(
                              original_rotated_pole_crs,sfield.spatial.grid,inverse=True,
                              rc_original=original_row_column_metadata)
+                            ## update the uid mask to match the spatial mask
+                            sfield.spatial.uid.mask = sfield.spatial.get_mask()
                             sfield.spatial.crs = original_rotated_pole_crs
                     
                     ## update the coordinate system of the data output
@@ -457,5 +459,5 @@ class SubsetOperation(object):
             ## the geometry may need to be wrapped or unwrapped depending on
             ## the vector wrap situation
             coll.add_field(ugid,coll_geom,alias,sfield,properties=gd.get('properties'))
-            
+
             yield(coll)

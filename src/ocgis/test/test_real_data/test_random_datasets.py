@@ -373,12 +373,13 @@ class Test(TestBase):
         years = set([obj.year for obj in ref.temporal.value_datetime])
         self.assertFalse(2015 in years)
         
+    def test_time_range_time_region_do_not_overlap(self):
         time_range = [dt(2013,1,1),dt(2015,12,31)]
         time_region = {'month':[6,7,8],'year':[2013,2014,2018]}
         kwds = {'time_range':time_range,'time_region':time_region}
         with self.assertRaises(DefinitionValidationError):
             self.test_data.get_rd('cancm4_rhs',kwds=kwds)
-    
+
     @longrunning
     def test_maurer_2010(self):
         ## inspect the multi-file maurer datasets

@@ -1,12 +1,11 @@
 from ocgis.exc import DefinitionValidationError, ProjectionDoesNotMatch,\
     DimensionNotFound, NoUnitsError
-from copy import deepcopy, copy
+from copy import deepcopy
 import inspect
 import os
 from ocgis import env, constants
 from ocgis.util.helpers import locate, validate_time_subset, itersubclasses,\
     assert_raise
-from datetime import datetime
 import netCDF4 as nc
 from ocgis.interface.metadata import NcMetadata
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -15,8 +14,7 @@ from ocgis.interface.nc.temporal import NcTemporalDimension
 import numpy as np
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
-from ocgis.interface.base.crs import CFCoordinateReferenceSystem, CFWGS84,\
-    CFRotatedPole
+from ocgis.interface.base.crs import CFCoordinateReferenceSystem, CFWGS84
 from ocgis.interface.nc.dimension import NcVectorDimension
 from ocgis.interface.nc.field import NcField
 from ocgis.interface.base.variable import Variable, VariableCollection
@@ -30,15 +28,17 @@ class NcRequestDataset(object):
                  t_units=None,t_calendar=None,did=None,meta=None,s_abstraction=None,
                  dimension_map=None):
         
+        self._is_init = True
+        
         self._uri = self._get_uri_(uri)
         self.variable = variable
         assert(self.uri is not None)
         assert(self.variable is not None)
         
         self.alias = self._str_format_(alias) or variable
-        self.time_range = deepcopy(time_range)
-        self.time_region = deepcopy(time_region)
-        self.level_range = deepcopy(level_range)
+        self.time_range = time_range
+        self.time_region = time_region
+        self.level_range = level_range
         self.s_crs = deepcopy(s_crs)
         self.t_units = self._str_format_(t_units)
         self.t_calendar = self._str_format_(t_calendar)
@@ -59,8 +59,10 @@ class NcRequestDataset(object):
                 pass
             else:
                 raise
+            
+        self._is_init = False
         
-        self._format_()
+        self._validate_time_subset_()
         
     def _open_(self):
         try:
@@ -96,6 +98,36 @@ class NcRequestDataset(object):
         else:
             self._conform_units_to = None
             
+    @property
+    def level_range(self):
+        return(self._level_range.value)
+    @level_range.setter
+    def level_range(self,value):
+        from ocgis.api.parms.definition import LevelRange
+        self._level_range = LevelRange(value)
+            
+    @property
+    def time_range(self):
+        return(self._time_range.value)
+    @time_range.setter
+    def time_range(self,value):
+        from ocgis.api.parms.definition import TimeRange
+        self._time_range = TimeRange(value)
+        ## ensure the time range and region overlaps
+        if not self._is_init:
+            self._validate_time_subset_()
+        
+    @property
+    def time_region(self):
+        return(self._time_region.value)
+    @time_region.setter
+    def time_region(self,value):
+        from ocgis.api.parms.definition import TimeRegion
+        self._time_region = TimeRegion(value)
+        ## ensure the time range and region overlaps
+        if not self._is_init:
+            self._validate_time_subset_()
+            
     def _get_units_from_metadata_(self):
         ret = self._source_metadata['variables'][self.variable]['attrs']['units']
         return(ret)
@@ -127,6 +159,7 @@ class NcRequestDataset(object):
         '''
         :param bool format_time:
         :param bool interpolate_spatial_bounds:
+        :raises ValueError:
         '''
         
         def _get_temporal_adds_(ref_attrs):
@@ -247,7 +280,17 @@ class NcRequestDataset(object):
         if self.time_region is not None:
             ret = ret.get_time_region(self.time_region)
         if self.level_range is not None:
-            ret = ret.get_between('level',min(self.level_range),max(self.level_range))
+            try:
+                ret = ret.get_between('level',min(self.level_range),max(self.level_range))
+            except AttributeError:
+                ## there may be no level dimension
+                if ret.level == None:
+                    msg = ("A level subset was requested but the target dataset "
+                           "does not have a level dimension. The dataset's alias "
+                           "is: {0}".format(self.alias))
+                    raise(ValueError(msg))
+                else:
+                    raise
             
         return(ret)
     
@@ -369,67 +412,10 @@ class NcRequestDataset(object):
             ret = value
         return(ret)
     
-    def _format_(self):
-        if self.time_range is not None:
-            self._format_time_range_()
-        if self.time_region is not None:
-            self._format_time_region_()
-        if self.level_range is not None:
-            self._format_level_range_()
-        ## ensure the time range and region overlaps
+    def _validate_time_subset_(self):
         if not validate_time_subset(self.time_range,self.time_region):
-            raise(DefinitionValidationError('dataset','time_range and time_region do not overlap'))
-    
-    def _format_time_range_(self):
-        try:
-            ret = [datetime.strptime(v,'%Y-%m-%d') for v in self.time_range.split('|')]
-        except AttributeError:
-            ret = self.time_range
-        if ret[0] > ret[1]:
-            raise(DefinitionValidationError('dataset','Time ordination incorrect.'))
-        self.time_range = ret
-        
-    def _format_time_region_(self):
-        if isinstance(self.time_region,basestring):
-            raise(NotImplementedError)
-            ret = {}
-            parts = self.time_region.split('|')
-            for part in parts:
-                tpart,values = part.split('~')
-                try:
-                    values = map(int,values.split('-'))
-                ## may be nonetype
-                except ValueError:
-                    if isinstance(values,basestring):
-                        if values.lower() == 'none':
-                            values = None
-                    else:
-                        raise
-                if values is not None and len(values) > 1:
-                    values = range(values[0],values[1]+1)
-                ret.update({tpart:values})
-        else:
-            ret = self.time_region
-        ## add missing keys
-        for add_key in ['month','year']:
-            if add_key not in ret:
-                ret.update({add_key:None})
-        ## confirm only month and year keys are present
-        for key in ret.keys():
-            if key not in ['month','year']:
-                raise(DefinitionValidationError('dataset','time regions keys must be month and/or year'))
-        if all([i is None for i in ret.values()]):
-            ret = None
-        self.time_region = ret
-        
-    def _format_level_range_(self):
-        try:
-            ret = [int(v) for v in self.level_range.split('|')]
-        except AttributeError:
-            ret = self.level_range
-        if ret[0] > ret[1]:
-            raise(DefinitionValidationError('dataset','Level ordination incorrect.'))
-        self.level_range = ret
+            from ocgis.api.parms.definition import Dataset
+            raise(DefinitionValidationError(Dataset,'"time_range" and "time_region" must overlap.'))
         
     def _get_meta_rows_(self):
         if self.time_range is None:

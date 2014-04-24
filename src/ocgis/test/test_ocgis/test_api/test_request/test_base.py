@@ -23,7 +23,14 @@ class TestRequestDataset(TestBase):
         self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
-        
+    
+    def test_level_subset_without_level(self):
+        lr = [1,2]
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd.level_range = lr
+        with self.assertRaises(ValueError):
+            rd.get()
+    
     def test_source_dictionary_is_deepcopied(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -182,24 +189,12 @@ class TestRequestDataset(TestBase):
     def test_time_range(self):        
         tr = [dt(2000,1,1),dt(2000,12,31)]
         rd = RequestDataset(self.uri,self.variable,time_range=tr)
-        self.assertEqual(rd.time_range,tr)
-        
-        out = [dt(2000, 1, 1, 0, 0),dt(2000, 12, 31,)]
-        tr = '2000-1-1|2000-12-31'
-        rd = RequestDataset(self.uri,self.variable,time_range=tr)
-        self.assertEqual(rd.time_range,out)
-        
-        tr = '2000-12-31|2000-1-1'
-        with self.assertRaises(DefinitionValidationError):
-            rd = RequestDataset(self.uri,self.variable,time_range=tr)
+        self.assertEqual(rd.time_range,tuple(tr))
             
     def test_level_range(self):
-        lr = '1|1'
+        lr = [1,1]
         rd = RequestDataset(self.uri,self.variable,level_range=lr)
-        self.assertEqual(rd.level_range,[1,1])
-        
-        with self.assertRaises(DefinitionValidationError):
-            rd = RequestDataset(self.uri,self.variable,level_range=[2,1])
+        self.assertEqual(rd.level_range,tuple([1,1]))
         
     def test_multiple_uris(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
@@ -214,23 +209,6 @@ class TestRequestDataset(TestBase):
         tr2 = {'bad':15}
         with self.assertRaises(DefinitionValidationError):
             RequestDataset(uri=self.uri,variable=self.variable,time_region=tr2)
-        
-        with self.assertRaises(NotImplementedError):
-            tr_str = 'month~6|year~2001'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,tr1)
-            
-            tr_str = 'month~6-8|year~2001-2003'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':[2001,2002,2003]})
-            
-            tr_str = 'month~6-8'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
-            
-            tr_str = 'month~6-8|year~none'
-            rd = RequestDataset(uri=self.uri,variable=self.variable,time_region=tr_str)
-            self.assertEqual(rd.time_region,{'month':[6,7,8],'year':None})
 
 
 class TestRequestDatasetCollection(TestBase):

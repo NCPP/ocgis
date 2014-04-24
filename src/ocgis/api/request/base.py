@@ -17,30 +17,39 @@ class RequestDataset(NcRequestDataset):
     :type uri: str
     :param variable: The target variable.
     :type variable: str
-    :param alias: An alternative name to identify the returned variable's data. If `None`, this defaults to `variable`. If variables having the same name occur in a request, this value will be required.
+    :param alias: An alternative name to identify the returned variable's data. 
+     If `None`, this defaults to `variable`. If variables having the same name occur 
+     in a request, this value will be required.
     :type alias: str
-    :param time_range: Upper and lower bounds for time dimension subsetting. If `None`, return all time points.
+    :param time_range: Upper and lower bounds for time dimension subsetting. If 
+     `None`, return all time points.
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
-    :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`.
+    :param time_region: A dictionary with keys of 'month' and/or 'year' and values 
+     as sequences corresponding to target month and/or year values. Empty region 
+     selection for a key may be set to `None`.
     :type time_region: dict
         
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
     
-    :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels.
+    :param level_range: Upper and lower bounds for level dimension subsetting. If 
+     `None`, return all levels.
     :type level_range: [int, int]
-    :param s_crs: An ~`ocgis.interface.base.crs.CoordinateReferenceSystem` object to overload the projection autodiscovery.
+    :param s_crs: An ~`ocgis.interface.base.crs.CoordinateReferenceSystem` object to overload the 
+     coordinate system autodiscovery.
     :type s_crs: `ocgis.interface.base.crs.CoordinateReferenceSystem`
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
     :type t_calendar: str
-    :param s_abstraction: Abstract the geometry data to either 'point' or 'polygon'. If 'polygon' is not possible due to missing bounds, 'point' will be used instead.
+    :param s_abstraction: Abstract the geometry data to either 'point' or 'polygon'. 
+     If 'polygon' is not possible due to missing bounds, 'point' will be used instead.
     :type s_abstraction: str
     
     .. note:: The `abstraction` argument in the :class:`ocgis.OcgOperations` will overload this.
     
-    :param dimension_map: Maps dimensions to axes in the case of a projection/realization axis or an uncommon axis ordering. All axes must be in the dictionary.
+    :param dimension_map: Maps dimensions to axes in the case of a projection/realization 
+     axis or an uncommon axis ordering. All axes must be in the dictionary.
     :type dimension_map: dict
     
     >>> dimension_map = {'T':'time','X':'longitude','Y':'latitude','R':'projection'}

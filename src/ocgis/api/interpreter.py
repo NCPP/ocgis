@@ -119,18 +119,14 @@ class OcgInterpreter(Interpreter):
                 ## if there is no grouping on the output files, a singe converter is
                 ## is needed
                 if self.ops.output_grouping is None:
-                    try:
-                        Conv = AbstractConverter.get_converter(self.ops.output_format)
-                        ocgis_lh('initializing converter',interpreter_log,
-                                 level=logging.DEBUG)
-                        conv = Conv(so,outdir,prefix,ops=self.ops,add_auxiliary_files=self.ops.add_auxiliary_files,
-                                    overwrite=env.OVERWRITE)
-                        ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format),interpreter_log,
-                                 level=logging.DEBUG)
-                        ret = conv.write()
-                    except Exception as e:
-                        ## log all uncaught exceptions
-                        ocgis_lh(exc=e,logger=interpreter_log)
+                    Conv = AbstractConverter.get_converter(self.ops.output_format)
+                    ocgis_lh('initializing converter',interpreter_log,
+                             level=logging.DEBUG)
+                    conv = Conv(so,outdir,prefix,ops=self.ops,add_auxiliary_files=self.ops.add_auxiliary_files,
+                                overwrite=env.OVERWRITE)
+                    ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format),interpreter_log,
+                             level=logging.DEBUG)
+                    ret = conv.write()
                 else:
                     raise(NotImplementedError)
             

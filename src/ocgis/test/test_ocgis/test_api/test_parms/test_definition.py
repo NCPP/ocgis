@@ -9,6 +9,84 @@ from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
 
 
+class TestTimeRange(TestBase):
+    _create_dir = False
+    
+    def test_constructor(self):
+        TimeRange()
+    
+    def test_range(self):
+        dt = [datetime.datetime(2000,1,1),datetime.datetime(2001,1,1)]
+        tr = TimeRange(dt)
+        self.assertEqual(tr.value,tuple(dt))
+        
+    def test_bad_ordination(self):
+        dt = [datetime.datetime(2000,1,1),datetime.datetime(1999,1,1)]
+        with self.assertRaises(DefinitionValidationError):
+            TimeRange(dt)
+            
+    def test_incorrect_number_of_values(self):
+        dt = [datetime.datetime(2000,1,1),datetime.datetime(1999,1,1),datetime.datetime(1999,1,1)]
+        with self.assertRaises(DefinitionValidationError):
+            TimeRange(dt)
+            
+
+class TestTimeRegion(TestBase):
+    _create_dir = False
+    
+    def test_constructor(self):
+        TimeRegion()
+        
+    def test_normal(self):
+        value = {'month':[6,7,8],'year':[4,5,6]}
+        tr = TimeRegion(value)
+        self.assertEqual(value,tr.value)
+        
+    def test_month_only(self):
+        value = {'month':[6]}
+        tr = TimeRegion(value)
+        self.assertEqual(tr.value,{'month':[6],'year':None})
+        
+    def test_year_only(self):
+        value = {'year':[6]}
+        tr = TimeRegion(value)
+        self.assertEqual(tr.value,{'month':None,'year':[6]})
+        
+    def test_both_none(self):
+        value = {'year':None,'month':None}
+        tr = TimeRegion(value)
+        self.assertEqual(tr.value,None)
+        
+    def test_bad_keys(self):
+        value = {'mnth':[4]}
+        with self.assertRaises(DefinitionValidationError):
+            TimeRegion(value)
+            
+            
+class TestLevelRange(TestBase):
+    _create_dir = False
+    
+    def test_constructor(self):
+        LevelRange()
+        
+    def test_normal_int(self):
+        lr = LevelRange([5,10])
+        self.assertEqual(lr.value,(5,10))
+        
+    def test_normal_float(self):
+        value = [4.5,6.5]
+        lr = LevelRange(value)
+        self.assertEqual(tuple(value),lr.value)
+        
+    def test_bad_length(self):
+        with self.assertRaises(DefinitionValidationError):
+            LevelRange([5,6,7,8])
+            
+    def test_bad_ordination(self):
+        with self.assertRaises(DefinitionValidationError):
+            LevelRange([11,10])
+
+
 class Test(TestBase):
     
     def test_callback(self):

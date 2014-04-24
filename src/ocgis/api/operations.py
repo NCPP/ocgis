@@ -93,6 +93,23 @@ class OcgOperations(object):
      the target file only to :attr:`dir_output` and do not create a new directory.
     :param function callback: A function taking two parameters: ``percent_complete``
      and ``message``.
+    :param time_range: Upper and lower bounds for time dimension subsetting. If 
+     `None`, return all time points. Using this argument will overload all
+     :class:`~ocgis.RequestDataset` ``time_range`` values.
+    :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
+    :param time_region: A dictionary with keys of 'month' and/or 'year' and values 
+     as sequences corresponding to target month and/or year values. Empty region 
+     selection for a key may be set to `None`. Using this argument will overload all
+     :class:`~ocgis.RequestDataset` ``time_region`` values.
+    :type time_region: dict
+        
+    >>> time_region = {'month':[6,7],'year':[2010,2011]}
+    >>> time_region = {'year':[2010]}
+    
+    :param level_range: Upper and lower bounds for level dimension subsetting. 
+     If `None`, return all levels. Using this argument will overload all
+     :class:`~ocgis.RequestDataset` ``level_range`` values.
+    :type level_range: [int/float, int/float]
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -103,7 +120,8 @@ class OcgOperations(object):
                  slice=None, file_only=False, headers=None, format_time=True,
                  calc_sample_size=False, search_radius_mult=0.75, output_crs=None,
                  interpolate_spatial_bounds=False, add_auxiliary_files=True,
-                 optimizations=None,callback=None):
+                 optimizations=None,callback=None,time_range=None,time_region=None,
+                 level_range=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -137,6 +155,9 @@ class OcgOperations(object):
         self.add_auxiliary_files = AddAuxiliaryFiles(add_auxiliary_files)
         self.optimizations = Optimizations(optimizations)
         self.callback = Callback(callback)
+        self.time_range = TimeRange(time_range)
+        self.time_region = TimeRegion(time_region)
+        self.level_range = LevelRange(level_range)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
@@ -293,6 +314,12 @@ class OcgOperations(object):
         geom = self._get_object_('geom')
         svalue = self._get_object_('select_ugid')._value
         geom.select_ugid = svalue
+        ## time and/or level subsets must be applied to the request datasets
+        ## individually. if they are not none.
+        for attr in ['time_range','time_region','level_range']:
+            if getattr(self,attr) != None:
+                for rd in self.dataset:
+                    setattr(rd,attr,getattr(self,attr))
     
     def _validate_(self):
         ocgis_lh(logger='operations',msg='validating operations')

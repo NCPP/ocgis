@@ -37,6 +37,54 @@ class Test(TestBase):
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_time_range(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd.alias = 'foo'
+        tr = [datetime.datetime(2002,1,1),datetime.datetime(2002,3,1)]
+        ops = ocgis.OcgOperations(dataset=[rd,rd2],time_range=tr)
+        for r in [rd,rd2]:
+            self.assertEqual(r.time_range,None)
+        for r in ops.dataset:
+            self.assertEqual(r.time_range,tuple(tr))
+            
+        tr = [datetime.datetime(2002,1,1),datetime.datetime(2003,3,1)]
+        ops.time_range = tr
+        for r in ops.dataset:
+            self.assertEqual(r.time_range,tuple(tr))
+            
+    def test_time_region(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd.alias = 'foo'
+        tr = {'month':[6],'year':[2005]}
+        ops = ocgis.OcgOperations(dataset=[rd,rd2],time_region=tr)
+        for r in [rd,rd2]:
+            self.assertEqual(r.time_region,None)
+        for r in ops.dataset:
+            self.assertEqual(r.time_region,tr)
+            
+        tr = {'month':[6],'year':[2006]}
+        ops.time_region = tr
+        for r in ops.dataset:
+            self.assertEqual(r.time_region,tr)
+            
+    def test_level_range(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd.alias = 'foo'
+        lr = [1,2]
+        ops = ocgis.OcgOperations(dataset=[rd,rd2],level_range=lr)
+        for r in [rd,rd2]:
+            self.assertEqual(r.level_range,None)
+        for r in ops.dataset:
+            self.assertEqual(r.level_range,tuple(lr))
+            
+        lr = [2,3]
+        ops.level_range = lr
+        for r in ops.dataset:
+            self.assertEqual(r.level_range,tuple(lr))
+
     def test_nc_package_validation_raised_first(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('rotated_pole_ichec',kwds={'alias':'tas2'})

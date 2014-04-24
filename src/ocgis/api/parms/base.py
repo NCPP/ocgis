@@ -18,10 +18,18 @@ class OcgParameter(object):
             self.value = self.default
         else:
             self.value = init_value
+            
+    def __eq__(self,other):
+        return(self.value == other.value)
         
     def __str__(self):
         ret = '{0}={1}'.format(self.name,self.value)
         return(ret)
+    
+    @abstractproperty
+    def default(self):
+        '''The default value if there is no initialization value.'''
+        None
     
     @abstractproperty
     def input_types(self):

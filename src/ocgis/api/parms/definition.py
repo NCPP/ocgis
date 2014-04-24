@@ -18,6 +18,7 @@ import os
 from copy import deepcopy
 from types import FunctionType
 import itertools
+import datetime
 
 
 class Abstraction(base.StringOptionParameter):
@@ -549,6 +550,31 @@ class InterpolateSpatialBounds(base.BooleanParameter):
     meta_false = 'If no bounds are present on the coordinate variables, no attempt will be made to interpolate boundary polygons.'
 
 
+class LevelRange(base.IterableParameter,base.OcgParameter):
+    name = 'level_range'
+    element_type = [int,float]
+    nullable = True
+    input_types = [list,tuple]
+    return_type = tuple
+    unique = False
+    default = None
+    
+    def validate_all(self,value):
+        if len(value) != 2:
+            msg = 'There must be two elements in the sequence.'
+            raise(DefinitionValidationError(self,msg))
+        if value[0] > value[1]:
+            msg = 'The second element must be >= the first element.'
+            raise(DefinitionValidationError(self,msg))
+    
+    def _get_meta_(self):
+        if self.value == None:
+            msg = 'No level subset.'
+        else:
+            msg = 'The following level subset was applied to all request datasets: {0}'.format(self.value)
+        return(msg)
+
+
 class Optimizations(base.OcgParameter):
     name = 'optimizations'
     default = None
@@ -618,6 +644,7 @@ class SearchRadiusMultiplier(base.OcgParameter):
     name = 'search_radius_mult'
     nullable = False
     return_type = [float]
+    default = None
     
     def _get_meta_(self):
         msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(self.value)
@@ -695,6 +722,60 @@ class SpatialOperation(base.StringOptionParameter):
         else:
             ret = 'A full geometric intersection occurred. Where geometries overlapped, a new geometry was created.'
         return(ret)
+
+
+class TimeRange(base.IterableParameter,base.OcgParameter):
+    name = 'time_range'
+    element_type = [datetime.datetime]
+    nullable = True
+    input_types = [list,tuple]
+    return_type = tuple
+    unique = False
+    default = None
+    
+    def validate_all(self,value):
+        if len(value) != 2:
+            msg = 'There must be two elements in the sequence.'
+            raise(DefinitionValidationError(self,msg))
+        if value[0] > value[1]:
+            msg = 'The second element must be >= the first element.'
+            raise(DefinitionValidationError(self,msg))
+    
+    def _get_meta_(self):
+        if self.value == None:
+            msg = 'No time range subset.'
+        else:
+            msg = 'The following time range subset was applied to all request datasets: {0}'.format(self.value)
+        return(msg)
+
+
+class TimeRegion(base.OcgParameter):
+    name = 'time_region'
+    nullable = True
+    default = None
+    return_type = dict
+    input_types = [dict,OrderedDict]
+    
+    def _parse_(self,value):
+        if value != None:
+            ## add missing keys
+            for add_key in ['month','year']:
+                if add_key not in value:
+                    value.update({add_key:None})
+            ## confirm only month and year keys are present
+            for key in value.keys():
+                if key not in ['month','year']:
+                    raise(DefinitionValidationError(self,'Time region keys must be month and/or year.'))
+            if all([i is None for i in value.values()]):
+                value = None
+        return(value)
+    
+    def _get_meta_(self):
+        if self.value == None:
+            msg = 'No time region subset.'
+        else:
+            msg = 'The following time region subset was applied to all request datasets: {0}'.format(self.value)
+        return(msg)
 
 
 class VectorWrap(base.BooleanParameter):

@@ -239,13 +239,26 @@ cd v1.0.7rel
 export GEOS_DIR=/usr/local/geos/v3.3.5
 sudo -E python setup.py install
 
-#################
-# INSTALL CARTOPY
-#################
+######################
+# INSTALL PYTHON RTREE
+######################
 
-cd /usr/local/src/cartopy
-wget https://github.com/SciTools/cartopy/archive/v0.10.0.tar.gz
+## http://libspatialindex.github.io/
+## https://pypi.python.org/pypi/Rtree/
 
+SRC_LIBSPATIALINDEX=/usr/local/src/libspatialindex/v1.8.1
+INSTALL_LIBSPATIALINDEX=/usr/local/libspatialindex/v1.8.1
+mkdir -p $SRC_LIBSPATIALINDEX
+cd $SRC_LIBSPATIALINDEX
+wget http://download.osgeo.org/libspatialindex/spatialindex-src-1.8.1.tar.gz
+tar -xzvf spatialindex-src-1.8.1.tar.gz
+cd spatialindex-src-1.8.1
+./configure prefix=$INSTALL_LIBSPATIALINDEX
+make
+sudo make install
+sudo sh -c "echo '/usr/local/libspatialindex/v1.8.1/lib' > /etc/ld.so.conf.d/libspatialindex.conf" 
+sudo ldconfig
+sudo pip install rtree
 
 #################
 # INSTALL POSTGIS

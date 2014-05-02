@@ -251,8 +251,15 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         ## data). bounds must also have more than one row
         is_contiguous = False
         if self.bounds is not None:
-            if len(set(self.bounds[0,:]).intersection(set(self.bounds[1,:]))) > 0:
-                is_contiguous = True
+            try:
+                if len(set(self.bounds[0,:]).intersection(set(self.bounds[1,:]))) > 0:
+                    is_contiguous = True
+            except IndexError:
+                ## there is likely not a second row
+                if self.bounds.shape[0] == 1:
+                    pass
+                else:
+                    raise
         
         ## subset operation when bounds are not present
         if self.bounds is None or use_bounds == False:
@@ -280,7 +287,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
                 select_lower = np.logical_or(bounds_min > lower,bounds_max > lower)
                 select_upper = np.logical_or(bounds_min < upper,bounds_max < upper)
             else:
-                ## if the bounds are contigous, then preference is given to the
+                ## if the bounds are contiguous, then preference is given to the
                 ## lower bound to avoid duplicate containers (contiguous bounds
                 ## share a coordinate)
                 if is_contiguous:

@@ -107,6 +107,15 @@ class AbstractTestField(TestBase):
 
 class TestField(AbstractTestField):
     
+    def test_get_intersects_single_bounds_row(self):
+        field = self.get_field(with_value=True)
+        sub = field[:,0,:,0,0]
+        irregular = wkt.loads('POLYGON((-100.106049 38.211305,-99.286894 38.251591,-99.286894 38.258306,-99.286894 38.258306,-99.260036 39.252035,-98.769886 39.252035,-98.722885 37.734583,-100.092620 37.714440,-100.106049 38.211305))')
+        ## the intersects operations is empty. this was testing that contiguous
+        ## bounds check fails appropriately with a single bounds row.
+        with self.assertRaises(EmptySubsetError):
+            sub.get_intersects(irregular)
+    
     def test_shape_as_dict(self):
         field = self.get_field(with_value=False)
         to_test = field.shape_as_dict

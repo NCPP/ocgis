@@ -27,6 +27,8 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
     :returns: Path to the output NetCDF file.
     :rtype: str
 
+    >>> from ocgis import RequestDataset, OcgOperations
+    >>> from ocgis.util.large_array import compute
     >>> rd = RequestDataset(uri='/path/to/file',variable='tas')
     >>> ops = OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],output_format='nc')
     >>> ret = compute(ops, 25)

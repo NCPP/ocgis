@@ -300,6 +300,31 @@ class CalcSampleSize(base.BooleanParameter):
     meta_false = 'Statistical sample size not calculated.'
 
 
+class ConformUnitsTo(base.OcgParameter):
+    name = 'conform_units_to'
+    nullable = True
+    default = None
+    return_type = str
+    input_types = []
+
+    def __init__(self, init_value=None):
+        ## cfunits is an optional installation. account for this on the import types.
+        try:
+            from cfunits import Units
+            self.input_types.append(Units)
+            self.return_type = [self.return_type] + [Units]
+        except ImportError:
+            pass
+        super(ConformUnitsTo, self).__init__(init_value=init_value)
+
+    def _get_meta_(self):
+        if self.value is None:
+            ret = 'Units were not conformed.'
+        else:
+            ret = 'Units of all requested datasets were conformed to: "{0}".'.format(self.value)
+        return(ret)
+
+
 class Dataset(base.OcgParameter):
     name = 'dataset'
     nullable = False

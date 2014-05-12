@@ -110,6 +110,10 @@ class OcgOperations(object):
      If `None`, return all levels. Using this argument will overload all
      :class:`~ocgis.RequestDataset` ``level_range`` values.
     :type level_range: [int/float, int/float]
+    :param conform_units_to: Destination units for conversion. If this parameter is
+     set, then the :mod:`cfunits` module must be installed. Setting this parameter will override
+     conformed units set on ``dataset`` objects.
+    :type conform_units_to: str or :class:`cfunits.Units`
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
@@ -120,8 +124,8 @@ class OcgOperations(object):
                  slice=None, file_only=False, headers=None, format_time=True,
                  calc_sample_size=False, search_radius_mult=0.75, output_crs=None,
                  interpolate_spatial_bounds=False, add_auxiliary_files=True,
-                 optimizations=None,callback=None,time_range=None,time_region=None,
-                 level_range=None):
+                 optimizations=None, callback=None, time_range=None, time_region=None,
+                 level_range=None, conform_units_to=None):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -158,6 +162,7 @@ class OcgOperations(object):
         self.time_range = TimeRange(time_range)
         self.time_region = TimeRegion(time_region)
         self.level_range = LevelRange(level_range)
+        self.conform_units_to = ConformUnitsTo(conform_units_to)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
@@ -165,6 +170,7 @@ class OcgOperations(object):
         # # Initial values have been set and global validation should now occur
         # # when any parameters are updated.
         self._is_init = False
+        self._update_dependents_()
         self._validate_()
         
     def __str__(self):
@@ -314,13 +320,23 @@ class OcgOperations(object):
         geom = self._get_object_('geom')
         svalue = self._get_object_('select_ugid')._value
         geom.select_ugid = svalue
+
         ## time and/or level subsets must be applied to the request datasets
         ## individually. if they are not none.
-        for attr in ['time_range','time_region','level_range']:
-            if getattr(self,attr) != None:
+        for attr in ['time_range', 'time_region', 'level_range']:
+            if getattr(self, attr) is not None:
                 for rd in self.dataset:
-                    setattr(rd,attr,getattr(self,attr))
-    
+                    setattr(rd, attr, getattr(self, attr))
+
+        ## unit conforms are tied to request dataset objects
+        if self.conform_units_to is not None:
+            for rd in self.dataset:
+                try:
+                    rd.conform_units_to = self.conform_units_to
+                except ValueError as e:
+                    msg = '"{0}: {1}"'.format(e.__class__.__name__, e.message)
+                    raise(DefinitionValidationError(Dataset, msg))
+
     def _validate_(self):
         ocgis_lh(logger='operations',msg='validating operations')
         

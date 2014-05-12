@@ -1,4 +1,5 @@
 import unittest
+from cfunits import Units
 from ocgis.api.parms.definition import *
 from ocgis.util.helpers import make_poly
 import pickle
@@ -7,6 +8,23 @@ from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
+
+
+class TestConformUnitsTo(TestBase):
+    _create_dir = False
+
+    def test_constructor(self):
+        cc = ConformUnitsTo()
+        self.assertEqual(cc.value, None)
+
+        cc = ConformUnitsTo('kelvin')
+        self.assertEqual(cc.value, 'kelvin')
+
+        cc = ConformUnitsTo('not_a_unit')
+        self.assertEqual(cc.value, 'not_a_unit')
+
+        cc = ConformUnitsTo(Units('celsius'))
+        self.assertTrue(cc.value.equals(Units('celsius')))
 
 
 class TestTimeRange(TestBase):

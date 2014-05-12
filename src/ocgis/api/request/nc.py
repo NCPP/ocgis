@@ -85,10 +85,10 @@ class NcRequestDataset(object):
             ## in the metadata.
             try:
                 src = self.units or self._get_units_from_metadata_()
+                src = Units(src)
             except KeyError:
                 exc = NoUnitsError(message='Units could not be read from source metadata. The "units" keyword argument may be needed.')
                 ocgis_lh(exc=exc)
-            src = Units(src)
             ## units must be equivalent.
             try:
                 assert(src.equivalent(dest))

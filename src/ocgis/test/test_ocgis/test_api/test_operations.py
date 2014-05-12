@@ -37,6 +37,24 @@ class Test(TestBase):
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
 
+    def test_conform_units_to(self):
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd2.alias = 'foo'
+        ops = OcgOperations(dataset=[rd1, rd2], conform_units_to='celsius')
+        for ds in ops.dataset:
+            self.assertEqual(ds.conform_units_to, 'celsius')
+
+        ## test that the conform argument is updated
+        ops.conform_units_to = 'fahrenheit'
+        for ds in ops.dataset:
+            self.assertEqual(ds.conform_units_to, 'fahrenheit')
+
+    def test_conform_units_to_bad_units(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd, conform_units_to='crap')
+
     def test_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')

@@ -326,6 +326,11 @@ A callback function that may be used for custom messaging. This function integra
 >>> def callback(percent,message):
 >>>     print(percent,message)
 
+conform_units_to
+~~~~~~~~~~~~~~~~
+
+Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
+
 :class:`ocgis.ShpCabinet`
 =========================
 

@@ -18,7 +18,7 @@ class OcgParameter(object):
             self.value = self.default
         else:
             self.value = init_value
-            
+
     def __eq__(self,other):
         return(self.value == other.value)
         

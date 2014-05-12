@@ -23,7 +23,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
     :param bool verbose: If ``True``, print more verbose information to terminal.
     :param bool use_optimizations: If ``True``, cache :class:`Field` and :class:`TemporalGroupDimension` objects for
      reuse during tile iteration.
-    :raises: AssertionError
+    :raises: AssertionError, ValuError
     :returns: Path to the output NetCDF file.
     :rtype: str
 

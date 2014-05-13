@@ -10,6 +10,7 @@ from util.zipper import format_return
 from interface.base import crs
 from calc.library.register import FunctionRegistry
 from api.collection import SpatialCollection
+from interface.base import crs
 
 from osgeo import ogr, osr
 ## tell ogr/osr to raise exceptions

@@ -5,14 +5,10 @@ Contributions:
  Tim Cera
 
 Past Developers:
- The original OpenClimateGIS code[1] was moved to a new repository
- following a transition in managing institutions. Members of the
- original development team must be acknowledged.
+ Members of the original development team must be acknowledged.
 
- Tyler Erickson (Michigan Tech Research Institute): original project 
+ Tyler Erickson (Google): original project
   PI and lead developer, KML conversion, cloud deployment and 
   administration
  K. Arthur Endsley (Michigan Tech Research Institute): developed
   prototype AJAX web interface
-
-[1] https://github.com/NCPP/ocgis/tree/old-tylere-src

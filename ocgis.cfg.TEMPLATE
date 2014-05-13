@@ -1,0 +1,21 @@
+[fabric]
+host =
+key_filename =
+user =
+venv_name =
+clone_dir =
+
+[git]
+url = https://github.com/NCPP/ocgis.git
+branch = master
+
+[aws]
+instance_name =
+instance_id =
+access_key_id =
+secret_access_key =
+key_name =
+region =
+image_id =
+security_group =
+instance_type =

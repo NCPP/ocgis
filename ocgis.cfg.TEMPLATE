@@ -12,8 +12,8 @@ branch = master
 [aws]
 instance_name =
 instance_id =
-access_key_id =
-secret_access_key =
+aws_access_key_id =
+aws_secret_access_key =
 key_name =
 region =
 image_id =

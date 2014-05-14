@@ -13,8 +13,21 @@ from osgeo.ogr import CreateGeometryFromWkb
 from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
+from tempfile import mkdtemp
+from fiona.crs import from_epsg
 
 
+def write_geom_dict(dct,path=None):
+    crs = from_epsg(4326)
+    driver = 'ESRI Shapefile'
+    schema = {'properties':{'UGID':'int'},'geometry':dct.values()[0].geom_type}
+    path = path or os.path.join(mkdtemp(),'out.shp')
+    with fiona.open(path,'w',driver=driver,crs=crs,schema=schema) as source:
+        for k,v in dct.iteritems():
+            rec = {'properties':{'UGID':k},'geometry':mapping(v)}
+            source.write(rec)
+    return(path)
+    
 def get_added_slice(slice1,slice2):
     '''
     :param slice slice1:

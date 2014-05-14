@@ -1,4 +1,5 @@
 import os
+from importlib import import_module
 
 
 class Environment(object):
@@ -17,6 +18,8 @@ class Environment(object):
         self.ENABLE_FILE_LOGGING = EnvParm('ENABLE_FILE_LOGGING',True,formatter=self._format_bool_)
         self.DEBUG = EnvParm('DEBUG',False,formatter=self._format_bool_)
         self.DIR_BIN = EnvParm('DIR_BIN',None)
+        self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX',None,'rtree')
+        self.USE_CFUNITS = EnvParmImport('USE_CFUNITS',None,'cfunits')
         
         self.ops = None
         self._optimize_store = {}
@@ -53,8 +56,9 @@ class Environment(object):
                 getattr(value,'value')
         env.ops = None
         self._optimize_store = {}
-                
-    def _format_bool_(self,value):
+    
+    @staticmethod       
+    def _format_bool_(value):
         '''Format a string to boolean.
         
         :param value: The value to convert.
@@ -97,6 +101,39 @@ class EnvParm(object):
         
     def format(self,value):
         raise(NotImplementedError)
+    
+    
+class EnvParmImport(EnvParm):
+    
+    def __init__(self,name,default,module_name):
+        self.module_name = module_name
+        super(EnvParmImport,self).__init__(name,default)
+        
+    @property
+    def value(self):
+        if self._value == 'use_env':
+            ret = os.getenv(self.env_name)
+            if ret is None:
+                if self.default == None:
+                    ret = self._get_module_available_()
+                else:
+                    ret = self.default
+            else:
+                ret = Environment._format_bool_(ret)
+        else:
+            ret = self._value
+        return(ret)
+    @value.setter
+    def value(self,value):
+        self._value = value
+        
+    def _get_module_available_(self):
+        try:
+            import_module(self.module_name)
+            ret = True
+        except ImportError:
+            ret = False
+        return(ret)
 
 
 env = Environment()

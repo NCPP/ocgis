@@ -14,7 +14,8 @@ from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError,\
 import datetime
 from unittest.case import SkipTest
 import ocgis
-from ocgis.test.test_simple.test_simple import nc_scope, ToTest
+from ocgis.test.test_simple.test_simple import nc_scope
+from importlib import import_module
 
 
 class TestNcRequestDataset(TestBase):
@@ -210,26 +211,34 @@ class TestNcRequestDataset(TestBase):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,alias='foo')
-        field = rd.get()
         
         states = self.get_2d_state_boundaries_sdim()
         ca = states[:,states.properties['STATE_NAME'] == 'California']
         self.assertTrue(ca.properties['STATE_NAME'] == 'California')
         ca.crs.unwrap(ca)
         ca = ca.geom.polygon.value[0,0]
-        ca_sub = field.get_intersects(ca)
-        self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
-        self.assertTrue(ca_sub.variables['foo'].value.mask.any())
         
-        ca_sub = field.get_intersects(ca.envelope)
-        self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
-        self.assertFalse(ca_sub.variables['foo'].value.mask.any())
+        for u in [True,False]:
+            try:
+                field = rd.get()
+                ca_sub = field.get_intersects(ca,use_spatial_index=u)
+                self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
+                self.assertTrue(ca_sub.variables['foo'].value.mask.any())
+                self.assertFalse(field.spatial.uid.mask.any())
+                self.assertFalse(field.spatial.get_mask().any())
         
-        rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,alias='foo',time_region={'year':[2007]})
-        field = rd.get()
-        ca_sub = field.get_intersects(ca)
-        self.assertEqual(ca_sub.shape,(1, 365, 1, 5, 4))
-        self.assertEqual(set([2007]),set([d.year for d in ca_sub.temporal.value_datetime]))
+                ca_sub = field.get_intersects(ca.envelope,use_spatial_index=u)
+                self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
+                self.assertFalse(ca_sub.variables['foo'].value.mask.any())
+                
+                rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,alias='foo',time_region={'year':[2007]})
+                field = rd.get()
+                ca_sub = field.get_intersects(ca,use_spatial_index=u)
+                self.assertEqual(ca_sub.shape,(1, 365, 1, 5, 4))
+                self.assertEqual(set([2007]),set([d.year for d in ca_sub.temporal.value_datetime]))
+            except ImportError:
+                with self.assertRaises(ImportError):
+                    import_module('rtree')
         
     def test_load_time_region_slicing(self):
         ref_test = self.test_data['cancm4_tas']

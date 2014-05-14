@@ -15,6 +15,8 @@ from ocgis.interface.base.crs import CoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.test.test_simple.test_simple import ToTest
 import datetime
+from importlib import import_module
+from unittest.case import SkipTest
 
 
 class TestSpatialBase(TestBase):
@@ -119,15 +121,21 @@ class TestSpatialDimension(TestSpatialBase):
     def test_get_clip(self):
         sdim = self.get_sdim(bounds=True)
         poly = make_poly((37.75,38.25),(-100.25,-99.75))
-        ret = sdim.get_clip(poly)
         
-        self.assertEqual(ret.uid,np.array([[9]]))
-        self.assertTrue(poly.almost_equals(ret.geom.polygon.value[0,0]))
-        
-        self.assertNumpyAll(ret.geom.point.value.shape,ret.geom.polygon.shape)
-        ref_pt = ret.geom.point.value[0,0]
-        ref_poly = ret.geom.polygon.value[0,0]
-        self.assertTrue(ref_poly.intersects(ref_pt))
+        for b in [True,False]:
+            try:
+                ret = sdim.get_clip(poly,use_spatial_index=b)
+                
+                self.assertEqual(ret.uid,np.array([[9]]))
+                self.assertTrue(poly.almost_equals(ret.geom.polygon.value[0,0]))
+                
+                self.assertNumpyAll(ret.geom.point.value.shape,ret.geom.polygon.shape)
+                ref_pt = ret.geom.point.value[0,0]
+                ref_poly = ret.geom.polygon.value[0,0]
+                self.assertTrue(ref_poly.intersects(ref_pt))
+            except:
+                with self.assertRaises(ImportError):
+                    import_module('rtree')
         
     def test_get_geom_iter(self):
         sdim = self.get_sdim(bounds=True)
@@ -151,39 +159,54 @@ class TestSpatialDimension(TestSpatialBase):
         for b in [True,False]:
             sdim = self.get_sdim(bounds=b)
             poly = make_poly((37.75,38.25),(-100.25,-99.75))
-            ret = sdim.get_intersects(poly)
-            to_test = np.ma.array([[[38]],[[-100]]],mask=False)
-            self.assertNumpyAll(ret.grid.value,to_test)
-            self.assertNumpyAll(ret.uid,np.ma.array([[9]]))
-            self.assertEqual(ret.shape,(1,1))
-            to_test = ret.geom.point.value.compressed()[0]
-            self.assertTrue(to_test.almost_equals(Point(-100,38)))
-            if b is False:
-                with self.assertRaises(ImproperPolygonBoundsError):
-                    ret.geom.polygon
-            else:
-                to_test = ret.geom.polygon.value.compressed()[0].bounds
-                self.assertEqual((-100.5,37.5,-99.5,38.5),to_test)
+            for u in [True,False]:
+                try:
+                    ret = sdim.get_intersects(poly,use_spatial_index=u)
+                    to_test = np.ma.array([[[38]],[[-100]]],mask=False)
+                    self.assertNumpyAll(ret.grid.value,to_test)
+                    self.assertNumpyAll(ret.uid,np.ma.array([[9]]))
+                    self.assertEqual(ret.shape,(1,1))
+                    to_test = ret.geom.point.value.compressed()[0]
+                    self.assertTrue(to_test.almost_equals(Point(-100,38)))
+                    if b is False:
+                        with self.assertRaises(ImproperPolygonBoundsError):
+                            ret.geom.polygon
+                    else:
+                        to_test = ret.geom.polygon.value.compressed()[0].bounds
+                        self.assertEqual((-100.5,37.5,-99.5,38.5),to_test)
+                except ImportError:
+                    with self.assertRaises(ImportError):
+                        import_module('rtree')
                 
     def test_get_intersects_polygon_no_point_overlap(self):
         for b in [True,False]:
             sdim = self.get_sdim(bounds=b)
             poly = make_poly((39.25,39.75),(-97.75,-97.25))
-            if b is False:
-                with self.assertRaises(EmptySubsetError):
-                    sdim.get_intersects(poly)
-            else:
-                ret = sdim.get_intersects(poly)
-                self.assertEqual(ret.shape,(2,2))
+            for u in [True,False]:
+                try:
+                    if b is False:
+                        with self.assertRaises(EmptySubsetError):
+                            sdim.get_intersects(poly,use_spatial_index=u)
+                    else:
+                        ret = sdim.get_intersects(poly,use_spatial_index=u)
+                        self.assertEqual(ret.shape,(2,2))
+                except ImportError:
+                    with self.assertRaises(ImportError):
+                        import_module('rtree')
 
     def test_get_intersects_polygon_all(self):
         for b in [True,False]:
             sdim = self.get_sdim(bounds=b)
             poly = make_poly((37,41),(-101,-96))
-            ret = sdim.get_intersects(poly)
-            self.assertNumpyAll(sdim.grid.value,ret.grid.value)
-            self.assertNumpyAll(sdim.grid.value.mask[0,:,:],sdim.geom.point.value.mask)
-            self.assertEqual(ret.shape,(3,4))
+            for u in [True,False]:
+                try:
+                    ret = sdim.get_intersects(poly,use_spatial_index=u)
+                    self.assertNumpyAll(sdim.grid.value,ret.grid.value)
+                    self.assertNumpyAll(sdim.grid.value.mask[0,:,:],sdim.geom.point.value.mask)
+                    self.assertEqual(ret.shape,(3,4))
+                except ImportError:
+                    with self.assertRaises(ImportError):
+                        import_module('rtree')
             
     def test_get_intersects_polygon_empty(self):
         for b in [True,False]:
@@ -193,7 +216,7 @@ class TestSpatialDimension(TestSpatialBase):
                 sdim.get_intersects(poly)
     
     def test_state_boundaries_weights(self):
-        geoms,attrs = self.get_2d_state_boundaries()
+        geoms,_ = self.get_2d_state_boundaries()
         poly = SpatialGeometryPolygonDimension(value=geoms)
         geom = SpatialGeometryDimension(polygon=poly)
         sdim = SpatialDimension(geom=geom)
@@ -210,17 +233,41 @@ class TestSpatialDimension(TestSpatialBase):
         select = properties['STATE_ABBR'] == 'NE'
         subset_polygon = geoms[:,select][0,0]
         
-        msked = spdim.get_intersects_masked(subset_polygon)
-
-        self.assertEqual(msked.value.mask.sum(),50)
-        self.assertTrue(msked.value.compressed()[0].almost_equals(subset_polygon))
+        for b in [True,False]:
+            try:
+                msked = spdim.get_intersects_masked(subset_polygon,use_spatial_index=b)
         
-        with self.assertRaises(NotImplementedError):
-            msked = spdim.get_intersects_masked(subset_polygon.centroid)
-            self.assertTrue(msked.value.compressed()[0].almost_equals(subset_polygon))
+                self.assertEqual(msked.value.mask.sum(),50)
+                self.assertTrue(msked.value.compressed()[0].almost_equals(subset_polygon))
+                
+                with self.assertRaises(NotImplementedError):
+                    msked = spdim.get_intersects_masked(subset_polygon.centroid)
+                    self.assertTrue(msked.value.compressed()[0].almost_equals(subset_polygon))
+                
+                with self.assertRaises(EmptySubsetError):
+                    spdim.get_intersects_masked(Point(1000,1000).buffer(1))
+            except ImportError:
+                with self.assertRaises(ImportError):
+                    import_module('rtree')
+                
+    def test_geom_mask_by_polygon_equivalent_without_spatial_index(self):
+        try:
+            import_module('rtree')
+        except ImportError:
+            raise(SkipTest('rtree not available for import'))
         
-        with self.assertRaises(EmptySubsetError):
-            spdim.get_intersects_masked(Point(1000,1000).buffer(1))
+        geoms,properties = self.get_2d_state_boundaries()
+        spdim = SpatialGeometryPolygonDimension(value=geoms)
+        ref = spdim.value.mask
+        self.assertEqual(ref.shape,(1,51))
+        self.assertFalse(ref.any())
+        select = properties['STATE_ABBR'] == 'NE'
+        subset_polygon = geoms[:,select][0,0]
+        
+        msked_spatial_index = spdim.get_intersects_masked(subset_polygon,use_spatial_index=True)
+        msked_without_spatial_index = spdim.get_intersects_masked(subset_polygon,use_spatial_index=False)
+        self.assertNumpyAll(msked_spatial_index.value,msked_without_spatial_index.value)
+        self.assertNumpyAll(msked_spatial_index.value.mask,msked_without_spatial_index.value.mask)
             
     def test_update_crs(self):
         geoms,properties = self.get_2d_state_boundaries()

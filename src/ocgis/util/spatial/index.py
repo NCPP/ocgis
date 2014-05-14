@@ -1,147 +1,73 @@
-import numpy as np
-from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.util.helpers import make_poly
+from rtree import index
+from itertools import izip
+from shapely.prepared import prep
 
+
+class SpatialIndex(object):
+    '''
+    Create and access spatial indexes using the :mod:`rtree` module.
+    '''
     
-def shapely_grid(dim,rtup,ctup,target=None):
-
-    if dim is None:
-        ## construct an average of 10 polygons
-        row_dim = np.ceil(np.abs(rtup[0]-rtup[1])/5.0)
-        col_dim = np.ceil(np.abs(ctup[0]-ctup[1])/5.0)
-        dim = np.mean([row_dim,col_dim])
+    def __init__(self):
+        self._index = index.Index()
         
-    row_bounds = np.arange(rtup[0],rtup[1]+dim,dim)
-    min_row = row_bounds[0:-1]
-    max_row = row_bounds[1:]
-    row_bounds = np.hstack((min_row.reshape(-1,1),max_row.reshape(-1,1)))
-    col_bounds = np.arange(ctup[0],ctup[1]+dim,dim)
-    min_col = col_bounds[0:-1]
-    max_col = col_bounds[1:]
-    col_bounds = np.hstack((min_col.reshape(-1,1),max_col.reshape(-1,1)))
-    polygons = []
-    for ii in range(row_bounds.shape[0]):
-        rtup = (row_bounds[ii,0],row_bounds[ii,1])
-        for jj in range(col_bounds.shape[0]):
-            ctup = (col_bounds[jj,0],col_bounds[jj,1])
-            polygon = make_poly(rtup,ctup)
-            if target is not None and keep(target,polygon):
-                polygons.append(polygon)
-            elif target is None:
-                polygons.append(polygon)
+    def add(self,id_geom,shapely_geom):
+        '''
+        ..note: Both parameters may come in as sequences of the appropriate type.
+        
+        :param int id_geom: The unique identifier for the input geometry.
+        :param :class:`shapely.geometry.Geometry` shapely_geom: The geometry to
+         add to the spatial index. The bounds attribute of the geometry is added
+         to the index.
+        '''
+        try:
+            self._index.insert(id_geom,shapely_geom.bounds)
+        except AttributeError:
+            ## likely a sequence
+            _insert = self._index.insert
+            for ig,sg in izip(id_geom,shapely_geom):
+                _insert(ig,sg.bounds)
     
-    return(MultiPolygon(polygons))
-
-
-def build_index_grid(dim,target):
-    bounds = target.bounds
-    rtup = (bounds[1],bounds[3])
-    ctup = (bounds[0],bounds[2])
-    dim = dim if dim is None else float(dim)
-    grid = shapely_grid(dim,rtup,ctup,target=target)
-    return(grid)
-
-def build_index(target,grid):
-    tree = {}
-    for ii,polygon in enumerate(grid):
-        if keep(target,polygon):
-            tree.update({ii:{'box':polygon,'geom':target}})
-    return(tree)
-
-def keep(target,selection):
-    if selection.intersects(target) and not selection.touches(target):
-        ret = True
-    else:
-        ret = False
-    return(ret)
-
-def index_intersects(target,index):
-    ret = False
-    for value in index.itervalues():
-        if target.intersects(value['box']):
-            if keep(target,value['geom']):
-                ret = True
-                break
-    return(ret)
-
-################################################################################
-
-#sc = ShpCabinet()
-
-#geom = sc.get_geom_dict('state_boundaries',{'id':[16]})[0]['geom']
-#geom = sc.get_geom_dict('world_countries')
-#geom = union_geom_dicts(geom)[0]['geom']
-#
-##target = Point(-99.77,41.22)
-#target = make_poly((40,41),(-99,-98))
-#
-#dims = np.arange(10,100,10)
-#build_times = []
-#int_times = []
-#for dim in dims.flat:
-#    print(dim)
-#    
-#    t1 = time.time()
-#    grid = build_index_grid(dim,geom)
-#    index = build_index(geom,grid)
-#    t2 = time.time()
-#    build_times.append(t2-t1)
-#    
-#    t1 = time.time()
-#    index_intersects(target,index)
-#    t2 = time.time()
-#    int_times.append(t2-t1)
-#
-#plt.figure(1)
-#plt.subplot(211)
-#plt.plot(dims,build_times)
-#plt.title('build times')
-#
-#plt.subplot(212)
-#plt.plot(dims,int_times)
-#plt.title('intersects times')
-#
-#plt.show()
-
-#print index_intersects(pt,index)
-
-#import ipdb;ipdb.set_trace()
-
-################################################################################
-
-#rtup = (40.0,50.0)
-#ctup = (-120.0,-100.0)
-#dim = 5.0
-#
-#tag = str(datetime.now())
-#target = make_poly(rtup,ctup)
-#grid = shapely_grid(dim,rtup,ctup)
-#index = build_index(target,grid)
-#test_in = make_poly((42.17,43.31),(-118.72,-117.52))
-#test_out = make_poly((41.10,42.81),(-125.56,-123.58))
-#
-#print('in')
-#print(index_intersects(test_in,index))
-#print('out')
-#print(index_intersects(test_out,index))
-#
-#import ipdb;ipdb.set_trace()
-#
-#shapely_to_shp(target,'target_'+tag)
-#shapely_to_shp(grid,'grid_'+tag)
-#shapely_to_shp(test_in,'test_in_'+tag)
-#shapely_to_shp(test_out,'test_out_'+tag)
-
-#sc = ShpCabinet()
-#geom_dict = sc.get_geom_dict('state_boundaries',{'ugid':[25]})
-#geom = geom_dict[0]['geom']
-#bounds = geom.bounds
-#rtup = (bounds[1],bounds[3])
-#ctup = (bounds[0],bounds[2])
-#grid = shapely_grid(1.0,rtup,ctup,target=geom)
-#index = build_index(geom,grid)
-#
-#import ipdb;ipdb.set_trace()
-#
-#shapely_to_shp(geom,'geom_'+tag)
-#shapely_to_shp(grid,'grid_'+tag)
+    def iter_intersects(self,shapely_geom,geom_mapping,keep_touches=True):
+        '''
+        Return an interator for the unique identifiers of the geometries intersecting
+        the target geometry.
+        
+        :param :class:`shapely.geometry.Geometry` shapely_geom: The geometry to
+         use for subsetting. It is the ``bounds`` attribute fo the geometry that
+         is actually tested.
+        :param dict geom_mapping: The collection of geometries to do the full
+         intersects test on. The keys of the dictionary correspond to the integer
+         unique identifiers. The values are Shapely geometries.
+        :param bool keep_touches: If ``True``, return the unique identifiers of
+         geometries only touching the subset geometry.
+        :returns: Generator yield integer unique identifiers.
+        :rtype: int
+        '''
+        ## create the geometry iterator. if it is a multi-geometry, we want to 
+        ## iterator over those individually.
+        try:
+            itr = iter(shapely_geom)
+        except TypeError:
+            ## likely not a multi-geometry
+            itr = [shapely_geom]
+        
+        for shapely_geom_sub in itr:
+            ## return the initial identifiers that intersect with the bounding box
+            ## using the retree internal method.
+            ids = self._get_intersection_rtree_(shapely_geom_sub)
+            ## prepare the geometry for faster operations
+            prepared = prep(shapely_geom_sub)
+            _intersects = prepared.intersects
+            _touches = shapely_geom_sub.touches
+            for ii in ids:
+                geom = geom_mapping[ii]
+                if _intersects(geom):
+                    if keep_touches == False:
+                        if _touches(geom) == False:
+                            yield(ii)
+                    else:
+                        yield(ii)
+    
+    def _get_intersection_rtree_(self,shapely_geom):
+        return(self._index.intersection(shapely_geom.bounds))

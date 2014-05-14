@@ -73,4 +73,14 @@ target: ocgis/test/
    min: 178.627699137
    max: 180.979352951
 467 tests
+
+Intel(R) Core(TM) i7-2640M CPU @ 2.80GHz
+2014-05-04 11:03:24.508778
+target: ocgis/test/
+     n: 3
+  mean: 191.762164672
+ stdev: 2.22736030848
+   min: 188.730090141
+   max: 194.017521858
+500 tests
 '''

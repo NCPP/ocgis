@@ -15,12 +15,22 @@ from shapely.geometry.multipolygon import MultiPolygon
 from ocgis.exc import ImproperPolygonBoundsError, EmptySubsetError
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely import wkb
-from ocgis.util.spatial.index import build_index_grid, build_index,\
-    index_intersects
 import fiona
 from shapely.geometry.geo import mapping
 
 
+class GeomMapping(object):
+    '''Used to simulate a dictionary key look up for data stored in two 2-d ndarrays.'''
+    
+    def __init__(self,uid,value):
+        self.uid = uid
+        self.value = value
+        
+    def __getitem__(self,key):
+        sel = self.uid == key
+        return(self.value[sel][0])
+                
+                
 class SpatialDimension(base.AbstractUidDimension):
     _ndims = 2
     _axis = 'SPATIAL'
@@ -109,10 +119,10 @@ class SpatialDimension(base.AbstractUidDimension):
                 ret = self.geom.point.weights
         return(ret)
     
-    def get_clip(self,polygon,return_indices=False):
+    def get_clip(self,polygon,return_indices=False,use_spatial_index=True):
         assert(type(polygon) in (Polygon,MultiPolygon))
         
-        ret,slc = self.get_intersects(polygon,return_indices=True)
+        ret,slc = self.get_intersects(polygon,return_indices=True,use_spatial_index=use_spatial_index)
         
         ## clipping with points is okay...
         try:
@@ -121,13 +131,6 @@ class SpatialDimension(base.AbstractUidDimension):
             ref_value = ret.geom.point.value
         for (row_idx,col_idx),geom in iter_array(ref_value,return_value=True):
             ref_value[row_idx,col_idx] = geom.intersection(polygon)
-            
-#        ## clipped geometries have no grid or point representations
-#        ret.grid._value = None
-#        ret._geom_to_grid = False
-#        ret._geom = deepcopy(ret.geom)
-#        ret._geom.grid = None
-#        ret._geom._point = None
                 
         if return_indices:
             ret = (ret,slc)
@@ -151,7 +154,7 @@ class SpatialDimension(base.AbstractUidDimension):
             raise(NotImplementedError)
         return(fill)
     
-    def get_intersects(self,polygon,return_indices=False):
+    def get_intersects(self,polygon,return_indices=False,use_spatial_index=True):
         ret = copy(self)
         
         ## based on the set spatial abstraction, decide if bounds should be used
@@ -159,8 +162,7 @@ class SpatialDimension(base.AbstractUidDimension):
         use_bounds = False if self.abstraction == 'point' else True
         
         if type(polygon) in (Point,MultiPoint):
-            exc = ValueError('Only Polygons and MultiPolygons are acceptable geometry types for intersects operations.')
-            ocgis_lh(exc=exc,logger='dimension.spatial')
+            raise(ValueError('Only Polygons and MultiPolygons are acceptable geometry types for intersects operations.'))
         elif type(polygon) in (Polygon,MultiPolygon):
             ## for a polygon subset, first the grid is subsetted by the bounds
             ## of the polygon object. the intersects operations is then performed
@@ -180,10 +182,12 @@ class SpatialDimension(base.AbstractUidDimension):
                 ## attempt to mask the polygons
                 try:
                     ## only use the polygons if the abstraction indicates as much
-                    ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon)
+                    ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon,
+                     use_spatial_index=use_spatial_index)
                     grid_mask = ret.geom.polygon.value.mask
                 except ImproperPolygonBoundsError:
-                    ret._geom._point = ret.geom.point.get_intersects_masked(polygon)
+                    ret._geom._point = ret.geom.point.get_intersects_masked(polygon,
+                     use_spatial_index=use_spatial_index)
                     grid_mask = ret.geom.point.value.mask
                 ## transfer the geometry mask to the grid mask
                 ret.grid.value.mask[:,:,:] = grid_mask.copy()
@@ -192,7 +196,7 @@ class SpatialDimension(base.AbstractUidDimension):
         
         ## barbed and circular geometries may result in rows and or columns being
         ## entirely masked. these rows and columns should be trimmed.
-        trimmed,adjust = get_trimmed_array_by_mask(ret.get_mask(),return_adjustments=True)
+        _,adjust = get_trimmed_array_by_mask(ret.get_mask(),return_adjustments=True)
         ## use the adjustments to trim the returned data object
         ret = ret[adjust['row'],adjust['col']]
         
@@ -202,7 +206,7 @@ class SpatialDimension(base.AbstractUidDimension):
             ret_slc[0] = get_added_slice(slc[0],adjust['row'])
             ret_slc[1] = get_added_slice(slc[1],adjust['col'])
             ret = (ret,tuple(ret_slc))
-        
+
         return(ret)
     
     def get_geom_iter(self,target=None,as_multipolygon=True):
@@ -429,16 +433,19 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         ret = self[row_slc,col_slc]
         
         try:
-            ret._value.mask = new_mask
+            grid_mask = np.zeros((2,new_mask.shape[0],new_mask.shape[1]),dtype=bool)
+            grid_mask[:,:,:] = new_mask
+            ret._value = np.ma.array(ret._value,mask=grid_mask)
+            ret.uid = np.ma.array(ret.uid,mask=new_mask)
         except UnboundLocalError:
             if self.row is not None:
                 pass
             else:
                 raise
-            
+
         if return_indices:
             ret = (ret,(row_slc,col_slc))
-            
+
         return(ret)
     
     def _format_private_value_(self,value):
@@ -559,44 +566,75 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         ret = np.ma.array(ret,mask=self.value.mask)
         return(ret)
         
-    def get_intersects_masked(self,polygon):
+    def get_intersects_masked(self,polygon,use_spatial_index=True):
+        '''
+        :param polygon: The Shapely geometry to use for subsetting.
+        :type polygon: :class:`shapely.geometry.Polygon' or :class:`shapely.geometry.MultiPolygon'
+        :param bool use_spatial_index: If ``False``, do not use the :class:`rtree.index.Index`
+         for spatial subsetting. If the geometric case is simple, it may marginally
+         improve execution times to turn this off. However, turning this off for 
+         a complex case will negatively impact (significantly) spatial operation
+         execution times.
+        :raises: NotImplementedError, EmptySubsetError
+        :returns: :class:`ocgis.interface.base.dimension.spatial.SpatialGeometryPointDimension`
+        '''
         
-#        def _intersects_point_(prepared,target):
-#            return(prepared.intersects(target))
+        ## only polygons are acceptable for subsetting. if a point is required,
+        ## buffer it.
+        if type(polygon) not in (Polygon,MultiPolygon):
+            raise(NotImplementedError(type(polygon)))
         
-        def _intersects_polygon_(index,target):
-            return(index_intersects(target,index))
-        
-        ## when the selection geometry is a point, we want to return touches as
-        ## it may fall on a geometry boundary only.
-        if type(polygon) in (Point,MultiPoint):
-            raise(NotImplementedError)
-#            ref_intersects = _intersects_point_
-#            obj = prep(polygon)
-        elif type(polygon) in (Polygon,MultiPolygon):
-            ## construct the spatial index
-            index_grid = build_index_grid(None,polygon)
-            obj = build_index(polygon,index_grid)
-            ref_intersects = _intersects_polygon_
-        else:
-            raise(NotImplementedError)
-        
+        ## return a shallow copy of self
         ret = copy(self)
-        fill = np.ma.array(self.value,mask=True)
+        ## create the fill array and reference the mask. this is the outpout
+        ## geometry value array.
+        fill = np.ma.array(ret.value,mask=True)
         ref_fill_mask = fill.mask
-        prepared = prep(polygon)
         
-        for (ii,jj),geom in iter_array(self.value,return_value=True):
-            if prepared.intersects(geom):
-                ## the mask value is the inverse of the intersects operation
-                ref_fill_mask[ii,jj] = not ref_intersects(obj,geom)
+        ## this is the path if a spatial index is used.
+        if use_spatial_index:
+            ## keep this as a local import as it is not a required dependency
+            from ocgis.util.spatial.index import SpatialIndex
+            ## create the index object and reference import members
+            si = SpatialIndex()
+            _add = si.add
+            _value = self.value
+            ## add the geometries to the index
+            for (ii,jj),id_value in iter_array(self.uid,return_value=True):
+                _add(id_value,_value[ii,jj])
+            ## this mapping simulates a dictionary for the item look-ups from
+            ## two-dimensional arrays
+            geom_mapping = GeomMapping(self.uid,self.value)
+            _uid = ret.uid
+            ## return the identifiers of the objects intersecting the target geometry
+            ## and update the mask accordingly
+            for intersect_id in si.iter_intersects(polygon,geom_mapping,keep_touches=False):
+                sel = _uid == intersect_id
+                ref_fill_mask[sel] = False
+        ## this is the slower simpler case
+        else:
+            ## prepare the polygon for faster spatial operations
+            prepared = prep(polygon)
+            ## we are not keeping touches at this point. remember the mask is an
+            ## inverse.
+            for (ii,jj),geom in iter_array(self.value,return_value=True):
+                bool_value = False
+                if prepared.intersects(geom):
+                    if polygon.touches(geom):
+                        bool_value = True
+                else:
+                    bool_value = True
+                ref_fill_mask[ii,jj] = bool_value
         
+        ## if everything is masked, this is an empty subset
         if ref_fill_mask.all():
-            ocgis_lh(exc=EmptySubsetError(self.name))
-            
+            raise(EmptySubsetError(self.name))
+        
+        ## set the returned value to the fill array
         ret._value = fill
-        ret.uid.mask = fill.mask.copy()
-                
+        ## also update the unique identifier array
+        ret.uid = np.ma.array(ret.uid,mask=fill.mask.copy())
+        
         return(ret)
     
     def update_crs(self,to_sr,from_sr):

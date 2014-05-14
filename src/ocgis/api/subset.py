@@ -14,6 +14,7 @@ from ocgis.util.helpers import project_shapely_geometry,\
     get_rotated_pole_spatial_grid_dimension, get_default_or_apply
 from shapely.geometry.multipoint import MultiPoint
 from copy import deepcopy
+import numpy as np
 
 
 class SubsetOperation(object):
@@ -355,9 +356,9 @@ class SubsetOperation(object):
             if geom is not None:
                 try:
                     if self.ops.spatial_operation == 'intersects':
-                        sfield = field.get_intersects(geom)
+                        sfield = field.get_intersects(geom,use_spatial_index=env.USE_SPATIAL_INDEX)
                     elif self.ops.spatial_operation == 'clip':
-                        sfield = field.get_clip(geom)
+                        sfield = field.get_clip(geom,use_spatial_index=env.USE_SPATIAL_INDEX)
                     else:
                         ocgis_lh(exc=NotImplementedError(self.ops.spatial_operation))
                 except EmptySubsetError as e:
@@ -431,7 +432,7 @@ class SubsetOperation(object):
                              original_rotated_pole_crs,sfield.spatial.grid,inverse=True,
                              rc_original=original_row_column_metadata)
                             ## update the uid mask to match the spatial mask
-                            sfield.spatial.uid.mask = sfield.spatial.get_mask()
+                            sfield.spatial.uid = np.ma.array(sfield.spatial.uid,mask=sfield.spatial.get_mask())
                             sfield.spatial.crs = original_rotated_pole_crs
                     
                     ## update the coordinate system of the data output

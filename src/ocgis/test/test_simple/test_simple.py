@@ -173,7 +173,7 @@ class TestSimple(TestSimpleBase):
         self.assertIsInstance(ref.spatial.abstraction_geometry.value[0,0],Point)
         with self.assertRaises(ValueError):
             ref.get_intersects(Point(-103.,38.))
-        sub = ref.get_intersects(Point(-103.,38.).buffer(0.75))
+        sub = ref.get_intersects(Point(-103.,38.).buffer(0.75),use_spatial_index=env.USE_SPATIAL_INDEX)
         self.assertEqual(sub.shape,(1,61,2,1,1))
     
     def test_to_csv_shp_and_shape_with_point_subset(self):

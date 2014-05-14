@@ -11,27 +11,33 @@ Additional information on keyword arguments can be found below the initial docum
 
 These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
-:attr:`env.DIR_OUTPUT` = `None` (defaults to current working directory)
+:attr:`env.DIR_DATA` = ``None``
+ Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
+
+:attr:`env.DIR_OUTPUT` = ``None`` (defaults to current working directory)
  The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the current working directory.
-
-:attr:`env.OVERWRITE` = `False`
- .. warning:: Use with caution.
- 
- Set to `True` to overwrite existing output folders. This will remove the folder if it exists!
-
-:attr:`env.PREFIX` = 'ocgis_output'
- The default prefix to apply to output files. This is also the output folder name.
 
 .. _env.DIR_SHPCABINET:
 
 :attr:`env.DIR_SHPCABINET` = <path-to-directory>
  Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
 
-:attr:`env.DIR_DATA` = `None`
- Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
+:attr:`env.OVERWRITE` = ``False``
+ .. warning:: Use with caution.
+ 
+ Set to ``True`` to overwrite existing output folders. This will remove the folder if it exists!
 
-:attr:`env.VERBOSE` = `False`
- Indicate if additional output information should be printed to terminal. (Currently not very useful.)
+:attr:`env.PREFIX` = ``'ocgis_output'``
+ The default prefix to apply to output files. This is also the output folder name.
+
+:attr:`env.USE_CFUNITS` = ``True``
+ If ``True``, use :mod:`cfunits` for any unit transformations. This will be automatically set to ``False`` if :mod:`cfunits` is not available for import.
+
+:attr:`env.USE_SPATIAL_INDEX` = ``True``
+ If ``True``, use :mod:`rtree` to create spatial indices for spatial operations. This will be automatically set to ``False`` if :mod:`rtree` is not available for import.
+
+:attr:`env.VERBOSE` = ``False``
+ Indicate if additional output information should be printed to terminal.
 
 :class:`ocgis.OcgOperations`
 ============================

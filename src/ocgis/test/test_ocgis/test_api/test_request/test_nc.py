@@ -210,7 +210,6 @@ class TestNcRequestDataset(TestBase):
     def test_load_geometry_subset(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
-        rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,alias='foo')
         
         states = self.get_2d_state_boundaries_sdim()
         ca = states[:,states.properties['STATE_NAME'] == 'California']
@@ -220,6 +219,7 @@ class TestNcRequestDataset(TestBase):
         
         for u in [True,False]:
             try:
+                rd = NcRequestDataset(variable=ref_test['variable'],uri=uri,alias='foo')
                 field = rd.get()
                 ca_sub = field.get_intersects(ca,use_spatial_index=u)
                 self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))

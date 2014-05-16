@@ -1,6 +1,7 @@
+from fabric.contrib.files import append
 from fabric.state import env
 from fabric.decorators import task
-from fabric.operations import sudo
+from fabric.operations import sudo, run
 from fabric.context_managers import cd
 
 
@@ -16,8 +17,29 @@ env.ver_cfunits_python = 'cfunits-0.9.6'
 env.ver_ocgis = 'v0.07.1b'
 
 
-@task(default=True)
-def deploy():
+def tfs(sequence):
+    return(' '.join(sequence))
+
+
+def install_pip_package(pip_name):
+
+
+
+def install_apt_package(name):
+    """
+    :type name: str
+    :type name: list
+    """
+    base = ['apt-get', '-y', 'install']
+    if isinstance(name, basestring):
+        base.append(name)
+    else:
+        base += list(name)
+    sudo(tfs(base))
+
+
+@task(default=False)
+def deploy_build_from_source():
     upgrade()
     install_apt_packages()
     install_pip_python_libraries()
@@ -28,7 +50,13 @@ def deploy():
     install_icclim()
     install_ocgis()
 
-@task(default=False)
+@task
+def deploy_simple():
+    upgrade()
+    install_apt_packages_simple()
+
+
+@task
 def upgrade():
     sudo('apt-get update')
     sudo('apt-get upgrade -y')
@@ -115,4 +143,29 @@ def install_apt_packages():
     cmd = ['apt-get','-y','install','g++','libz-dev','curl','wget','python-dev',
            'python-pip','libgdal-dev','ipython','python-gdal','git']
     sudo(' '.join(cmd))
-    
+
+@task
+def install_virtual_environment():
+    install_apt_package('python-dev')
+    install_apt_package('python-pip')
+    install_pip_package('virtualenv')
+    install_pip_package('virtualenvwrapper')
+
+    ## append environment information to profile file
+    lines = [
+    '',
+    '# Set the location where the virtual environments are stored',
+    'export WORKON_HOME=~/.virtualenvs',
+    '# Use the virtual environment wrapper scripts',
+    'source /usr/local/bin/virtualenvwrapper.sh',
+    '# Tell pip to only run if there is a virtualenv currently activated',
+    'export PIP_REQUIRE_VIRTUALENV=false',
+    '# Tell pip to automatically use the currently active virtualenv',
+    'export PIP_RESPECT_VIRTUALENV=true',
+    '# Tell pip to use virtual environment wrapper storage location',
+    'export PIP_VIRTUALENV_BASE=$WORKON_HOME',
+            ]
+    append('~/.profile', lines)
+    run(tfs(['source', '~/.profile']))
+
+    run(tfs(['mkvirtualenv', env.cfg['venv_name']]))

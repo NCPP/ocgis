@@ -1,5 +1,5 @@
 from ocgis.exc import DefinitionValidationError, ProjectionDoesNotMatch,\
-    DimensionNotFound, NoUnitsError
+    DimensionNotFound, NoUnitsError, VariableNotFoundError
 from copy import deepcopy
 import inspect
 import os
@@ -138,7 +138,10 @@ class NcRequestDataset(object):
             ds = self._open_()
             try:
                 self.__source_metadata = NcMetadata(ds)
-                var = ds.variables[self.variable]
+                try:
+                    var = ds.variables[self.variable]
+                except KeyError:
+                    raise(VariableNotFoundError(self.uri, self.variable))
                 if self.dimension_map is None:
                     self.__source_metadata['dim_map'] = get_dimension_map(ds,var,self._source_metadata)
                 else:

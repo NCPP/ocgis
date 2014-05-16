@@ -222,3 +222,15 @@ class IncompleteSeasonError(OcgException):
         if self.month is not None:
             msg = 'The season specification "{0}" is missing the month "{1}".'.format(self.season,self.month)
         return(msg)
+
+
+class VariableNotFoundError(OcgException):
+    """Raised when a variable name is not found in the target dataset."""
+
+    def __init__(self, uri, variable):
+        self.uri = uri
+        self.variable = variable
+
+    def __str__(self):
+        msg = 'The variable "{0}" was not found in the dataset with URI: {1}'.format(self.variable, self.uri)
+        return(msg)

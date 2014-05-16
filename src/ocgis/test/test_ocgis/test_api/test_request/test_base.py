@@ -1,5 +1,5 @@
 import unittest
-from ocgis.exc import DefinitionValidationError, NoUnitsError
+from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
 from ocgis import env, constants
@@ -23,6 +23,12 @@ class TestRequestDataset(TestBase):
         self.test_data.get_rd('cancm4_rhs')
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA,'CanCM4','rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
+
+    def test_variable_not_found(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd_bad = RequestDataset(uri=rd.uri, variable='crap')
+        with self.assertRaises(VariableNotFoundError):
+            rd_bad.get()
     
     def test_level_subset_without_level(self):
         lr = [1,2]
@@ -137,7 +143,7 @@ class TestRequestDataset(TestBase):
             try:
                 rd = RequestDataset(self.uri,variable)   
                 ret = rd.inspect_as_dct()
-            except KeyError:
+            except VariableNotFoundError:
                 if variable == 'foo':
                     continue
                 else:

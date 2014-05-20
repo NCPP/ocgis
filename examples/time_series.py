@@ -8,7 +8,7 @@ variable = 'tas'
 
 
 rd = ocgis.RequestDataset(uri=uri, variable=variable)
-ops = ocgis.OcgOperations(dataset=rd, geom=[-73.8, 42.7])
+ops = ocgis.OcgOperations(dataset=rd, geom=[-73.8, 42.7], aggregate=True)
 ret = ops.execute()
 # print(ret)
 field = ret[1]['tas']

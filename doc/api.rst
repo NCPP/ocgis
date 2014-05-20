@@ -125,6 +125,11 @@ search_radius_mult
 
 This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``0.75``.
 
+select_nearest
+~~~~~~~~~~~~~~
+
+If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
+
 output_crs
 ~~~~~~~~~~
 

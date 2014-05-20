@@ -678,6 +678,13 @@ class SearchRadiusMultiplier(base.OcgParameter):
     def _validate_(self,value):
         if value <= 0:
             raise(DefinitionValidationError(self,msg='must be >= 0'))
+
+
+class SelectNearest(base.BooleanParameter):
+    name = 'select_nearest'
+    default = False
+    meta_true = 'The nearest geometry to the centroid of the selection geometry was returned.'
+    meta_false = 'All geometries returned regardless of distance.'
     
 
 class SelectUgid(base.IterableParameter,base.OcgParameter):
@@ -739,7 +746,12 @@ class Snippet(base.BooleanParameter):
 class SpatialOperation(base.StringOptionParameter):
     name = 'spatial_operation'
     default = 'intersects'
-    valid = ('clip','intersects')
+    valid = ('clip', 'intersects')
+
+    @classmethod
+    def iter_possible(cls):
+        for v in cls.valid:
+            yield(v)
     
     def _get_meta_(self):
         if self.value == 'intersects':

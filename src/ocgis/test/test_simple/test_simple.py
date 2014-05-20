@@ -4,6 +4,7 @@ from ocgis.api.interpreter import OcgInterpreter
 import itertools
 import numpy as np
 import datetime
+from ocgis.api.parms.definition import SpatialOperation
 from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry
 from ocgis import exc, env, constants
 import os.path
@@ -123,13 +124,21 @@ class TestSimpleNoLevel(TestSimpleBase):
 
 
 class TestSimple(TestSimpleBase):
-    base_value = np.array([[1.0,1.0,2.0,2.0],
-                           [1.0,1.0,2.0,2.0],
-                           [3.0,3.0,4.0,4.0],
-                           [3.0,3.0,4.0,4.0]])
+    base_value = np.array([[1.0, 1.0, 2.0, 2.0],
+                           [1.0, 1.0, 2.0, 2.0],
+                           [3.0, 3.0, 4.0, 4.0],
+                           [3.0, 3.0, 4.0, 4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
-    
+
+    def test_select_nearest(self):
+        for spatial_operation in SpatialOperation.iter_possible():
+            kwds = {'spatial_operation': spatial_operation, 'geom': [-104.0, 39.0], 'select_nearest': True}
+            ops = self.get_ops(kwds=kwds)
+            ret = ops.execute()
+            self.assertEqual(ret[1]['foo'].variables['foo'].shape, (1, 61, 2, 1, 1))
+            self.assertTrue(ret[1]['foo'].spatial.geom.point.value[0, 0].almost_equals(Point(-104.0, 39.0)))
+
     def test_optimizations_in_calculations(self):
         ## pass optimizations to the calculation engine using operations and
         ## ensure the output values are equivalent

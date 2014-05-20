@@ -356,9 +356,11 @@ class SubsetOperation(object):
             if geom is not None:
                 try:
                     if self.ops.spatial_operation == 'intersects':
-                        sfield = field.get_intersects(geom,use_spatial_index=env.USE_SPATIAL_INDEX)
+                        sfield = field.get_intersects(geom, use_spatial_index=env.USE_SPATIAL_INDEX,
+                                                      select_nearest=self.ops.select_nearest)
                     elif self.ops.spatial_operation == 'clip':
-                        sfield = field.get_clip(geom,use_spatial_index=env.USE_SPATIAL_INDEX)
+                        sfield = field.get_clip(geom, use_spatial_index=env.USE_SPATIAL_INDEX,
+                                                select_nearest=self.ops.select_nearest)
                     else:
                         ocgis_lh(exc=NotImplementedError(self.ops.spatial_operation))
                 except EmptySubsetError as e:

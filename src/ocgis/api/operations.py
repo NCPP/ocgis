@@ -114,18 +114,18 @@ class OcgOperations(object):
      set, then the :mod:`cfunits` module must be installed. Setting this parameter will override
      conformed units set on ``dataset`` objects.
     :type conform_units_to: str or :class:`cfunits.Units`
+    :param bool select_nearest: If ``True``, the nearest geometry to the centroid of the current selection geometry is
+     returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the
+     selection radius.
     """
     
-    def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False,
-                 calc=None, calc_grouping=None, calc_raw=False, abstraction=None,
-                 snippet=False, backend='ocg', prefix=None,
-                 output_format='numpy', agg_selection=False, select_ugid=None, 
-                 vector_wrap=True, allow_empty=False, dir_output=None, 
-                 slice=None, file_only=False, headers=None, format_time=True,
-                 calc_sample_size=False, search_radius_mult=0.75, output_crs=None,
-                 interpolate_spatial_bounds=False, add_auxiliary_files=True,
-                 optimizations=None, callback=None, time_range=None, time_region=None,
-                 level_range=None, conform_units_to=None):
+    def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False, calc=None,
+                 calc_grouping=None, calc_raw=False, abstraction=None, snippet=False, backend='ocg', prefix=None,
+                 output_format='numpy', agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False,
+                 dir_output=None, slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
+                 search_radius_mult=0.75, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
+                 optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
+                 conform_units_to=None, select_nearest=False):
         
         # # Tells "__setattr__" to not perform global validation until all
         # # values are set initially.
@@ -145,7 +145,7 @@ class OcgOperations(object):
         self.output_format = OutputFormat(output_format)
         self.agg_selection = AggregateSelection(agg_selection)
         self.select_ugid = SelectUgid(select_ugid)
-        self.geom = Geom(geom,select_ugid=self.select_ugid)
+        self.geom = Geom(geom, select_ugid=self.select_ugid)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)
@@ -163,6 +163,7 @@ class OcgOperations(object):
         self.time_region = TimeRegion(time_region)
         self.level_range = LevelRange(level_range)
         self.conform_units_to = ConformUnitsTo(conform_units_to)
+        self.select_nearest = SelectNearest(select_nearest)
         
         ## these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None

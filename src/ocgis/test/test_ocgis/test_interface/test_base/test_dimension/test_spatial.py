@@ -1,4 +1,5 @@
 import unittest
+import itertools
 import numpy as np
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
@@ -86,7 +87,43 @@ class TestSpatialBase(TestBase):
 
 
 class TestSpatialDimension(TestSpatialBase):
-    
+
+    def test_get_intersects_select_nearest(self):
+        pt = Point(-99, 39)
+        return_indices = [True, False]
+        use_spatial_index = [True, False]
+        select_nearest = [True, False]
+        abstraction = ['polygon', 'point']
+        bounds = [True, False]
+        for args in itertools.product(return_indices, use_spatial_index, select_nearest, abstraction, bounds):
+            ri, usi, sn, a, b = args
+            sdim = self.get_sdim(bounds=b)
+            sdim.abstraction = a
+            ret = sdim.get_intersects(pt.buffer(1), select_nearest=sn, return_indices=ri)
+            ## return_indice will return a tuple if True
+            if ri:
+                ret, ret_slc = ret
+            if sn:
+                ## select_nearest=True always returns a single element
+                self.assertEqual(ret.shape, (1, 1))
+                try:
+                    self.assertTrue(ret.geom.polygon.value[0,0].centroid.almost_equals(pt))
+                ## polygons will not be present if the abstraction is point or there are no bounds on the created
+                ## spatial dimension object
+                except ImproperPolygonBoundsError:
+                    if a == 'point' or b is False:
+                        self.assertTrue(ret.geom.point.value[0, 0].almost_equals(pt))
+                    else:
+                        raise
+            ## if we are not returning the nearest geometry...
+            else:
+                ## bounds with a spatial abstraction of polygon will have this dimension
+                if b and a == 'polygon':
+                    self.assertEqual(ret.shape, (3, 3))
+                ## with points, there is only intersecting geometry
+                else:
+                    self.assertEqual(ret.shape, (1, 1))
+
     def test_get_interpolated_bounds(self):
         
         sdim = self.get_sdim(bounds=False)

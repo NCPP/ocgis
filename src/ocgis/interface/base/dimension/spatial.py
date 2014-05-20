@@ -119,21 +119,21 @@ class SpatialDimension(base.AbstractUidDimension):
                 ret = self.geom.point.weights
         return(ret)
     
-    def get_clip(self,polygon,return_indices=False,use_spatial_index=True):
-        assert(type(polygon) in (Polygon,MultiPolygon))
+    def get_clip(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
+        assert(type(polygon) in (Polygon, MultiPolygon))
         
-        ret,slc = self.get_intersects(polygon,return_indices=True,use_spatial_index=use_spatial_index)
+        ret, slc = self.get_intersects(polygon, return_indices=True, use_spatial_index=use_spatial_index, select_nearest=select_nearest)
         
         ## clipping with points is okay...
         try:
             ref_value = ret.geom.polygon.value
         except ImproperPolygonBoundsError:
             ref_value = ret.geom.point.value
-        for (row_idx,col_idx),geom in iter_array(ref_value,return_value=True):
-            ref_value[row_idx,col_idx] = geom.intersection(polygon)
+        for (row_idx, col_idx), geom in iter_array(ref_value, return_value=True):
+            ref_value[row_idx, col_idx] = geom.intersection(polygon)
                 
         if return_indices:
-            ret = (ret,slc)
+            ret = (ret, slc)
         
         return(ret)
         
@@ -154,7 +154,7 @@ class SpatialDimension(base.AbstractUidDimension):
             raise(NotImplementedError)
         return(fill)
     
-    def get_intersects(self,polygon,return_indices=False,use_spatial_index=True):
+    def get_intersects(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
         ret = copy(self)
         
         ## based on the set spatial abstraction, decide if bounds should be used
@@ -196,16 +196,34 @@ class SpatialDimension(base.AbstractUidDimension):
         
         ## barbed and circular geometries may result in rows and or columns being
         ## entirely masked. these rows and columns should be trimmed.
-        _,adjust = get_trimmed_array_by_mask(ret.get_mask(),return_adjustments=True)
+        _,adjust = get_trimmed_array_by_mask(ret.get_mask(), return_adjustments=True)
         ## use the adjustments to trim the returned data object
-        ret = ret[adjust['row'],adjust['col']]
-        
+        ret = ret[adjust['row'], adjust['col']]
+
+        if select_nearest:
+            try:
+                if self.abstraction == 'point':
+                    raise(ImproperPolygonBoundsError)
+                else:
+                    target_geom = ret.geom.polygon.value
+            except ImproperPolygonBoundsError:
+                target_geom = ret.geom.point.value
+            distances = {}
+            centroid = polygon.centroid
+            for select_nearest_index, geom in iter_array(target_geom, return_value=True):
+                distances[centroid.distance(geom)] = select_nearest_index
+            select_nearest_index = distances[min(distances.keys())]
+            ret = ret[select_nearest_index[0], select_nearest_index[1]]
+
         if return_indices:
             ## adjust the returned slices if necessary
-            ret_slc = [None,None]
-            ret_slc[0] = get_added_slice(slc[0],adjust['row'])
-            ret_slc[1] = get_added_slice(slc[1],adjust['col'])
-            ret = (ret,tuple(ret_slc))
+            if select_nearest:
+                ret_slc = select_nearest_index
+            else:
+                ret_slc = [None, None]
+                ret_slc[0] = get_added_slice(slc[0], adjust['row'])
+                ret_slc[1] = get_added_slice(slc[1], adjust['col'])
+            ret = (ret, tuple(ret_slc))
 
         return(ret)
     

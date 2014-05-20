@@ -84,19 +84,19 @@ class ShpProcess(object):
                 
                 
 def main(pargs):
-    sp = ShpProcess(pargs.in_shp)
+    sp = ShpProcess(pargs.in_shp,pargs.folder)
     if pargs.folder is None:
         pargs.folder = os.getcwd()
-    sp.process(pargs.folder,pargs.key,ugid=pargs.ugid)
+    print(sp.process())
                 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='add ugid to shapefile')
     
     parser.add_argument('--ugid',help='name of ugid variable, default is None',default=None)
     parser.add_argument('--folder',help='path to the output folder',nargs='?')
+    parser.add_argument('--key',help='optional new name for the shapefile',nargs=1,type=str)
     parser.add_argument('in_shp',help='path to input shapefile')
-    parser.add_argument('key',help='output key for the shapefile. folder with same name will be created.')
-    
+
     parser.set_defaults(func=main)
     pargs = parser.parse_args()
     pargs.func(pargs)

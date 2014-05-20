@@ -4,14 +4,15 @@ import shutil
 from ocgis.util.shp_process import ShpProcess
 import tempfile
 from ocgis.util.shp_cabinet import ShpCabinet
+import subprocess
 
 
-class Test(TestBase):
-    
+class TestShpProcess(TestBase):
+    _test_path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/test_data/test_shp_process'
+
     def test_shp_process(self):
-        test_path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/test_data/test_shp_process'
         copy_path = os.path.join(self._test_dir,'test_shp_process')
-        shutil.copytree(test_path,copy_path)
+        shutil.copytree(self._test_path,copy_path)
         shp_path = os.path.join(copy_path,'wc_4326.shp')
         out_folder = tempfile.mkdtemp(dir=self._test_dir)
         sp = ShpProcess(shp_path,out_folder)

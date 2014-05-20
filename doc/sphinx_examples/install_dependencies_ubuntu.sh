@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo apt-get update
-sudo apt-get install wget libnetcdf-dev libgeos-dev libgdal-dev libspatialindex-dev libudunits2-0 python-pip python-dev
+sudo apt-get install wget libnetcdf-dev libgeos-dev libgdal-dev libspatialindex-dev libudunits2-0 libproj-dev python-pip python-dev
 sudo pip install numpy
 sudo pip install netCDF4
 sudo pip install shapely

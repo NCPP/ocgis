@@ -76,7 +76,14 @@ class NcTemporalDimension(NcVectorDimension,TemporalDimension):
         return(arr)
     
     def get_nc_time(self,values):
-        ret = np.atleast_1d(nc.date2num(values,self.units,calendar=self.calendar))
+        try:
+            ret = np.atleast_1d(nc.date2num(values,self.units,calendar=self.calendar))
+        except ValueError:
+            ## special behavior for conversion of time units with months
+            if self._has_months_units:
+                ret = get_num_from_months_time_units(values, self.units, dtype=None)
+            else:
+                raise
         return(ret)
     
     def _format_slice_state_(self,state,slc):

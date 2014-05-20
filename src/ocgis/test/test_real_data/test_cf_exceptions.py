@@ -13,6 +13,14 @@ class Test(TestBase):
         self.assertEqual(field.temporal.value_datetime[50],datetime.datetime(1983,3,16))
         self.assertEqual(field.temporal.bounds,None)
         self.assertEqual(field.temporal.shape,(120,))
+
+    def test_months_in_units_time_range_subsets(self):
+        rd = self.test_data.get_rd('clt_month_units')
+        field = rd.get()
+        time_range = [field.temporal.value_datetime[0], field.temporal.value_datetime[0]]
+        ops = ocgis.OcgOperations(dataset=rd, time_range=time_range)
+        ret = ops.execute()
+        self.assertEqual((1, 1, 1, 46, 72), ret[1]['clt'].shape)
     
     def test_months_in_units_convert_to_shapefile(self):
         uri = self.test_data.get_uri('clt_month_units')

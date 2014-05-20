@@ -63,7 +63,15 @@ class TestNcTemporalDimension(TestBase):
         td = NcTemporalDimension(value=vec,units=units,calendar='standard')
         self.assertTrue(td._has_months_units)
         self.assertNumpyAll(td.value_datetime,datetimes)
-        
+
+    def test_months_in_time_units_between(self):
+        units = "months since 1978-12"
+        vec = range(0, 36)
+        datetimes = get_datetime_from_months_time_units(vec, units)
+        td = NcTemporalDimension(value=vec, units=units, calendar='standard')
+        ret = td.get_between(datetimes[0],datetimes[3])
+        self.assertNumpyAll(ret.value, np.array([0, 1, 2, 3]))
+
     def test_months_not_in_time_units(self):
         units = "days since 1900-01-01"
         value = np.array([31])

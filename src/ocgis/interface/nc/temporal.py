@@ -111,7 +111,20 @@ class NcTemporalDimension(NcVectorDimension,TemporalDimension):
         value = kwds.pop('value')
         bounds = kwds.pop('bounds')
         kwds['value'] = self.get_nc_time(value)
-        kwds['bounds'] = self.get_nc_time(bounds)
+
+        try:
+            kwds['bounds'] = self.get_nc_time(bounds)
+        ## this may happen if the data has months in the time units. the functions that compute the datetime-numeric
+        ## conversions did not anticipate bounds.
+        except AttributeError:
+            if self._has_months_units:
+                bounds_fill = np.empty(bounds.shape)
+                bounds_fill[:,0] = self.get_nc_time(bounds[:,0])
+                bounds_fill[:,1] = self.get_nc_time(bounds[:,1])
+                kwds['bounds'] = bounds_fill
+            else:
+                raise
+
         kwds['value_datetime'] = value
         kwds['bounds_datetime'] = bounds
         return(NcTemporalGroupDimension(*args,**kwds))

@@ -50,3 +50,11 @@ class Test(TestBase):
         ## confirm raw values and datetime values are equivalent
         self.assertNumpyAll(field.temporal.value_datetime,field2.temporal.value_datetime)
         self.assertNumpyAll(field.temporal.value,field2.temporal.value)
+
+    def test_months_in_units_calculation(self):
+        rd = self.test_data.get_rd('clt_month_units')
+        calc = [{'func': 'mean', 'name': 'mean'}]
+        calc_grouping = ['month']
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping)
+        ret = ops.execute()
+        self.assertEqual(str(ret[1]['clt'].temporal.bounds_datetime), '[[1979-01-16 00:00:00 1988-01-16 00:00:00]\n [1979-02-16 00:00:00 1988-02-16 00:00:00]\n [1979-03-16 00:00:00 1988-03-16 00:00:00]\n [1979-04-16 00:00:00 1988-04-16 00:00:00]\n [1979-05-16 00:00:00 1988-05-16 00:00:00]\n [1979-06-16 00:00:00 1988-06-16 00:00:00]\n [1979-07-16 00:00:00 1988-07-16 00:00:00]\n [1979-08-16 00:00:00 1988-08-16 00:00:00]\n [1979-09-16 00:00:00 1988-09-16 00:00:00]\n [1979-10-16 00:00:00 1988-10-16 00:00:00]\n [1979-11-16 00:00:00 1988-11-16 00:00:00]\n [1979-12-16 00:00:00 1988-12-16 00:00:00]]')

@@ -32,6 +32,19 @@ _icclim_function_map = {
                         'icclim_HD17':{'func':calc_indice.HD17_calculation,'meta':slu.HD17_setvarattr},
                         'icclim_GD4':{'func':calc_indice.GD4_calculation,'meta':slu.GD4_setvarattr},
                         'icclim_vDTR':{'func':calc_indice.vDTR_calculation,'meta':slu.vDTR_setvarattr},
+                        'icclim_RR':{'func':calc_indice.RR_calculation,'meta':slu.RR_setvarattr},
+                        'icclim_RR1':{'func':calc_indice.RR1_calculation,'meta':slu.RR1_setvarattr},
+                        'icclim_CWD':{'func':calc_indice.CWD_calculation,'meta':slu.CWD_setvarattr},
+                        'icclim_SDII':{'func':calc_indice.SDII_calculation,'meta':slu.SDII_setvarattr},
+                        'icclim_R10mm':{'func':calc_indice.R10mm_calculation,'meta':slu.R10mm_setvarattr},
+                        'icclim_R20mm':{'func':calc_indice.R20mm_calculation,'meta':slu.R20mm_setvarattr},
+                        'icclim_RX1day':{'func':calc_indice.RX1day_calculation,'meta':slu.RX1day_setvarattr},
+                        'icclim_RX5day':{'func':calc_indice.RX5day_calculation,'meta':slu.RX5day_setvarattr},
+                        'icclim_SD':{'func':calc_indice.SD_calculation,'meta':slu.SD_setvarattr},
+                        'icclim_SD1':{'func':calc_indice.SD1_calculation,'meta':slu.SD1_setvarattr},
+                        'icclim_SD5cm':{'func':calc_indice.SD5cm_calculation,'meta':slu.SD5cm_setvarattr},
+                        'icclim_SD50cm':{'func':calc_indice.SD50cm_calculation,'meta':slu.SD50cm_setvarattr},
+                        'icclim_CDD':{'func':calc_indice.CDD_calculation,'meta':slu.CDD_setvarattr},
                         }
 
 
@@ -254,3 +267,68 @@ class IcclimETR(IcclimDTR):
     
 class IcclimvDTR(IcclimDTR):
     key = 'icclim_vDTR'
+
+
+class IcclimRR(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_RR'
+
+
+class IcclimRR1(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_RR1'
+
+
+class IcclimCWD(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_CWD'
+
+
+class IcclimSDII(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_SDII'
+
+
+class IcclimR10mm(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_R10mm'
+
+
+class IcclimR20mm(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_R20mm'
+
+
+class IcclimRX1day(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_RX1day'
+
+
+class IcclimRX5day(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_RX5day'
+
+
+class IcclimSD(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_SD'
+
+
+class IcclimSD1(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_SD1'
+
+
+class IcclimSD5(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_SD5cm'
+
+
+class IcclimSD50(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_SD50cm'
+
+
+class IcclimCDD(IcclimCSU):
+    dtype = constants.np_float
+    key = 'icclim_CDD'

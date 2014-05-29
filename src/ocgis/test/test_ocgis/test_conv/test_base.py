@@ -1,3 +1,4 @@
+from csv import DictReader
 from ocgis.test.base import TestBase
 from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
@@ -8,15 +9,17 @@ from ocgis.conv.nc import NcConverter
 import itertools
 from copy import deepcopy
 import tempfile
+from ocgis.test.test_simple.test_simple import nc_scope
+import numpy as np
 
 
 class AbstractTestConverter(TestBase):
     
-    def get_spatial_collection(self):
+    def get_spatial_collection(self, field=None):
         rd = self.test_data.get_rd('cancm4_tas')
-        field = rd.get()[:,0,:,0,0]
+        field = field or rd.get()[:, 0, :, 0, 0]
         coll = SpatialCollection()
-        coll.add_field(1,None,'tas',field)
+        coll.add_field(1, None, field)
         return(coll)
 
 
@@ -67,14 +70,36 @@ class TestAbstractConverter(AbstractTestConverter):
         mtimes2 = [os.path.getmtime(os.path.join(outdir,f)) for f in os.listdir(outdir)]
         ## if the file is overwritten the modification time will be more recent!
         self.assertTrue(all([m2 > m for m2,m in zip(mtimes2,mtimes)]))
-            
+
+    def test_multiple_variables(self):
+        conv_klasses = [CsvConverter, NcConverter]
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        var2 = deepcopy(field.variables['tas'])
+        var2.alias = 'tas2'
+        field.variables.add_variable(deepcopy(var2), assign_new_uid=True)
+        field = field[:, 0:2, :, 0:5, 0:5]
+        coll = self.get_spatial_collection(field=field)
+        for conv_klass in conv_klasses:
+            conv = conv_klass([coll], self._test_dir, 'ocgis_output_{0}'.format(conv_klass.__name__))
+            ret = conv.write()
+            if conv_klass == CsvConverter:
+                with open(ret, 'r') as f:
+                    reader = DictReader(f)
+                    aliases = set([row['ALIAS'] for row in reader])
+                    self.assertEqual(set(['tas', 'tas2']), aliases)
+            else:
+                with nc_scope(ret) as ds:
+                    self.assertAlmostEqual(ds.variables['tas'][:].mean(), 247.08416015624999)
+                    self.assertNumpyAll(ds.variables['tas'][:], ds.variables['tas2'][:])
+
     def test_overwrite_false_csv(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
+        ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
         coll = ops.execute()
         
         outdir = tempfile.mkdtemp(dir=self._test_dir)
-        conv = CsvConverter([coll],outdir,'ocgis_output')
+        conv = CsvConverter([coll], outdir, 'ocgis_output')
         conv.write()
         
         with self.assertRaises(IOError):

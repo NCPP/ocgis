@@ -93,7 +93,7 @@ class TestDTR(TestBase):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
-        field.variables.add_variable(tasmax.get().variables['tasmax'])
+        field.variables.add_variable(deepcopy(tasmax.get().variables['tasmax']), assign_new_uid=True)
         field = field[:,0:600,:,25:50,25:50]
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimDTR(field=field,tgd=tgd)
@@ -134,7 +134,7 @@ class TestETR(TestBase):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
-        field.variables.add_variable(tasmax.get().variables['tasmax'])
+        field.variables.add_variable(tasmax.get().variables['tasmax'], assign_new_uid=True)
         field = field[:,0:600,:,25:50,25:50]
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimETR(field=field,tgd=tgd)

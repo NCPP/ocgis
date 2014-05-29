@@ -64,7 +64,7 @@ A `dataset` is the target file(s) where data is stored. A `dataset` may be on th
 dir_output
 ~~~~~~~~~~
 
-This sets the output folder for any disk formats. If this is `None` and `env.DIR_OUTPUT` is `None`, then output will be written to the current working directory.
+This sets the output folder for any disk formats. If this is ``None`` and ``env.DIR_OUTPUT`` is ``None``, then output will be written to the current working directory.
 
 spatial_operation
 ~~~~~~~~~~~~~~~~~
@@ -330,7 +330,7 @@ Useful to limit the number of attributes included in an output file.
 interpolate_spatial_bounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If `True`, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
+If ``True``, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
 
 callback
 ~~~~~~~~
@@ -372,7 +372,7 @@ The shapefile's "`geom key`_" is the name of the shapefile. It must have an alph
 Data Collections
 ================
 
-When the default output format (i.e. `numpy`) is returned by OpenClimateGIS, the data comes back as a dict with keys mapping to the `ugids` of the selection geometries from `geom`_. If `None` is used for `geom`_, then the `ugid` defaults to 1.
+When the default output format (i.e. ``numpy``) is returned by OpenClimateGIS, the data comes back as a dictionary with keys mapping to the ``ugids`` of the selection geometries from `geom`_. If ``None`` is used for `geom`_, then the ``ugid`` defaults to ``1``.
 
 >>> from ocgis import OcgOperations, RequestDataset
 ...
@@ -391,22 +391,6 @@ When the default output format (i.e. `numpy`) is returned by OpenClimateGIS, the
 >>> tasmax.spatial...
 >>> # This is the actual data.
 >>> tasmax_field.variables['tasmax']
-
-:mod:`ocgis.constants`
-======================
-
-.. automodule:: ocgis.constants
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-:mod:`ocgis.exc`
-================
-
-.. automodule:: ocgis.exc
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 .. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
 .. _shapely documentation: http://toblerity.github.com/shapely/manual.html

@@ -1,6 +1,6 @@
 import unittest
 from ocgis.test.base import TestBase
-from ocgis.exc import DefinitionValidationError, DimensionNotFound
+from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.api.parms import definition
 from ocgis import env, constants
 import os
@@ -42,17 +42,17 @@ class Test(TestBase):
         rd2 = self.test_data.get_rd('cancm4_tas')
         rd2.alias = 'foo'
         ops = OcgOperations(dataset=[rd1, rd2], conform_units_to='celsius')
-        for ds in ops.dataset:
+        for ds in ops.dataset.itervalues():
             self.assertEqual(ds.conform_units_to, 'celsius')
 
         ## test that the conform argument is updated
         ops.conform_units_to = 'fahrenheit'
-        for ds in ops.dataset:
+        for ds in ops.dataset.itervalues():
             self.assertEqual(ds.conform_units_to, 'fahrenheit')
 
     def test_conform_units_to_bad_units(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        with self.assertRaises(DefinitionValidationError):
+        with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
     def test_time_range(self):
@@ -63,12 +63,12 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=[rd,rd2],time_range=tr)
         for r in [rd,rd2]:
             self.assertEqual(r.time_range,None)
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.time_range,tuple(tr))
             
         tr = [datetime.datetime(2002,1,1),datetime.datetime(2003,3,1)]
         ops.time_range = tr
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.time_range,tuple(tr))
             
     def test_time_region(self):
@@ -79,12 +79,12 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=[rd,rd2],time_region=tr)
         for r in [rd,rd2]:
             self.assertEqual(r.time_region,None)
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.time_region,tr)
             
         tr = {'month':[6],'year':[2006]}
         ops.time_region = tr
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.time_region,tr)
             
     def test_level_range(self):
@@ -95,12 +95,12 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=[rd,rd2],level_range=lr)
         for r in [rd,rd2]:
             self.assertEqual(r.level_range,None)
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.level_range,tuple(lr))
             
         lr = [2,3]
         ops.level_range = lr
-        for r in ops.dataset:
+        for r in ops.dataset.itervalues():
             self.assertEqual(r.level_range,tuple(lr))
 
     def test_nc_package_validation_raised_first(self):
@@ -202,7 +202,7 @@ class Test(TestBase):
         ops = OcgOperations(dataset=self.datasets_no_range)
         self.assertEqual(ops.geom,None)
         self.assertEqual(len(ops.dataset),3)
-        for ds in ops.dataset:
+        for ds in ops.dataset.itervalues():
             self.assertEqual(ds.time_range,None)
             self.assertEqual(ds.level_range,None)
         ops.__repr__()

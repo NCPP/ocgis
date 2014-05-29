@@ -74,16 +74,16 @@ class SubsetOperation(object):
         
     def _iter_collections_(self):
         '''
-        :yields: :class:~`ocgis.SpatialCollection`
+        :yields: :class:`~ocgis.SpatialCollection`
         '''
         
         ## multivariate calculations require datasets come in as a list with all
         ## variable inputs part of the same sequence.
         if self.cengine is not None and self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
-            itr_rd = [[r for r in self.ops.dataset]]
+            itr_rd = [[r for r in self.ops.dataset.itervalues()]]
         ## otherwise, process geometries expects a single element sequence
         else:
-            itr_rd = [[rd] for rd in self.ops.dataset]
+            itr_rd = [[rd] for rd in self.ops.dataset.itervalues()]
         
         ## configure the progress object
         self._progress.n_subsettables = len(itr_rd)
@@ -174,8 +174,9 @@ class SubsetOperation(object):
                 value_keys = None
         else:
             value_keys = None
-                    
-        alias = '_'.join([r.alias for r in rds])
+
+        alias = '_'.join([r.name for r in rds])
+
         ocgis_lh('processing...',self._subset_log,alias=alias,level=logging.DEBUG)
         ## return the field object
         try:
@@ -184,8 +185,7 @@ class SubsetOperation(object):
                 field = [self.ops.optimizations['fields'][rd.alias] for rd in rds]
             else:
                 field = [rd.get(format_time=self.ops.format_time,
-                                interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) 
-                         for rd in rds]
+                                interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) for rd in rds]
             ## update the spatial abstraction to match the operations value. sfield
             ## will be none if the operation returns empty and it is allowed to have
             ## empty returns.
@@ -194,7 +194,13 @@ class SubsetOperation(object):
                 
             if len(field) > 1:
                 try:
-                    field[0].variables.add_variable(field[1].variables.first())
+                    ## reset the variable uid and let the collection handle its assignment
+                    variable_to_add = field[1].variables.first()
+                    variable_to_add.uid = None
+                    field[0].variables.add_variable(variable_to_add)
+                    ## reset the field names and let these be auto-generated
+                    for f in field:
+                        f._name = None
                 ## this will fail for optimizations as the fields are already joined
                 except VariableInCollectionError:
                     if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
@@ -209,7 +215,7 @@ class SubsetOperation(object):
                 ocgis_lh(msg='time or level subset empty but empty returns allowed',
                          logger=self._subset_log,level=logging.WARN)
                 coll = SpatialCollection(headers=headers)
-                coll.add_field(1,None,rd.alias,None)
+                coll.add_field(1, None, None, name='_'.join([rd.name for rd in rds]))
                 try:
                     yield(coll)
                 finally:
@@ -461,6 +467,7 @@ class SubsetOperation(object):
                 
             ## the geometry may need to be wrapped or unwrapped depending on
             ## the vector wrap situation
-            coll.add_field(ugid,coll_geom,alias,sfield,properties=gd.get('properties'))
+            name = alias if sfield is None else None
+            coll.add_field(ugid, coll_geom, sfield, properties=gd.get('properties'), name=name)
 
             yield(coll)

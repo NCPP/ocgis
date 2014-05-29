@@ -25,6 +25,8 @@ Contents:
    computation
    examples
    utility
+   constants
+   exc
    appendix
 
 .. Indices and tables

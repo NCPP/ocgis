@@ -27,20 +27,19 @@ class NcField(Field):
 #        ## an index error is raised otherwise.
 #        axis_slc_mod = {k:v if len(v) > 1 else slice(v[0],v[0]+1) for k,v in axis_slc.iteritems()}
         
-        dim_map = data._source_metadata['dim_map']
+        dim_map = data.source_metadata['dim_map']
         slc = [None for v in dim_map.values() if v is not None]
         axes = deepcopy(slc)
         for k,v in dim_map.iteritems():
             if v is not None:
                 slc[v['pos']] = axis_slc[k]
                 axes[v['pos']] = k
-        
         ## ensure axes ordering is as expected
         possible = [['T','Y','X'],['T','Z','Y','X'],['R','T','Y','X'],['R','T','Z','Y','X']]
         check = [axes == poss for poss in possible]
         assert(any(check))
-        
-        ds = data._open_()
+
+        ds = data.driver.open()
         try:
             try:
                 raw = ds.variables[variable_name].__getitem__(slc)
@@ -64,4 +63,4 @@ class NcField(Field):
 #            if self.spatial._geom is not None:
 #                self._set_new_value_mask_(self,self.spatial.get_mask())
         finally:
-            ds.close()
+            data.driver.close(ds)

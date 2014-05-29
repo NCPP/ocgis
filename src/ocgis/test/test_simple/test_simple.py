@@ -1,10 +1,11 @@
 import unittest
+from cfunits import Units
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 import itertools
 import numpy as np
 import datetime
-from ocgis.api.parms.definition import SpatialOperation
+from ocgis.api.parms.definition import SpatialOperation, OutputFormat
 from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry
 from ocgis import exc, env, constants
 import os.path
@@ -29,7 +30,7 @@ from copy import deepcopy
 from contextlib import contextmanager
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc,\
     SimpleNcNoBounds, SimpleMaskNc, SimpleNc360, SimpleNcProjection,\
-    SimpleNcNoSpatialBounds
+    SimpleNcNoSpatialBounds, SimpleNcMultivariate
 from csv import DictReader
 from ocgis.test.test_base import longrunning
 import webbrowser
@@ -145,7 +146,7 @@ class TestSimple(TestSimpleBase):
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
         tgd = field.temporal.get_grouping(['month'])
-        optimizations = {'tgds':{rd.alias:tgd}}
+        optimizations = {'tgds':{rd.name:tgd}}
         calc = [{'func':'mean','name':'mean'}]
         calc_grouping = ['month']
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
@@ -277,7 +278,7 @@ class TestSimple(TestSimpleBase):
             field.temporal.value_datetime
         ## now overload the value and ensure the field datetimes may be loaded
         rd = ocgis.RequestDataset(uri=out_nc,variable='foo',t_calendar='standard')
-        self.assertEqual(rd._source_metadata['variables']['time']['attrs']['calendar'],'foo')
+        self.assertEqual(rd.source_metadata['variables']['time']['attrs']['calendar'],'foo')
         field = rd.get()
         self.assertEqual(field.temporal.calendar,'standard')
         field.temporal.value_datetime
@@ -1206,7 +1207,114 @@ class TestSimpleMask(TestSimpleBase):
         ret = self.get_ret(kwds={'geom':geom,'output_format':'numpy','allow_empty':True})
         self.assertTrue(ret[1]['foo'].variables['foo'].value.mask.all())
         
-        
+
+class TestSimpleMultivariate(TestSimpleBase):
+    base_value = np.array([[1.0, 1.0, 2.0, 2.0],
+                           [1.0, 1.0, 2.0, 2.0],
+                           [3.0, 3.0, 4.0, 4.0],
+                           [3.0, 3.0, 4.0, 4.0]])
+    nc_factory = SimpleNcMultivariate
+    fn = 'test_simple_multivariate_01.nc'
+    var = ['foo', 'foo2']
+
+    def get_request_dataset(self, **kwargs):
+        ds = self.get_dataset(**kwargs)
+        return RequestDataset(**ds)
+
+    def get_multiple_request_datasets(self):
+        rd1 = self.get_request_dataset()
+        rd1.name = 'rd1'
+        rd1.alias = ['f1', 'f2']
+        rd2 = self.get_request_dataset()
+        rd2.name = 'rd2'
+        rd2.alias = ['ff1', 'ff2']
+        return [rd1, rd2]
+
+    def run_field_tst(self, field):
+        self.assertEqual([v.name for v in field.variables.itervalues()], ['foo', 'foo2'])
+        self.assertEqual(field.variables.values()[0].value.mean(), 2.5)
+        self.assertEqual(field.variables.values()[1].value.mean(), 5.5)
+        self.assertDictEqual({v.name: v.cfunits for v in field.variables.itervalues()},
+                             {'foo': Units('K'), 'foo2': Units('mm/s')})
+        sub = field[:, 3, 1, 1:3, 1:3]
+        self.assertNumpyAll(sub.variables.values()[0].value.data.flatten(), np.array([1.0, 2.0, 3.0, 4.0]))
+        self.assertNumpyAll(sub.variables.values()[1].value.data.flatten(), np.array([1.0, 2.0, 3.0, 4.0])+3)
+
+    def test_field(self):
+        rd = self.get_request_dataset()
+        self.assertEqual(rd.name, 'foo_foo2')
+        self.run_field_tst(rd.get())
+
+    def test_operations_convert_numpy(self):
+        name = [
+                None,
+                'custom_name'
+               ]
+        for n in name:
+            n = n or '_'.join(self.var)
+            rd = self.get_request_dataset()
+            rd.name = n
+            ops = OcgOperations(dataset=rd, output_format='numpy')
+            ret = ops.execute()
+            self.run_field_tst(ret[1][rd.name])
+
+    def test_operations_convert_numpy_multiple_request_datasets(self):
+        rds = self.get_multiple_request_datasets()
+        ops = OcgOperations(dataset=rds, output_format='numpy')
+        ret = ops.execute()
+        self.assertEqual(set(ret[1].keys()), set(['rd1', 'rd2']))
+        self.assertEqual(ret[1]['rd1'].variables.keys(), ['f1', 'f2'])
+        self.assertEqual(ret[1]['rd2'].variables.keys(), ['ff1', 'ff2'])
+        for row in ret.get_iter_melted():
+            self.run_field_tst(row['field'])
+
+    def test_operations_convert_nc_one_request_dataset(self):
+        rd = self.get_request_dataset()
+        ops = OcgOperations(dataset=rd, output_format='nc')
+        ret = ops.execute()
+        out_folder = os.path.split(ret)[0]
+        csv_path = os.path.join(out_folder, 'ocgis_output_did.csv')
+        with nc_scope(ret) as ds:
+            self.assertEqual(ds.variables['foo'][:].mean(), 2.5)
+            self.assertEqual(ds.variables['foo2'][:].mean(), 5.5)
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            lines = list(reader)
+        for row in lines:
+            self.assertEqual(row.pop('URI'), os.path.join(self._test_dir, self.fn))
+        actual = [{'ALIAS': 'foo', 'DID': '1', 'UNITS': 'K', 'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo', 'LONG_NAME': 'foo_foo'}, {'ALIAS': 'foo2', 'DID': '1', 'UNITS': 'mm/s', 'STANDARD_NAME': 'Precipitation Foo', 'VARIABLE': 'foo2', 'LONG_NAME': 'foo_foo_pr'}]
+        for a, l in zip(actual, lines):
+            self.assertDictEqual(a, l)
+
+    def test_operations_convert_multiple_request_datasets(self):
+        for o in OutputFormat.iter_possible():
+            if o == 'nc':
+                continue
+            rds = self.get_multiple_request_datasets()
+            ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
+            ret = ops.execute()
+            if o != 'numpy':
+                self.assertTrue(os.path.exists(ret))
+
+    def test_calculation_multiple_request_datasets(self):
+        rds = self.get_multiple_request_datasets()
+        calc = [{'func': 'mean', 'name': 'mean'}]
+        calc_grouping = ['month']
+        ops = OcgOperations(dataset=rds, calc=calc, calc_grouping=calc_grouping)
+        ret = ops.execute()
+        self.assertEqual(set(ret[1].keys()), set(['rd1', 'rd2']))
+        for row in ret.get_iter_melted():
+            self.assertEqual(row['variable'].name, 'mean')
+            self.assertEqual(row['field'].shape, (1, 2, 2, 4, 4))
+            try:
+                self.assertEqual(row['variable'].value.mean(), 2.5)
+            except AssertionError:
+                if row['variable'].parents.values()[0].name == 'foo2':
+                    self.assertEqual(row['variable'].value.mean(), 5.5)
+                else:
+                    raise
+
+
 class TestSimple360(TestSimpleBase):
 #    return_shp = True
     fn = 'test_simple_360_01.nc'

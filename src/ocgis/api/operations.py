@@ -326,12 +326,12 @@ class OcgOperations(object):
         ## individually. if they are not none.
         for attr in ['time_range', 'time_region', 'level_range']:
             if getattr(self, attr) is not None:
-                for rd in self.dataset:
+                for rd in self.dataset.itervalues():
                     setattr(rd, attr, getattr(self, attr))
 
         ## unit conforms are tied to request dataset objects
         if self.conform_units_to is not None:
-            for rd in self.dataset:
+            for rd in self.dataset.itervalues():
                 try:
                     rd.conform_units_to = self.conform_units_to
                 except ValueError as e:
@@ -389,10 +389,9 @@ class OcgOperations(object):
         ## is not parsable. the WGS84 default is actually done in the RequestDataset
         ## object.
         projections = []
-        for rd in self.dataset:
-            crs = rd._get_crs_()
-            if not any([_ == crs for _ in projections]):
-                projections.append(crs)
+        for rd in self.dataset.itervalues():
+            if not any([_ == rd.crs for _ in projections]):
+                projections.append(rd.crs)
         ## if there is not output CRS and projections differ, raise an exception.
         ## however, it is okay to have data with different projections in the
         ## numpy output.
@@ -426,7 +425,7 @@ class OcgOperations(object):
         if self.snippet:
             if self.calc is not None:
                 _raise_('Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',obj=Snippet)
-            for rd in self.dataset:
+            for rd in self.dataset.itervalues():
                 if rd.time_region is not None:
                     _raise_('Snippets are not implemented for time regions.',obj=Snippet)
         

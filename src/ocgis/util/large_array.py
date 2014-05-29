@@ -84,7 +84,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                 ## assert only 3 or 4 dimensional data is being used
                 assert(row['field'].shape_as_dict['R'] == 1)
 
-            ref_spatial = coll[1][ops_offset.dataset[0].alias].spatial
+            ref_spatial = coll[1][ops_offset.dataset.first().name].spatial
             row_offset = ref_spatial.grid.row._src_idx[0]
             col_offset = ref_spatial.grid.col._src_idx[0]
             mask_spatial = ref_spatial.get_mask()
@@ -109,21 +109,21 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             ## if there is a calculation grouping, optimize for it. otherwise, pass
             ## this value as None.
             try:
-                tgd_field = ops.dataset[0].get()
+                tgd_field = ops.dataset.first().get()
                 template_tgd = tgd_field.temporal.get_grouping(deepcopy(ops.calc_grouping))
                 if not has_multivariate:
-                    key = ops.dataset[0].alias
+                    key = ops.dataset.first().name
                 else:
-                    key = '_'.join([__.alias for __ in ops.dataset])
+                    key = '_'.join([__.name for __ in ops.dataset.itervalues()])
                 optimizations = {'tgds': {key: template_tgd}}
             except TypeError:
                 optimizations = None
 
             ## load the fields and pass those for optimization
             field_optimizations = {}
-            for rd in ops.dataset:
+            for rd in ops.dataset.itervalues():
                 gotten_field = rd.get(format_time=ops.format_time)
-                field_optimizations.update({rd.alias: gotten_field})
+                field_optimizations.update({rd.name: gotten_field})
             optimizations = optimizations or {}
             optimizations['fields'] = field_optimizations
         else:

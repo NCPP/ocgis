@@ -3,7 +3,7 @@ from ocgis.test.base import TestBase
 import itertools
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError, MaskedDataError, ExtentError
+from ocgis.exc import DefinitionValidationError, MaskedDataError, ExtentError, RequestValidationError
 import numpy as np
 import unittest
 from ocgis.interface.base.crs import CFWGS84
@@ -105,7 +105,7 @@ class Test(TestBase):
                                   snippet=True,abstraction='point')
         ret = ops.execute()
         
-        ## ensure array is trimmed and masked geometries removed
+        ## ensure array is trimmed and masked tgeometries removed
         self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(2,1))
         ## only two geometries returned
         self.assertEqual(ret[1]['tas'].spatial.shape,(1,2))
@@ -377,7 +377,7 @@ class Test(TestBase):
         time_range = [dt(2013,1,1),dt(2015,12,31)]
         time_region = {'month':[6,7,8],'year':[2013,2014,2018]}
         kwds = {'time_range':time_range,'time_region':time_region}
-        with self.assertRaises(DefinitionValidationError):
+        with self.assertRaises(RequestValidationError):
             self.test_data.get_rd('cancm4_rhs',kwds=kwds)
 
     @longrunning

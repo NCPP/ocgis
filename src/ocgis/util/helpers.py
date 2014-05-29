@@ -345,7 +345,7 @@ def get_iter(element,dtype=None):
         try:
             it = iter(element)
         except TypeError:
-            it = [element]
+            it = iter([element])
             
     return(it)
 

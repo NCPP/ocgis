@@ -30,3 +30,9 @@
 # Sphinx #
 ##########
 *_build*
+*.html
+*.js
+*.inv
+*_images*
+*_sources*
+*_static*

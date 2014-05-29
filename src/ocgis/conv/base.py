@@ -219,21 +219,22 @@ class AbstractConverter(object):
                 with open(out_path,'w') as f:
                     writer = csv.writer(f,dialect=OcgDialect)
                     writer.writerow(headers)
-                    for rd in self.ops.dataset:
-                        row = [rd.did,rd.variable,rd.alias,rd.uri]
-                        ref_variable = rd._source_metadata['variables'][rd.variable]['attrs']
-                        row.append(ref_variable.get('standard_name',None))
-                        row.append(ref_variable.get('units',None))
-                        row.append(ref_variable.get('long_name',None))
-                        writer.writerow(row)
+                    for rd in self.ops.dataset.itervalues():
+                        for d in rd:
+                            row = [rd.did,d['variable'],d['alias'],rd.uri]
+                            ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
+                            row.append(ref_variable.get('standard_name',None))
+                            row.append(ref_variable.get('units',None))
+                            row.append(ref_variable.get('long_name',None))
+                            writer.writerow(row)
                 
             ## add source metadata if requested
             if self._add_source_meta:
                 ocgis_lh('writing source metadata file','conv',logging.DEBUG)
                 out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
                 to_write = []
-                for rd in self.ops.dataset:
-                    ip = Inspect(meta=rd._source_metadata)
+                for rd in self.ops.dataset.itervalues():
+                    ip = Inspect(meta=rd.source_metadata)
                     to_write += ip.get_report_no_variable()
                 with open(out_path,'w') as f:
                     f.writelines('\n'.join(to_write))

@@ -43,7 +43,7 @@ class AbstractTestField(TestBase):
         return(row)
     
     def get_field(self,with_bounds=True,with_value=False,with_level=True,with_temporal=True,
-                     with_realization=True,month_count=1,name='tmax',units='kelvin'):
+                     with_realization=True,month_count=1,name='tmax',units='kelvin',field_name=None):
         
         if with_temporal:
             temporal_start = dt(2000,1,1,12)
@@ -101,13 +101,46 @@ class AbstractTestField(TestBase):
         var = Variable(name,units=units,debug=True,data=None,value=value)
         vc = VariableCollection(variables=var)
         field = Field(variables=vc,temporal=temporal,level=level,realization=realization,
-                    spatial=spatial)
+                    spatial=spatial,name=field_name)
         
         return(field)
 
 
 class TestField(AbstractTestField):
-    
+
+    def test_name_none_one_variable(self):
+        field = self.get_field(field_name=None)
+        self.assertEqual(field.name, field.variables.values()[0].alias)
+
+    def test_name_none_two_variables(self):
+        field = self.get_field()
+        field2 = self.get_field()
+        var2 = field2.variables['tmax']
+        var2.alias = 'tmax2'
+        field.variables.add_variable(var2, assign_new_uid=True)
+        self.assertEqual(field.name, 'tmax_tmax2')
+
+    def test_name(self):
+        field = self.get_field(field_name='foo')
+        self.assertEqual(field.name, 'foo')
+
+    def test_get_iter_two_variables(self):
+        field = self.get_field(with_value=True)
+        field2 = self.get_field(with_value=True)
+        var2 = field2.variables['tmax']
+        var2.alias = 'tmax2'
+        var2._value = var2._value + 3
+        field.variables.add_variable(deepcopy(var2), assign_new_uid=True)
+        aliases = set([row['alias'] for row in field.get_iter()])
+        self.assertEqual(set(['tmax', 'tmax2']), aliases)
+
+        vids = []
+        for row in field.get_iter():
+            vids.append(row['vid'])
+            if row['alias'] == 'tmax2':
+                self.assertTrue(row['value'] > 3)
+        self.assertEqual(set(vids), set([1, 2]))
+
     def test_get_intersects_single_bounds_row(self):
         field = self.get_field(with_value=True)
         sub = field[:,0,:,0,0]
@@ -202,7 +235,7 @@ class TestField(AbstractTestField):
         rows = list(field.get_iter())
         self.assertEqual(len(rows),2*31*2*3*4)
         rows[100]['geom'] = rows[100]['geom'].bounds
-        real = {'realization_bnds_lower': None, 'vid': 1, 'time_bnds_upper': datetime.datetime(2000, 1, 6, 0, 0), 'realization_bnds_upper': None, 'year': 2000, 'SPATIAL_uid': 5, 'level_bnds_upper': 100, 'realization_uid': 1, 'realization': 1, 'geom': (-100.5, 38.5, -99.5, 39.5), 'level_bnds_lower': 0, 'variable': 'tmax', 'month': 1, 'time_bnds_lower': datetime.datetime(2000, 1, 5, 0, 0), 'day': 5, 'level': 50, 'did': None, 'value': 0.32664490177209615, 'alias': 'tmax', 'level_uid': 1, 'time': datetime.datetime(2000, 1, 5, 12, 0), 'time_uid': 5}
+        real = {'realization_bnds_lower': None, 'vid': 1, 'time_bnds_upper': datetime.datetime(2000, 1, 6, 0, 0), 'realization_bnds_upper': None, 'year': 2000, 'SPATIAL_uid': 5, 'level_bnds_upper': 100, 'realization_uid': 1, 'realization': 1, 'geom': (-100.5, 38.5, -99.5, 39.5), 'level_bnds_lower': 0, 'variable': 'tmax', 'month': 1, 'time_bnds_lower': datetime.datetime(2000, 1, 5, 0, 0), 'day': 5, 'level': 50, 'did': None, 'value': 0.32664490177209615, 'alias': 'tmax', 'level_uid': 1, 'time': datetime.datetime(2000, 1, 5, 12, 0), 'time_uid': 5, 'name': 'tmax'}
         for k,v in rows[100].iteritems():
             self.assertEqual(real[k],v)
         self.assertEqual(set(real.keys()),set(rows[100].keys()))

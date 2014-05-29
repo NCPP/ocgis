@@ -347,9 +347,6 @@ class Dataset(base.OcgParameter):
                 for rd in itr:
                     rdc.update(rd)
                 init_value = rdc
-            ## dereference any prior dataset connections
-            for rd in init_value:
-                rd._ds = None
         else:
             init_value = arg
         super(Dataset,self).__init__(init_value)
@@ -645,7 +642,14 @@ class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
     valid = constants.output_formats
-    
+
+    @classmethod
+    def iter_possible(cls):
+        from ocgis.conv.base import AbstractConverter
+        mmap = AbstractConverter.get_converter_map()
+        for key in mmap.keys():
+            yield key
+
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)
         return(ret)

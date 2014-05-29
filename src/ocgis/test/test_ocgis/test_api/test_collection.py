@@ -1,5 +1,6 @@
 import unittest
-from ocgis.api.collection import SpatialCollection
+from ocgis.api.collection import SpatialCollection, AbstractCollection
+from ocgis.test.base import TestBase
 from ocgis.util.shp_cabinet import ShpCabinet
 from shapely.geometry.multipolygon import MultiPolygon
 import datetime
@@ -8,11 +9,74 @@ from ocgis.calc.library.statistics import Mean
 from ocgis.interface.base.variable import Variable
 from ocgis.interface.base.field import DerivedField, DerivedMultivariateField,\
     Field
-from copy import copy
+from copy import copy, deepcopy
 from ocgis.calc.library.math import Divide
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.library.thresholds import Threshold
 import numpy as np
+
+
+class TestAbstractCollection(TestBase):
+    _create_dir = False
+
+    def get_coll(self):
+        coll = AbstractCollection()
+        coll[2] = 'a'
+        coll[1] = 'b'
+        return coll
+
+    def test_init(self):
+        self.assertIsInstance(self.get_coll(), AbstractCollection)
+
+    def test_storage_uid_next(self):
+        coll = self.get_coll()
+        coll._storage_id.append(5)
+        self.assertEqual(coll._storage_id_next, 6)
+
+    def test_contains(self):
+        coll = self.get_coll()
+        self.assertTrue(1 in coll)
+        self.assertFalse(3 in coll)
+
+    def test_copy(self):
+        coll = self.get_coll()
+        self.assertEqual(coll, copy(coll))
+
+    def test_deepcopy(self):
+        coll = self.get_coll()
+        self.assertEqual(coll, deepcopy(coll))
+
+    def test_values(self):
+        self.assertEqual(self.get_coll().values(), ['a', 'b'])
+
+    def test_keys(self):
+        self.assertEqual(self.get_coll().keys(), [2, 1])
+
+    def test_getitem(self):
+        self.assertEqual(self.get_coll()[2], 'a')
+
+    def test_setitem(self):
+        coll = self.get_coll()
+        coll['a'] = 400
+        self.assertEqual(coll['a'], 400)
+
+    def test_repr(self):
+        self.assertEqual(repr(self.get_coll()), "AbstractCollection([(2, 'a'), (1, 'b')])")
+
+    def test_str(self):
+        coll = self.get_coll()
+        self.assertEqual(repr(coll), str(coll))
+
+    def test_first(self):
+        self.assertEqual(self.get_coll().first(), 'a')
+
+    def test_update(self):
+        coll = self.get_coll()
+        coll.update({'t': 'time'})
+        self.assertEqual(coll.keys(), [2, 1, 't'])
+
+    def test_iter(self):
+        self.assertEqual(list(self.get_coll().__iter__()), [2, 1])
 
 
 class TestSpatialCollection(AbstractTestField):
@@ -23,11 +87,10 @@ class TestSpatialCollection(AbstractTestField):
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta,key='state_boundaries')
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],field.variables.keys()[0],
-                         field,properties=row['properties'])
-        return(sp)
+            sp.add_field(row['properties']['UGID'], row['geom'], field, properties=row['properties'])
+        return sp
 
-    def test_constructor(self):
+    def test_init(self):
         sp = self.get_collection()
         self.assertEqual(len(sp),51)
         self.assertIsInstance(sp.geoms[25],MultiPolygon)
@@ -56,11 +119,10 @@ class TestSpatialCollection(AbstractTestField):
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta,key='state_boundaries')
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],field.variables.keys()[0],
-                         field,properties=row['properties'])
+            sp.add_field(row['properties']['UGID'],row['geom'],field,properties=row['properties'])
         for ii,row in enumerate(sp.get_iter_dict()):
             if ii == 1:
-                self.assertEqual(row[1],{'lid': 1, 'ugid': 1, 'vid': 1, 'alias': 'tmax', 'did': 1, 'year': 2000, 'value': 0.7203244934421581, 'month': 1, 'variable': 'tmax', 'gid': 2, 'time': datetime.datetime(2000, 1, 1, 12, 0), 'tid': 1, 'level': 50, 'day': 1})
+                self.assertDictEqual(row[1],{'lid': 1, 'ugid': 1, 'vid': 1, 'alias': 'tmax', 'did': 1, 'year': 2000, 'value': 0.7203244934421581, 'month': 1, 'variable': 'tmax', 'gid': 2, 'time': datetime.datetime(2000, 1, 1, 12, 0), 'tid': 1, 'level': 50, 'day': 1})
             self.assertIsInstance(row[0],MultiPolygon)
             self.assertEqual(len(row),2)
             self.assertEqual(len(row[1]),len(constants.raw_headers))
@@ -81,6 +143,7 @@ class TestSpatialCollection(AbstractTestField):
         kwds = copy(field.__dict__)
         kwds.pop('_raw')
         kwds.pop('_variables')
+        kwds['name'] = kwds.pop('_name')
         kwds['temporal'] = tgd
         kwds['variables'] = ret
         cfield = DerivedField(**kwds)
@@ -92,8 +155,7 @@ class TestSpatialCollection(AbstractTestField):
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.calc_headers)
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],cfield.variables.keys()[0],
-                         cfield,properties=row['properties'])
+            sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
         for ii,row in enumerate(sp.get_iter_dict()):
             if ii == 0:
                 self.assertEqual(row[0].bounds,(-100.5, 39.5, -99.5, 40.5))
@@ -119,6 +181,7 @@ class TestSpatialCollection(AbstractTestField):
         kwds = copy(field.__dict__)
         kwds.pop('_raw')
         kwds.pop('_variables')
+        kwds['name'] = kwds.pop('_name')
         kwds['temporal'] = tgd
         kwds['variables'] = ret
         cfield = DerivedField(**kwds)
@@ -130,8 +193,7 @@ class TestSpatialCollection(AbstractTestField):
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.calc_headers)
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],cfield.variables.keys()[0],
-                         cfield,properties=row['properties'])
+            sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
         
         cids = set()
         for ii,row in enumerate(sp.get_iter_dict()):
@@ -164,8 +226,7 @@ class TestSpatialCollection(AbstractTestField):
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.multi_headers)
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],cfield.variables.keys()[0],
-                         cfield,properties=row['properties'])
+            sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
         
         for ii,row in enumerate(sp.get_iter_dict()):
             if ii == 0:

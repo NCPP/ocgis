@@ -564,7 +564,7 @@ class AbstractMultivariateFunction(AbstractFunction):
             ocgis_lh(exc=exc,logger='calc.base')
         
         ## ensure the required variables are presents
-        aliases = [d.alias for d in ops.dataset]
+        aliases = [d.alias for d in ops.dataset.itervalues()]
         should_raise = False
         for c in ops.calc:
             if c['func'] == cls.key:

@@ -22,8 +22,8 @@ class NcConverter(AbstractConverter):
         if self.ops is None:
             ret = constants.netCDF_default_data_model
         else:
-            for rd in self.ops.dataset:
-                rr = rd._source_metadata['file_format']
+            for rd in self.ops.dataset.itervalues():
+                rr = rd.source_metadata['file_format']
                 if isinstance(rr,basestring):
                     tu = [rr]
                 else:
@@ -178,11 +178,16 @@ class NcConverter(AbstractConverter):
         
         ## loop through variables
         for variable in arch.variables.itervalues():
-            value = ds.createVariable(variable.alias,variable.dtype,value_dims,
+            value = ds.createVariable(variable.alias, variable.dtype, value_dims,
                                       fill_value=variable.fill_value)
             ## if this is a file only operation, set the value, otherwise leave
             ## it empty for now.
-            if self.ops is not None and not self.ops.file_only:
+            try:
+                is_file_only = self.ops.file_only
+            ## this will happen if there is no operations object.
+            except AttributeError:
+                is_file_only = False
+            if not is_file_only:
                 value[:] = variable.value.reshape(*value.shape)
             value.setncatts(variable.meta['attrs'])
             ## and the units, converting to string as passing a NoneType will raise
@@ -191,5 +196,5 @@ class NcConverter(AbstractConverter):
                     
         ## add projection variable if applicable ###############################
         
-        if not isinstance(arch.spatial.crs,CFWGS84):
-            arch.spatial.crs.write_to_rootgrp(ds,meta)
+        if not isinstance(arch.spatial.crs, CFWGS84):
+            arch.spatial.crs.write_to_rootgrp(ds, meta)

@@ -7,16 +7,21 @@ class NumpyConverter(AbstractConverter):
         
     def __iter__(self):
         for coll in self.colls:
-            yield(coll)
+            yield coll
     
     def write(self):
         build = True
         for coll in self:
             if build:
-                ret = SpatialCollection(meta=coll.meta,key=coll.key,crs=coll.crs,headers=coll.headers)
+                ret = SpatialCollection(meta=coll.meta, key=coll.key, crs=coll.crs, headers=coll.headers)
                 build = False
             for k,v in coll.iteritems():
-                ret.add_field(k,coll.geoms[k],v.keys()[0],v.values()[0],properties=coll.properties[k])
-        return(ret)
+                field = v.values()[0]
+                if field is None:
+                    name = v.keys()[0]
+                else:
+                    name = None
+                ret.add_field(k, coll.geoms[k], v.values()[0], properties=coll.properties[k], name=name)
+        return ret
 
     def _write_(self): pass

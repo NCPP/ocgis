@@ -1,57 +1,105 @@
+import abc
 from collections import OrderedDict
 from ocgis.interface.base.crs import CFWGS84
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class SpatialCollection(object):
+class AbstractCollection(object):
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self):
+        self._storage = OrderedDict()
+        self._storage_id = []
+
+    @property
+    def _storage_id_next(self):
+        try:
+            ret = max(self._storage_id) + 1
+        ## max of an empty list
+        except ValueError:
+            if len(self._storage_id) == 0:
+                ret = 1
+            else:
+                raise
+        return ret
+
+    def __contains__(self, item):
+        return item in self._storage
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            ret = self.__dict__ == other.__dict__
+        else:
+            ret = False
+        return ret
+
+    def __iter__(self):
+        for key in self.iterkeys():
+            yield key
+
+    def __getitem__(self, item):
+        return self._storage[item]
+
+    def __len__(self):
+        return len(self._storage)
+
+    def __setitem__(self, key, value):
+        self._storage[key] = value
+
+    def __repr__(self):
+        ret = '{0}({1})'.format(self.__class__.__name__, [(k, v) for k, v in self.iteritems()])
+        return ret
+
+    def __str__(self):
+        return self.__repr__()
+
+    def first(self):
+        for key in self.iterkeys():
+            return self._storage[key]
+
+    def items(self):
+        return self._storage.items()
+
+    def iteritems(self):
+        for k, v in self._storage.iteritems():
+            yield k, v
+
+    def iterkeys(self):
+        for k in self._storage.iterkeys():
+            yield k
+
+    def itervalues(self):
+        for v in self._storage.itervalues():
+            yield v
+
+    def keys(self):
+        return self._storage.keys()
+
+    def update(self, dictionary):
+        self._storage.update(dictionary)
+
+    def values(self):
+        return self._storage.values()
+
+
+class SpatialCollection(AbstractCollection):
     _default_headers = constants.raw_headers
     
-    def __init__(self,meta=None,key=None,crs=None,headers=None,value_keys=None):
+    def __init__(self, meta=None, key=None, crs=None, headers=None, value_keys=None):
+        super(SpatialCollection, self).__init__()
+
         self.meta = meta
         self.key = key
         self.crs = crs or CFWGS84()
         self.headers = headers or self._default_headers
         self.value_keys = value_keys
     
-        self.geoms = {}
+        self.geoms = OrderedDict()
         self.properties = OrderedDict()
         
-        self._uid_ctr_field = 1
-        self._ugid = OrderedDict()
-        
-    def __getitem__(self,key):
-        return(self._ugid[key])
-        
-    def __iter__(self):
-        for ugid in self._ugid.iterkeys():
-            yield(ugid)
-            
-    def __len__(self):
-        return(len(self._ugid))
-            
-    def __repr__(self):
-        ret = self._ugid.__repr__()
-        try:
-            ret = ret.replace('OrderedDict',self.__class__.__name__)
-        except:
-            pass
-        return(ret)
-            
-    def keys(self):
-        return(self._ugid.keys())
-            
-    def items(self):
-        return(self._ugid.items())
-    
-    def iteritems(self):
-        return(self._ugid.iteritems())
-    
-    def itervalues(self):
-        return(self._ugid.itervalues())
-            
-    def update(self,value):
-        self._ugid.update(value)
+        # self._uid_ctr_field = 1
+        # self._ugid = OrderedDict()
         
     @property
     def _archetype_field(self):
@@ -59,25 +107,34 @@ class SpatialCollection(object):
         fkey = self[ukey].keys()[0]
         return(self[ukey][fkey])
         
-    def add_field(self,ugid,geom,alias,field,properties=None):
+    def add_field(self, ugid, geom, field, properties=None, name=None):
+        """
+        :param int ugid:
+        :param :class:`shapely.Geometry`:
+        :param :class:`ocgis.Field`:
+        :param dict properties:
+        :param str name:
+        """
+        name = name or field.name
+
         ## add field unique identifier if it does not exist
         try:
             if field.uid is None:
-                field.uid = self._uid_ctr_field
-                self._uid_ctr_field += 1
+                field.uid = self._storage_id_next
+                self._storage_id.append(field.uid)
         ## likely a nonetype from an empty subset
         except AttributeError as e:
             if field is None:
                 pass
             else:
-                ocgis_lh(exc=e,loggger='collection')
+                ocgis_lh(exc=e, logger='collection')
             
         self.geoms.update({ugid:geom})
         self.properties.update({ugid:properties})
         if ugid not in self:
             self.update({ugid:{}})
-        assert(alias not in self[ugid])
-        self[ugid].update({alias:field})
+        assert(name not in self[ugid])
+        self[ugid].update({name:field})
                 
     def get_iter_dict(self,use_upper_keys=False,conversion_map=None):
         r_headers = self.headers

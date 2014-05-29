@@ -56,7 +56,7 @@ class TestHeatIndex(AbstractTestField):
         ## heat index coefficients require the data be in specific units
         field = self.get_field(name='tasmax',units='kelvin',with_value=True)
         field_rhs = self.get_field(name='rhsmax',units='percent',with_value=True)
-        field.variables.add_variable(field_rhs.variables['rhsmax'])
+        field.variables.add_variable(field_rhs.variables['rhsmax'], assign_new_uid=True)
         self.assertEqual(set(field.variables.keys()),set(['tasmax','rhsmax']))
         hi = HeatIndex(field=field,parms={'tas':'tasmax','rhs':'rhsmax'})
         with self.assertRaises(UnitsValidationError):
@@ -66,7 +66,7 @@ class TestHeatIndex(AbstractTestField):
         ## heat index coefficients require the data be in specific units
         field = self.get_field(name='tasmax',units='fahrenheit',with_value=True)
         field_rhs = self.get_field(name='rhsmax',units='percent',with_value=True)
-        field.variables.add_variable(field_rhs.variables['rhsmax'])
+        field.variables.add_variable(field_rhs.variables['rhsmax'], assign_new_uid=True)
         self.assertEqual(set(field.variables.keys()),set(['tasmax','rhsmax']))
         hi = HeatIndex(field=field,parms={'tas':'tasmax','rhs':'rhsmax'})
         vc = hi.execute()

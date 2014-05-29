@@ -21,8 +21,8 @@ class Field(object):
     _value_dimension_names = ('realization','temporal','level','row','column')
     
     def __init__(self,variables=None,realization=None,temporal=None,level=None,
-                 spatial=None,meta=None,uid=None):
-        
+                 spatial=None,meta=None,uid=None,name=None):
+
         self.realization = realization
         self.temporal = temporal
         self.uid = uid
@@ -33,6 +33,7 @@ class Field(object):
         self._raw = None
         ## add variables - dimensions are needed first for shape checking
         self.variables = variables
+        self._name = name
                         
     def __getitem__(self,slc):
         slc = get_formatted_slice(slc,5)
@@ -42,8 +43,16 @@ class Field(object):
         ret.level = get_none_or_slice(self.level,slc[2])
         ret.spatial = get_none_or_slice(self.spatial,(slc[3],slc[4]))
         
-        ret.variables = self.variables._get_sliced_variables_(slc)
+        ret.variables = self.variables.get_sliced_variables(slc)
 
+        return(ret)
+
+    @property
+    def name(self):
+        if self._name is None:
+            ret = '_'.join([v.alias for v in self.variables.itervalues()])
+        else:
+            ret = self._name
         return(ret)
     
     @property
@@ -113,8 +122,11 @@ class Field(object):
         has_value_keys = False if value_keys is None else True
         
         r_gid_name = self.spatial.name_uid
+        r_name = self.name
+
         for variable in self.variables.itervalues():
             yld = self._get_variable_iter_yield_(variable)
+            yld['name'] = r_name
             ref_value = variable.value
             masked_value = ref_value.fill_value
             iters = map(_get_dimension_iterator_1d_,['realization','temporal','level'])
@@ -168,7 +180,7 @@ class Field(object):
         ret = copy(self)
         ret.temporal,indices = self.temporal.get_time_region(time_region,return_indices=True)
         slc = [slice(None),indices,slice(None),slice(None),slice(None)]
-        variables = self.variables._get_sliced_variables_(slc)
+        variables = self.variables.get_sliced_variables(slc)
         ret.variables = variables
         return(ret)
     
@@ -178,7 +190,7 @@ class Field(object):
         ret.spatial, slc = ref(polygon, return_indices=True, use_spatial_index=use_spatial_index,
                                select_nearest=select_nearest)
         slc = [slice(None), slice(None), slice(None)] + list(slc)
-        ret.variables = self.variables._get_sliced_variables_(slc)
+        ret.variables = self.variables.get_sliced_variables(slc)
 
         ## we need to update the value mask with the geometry mask
         self._set_new_value_mask_(ret, ret.spatial.get_mask())

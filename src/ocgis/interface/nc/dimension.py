@@ -8,7 +8,7 @@ class NcVectorDimension(VectorDimension):
     
     def _set_value_from_source_(self):
         ## open the connection to the real dataset connection object
-        ds = self._data._open_()
+        ds = self._data.driver.open()
         try:
             ## get the variable
             try:
@@ -27,7 +27,7 @@ class NcVectorDimension(VectorDimension):
             self._value = var.__getitem__(self._src_idx)
             ## now, we should check for bounds here as the inheritance for making
             ## this process more transparent is not in place.
-            bounds_name = self._data._source_metadata['dim_map'][self._axis].get('bounds')
+            bounds_name = self._data.source_metadata['dim_map'][self._axis].get('bounds')
             if bounds_name is not None:
                 try:
                     self.bounds = ds.variables[bounds_name][self._src_idx,:]
@@ -39,4 +39,4 @@ class NcVectorDimension(VectorDimension):
                     else:
                         ocgis_lh(exc=e,logger='interface.nc')
         finally:
-            ds.close()
+            self._data.driver.close(ds)

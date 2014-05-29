@@ -1,3 +1,4 @@
+from ocgis.api.collection import AbstractCollection
 from ocgis.util.logging_ocgis import ocgis_lh
 import abc
 from collections import OrderedDict
@@ -94,7 +95,7 @@ class AbstractValueVariable(object):
         from cfunits import Units
         ## units are required for conversion
         if self.cfunits == Units(None):
-            raise(NoUnitsError)
+            raise(NoUnitsError(self.alias))
         ## allow string unit representations to be passed
         if not isinstance(to_units,Units):
             to_units = Units(to_units)
@@ -230,60 +231,41 @@ class Variable(AbstractSourcedVariable):
             self.cfunits_conform(self._conform_units_to,self.value)
     
     
-class VariableCollection(object):
+class VariableCollection(AbstractCollection):
     
-    def __init__(self,**kwds):
-        self._uid_ctr = 1
-        variables = kwds.pop('variables',None)
-        
-        self._storage = OrderedDict()
-            
+    def __init__(self, variables=None):
+        super(VariableCollection, self).__init__()
+
         if variables is not None:
-            for variable in get_iter(variables,dtype=Variable):
+            for variable in get_iter(variables, dtype=Variable):
                 self.add_variable(variable)
                 
-    def __contains__(self,key):
-        return(self._storage.__contains__(key))
-                
-    def __getitem__(self,*args,**kwargs):
-        return(self._storage.__getitem__(*args,**kwargs))
-    
-    def __len__(self):
-        return(len(self._storage))
-                
-    def add_variable(self,variable):
-        assert(isinstance(variable,Variable))
+    def add_variable(self, variable, assign_new_uid=False):
+        """
+        :param :class:`ocgis.interface.base.variable.Variable` :
+        :param bool assign_new_uid: If ``True``, assign a new unique identifier to the incoming variable. This will
+         modify the variable inplace.
+        """
+        assert(isinstance(variable, Variable))
         try:
-            assert(variable.alias not in self._storage)
+            assert(variable.alias not in self)
         except AssertionError:
-            raise(VariableInCollectionError(variable))
+            raise VariableInCollectionError(variable)
+
+        if assign_new_uid:
+            variable.uid = None
+
         if variable.uid is None:
-            variable.uid = self._uid_ctr
-            self._uid_ctr += 1
-        self._storage.update({variable.alias:variable})
+            variable.uid = self._storage_id_next
+        else:
+            assert(variable.uid not in self._storage_id)
+        self._storage_id.append(variable.uid)
+        self.update({variable.alias: variable})
         
-    def first(self):
-        for value in self.itervalues():
-            return(value)
-        
-    def iteritems(self):
-        for k,v in self._storage.iteritems():
-            yield(k,v)
-        
-    def itervalues(self):
-        for value in self._storage.itervalues():
-            yield(value)
-            
-    def keys(self):
-        return(self._storage.keys())
-            
-    def values(self):
-        return(self._storage.values())
-        
-    def _get_sliced_variables_(self,slc):
+    def get_sliced_variables(self, slc):
         variables = [v.__getitem__(slc) for v in self.itervalues()]
         ret = VariableCollection(variables=variables)
-        return(ret)
+        return ret
         
         
 class DerivedVariable(Variable):

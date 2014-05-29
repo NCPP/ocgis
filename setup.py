@@ -149,5 +149,6 @@ setup(name='ocgis',
       packages=packages,
       package_dir=package_dir,
       cmdclass={'uninstall':UninstallCommand,
-                'install_dependencies_ubuntu':InstallDependenciesUbuntu}
+                'install_dependencies_ubuntu':InstallDependenciesUbuntu}, requires=['numpy', 'netCDF4', 'fiona',
+                                                                                    'shapely']
       )

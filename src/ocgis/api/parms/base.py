@@ -189,7 +189,7 @@ class StringOptionParameter(StringParameter):
     __metaclass__ = ABCMeta
     
     nullable = False
-    
+
     @abstractproperty
     def valid(self): [str]
     

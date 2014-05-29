@@ -1,9 +1,10 @@
 import netCDF4 as nc
-from ocgis.interface.metadata import NcMetadata
-from ocgis.exc import ResolutionError
 from collections import OrderedDict
 import re
 from warnings import warn
+
+from ocgis.interface.metadata import NcMetadata
+from ocgis.exc import ResolutionError
 from ocgis.util.logging_ocgis import ocgis_lh
 
 

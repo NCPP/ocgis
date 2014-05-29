@@ -86,7 +86,7 @@ class TestRotatedPole(TestBase):
         ret = ops.execute()
         ops2 = OcgOperations(dataset=rd,output_format='nc',snippet=True,prefix='hi')
         ret2 = ops2.execute()
-        self.assertNcEqual(ret,ret2,metadata_only=True)
+        self.assertNcEqual(ret,ret2,metadata_only=True,ignore_attributes={'global': ['history']})
         with nc_scope(ret) as ds:
             with nc_scope(ret2) as ds2:
                 for var_name in ['yc','xc','tas']:

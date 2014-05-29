@@ -112,9 +112,10 @@ class TestSimpleNoLevel(TestSimpleBase):
     fn = 'test_simple_spatial_no_level_01.nc'
     
     def test_nc_write_no_level(self):
-        ret = self.get_ret(kwds={'output_format':'nc'})
-        ret2 = self.get_ret(kwds={'output_format':'nc','dataset':{'uri':ret,'variable':'foo'},'prefix':'level_again'})
-        self.assertNcEqual(ret,ret2)
+        ret = self.get_ret(kwds={'output_format': 'nc'})
+        ret2 = self.get_ret(kwds={'output_format': 'nc',
+                                  'dataset': {'uri': ret, 'variable': 'foo'}, 'prefix': 'level_again'})
+        self.assertNcEqual(ret, ret2, ignore_attributes={'global': ['history']})
         
         ds = nc.Dataset(ret)
         try:
@@ -131,6 +132,15 @@ class TestSimple(TestSimpleBase):
                            [3.0, 3.0, 4.0, 4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+
+    def test_history_attribute(self):
+        ops = self.get_ops(kwds={'output_format': 'nc'})
+        ret = ops.execute()
+        with nc_scope(ret) as ds:
+            history = ds.history
+            self.assertTrue('OcgOperations' in history)
+            self.assertTrue('ocgis' in history)
+            self.assertTrue(len(history) > 500)
 
     def test_select_nearest(self):
         for spatial_operation in SpatialOperation.iter_possible():
@@ -695,10 +705,10 @@ class TestSimple(TestSimpleBase):
             
     def test_nc_conversion(self):
         rd = self.get_dataset()
-        ops = OcgOperations(dataset=rd,output_format='nc')
+        ops = OcgOperations(dataset=rd, output_format='nc')
         ret = self.get_ret(ops)
         
-        self.assertNcEqual(rd['uri'],ret)
+        self.assertNcEqual(rd['uri'], ret, ignore_attributes={'global': ['history']})
         
     def test_nc_conversion_calc(self):
         calc_grouping = ['month']
@@ -730,18 +740,18 @@ class TestSimple(TestSimpleBase):
             OcgOperations(dataset=[rd1,rd2],output_format='nc')
             
     def test_nc_conversion_level_subset(self):
-        rd = self.get_dataset(level_range=[1,1])
-        ops = OcgOperations(dataset=rd,output_format='nc',prefix='no_level')
+        rd = self.get_dataset(level_range=[1, 1])
+        ops = OcgOperations(dataset=rd, output_format='nc', prefix='no_level')
         no_level = ops.execute()
         
-        ops = OcgOperations(dataset={'uri':no_level,'variable':'foo'},output_format='nc',prefix='no_level_again')
+        ops = OcgOperations(dataset={'uri': no_level, 'variable': 'foo'}, output_format='nc', prefix='no_level_again')
         no_level_again = ops.execute()
-        self.assertNcEqual(no_level,no_level_again)
+        self.assertNcEqual(no_level, no_level_again, ignore_attributes={'global': ['history']})
         
         ds = nc.Dataset(no_level_again)
         try:
             ref = ds.variables['foo'][:]
-            self.assertEqual(ref.shape[1],1)
+            self.assertEqual(ref.shape[1], 1)
         finally:
             ds.close()
             
@@ -1448,8 +1458,8 @@ class TestSimpleProjected(TestSimpleBase):
     
     def test_nc_projection(self):
         dataset = self.get_dataset()
-        ret = self.get_ret(kwds={'output_format':'nc'})
-        self.assertNcEqual(dataset['uri'],ret)
+        ret = self.get_ret(kwds={'output_format': 'nc'})
+        self.assertNcEqual(dataset['uri'], ret, ignore_attributes={'global': ['history']})
         
     def test_nc_projection_to_shp(self):
         ret = self.get_ret(kwds={'output_format':'shp'})

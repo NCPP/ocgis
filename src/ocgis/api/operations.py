@@ -179,9 +179,9 @@ class OcgOperations(object):
         for key, value in self.as_dict().iteritems():
             if key == 'geom' and value is not None:
                 value = 'custom geometries'
-            msg.append(' {0},'.format(self._get_object_(key)))
-        msg.append('  )')
-        msg = '\n'.join(msg)
+            msg.append('{0}, '.format(self._get_object_(key)))
+        msg.append(')')
+        msg = ''.join(msg)
         return(msg)
             
     def __getattribute__(self, name):

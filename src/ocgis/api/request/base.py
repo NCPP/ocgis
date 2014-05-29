@@ -176,7 +176,7 @@ class RequestDataset(object):
                     fill = value
                 as_str = as_str.format(name, fill)
             parms.append(as_str)
-        msg = msg.format(self.__class__.__name__, ','.join(parms))
+        msg = msg.format(self.__class__.__name__, ', '.join(parms))
         return msg
 
     @property
@@ -439,6 +439,11 @@ class RequestDatasetCollection(AbstractCollection):
         self._did = []
         for rd in get_iter(request_datasets):
             self.update(rd)
+
+    def __str__(self):
+        ret = '{klass}(request_datasets=[{request_datasets}])'
+        request_datasets = ', '.join([str(rd) for rd in self.itervalues()])
+        return ret.format(klass=self.__class__.__name__, request_datasets=request_datasets)
     
     def update(self,request_dataset):
         """Add a :class:`ocgis.RequestDataset` to the collection.

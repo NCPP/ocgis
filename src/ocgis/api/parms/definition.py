@@ -103,9 +103,15 @@ class Calc(base.IterableParameter,base.OcgParameter):
     element_type = dict
     unique = False
     
-    def __repr__(self):
-        msg = '{0}={1}'.format(self.name,self.value)
-        return(msg)
+    def __str__(self):
+        if self.value is None:
+            ret = base.OcgParameter.__str__(self)
+        else:
+            cb = deepcopy(self.value)
+            for ii in cb:
+                ii.pop('ref')
+            ret = '{0}={1}'.format(self.name, cb)
+        return ret
     
     def get_url_string(self):
         raise(NotImplementedError)
@@ -422,7 +428,7 @@ class Geom(base.OcgParameter):
         if self.value is None:
             value = None
         elif self._shp_key is not None:
-            value = self._shp_key
+            value = '"{0}"'.format(self._shp_key)
         elif self._bounds is not None:
             value = '|'.join(map(str,self._bounds))
         else:

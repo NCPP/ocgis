@@ -48,6 +48,13 @@ class TestRequestDataset(TestBase):
                                 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
 
+    def test_str(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ss = str(rd)
+        self.assertTrue(ss.startswith('RequestDataset'))
+        self.assertTrue('crs' in ss)
+        self.assertEqual(len(ss), 464)
+
     def test_crs_overload(self):
         kwds = {'crs': CoordinateReferenceSystem(epsg=4362)}
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
@@ -411,6 +418,14 @@ class TestRequestDataset(TestBase):
 
 
 class TestRequestDatasetCollection(TestBase):
+
+    def test_str(self):
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_rhs')
+        rdc = RequestDatasetCollection(request_datasets=[rd1, rd2])
+        ss = str(rdc)
+        self.assertTrue(ss.startswith('RequestDatasetCollection'))
+        self.assertEqual(len(ss), 969)
 
     def test_name_attribute_used_for_keys(self):
         rd = self.test_data.get_rd('cancm4_tas')

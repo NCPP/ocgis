@@ -466,7 +466,7 @@ class Test(TestBase):
                         self.assertTrue(float(row['TIME']) < -50000)
                         
             if output_format == 'nc':
-                self.assertNcEqual(dataset.uri,ret,check_types=False)
+                self.assertNcEqual(dataset.uri,ret,check_types=False,ignore_attributes={'global': ['history']})
         
     def test_time_region_climatology(self):
         ocgis.env.DIR_DATA = '/usr/local/climate_data'

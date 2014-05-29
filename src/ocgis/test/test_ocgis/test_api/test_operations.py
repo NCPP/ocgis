@@ -15,7 +15,7 @@ import datetime
 from numpy import dtype
 
 
-class Test(TestBase):
+class TestOcgOperations(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
@@ -181,10 +181,12 @@ class Test(TestBase):
         size = ops.get_base_request_size()
         self.assertEqual(size['variables']['tas']['temporal']['shape'][0],3650)
 
-    def test_repr(self):
+    def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         ret = str(ops)
+        self.assertTrue(str(ret).startswith('OcgOperations'))
+        self.assertEqual(len(ret), 1167)
 
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)
@@ -240,7 +242,7 @@ class Test(TestBase):
         self.assertEqual(str(g),'geom=None')
         
         g = definition.Geom('mi_watersheds')
-        self.assertEqual(str(g),'geom=mi_watersheds')
+        self.assertEqual(str(g),'geom="mi_watersheds"')
         
         geoms = ShpCabinetIterator('mi_watersheds')
         g = definition.Geom(geoms)

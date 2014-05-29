@@ -60,6 +60,10 @@ class CoordinateReferenceSystem(object):
     
     def __ne__(self,other):
         return(not self.__eq__(other))
+
+    def __str__(self):
+        ret = 'CoordinateReferenceSystem(value={value})'.format(klass=self.__class__.__name__, value=self.value)
+        return ret
     
     @property
     def sr(self):

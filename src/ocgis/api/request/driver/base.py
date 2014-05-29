@@ -10,6 +10,9 @@ class AbstractDriver(object):
     def __eq__(self, other):
         return self.key == other.key
 
+    def __str__(self):
+        return '"{0}"'.format(self.key)
+
     @abc.abstractproperty
     def key(self):
         str

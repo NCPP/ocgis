@@ -47,7 +47,7 @@ class Test(TestBase):
         
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret,ret_ocgis)
+        self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_with_no_calc_grouping(self):
         rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
@@ -60,7 +60,7 @@ class Test(TestBase):
         
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret,ret_ocgis)
+        self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_with_time_region(self):
         rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
@@ -73,7 +73,7 @@ class Test(TestBase):
         
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret,ret_ocgis)
+        self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_with_geom(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -86,7 +86,7 @@ class Test(TestBase):
         
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret,ret_ocgis)
+        self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_small(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -111,7 +111,7 @@ class Test(TestBase):
         ops.prefix = 'ocgis_compare'
         ops.add_auxiliary_files = False
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret_compute,ret_ocgis)
+        self.assertNcEqual(ret_compute,ret_ocgis,ignore_attributes={'global': ['history']})
     
     @longrunning
     def test_compute_large(self):

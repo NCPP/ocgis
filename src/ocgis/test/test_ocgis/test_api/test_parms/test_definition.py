@@ -10,6 +10,35 @@ from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
 
 
+class TestCalc(TestBase):
+    _create_dir = False
+
+    def test_ini(self):
+        calc = [{'func':'mean','name':'my_mean'}]
+        cc = Calc(calc)
+        eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{}}]
+
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean'
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
+        with self.assertRaises(NotImplementedError):
+            self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+
+    def test_bad_key(self):
+        calc = [{'func':'bad_mean','name':'my_mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
+
+    def test_str(self):
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
+        cc = Calc(calc)
+        self.assertEqual(str(cc), "calc=[{'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict()}]")
+
+        cc = Calc(None)
+        self.assertEqual(str(cc), 'calc=None')
+
+
 class TestConformUnitsTo(TestBase):
     _create_dir = False
 
@@ -25,6 +54,67 @@ class TestConformUnitsTo(TestBase):
 
         cc = ConformUnitsTo(Units('celsius'))
         self.assertTrue(cc.value.equals(Units('celsius')))
+
+
+class TestGeom(TestBase):
+    _create_dir = False
+
+    def test_init(self):
+        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+
+        g = Geom(geom)
+        self.assertEqual(type(g.value),list)
+        g.value = None
+        self.assertEqual(None,g.value)
+
+        g = Geom(None)
+        self.assertEqual(g.value,None)
+        self.assertEqual(str(g),'geom=None')
+
+        g = Geom('-120|40|-110|50')
+        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
+
+        g = Geom('state_boundaries')
+        self.assertEqual(str(g),'geom="state_boundaries"')
+
+        geoms = list(ShpCabinetIterator('state_boundaries'))
+        g = Geom('state_boundaries')
+        self.assertEqual(len(list(g.value)),len(geoms))
+
+        su = SelectUgid([1,2,3])
+        g = Geom('state_boundaries',select_ugid=su)
+        self.assertEqual(len(list(g.value)),3)
+
+        geoms = [{'geom':geom,'properties':{'UGID':1}},{'geom':geom,'properties':{'UGID':2}}]
+        g = Geom(geoms)
+
+        bbox = [-120,40,-110,50]
+        g = Geom(bbox)
+        self.assertEqual(g.value[0]['geom'].bounds,tuple(map(float,bbox)))
+
+    def test_geom_using_shp_path(self):
+        ## pass a path to a shapefile as opposed to a key
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        ocgis.env.DIR_SHPCABINET = None
+        ## make sure there is path associated with the ShpCabinet
+        with self.assertRaises(ValueError):
+            ShpCabinet().keys()
+        g = Geom(path)
+        self.assertEqual(g._shp_key,path)
+        self.assertEqual(len(list(g.value)),51)
+
+    def test_geom_with_changing_select_ugid(self):
+        select_ugid = [16,17]
+        g = Geom('state_boundaries',select_ugid=select_ugid)
+        self.assertEqual(len(list(g.value)),2)
+        select_ugid.append(22)
+        self.assertEqual(len(list(g.value)),3)
+
+        g = Geom('state_boundaries')
+        self.assertEqual(len(list(g.value)),51)
+        g.select_ugid = [16,17]
+        self.assertEqual(len(list(g.value)),2)
 
 
 class TestTimeRange(TestBase):
@@ -278,80 +368,6 @@ class Test(TestBase):
         uri = '/a/bad/path'
         with self.assertRaises(ValueError):
             rd = RequestDataset(uri,'foo')
-
-    def test_geom(self):
-        geom = make_poly((37.762,38.222),(-102.281,-101.754))
-
-        g = Geom(geom)
-        self.assertEqual(type(g.value),list)
-        g.value = None
-        self.assertEqual(None,g.value)
-        
-        g = Geom(None)
-        self.assertEqual(g.value,None)
-        self.assertEqual(str(g),'geom=None')
-        
-        g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
-        self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
-        
-        g = Geom('mi_watersheds')
-        self.assertEqual(str(g),'geom=mi_watersheds')
-        
-        geoms = list(ShpCabinetIterator('mi_watersheds'))
-        g = Geom('mi_watersheds')
-        self.assertEqual(len(list(g.value)),len(geoms))
-        
-        su = SelectUgid([1,2,3])
-        g = Geom('mi_watersheds',select_ugid=su)
-        self.assertEqual(len(list(g.value)),3)
-        
-        geoms = [{'geom':geom,'properties':{'UGID':1}},{'geom':geom,'properties':{'UGID':2}}]
-        g = Geom(geoms)
-        
-        bbox = [-120,40,-110,50]
-        g = Geom(bbox)
-        self.assertEqual(g.value[0]['geom'].bounds,tuple(map(float,bbox)))
-        
-    def test_geom_using_shp_path(self):
-        ## pass a path to a shapefile as opposed to a key
-        path = ShpCabinet().get_shp_path('state_boundaries')
-        ocgis.env.DIR_SHPCABINET = None
-        ## make sure there is path associated with the ShpCabinet
-        with self.assertRaises(ValueError):
-            ShpCabinet().keys()
-        g = Geom(path)
-        self.assertEqual(g._shp_key,path)
-        self.assertEqual(len(list(g.value)),51)
-        
-    def test_geom_with_changing_select_ugid(self):
-        select_ugid = [16,17]
-        g = Geom('state_boundaries',select_ugid=select_ugid)
-        self.assertEqual(len(list(g.value)),2)
-        select_ugid.append(22)
-        self.assertEqual(len(list(g.value)),3)
-        
-        g = Geom('state_boundaries')
-        self.assertEqual(len(list(g.value)),51)
-        g.select_ugid = [16,17]
-        self.assertEqual(len(list(g.value)),2)
-            
-    def test_calc(self):
-        calc = [{'func':'mean','name':'my_mean'}]
-        cc = Calc(calc)
-        eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{}}]
-
-        self.assertEqual(cc.value,eq)
-        cc.value = 'mean~my_mean'
-        self.assertEqual(cc.value,eq)
-        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
-        with self.assertRaises(NotImplementedError):
-            self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
-
-    def test_calc_bad_key(self):
-        calc = [{'func':'bad_mean','name':'my_mean'}]
-        with self.assertRaises(DefinitionValidationError):
-            Calc(calc)
 
 
 if __name__ == "__main__":

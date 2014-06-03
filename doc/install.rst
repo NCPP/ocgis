@@ -47,6 +47,7 @@ Apt-Package         Why?
 libgdal-dev         ``shapely``, ``osgeo``, and ``fiona``
 libgeos-dev         ``shapely`` speedups
 libnetcdf-dev       ``netCDF4``
+libproj-dev         ``osgeo`` and ``fiona``
 libspatialindex-dev ``rtree``
 libudunits2-0       ``cfunits``
 python-dev          needed at least for ``numpy``

@@ -5,6 +5,9 @@ import ocgis
 from copy import deepcopy
 import numpy as np
 from ocgis.util.logging_ocgis import ProgressOcgOperations
+from ocgis.api.collection import SpatialCollection
+from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.calc.eval_function import EvalFunction
 
 
 class TestOcgCalculationEngine(TestBase):
@@ -17,9 +20,39 @@ class TestOcgCalculationEngine(TestBase):
     def grouping(self):
         return(deepcopy(['month']))
         
-    def get_engine(self,kwds=None):
+    def get_engine(self,kwds=None,funcs=None,grouping="None"):
         kwds = kwds or {}
-        return(OcgCalculationEngine(self.grouping,self.funcs,**kwds))
+        funcs = funcs or self.funcs
+        if grouping == 'None':
+            grouping = self.grouping
+        return(OcgCalculationEngine(grouping,funcs,**kwds))
+    
+    def test_with_eval_function_one_variable(self):
+        funcs = [{'func':'tas2=tas+4','ref':EvalFunction}]
+        engine = self.get_engine(funcs=funcs,grouping=None)
+        rd = self.test_data.get_rd('cancm4_tas')
+        coll = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]]).execute()
+        to_test = deepcopy(coll)
+        engine.execute(coll)
+        self.assertNumpyAll(coll[1]['tas'].variables['tas2'].value,to_test[1]['tas'].variables['tas'].value+4)
+        
+    def test_with_eval_function_two_variables(self):
+        funcs = [{'func':'tas_out=tas+tas2','ref':EvalFunction}]
+        engine = self.get_engine(funcs=funcs,grouping=None)
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd2.alias = 'tas2'
+        field = rd.get()
+        field2 = rd2.get()
+        field.variables.add_variable(field2.variables['tas2'],assign_new_uid=True)
+        field = field[:,0:100,:,0:10,0:10]
+        coll = SpatialCollection()
+        coll.add_field(1,None,field)
+        to_test = deepcopy(coll)
+        engine.execute(coll)
+        self.assertIsInstance(coll[1]['tas'],DerivedMultivariateField)
+        self.assertNumpyAll(coll[1]['tas'].variables['tas_out'].value,
+                            to_test[1]['tas'].variables['tas'].value+to_test[1]['tas'].variables['tas2'].value)
     
     def test_constructor(self):
         for kwds in [None,{'progress':ProgressOcgOperations()}]:

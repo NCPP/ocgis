@@ -32,9 +32,15 @@ class TestBase(unittest.TestCase):
         ret = os.path.join(base_dir, 'bin')
         return (ret)
 
-    def assertNumpyAll(self, arr1, arr2):
-        self.assertEqual(type(arr1), type(arr2))
-        return (self.assertTrue(np.all(arr1 == arr2)))
+    def assertNumpyAll(self,arr1,arr2):
+        self.assertEqual(type(arr1),type(arr2))
+        if isinstance(arr1,np.ma.MaskedArray) or isinstance(arr2,np.ma.MaskedArray):
+            self.assertTrue(np.all(arr1.data == arr2.data))
+            self.assertTrue(np.all(arr1.mask == arr2.mask))
+            self.assertEqual(arr1.fill_value,arr2.fill_value)
+            return(True)
+        else:
+            return(self.assertTrue(np.all(arr1 == arr2)))
 
     def assertNumpyAllClose(self, arr1, arr2):
         self.assertEqual(type(arr1), type(arr2))

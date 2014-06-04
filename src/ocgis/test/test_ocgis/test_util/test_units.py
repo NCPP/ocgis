@@ -123,7 +123,7 @@ class TestVariableUnits(TestBase):
         value = np.ma.array(data=[5,5,5],mask=[False,True,False])
         var = Variable(name='tas',units=Units('celsius'),value=value)
         var.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(np.ma.array([278.15,None,278.15],mask=[False,True,False]),var.value)
+        self.assertNumpyAll(np.ma.array([278.15,278.15,278.15],mask=[False,True,False]),var.value)
 
 
 if __name__ == "__main__":

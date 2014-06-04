@@ -199,7 +199,7 @@ class TestSpatialDimension(TestSpatialBase):
             for u in [True,False]:
                 try:
                     ret = sdim.get_intersects(poly,use_spatial_index=u)
-                    to_test = np.ma.array([[[38]],[[-100]]],mask=False)
+                    to_test = np.ma.array([[[38.]],[[-100.]]],mask=False)
                     self.assertNumpyAll(ret.grid.value,to_test)
                     self.assertNumpyAll(ret.uid,np.ma.array([[9]]))
                     self.assertEqual(ret.shape,(1,1))
@@ -353,21 +353,22 @@ class TestSpatialDimension(TestSpatialBase):
         sdim = self.get_sdim(bounds=True)
         sdim_slc = sdim.grid[0,:]
         self.assertEqual(sdim_slc.value.shape,(2,1,4))
-        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40,40,40,40]],[[-100,-99,-98,-97]]],mask=False))
+        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40,40,40,40]],[[-100,-99,-98,-97]]],mask=False,dtype=float))
         self.assertEqual(sdim_slc.row.value[0],40)
         self.assertNumpyAll(sdim_slc.col.value,np.array([-100,-99,-98,-97]))
     
     def test_grid_slice_2d(self):
         sdim = self.get_sdim(bounds=True)
         sdim_slc = sdim.grid[0,1]
-        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40]],[[-99]]],mask=False))
+        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40]],[[-99]]],mask=False,dtype=float))
         self.assertNumpyAll(sdim_slc.row.bounds,np.array([[40.5,39.5]]))
         self.assertEqual(sdim_slc.col.value[0],-99)
     
     def test_grid_slice_2d_range(self):
         sdim = self.get_sdim(bounds=True)
         sdim_slc = sdim.grid[1:3,0:3]
-        self.assertNumpyAll(sdim_slc.value,np.ma.array([[[39,39,39],[38,38,38]],[[-100,-99,-98],[-100,-99,-98]]],mask=False))
+        self.assertNumpyAll(sdim_slc.value,
+         np.ma.array([[[39,39,39],[38,38,38]],[[-100,-99,-98],[-100,-99,-98]]],mask=False,dtype=float))
         self.assertNumpyAll(sdim_slc.row.value,np.array([39,38]))
         
     def test_geom_point(self):
@@ -427,7 +428,7 @@ class TestSpatialDimension(TestSpatialBase):
         sdim_slc = sdim[0,1]
         self.assertEqual(sdim_slc.shape,(1,1))
         self.assertEqual(sdim_slc.uid,np.array([[2]],dtype=np.int32))
-        self.assertNumpyAll(sdim_slc.grid.value,np.ma.array([[[40]],[[-99]]],mask=False))
+        self.assertNumpyAll(sdim_slc.grid.value,np.ma.array([[[40.]],[[-99.]]],mask=False))
         self.assertNotEqual(sdim_slc,None)
         to_test = sdim_slc.geom.point.value[0,0].y,sdim_slc.geom.point.value[0,0].x
         self.assertEqual((40.0,-99.0),(to_test))

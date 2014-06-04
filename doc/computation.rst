@@ -1,7 +1,8 @@
 .. _computation_headline:
 
-Computation
-===========
+=============
+ Computation
+=============
 
 .. warning:: The computational API is considered to be in an `alpha` development stage and may change rapidly. Suggestions are welcome! The API is stable but there will be changes to the inheritance structure, functionality, and attribution of the class structure. All changes will be backwards compatible.
 
@@ -12,9 +13,9 @@ OpenClimateGIS offers an extensible computation framework that supports:
   4. Overload hooks for aggregation operations
 
 Computations Described
-----------------------
+======================
 
-Computations are applied following any initial subsetting by time, level, or geometry. If data is spatially aggregated, any computation is applied to the aggregated data values unless :ref:`calc_raw_headline` is set to `True`. Computations are applied to "temporal groups" within the target data defined by the :ref:`calc_grouping_headline` parameter. A "temporal group" is a unique set of date parts (e.g. the month of August, the year 2002, January 2004). Data is summarized within the temporal group to produce a single value within the temporal aggregation for each level and spatial coordinate.
+Computations are applied following any initial subsetting by time, level, or geometry. If data is spatially aggregated, any computation is applied to the aggregated data values unless :ref:`calc_raw_headline` is set to ``True``. Computations are applied to "temporal groups" within the target data defined by the :ref:`calc_grouping_headline` parameter. A "temporal group" is a unique set of date parts (e.g. the month of August, the year 2002, January 2004). Data is summarized within the temporal group to produce a single value within the temporal aggregation for each level and spatial coordinate.
 
 As a functional example, the following code replicates (in principle) the computational process used in OpenClimateGIS for calculating the mean of non-leveled (i.e. three-dimensional) data with temporal aggregation:
 
@@ -41,12 +42,12 @@ In addition, sample size is always calculated and returned in any calculation ou
 Masked data is respected throughout the computational process. These data are assumed to be missing. Hence, they are not used in the sample size calculation.
 
 Temporal and Spatial Aggregation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 It is possible to overload methods for temporal and/or spatial aggregation in any function. This is described in greater detail in the section :ref:`defining_custom_functions`. If the source code method is not defined (i.e. not overloaded), it is a mean (for temporal) and a weighted average (for spatial). For ease-of-programming and potential speed-ups through NumPy, temporal aggregation is performed within the function unless that function may operate on single values (i.e. mean v. logarithm). In this case, a method overload is required to accomodate temporal aggregations.
 
 Using Computations
-------------------
+==================
 
 .. warning:: Always use `NumPy masked array functions`_!! Standard array functions may not be compatible with masked variables.
 
@@ -54,7 +55,7 @@ Computations are applied by passing a list of "function dictionaries" to the :re
 
 In its simplest form, a "function dictionary" is composed of a `func` key and a `name` key. The `func` key corresponds to the `name` attribute of the function class. The `name` key in the "function dictionary" is required and is a user-supplied alias. This is required to allow multiple calculations with the same function names to be performed with different parameters (in a single request).
 
-Functions currently available are listed below: :ref:`available_functions`. In the case where a function does not expose a `name` attribute, the `func` value is the lower case string of the function's class name (e.g. Mean = 'mean').
+Functions currently available are listed below: :ref:`available_functions`. In the case where a function does not expose a `name` attribute, the `func` value is the lower case string of the function's class name (i.e. Mean = 'mean').
 
 For example to calculate a monthly mean and median on a hypothetical daily climate dataset (written to CSV format), an OpenClimateGIS call may look like:
 
@@ -69,12 +70,26 @@ A calculation with arguments includes a `kwds` key in the function dictionary:
 
 >>> calc = [{'func':'between','name':'between_5_10','kwds':{'lower':5,'upper':10}}]
 
-If a function takes parameters, those parameters are documented in the :ref:`available_functions` section. The keyword parameter name maps directly to its keyword name in the `_calculate_` method.
+If a function takes parameters, those parameters are documented in the :ref:`available_functions` section. The keyword parameter name maps directly to its keyword name in the ``calculate`` method.
 
 .. _defining_custom_functions:
 
 Defining Custom Functions
--------------------------
+=========================
+
+String-Based Function Expressions
+---------------------------------
+
+String-based functions composed of variable aliases and selected NumPy functions are also allowed for the :ref:`calc_headline` argument. The list of enabled NumPy functions is found in the :attr:`ocgis.constants.enabled_numpy_ufuncs` attribute. The string on the left-hand side of the expression will be the name of the output variable. Some acceptable string-based functions are:
+
+>>> calc = 'tas_added=tas+4'
+>>> calc = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
+>>> calc = 'diff=tasmax-tasmin'
+
+.. note:: It is not possible to perform any temporal aggregations using string-based function expressions.
+
+Subclassing OpenClimateGIS Function Classes
+-------------------------------------------
 
 Once a custom calculation is defined, it must be appended to :class:`ocgis.FunctionRegistry`.
 
@@ -124,12 +139,12 @@ All calculations are classes that inherit from the following abstract base class
 .. _available_functions:
 
 Available Functions
--------------------
+===================
 
 Click on `Show Source` to the right of the function to get descriptive information and see class-level definitions.
 
 Basic Statistics
-~~~~~~~~~~~~~~~~
+----------------
 
 .. autoclass:: ocgis.calc.library.statistics.FrequencyPercentile
    :show-inheritance:
@@ -162,7 +177,7 @@ Basic Statistics
    :undoc-members:
 
 Multivariate Calculations / Indices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------------
 
 .. autoclass:: ocgis.calc.library.index.duration.FrequencyDuration
    :show-inheritance:
@@ -185,7 +200,7 @@ Multivariate Calculations / Indices
    :undoc-members:
 
 Thresholds
-~~~~~~~~~~
+----------
 
 .. autoclass:: ocgis.calc.library.thresholds.Between
    :show-inheritance:

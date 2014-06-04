@@ -18,6 +18,7 @@ import os
 from copy import deepcopy
 from types import FunctionType
 import itertools
+from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 import datetime
 
 
@@ -99,9 +100,17 @@ class Calc(base.IterableParameter,base.OcgParameter):
     default = None
     nullable = True
     input_types = [list,tuple]
-    return_type = list
-    element_type = dict
+    return_type = [list]
+    element_type = [dict,str]
     unique = False
+    _possible = ['es=tas+4',['es=tas+4'],[{'func':'mean','name':'mean'}]]
+    
+    def __init__(self,*args,**kwargs):
+        ## this flag is used by the parser to determine if an eval function has
+        ## been passed. very simple test for this...if there is an equals sign
+        ## in the string then it is considered an eval function
+        self._is_eval_function = False
+        base.OcgParameter.__init__(self,*args,**kwargs)
     
     def __str__(self):
         if self.value is None:
@@ -135,74 +144,98 @@ class Calc(base.IterableParameter,base.OcgParameter):
         if self.value is None:
             ret = 'No computations applied.'
         else:
-            ret = ['The following computations were applied:']
-            for ii in self.value:
-                ret.append('{0}: {1}'.format(ii['name'],ii['ref'].description))
+            if self._is_eval_function:
+                ret = 'An string function representation was used for calculation: "{0}"'.format(self.value[0])
+            else:
+                ret = ['The following computations were applied:']
+                for ii in self.value:
+                    ret.append('{0}: {1}'.format(ii['name'],ii['ref'].description))
         return(ret)
     
     def _parse_(self,value):
-        fr = register.FunctionRegistry()
-        
-        ## get the function key string form the calculation definition dictionary
-        function_key = value['func']
-        ## this is the message for the DefinitionValidationError if this key
-        ## may not be found.
-        dve_msg = 'The function key "{0}" is not available in the function registry.'.format(function_key)
-        
-        ## retrieve the calculation class reference from the function registry
-        try:
-            value['ref'] = fr[function_key]
-        ## if the function cannot be found, it may be part of a contributed
-        ## library of calculations not registered by default as the external
-        ## library is an optional dependency.
-        except KeyError:
-            ## this will register the icclim indices.
-            if function_key.startswith('{0}_'.format(constants.prefix_icclim_function_key)):
-                register.register_icclim(fr)
+        ## if this is not an eval function (a string to interpret as a function)
+        ## then construct the function dictionaries. otherwise, pass through
+        if '=' in value:
+            self._is_eval_function = True
+            if EvalFunction.is_multivariate(value):
+                eval_klass = MultivariateEvalFunction
             else:
+                eval_klass = EvalFunction
+            value = {'func':value,'ref':eval_klass}
+        ## if it is not an eval function, then do the standard argument parsing
+        if not self._is_eval_function:
+            fr = register.FunctionRegistry()
+            
+            ## get the function key string form the calculation definition dictionary
+            function_key = value['func']
+            ## this is the message for the DefinitionValidationError if this key
+            ## may not be found.
+            dve_msg = 'The function key "{0}" is not available in the function registry.'.format(function_key)
+            
+            ## retrieve the calculation class reference from the function registry
+            try:
+                value['ref'] = fr[function_key]
+            ## if the function cannot be found, it may be part of a contributed
+            ## library of calculations not registered by default as the external
+            ## library is an optional dependency.
+            except KeyError:
+                ## this will register the icclim indices.
+                if function_key.startswith('{0}_'.format(constants.prefix_icclim_function_key)):
+                    register.register_icclim(fr)
+                else:
+                    raise(DefinitionValidationError(self,dve_msg))
+            ## make another attempt to register the function
+            try:
+                value['ref'] = fr[function_key]
+            except KeyError:
                 raise(DefinitionValidationError(self,dve_msg))
-        ## make another attempt to register the function
-        try:
-            value['ref'] = fr[function_key]
-        except KeyError:
-            raise(DefinitionValidationError(self,dve_msg))
-        
-        ## parameters will be set to empty if none are present in the calculation
-        ## dictionary.
-        if 'kwds' not in value:
-            value['kwds'] = OrderedDict()
-        ## make the keyword parameter definitions lowercase.
-        else:
-            value['kwds'] = OrderedDict(value['kwds'])
-            for k,v in value['kwds'].iteritems():
-                try:
-                    value['kwds'][k] = v.lower()
-                except AttributeError:
-                    pass
+            
+            ## parameters will be set to empty if none are present in the calculation
+            ## dictionary.
+            if 'kwds' not in value:
+                value['kwds'] = OrderedDict()
+            ## make the keyword parameter definitions lowercase.
+            else:
+                value['kwds'] = OrderedDict(value['kwds'])
+                for k,v in value['kwds'].iteritems():
+                    try:
+                        value['kwds'][k] = v.lower()
+                    except AttributeError:
+                        pass
         return(value)
         
     def _parse_string_(self,value):
-        key,uname = value.split('~',1)
         try:
-            uname,kwds_raw = uname.split('!',1)
-            kwds_raw = kwds_raw.split('!')
-            kwds = OrderedDict()
-            for kwd in kwds_raw:
-                kwd_name,kwd_value = kwd.split('~')
-                try:
-                    kwds.update({kwd_name:float(kwd_value)})
-                except ValueError:
-                    kwds.update({kwd_name:str(kwd_value)})
+            key,uname = value.split('~',1)
+            try:
+                uname,kwds_raw = uname.split('!',1)
+                kwds_raw = kwds_raw.split('!')
+                kwds = OrderedDict()
+                for kwd in kwds_raw:
+                    kwd_name,kwd_value = kwd.split('~')
+                    try:
+                        kwds.update({kwd_name:float(kwd_value)})
+                    except ValueError:
+                        kwds.update({kwd_name:str(kwd_value)})
+            except ValueError:
+                kwds = OrderedDict()
+            ret = {'func':key,'name':uname,'kwds':kwds}
         except ValueError:
-            kwds = OrderedDict()
-        dct = {'func':key,'name':uname,'kwds':kwds}
-        return(dct)
+            ## likely a string to use for an eval function
+            if '=' not in value:
+                msg = 'String may not be parsed: "{0}".'.format(value)
+                raise(DefinitionValidationError(self,msg))
+            else:
+                self._is_eval_function = True
+                ret = value
+            
+        return(ret)
     
     def _validate_(self,value):
-        ## collect names
-        names = [ii['name'] for ii in value]
-        if len(names) != len(set(names)):
-            raise(DefinitionValidationError(self,'User-provided calculation names must be unique.'))
+        if not self._is_eval_function:
+            names = [ii['name'] for ii in value]
+            if len(names) != len(set(names)):
+                raise(DefinitionValidationError(self,'User-provided calculation names must be unique.'))
 
     
 class CalcGrouping(base.IterableParameter,base.OcgParameter):

@@ -3,6 +3,8 @@ from ocgis.interface.base.variable import VariableCollection
 from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
 from ocgis.calc.base import AbstractMultivariateFunction
 import logging
+from ocgis.calc.eval_function import EvalFunction
+import numpy as np
 
 
 class OcgCalculationEngine(object):
@@ -59,9 +61,19 @@ class OcgCalculationEngine(object):
         :param bool file_only:
         :param dict tgds: {'field_alias': :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`,...}
         '''
+        
         ## switch field type based on the types of calculations present
         if self._check_calculation_members_(self.funcs,AbstractMultivariateFunction):
             klass = DerivedMultivariateField
+        elif self._check_calculation_members_(self.funcs,EvalFunction):
+            ## if the input field has more than one variable, assumed this is a 
+            ## multivariate calculation
+            klass = DerivedField
+            for field_container in coll.itervalues():
+                for field in field_container.itervalues():
+                    if len(field.variables.keys()) > 1:
+                        klass = DerivedMultivariateField
+                        break
         else:
             klass = DerivedField
         
@@ -107,12 +119,20 @@ class OcgCalculationEngine(object):
                 
                 out_vc = VariableCollection()
                 for f in self.funcs:
-                    ocgis_lh('Calculating: {0}'.format(f['func']),logger='calc.engine')
                     
-                    ## initialize the function
-                    function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
-                         parms=f['kwds'],tgd=new_temporal,use_raw_values=self.use_raw_values,
-                         calc_sample_size=self.calc_sample_size)
+                    try:
+                        ocgis_lh('Calculating: {0}'.format(f['func']),logger='calc.engine')
+                        
+                        ## initialize the function
+                        function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
+                             parms=f['kwds'],tgd=new_temporal,use_raw_values=self.use_raw_values,
+                             calc_sample_size=self.calc_sample_size)
+                    except KeyError:
+                        ## likely an eval function which does not have the name
+                        ## key
+                        function = EvalFunction(field=field,file_only=file_only,vc=out_vc,
+                                                expr=self.funcs[0]['func'])
+                        
                     ocgis_lh('calculation initialized',logger='calc.engine',level=logging.DEBUG)
                     
                     ## return the variable collection from the calculations
@@ -121,7 +141,10 @@ class OcgCalculationEngine(object):
                     for dv in out_vc.itervalues():
                         ## any outgoing variables from a calculation must have a 
                         ## data type associated with it
-                        assert(dv.dtype != None)
+                        try:
+                            assert(dv.dtype != None)
+                        except AssertionError:
+                            assert(isinstance(dv.dtype,np.dtype))
                         ## if this is a file only operation, then there should
                         ## be no values.
                         if file_only:

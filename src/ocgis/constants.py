@@ -45,6 +45,9 @@ np_float = np.float32
 #: Function key prefix for the `icclim` indices library.
 prefix_icclim_function_key = 'icclim'
 
+#: NumPy functions enabled for functions evaluated from string representations.
+enabled_numpy_ufuncs = ['exp','log','abs']
+
 
 test_run_long_tests = False
 test_run_dev_tests = False

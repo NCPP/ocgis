@@ -15,6 +15,7 @@ from ocgis.util.helpers import project_shapely_geometry,\
 from shapely.geometry.multipoint import MultiPoint
 from copy import deepcopy
 import numpy as np
+from ocgis.calc.eval_function import MultivariateEvalFunction
 
 
 class SubsetOperation(object):
@@ -34,6 +35,7 @@ class SubsetOperation(object):
         ## create the calculation engine
         if self.ops.calc == None or self._request_base_size_only == True:
             self.cengine = None
+            self._has_multivariate_calculations = False
         else:
             ocgis_lh('initializing calculation engine',self._subset_log,level=logging.DEBUG)
             self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
@@ -42,6 +44,8 @@ class SubsetOperation(object):
                                            agg=self.ops.aggregate,
                                            calc_sample_size=self.ops.calc_sample_size,
                                            progress=self._progress)
+            self._has_multivariate_calculations = any([self.cengine._check_calculation_members_(self.cengine.funcs,k) \
+             for k in [AbstractMultivariateFunction,MultivariateEvalFunction]])
             
         ## in the case of netcdf output, geometries must be unioned. this is
         ## also true for the case of the selection geometry being requested as
@@ -79,8 +83,9 @@ class SubsetOperation(object):
         
         ## multivariate calculations require datasets come in as a list with all
         ## variable inputs part of the same sequence.
-        if self.cengine is not None and self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
+        if self._has_multivariate_calculations:
             itr_rd = [[r for r in self.ops.dataset.itervalues()]]
+
         ## otherwise, process geometries expects a single element sequence
         else:
             itr_rd = [[rd] for rd in self.ops.dataset.itervalues()]
@@ -150,7 +155,7 @@ class SubsetOperation(object):
             headers = self.ops.headers
         else:
             if self.cengine is not None:
-                if self.cengine._check_calculation_members_(self.cengine.funcs,AbstractMultivariateFunction):
+                if self._has_multivariate_calculations:
                     headers = constants.multi_headers
                 else:
                     headers = constants.calc_headers
@@ -191,7 +196,7 @@ class SubsetOperation(object):
             ## empty returns.
             for f in field:
                 f.spatial.abstraction = self.ops.abstraction
-                
+
             if len(field) > 1:
                 try:
                     ## reset the variable uid and let the collection handle its assignment

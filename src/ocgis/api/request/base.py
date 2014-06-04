@@ -308,6 +308,9 @@ class RequestDataset(object):
         self._variable = get_tuple(value)
 
     def get(self, **kwargs):
+        """
+        :rtype: :class:`~ocgis.interface.base.Field`
+        """
         if not get_is_none(self._conform_units_to):
             src_units = []
             dst_units = []

@@ -8,6 +8,7 @@ from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.shp_cabinet import ShpCabinet
 import numpy as np
+from ocgis.calc.eval_function import MultivariateEvalFunction
 
 
 class TestCalc(TestBase):
@@ -368,6 +369,67 @@ class Test(TestBase):
         uri = '/a/bad/path'
         with self.assertRaises(ValueError):
             rd = RequestDataset(uri,'foo')
+
+
+class TestCalc(TestBase):
+    _create_dir = False
+    
+    def test_get_meta(self):
+        for poss in Calc._possible:
+            cc = Calc(poss)
+            cc.get_meta()
+            
+    def test_eval_underscores_in_variable_names(self):
+        value = 'tas_4=tasmin_2+tasmin'
+        self.assertEqual(Calc(value).value,[{'func':value,'ref':MultivariateEvalFunction}])
+    
+    def test_eval_string(self):
+        value = [
+                 'es=tas+4',
+                 ['es=tas+4']
+                 ]
+        actual = [{'func':'es=tas+4','ref':EvalFunction}]
+        for v in value:
+            cc = Calc(v)
+            self.assertEqual(cc.value,actual)
+            
+    def test_eval_string_multivariate(self):
+        value = [
+                 'es=exp(tas)+tasmax+log(4)',
+                 ['es=exp(tas)+tasmax+log(4)']
+                 ]
+        actual = [{'func':'es=exp(tas)+tasmax+log(4)','ref':MultivariateEvalFunction}]
+        for v in value:
+            cc = Calc(v)
+            self.assertEqual(cc.value,actual)
+            
+    def test_eval_string_number_after_variable_alias(self):
+        value = 'tas2=tas1+tas2'
+        self.assertTrue(EvalFunction.is_multivariate(value))
+        
+        value = 'tas2=tas1+tas1'
+        self.assertFalse(EvalFunction.is_multivariate(value))
+                
+    def test_eval_string_malformed(self):
+        with self.assertRaises(DefinitionValidationError):
+            Calc('estas+4')
+            
+    def test(self):
+        calc = [{'func':'mean','name':'my_mean'}]
+        cc = Calc(calc)
+        eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{}}]
+
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean'
+        self.assertEqual(cc.value,eq)
+        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
+        with self.assertRaises(NotImplementedError):
+            self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+
+    def test_bad_key(self):
+        calc = [{'func':'bad_mean','name':'my_mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
 
 
 if __name__ == "__main__":

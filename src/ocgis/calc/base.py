@@ -211,6 +211,7 @@ class AbstractFunction(object):
             data = 'foo_data_source'
         else:
             data = None
+
         dv = DerivedVariable(name=self.key,alias=alias,units=units,value=fill,
                              fdef=fdef,parents=parents,meta=meta,data=data,
                              dtype=dtype,fill_value=fill_value)

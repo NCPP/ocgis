@@ -55,6 +55,13 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
+    def test_no_calc_grouping_with_string_expression(self):
+        calc = 'es=tas*3'
+        calc_grouping = ['month']
+        rd = self.test_data.get_rd('cancm4_tas')
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping)
+
     def test_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')

@@ -8,6 +8,7 @@ from ocgis.calc.base import AbstractMultivariateFunction,\
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
 from ocgis.api.subset import SubsetOperation
 import numpy as np
+from ocgis.calc.engine import OcgCalculationEngine
 
 
 class OcgOperations(object):
@@ -37,7 +38,7 @@ class OcgOperations(object):
      selection geometries.
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.
-    :type calc: list of dictionaries
+    :type calc: list of dictionaries or string-based function
     :param calc_grouping: Temporal grouping to apply for calculations.
     :type calc_grouping: list of str or int
     :param calc_raw: If `True`, perform calculations on the "raw" data regardless 
@@ -342,7 +343,7 @@ class OcgOperations(object):
         ocgis_lh(logger='operations',msg='validating operations')
         
         def _raise_(msg,obj=OutputFormat):
-            e = DefinitionValidationError(OutputFormat,msg)
+            e = DefinitionValidationError(obj,msg)
             ocgis_lh(exc=e,logger='operations')
             
         ## there are a bunch of constraints on the netCDF format
@@ -356,11 +357,22 @@ class OcgOperations(object):
             ## we can write multivariate functions to netCDF however
             else:
                 if self.calc is not None and len(self.dataset) > 1:
-                    if sum([issubclass(calc['ref'],AbstractMultivariateFunction) for calc in self.calc]) != 1:
+                    ## count the occurrences of these classes in the calculation
+                    ## list.
+                    klasses_to_check = [AbstractMultivariateFunction,MultivariateEvalFunction]
+                    multivariate_checks = []
+                    for klass in klasses_to_check:
+                        for calc in self.calc:
+                            multivariate_checks.append(issubclass(calc['ref'],klass))
+                    if sum(multivariate_checks) != 1:
                         msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
                                'There are currently {dcount} RequestDatasets. Note, this is different than a '
                                'multifile dataset.'.format(dcount=len(self.dataset)))
                         _raise_(msg,OutputFormat)
+                    else:
+                        ## there is a multivariate calculation and this requires
+                        ## multiple request dataset
+                        pass
             ## clipped data which creates an arbitrary geometry may not be written
             ## to netCDF
             if self.spatial_operation != 'intersects':
@@ -381,7 +393,7 @@ class OcgOperations(object):
                     msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
                     _raise_(msg)
                 ## no keyed output functions to netCDF
-                if any([issubclass(c['ref'],AbstractKeyedOutputFunction) for c in self.calc]):
+                if OcgCalculationEngine._check_calculation_members_(self.calc,AbstractKeyedOutputFunction):
                     msg = 'Keyed function output may not be written to netCDF.'
                     _raise_(msg)
             
@@ -440,8 +452,14 @@ class OcgOperations(object):
             if self.calc is None:
                 _raise_('File only outputs are only relevant for computations.',obj=FileOnly)
         
-        ## validate any calculations against the operations object
+        ## validate any calculations against the operations object. if the calculation
+        ## is a string eval function do not validate.
         if self.calc is not None:
-            for c in self.calc:
-                c['ref'].validate(self)
+            if self._get_object_('calc')._is_eval_function:
+                if self.calc_grouping is not None:
+                    msg = 'Calculation groups are not applicable for string function expressions.'
+                    _raise_(msg,obj=CalcGrouping)
+            else:
+                for c in self.calc:
+                    c['ref'].validate(self)
         

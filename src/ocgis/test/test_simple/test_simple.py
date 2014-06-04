@@ -35,6 +35,8 @@ from csv import DictReader
 from ocgis.test.test_base import longrunning
 import webbrowser
 import tempfile
+from ocgis.api.parms.definition import OutputFormat
+from ocgis.interface.base.field import DerivedMultivariateField
 
 
 @contextmanager
@@ -607,6 +609,33 @@ class TestSimple(TestSimpleBase):
                 self.assertEqual(ref,(1, 61, 2, 4, 4))
             else:
                 self.assertEqual(ref,(1, 2, 2, 4, 4))
+                
+    def test_calc_eval(self):
+        rd = self.get_dataset()
+        calc = 'foo2=foo+4'
+        ocgis.env.OVERWRITE = True
+        for of in OutputFormat.iter_possible():
+            ops = ocgis.OcgOperations(dataset=rd,calc=calc,output_format=of)
+            ret = ops.execute()
+            if of == 'nc':
+                with nc_scope(ret) as ds:
+                    self.assertEqual(ds.variables['foo2'][:].mean(),6.5)
+                    
+    def test_calc_eval_multivariate(self):
+        rd = self.get_dataset()
+        rd2 = self.get_dataset()
+        rd2['alias'] = 'foo2'
+        calc = 'foo3=foo+foo2+4'
+        ocgis.env.OVERWRITE = True
+        for of in OutputFormat.iter_possible():
+            ops = ocgis.OcgOperations(dataset=[rd,rd2],calc=calc,output_format=of,
+                                      slice=[None,[0,10],None,None,None])
+            ret = ops.execute()
+            if of == 'numpy':
+                self.assertIsInstance(ret[1]['foo_foo2'],DerivedMultivariateField)
+            if of == 'nc':
+                with nc_scope(ret) as ds:
+                    self.assertEqual(ds.variables['foo3'][:].mean(),9.0)
     
     @longrunning   
     def test_calc_sample_size(self):

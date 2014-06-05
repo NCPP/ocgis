@@ -4,7 +4,7 @@ from ocgis.test.base import TestBase
 from ocgis.interface.metadata import NcMetadata
 
 
-class TestNcMeta(TestBase):
+class TestNcMetadata(TestBase):
 
     def setUp(self):
         uri = self.test_data.get_rd('cancm4_tasmax_2001').uri
@@ -13,11 +13,6 @@ class TestNcMeta(TestBase):
     def tearDown(self):
         self.rootgrp.close()
 
-    def test_ncmeta(self):
+    def test_init(self):
         ncm = NcMetadata(self.rootgrp)
-        self.assertEqual(set(ncm.keys()),set(['dataset','variables','dimensions','file_format']))
-
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+        self.assertEqual(set(ncm.keys()), set(['dataset', 'variables', 'dimensions', 'file_format']))

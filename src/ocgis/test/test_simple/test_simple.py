@@ -1,3 +1,4 @@
+import re
 import unittest
 from cfunits import Units
 from ocgis.api.operations import OcgOperations
@@ -266,62 +267,6 @@ class TestSimple(TestSimpleBase):
             reader = csv.DictReader(f)
             test_aliases = set([row['ALIAS'] for row in reader])
         self.assertEqual(set(aliases),test_aliases)
-    
-    def test_missing_calendar_attribute(self):
-        ## path to the test data file
-        out_nc = os.path.join(self._test_dir,self.fn)
-        
-        ## case of calendar being set to an empty string
-        with nc_scope(out_nc,'a') as ds:
-            ds.variables['time'].calendar = ''
-        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
-        ## the default for the calendar overload is standard
-        self.assertEqual(rd.t_calendar,None)
-        
-        ## case of a calendar being set a bad value but read anyway
-        with nc_scope(out_nc,'a') as ds:
-            ds.variables['time'].calendar = 'foo'
-        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
-        field = rd.get()
-        self.assertEqual(field.temporal.calendar,'foo')
-        ## calendar is only access when the float values are converted to datetime
-        ## objects
-        with self.assertRaises(ValueError):
-            field.temporal.value_datetime
-        ## now overload the value and ensure the field datetimes may be loaded
-        rd = ocgis.RequestDataset(uri=out_nc,variable='foo',t_calendar='standard')
-        self.assertEqual(rd.source_metadata['variables']['time']['attrs']['calendar'],'foo')
-        field = rd.get()
-        self.assertEqual(field.temporal.calendar,'standard')
-        field.temporal.value_datetime
-        
-        ## case of a missing calendar attribute altogether
-        with nc_scope(out_nc,'a') as ds:
-            ds.variables['time'].delncattr('calendar')
-        rd = ocgis.RequestDataset(uri=out_nc,variable='foo')
-        self.assertEqual(rd.t_calendar,None)
-        self.assertIsInstance(rd.inspect_as_dct(),OrderedDict)
-        self.assertEqual(rd.inspect_as_dct()['derived']['Calendar'],
-                         'None (will assume "standard")')
-        ## write the data to a netCDF and ensure the calendar is written.
-        ret = ocgis.OcgOperations(dataset=rd,output_format='nc').execute()
-        with nc_scope(ret) as ds:
-            self.assertEqual(ds.variables['time'].calendar,'standard')
-            self.assertEqual(ds.variables['time_bnds'].calendar,'standard')
-        field = rd.get()
-        ## the standard calendar name should be available at the dataset level
-        self.assertEqual(field.temporal.calendar,'standard')
-        ## test different forms of inspect ensuring the standard calendar is
-        ## correctly propagated
-        ips = [ocgis.Inspect(request_dataset=rd),ocgis.Inspect(uri=out_nc,variable='foo')]
-        for ip in ips:
-            self.assertNotIn('calendar',ip.meta['variables']['time']['attrs'])
-            self.assertTrue(ip.get_temporal_report()[2].endswith(('will assume "standard")')))
-        ip = ocgis.Inspect(uri=out_nc)
-        ## this method is only applicable when a variable is present
-        with self.assertRaises(AttributeError):
-            ip.get_report()
-        self.assertIsInstance(ip.get_report_no_variable(),list)
     
     def test_agg_selection(self):
         features = [
@@ -724,13 +669,6 @@ class TestSimple(TestSimpleBase):
                             else:
                                 self.assertEqual(alias_set,set(['max_var1','mean_var1',
                                                                 'max_var2','mean_var2']))
-            
-    def test_inspect(self):
-        uri = self.get_dataset()['uri']
-        for variable in [self.get_dataset()['variable'],None]:
-            ip = Inspect(uri,variable=variable)
-            ret = ip.__repr__()
-            self.assertTrue(len(ret) > 100)
             
     def test_nc_conversion(self):
         rd = self.get_dataset()
@@ -1332,8 +1270,13 @@ class TestSimpleMultivariate(TestSimpleBase):
             rds = self.get_multiple_request_datasets()
             ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
             ret = ops.execute()
+            path_source_metadata = os.path.join(self._test_dir, ops.prefix, '{0}_source_metadata.txt'.format(ops.prefix))
             if o != 'numpy':
                 self.assertTrue(os.path.exists(ret))
+                with open(path_source_metadata, 'r') as f:
+                    lines = f.readlines()
+                search = re.search('URI = (.*)\n', lines[1]).groups()[0]
+                self.assertTrue(os.path.exists(search))
 
     def test_calculation_multiple_request_datasets(self):
         rds = self.get_multiple_request_datasets()

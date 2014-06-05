@@ -234,7 +234,7 @@ class AbstractConverter(object):
                 out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
                 to_write = []
                 for rd in self.ops.dataset.itervalues():
-                    ip = Inspect(meta=rd.source_metadata)
+                    ip = Inspect(meta=rd.source_metadata, uri=rd.uri)
                     to_write += ip.get_report_no_variable()
                 with open(out_path,'w') as f:
                     f.writelines('\n'.join(to_write))

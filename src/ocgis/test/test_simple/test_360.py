@@ -76,10 +76,8 @@ class Test360(TestBase):
         dataset = {'uri':path,'variable':'foo'}
         output_format = 'shp'
         geom = self.nebraska
-        ip = Inspect(dataset['uri'],dataset['variable'])
-        
+
         for s_abstraction in ['point','polygon']:
-            interface = {'s_abstraction':s_abstraction}
             ops = OcgOperations(dataset=dataset,
                                 output_format=output_format,
                                 geom=geom,

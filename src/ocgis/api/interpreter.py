@@ -47,11 +47,18 @@ class OcgInterpreter(Interpreter):
         ## check for a user-supplied output prefix
         prefix = self.ops.prefix
             
-        ## do directory management.
+        # do directory management #
+
+        # flag to indicate a directory is made. mostly a precaution to make sure the appropriate directory is is removed.
+        made_output_directory = False
+
         if self.ops.output_format == 'numpy':
+            # no output directory for numpy output
             outdir = None
         else:
+            # directories or a single output file(s) is created for the other cases
             if self.ops.add_auxiliary_files:
+                # auxiliary files require that a directory be created
                 outdir = os.path.join(self.ops.dir_output,prefix)
                 if os.path.exists(outdir):
                     if env.OVERWRITE:
@@ -59,9 +66,12 @@ class OcgInterpreter(Interpreter):
                     else:
                         raise(IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
                 os.mkdir(outdir)
+                # on an exception, the output directory needs to be removed
+                made_output_directory = True
             else:
+                # with no auxiliary files the output directory will do just fine
                 outdir = self.ops.dir_output
-            
+
         try:
             ## configure logging ###################################################
             
@@ -132,7 +142,13 @@ class OcgInterpreter(Interpreter):
             
             ocgis_lh('Operations successful.'.format(self.ops.prefix),interpreter_log)
 
-            return(ret)
+            return ret
+        except:
+            # on an exception, the output directory needs to be removed if one was created. once the output directory is
+            # removed, reraise.
+            if made_output_directory:
+                shutil.rmtree(outdir)
+            raise
         finally:
             ## shut down logging
             ocgis_lh.shutdown()

@@ -1,8 +1,5 @@
 import numpy as np
 
-#: Potential bounds names used to find the bounds dimension on a netCDF.
-name_bounds = ['bounds','bnds','bound','bnd']
-name_bounds.extend(['d_'+b for b in name_bounds])
 #: Standard bounds name used when none is available from the input data.
 ocgis_bounds = 'bounds'
 

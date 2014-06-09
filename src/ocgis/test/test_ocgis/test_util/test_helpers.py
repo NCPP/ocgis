@@ -1,15 +1,49 @@
-#from ocgis.interface.shp import ShpDataset
 import numpy as np
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
-    get_added_slice
+    get_added_slice, get_iter
 import itertools
 from ocgis.test.base import TestBase
-#from ocgis.util.spatial.wrap import Wrapper
 from datetime import datetime as dt
 
 
-class TestHelpers(TestBase):
+class Test(TestBase):
+
+    def test_get_iter_str(self):
+        """Test whole string returned as opposed to its immutable elements."""
+
+        itr = get_iter('hi')
+        self.assertEqual(list(itr), ['hi'])
+
+    def test_get_iter_numpy(self):
+        """Test entire NumPy array returned versus its individual elements."""
+
+        arr = np.array([1, 2, 3, 4])
+        itr = get_iter(arr)
+        self.assertNumpyAll(list(itr)[0], arr)
+
+    def test_get_iter_dtype(self):
+        """Test the dtype is properly used when determining how to iterate over elements."""
+
+        class foo(object):
+            pass
+
+        dtypes = [dict, (dict,), (dict, foo)]
+
+        data = {'hi': 'there'}
+
+        for dtype in dtypes:
+            itr = get_iter(data, dtype=dtype)
+            self.assertDictEqual(list(itr)[0], data)
+
+        ## a foo object should also be okay
+        f = foo()
+        itr = get_iter(f, dtype=foo)
+        self.assertEqual(list(itr), [f])
+
+        ## if no dtype is passed, then the builtin iterator of the element will be used
+        itr = get_iter(data)
+        self.assertEqual(list(itr), ['hi'])
     
     def test_get_added_slice(self):
         slice1 = slice(46,47)
@@ -156,12 +190,8 @@ class TestHelpers(TestBase):
                   ]
         
         for arr,flag1,flag2 in itertools.product(arrays,_flag1,_flag2):
-#            try:
             for ret in iter_array(arr,use_mask=flag1,return_value=flag2):
                 pass
-#            except Exception as e:
-#                print(arr,flag1,flag2)
-#                import ipdb;ipdb.set_trace()
 
         arr = np.ma.array([1,2,3],mask=True)
         ret = list(iter_array(arr))
@@ -183,25 +213,3 @@ class TestHelpers(TestBase):
         for key,value in mmap.iteritems():
             ret = format_bool(key)
             self.assertEqual(ret,value)
-
-#class TestSpatial(TestBase):
-#    axes = [-10.0,-5.0,0.0,5.0,10]
-#
-#    def test_unwrap(self):
-#        sd = ShpDataset('state_boundaries')        
-#        for axis in self.axes:
-#            w = Wrapper(axis=axis)
-#            for geom in sd.spatial.geom:
-#                new_geom = w.unwrap(geom)
-#                bounds = np.array(new_geom.bounds)
-#                self.assertFalse(np.any(bounds < axis))
-#                
-#    def test_wrap(self):
-#        sd = ShpDataset('state_boundaries')
-#        for axis in self.axes:
-#            w = Wrapper(axis=axis)
-#            unwrapped = [w.unwrap(geom) for geom in sd.spatial.geom]
-#            for idx,unwrapped_geom in enumerate(unwrapped):
-#                new_geom = w.wrap(unwrapped_geom)
-#                self.assertFalse(unwrapped_geom.equals(new_geom))
-#                self.assertTrue(sd.spatial.geom[idx].almost_equals(new_geom))

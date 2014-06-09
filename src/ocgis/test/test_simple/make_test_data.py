@@ -144,7 +144,12 @@ class SimpleNcNoLevel(NcFactory):
         value.standard_name = 'foo'
         value.long_name = 'foo_foo'
         value.units = 'huge'
-        
+
+        # add bounds attributes
+        times.bounds = bounds_times._name
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
+
         rootgrp.close()
 
 
@@ -411,6 +416,12 @@ class SimpleNcProjection(NcFactory):
         grid_mapping.latitude_of_projection_origin = 47.5
         grid_mapping.false_easting = 3325000.
         grid_mapping.false_northing = 2700000.
+
+        # add bounds attributes
+        times.bounds = bounds_times._name
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
+        levels.bounds = bounds_levels._name
         
         rootgrp.close()
 
@@ -537,6 +548,12 @@ class SimpleNc(NcFactory):
         value.standard_name = 'Maximum Temperature Foo'
         value.long_name = 'foo_foo'
         value.units = 'K'
+
+        # add bounds attributes
+        times.bounds = bounds_times._name
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
+        levels.bounds = bounds_levels._name
         
         rootgrp.close()
 
@@ -663,7 +680,10 @@ class SimpleNcNoSpatialBounds(NcFactory):
         value.standard_name = 'foo'
         value.long_name = 'foo_foo'
         value.units = 'huge'
-        
+
+        # add bounds attributes
+        times.bounds = bounds_times._name
+
         rootgrp.close()
 
 
@@ -775,6 +795,10 @@ class SimpleMaskNc(NcFactory):
         bounds_row[:,:] = row_bnds
         value[:,:,:,:] = val
         value.missing_value = MASK['value']
+
+        # add bounds attributes
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
         
         rootgrp.close()
 
@@ -909,6 +933,11 @@ class SimpleNcMultivariate(NcFactory):
         value2.long_name = 'foo_foo_pr'
         value2.units = 'mm/s'
 
+        # add bounds attributes
+        times.bounds = bounds_times._name
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
+
         rootgrp.close()
 
 
@@ -1019,6 +1048,10 @@ class SimpleNc360(NcFactory):
         bounds_row[:,:] = row_bnds
         value[:,:,:,:] = val
         value.missing_value = MASK['value']
+
+        # add bounds attributes
+        rows.bounds = bounds_row._name
+        cols.bounds = bounds_col._name
         
         rootgrp.close()
     

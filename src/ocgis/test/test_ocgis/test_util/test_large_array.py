@@ -115,46 +115,50 @@ class Test(TestBase):
     
     @longrunning
     def test_compute_large(self):
+        """Test calculations using compute are equivalent with standard calculations."""
+
 #        ocgis.env.VERBOSE = True
 #        ocgis.env.DEBUG = True
 
         verbose = False
         n_tile_dimensions = 1
-        tile_range = [100,100]
+        tile_range = [100, 100]
+
         rd = RequestDatasetCollection(self.test_data.get_rd('cancm4_tasmax_2011'))
         
-        calc = [{'func':'mean','name':'my_mean'},
-                {'func':'freq_perc','name':'perc_90','kwds':{'percentile':90,}},
-                {'func':'freq_perc','name':'perc_95','kwds':{'percentile':95,}},
-                {'func':'freq_perc','name':'perc_99','kwds':{'percentile':99,}}
-               ]
+        calc = [{'func': 'mean', 'name': 'my_mean'},
+                {'func': 'freq_perc', 'name': 'perc_90', 'kwds': {'percentile': 90}},
+                {'func': 'freq_perc', 'name': 'perc_95', 'kwds': {'percentile': 95}},
+                {'func': 'freq_perc', 'name': 'perc_99', 'kwds': {'percentile': 99}}]
         calc_grouping = ['month']
         
         ## construct the operational arguments to compute
-        ops_compute = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                          output_format='nc',prefix='tile')
+        ops_compute = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, output_format='nc',
+                                          prefix='tile')
         
         ## perform computations the standard way
-        if verbose: print('computing standard file...')
-        ops = ocgis.OcgOperations(dataset=rd,output_format='nc',calc=calc,
-                                      calc_grouping=calc_grouping,prefix='std')
+        if verbose:
+            print('computing standard file...')
+        ops = ocgis.OcgOperations(dataset=rd, output_format='nc', calc=calc, calc_grouping=calc_grouping, prefix='std')
         std_file = ops.execute()
-        if verbose: print('standard file is: {0}'.format(std_file))
+        if verbose:
+            print('standard file is: {0}'.format(std_file))
         std_ds = nc.Dataset(std_file,'r')
 
         for ii in range(n_tile_dimensions):
             tile_dimension = np.random.random_integers(tile_range[0],tile_range[1])
-            if verbose: print('tile dimension: {0}'.format(tile_dimension))
+            if verbose:
+                print('tile dimension: {0}'.format(tile_dimension))
             ## perform computations using tiling
-            tile_file = compute(ops_compute,tile_dimension,verbose=verbose)
+            tile_file = compute(ops_compute, tile_dimension, verbose=verbose)
             
             ## ensure output paths are different
-            self.assertNotEqual(tile_file,std_file)
+            self.assertNotEqual(tile_file, std_file)
             
-            self.assertNcEqual(std_file,tile_file)
+            self.assertNcEqual(std_file, tile_file, ignore_attributes={'global': ['history']})
             
             ## confirm each variable is identical
-            tile_ds = nc.Dataset(tile_file,'r')
+            tile_ds = nc.Dataset(tile_file, 'r')
             
             tile_ds.close()
         std_ds.close()

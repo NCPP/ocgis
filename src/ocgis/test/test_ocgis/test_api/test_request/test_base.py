@@ -15,6 +15,8 @@ import datetime
 from ocgis.api.operations import OcgOperations
 import numpy as np
 from cfunits.cfunits import Units
+from ocgis.util.helpers import get_iter
+from ocgis.util.itester import itr_products_keywords
 
 
 class Test(TestBase):
@@ -418,6 +420,19 @@ class TestRequestDataset(TestBase):
 
 
 class TestRequestDatasetCollection(TestBase):
+
+    def test_init(self):
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_rhs')
+
+        keywords = dict(request_datasets=[None, rd1, [rd1], [rd1, rd2], {'uri': rd1.uri, 'variable': rd1.variable}])
+
+        for k in itr_products_keywords(keywords, as_namedtuple=True):
+            rdc = RequestDatasetCollection(request_datasets=k.request_datasets)
+            if k.request_datasets is not None:
+                self.assertEqual(len(rdc), len(list(get_iter(k.request_datasets, dtype=(dict, RequestDataset)))))
+            else:
+                self.assertEqual(len(rdc), 0)
 
     def test_str(self):
         rd1 = self.test_data.get_rd('cancm4_tas')

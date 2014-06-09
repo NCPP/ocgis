@@ -219,11 +219,15 @@ class TestSimple(TestSimpleBase):
             self.get_ret(kwds=kwds)
     
     def test_units_calendar_on_time_bounds(self):
+        """Test units and calendar are copied to the time bounds."""
+
         rd = self.get_dataset()
         ops = ocgis.OcgOperations(dataset=rd,output_format='nc')
         ret = ops.execute()
         with nc_scope(ret) as ds:
-            self.assertEqual(dict(ds.variables['time'].__dict__),
+            time_attrs = deepcopy(ds.variables['time'].__dict__)
+            time_attrs.pop('bounds')
+            self.assertEqual(dict(time_attrs),
                              dict(ds.variables['time_bnds'].__dict__))
             
     def test_units_calendar_on_time_bounds_calculation(self):

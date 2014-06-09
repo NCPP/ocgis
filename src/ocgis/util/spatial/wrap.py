@@ -112,7 +112,7 @@ class Wrapper(object):
                     coords = np.array(polygon.exterior.coords)
                     coords[:,0] = coords[:,0] - 360
                     polygons[ii] = Polygon(coords)
-                ret = MultiPolygon(polygons)
+                ret = MultiPolygon(list(polygons))
             return(ret)
         
         try:

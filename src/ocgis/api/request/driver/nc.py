@@ -245,6 +245,7 @@ class DriverNetcdf(AbstractDriver):
             ret = nc.MFDataset(self.rd.uri)
         return ret
 
+
 def get_axis(dimvar, dims, dim):
     try:
         axis = dimvar['attrs']['axis']
@@ -289,44 +290,40 @@ def get_dimension_map(variable, metadata):
             mp[axis].update({'pos': dims.index(dim)})
 
     ## look for bounds variables
-    bounds_names = set(constants.name_bounds)
+    # bounds_names = set(constants.name_bounds)
     for key, value in mp.iteritems():
+
         if value is None:
+            # this occurs for such things as levels or realizations where the dimensions is not present. the value is
+            # set to none and should not be processed.
             continue
-        bounds_var = None
+
+        # if the dimension is found, search for the bounds by various approaches.
+
+        # try to get the bounds attribute from the variable directly. if the attribute is not present in the metadata
+        # dictionary, continue looking for other options.
+        bounds_var = metadata['variables'][value['variable']]['attrs'].get('bounds')
         var = metadata['variables'][variable]
-        intersection = list(bounds_names.intersection(set(var['attrs'].keys())))
-        try:
-            bounds_var = metadata['variables'][var['attrs'][intersection[0]]]['name']
-        except KeyError:
-            ## the data has listed a bounds variable, but the variable is not
-            ## actually present in the dataset.
-            ocgis_lh(
-                'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.format(
-                    var._name, var['attrs'][intersection[0]]),logger='nc.dataset',level=logging.WARNING,
-                check_duplicate=True)
-            bounds_var = None
-        except IndexError:
+
+        if bounds_var is None:
+            # if no attribute is found, try some other options...
+
             ## if no bounds variable is found for time, it may be a climatological.
             if key == 'T':
                 try:
                     bounds_var = metadata['variables'][value['variable']]['attrs']['climatology']
-                    ocgis_lh('Climatological bounds found for variable: {0}'.format(var['name']),
-                             logger='request.nc',level=logging.INFO)
+                    ocgis_lh('Climatological bounds found for variable: {0}'.format(var['name']), logger='request.nc',
+                             level=logging.INFO)
                 ## climatology is not found on time axis
                 except KeyError:
                     pass
-            ## bounds variable not found by other methods
-            if bounds_var is None:
-                ocgis_lh(
-                    'No bounds attribute found for variable "{0}". Searching variable dimensions for bounds information.'.format(
-                        var['name']),logger='request.nc',level=logging.WARN,check_duplicate=True)
-                bounds_names_copy = bounds_names.copy()
-                bounds_names_copy.update([value['dimension']])
-                for key2, value2 in metadata['variables'].iteritems():
-                    intersection = bounds_names_copy.intersection(set(value2['dimensions']))
-                    if len(intersection) == 2:
-                        bounds_var = metadata['variables'][key2]['name']
+
+        # the bounds variable was found, but the variable is not actually present in the output file
+        if bounds_var not in metadata['variables']:
+            msg = 'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.\
+                format(var['name'], bounds_var)
+            ocgis_lh(msg, logger='nc.driver', level=logging.WARNING, check_duplicate=True)
+            bounds_var = None
 
         try:
             assert(isinstance(bounds_var, basestring))

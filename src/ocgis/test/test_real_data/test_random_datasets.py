@@ -264,39 +264,54 @@ class Test(TestBase):
         
         rd = ocgis.RequestDataset(uri,variable)
         field = rd.get()
-    
+
     @longrunning
     def test_maurer_concatenated_shp(self):
-#        raise(SkipTest('dev'))
+        """Test Maurer concatenated data may be appropriately subsetted."""
+
         ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
-#        filename = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
-#        variable = 'tasmax'
-#        ocgis.env.VERBOSE = True
-        
+        # ocgis.env.VERBOSE = True
+        # ocgis.env.DEBUG = True
+
         names = [
-#         [u'Maurer02new_OBS_dtr_daily.1971-2000.nc'],
-         [u'Maurer02new_OBS_tas_daily.1971-2000.nc'], 
-         [u'Maurer02new_OBS_tasmin_daily.1971-2000.nc'], 
-         [u'Maurer02new_OBS_pr_daily.1971-2000.nc'], 
-         [u'Maurer02new_OBS_tasmax_daily.1971-2000.nc']]
+            # [u'Maurer02new_OBS_dtr_daily.1971-2000.nc'],
+            [u'Maurer02new_OBS_tas_daily.1971-2000.nc'],
+            [u'Maurer02new_OBS_tasmin_daily.1971-2000.nc'],
+            [u'Maurer02new_OBS_pr_daily.1971-2000.nc'],
+            [u'Maurer02new_OBS_tasmax_daily.1971-2000.nc']
+        ]
         variables = [
-#                     u'dtr', 
-                     u'tas', u'tasmin', u'pr', u'tasmax']
-#        time_range = [datetime.datetime(1971, 1, 1, 0, 0),datetime.datetime(2000, 12, 31, 0, 0)]
+            # u'dtr',
+            u'tas',
+            u'tasmin',
+            u'pr',
+            u'tasmax'
+        ]
+        #        time_range = [datetime.datetime(1971, 1, 1, 0, 0),datetime.datetime(2000, 12, 31, 0, 0)]
+
+        # rd = RequestDataset(uri=names[0], variable='tas')
+        # field = rd.get()
+        # # ops = OcgOperations(dataset=rd, output_format='shp', snippet=True)
+        # # print ops.execute()
+        # import ipdb;ipdb.set_trace()
+
         time_range = None
-        time_region = {'month':[6,7,8],'year':None}
-        rds = [ocgis.RequestDataset(name,variable,time_range=time_range,
-            time_region=time_region) for name,variable in zip(names,variables)]
-        
-        ops = ocgis.OcgOperations(dataset=rds,calc=[{'name': 'Standard Deviation', 'func': 'std', 'kwds': {}}],
-         calc_grouping=['month'],calc_raw=False,geom='us_counties',select_ugid=[286],output_format='shp',
-         spatial_operation='clip',headers=['did','ugid','gid','year','month','day','variable','calc_key','value'],
-         abstraction=None)
+        time_region = {'month': [6, 7, 8], 'year': None}
+        rds = [ocgis.RequestDataset(name, variable, time_range=time_range,
+                                    time_region=time_region) for name, variable in zip(names, variables)]
+
+        ops = ocgis.OcgOperations(dataset=rds, calc=[{'name': 'Standard Deviation', 'func': 'std', 'kwds': {}}],
+                                  calc_grouping=['month'], calc_raw=False, geom='us_counties', select_ugid=[286],
+                                  output_format='shp',
+                                  spatial_operation='clip',
+                                  headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key',
+                                           'value'],
+                                  abstraction=None)
         ret = ops.execute()
-        
+
         with fiona.open(ret) as f:
             variables = set([row['properties']['VARIABLE'] for row in f])
-        self.assertEqual(variables,set([u'pr', u'tasmax', u'tasmin', u'tas']))
+        self.assertEqual(variables, set([u'pr', u'tasmax', u'tasmin', u'tas']))
     
     def test_point_shapefile_subset(self):
         _output_format = ['numpy','nc','csv','csv+']

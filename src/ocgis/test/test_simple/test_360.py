@@ -11,6 +11,7 @@ import os
 from ocgis.test.base import TestBase
 import ocgis
 from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis import RequestDataset
 
 
 class NcSpatial(object):
@@ -69,6 +70,8 @@ class Test360(TestBase):
             ret = OcgInterpreter(ops).execute()
 
     def test_low_res(self):
+        """Test data is appropriate wrapped with a 360 dataset at low resolution."""
+
         ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(5.0,(-90.0,90.0),(0.0,360.0))
         path = self.make_data(nc_spatial)
@@ -102,9 +105,13 @@ class Test360(TestBase):
         new_polygon = Polygon(transformed)
         return(new_polygon)
     
-    def make_variable(self,varname,arr,dimensions):
+    def make_variable(self,varname,arr,dimensions,bounds=None):
         var = self.ds.createVariable(varname,arr.dtype,dimensions=dimensions)
         var[:] = arr
+
+        if bounds is not None:
+            var.bounds = bounds
+
         return(var)
 
     def make_data(self,nc_spatial):
@@ -132,8 +139,8 @@ class Test360(TestBase):
         ds.createDimension('d_level',size=len(level_values))
         ds.createDimension('d_time',size=len(time_values))
         
-        self.make_variable('lat',nc_spatial.lat_values,'d_lat')
-        self.make_variable('lon',nc_spatial.lon_values,'d_lon')
+        self.make_variable('lat',nc_spatial.lat_values,'d_lat',bounds='lat_bnds')
+        self.make_variable('lon',nc_spatial.lon_values,'d_lon',bounds='lon_bnds')
         self.make_variable('lat_bnds',nc_spatial.latb_values,('d_lat','d_bnds'))
         self.make_variable('lon_bnds',nc_spatial.lonb_values,('d_lon','d_bnds'))
         

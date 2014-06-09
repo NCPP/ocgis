@@ -1,8 +1,11 @@
+from copy import deepcopy
 import os
 import shutil
+import tempfile
 import unittest
 from ocgis import RequestDataset
-from ocgis.api.request.driver.nc import DriverNetcdf
+from ocgis.api.request.driver.nc import DriverNetcdf, get_dimension_map
+from ocgis.interface.metadata import NcMetadata
 from ocgis.test.base import TestBase
 import netCDF4 as nc
 from ocgis.interface.base.crs import WGS84, CFWGS84, CFLambertConformal
@@ -18,6 +21,8 @@ from unittest.case import SkipTest
 import ocgis
 from ocgis.test.test_simple.test_simple import nc_scope
 from importlib import import_module
+from collections import OrderedDict
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class TestDriverNetcdf(TestBase):
@@ -362,6 +367,46 @@ class TestDriverNetcdf(TestBase):
         field = rd.get()
         self.assertNotEqual(field.temporal.bounds,None)
 
+
+class Test(TestBase):
+
+    def test_get_dimension_map_1(self):
+        """Test dimension dictionary returned correctly."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        dim_map = get_dimension_map('tas', rd.source_metadata)
+        self.assertDictEqual(dim_map, {'Y': {'variable': u'lat', 'bounds': u'lat_bnds', 'dimension': u'lat', 'pos': 1},
+                                       'X': {'variable': u'lon', 'bounds': u'lon_bnds', 'dimension': u'lon', 'pos': 2},
+                                       'Z': None,
+                                       'T': {'variable': u'time', 'bounds': u'time_bnds', 'dimension': u'time',
+                                             'pos': 0}})
+
+    def test_get_dimension_map_2(self):
+        """Test special case where bounds were in the file but not found by the code."""
+
+        ## this metadata was causing an issue with the bounds not being discovered (Maurer02new_OBS_tas_daily.1971-2000.nc)
+        # rd = RequestDataset(uri='/usr/local/climate_data/maurer/2010-concatenated/Maurer02new_OBS_tas_daily.1971-2000.nc', variable='tas')
+        # metadata = rd.source_metadata
+        metadata = NcMetadata([('dataset', OrderedDict([(u'CDI', u'Climate Data Interface version 1.5.0 (http://code.zmaw.de/projects/cdi)'), (u'Conventions', u'GDT 1.2'), (u'history', u'Wed Jul  3 07:17:09 2013: ncrcat nldas_met_update.obs.daily.tas.1971.nc nldas_met_update.obs.daily.tas.1972.nc nldas_met_update.obs.daily.tas.1973.nc nldas_met_update.obs.daily.tas.1974.nc nldas_met_update.obs.daily.tas.1975.nc nldas_met_update.obs.daily.tas.1976.nc nldas_met_update.obs.daily.tas.1977.nc nldas_met_update.obs.daily.tas.1978.nc nldas_met_update.obs.daily.tas.1979.nc nldas_met_update.obs.daily.tas.1980.nc nldas_met_update.obs.daily.tas.1981.nc nldas_met_update.obs.daily.tas.1982.nc nldas_met_update.obs.daily.tas.1983.nc nldas_met_update.obs.daily.tas.1984.nc nldas_met_update.obs.daily.tas.1985.nc nldas_met_update.obs.daily.tas.1986.nc nldas_met_update.obs.daily.tas.1987.nc nldas_met_update.obs.daily.tas.1988.nc nldas_met_update.obs.daily.tas.1989.nc nldas_met_update.obs.daily.tas.1990.nc nldas_met_update.obs.daily.tas.1991.nc nldas_met_update.obs.daily.tas.1992.nc nldas_met_update.obs.daily.tas.1993.nc nldas_met_update.obs.daily.tas.1994.nc nldas_met_update.obs.daily.tas.1995.nc nldas_met_update.obs.daily.tas.1996.nc nldas_met_update.obs.daily.tas.1997.nc nldas_met_update.obs.daily.tas.1998.nc nldas_met_update.obs.daily.tas.1999.nc nldas_met_update.obs.daily.tas.2000.nc Maurer02new_OBS_tas_daily.1971-2000.nc\nFri Oct 28 08:44:48 2011: cdo ifthen conus_mask.nc /archive/public/gridded_obs/daily/ncfiles_2010/nldas_met_update.obs.daily.tas.1971.nc /data3/emaurer/ldas_met_2010/process/met/nc/daily/nldas_met_update.obs.daily.tas.1971.nc'), (u'institution', u'Princeton U.'), (u'file_name', u'nldas_met_update.obs.daily.tas.1971.nc'), (u'History', u'Interpolated from 1-degree data'), (u'authors', u'Sheffield, J., G. Goteti, and E. F. Wood, 2006: Development of a 50-yr high-resolution global dataset of meteorological forcings for land surface modeling, J. Climate, 19 (13), 3088-3111'), (u'description', u'Gridded Observed global data'), (u'creation_date', u'2006'), (u'SurfSgnConvention', u'Traditional'), (u'CDO', u'Climate Data Operators version 1.5.0 (http://code.zmaw.de/projects/cdo)'), (u'nco_openmp_thread_number', 1)])), ('file_format', 'NETCDF3_CLASSIC'), ('variables', OrderedDict([(u'longitude', {'dtype': 'float32', 'fill_value': 1e+20, 'dimensions': (u'longitude',), 'name': u'longitude', 'attrs': OrderedDict([(u'long_name', u'Longitude'), (u'units', u'degrees_east'), (u'standard_name', u'longitude'), (u'axis', u'X'), (u'bounds', u'longitude_bnds')])}), (u'longitude_bnds', {'dtype': 'float32', 'fill_value': 1e+20, 'dimensions': (u'longitude', u'nb2'), 'name': u'longitude_bnds', 'attrs': OrderedDict()}), (u'latitude', {'dtype': 'float32', 'fill_value': 1e+20, 'dimensions': (u'latitude',), 'name': u'latitude', 'attrs': OrderedDict([(u'long_name', u'Latitude'), (u'units', u'degrees_north'), (u'standard_name', u'latitude'), (u'axis', u'Y'), (u'bounds', u'latitude_bnds')])}), (u'latitude_bnds', {'dtype': 'float32', 'fill_value': 1e+20, 'dimensions': (u'latitude', u'nb2'), 'name': u'latitude_bnds', 'attrs': OrderedDict()}), (u'time', {'dtype': 'float64', 'fill_value': 1e+20, 'dimensions': (u'time',), 'name': u'time', 'attrs': OrderedDict([(u'units', u'days since 1940-01-01 00:00:00'), (u'calendar', u'standard')])}), (u'tas', {'dtype': 'float32', 'fill_value': 1e+20, 'dimensions': (u'time', u'latitude', u'longitude'), 'name': u'tas', 'attrs': OrderedDict([(u'units', u'C')])})])), ('dimensions', OrderedDict([(u'longitude', {'isunlimited': False, 'len': 462}), (u'nb2', {'isunlimited': False, 'len': 2}), (u'latitude', {'isunlimited': False, 'len': 222}), (u'time', {'isunlimited': True, 'len': 10958})]))])
+        dim_map = get_dimension_map('tas', metadata)
+        self.assertDictEqual(dim_map, {'Y': {'variable': u'latitude', 'bounds': u'latitude_bnds', 'dimension': u'latitude', 'pos': 1}, 'X': {'variable': u'longitude', 'bounds': u'longitude_bnds', 'dimension': u'longitude', 'pos': 2}, 'Z': None, 'T': {'variable': u'time', 'bounds': None, 'dimension': u'time', 'pos': 0}})
+
+    def test_get_dimension_map_3(self):
+        """Test when bounds are found but the bounds variable is actually missing."""
+
+        _, to_file = tempfile.mkstemp(dir=self._test_dir)
+        ocgis_lh.configure(to_file=to_file)
+
+        try:
+            # remove the bounds variable from a standard metadata dictionary
+            rd = self.test_data.get_rd('cancm4_tas')
+            metadata = deepcopy(rd.source_metadata)
+            metadata['variables'].pop('lat_bnds')
+            dim_map = get_dimension_map('tas', metadata)
+            self.assertEqual(dim_map['Y']['bounds'], None)
+            self.assertTrue('lat_bnds' in list(ocgis_lh.duplicates)[0])
+        finally:
+            ocgis_lh.shutdown()
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

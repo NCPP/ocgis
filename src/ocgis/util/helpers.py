@@ -333,13 +333,19 @@ def assert_raise(test,**kwds):
         assert(test)
     except AssertionError:
         ocgis_lh(**kwds)
-        
-def get_iter(element,dtype=None):
+
+
+def get_iter(element, dtype=None):
+    """
+    :param element: The element comprising the base iterator.
+    :param dtype: If not ``None``, use this argument as the argument to ``isinstance``. If ``element`` is an instance of
+     ``dtype``, ``element`` will be placed in a list and passed to ``iter``.
+    """
     if dtype is not None:
-        if isinstance(element,dtype):
-            element = [element]
-            
-    if isinstance(element,basestring) or isinstance(element,np.ndarray):
+        if isinstance(element, dtype):
+            element = (element,)
+
+    if isinstance(element, (basestring, np.ndarray)):
         it = [element]
     else:
         try:
@@ -347,7 +353,8 @@ def get_iter(element,dtype=None):
         except TypeError:
             it = iter([element])
             
-    return(it)
+    return it
+
 
 def get_default_or_apply(target,f,default=None):
     if target is None:

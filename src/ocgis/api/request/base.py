@@ -437,11 +437,14 @@ class RequestDatasetCollection(AbstractCollection):
     :type request_datasets: sequence of :class:`ocgis.RequestDataset` objects
     '''
     
-    def __init__(self,request_datasets=[]):
+    def __init__(self, request_datasets=None):
         super(RequestDatasetCollection, self).__init__()
+
         self._did = []
-        for rd in get_iter(request_datasets):
-            self.update(rd)
+
+        if request_datasets is not None:
+            for rd in get_iter(request_datasets, dtype=(dict, RequestDataset)):
+                self.update(rd)
 
     def __str__(self):
         ret = '{klass}(request_datasets=[{request_datasets}])'

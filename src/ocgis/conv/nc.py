@@ -48,12 +48,16 @@ class NcConverter(AbstractConverter):
         temporal = arch.temporal
         level = arch.level
         meta = arch.meta
-        
-        ## get or make the bounds dimensions
-        try:
-            bounds_name = list(set(meta['dimensions'].keys()).intersection(set(constants.name_bounds)))[0]
-        except IndexError:
-            bounds_name = constants.ocgis_bounds
+
+        # loop through the dimension map, look for a bounds variable, and choose the bounds dimension if possible
+        bounds_name = None
+        for k, v in meta['dim_map'].iteritems():
+            # it is possible the dimension itself is none
+            if v is not None and v['bounds'] is not None:
+                bounds_name = meta['variables'][v['bounds']]['dimensions'][1]
+                break
+        # if the name of the bounds dimension was not found, choose the default
+        bounds_name = bounds_name or constants.ocgis_bounds
                 
         ## add dataset/global attributes
         for key,value in meta['dataset'].iteritems():

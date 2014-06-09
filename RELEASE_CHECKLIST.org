@@ -10,8 +10,8 @@
    - [ ] git checkout dev
    - [ ] git merge masterstage the release:
    - [X] git checkout staged-release
-3. [ ] run doctests (Ben)
-4. [ ] run tests (Ben)
+3. [ ] run python docstring tests (Ben)
+4. [ ] run unit tests (Ben)
 5. [ ] write release notes (Ben)
 6. [ ] write the release announcement (Sylvia, Ben, Cecelia)
 7. update documents:

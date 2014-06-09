@@ -20,7 +20,6 @@
          - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download (Sylvia and Ben)
          
 8. update ocgis_info mailing list (if necessary) (Ben)
-
 9. update version number in:
    - [x] setup.py
    - [x] ocgis.__init__

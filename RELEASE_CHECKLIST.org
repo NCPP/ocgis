@@ -1,4 +1,5 @@
-1. merge development to master:
+1. Decide on a relase date (Ben and Sylvia)
+2. merge development to master: (Ben)
    - [ ] git commit
    - [ ] git checkout master
    - [ ] git merge staged-release
@@ -9,24 +10,24 @@
    - [ ] git checkout dev
    - [ ] git merge masterstage the release:
    - [X] git checkout staged-release
-2. [ ] run doctests
-2. [ ] run tests
-3. write the release announcement
-4. update documents:
+3. [ ] run doctests (Ben)
+4. [ ] run tests (Ben)
+5. [ ] write release notes (Ben)
+6. [ ] write the release announcement (Sylvia, Ben, Cecelia)
+7. update documents:
    - [ ] CoG page
-         - [ ] Upload test report: http://www.earthsystemcog.org/projects/openclimategis/supportedplatforms
-         - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download
-         - [ ] Update release schedule: if needed
+         - [ ] Upload test report: http://www.earthsystemcog.org/projects/openclimategis/supportedplatforms (Ben)
+         - [ ] Update releases: http://www.earthsystemcog.org/projects/openclimategis/download (Sylvia and Ben)
          
-5. update ocgis_info mailing list (if necessary) 
+8. update ocgis_info mailing list (if necessary) (Ben)
 
-5. update version number in:
+9. update version number in:
    - [x] setup.py
    - [x] ocgis.__init__
-6. update links
+10. update links
    - [ ] update link in install.rst (update the documentation)
-8. put -trunk back in version numbers:
+11. put -trunk back in version numbers:
    - [ ] setup.py
    - [ ] ocgis.__init__
-9. finalize:
+12. finalize:
    - [ ] have silverio update link on the download registration page

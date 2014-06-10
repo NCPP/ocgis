@@ -345,6 +345,19 @@ conform_units_to
 
 Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
 
+time_range
+~~~~~~~~~~
+
+Upper and lower bounds for time dimension subsetting composed to a two-element sequence of :class:`datetime.datetime` objects. If ``None``, return all time points. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_range`` values.
+
+time_region
+~~~~~~~~~~~
+
+A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_region`` values.
+
+>>> time_region = {'month':[6,7],'year':[2010,2011]}
+>>> time_region = {'year':[2010]}
+
 :class:`ocgis.ShpCabinet`
 =========================
 

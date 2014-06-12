@@ -311,7 +311,7 @@ class SubsetOperation(object):
             ## if there is a slice, use it to subset the field.
             elif self.ops.slice is not None:
                 field = field.__getitem__(self.ops.slice)
-                
+
             ## see if the selection crs matches the field's crs
             if crs is not None and crs != field.spatial.crs:
                 geom = project_shapely_geometry(geom,crs.sr,field.spatial.crs.sr)

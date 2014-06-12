@@ -96,17 +96,22 @@ class AbstractConverter(object):
         ocgis_lh('starting write method',self._log,logging.DEBUG)
         
         unique_geometry_store = []
+
+        # indicates if user geometries should be written to file
+        write_ugeom = False
         
         try:
             build = True
-            if self._add_ugeom and self.ops is not None and self.ops.geom is not None:
-                write_geom = True
-            else:
-                write_geom = False
+
             for coll in iter(self.colls):
                 if build:
+
+                    # write the user geometries if configured and there is one present on the incoming collection.
+                    if self._add_ugeom and coll.geoms.values()[0] is not None:
+                        write_ugeom = True
+
                     f = self._build_(coll)
-                    if write_geom:
+                    if write_ugeom:
                         ugid_shp_name = self.prefix + '_ugid.shp'
                         ugid_csv_name = self.prefix + '_ugid.csv'
                         
@@ -116,9 +121,14 @@ class AbstractConverter(object):
                         else:
                             fiona_path = os.path.join(self.outdir,ugid_shp_name)
                             csv_path = os.path.join(self.outdir,ugid_csv_name)
-                            
+
                         if coll.meta is None:
-                            fiona_properties = {'UGID':'int'}
+                            # convert the collection properties to fiona properties
+                            from fiona_ import FionaConverter
+                            fiona_properties = {}
+                            for k, v in coll.properties.values()[0].iteritems():
+                                fiona_properties[k] = FionaConverter.get_field_type(type(v))
+
                             fiona_schema = {'geometry':'MultiPolygon',
                                             'properties':fiona_properties}
                             fiona_meta = {'schema':fiona_schema,'driver':'ESRI Shapefile'}
@@ -148,7 +158,7 @@ class AbstractConverter(object):
                         
                     build = False
                 self._write_coll_(f,coll)
-                if write_geom:
+                if write_ugeom:
                     ## write the overview geometries to disk
                     r_geom = coll.geoms.values()[0]
                     if isinstance(r_geom,Polygon):
@@ -187,7 +197,7 @@ class AbstractConverter(object):
                 ## this the exception we want to log
                 ocgis_lh(exc=e,logger=self._log)
             finally:
-                if write_geom:
+                if write_ugeom:
                     try:
                         fiona_object.close()
                     except UnboundLocalError:

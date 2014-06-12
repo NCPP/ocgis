@@ -50,6 +50,47 @@ class TestCMIP3Masking(TestBase):
                         raise
 
 
+class TestCnrmCerfacs(TestBase):
+
+    @property
+    def rd(self):
+        return self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
+
+    def test_subset(self):
+        """Test data may be subsetted and that coordinate transformations return the same value arrays."""
+
+        ops = OcgOperations(dataset=self.rd, output_format='numpy', snippet=True, geom='world_countries', select_ugid=[69])
+        ret = ops.execute()
+
+        # assert some of the geometry values are masked
+        self.assertTrue(ret[69]['pr'].spatial.get_mask().any())
+
+        # perform the operations but change the output coordinate system. the value arrays should be equivalent
+        # regardless of coordinate transformation
+        ops2 = OcgOperations(dataset=self.rd, output_format='numpy', snippet=True, geom='world_countries', select_ugid=[69],
+                             output_crs=CFWGS84())
+        ret2 = ops2.execute()
+
+        # value arrays should be the same
+        self.assertNumpyAll(ret[69]['pr'].variables['pr'].value, ret2[69]['pr'].variables['pr'].value)
+        # grid coordinates should not be the same
+        self.assertNumpyNotAll(ret[69]['pr'].spatial.grid.value, ret2[69]['pr'].spatial.grid.value)
+
+    def test_subset_shp(self):
+        """Test conversion to shapefile."""
+
+        for ii, output_crs in enumerate([None, CFWGS84()]):
+            ops = OcgOperations(dataset=self.rd, output_format='shp', snippet=True, geom='world_countries',
+                                select_ugid=[69], output_crs=output_crs, prefix=str(ii))
+            ret = ops.execute()
+
+
+            with fiona.open(ret) as source:
+                records = list(source)
+
+            self.assertEqual(len(records), 2375)
+
+
 class Test(TestBase):
     
     def test_cccma_rotated_pole(self):
@@ -61,8 +102,9 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=rd,output_format='shp',geom=geom,
                                   select_ugid=[1],snippet=True)
         ret = ops.execute()
+
         with fiona.open(ret) as source:
-            self.assertEqual(len(source),285)
+            self.assertEqual(len(source),228)
             gid = [row['properties']['GID'] for row in source]
             for element in gid:
                 self.assertTrue(element > 4000)

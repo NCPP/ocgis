@@ -89,8 +89,8 @@ class OcgOperations(object):
     :param interpolate_spatial_bounds: If True and no bounds are available, attempt 
      to interpolate bounds from centroids.
     :type interpolate_spatial_bounds: bool
-    :param bool add_auxiliary_files: If True, create a new directory and add metadata 
-     and other informational files in addition to the converted file. If False, write
+    :param bool add_auxiliary_files: If ``True``, create a new directory and add metadata
+     and other informational files in addition to the converted file. If ``False``, write
      the target file only to :attr:`dir_output` and do not create a new directory.
     :param function callback: A function taking two parameters: ``percent_complete``
      and ``message``.

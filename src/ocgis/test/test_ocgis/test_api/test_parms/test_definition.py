@@ -117,6 +117,33 @@ class TestGeom(TestBase):
         g.select_ugid = [16,17]
         self.assertEqual(len(list(g.value)),2)
 
+    @staticmethod
+    def get_geometry_dictionaries():
+        coordinates = [('France', [2.8, 47.16]),
+                       ('Germany', [10.5, 51.29]),
+                       ('Italy', [12.2, 43.4])]
+        geom = []
+        for ugid, coordinate in enumerate(coordinates, start=1):
+            point = Point(coordinate[1][0], coordinate[1][1])
+            geom.append({'geom': point,
+                         'properties': {'UGID': ugid, 'COUNTRY': coordinate[0]}})
+        return geom
+
+    def test_geometry_dictionaries(self):
+        """Test geometry dictionaries come out appropriately once formatted."""
+
+        geom = self.get_geometry_dictionaries()
+        #todo: ensure geometry dictionaries have meta associated with them if more than a UGID is present in the properties
+        g = Geom(geom)
+
+        self.assertEqual(len(g.value), 3)
+
+        for gdict in g.value:
+            self.assertEqual(set(gdict.keys()), set(['crs', 'geom', 'properties']))
+            self.assertIsInstance(gdict['geom'], Point)
+            self.assertIsInstance(gdict['crs'], CFWGS84)
+            self.assertEqual(set(gdict['properties'].keys()), set(['UGID', 'COUNTRY']))
+
 
 class TestTimeRange(TestBase):
     _create_dir = False

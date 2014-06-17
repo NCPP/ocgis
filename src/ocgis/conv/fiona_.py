@@ -34,24 +34,34 @@ class FionaConverter(AbstractConverter):
                            np.int16:'int',
                            np.int32:'int',
                            str:'str'}
-    
+
+    @classmethod
+    def get_field_type(cls, the_type, key=None, fiona_conversion=None):
+        """
+        :param the_type: The target type object to map to a Fiona field type.
+        :type the_type: type object
+        :param key: The key to update the Fiona conversion map.
+        :type key: str
+        :param fiona_conversion: A dictionary used to convert Python values to Fiona-expected values.
+        :type fiona_conversion: dict
+        """
+
+        ret = None
+        for k, v in fiona.FIELD_TYPES_MAP.iteritems():
+            if the_type == v:
+                ret = k
+                break
+        if ret is None:
+            ret = cls._fiona_type_mapping[the_type]
+        if the_type in cls._fiona_conversion:
+            fiona_conversion.update({key.lower(): cls._fiona_conversion[the_type]})
+        return ret
+
     def _finalize_(self,f):
         f['fiona_object'].close()
     
     def _build_(self,coll):
         fiona_conversion = {}
-        
-        def _get_field_type_(key,the_type):
-            ret = None
-            for k,v in fiona.FIELD_TYPES_MAP.iteritems():
-                if the_type == v:
-                    ret = k
-                    break
-            if ret is None:
-                ret = self._fiona_type_mapping[the_type]
-            if the_type in self._fiona_conversion:
-                fiona_conversion.update({key.lower():self._fiona_conversion[the_type]})
-            return(ret)
         
         ## pull the fiona schema properties together by mapping fiona types to
         ## the data types of the first row of the output data file
@@ -60,7 +70,8 @@ class FionaConverter(AbstractConverter):
         geom,arch_row = coll.get_iter_dict().next()
         fiona_properties = OrderedDict()
         for header in coll.headers:
-            fiona_field_type = _get_field_type_(header,type(arch_row[header]))
+            fiona_field_type = self.get_field_type(type(arch_row[header]), key=header,
+                                                   fiona_conversion=fiona_conversion)
             fiona_properties.update({header.upper():fiona_field_type})
             
         ## we always want to convert the value. if the data is masked, it comes

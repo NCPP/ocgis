@@ -311,7 +311,7 @@ class SubsetOperation(object):
             ## if there is a slice, use it to subset the field.
             elif self.ops.slice is not None:
                 field = field.__getitem__(self.ops.slice)
-                
+
             ## see if the selection crs matches the field's crs
             if crs is not None and crs != field.spatial.crs:
                 geom = project_shapely_geometry(geom,crs.sr,field.spatial.crs.sr)
@@ -435,19 +435,22 @@ class SubsetOperation(object):
                     ## transform back to rotated pole if necessary
                     if original_rotated_pole_crs is not None:
                         if self.ops.output_crs is None and not isinstance(self.ops.output_crs,CFWGS84):
-                            ## we need to load the values before proceeding. source
-                            ## indices will disappear.
+                            # copy the spatial mask to the new spatial array
+                            spatial_mask_before_transform = deepcopy(sfield.spatial.get_mask())
+                            # need to load the values before proceeding. source indices will disappear.
                             for variable in sfield.variables.itervalues():
                                 variable.value
-                            ## reset the geometries
+                            # reset the geometries
                             sfield.spatial._geom = None
                             sfield.spatial.grid = get_rotated_pole_spatial_grid_dimension(
                              original_rotated_pole_crs,sfield.spatial.grid,inverse=True,
                              rc_original=original_row_column_metadata)
+                            # update the grid mask with the previous spatial mask
+                            sfield.spatial.grid.value.mask = spatial_mask_before_transform
                             ## update the uid mask to match the spatial mask
-                            sfield.spatial.uid = np.ma.array(sfield.spatial.uid,mask=sfield.spatial.get_mask())
+                            sfield.spatial.uid = np.ma.array(sfield.spatial.uid,mask=spatial_mask_before_transform)
                             sfield.spatial.crs = original_rotated_pole_crs
-                    
+
                     ## update the coordinate system of the data output
                     if self.ops.output_crs is not None:
                         ## if the geometry is not None, it may need to be projected to match

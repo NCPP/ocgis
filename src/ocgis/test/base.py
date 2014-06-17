@@ -32,23 +32,28 @@ class TestBase(unittest.TestCase):
         ret = os.path.join(base_dir, 'bin')
         return (ret)
 
-    def assertNumpyAll(self,arr1,arr2):
-        self.assertEqual(type(arr1),type(arr2))
-        if isinstance(arr1,np.ma.MaskedArray) or isinstance(arr2,np.ma.MaskedArray):
+    def assertNumpyAll(self, arr1, arr2):
+        self.assertEqual(type(arr1), type(arr2))
+        if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
             self.assertTrue(np.all(arr1.data == arr2.data))
             self.assertTrue(np.all(arr1.mask == arr2.mask))
-            self.assertEqual(arr1.fill_value,arr2.fill_value)
-            return(True)
+            self.assertEqual(arr1.fill_value, arr2.fill_value)
+            return True
         else:
-            return(self.assertTrue(np.all(arr1 == arr2)))
+            return self.assertTrue(np.all(arr1 == arr2))
 
     def assertNumpyAllClose(self, arr1, arr2):
         self.assertEqual(type(arr1), type(arr2))
         return self.assertTrue(np.allclose(arr1, arr2))
 
     def assertNumpyNotAll(self, arr1, arr2):
-        self.assertEqual(type(arr1), type(arr2))
-        return self.assertFalse(np.all(arr1 == arr2))
+        try:
+            self.assertNumpyAll(arr1, arr2)
+        except AssertionError:
+            ret = True
+        else:
+            raise AssertionError('Arrays are equivalent.')
+        return ret
 
     def assertDictEqual(self, d1, d2, msg=None):
         try:
@@ -163,7 +168,10 @@ class TestBase(unittest.TestCase):
         test_data.update(['misc', 'rotated_pole'], 'tas',
                          'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc',
                          key='rotated_pole_cccma')
-        return (test_data)
+        test_data.update(['misc', 'rotated_pole'], 'pr',
+                         'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc',
+                         key='rotated_pole_cnrm_cerfacs')
+        return test_data
 
     def setUp(self):
         if self._reset_env: env.reset()

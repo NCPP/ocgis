@@ -310,6 +310,11 @@ Value             Description
 `False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
 ================= ====================================================================================================
 
+add_auxiliary_files
+~~~~~~~~~~~~~~~~~~~
+
+If ``True``, create a new directory and add metadata and other informational files in addition to the converted file. If ``False``, write the target file only to :attr:`dir_output` and do not create a new directory.
+
 allow_empty
 ~~~~~~~~~~~
 

@@ -148,9 +148,9 @@ class Test(TestBase):
         ret = ops.execute()
         
         ## ensure array is trimmed and masked tgeometries removed
-        self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(2,1))
+        self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(4,4))
         ## only two geometries returned
-        self.assertEqual(ret[1]['tas'].spatial.shape,(1,2))
+        self.assertEqual(ret[1]['tas'].spatial.shape,(4,4))
         ## different buffer radii should have unique identifiers
         self.assertEqual(ret.keys(),[1,2])
         ## the first buffer radius is larger

@@ -712,7 +712,7 @@ class SearchRadiusMultiplier(base.OcgParameter):
     name = 'search_radius_mult'
     nullable = False
     return_type = [float]
-    default = None
+    default = 2.0
     
     def _get_meta_(self):
         msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(self.value)

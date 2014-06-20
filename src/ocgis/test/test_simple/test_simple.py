@@ -310,7 +310,7 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(type(ops.geom[0]['geom']),Point)
         ret = ops.execute()
         ref = ret[1]['foo']
-        self.assertEqual(ref.spatial.grid.shape,(2,2))
+        self.assertEqual(ref.spatial.grid.shape,(4,4))
         
         ops = self.get_ops(kwds={'geom':[-103,38,],'search_radius_mult':0.01})
         ret = ops.execute()

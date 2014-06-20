@@ -123,7 +123,7 @@ The `crs` key is optional. If it is not included, WGS84 is assumed. The `propert
 search_radius_mult
 ~~~~~~~~~~~~~~~~~~
 
-This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``0.75``.
+This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``2.0``.
 
 select_nearest
 ~~~~~~~~~~~~~~

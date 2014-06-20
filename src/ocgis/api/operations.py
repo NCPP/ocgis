@@ -124,7 +124,7 @@ class OcgOperations(object):
                  calc_grouping=None, calc_raw=False, abstraction=None, snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False,
                  dir_output=None, slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
-                 search_radius_mult=0.75, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
+                 search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
                  optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
                  conform_units_to=None, select_nearest=False):
         

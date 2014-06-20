@@ -30,3 +30,4 @@
    - [ ] ocgis.__init__
 12. finalize:
    - [ ] have silverio update link on the download registration page
+13. publish cog news to nesii

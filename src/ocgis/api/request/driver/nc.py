@@ -338,4 +338,10 @@ def get_dimension_map(variable, metadata):
 def guess_by_location(dims, target):
     mp = {3: {0: 'T', 1: 'Y', 2: 'X'},
           4: {0: 'T', 2: 'Y', 3: 'X', 1: 'Z'}}
-    return mp[len(dims)][dims.index(target)]
+    try:
+        axis_map = mp[len(dims)]
+    except KeyError:
+        # if there an improper number of dimensions, then the variable does not have appropriate dimensions for
+        # subsetting
+        raise DimensionNotFound(target)
+    return axis_map[dims.index(target)]

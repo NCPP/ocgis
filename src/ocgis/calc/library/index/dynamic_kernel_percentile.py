@@ -132,7 +132,6 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
             ## day's window. these are then used to subset the calendar day structure
             ## array.
             window_days = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_(r_cday_index,target_cday_index,width)
-            cday['window_days'][target_cday_index] = temporal[window_days]
             cday_select = np.zeros(cday_shape,dtype=bool)
             for wd in window_days:
                 cday_select = np.logical_or(cday_select,r_cday_index == wd)
@@ -147,6 +146,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
                 select[ii] = dt_cday in cday_sub['index']
             
             ## calculate the percentile value for the window
+            cday['window_days'][target_cday_index] = temporal[select]
             percentile_subset = all_values[:,select]
 #            assert(percentile_subset.shape[0] == len(years)*width)
             cday['percentile'][target_cday_index] = np.percentile(percentile_subset,percentile,axis=1)

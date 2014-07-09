@@ -23,3 +23,12 @@ class NaturalLogarithm(base.AbstractUnivariateFunction):
     
     def get_output_units(self,*args,**kwds):
         return(None)
+
+
+class Sum(base.AbstractUnivariateSetFunction):
+    key = 'sum'
+    description = 'Compute the algebraic sum of a series.'
+    dtype = constants.np_float
+
+    def calculate(self, values):
+        return np.ma.sum(values, axis=0)

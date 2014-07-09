@@ -11,7 +11,7 @@ class FunctionRegistry(dict):
     def __init__(self):
         super(FunctionRegistry,self).__init__()
         
-        self.reg += [math.Divide,math.NaturalLogarithm]
+        self.reg += [math.Divide,math.NaturalLogarithm,math.Sum]
         self.reg += [statistics.FrequencyPercentile,statistics.Mean,statistics.StandardDeviation,
                      statistics.Max,statistics.Median,statistics.Min]
         self.reg += [thresholds.Between,thresholds.Threshold]

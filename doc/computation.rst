@@ -143,6 +143,14 @@ Available Functions
 
 Click on `Show Source` to the right of the function to get descriptive information and see class-level definitions.
 
+Mathematical Operations
+-----------------------
+
+.. autoclass:: ocgis.calc.library.math.Sum
+   :show-inheritance:
+   :members: calculate
+   :undoc-members:
+
 Basic Statistics
 ----------------
 

@@ -11,7 +11,27 @@ import time
 
 
 class Test(TestBase):
-    
+
+    def test_with_callback(self):
+        """Test callback reports status appropriately."""
+
+        percentages = []
+
+        def callback(a, b):
+            percentages.append(a)
+
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
+        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
+                                  calc_grouping=['month'], output_format='nc',
+                                  geom='state_boundaries',
+                                  select_ugid=[2, 9, 12, 23, 25],
+                                  add_auxiliary_files=False,
+                                  callback=callback)
+        ret = compute(ops, 3, verbose=False)
+        hundreds = np.array(percentages)
+        hundreds = hundreds >= 100.0
+        self.assertEqual(hundreds.sum(), 1)
+
     @longrunning
     def test_timing_use_optimizations(self):
         n = range(10)

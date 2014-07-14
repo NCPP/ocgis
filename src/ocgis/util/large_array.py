@@ -38,6 +38,16 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
     assert(isinstance(ops, OcgOperations))
     assert(ops.calc is not None)
     assert(ops.output_format == 'nc')
+
+    ## ensure that progress is not showing 100% at first
+    if ops.callback is not None:
+        orgcallback = ops.callback
+
+        def zeropercentagecallback(p, m):
+            orgcallback(0., m)
+
+        ops.callback = zeropercentagecallback
+    
     tile_dimension = int(tile_dimension)
     if tile_dimension <= 0:
         raise (ValueError('"tile_dimension" must be greater than 0'))
@@ -131,20 +141,32 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
 
         if verbose: print('getting tile schema...')
         schema = tile.get_tile_schema(shp[0], shp[1], tile_dimension)
+        lschema = len(schema)
 
+        # Create new callbackfunction where the 0-100% range is converted to a subset corresponding to the no. of blocks to be calculated
+        if ops.callback is not None:
+            percentageDone = 0
+            callback = ops.callback
+            def newcallback(p,m):
+              p = (p/lschema)+percentageDone
+              orgcallback(p,m)
+            ops.callback = newcallback
+        
         if verbose:
             print('output file is: {0}'.format(fill_file))
-            lschema = len(schema)
             print('tile count: {0}'.format(lschema))
 
         fds = nc.Dataset(fill_file, 'a')
         try:
             if verbose:
                 progress = ProgressBar('tiles progress')
+            if ops.callback is not None and callback:
+                callback(0,"Initializing calculation")
             for ctr, indices in enumerate(schema.itervalues(), start=1):
                 ## appropriate adjust the slices to account for the spatial subset
                 row = [ii + row_offset for ii in indices['row']]
                 col = [ii + col_offset for ii in indices['col']]
+
                 ## copy the operations and modify arguments
                 ops_slice = deepcopy(ops)
                 ops_slice.geom = None
@@ -184,6 +206,8 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                             fds.sync()
                 if verbose:
                     progress.progress(int((float(ctr) / lschema) * 100))
+                if ops.callback is not None and callback:
+                    percentageDone = ((float(ctr) / lschema) * 100)
         finally:
             fds.close()
     finally:

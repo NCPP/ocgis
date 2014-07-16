@@ -1,13 +1,16 @@
 import re
 import unittest
 from cfunits import Units
+from fiona.crs import from_string
+from osgeo.osr import SpatialReference
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 import itertools
 import numpy as np
 import datetime
 from ocgis.api.parms.definition import SpatialOperation, OutputFormat
-from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry
+from ocgis.conv.fiona_ import ShpConverter
+from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry, write_geom_dict
 from ocgis import exc, env, constants
 import os.path
 from ocgis.util.inspect import Inspect
@@ -38,6 +41,7 @@ import webbrowser
 import tempfile
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.api.collection import SpatialCollection
 
 
 @contextmanager
@@ -85,20 +89,31 @@ class TestSimpleBase(TestBase):
         kwds.update({'dataset':dataset})
         ops = OcgOperations(**kwds)
         return(ops)
-    
-    def get_ret(self,ops=None,kwds={},shp=False,time_range=None,level_range=None):
+
+    def get_ret(self, ops=None, kwds={}, shp=False, time_range=None, level_range=None):
+        """
+        :param ops:
+        :type ops: :class:`ocgis.api.operations.OcgOperations`
+        :param dict kwds:
+        :param bool shp: If ``True``, override output format to shapefile.
+        :param time_range:
+        :type time_range: list[:class:`datetime.datetime`]
+        :param level_range:
+        :type level_range: list[int]
+        """
+
         if ops is None:
-            ops = self.get_ops(kwds,time_range=time_range,level_range=level_range)
+            ops = self.get_ops(kwds, time_range=time_range, level_range=level_range)
         self.ops = ops
         ret = OcgInterpreter(ops).execute()
-        
+
         if shp or self.return_shp:
             kwds2 = kwds.copy()
-            kwds2.update({'output_format':'shp'})
+            kwds2.update({'output_format': 'shp'})
             ops2 = OcgOperations(**kwds2)
             OcgInterpreter(ops2).execute()
-        
-        return(ret)
+
+        return ret
     
     def make_shp(self):
         ops = OcgOperations(dataset=self.dataset,
@@ -135,6 +150,37 @@ class TestSimple(TestSimpleBase):
                            [3.0, 3.0, 4.0, 4.0]])
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
+
+    def test_selection_geometry_crs_differs(self):
+        """Test selection is appropriate when CRS of selection geometry differs from source."""
+
+        dataset = self.get_dataset()
+        rd = RequestDataset(**dataset)
+
+        # field = rd.get()
+        # coll = SpatialCollection()
+        # coll.add_field(1, None, field)
+        # conv = ShpConverter([coll], '/tmp', 'out', overwrite=True)
+        # conv.write()
+
+        ugeom = 'POLYGON((-104.000538 39.004301,-102.833871 39.215054,-102.833871 39.215054,-102.833871 39.215054,-102.879032 37.882796,-104.136022 37.867742,-104.000538 39.004301))'
+        ugeom = wkt.loads(ugeom)
+        from_sr = SpatialReference()
+        from_sr.ImportFromEPSG(4326)
+        to_sr = SpatialReference()
+        to_sr.ImportFromProj4('+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
+        ugeom = project_shapely_geometry(ugeom, from_sr, to_sr)
+        crs = from_string(to_sr.ExportToProj4())
+
+        # write_geom_dict({1: ugeom}, '/tmp/projected.shp', crs=crs)
+
+        geom = [{'geom': ugeom, 'crs': crs}]
+        ops = OcgOperations(dataset=rd, geom=geom)
+        ret = ops.execute()
+
+        to_test = ret[1]['foo'].variables['foo'].value[:, 0, 0, :, :]
+        actual = np.loads('\x80\x02cnumpy.ma.core\n_mareconstruct\nq\x01(cnumpy.ma.core\nMaskedArray\nq\x02cnumpy\nndarray\nq\x03K\x00\x85q\x04U\x01btRq\x05(K\x01K\x01K\x02K\x02\x87cnumpy\ndtype\nq\x06U\x02f8K\x00K\x01\x87Rq\x07(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tb\x89U \x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x08@\x00\x00\x00\x00\x00\x00\x10@U\x04\x00\x00\x00\x00cnumpy.core.multiarray\n_reconstruct\nq\x08h\x03K\x00\x85U\x01b\x87Rq\t(K\x01)h\x07\x89U\x08@\x8c\xb5x\x1d\xaf\x15Dtbtb.')
+        self.assertNumpyAll(to_test, actual)
 
     def test_history_attribute(self):
         ops = self.get_ops(kwds={'output_format': 'nc'})
@@ -307,7 +353,7 @@ class TestSimple(TestSimpleBase):
     
     def test_point_subset(self):
         ops = self.get_ops(kwds={'geom':[-103.5,38.5,]})
-        self.assertEqual(type(ops.geom[0]['geom']),Point)
+        self.assertEqual(type(ops.geom[0].geom.point.value[0, 0]),Point)
         ret = ops.execute()
         ref = ret[1]['foo']
         self.assertEqual(ref.spatial.grid.shape,(4,4))
@@ -316,13 +362,13 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
         ref = ret[1]['foo']
         self.assertEqual(ref.spatial.grid.shape,(1,1))
-        self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0]['geom']))
+        self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0].geom.point.value[0, 0]))
         
         ops = self.get_ops(kwds={'geom':[-103,38,],'abstraction':'point','search_radius_mult':0.01})
         ret = ops.execute()
         ref = ret[1]['foo']
         self.assertEqual(ref.spatial.grid.shape,(1,1))
-        self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0]['geom']))
+        self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0].geom.point.value[0, 0]))
     
     def test_slicing(self):
         ops = self.get_ops(kwds={'slice':[None,None,0,[0,2],[0,2]]})
@@ -401,19 +447,20 @@ class TestSimple(TestSimpleBase):
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret[1][self.var]
         self.assertEqual(ref.level.value.shape,(1,))
-        
+
     def test_time_region_subset(self):
-        
-        rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
-                                      variable=self.var)
+        """Test subsetting a Field object by a time region."""
+
+        rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT, self.fn),
+                                  variable=self.var)
         ops = ocgis.OcgOperations(dataset=rd)
         ret = ops.execute()
         all = ret[1]['foo'].temporal.value_datetime
-        
-        def get_ref(month,year):
-            rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT,self.fn),
+
+        def get_ref(month, year):
+            rd = ocgis.RequestDataset(uri=os.path.join(env.DIR_OUTPUT, self.fn),
                                       variable=self.var,
-                                      time_region={'month':month,'year':year})
+                                      time_region={'month': month, 'year': year})
             ops = ocgis.OcgOperations(dataset=rd)
             ret = ops.execute()
             ref = ret[1]['foo'].temporal.value_datetime
@@ -425,25 +472,25 @@ class TestSimple(TestSimpleBase):
             if year is not None:
                 for m in year:
                     self.assertTrue(m in years)
-            return(ref)
-        
-        ref = get_ref(None,None)
+            return (ref)
+
+        ref = get_ref(None, None)
         self.assertTrue(np.all(ref == all))
-        
-        ref = get_ref([3],None)
-        self.assertEqual(ref.shape[0],31)
-        
-        ref = get_ref([3,4],None)
+
+        ref = get_ref([3], None)
+        self.assertEqual(ref.shape[0], 31)
+
+        ref = get_ref([3, 4], None)
         self.assertTrue(np.all(ref == all))
-        
-        ref = get_ref([4],None)
-        self.assertEqual(ref.shape[0],30)
-        
-        ref = get_ref(None,[2000])
+
+        ref = get_ref([4], None)
+        self.assertEqual(ref.shape[0], 30)
+
+        ref = get_ref(None, [2000])
         self.assertTrue(np.all(ref == all))
-        
+
         with self.assertRaises(ExtentError):
-            get_ref([1],None)
+            get_ref([1], None)
             
     def test_spatial_aggregate_arbitrary(self):
 #        ret = self.get_ret(kwds={'output_format':'shp','prefix':'orig'})
@@ -1305,7 +1352,17 @@ class TestSimple360(TestSimpleBase):
 #    return_shp = True
     fn = 'test_simple_360_01.nc'
     nc_factory = SimpleNc360
-        
+
+    def test_vector_wrap_in_operations(self):
+        """Test output is appropriately wrapped."""
+
+        rd = RequestDataset(**self.get_dataset())
+        field = rd.get()
+        self.assertTrue(field.spatial.is_unwrapped)
+        ops = OcgOperations(dataset=rd, vector_wrap=True)
+        ret = ops.execute()
+        self.assertFalse(ret[1]['foo'].spatial.is_unwrapped)
+
     def test_wrap(self):
         
         def _get_longs_(geom):
@@ -1328,7 +1385,8 @@ class TestSimple360(TestSimpleBase):
         
         for abstraction,g in itertools.product(['polygon','point'],geom):
             try:
-                ret = self.get_ret(kwds={'geom':g,'abstraction':abstraction})
+                ops = self.get_ops(kwds={'geom':g,'abstraction':abstraction})
+                ret = ops.execute()
                 self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()),4)
                 self.get_ret(kwds={'vector_wrap':False})
                 ret = self.get_ret(kwds={'geom':g,'vector_wrap':False,'abstraction':abstraction})
@@ -1337,6 +1395,11 @@ class TestSimple360(TestSimpleBase):
                 if abstraction == 'point':
                     pass
                 else:
+                    # rd = ops.dataset.first()
+                    # field = rd.get()
+                    # field.spatial.write_fiona('/tmp/touch.shp')
+                    # write_geom_dict({1:g},path='/tmp/should_touch.shp')
+                    # import ipdb;ipdb.set_trace()
                     raise
                 
     def test_spatial(self):

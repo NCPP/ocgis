@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import numpy as np
 import itertools
 from shapely.geometry.polygon import Polygon
@@ -17,16 +18,30 @@ from tempfile import mkdtemp
 from fiona.crs import from_epsg
 
 
-def write_geom_dict(dct,path=None):
-    crs = from_epsg(4326)
+def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
+    """
+    :param dct:
+    :type dct: dict
+
+    >>> dct = {1: Point(1, 2), 2: Point(3, 4)}
+
+    :param path:
+    :type path: str
+    :param filename:
+    :type filename: str
+    """
+
+    filename = filename or 'out'
+    path = path or os.path.join(mkdtemp(), '{0}.shp'.format(filename))
+
+    crs = crs or from_epsg(epsg)
     driver = 'ESRI Shapefile'
-    schema = {'properties':{'UGID':'int'},'geometry':dct.values()[0].geom_type}
-    path = path or os.path.join(mkdtemp(),'out.shp')
-    with fiona.open(path,'w',driver=driver,crs=crs,schema=schema) as source:
-        for k,v in dct.iteritems():
-            rec = {'properties':{'UGID':k},'geometry':mapping(v)}
+    schema = {'properties': {'UGID': 'int'}, 'geometry': dct.values()[0].geom_type}
+    with fiona.open(path, 'w', driver=driver, crs=crs, schema=schema) as source:
+        for k, v in dct.iteritems():
+            rec = {'properties': {'UGID': k}, 'geometry': mapping(v)}
             source.write(rec)
-    return(path)
+    return path
     
 def get_added_slice(slice1,slice2):
     '''
@@ -118,98 +133,7 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
         ret = (ret,{'row':slice(start_row,stop_row),'col':slice(start_col,stop_col)})
         
     return(ret)
-        
-def get_rotated_pole_spatial_grid_dimension(crs,grid,inverse=False,rc_original=None):
-    '''
-    http://osgeo-org.1560.x6.nabble.com/Rotated-pole-coordinate-system-a-howto-td3885700.html
-    
-    :param :class:`ocgis.interface.base.crs.CFRotatedPole` crs:
-    :param :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension` grid:
-    :param bool inverse: If True, this is an inverse transformation.
-    :param dict rc_original: Contains original metadata information for the row and
-     column dimensions.
-    :returns :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension`:
-    '''
-    import csv
-    import subprocess
-    class ProjDialect(csv.excel):
-        lineterminator = '\n'
-        delimiter = '\t'
-    f = tempfile.NamedTemporaryFile()
-    writer = csv.writer(f,dialect=ProjDialect)
-    new_mask = grid.value.mask.copy()
-    if inverse:
-        _row = grid.value[0,:,:].data
-        _col = grid.value[1,:,:].data
-        shp = (_row.shape[0],_col.shape[1])
-        
-        def _itr_writer_(_row,_col):
-            for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_row.shape[1])):
-                yield(_col[row_idx,col_idx],_row[row_idx,col_idx])
-    else:
-        _row = grid.row.value
-        _col = grid.col.value
-        shp = (_row.shape[0],_col.shape[0])
-        
-        def _itr_writer_(row,col):
-            for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_col.shape[0])):
-                yield(_col[col_idx],_row[row_idx])
-#    uid = np.arange(1,(shp[0]*shp[1])+1,dtype=int).reshape(*shp)
-#    uid = np.ma.array(data=uid,mask=False)
-#    for row_idx,col_idx in itertools.product(range(_row.shape[0]),range(_col.shape[0])):
-    for xy in _itr_writer_(_row,_col):
-        writer.writerow(xy)
-    f.flush()
-    cmd = crs._trans_proj.split(' ')
-    cmd.append(f.name)
-    if inverse:
-        program = 'invproj'
-    else:
-        program = 'proj'
-    cmd = [program,'-f','"%.6f"','-m','57.2957795130823'] + cmd
-    capture = subprocess.check_output(cmd)
-    f.close()
-    coords = capture.split('\n')
-    new_coords = []
-    for ii,coord in enumerate(coords):
-        coord = coord.replace('"','')
-        coord = coord.split('\t')
-        try:
-            coord = map(float,coord)
-        ## likely empty string
-        except ValueError:
-            if coord[0] == '':
-                continue
-            else:
-                raise
-        new_coords.append(coord)
-        
-    new_coords = np.array(new_coords)
-    new_row = new_coords[:,1].reshape(*shp)
-    new_col = new_coords[:,0].reshape(*shp)
-    
-    new_grid = copy(grid)
-    ## reset geometries
-    new_grid._geom = None
-    if inverse:
-        from ocgis.interface.base.dimension.base import VectorDimension
-        new_row = new_row[:,0]
-        new_col = new_col[0,:]
-        new_grid.row = VectorDimension(value=new_row,name=rc_original['row']['name'],meta=rc_original['row']['meta'])
-        new_grid.col = VectorDimension(value=new_col,name=rc_original['col']['name'],meta=rc_original['col']['meta'])
-        new_col,new_row = np.meshgrid(new_col,new_row)
-    else:
-        new_grid._row_src_idx = new_grid.row._src_idx
-        new_grid._col_src_idx = new_grid.col._src_idx
-        new_grid.row = None
-        new_grid.col = None
-    new_value = np.zeros([2]+list(new_row.shape))
-    new_value = np.ma.array(new_value,mask=new_mask)
-    new_value[0,:,:] = new_row
-    new_value[1,:,:] = new_col
-    new_grid._value = new_value
-            
-    return(new_grid)
+
 
 def get_interpolated_bounds(centroids):
     '''
@@ -579,87 +503,25 @@ def locate(pattern, root=os.curdir, followlinks=True):
         for filename in filter(lambda x: x == pattern,files):
             yield os.path.join(path, filename)
 
-#def reduce_query(query):
-#    ## parse keys into groups.
-#    groups = {}
-#    ungrouped = {}
-#    exp_key = re.compile('^(\D+)\d+$')
-#    exp_number = re.compile('^\D+(\d+)$')
-#    for key,value in query.iteritems():
-#        try:
-#            m_key = re.match(exp_key,key).groups()[0]
-#            m_number = int(re.match(exp_number,key).groups()[0])
-#            if m_key not in groups:
-#                groups[m_key] = []
-#            groups[m_key].append(m_number)
-#        except AttributeError:
-#            ungrouped[key] = value
-#    ## sort the groups
-#    for value in groups.itervalues():
-#        value.sort()
-#    ## ensure the groups are the same. only applicable if there are any
-#    ## grouped variables.
-#    if len(groups) > 0:
-#        arch = groups['uri']
-#        for key,value in groups.iteritems():
-#            try:
-#                assert(arch == value)
-#            except AssertionError:
-#                if key in ['uri','variable']:
-#                    raise(DefinitionValidationError('reduce_query','Integer group indicators are not consistent.'))
-#                else:
-#                    fill = [None]*len(arch)
-#                    for integer in value:
-#                        idx = arch.index(integer)
-#                        fill[idx] = integer
-#                    groups[key] = fill
-#    ## replace integers with actual values
-#    for key,value in groups.iteritems():
-#        for idx in range(len(value)):
-#            if value[idx] is None:
-#                continue
-#            pull_key = key + str(value[idx])
-#            value[idx] = query[pull_key][0]
-#        groups[key] = [value]
-#    ## merge the grouped and ungrouped parameters
-#    groups.update(ungrouped)
-#    return(groups)
-#        
-#def union_geoms(ugeoms,new_id=1):
-#    if len(ugeoms) == 1:
-#        ret = deepcopy(ugeoms)
-#    else:
-#        to_union = []
-#        for dct in ugeoms:
-#            geom = dct['geom']
-#            if isinstance(geom,MultiPolygon):
-#                for poly in geom:
-#                    to_union.append(poly)
-#            else:
-#                to_union.append(geom)
-#        ugeom = cascaded_union(to_union)
-#        ret = [{'ugid':new_id,'geom':ugeom}]
-#    return(ret)
-#
-#
-#def get_bounded(value,bounds=None,uid=None,names={'uid':'uid','value':'value'}):
-#    if uid is None:
-#        uid = np.arange(1,value.shape[0]+1,dtype=int)
-#    ret = np.empty(value.shape[0],dtype=[(names['uid'],int),(names['value'],value.dtype,3)])
-#    ret[names['uid']] = uid
-#    ref = ret[names['value']]
-#    ref[:,1] = value
-#    if bounds is None:
-#        ref[:,0] = ref[:,1]
-#        ref[:,2] = ref[:,1]
-#    else:
-#        ref[:,0] = bounds[:,0]
-#        ref[:,2] = bounds[:,1]
-#    return(ret)
 
-#def append(arr,value):
-#    arr.resize(arr.shape[0]+1,refcheck=False)
-#    arr[arr.shape[0]-1] = value
+def get_ordered_dicts_from_records_array(arr):
+    """
+    Convert a NumPy records array to an ordered dictionary.
+
+    :param arr: The records array to convert with shape (m,).
+    :type arr: :class:`numpy.core.multiarray.ndarray`
+    :rtype: list[:class:`collections.OrderedDict`]
+    """
+
+    ret = []
+    _names = arr.dtype.names
+    for ii in range(arr.shape[0]):
+        fill = OrderedDict()
+        row = arr[ii]
+        for name in _names:
+            fill[name] = row[name]
+        ret.append(fill)
+    return ret
 
 def iter_array(arr,use_mask=True,return_value=False):
     try:

@@ -84,7 +84,6 @@ class TestCnrmCerfacs(TestBase):
                                 select_ugid=[69], output_crs=output_crs, prefix=str(ii))
             ret = ops.execute()
 
-
             with fiona.open(ret) as source:
                 records = list(source)
 

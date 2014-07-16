@@ -1,13 +1,24 @@
+from collections import OrderedDict
 import numpy as np
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
-    get_added_slice, get_iter
+    get_added_slice, get_iter, get_ordered_dicts_from_records_array
 import itertools
 from ocgis.test.base import TestBase
 from datetime import datetime as dt
 
 
 class Test(TestBase):
+
+    def test_get_ordered_dicts_from_records_array(self):
+        """Test converting a records array to a list of ordered dictionaries."""
+
+        arr = np.zeros(2, dtype=[('UGID', int), ('NAME', object)])
+        arr[0] = (1, 'Name1')
+        arr[1] = (2, 'Name2')
+        ret = get_ordered_dicts_from_records_array(arr)
+        self.assertListEqual(ret, [OrderedDict([('UGID', 1), ('NAME', 'Name1')]),
+                                   OrderedDict([('UGID', 2), ('NAME', 'Name2')])])
 
     def test_get_iter_str(self):
         """Test whole string returned as opposed to its immutable elements."""

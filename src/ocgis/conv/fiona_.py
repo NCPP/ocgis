@@ -53,8 +53,14 @@ class FionaConverter(AbstractConverter):
                 break
         if ret is None:
             ret = cls._fiona_type_mapping[the_type]
-        if the_type in cls._fiona_conversion:
-            fiona_conversion.update({key.lower(): cls._fiona_conversion[the_type]})
+
+        try:
+            if the_type in cls._fiona_conversion:
+                fiona_conversion.update({key.lower(): cls._fiona_conversion[the_type]})
+        except AttributeError:
+            if fiona_conversion is not None:
+                raise
+
         return ret
 
     def _finalize_(self,f):

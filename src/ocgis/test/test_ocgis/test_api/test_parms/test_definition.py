@@ -1,6 +1,7 @@
 import unittest
 from cfunits import Units
 from ocgis.api.parms.definition import *
+from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
 from ocgis.util.helpers import make_poly
 import pickle
 import tempfile
@@ -64,7 +65,8 @@ class TestGeom(TestBase):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
 
         g = Geom(geom)
-        self.assertEqual(type(g.value),list)
+        self.assertEqual(type(g.value), tuple)
+        self.assertIsInstance(g.value[0], SpatialDimension)
         g.value = None
         self.assertEqual(None,g.value)
 
@@ -73,7 +75,7 @@ class TestGeom(TestBase):
         self.assertEqual(str(g),'geom=None')
 
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0]['geom'].bounds,(-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds,(-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
 
         g = Geom('state_boundaries')
@@ -82,6 +84,14 @@ class TestGeom(TestBase):
         geoms = list(ShpCabinetIterator('state_boundaries'))
         g = Geom('state_boundaries')
         self.assertEqual(len(list(g.value)),len(geoms))
+
+        sci = ShpCabinetIterator(key='state_boundaries')
+        self.assertFalse(sci.as_spatial_dimension)
+        g = Geom(sci)
+        for _ in range(2):
+            for ii, element in enumerate(g.value):
+                self.assertIsInstance(element, SpatialDimension)
+            self.assertGreater(ii, 10)
 
         su = SelectUgid([1,2,3])
         g = Geom('state_boundaries',select_ugid=su)
@@ -92,9 +102,20 @@ class TestGeom(TestBase):
 
         bbox = [-120,40,-110,50]
         g = Geom(bbox)
-        self.assertEqual(g.value[0]['geom'].bounds,tuple(map(float,bbox)))
+        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds,tuple(map(float,bbox)))
 
-    def test_geom_using_shp_path(self):
+    def test_spatial_dimension(self):
+        """Test using a SpatialDimension as input value."""
+
+        sdim = SpatialDimension.from_records(ShpCabinetIterator(key='state_boundaries'))
+        self.assertIsInstance(sdim.crs, CFWGS84)
+        g = Geom(sdim)
+        self.assertEqual(len(g.value), 51)
+        for sdim in g.value:
+            self.assertIsInstance(sdim, SpatialDimension)
+            self.assertEqual(sdim.shape, (1, 1))
+
+    def test_using_shp_path(self):
         ## pass a path to a shapefile as opposed to a key
         path = ShpCabinet().get_shp_path('state_boundaries')
         ocgis.env.DIR_SHPCABINET = None
@@ -105,7 +126,7 @@ class TestGeom(TestBase):
         self.assertEqual(g._shp_key,path)
         self.assertEqual(len(list(g.value)),51)
 
-    def test_geom_with_changing_select_ugid(self):
+    def test_with_changing_select_ugid(self):
         select_ugid = [16,17]
         g = Geom('state_boundaries',select_ugid=select_ugid)
         self.assertEqual(len(list(g.value)),2)
@@ -130,19 +151,25 @@ class TestGeom(TestBase):
         return geom
 
     def test_geometry_dictionaries(self):
-        """Test geometry dictionaries come out appropriately once formatted."""
+        """Test geometry dictionaries as input."""
 
-        geom = self.get_geometry_dictionaries()
-        #todo: ensure geometry dictionaries have meta associated with them if more than a UGID is present in the properties
-        g = Geom(geom)
-
-        self.assertEqual(len(g.value), 3)
-
-        for gdict in g.value:
-            self.assertEqual(set(gdict.keys()), set(['crs', 'geom', 'properties']))
-            self.assertIsInstance(gdict['geom'], Point)
-            self.assertIsInstance(gdict['crs'], CFWGS84)
-            self.assertEqual(set(gdict['properties'].keys()), set(['UGID', 'COUNTRY']))
+        for crs in [None, CFWGS84(), CoordinateReferenceSystem(epsg=2136)]:
+            geom = self.get_geometry_dictionaries()
+            if crs is not None:
+                for g in geom:
+                    g['crs'] = crs
+            g = Geom(geom)
+            self.assertEqual(len(g.value), 3)
+            for gdict, sdim in zip(geom, g.value):
+                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+                if crs is None:
+                    self.assertIsInstance(sdim.crs, CFWGS84)
+                else:
+                    self.assertIsInstance(sdim.crs, crs.__class__)
+                self.assertEqual(set(sdim.properties.dtype.names), set(['UGID', 'COUNTRY']))
+                self.assertEqual(sdim.properties.shape, (1,))
+                self.assertEqual(sdim.properties['UGID'][0], gdict['properties']['UGID'])
+                self.assertEqual(sdim.properties['COUNTRY'][0], gdict['properties']['COUNTRY'])
 
 
 class TestTimeRange(TestBase):

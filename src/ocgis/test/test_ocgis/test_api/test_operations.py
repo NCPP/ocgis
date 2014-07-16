@@ -218,7 +218,7 @@ class TestOcgOperations(TestBase):
     
     def test_aggregate(self):
         A = definition.Aggregate
-        
+
         a = A(True)
         self.assertEqual(a.value,True)
         
@@ -236,13 +236,13 @@ class TestOcgOperations(TestBase):
         ops.geom = 'mi_watersheds'
         self.assertEqual(len(list(ops.geom)),60)
         ops.geom = [-120,40,-110,50]
-        self.assertEqual(ops.geom[0]['geom'].bounds,(-120.0,40.0,-110.0,50.0))
+        self.assertEqual(ops.geom[0].single.geom.bounds,(-120.0,40.0,-110.0,50.0))
         
     def test_geom(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
         g = definition.Geom(geom)
-        self.assertEqual(type(g.value),list)
-        self.assertEqual(g.value[0]['geom'].bounds,(-102.281, 37.762, -101.754, 38.222))
+        self.assertEqual(type(g.value),tuple)
+        self.assertEqual(g.value[0].single.geom.bounds,(-102.281, 37.762, -101.754, 38.222))
         
         g = definition.Geom(None)
         self.assertEqual(g.value,None)

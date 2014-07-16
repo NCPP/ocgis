@@ -1,3 +1,6 @@
+from copy import copy, deepcopy
+import tempfile
+import itertools
 from osgeo.osr import SpatialReference
 from fiona.crs import from_string, to_string
 import numpy as np
@@ -78,52 +81,57 @@ class WGS84(CoordinateReferenceSystem):
         CoordinateReferenceSystem.__init__(self,epsg=4326)
 
     @classmethod
-    def get_is_360(cls,spatial):
-        if not isinstance(spatial.crs,cls):
-            return(False)
-        
+    def get_is_360(cls, spatial):
+        """
+        :param spatial:
+        :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+        """
+
+        if not isinstance(spatial.crs, cls):
+            return False
+
         try:
             if spatial.grid.col.bounds is None:
                 check = spatial.grid.col.value
             else:
                 check = spatial.grid.col.bounds
         except AttributeError as e:
-            ## column dimension is likely missing
+            # column dimension is likely missing
             try:
                 if spatial.grid.col is None:
                     try:
                         check = spatial.get_grid_bounds()
                     except ImproperPolygonBoundsError:
-                        check = spatial.grid.value[1,:,:]
+                        check = spatial.grid.value[1, :, :]
                 else:
                     ocgis_lh(exc=e)
             except AttributeError as e:
-                ## there may be no grid, access the geometries directly
+                # there may be no grid, access the geometries directly
                 try:
                     geoms_to_check = spatial.geom.polygon.value
                 except ImproperPolygonBoundsError:
                     geoms_to_check = spatial.geom.point.value
                 geoms_to_check = geoms_to_check.compressed()
-                
+
                 for geom in geoms_to_check:
-                    if type(geom) in [MultiPolygon,MultiPoint]:
+                    if type(geom) in [MultiPolygon, MultiPoint]:
                         it = geom
                     else:
                         it = [geom]
                     for sub_geom in it:
                         try:
                             if np.any(np.array(sub_geom.exterior.coords) > 180.):
-                                return(True)
+                                return (True)
                         ## might be checking a point
                         except AttributeError:
                             if np.any(np.array(sub_geom) > 180.):
-                                return(True)
-                return(False)
+                                return (True)
+                return False
         if np.any(check > 180.):
             ret = True
         else:
             ret = False
-        return(ret)
+        return ret
 
     def unwrap(self,spatial):
         if not self.get_is_360(spatial):
@@ -371,19 +379,178 @@ class CFNarccapObliqueMercator(CFCoordinateReferenceSystem):
         if 'alpha' not in kwds:
             kwds['alpha'] = 360
         super(CFNarccapObliqueMercator,self).__init__(*args,**kwds)
-        
+
 
 class CFRotatedPole(CFCoordinateReferenceSystem):
     grid_mapping_name = 'rotated_latitude_longitude'
-    map_parameters = {'grid_north_pole_longitude':None,
-                      'grid_north_pole_latitude':None}
+    map_parameters = {'grid_north_pole_longitude': None,
+                      'grid_north_pole_latitude': None}
     proj_name = 'omerc'
     iterable_parameters = {}
     _template = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180'
     _find_projection_coordinates = False
-    
-    def __init__(self,*args,**kwds):
-        super(CFRotatedPole,self).__init__(*args,**kwds)
+
+    def __init__(self, *args, **kwds):
+        super(CFRotatedPole, self).__init__(*args, **kwds)
+
+        # this is the transformation string used in the proj operation
         self._trans_proj = self._template.format(lon_pole=kwds['grid_north_pole_longitude'],
                                                  lat_pole=kwds['grid_north_pole_latitude'])
 
+        # holds metadata and previous state information for inverse transformations
+        self._inverse_state = {}
+
+    def get_rotated_pole_transformation(self, spatial, inverse=False):
+        """
+        :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :param bool inverse: If ``True``, this is an inverse transformation.
+        :rtype: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        """
+
+        new_spatial = copy(spatial)
+        new_spatial._geom = None
+
+        try:
+            rc_original = {'row': {'name': spatial.grid.row.name,
+                                   'meta': spatial.grid.row.meta},
+                           'col': {'name': spatial.grid.col.name,
+                                   'meta': spatial.grid.col.meta}}
+        # a previously transformed rotated pole spatial dimension will not have row and columns. these should be
+        # available in the state dictionary
+        except AttributeError:
+            rc_original = self._inverse_state['rc_original']
+
+        # if this metadata information is not stored, put in the state dictionary to use for inverse transformations
+        if 'rc_original' not in self._inverse_state:
+            self._inverse_state['rc_original'] = rc_original
+
+        new_spatial.grid = self._get_rotated_pole_transformation_for_grid_(new_spatial.grid, inverse=inverse,
+                                                                           rc_original=rc_original)
+
+        # ensure the masks are updated appropriately
+        new_spatial.grid.value.mask = spatial.grid.value.mask.copy()
+        new_spatial.grid.uid.mask = spatial.grid.uid.mask.copy()
+
+        # the crs has been transformed, so updated accordingly
+        if inverse:
+            new_spatial.crs = deepcopy(self)
+        else:
+            new_spatial.crs = CFWGS84()
+
+        return new_spatial
+
+    def _get_rotated_pole_transformation_for_grid_(self, grid, inverse=False, rc_original=None):
+        """
+        http://osgeo-org.1560.x6.nabble.com/Rotated-pole-coordinate-system-a-howto-td3885700.html
+
+        :param :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension` grid:
+        :param bool inverse: If ``True``, this is an inverse transformation.
+        :param dict rc_original: Contains original metadata information for the row and
+         column dimensions.
+        :returns: :class:`ocgis.interface.base.dimension.spatial.SpatialGridDimension`
+        """
+
+        import csv
+        import subprocess
+
+        class ProjDialect(csv.excel):
+            lineterminator = '\n'
+            delimiter = '\t'
+
+        f = tempfile.NamedTemporaryFile()
+        writer = csv.writer(f, dialect=ProjDialect)
+        new_mask = grid.value.mask.copy()
+
+        if inverse:
+            _row = grid.value[0, :, :].data
+            _col = grid.value[1, :, :].data
+            shp = (_row.shape[0], _col.shape[1])
+
+            def _itr_writer_(_row, _col):
+                for row_idx, col_idx in itertools.product(range(_row.shape[0]), range(_row.shape[1])):
+                    yield (_col[row_idx, col_idx], _row[row_idx, col_idx])
+        else:
+            _row = grid.row.value
+            _col = grid.col.value
+            shp = (_row.shape[0], _col.shape[0])
+
+            def _itr_writer_(row, col):
+                for row_idx, col_idx in itertools.product(range(_row.shape[0]), range(_col.shape[0])):
+                    yield (_col[col_idx], _row[row_idx])
+
+        for xy in _itr_writer_(_row, _col):
+            writer.writerow(xy)
+        f.flush()
+        cmd = self._trans_proj.split(' ')
+        cmd.append(f.name)
+
+        if inverse:
+            program = 'invproj'
+        else:
+            program = 'proj'
+
+        cmd = [program, '-f', '"%.6f"', '-m', '57.2957795130823'] + cmd
+        capture = subprocess.check_output(cmd)
+        f.close()
+        coords = capture.split('\n')
+        new_coords = []
+
+        for ii, coord in enumerate(coords):
+            coord = coord.replace('"', '')
+            coord = coord.split('\t')
+            try:
+                coord = map(float, coord)
+            # # likely empty string
+            except ValueError:
+                if coord[0] == '':
+                    continue
+                else:
+                    raise
+            new_coords.append(coord)
+
+        new_coords = np.array(new_coords)
+        new_row = new_coords[:, 1].reshape(*shp)
+        new_col = new_coords[:, 0].reshape(*shp)
+
+        new_grid = copy(grid)
+        # # reset geometries
+        new_grid._geom = None
+        if inverse:
+            from ocgis.interface.base.dimension.base import VectorDimension
+
+            dict_row = self._get_meta_name_(rc_original, 'row')
+            dict_col = self._get_meta_name_(rc_original, 'col')
+
+            new_row = new_row[:, 0]
+            new_col = new_col[0, :]
+            new_grid.row = VectorDimension(value=new_row, name=dict_row['name'],
+                                           meta=dict_row['meta'])
+            new_grid.col = VectorDimension(value=new_col, name=dict_col['name'],
+                                           meta=dict_col['meta'])
+            new_col, new_row = np.meshgrid(new_col, new_row)
+        else:
+            new_grid._row_src_idx = new_grid.row._src_idx
+            new_grid._col_src_idx = new_grid.col._src_idx
+            new_grid.row = None
+            new_grid.col = None
+
+        new_value = np.zeros([2] + list(new_row.shape))
+        new_value = np.ma.array(new_value, mask=new_mask)
+        new_value[0, :, :] = new_row
+        new_value[1, :, :] = new_col
+        new_grid._value = new_value
+
+        return new_grid
+
+    @staticmethod
+    def _get_meta_name_(rc_original, key):
+        try:
+            meta = rc_original[key]['meta']
+            name = rc_original[key]['name']
+        except TypeError:
+            if rc_original is None:
+                meta = None
+                name = None
+            else:
+                raise
+        return {'meta': meta, 'name': name}

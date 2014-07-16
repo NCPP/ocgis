@@ -1,4 +1,7 @@
 import unittest
+from ocgis.interface.base.crs import WGS84
+from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPolygonDimension, \
+    SpatialGeometryPointDimension
 from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator
 import ocgis
 from osgeo import ogr
@@ -10,7 +13,36 @@ from shapely.geometry.polygon import Polygon
 
 
 class TestShpCabinetIterator(TestBase):
-    
+
+    def test_as_spatial_dimension(self):
+        """Test iteration returned as SpatialDimension objects."""
+
+        select_ugid = [16, 17, 51]
+        sci = ShpCabinetIterator(key='state_boundaries', select_ugid=select_ugid, as_spatial_dimension=True)
+
+        for _ in range(2):
+            ugids = []
+            for sdim in sci:
+                self.assertIsInstance(sdim, SpatialDimension)
+                self.assertEqual(sdim.shape, (1, 1))
+                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPolygonDimension)
+                self.assertEqual(sdim.properties[0]['UGID'], sdim.uid[0, 0])
+                self.assertEqual(sdim.properties.dtype.names, ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
+                self.assertEqual(sdim.crs, WGS84())
+
+                for prop in sdim.properties[0]:
+                    self.assertNotEqual(prop, None)
+
+                ugids.append(sdim.uid[0, 0])
+            self.assertEqual(ugids, select_ugid)
+
+    def test_as_spatial_dimension_points(self):
+        """Test SpatialDimension iteration with a point shapefile as source."""
+
+        sci = ShpCabinetIterator(key='qed_city_centroids', as_spatial_dimension=True)
+        for sdim in sci:
+            self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+
     def test_select_ugids_absent_raises_exception(self):
         sci = ShpCabinetIterator(key='state_boundaries',select_ugid=[999])
         with self.assertRaises(ValueError):

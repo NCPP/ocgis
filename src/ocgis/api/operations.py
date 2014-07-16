@@ -26,7 +26,7 @@ class OcgOperations(object):
         
     The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
     validation and input formatting.
-        
+
     :param dataset: The target dataset(s) for the request. This is the only required parameter.
     :type dataset: :class:`ocgis.RequestDatasetCollection` or :class:`ocgis.RequestDataset`
     :param spatial_operation: The geometric operation to be performed.

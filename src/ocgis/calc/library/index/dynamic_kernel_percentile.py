@@ -1,4 +1,3 @@
-from ocgis.util.logging_ocgis import ocgis_lh
 import numpy as np
 from ocgis.calc.base import AbstractParameterizedFunction, \
     AbstractUnivariateSetFunction
@@ -9,22 +8,22 @@ import calendar
 
 ########### begin: utility functions for get_daily_percentile()
 
-def num2date(num, calend, units):
-    '''
-    Converts numerical date to datetime object.    
-    
-    :param num: numerical date
-    :type num: float
-    :param calend: calendar attribute of variable "time" in netCDF file
-    :type calend: str
-    :param units: units of variable "time" in netCDF file
-    :type units: str
-    
-    :rtype: datetime object
-    '''   
-    t = utime(units, calend) 
-    dt = t.num2date(num) 
-    return dt
+# def num2date(num, calend, units):
+#     '''
+#     Converts numerical date to datetime object.
+#
+#     :param num: numerical date
+#     :type num: float
+#     :param calend: calendar attribute of variable "time" in netCDF file
+#     :type calend: str
+#     :param units: units of variable "time" in netCDF file
+#     :type units: str
+#
+#     :rtype: datetime object
+#     '''
+#     t = utime(units, calend)
+#     dt = t.num2date(num)
+#     return dt
 
 
 def get_dict_caldays(dt_arr):
@@ -191,15 +190,19 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
         dates = self.field.temporal.value_datetime[self._curr_group]
         
         ## match each date to it's percentile
-        dp_indices = np.zeros(dates.shape)
-        for ii,date in enumerate(dates):
-            month,day = date.month,date.day
-            dp_indices[ii] = daily_percentile['index'][np.logical_and(daily_percentile['month'] == month,
-                                                                      daily_percentile['day'] == day)]
+        # dp_indices = np.zeros(dates.shape)
+        # for ii,date in enumerate(dates):
+            # month,day = date.month,date.day
+            # dp_indices[ii] = daily_percentile[month, day]
+            # dp_indices[ii] = daily_percentile['index'][np.logical_and(daily_percentile['month'] == month,
+            #                                                           daily_percentile['day'] == day)]
+
         ## construct the the comparison array
         b = np.empty_like(values)
-        for ii in range(b.shape[0]):
-            b[ii] = daily_percentile[dp_indices[ii]]['percentile']
+        # for ii in range(b.shape[0]):
+            # b[ii] = daily_percentile[dp_indices[ii]]['percentile']
+        for ii, date in enumerate(dates):
+            b[ii] = daily_percentile[date.month, date.day]
         
         ## perform requested logical operation
         if operation == 'gt':
@@ -228,7 +231,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
 #                                                               self.kwds['width'])
 #        return(self._daily_percentile)
     
-    @staticmethod
+    # @staticmethod
 #    def get_daily_percentile(all_values,temporal,percentile,width):
 #        '''
 #        :param all_values: Array holding all values to use for base percentile calculations.
@@ -296,6 +299,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
 #            
 #        return(cday)
 
+    @staticmethod
     def get_daily_percentile(arr, dt_arr, percentile, window_width, only_leap_years=False):
         
         '''
@@ -348,42 +352,42 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction,Abstra
                 # step6: we add to the dictionnary...
                 percentile_dict[month,day] = arr_percentille_current_calday
                 
-            print 'Creating percentile dictionary: month ', month, '---> OK'
+            # print 'Creating percentile dictionary: month ', month, '---> OK'
         
-        print 'Percentile dictionary is created.'
+        # print 'Percentile dictionary is created.'
         
         return percentile_dict
         
             
-    @staticmethod
-    def _get_calendar_day_window_(cday_index,target_cday_index,width):
-        width = int(width)
-        try:
-            assert(width >= 3)
-            assert(width%2 != 0)
-        except AssertionError:
-            ocgis_lh(exc=ValueError('Kernel widths must be >= 3 and be oddly numbered.'),logger='calc.library')
-        
-        stride_dim = (width-1)/2
-        axis_length = cday_index.shape[0]
-        
-        lower_idx = target_cday_index - stride_dim
-        upper_idx = target_cday_index + stride_dim + 1
-        
-        if lower_idx < 0:
-            a = cday_index[lower_idx:]
-            b = cday_index[0:target_cday_index]
-            lower = np.append(a,b)
-        else:
-            lower = cday_index[lower_idx:target_cday_index]
-            
-        if upper_idx > axis_length:
-            a = cday_index[0:upper_idx-axis_length]
-            b = cday_index[target_cday_index+1:upper_idx]
-            upper = np.append(a,b)
-        else:
-            upper = cday_index[target_cday_index+1:upper_idx]
-            
-        ret = np.append(cday_index[target_cday_index],np.append(lower,upper))
-        
-        return(ret)
+    # @staticmethod
+    # def _get_calendar_day_window_(cday_index,target_cday_index,width):
+    #     width = int(width)
+    #     try:
+    #         assert(width >= 3)
+    #         assert(width%2 != 0)
+    #     except AssertionError:
+    #         ocgis_lh(exc=ValueError('Kernel widths must be >= 3 and be oddly numbered.'),logger='calc.library')
+    #
+    #     stride_dim = (width-1)/2
+    #     axis_length = cday_index.shape[0]
+    #
+    #     lower_idx = target_cday_index - stride_dim
+    #     upper_idx = target_cday_index + stride_dim + 1
+    #
+    #     if lower_idx < 0:
+    #         a = cday_index[lower_idx:]
+    #         b = cday_index[0:target_cday_index]
+    #         lower = np.append(a,b)
+    #     else:
+    #         lower = cday_index[lower_idx:target_cday_index]
+    #
+    #     if upper_idx > axis_length:
+    #         a = cday_index[0:upper_idx-axis_length]
+    #         b = cday_index[target_cday_index+1:upper_idx]
+    #         upper = np.append(a,b)
+    #     else:
+    #         upper = cday_index[target_cday_index+1:upper_idx]
+    #
+    #     ret = np.append(cday_index[target_cday_index],np.append(lower,upper))
+    #
+    #     return(ret)

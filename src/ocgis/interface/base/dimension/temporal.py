@@ -168,7 +168,12 @@ class TemporalDimension(base.VectorDimension):
             
             dgroups = deque()
             grouping_season = deque()
-            for season,year in itertools.product(grouping,years):
+
+            # sort the arrays to ensure the ordered in ascending order
+            years.sort()
+            grouping = get_sorted_seasons(grouping, method='min')
+
+            for year,season in itertools.product(years,grouping):
                 subgroup = np.zeros(value.shape[0],dtype=bool)
                 for idx in range(value.shape[0]):
                     if has_year:
@@ -423,25 +428,32 @@ def get_is_interannual(sequence):
     return(ret)
 
 
-def get_sorted_seasons(seasons):
-    '''
-    Sorts `seasons` sequence by max value.
-    
+def get_sorted_seasons(seasons, method='max'):
+    """
+    Sorts ``seasons`` sequence by ``method`` of season elements.
+
     >>> seasons = [[9,10,11],[12,1,2],[6,7,8]]
     >>> get_sorted_seasons(seasons)
     [[6,7,8],[9,10,11],[12,1,2]]
-    '''
-    
+
+    :type seasons: list[list[int]]
+    :type method: str
+    :rtype: list[list[int]]
+    """
+
+    methods = {'min': min, 'max': max}
+
     season_map = {}
     for ii,season in enumerate(seasons):
         season_map[ii] = season
     max_map = {}
     for key,value in season_map.iteritems():
-        max_map[max(value)] = key
+        max_map[methods[method](value)] = key
     sorted_maxes = sorted(max_map)
     ret = [seasons[max_map[s]] for s in sorted_maxes]
     ret = deepcopy(ret)
     return(ret)
+
 
 def get_time_regions(seasons,dates,raise_if_incomplete=True):
     '''

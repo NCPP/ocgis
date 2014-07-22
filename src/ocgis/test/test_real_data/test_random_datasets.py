@@ -203,7 +203,7 @@ class Test(TestBase):
         ret = ops.execute()
         self.assertEqual(ret[23]['tas'].variables['n_my_std'].value.mean(),920.0)
         self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,1,1,4,3))
-        
+
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
         rd = self.test_data.get_rd('cancm4_tas')

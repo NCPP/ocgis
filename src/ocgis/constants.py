@@ -51,5 +51,5 @@ enabled_numpy_ufuncs = ['exp','log','abs']
 default_coordinate_system = CFWGS84()
 
 
-test_run_long_tests = True
+test_run_long_tests = False
 test_run_dev_tests = False

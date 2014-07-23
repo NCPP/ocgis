@@ -39,22 +39,22 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     def test_constructor(self):
         DynamicDailyKernelPercentileThreshold()
         
-    def test_get_calendar_day_window_(self):
-        cday_index = np.arange(0,365)
-        rr = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_
-        width = 5
-        
-        target_cday_index = 0
-        ret = rr(cday_index,target_cday_index,width)
-        self.assertNumpyAll(ret,np.array([0,363,364,1,2]))
-        
-        target_cday_index = 15
-        ret = rr(cday_index,target_cday_index,width)
-        self.assertNumpyAll(ret,np.array([15,13,14,16,17]))
-        
-        target_cday_index = 363
-        ret = rr(cday_index,target_cday_index,width)
-        self.assertNumpyAll(ret,np.array([363,361,362,0,364]))
+    # def test_get_calendar_day_window_(self):
+    #     cday_index = np.arange(0,365)
+    #     rr = DynamicDailyKernelPercentileThreshold._get_calendar_day_window_
+    #     width = 5
+    #
+    #     target_cday_index = 0
+    #     ret = rr(cday_index,target_cday_index,width)
+    #     self.assertNumpyAll(ret,np.array([0,363,364,1,2]))
+    #
+    #     target_cday_index = 15
+    #     ret = rr(cday_index,target_cday_index,width)
+    #     self.assertNumpyAll(ret,np.array([15,13,14,16,17]))
+    #
+    #     target_cday_index = 363
+    #     ret = rr(cday_index,target_cday_index,width)
+    #     self.assertNumpyAll(ret,np.array([363,361,362,0,364]))
     
     def test_calculate(self):
         ## daily data for three years is wanted for the test. subset a CMIP5
@@ -73,8 +73,9 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         dkp = DynamicDailyKernelPercentileThreshold(tgd=temporal_group,
                                                     parms=kwds,field=field,alias='tg10p')        
         dperc = dkp.get_daily_percentile(value,field.temporal.value_datetime,percentile,width)
-        select = np.logical_and(dperc['month'] == 6,dperc['day'] == 5)
-        to_test = dperc[select]['percentile'][0]
+        # select = np.logical_and(dperc['month'] == 6,dperc['day'] == 5)
+        # to_test = dperc[select]['percentile'][0]
+        to_test = dperc[6, 5]
         ref = self.get_percentile_reference()
         self.assertNumpyAll(to_test,ref)
         
@@ -97,7 +98,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         
         with nc_scope(ret) as ds:
             ref = ds.variables['tg10p'][:]
-            self.assertAlmostEqual(ref.mean(),2.9763946533203125)
+            self.assertAlmostEqual(ref.mean(),2.9778004964192708)
     
     @longrunning
     def test_operations_two_steps(self):

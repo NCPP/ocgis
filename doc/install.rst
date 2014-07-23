@@ -75,7 +75,7 @@ There are a number of unofficial Windows binaries for Python extensions availabl
 Installing OpenClimateGIS
 -------------------------
 
-1. Download the current release: http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.07.1b/reg/OCGIS_Framework_Reg.html.
+1. Download the current release: http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.08b/reg/OCGIS_Framework_Reg.html.
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.
 4. Run the command:

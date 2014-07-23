@@ -1,13 +1,8 @@
 from distutils.core import setup, Command
 import sys
-import os
-import argparse
-import ConfigParser
 from subprocess import check_call
-import shutil
 import os
 import tempfile
-import tarfile
 
 
 VERSION = '0.08b-next'

@@ -8,6 +8,23 @@ class OcgException(Exception):
         return (self.message)
 
 
+class MultipleElementsFound(OcgException):
+    """
+    Raised when multiple elements are encountered in a :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+    object.
+
+    :param sdim: The incoming spatial dimension object.
+    :type sdim: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+    """
+
+    def __init__(self, sdim):
+        self.sdim = sdim
+
+    def __str__(self):
+        msg = 'Shape of the spatial dimension object is: {0}'.format(self.sdim.shape)
+        return msg
+
+
 class CalculationException(OcgException):
     def __init__(self, function_klass, message=None):
         self.function_klass = function_klass

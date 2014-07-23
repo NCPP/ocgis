@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
-from ocgis.calc.library.math import NaturalLogarithm, Divide
+from ocgis.api.parms.definition import Calc
+from ocgis.calc.library.math import NaturalLogarithm, Divide, Sum
 from ocgis.interface.base.variable import Variable
 import itertools
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
@@ -130,6 +131,27 @@ class Test(AbstractTestField):
         self.assertEqual(ret['threshold'].value.shape,(2,2,2,3,4))
         self.assertNumpyAllClose(ret['threshold'].value[1,1,1,0,:],
          np.ma.array([13,16,15,12],mask=False,fill_value=1e20))
+
+
+class TestSum(AbstractTestField):
+
+    def test_calculate(self):
+        """Test calculate for the sum function."""
+
+        field = self.get_field(with_value=True)
+        tgd = field.temporal.get_grouping(['month'])
+        sum = Sum(field=field, tgd=tgd)
+        np.random.seed(1)
+        values = np.random.rand(2, 2, 2)
+        values = np.ma.array(values, mask=False)
+        to_test = sum.calculate(values)
+        self.assertNumpyAll(to_test, np.ma.sum(values, axis=0))
+
+    def test_registry(self):
+        """Test sum function is appropriately registered."""
+
+        c = Calc([{'func': 'sum', 'name': 'sum'}])
+        self.assertEqual(c.value[0]['ref'], Sum)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+from shapely.geometry import MultiPoint
+from shapely.geometry.base import BaseGeometry
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
@@ -9,7 +11,9 @@ from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.util.helpers import make_poly, iter_array
+from ocgis.util.shp_cabinet import ShpCabinetIterator, ShpCabinet
 from ocgis.calc.library import register
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -442,8 +446,8 @@ class Geom(base.OcgParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [list,tuple,Polygon,MultiPolygon,ShpCabinetIterator]
-    return_type = [list,ShpCabinetIterator]
+    input_types = [list, tuple, ShpCabinetIterator, Polygon, MultiPolygon, Point, MultiPoint, SpatialDimension]
+    return_type = [ShpCabinetIterator, tuple]
     _shp_key = None
     _bounds = None
     _ugid_key = 'UGID'
@@ -475,39 +479,49 @@ class Geom(base.OcgParameter):
         return(base.OcgParameter._get_value_(self))
     value = property(_get_value_,base.OcgParameter._set_value_)
     
-    def parse(self,value):
-        if type(value) in [Polygon,MultiPolygon,Point]:
-            ret = [{'geom':value,'properties':{self._ugid_key:1},'crs':CFWGS84()}]
-        elif type(value) in [list,tuple]:
+    def parse(self, value):
+        if type(value) in [list, tuple]:
             if all([isinstance(element,dict) for element in value]):
                 for ii,element in enumerate(value,start=1):
                     if 'geom' not in element:
                         ocgis_lh(exc=DefinitionValidationError(self,'Geometry dictionaries must have a "geom" key.'))
                     if 'properties' not in element:
                         element['properties'] = {self._ugid_key:ii}
+                    crs = element.get('crs', CFWGS84())
                     if 'crs' not in element:
-                        element['crs'] = CFWGS84()
                         ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.',level=logging.WARN,check_duplicate=True)
-                ret = value
+                ret = SpatialDimension.from_records(value, crs=crs)
             else:
                 if len(value) == 2:
-                    geom = Point(value[0],value[1])
+                    geom = Point(value[0], value[1])
                 elif len(value) == 4:
-                    minx,miny,maxx,maxy = value
-                    geom = Polygon(((minx,miny),
-                                    (minx,maxy),
-                                    (maxx,maxy),
-                                    (maxx,miny)))
+                    minx, miny, maxx, maxy = value
+                    geom = Polygon(((minx, miny), (minx, maxy), (maxx, maxy), (maxx,  miny)))
                 if not geom.is_valid:
-                    raise(DefinitionValidationError(self,'Parsed geometry is not valid.'))
-                ret = [{'geom':geom,'properties':{self._ugid_key:1},'crs':CFWGS84()}]
+                    raise(DefinitionValidationError(self, 'Parsed geometry is not valid.'))
+                ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
+                ret = SpatialDimension.from_records(ret, crs=CFWGS84())
                 self._bounds = geom.bounds
-        elif isinstance(value,ShpCabinetIterator):
+        elif isinstance(value, ShpCabinetIterator):
             self._shp_key = value.key or value.path
+            # always want to yield SpatialDimension objects
+            value.as_spatial_dimension = True
+            ret = value
+        elif isinstance(value, BaseGeometry):
+            ret = [{'geom': value, 'properties': {self._ugid_key: 1}}]
+            ret = SpatialDimension.from_records(ret, crs=CFWGS84())
+        elif value is None:
+            ret = value
+        elif isinstance(value, SpatialDimension):
             ret = value
         else:
-            ret = value
-        return(ret)
+            raise NotImplementedError(type(value))
+
+        # convert to a tuple if this is a SpatialDimension object
+        if isinstance(ret, SpatialDimension):
+            ret = tuple(self._iter_spatial_dimension_tuple(ret))
+
+        return ret
     
     def parse_string(self,value):
         elements = value.split('|')
@@ -563,7 +577,20 @@ class Geom(base.OcgParameter):
         else:
             ret = '{0} custom user geometries provided.'.format(len(self.value))
         return(ret)
-    
+
+    @staticmethod
+    def _iter_spatial_dimension_tuple(spatial_dimension):
+        """
+        :param spatial_dimension:
+        :type spatial_dimension: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :rtype: tuple
+        """
+
+        row_range = range(spatial_dimension.shape[0])
+        col_range = range(spatial_dimension.shape[1])
+        for row, col in itertools.product(row_range, col_range):
+            yield spatial_dimension[row, col]
+
     
 class Headers(base.IterableParameter,base.OcgParameter):
     name = 'headers'
@@ -712,7 +739,7 @@ class SearchRadiusMultiplier(base.OcgParameter):
     name = 'search_radius_mult'
     nullable = False
     return_type = [float]
-    default = None
+    default = 2.0
     
     def _get_meta_(self):
         msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(self.value)

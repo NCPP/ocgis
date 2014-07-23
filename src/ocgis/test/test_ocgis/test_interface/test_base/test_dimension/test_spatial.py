@@ -1,55 +1,60 @@
+from copy import deepcopy, copy
 import unittest
 import itertools
 import numpy as np
+from shapely import wkt
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
-    SpatialGridDimension, SpatialGeometryPointDimension
+    SpatialGridDimension, SpatialGeometryPointDimension, SingleElementRetriever
 from ocgis.util.helpers import iter_array, make_poly, get_interpolated_bounds,\
     get_date_list
 import fiona
 from fiona.crs import from_epsg
-from shapely.geometry import shape, mapping
+from shapely.geometry import shape, mapping, Polygon
 from shapely.geometry.point import Point
-from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError
+from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError, SpatialWrappingError, MultipleElementsFound
 from ocgis.test.base import TestBase
-from ocgis.interface.base.crs import CoordinateReferenceSystem
+from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole
 from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis.test.test_simple.test_simple import ToTest
 import datetime
 from importlib import import_module
 from unittest.case import SkipTest
+from ocgis.util.itester import itr_products_keywords
+from ocgis.util.spatial.wrap import Wrapper
 
 
 class TestSpatialBase(TestBase):
-    
-    def get_2d_state_boundaries(self):
-        geoms = []
-        build = True
-        with fiona.open('/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
-            for ii,row in enumerate(source):
-                if build:
-                    nrows = len(source)
-                    dtype = []
-                    for k,v in source.schema['properties'].iteritems():
-                        if v.startswith('str'):
-                            v = str('|S{0}'.format(v.split(':')[1]))
-                        else:
-                            v = getattr(np,v.split(':')[0])
-                        dtype.append((str(k),v))
-                    fill = np.empty(nrows,dtype=dtype)
-                    ref_names = fill.dtype.names
-                    build = False
-                fill[ii] = tuple([row['properties'][n] for n in ref_names])
-                geoms.append(shape(row['geometry']))
-        geoms = np.atleast_2d(geoms)
-        return(geoms,fill)
-    
-    def get_2d_state_boundaries_sdim(self):
-        geoms,attrs = self.get_2d_state_boundaries()
-        poly = SpatialGeometryPolygonDimension(value=geoms)
-        geom = SpatialGeometryDimension(polygon=poly)
-        sdim = SpatialDimension(geom=geom,attrs=attrs)
-        return(sdim)
+
+    #todo: remove this commented code
+    # def get_2d_state_boundaries(self):
+    #     geoms = []
+    #     build = True
+    #     with fiona.open('/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
+    #         for ii,row in enumerate(source):
+    #             if build:
+    #                 nrows = len(source)
+    #                 dtype = []
+    #                 for k,v in source.schema['properties'].iteritems():
+    #                     v = fiona.prop_type(v)
+    #                     if v == unicode:
+    #                         v = object
+    #                     dtype.append((str(k),v))
+    #                 fill = np.empty(nrows,dtype=dtype)
+    #                 ref_names = fill.dtype.names
+    #                 build = False
+    #             fill[ii] = tuple([row['properties'][n] for n in ref_names])
+    #             geoms.append(shape(row['geometry']))
+    #     geoms = np.atleast_2d(geoms)
+    #     return(geoms,fill)
+    #
+    # def get_2d_state_boundaries_sdim(self):
+    #     """Return a SpatialDimension object constructed from a state boundaries shapefile."""
+    #
+    #     geoms, attrs = self.get_2d_state_boundaries()
+    #     poly = SpatialGeometryPolygonDimension(value=geoms)
+    #     geom = SpatialGeometryDimension(polygon=poly)
+    #     sdim = SpatialDimension(geom=geom, properties=attrs)
+    #     return sdim
     
     def get_col(self,bounds=True):
         value = [-100.,-99.,-98.,-97.]
@@ -68,13 +73,47 @@ class TestSpatialBase(TestBase):
             bounds = None
         row = VectorDimension(value=value,bounds=bounds,name='row')
         return(row)
-    
-    def get_sdim(self,bounds=True):
+
+    def get_sdim(self, bounds=True, crs=None):
         row = self.get_row(bounds=bounds)
         col = self.get_col(bounds=bounds)
-        sdim = SpatialDimension(row=row,col=col)
-        return(sdim)
-    
+        sdim = SpatialDimension(row=row, col=col, crs=crs)
+        return sdim
+
+    @property
+    def grid_value_regular(self):
+        grid_value_regular = [[[40.0, 40.0, 40.0, 40.0], [39.0, 39.0, 39.0, 39.0], [38.0, 38.0, 38.0, 38.0]], [[-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0]]]
+        grid_value_regular = np.ma.array(grid_value_regular, mask=False)
+        return grid_value_regular
+
+    @property
+    def grid_bounds_regular(self):
+        grid_bounds_regular = [[[-100.5, 39.5, -99.5, 40.5], [-99.5, 39.5, -98.5, 40.5], [-98.5, 39.5, -97.5, 40.5], [-97.5, 39.5, -96.5, 40.5]], [[-100.5, 38.5, -99.5, 39.5], [-99.5, 38.5, -98.5, 39.5], [-98.5, 38.5, -97.5, 39.5], [-97.5, 38.5, -96.5, 39.5]], [[-100.5, 37.5, -99.5, 38.5], [-99.5, 37.5, -98.5, 38.5], [-98.5, 37.5, -97.5, 38.5], [-97.5, 37.5, -96.5, 38.5]]]
+        grid_bounds_regular = np.ma.array(grid_bounds_regular, mask=False)
+        return grid_bounds_regular
+
+    def get_shapely_from_wkt_array(self, wkts):
+        ret = np.array(wkts)
+        vfunc = np.vectorize(wkt.loads, otypes=[object])
+        ret = vfunc(ret)
+        ret = np.ma.array(ret, mask=False)
+        return ret
+
+    @property
+    def point_value(self):
+        pts = [['POINT (-100 40)', 'POINT (-99 40)', 'POINT (-98 40)', 'POINT (-97 40)'], ['POINT (-100 39)', 'POINT (-99 39)', 'POINT (-98 39)', 'POINT (-97 39)'], ['POINT (-100 38)', 'POINT (-99 38)', 'POINT (-98 38)', 'POINT (-97 38)']]
+        ret = self.get_shapely_from_wkt_array(pts)
+        return ret
+
+    @property
+    def polygon_value(self):
+        polys = [['POLYGON ((-100.5 39.5, -100.5 40.5, -99.5 40.5, -99.5 39.5, -100.5 39.5))', 'POLYGON ((-99.5 39.5, -99.5 40.5, -98.5 40.5, -98.5 39.5, -99.5 39.5))', 'POLYGON ((-98.5 39.5, -98.5 40.5, -97.5 40.5, -97.5 39.5, -98.5 39.5))', 'POLYGON ((-97.5 39.5, -97.5 40.5, -96.5 40.5, -96.5 39.5, -97.5 39.5))'], ['POLYGON ((-100.5 38.5, -100.5 39.5, -99.5 39.5, -99.5 38.5, -100.5 38.5))', 'POLYGON ((-99.5 38.5, -99.5 39.5, -98.5 39.5, -98.5 38.5, -99.5 38.5))', 'POLYGON ((-98.5 38.5, -98.5 39.5, -97.5 39.5, -97.5 38.5, -98.5 38.5))', 'POLYGON ((-97.5 38.5, -97.5 39.5, -96.5 39.5, -96.5 38.5, -97.5 38.5))'], ['POLYGON ((-100.5 37.5, -100.5 38.5, -99.5 38.5, -99.5 37.5, -100.5 37.5))', 'POLYGON ((-99.5 37.5, -99.5 38.5, -98.5 38.5, -98.5 37.5, -99.5 37.5))', 'POLYGON ((-98.5 37.5, -98.5 38.5, -97.5 38.5, -97.5 37.5, -98.5 37.5))', 'POLYGON ((-97.5 37.5, -97.5 38.5, -96.5 38.5, -96.5 37.5, -97.5 37.5))']]
+        return self.get_shapely_from_wkt_array(polys)
+
+    @property
+    def uid_value(self):
+        return np.ma.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], mask=False)
+
     def write_sdim(self):
         sdim = self.get_sdim(bounds=True)
         crs = from_epsg(4326)
@@ -86,7 +125,282 @@ class TestSpatialBase(TestBase):
                 sink.write(row)
 
 
+class TestSingleElementRetriever(TestSpatialBase):
+
+    def test_init(self):
+        sdim = self.get_sdim()
+        with self.assertRaises(MultipleElementsFound):
+            SingleElementRetriever(sdim)
+        sub = sdim[1, 2]
+        single = SingleElementRetriever(sub)
+        self.assertIsNone(single.properties)
+        self.assertEqual(single.uid, 7)
+        self.assertIsInstance(single.geom, Polygon)
+        sub.abstraction = 'point'
+        self.assertIsInstance(single.geom, Point)
+        self.assertIsNone(single.crs)
+
+
 class TestSpatialDimension(TestSpatialBase):
+
+    def assertGeometriesAlmostEquals(self, a, b):
+
+        def _almost_equals_(a, b):
+            return a.almost_equals(b)
+
+        vfunc = np.vectorize(_almost_equals_, otypes=[bool])
+        to_test = vfunc(a.data, b.data)
+        self.assertTrue(to_test.all())
+        self.assertNumpyAll(a.mask, b.mask)
+
+    def get_records(self):
+        path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp'
+        with fiona.open(path, 'r') as source:
+            records = list(source)
+            meta = source.meta
+
+        return {'records': records, 'meta': meta}
+
+    def get_spatial_dimension_from_records(self):
+        record_dict = self.get_records()
+        return SpatialDimension.from_records(record_dict['records'], crs=record_dict['meta']['crs'])
+
+    def test_init(self):
+        sdim = self.get_sdim(bounds=True)
+        self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
+
+        def _almost_equals_(a, b):
+            return a.almost_equals(b)
+        vfunc = np.vectorize(_almost_equals_, otypes=[bool])
+        to_test = vfunc(sdim.geom.point.value.data, self.point_value.data)
+        self.assertTrue(to_test.all())
+        self.assertFalse(sdim.geom.point.value.mask.any())
+        to_test = vfunc(sdim.geom.polygon.value.data, self.polygon_value.data)
+        self.assertTrue(to_test.all())
+        self.assertFalse(sdim.geom.polygon.value.mask.any())
+
+    def test_init_combinations(self):
+        """
+        - points only
+        - polygons only
+        - grid only
+        - row and column only
+        - grid bounds only
+
+        intersects, clip, update_crs, union,
+        """
+
+        def iter_grid():
+            add_row_col_bounds = [True, False]
+            for arcb in add_row_col_bounds:
+                keywords = dict(row=[None, self.get_row(bounds=arcb)],
+                                col=[None, self.get_col(bounds=arcb)],
+                                value=[None, self.grid_value_regular],
+                                bounds=[None, self.grid_bounds_regular])
+                for k in itr_products_keywords(keywords):
+                    try:
+                        grid = SpatialGridDimension(**k)
+                        self.assertNumpyAll(grid.uid, self.uid_value)
+                    except ValueError:
+                        if k['value'] is None and (k['row'] is None or k['col'] is None):
+                            continue
+                        else:
+                            raise
+                    self.assertNumpyAll(grid.value, self.grid_value_regular)
+                    if k['bounds'] is not None:
+                        self.assertNumpyAll(grid.bounds, self.grid_bounds_regular)
+                    yield dict(grid=grid,
+                               row=k['row'],
+                               col=k['col'])
+
+        def iter_geom():
+            keywords = dict(grid=[None, True],
+                            point=[None, SpatialGeometryPointDimension(value=self.point_value)],
+                            polygon=[None, SpatialGeometryPolygonDimension(value=self.polygon_value)])
+            for k in itr_products_keywords(keywords):
+                if k['grid'] is None:
+                    grid_iterator = [{}]
+                else:
+                    grid_iterator = iter_grid()
+                for grid_dict in grid_iterator:
+                    if grid_dict == {}:
+                        k['grid'] = None
+                    else:
+                        k['grid'] = grid_dict['grid']
+                    try:
+                        geom = SpatialGeometryDimension(**k)
+                        self.assertNumpyAll(geom.uid, self.uid_value)
+                        self.assertIsNotNone(geom.get_highest_order_abstraction())
+                    except ValueError:
+                        if all([v is None for v in k.values()]):
+                            continue
+                        raise
+                    try:
+                        self.assertGeometriesAlmostEquals(geom.point.value, self.point_value)
+                        self.assertNumpyAll(geom.point.uid, self.uid_value)
+                    except AttributeError:
+                        if k['grid'] is None and k['point'] is None:
+                            continue
+                        raise
+                    if k['polygon'] is not None or k['grid'] is not None:
+                        try:
+                            self.assertGeometriesAlmostEquals(geom.polygon.value, self.polygon_value)
+                            self.assertNumpyAll(geom.polygon.uid, self.uid_value)
+                        except ImproperPolygonBoundsError:
+                            if k['polygon'] is None and k['grid'].bounds is None:
+                                if k['grid'].row is None or k['grid'].col is None:
+                                    continue
+                            if geom.grid.bounds is None:
+                                if geom.grid.row.bounds is None or geom.grid.col.bounds is None:
+                                    continue
+                            raise
+
+                    try:
+                        polygon = geom.polygon
+                    except ImproperPolygonBoundsError:
+                        self.assertIsNone(k['grid'])
+                        polygon = None
+
+                    yield(dict(geom=geom,
+                               grid=grid_dict.get('grid'),
+                               row=grid_dict.get('row'),
+                               col=grid_dict.get('col'),
+                               polygon=polygon,
+                               point=geom.point))
+
+        def geom_iterator():
+            for k in iter_geom():
+                yield k
+                k['geom'] = None
+                yield k
+
+        for k in geom_iterator():
+            sdim = SpatialDimension(**k)
+            self.assertGeometriesAlmostEquals(sdim.geom.point.value, self.point_value)
+            try:
+                self.assertGeometriesAlmostEquals(sdim.geom.polygon.value, self.polygon_value)
+            except AttributeError:
+                if sdim.geom.polygon is None and sdim.grid is None:
+                    continue
+                raise
+            except ImproperPolygonBoundsError:
+                self.assertIsNone(sdim.grid)
+                continue
+
+            try:
+                self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
+            except AttributeError:
+                sdim.set_grid_value_from_geometry()
+                self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
+            try:
+                self.assertNumpyAll(sdim.grid.bounds, self.grid_bounds_regular)
+            except AssertionError:
+                sdim.set_grid_bounds_from_geometry()
+                self.assertNumpyAll(sdim.grid.bounds, self.grid_bounds_regular)
+
+    def test_set_grid_value_bounds_from_geometry(self):
+        """Test extracting a grid value (and bounds) from a geometry dimension."""
+
+        sdim = self.get_sdim()
+        sdim.geom.polygon
+        sdim.geom.point
+        sdim.grid = None
+        sdim.set_grid_value_from_geometry()
+        self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
+        sdim.set_grid_bounds_from_geometry()
+        self.assertNumpyAll(sdim.grid.bounds, self.grid_bounds_regular)
+
+    def test_is_unwrapped(self):
+        """Test if a dataset's longitudinal domain extends from 0 to 360 or -180 to 180."""
+
+        # the state boundaries file is not unwrapped
+        sdim = self.get_spatial_dimension_from_records()
+        self.assertFalse(sdim.is_unwrapped)
+
+        # choose a record and unwrap it
+        idx = sdim.properties['STATE_NAME'] == 'Nebraska'
+        sub = sdim[:, idx]
+        wrapper = Wrapper()
+        unwrapped = wrapper.unwrap(sub.abstraction_geometry.value[0, 0])
+        sub.abstraction_geometry.value[0, 0] = unwrapped
+        self.assertTrue(sub.is_unwrapped)
+
+    def test_is_unwrapped_wrong_crs(self):
+        """Test exception is appropriately raised with the wrong CRS."""
+
+        sdim = self.get_spatial_dimension_from_records()
+        sdim.crs = CoordinateReferenceSystem(epsg=2346)
+        self.assertFalse(sdim.is_unwrapped)
+        sdim.crs = None
+        self.assertFalse(sdim.is_unwrapped)
+
+    def test_overloaded_crs(self):
+        """Test CFWGS84 coordinate system is always used if the input CRS is equivalent."""
+
+        sdim = self.get_sdim(crs=CoordinateReferenceSystem(epsg=4326))
+        self.assertIsInstance(sdim.crs, CFWGS84)
+        sdim = self.get_sdim(crs=CoordinateReferenceSystem(epsg=2346))
+        self.assertEqual(sdim.crs, CoordinateReferenceSystem(epsg=2346))
+
+    def test_from_records(self):
+        """Test creating SpatialDimension directly from Fiona records."""
+
+        record_dict = self.get_records()
+        for crs in [record_dict['meta']['crs'], None, CFWGS84()]:
+            for abstraction in ['polygon', 'point']:
+                for add_geom in [True, False]:
+
+                    record_dict = deepcopy(record_dict)
+                    records = deepcopy(record_dict['records'])
+
+                    if add_geom:
+                        for record in records:
+                            record['geom'] = shape(record['geometry'])
+                            if abstraction == 'point':
+                                record['geom'] = record['geom'].centroid
+                    else:
+                        if abstraction == 'point':
+                            for record in records:
+                                geom = shape(record['geometry']).centroid
+                                record['geometry'] = mapping(geom)
+                        self.assertTrue('geom' not in records[10])
+
+                    sdim = SpatialDimension.from_records(records, crs=crs)
+
+                    self.assertIsInstance(sdim, SpatialDimension)
+                    self.assertEqual(sdim.shape, (1, 51))
+                    self.assertEqual(sdim.properties.shape, (51,))
+                    if abstraction == 'polygon':
+                        self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPolygonDimension)
+                    else:
+                        self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+                    self.assertEqual(sdim.properties[0]['UGID'], sdim.uid[0, 0])
+                    self.assertEqual(sdim.properties.dtype.names, ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
+                    self.assertEqual(sdim.crs, CFWGS84())
+                    self.assertDictEqual(sdim.meta, {})
+                    if abstraction == 'polygon':
+                        self.assertNumpyAllClose(sdim.geom.polygon.value[0, 23].bounds,
+                                                 (-114.04727330260259, 36.991746361915986, -109.04320629794219, 42.00230036658243))
+                    else:
+                        _point = sdim.geom.point.value[0, 23]
+                        xy = _point.x, _point.y
+                        self.assertNumpyAllClose(xy, (-111.67605350692477, 39.322512402249))
+                    self.assertNumpyAll(sdim.uid, np.ma.array(range(1, 52)))
+                    self.assertEqual(sdim.abstraction, abstraction)
+
+                    for prop in sdim.properties[0]:
+                        self.assertNotEqual(prop, None)
+
+    def test_from_records_proper_uid(self):
+        """Test records without 'UGID' property."""
+
+        record_dict = self.get_records()
+        for record in record_dict['records']:
+            record['properties'].pop('UGID')
+        self.assertFalse('UGID' in record_dict['records'][23]['properties'])
+
+        sdim = SpatialDimension.from_records(record_dict['records'], crs=record_dict['meta']['crs'])
+        self.assertNumpyAll(sdim.uid, np.ma.array(range(1, 52)))
 
     def test_get_intersects_select_nearest(self):
         pt = Point(-99, 39)
@@ -251,24 +565,23 @@ class TestSpatialDimension(TestSpatialBase):
             poly = make_poly((1000,1001),(-1000,-1001))
             with self.assertRaises(EmptySubsetError):
                 sdim.get_intersects(poly)
-    
+
     def test_state_boundaries_weights(self):
-        geoms,_ = self.get_2d_state_boundaries()
-        poly = SpatialGeometryPolygonDimension(value=geoms)
-        geom = SpatialGeometryDimension(polygon=poly)
-        sdim = SpatialDimension(geom=geom)
+        """Test weights are correctly constructed from arbitrary geometries."""
+
+        sdim = self.get_spatial_dimension_from_records()
         ref = sdim.weights
-        self.assertEqual(ref[0,50],1.0)
-        self.assertAlmostEqual(sdim.weights.mean(),0.07744121084026262)
+        self.assertEqual(ref[0, 50], 1.0)
+        self.assertAlmostEqual(sdim.weights.mean(), 0.07744121084026262)
     
     def test_geom_mask_by_polygon(self):
-        geoms,properties = self.get_2d_state_boundaries()
-        spdim = SpatialGeometryPolygonDimension(value=geoms)
+        sdim = self.get_spatial_dimension_from_records()
+        spdim = sdim.geom.polygon
         ref = spdim.value.mask
         self.assertEqual(ref.shape,(1,51))
         self.assertFalse(ref.any())
-        select = properties['STATE_ABBR'] == 'NE'
-        subset_polygon = geoms[:,select][0,0]
+        select = sdim.properties['STATE_ABBR'] == 'NE'
+        subset_polygon = sdim[:,select].geom.polygon.value[0,0]
         
         for b in [True,False]:
             try:
@@ -293,13 +606,13 @@ class TestSpatialDimension(TestSpatialBase):
         except ImportError:
             raise(SkipTest('rtree not available for import'))
         
-        geoms,properties = self.get_2d_state_boundaries()
-        spdim = SpatialGeometryPolygonDimension(value=geoms)
+        sdim = self.get_spatial_dimension_from_records()
+        spdim = sdim.geom.polygon
         ref = spdim.value.mask
         self.assertEqual(ref.shape,(1,51))
         self.assertFalse(ref.any())
-        select = properties['STATE_ABBR'] == 'NE'
-        subset_polygon = geoms[:,select][0,0]
+        select = sdim.properties['STATE_ABBR'] == 'NE'
+        subset_polygon = sdim[:,select].geom.polygon.value[0,0]
         
         msked_spatial_index = spdim.get_intersects_masked(subset_polygon,use_spatial_index=True)
         msked_without_spatial_index = spdim.get_intersects_masked(subset_polygon,use_spatial_index=False)
@@ -307,14 +620,14 @@ class TestSpatialDimension(TestSpatialBase):
         self.assertNumpyAll(msked_spatial_index.value.mask,msked_without_spatial_index.value.mask)
             
     def test_update_crs(self):
-        geoms,properties = self.get_2d_state_boundaries()
-        crs = CoordinateReferenceSystem(epsg=4326)
-        spdim = SpatialGeometryPolygonDimension(value=geoms)
-        sdim = SpatialDimension(geom=SpatialGeometryDimension(polygon=spdim),properties=properties,
-                                crs=crs)
+        """Test CRS is updated as expected."""
+
+        sdim = self.get_spatial_dimension_from_records()
         to_crs = CoordinateReferenceSystem(epsg=2163)
         sdim.update_crs(to_crs)
-        
+        self.assertNumpyAllClose((-5762117.2471194845, -1052233.8853122303, -5449544.172614644, -443683.5065561293),
+                                 sdim.geom.polygon.value[0, 0].bounds)
+
     def test_update_crs_with_grid(self):
         for b in [True,False]:
             sdim = self.get_sdim(bounds=b)
@@ -325,6 +638,21 @@ class TestSpatialDimension(TestSpatialBase):
             self.assertNumpyNotAll(sdim.grid.value,orig)
             self.assertEqual(sdim.grid.row,None)
 
+    def test_update_crs_rotated_pole(self):
+        """Test moving between rotated pole and WGS84."""
+
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        field = rd.get()
+        """:type: ocgis.interface.base.field.Field"""
+        self.assertIsInstance(field.spatial.crs, CFRotatedPole)
+        original_spatial = deepcopy(field.spatial)
+        original_crs = copy(field.spatial.crs)
+        field.spatial.update_crs(CFWGS84())
+        self.assertNumpyNotAllClose(original_spatial.grid.value, field.spatial.grid.value)
+        field.spatial.update_crs(original_crs)
+        self.assertNumpyAllClose(original_spatial.grid.value, field.spatial.grid.value)
+        self.assertIsInstance(field.spatial.crs, CFRotatedPole)
+
     def test_grid_value(self):
         for b in [True,False]:
             row = self.get_row(bounds=b)
@@ -334,15 +662,6 @@ class TestSpatialDimension(TestSpatialBase):
             self.assertNumpyAll(sdim.grid.value[0].data,row_test)
             self.assertNumpyAll(sdim.grid.value[1].data,col_test)
             self.assertFalse(sdim.grid.value.mask.any())
-            try:
-                ret = sdim.get_grid_bounds()
-                self.assertEqual(ret.shape,(3,4,4))
-                self.assertFalse(ret.mask.any())
-            except ImproperPolygonBoundsError:
-                if b is False:
-                    pass
-                else:
-                    raise
                 
     def test_grid_slice_all(self):
         sdim = self.get_sdim(bounds=True)
@@ -497,10 +816,89 @@ class TestSpatialDimension(TestSpatialBase):
         to_test = sdim.geom.point.value[0,0].y,sdim.geom.point.value[0,0].x
         self.assertEqual((10.0,100.0),(to_test))
 
+    def test_unwrap(self):
+        """Test unwrapping a SpatialDimension."""
+
+        sdim = self.get_sdim()
+        with self.assertRaises(SpatialWrappingError):
+            sdim.unwrap()
+        sdim.crs = WGS84()
+        self.assertFalse(sdim.is_unwrapped)
+        sdim.unwrap()
+        sdim.set_grid_bounds_from_geometry()
+        self.assertNumpyAll(np.array(sdim.geom.polygon.value[2, 2].bounds), sdim.grid.bounds[2, 2, :].data)
+        self.assertNumpyAll(sdim.geom.polygon.value[2, 2].bounds, (261.5, 37.5, 262.5, 38.5))
+        self.assertNumpyAll(np.array(sdim.geom.point.value[2, 2]), np.array([ 262.,   38.]))
+        self.assertTrue(sdim.is_unwrapped)
+
+    def test_wrap(self):
+        """Test wrapping a SpatialDimension"""
+
+        sdim = self.get_sdim(crs=WGS84())
+        original = deepcopy(sdim)
+        sdim.unwrap()
+        sdim.crs = None
+        with self.assertRaises(SpatialWrappingError):
+            sdim.wrap()
+        sdim.crs = WGS84()
+        sdim.wrap()
+        self.assertGeometriesAlmostEquals(sdim.geom.polygon.value, original.geom.polygon.value)
+        self.assertGeometriesAlmostEquals(sdim.geom.point.value, original.geom.point.value)
+        self.assertNumpyAll(sdim.grid.value, original.grid.value)
+        sdim.set_grid_bounds_from_geometry()
+        original.set_grid_bounds_from_geometry()
+        self.assertNumpyAll(sdim.grid.bounds, original.grid.bounds)
+
+    def test_wrap_unwrap_non_wgs84(self):
+        """Test wrapping and unwrapping with a different coordinate system."""
+
+        sdim = self.get_sdim(crs=CoordinateReferenceSystem(epsg=2346))
+        for method in ['wrap', 'unwrap']:
+            with self.assertRaises(SpatialWrappingError):
+                getattr(sdim, method)()
+
 
 class TestSpatialGridDimension(TestSpatialBase):
-    
-    def test_grid_without_row_and_column(self):
+
+    def test_assert_uniform_mask(self):
+        """Test masks are uniform across major spatial components."""
+
+        sdim = self.get_sdim()
+        sdim.assert_uniform_mask()
+
+        sdim.uid.mask[1, 1] = True
+        with self.assertRaises(AssertionError):
+            sdim.assert_uniform_mask()
+        sdim.uid.mask[1, 1] = False
+
+        sdim.assert_uniform_mask()
+        sdim.grid.value.mask[0, 2, 2] = True
+        with self.assertRaises(AssertionError):
+            sdim.assert_uniform_mask()
+        sdim.grid.value.mask[0, 2, 2] = False
+
+        sdim.assert_uniform_mask()
+        sdim.geom.point.value.mask[2, 2] = True
+        with self.assertRaises(AssertionError):
+            sdim.assert_uniform_mask()
+        sdim.geom.point.value.mask[2, 2] = False
+
+        sdim.assert_uniform_mask()
+        sdim.geom.polygon.value.mask[2, 2] = True
+        with self.assertRaises(AssertionError):
+            sdim.assert_uniform_mask()
+        sdim.geom.polygon.value.mask[2, 2] = False
+
+    def test_with_bounds(self):
+        """Test passing bounds during initialization."""
+
+        grid = SpatialGridDimension(value=self.grid_value_regular, bounds=self.grid_bounds_regular)
+        sub = grid[1, 2]
+        self.assertEqual(sub.bounds.shape, (1, 1, 4))
+        actual = np.ma.array([[[-98.5, 38.5, -97.5, 39.5]]], mask=False)
+        self.assertNumpyAll(sub.bounds, actual)
+
+    def test_without_row_and_column(self):
         row = np.arange(39,42.5,0.5)
         col = np.arange(-104,-95,0.5)
         x,y = np.meshgrid(col,row)

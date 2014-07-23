@@ -2,6 +2,7 @@ from ocgis.conv.meta import MetaConverter
 import os.path
 import abc
 import csv
+from ocgis.util.helpers import get_ordered_dicts_from_records_array
 from ocgis.util.inspect import Inspect
 from ocgis.util.logging_ocgis import ocgis_lh
 import logging
@@ -126,8 +127,9 @@ class AbstractConverter(object):
                             # convert the collection properties to fiona properties
                             from fiona_ import FionaConverter
                             fiona_properties = {}
-                            for k, v in coll.properties.values()[0].iteritems():
-                                fiona_properties[k] = FionaConverter.get_field_type(type(v))
+                            archetype_properties = coll.properties.values()[0]
+                            for name in archetype_properties.dtype.names:
+                                fiona_properties[name] = FionaConverter.get_field_type(type(archetype_properties[name][0]))
 
                             fiona_schema = {'geometry':'MultiPolygon',
                                             'properties':fiona_properties}
@@ -173,14 +175,14 @@ class AbstractConverter(object):
                                                       'ugid':coll.properties.values()[0]['UGID']})
                     
                         ## if it is unique write the geometry to the output files
+                        properties_to_append = get_ordered_dicts_from_records_array(coll.properties.values()[0])[0]
                         to_write = {'geometry':mapping(r_geom),
-                                    'properties':{k.upper():v for k,v in coll.properties.values()[0].iteritems()}}
+                                    'properties':properties_to_append}
                         fiona_object.write(to_write)
                         
                         ## write the geometry attributes to the corresponding shapefile
-                        for row in coll.properties.itervalues():
-                            csv_object.writerow({k.upper():v for k,v in row.iteritems()})
-                    
+                        csv_object.writerow(properties_to_append)
+
         finally:
             
             ## errors are masked if the processing failed and file objects, etc.

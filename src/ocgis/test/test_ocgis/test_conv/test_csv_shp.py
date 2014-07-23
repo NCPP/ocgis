@@ -26,16 +26,15 @@ class Test(TestBase):
             reader = csv.DictReader(source)
             rows_csv = list(reader)
             self.assertEqual(len(rows_csv),1)
-            
+
     def test_geometries_different_ugid(self):
-        ## equivalent geometries with different ugid values should be included
-        row = list(ShpCabinetIterator(key='state_boundaries',select_ugid=[16]))
+        # equivalent geometries with different ugid values should be included
+        row = list(ShpCabinetIterator(key='state_boundaries', select_ugid=[16]))
         row.append(deepcopy(row[0]))
         row[1]['properties']['UGID'] = 17
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
-        ops = OcgOperations(dataset=[rd,rd2],geom=row,
-                            output_format='csv+',snippet=True)
+        ops = OcgOperations(dataset=[rd, rd2], geom=row, output_format='csv+', snippet=True)
         ops.execute()
         
         path_shp = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.shp')

@@ -97,6 +97,10 @@ class OcgParameter(object):
         rows.extend(subrows)
         rows.append('')
         return(rows)
+
+    @classmethod
+    def iter_possible(cls):
+        raise NotImplementedError
     
     def parse(self,value):
         ''':rtype: varies depending on `ocgis.api.parms.base.OcgParamter` subclass'''

@@ -1,6 +1,8 @@
 import unittest
+import itertools
+from shapely.geometry import Point
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
-    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole
+    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
@@ -9,7 +11,7 @@ from ocgis.test.base import TestBase
 import numpy as np
 from copy import deepcopy
 from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.util.helpers import get_temp_path
+from ocgis.util.helpers import get_temp_path, write_geom_dict
 import netCDF4 as nc
 from ocgis.interface.metadata import NcMetadata
 import ocgis
@@ -60,7 +62,9 @@ class TestWGS84(TestBase):
         self.assertEqual(sdim.geom.polygon.value[0,0].bounds,(-179.0,38.0,-178.0,42.0))
         self.assertNumpyNotAll(orig_grid.value,sdim.grid.value)
         sdim.crs.unwrap(sdim)
-        to_test = ([sdim.grid.value,orig_sdim.grid.value],[sdim.get_grid_bounds(),orig_sdim.get_grid_bounds()])
+        sdim.set_grid_bounds_from_geometry()
+        orig_sdim.set_grid_bounds_from_geometry()
+        to_test = ([sdim.grid.value,orig_sdim.grid.value],[sdim.grid.bounds,orig_sdim.grid.bounds])
         for tt in to_test:
             self.assertNumpyAll(*tt)
     
@@ -114,24 +118,70 @@ class TestCFLambertConformalConic(TestBase):
         
         
 class TestCFRotatedPole(TestBase):
-    
+
     def test_load_from_metadata(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
-        self.assertIsInstance(rd.get().spatial.crs,CFRotatedPole)
-        
+        self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
+
     def test_equal(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
-        self.assertEqual(rd.get().spatial.crs,rd2.get().spatial.crs)
-        
+        self.assertEqual(rd.get().spatial.crs, rd2.get().spatial.crs)
+
     def test_in_operations(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         rd2.alias = 'tas2'
-        ## these projections are equivalent so it is okay to write them to a 
+        # # these projections are equivalent so it is okay to write them to a
         ## common output file
-        ops = ocgis.OcgOperations(dataset=[rd,rd2],output_format='csv',snippet=True)
+        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
         ops.execute()
+
+    def test_get_rotated_pole_transformation(self):
+        """Test SpatialDimension objects are appropriately transformed."""
+
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        field = rd.get()
+        field = field[:, 10:20, :, 40:55, 55:65]
+        spatial = field.spatial
+        self.assertIsNotNone(spatial._grid)
+
+        # modify the mask to ensure it is appropriately updated and copied during the transformations
+        spatial.grid.value.mask[:, 5, 6] = True
+        spatial.grid.uid.mask[5, 6] = True
+        spatial.assert_uniform_mask()
+
+        self.assertIsNone(spatial._geom)
+        spatial.geom
+        self.assertIsNotNone(spatial._geom)
+        new_spatial = field.spatial.crs.get_rotated_pole_transformation(spatial)
+        original_crs = deepcopy(field.spatial.crs)
+        self.assertIsInstance(new_spatial.crs, CFWGS84)
+        self.assertIsNone(new_spatial._geom)
+        new_spatial.geom
+        self.assertIsNotNone(new_spatial._geom)
+
+        self.assertNumpyNotAllClose(spatial.grid.value, new_spatial.grid.value)
+
+        field_copy = deepcopy(field)
+        self.assertIsNone(field_copy.variables['tas']._value)
+        field_copy.spatial = new_spatial
+        value = field_copy.variables['tas'].value
+        self.assertIsNotNone(field_copy.variables['tas']._value)
+        self.assertIsNone(field.variables['tas']._value)
+
+        self.assertNumpyAll(field.variables['tas'].value, field_copy.variables['tas'].value)
+
+        inverse_spatial = original_crs.get_rotated_pole_transformation(new_spatial, inverse=True)
+        inverse_spatial.assert_uniform_mask()
+
+        self.assertNumpyAll(inverse_spatial.uid, spatial.uid)
+        self.assertNumpyAllClose(inverse_spatial.grid.row.value, spatial.grid.row.value)
+        self.assertNumpyAllClose(inverse_spatial.grid.col.value, spatial.grid.col.value)
+        self.assertDictEqual(spatial.grid.row.meta, inverse_spatial.grid.row.meta)
+        self.assertEqual(spatial.grid.row.name, inverse_spatial.grid.row.name)
+        self.assertDictEqual(spatial.grid.col.meta, inverse_spatial.grid.col.meta)
+        self.assertEqual(spatial.grid.col.name, inverse_spatial.grid.col.name)
         
 
 if __name__ == "__main__":

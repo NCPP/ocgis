@@ -84,7 +84,6 @@ class TestCnrmCerfacs(TestBase):
                                 select_ugid=[69], output_crs=output_crs, prefix=str(ii))
             ret = ops.execute()
 
-
             with fiona.open(ret) as source:
                 records = list(source)
 
@@ -148,9 +147,9 @@ class Test(TestBase):
         ret = ops.execute()
         
         ## ensure array is trimmed and masked tgeometries removed
-        self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(2,1))
+        self.assertEqual(ret[2]['tas_narccap'].spatial.shape,(4,4))
         ## only two geometries returned
-        self.assertEqual(ret[1]['tas'].spatial.shape,(1,2))
+        self.assertEqual(ret[1]['tas'].spatial.shape,(4,4))
         ## different buffer radii should have unique identifiers
         self.assertEqual(ret.keys(),[1,2])
         ## the first buffer radius is larger
@@ -204,7 +203,7 @@ class Test(TestBase):
         ret = ops.execute()
         self.assertEqual(ret[23]['tas'].variables['n_my_std'].value.mean(),920.0)
         self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,1,1,4,3))
-        
+
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
         rd = self.test_data.get_rd('cancm4_tas')

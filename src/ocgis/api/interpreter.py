@@ -7,7 +7,6 @@ import os
 import shutil
 from ocgis.conv.base import AbstractConverter
 
-## TODO: add method to estimate request size
 
 class Interpreter(object):
     '''Superclass for custom interpreter frameworks.

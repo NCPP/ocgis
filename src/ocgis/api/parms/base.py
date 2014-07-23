@@ -47,7 +47,6 @@ class OcgParameter(object):
         '''If True, the parameter is nullable.'''
         bool
         
-    ##TODO: switch name to "return_types"
     @abstractproperty
     def return_type(self):
         '''List of acceptable return types.'''

@@ -279,7 +279,6 @@ class OcgOperations(object):
     
     @classmethod
     def parse_query(cls, query):
-        # # TODO: hack
         parms = [SpatialOperation, Geom, Aggregate, Calc, CalcGrouping, CalcRaw,
                  Abstraction, Snippet, Backend, Prefix, OutputFormat,
                  AggregateSelection, SelectUgid, VectorWrap, AllowEmpty]

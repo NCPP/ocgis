@@ -25,37 +25,6 @@ from ocgis.util.spatial.wrap import Wrapper
 
 class TestSpatialBase(TestBase):
 
-    #todo: remove this commented code
-    # def get_2d_state_boundaries(self):
-    #     geoms = []
-    #     build = True
-    #     with fiona.open('/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
-    #         for ii,row in enumerate(source):
-    #             if build:
-    #                 nrows = len(source)
-    #                 dtype = []
-    #                 for k,v in source.schema['properties'].iteritems():
-    #                     v = fiona.prop_type(v)
-    #                     if v == unicode:
-    #                         v = object
-    #                     dtype.append((str(k),v))
-    #                 fill = np.empty(nrows,dtype=dtype)
-    #                 ref_names = fill.dtype.names
-    #                 build = False
-    #             fill[ii] = tuple([row['properties'][n] for n in ref_names])
-    #             geoms.append(shape(row['geometry']))
-    #     geoms = np.atleast_2d(geoms)
-    #     return(geoms,fill)
-    #
-    # def get_2d_state_boundaries_sdim(self):
-    #     """Return a SpatialDimension object constructed from a state boundaries shapefile."""
-    #
-    #     geoms, attrs = self.get_2d_state_boundaries()
-    #     poly = SpatialGeometryPolygonDimension(value=geoms)
-    #     geom = SpatialGeometryDimension(polygon=poly)
-    #     sdim = SpatialDimension(geom=geom, properties=attrs)
-    #     return sdim
-    
     def get_col(self,bounds=True):
         value = [-100.,-99.,-98.,-97.]
         if bounds:

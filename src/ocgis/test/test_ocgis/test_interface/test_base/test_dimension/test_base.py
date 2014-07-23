@@ -164,12 +164,6 @@ class TestVectorDimension(unittest.TestCase):
         self.assertNumpyAll(ret.bounds,np.array([[2.,4.]]))
         
     def test_get_between(self):
-        
-        ## TODO: test lower v upper contiguous rank
-        ## TODO: test non-contiguous data
-        ## TODO: test closed v. not closed
-        ## TODO: test for single value
-        
         vdim = VectorDimension(value=[0])
         with self.assertRaises(EmptySubsetError):
             vdim.get_between(100,200)

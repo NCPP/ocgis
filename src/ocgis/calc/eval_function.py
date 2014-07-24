@@ -17,6 +17,8 @@ class EvalFunction(AbstractUnivariateFunction):
     description = None
     dtype = None
     key = None
+    standard_name = ''
+    long_name = ''
     
     def __init__(self,**kwargs):
         self.expr = kwargs.pop('expr')

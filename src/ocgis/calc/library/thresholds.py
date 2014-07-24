@@ -8,6 +8,8 @@ class Between(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunct
     parms_definition = {'lower':float,'upper':float}
     dtype = constants.np_int
     key = 'between'
+    standard_name = 'between'
+    long_name = 'between'
     
     def calculate(self,values,lower=None,upper=None):
         '''
@@ -26,6 +28,8 @@ class Threshold(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFun
     parms_definition = {'threshold':float,'operation':str}
     dtype = constants.np_int
     key = 'threshold'
+    standard_name = 'threshold'
+    long_name = 'threshold'
     
     def calculate(self,values,threshold=None,operation=None):
         '''

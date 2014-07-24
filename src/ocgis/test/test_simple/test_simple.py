@@ -151,6 +151,27 @@ class TestSimple(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
 
+    def test_meta_attrs_applied(self):
+        """Test overloaded metadata attributes are applied to output calculation."""
+
+        calc = [{'func': 'mean', 'name':'mean', 'meta_attrs': {'this_is': 'something new', 'a_number': 5}}]
+        calc_grouping = ['month']
+        ret = self.get_ret(kwds={'calc': calc, 'calc_grouping': calc_grouping, 'output_format': 'nc'})
+        with nc_scope(ret) as ds:
+            var = ds.variables['mean']
+            self.assertEqual(var.__dict__['this_is'], 'something new')
+            self.assertEqual(var.__dict__['a_number'], 5)
+
+    def test_meta_attrs_eval_function(self):
+        """Test metadata attributes applied with evaluation function."""
+
+        calc = [{'func': 'up=foo+5', 'meta_attrs': {'this_is': 'something new', 'a_number': 5}}]
+        ret = self.get_ret(kwds={'calc': calc, 'output_format': 'nc'})
+        with nc_scope(ret) as ds:
+            var = ds.variables['up']
+            self.assertEqual(var.__dict__['this_is'], 'something new')
+            self.assertEqual(var.__dict__['a_number'], 5)
+
     def test_selection_geometry_crs_differs(self):
         """Test selection is appropriate when CRS of selection geometry differs from source."""
 
@@ -588,7 +609,8 @@ class TestSimple(TestSimpleBase):
             ref = ret.gvu(1,'my_mean')
             self.assertEqual(ref.shape,(1,2,2,1,1))
             self.assertEqual(ref.flatten().mean(),2.5)
-            
+            self.assertDictEqual(ret[1]['foo'].variables['my_mean'].meta['attrs'], {'long_name': 'Mean', 'standard_name': 'mean'})
+
     def test_calc_multivariate(self):
         rd1 = self.get_dataset()
         rd1['alias'] = 'var1'

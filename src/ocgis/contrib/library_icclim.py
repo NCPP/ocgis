@@ -70,6 +70,7 @@ class AbstractIcclimFunction(object):
     __metaclass__ = abc.ABCMeta
     description = None
     standard_name = 'ECA_indice'
+    long_name = ''
     _global_attributes_maintain = ['history']
     _global_attribute_source_name = 'source_data_global_attributes'
     _allowed_temporal_groupings = [('month',),('month','year'),('year',)]

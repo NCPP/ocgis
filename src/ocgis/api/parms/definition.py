@@ -108,6 +108,7 @@ class Calc(base.IterableParameter,base.OcgParameter):
     element_type = [dict,str]
     unique = False
     _possible = ['es=tas+4',['es=tas+4'],[{'func':'mean','name':'mean'}]]
+    _required_keys = set(['ref', 'meta_attrs', 'name', 'func', 'kwds'])
     
     def __init__(self,*args,**kwargs):
         ## this flag is used by the parser to determine if an eval function has
@@ -157,17 +158,41 @@ class Calc(base.IterableParameter,base.OcgParameter):
         return(ret)
     
     def _parse_(self,value):
-        ## if this is not an eval function (a string to interpret as a function)
-        ## then construct the function dictionaries. otherwise, pass through
+        # test if the value is an eval function and set internal flag
         if '=' in value:
             self._is_eval_function = True
-            if EvalFunction.is_multivariate(value):
+        elif '=' in value['func']:
+            self._is_eval_function = True
+        else:
+            self._is_eval_function = False
+
+        # format the output dictionary
+        if self._is_eval_function:
+            # select the function reference...
+            try:
+                eval_string = value['func']
+            except TypeError:
+                eval_string = value
+
+            # determine if the eval string is multivariate
+            if EvalFunction.is_multivariate(eval_string):
                 eval_klass = MultivariateEvalFunction
             else:
                 eval_klass = EvalFunction
-            value = {'func':value,'ref':eval_klass}
+
+            # reset the output dictionary
+            new_value = {'func': eval_string, 'ref': eval_klass, 'name': None, 'kwds': OrderedDict()}
+            # attempt to update the meta_attrs if they are present
+            try:
+                new_value.update({'meta_attrs': value['meta_attrs']})
+            # attempting to index a string incorrectly
+            except TypeError:
+                new_value.update({'meta_attrs': None})
+            # adjust the reference
+            value = new_value
+
         ## if it is not an eval function, then do the standard argument parsing
-        if not self._is_eval_function:
+        else:
             fr = register.FunctionRegistry()
             
             ## get the function key string form the calculation definition dictionary
@@ -206,7 +231,12 @@ class Calc(base.IterableParameter,base.OcgParameter):
                         value['kwds'][k] = v.lower()
                     except AttributeError:
                         pass
-        return(value)
+
+        # add placeholder for meta_attrs if it is not present
+        if 'meta_attrs' not in value:
+            value['meta_attrs'] = None
+
+        return value
         
     def _parse_string_(self,value):
         try:
@@ -237,9 +267,16 @@ class Calc(base.IterableParameter,base.OcgParameter):
     
     def _validate_(self,value):
         if not self._is_eval_function:
-            names = [ii['name'] for ii in value]
-            if len(names) != len(set(names)):
-                raise(DefinitionValidationError(self,'User-provided calculation names must be unique.'))
+            # get the aliases of the calculations
+            aliases = [ii['name'] for ii in value]
+
+            if len(aliases) != len(set(aliases)):
+                raise(DefinitionValidationError(self,'User-provided calculation aliases must be unique: {0}'.format(aliases)))
+
+            for v in value:
+                if set(v.keys()) != self._required_keys:
+                    msg = 'Required keys are: {0}'.format(self._required_keys)
+                    raise(DefinitionValidationError(self, msg))
 
     
 class CalcGrouping(base.IterableParameter,base.OcgParameter):

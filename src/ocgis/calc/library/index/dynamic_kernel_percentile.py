@@ -11,7 +11,9 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, Abstr
     parms_definition = {'operation': str, 'percentile': float, 'daily_percentile': None, 'width': int}
     dtype = constants.np_int
     description = 'Implementation of moving window percentile threshold calculations similar to ECA indices: http://eca.knmi.nl/documents/atbd.pdf'
-    
+    standard_name = 'dynamice_kernel_percentile'
+    long_name = 'Dynamic Kernel Percentile'
+
     def __init__(self, *args, **kwargs):
         self._daily_percentile = {}
         AbstractUnivariateSetFunction.__init__(self, *args, **kwargs)

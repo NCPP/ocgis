@@ -1,3 +1,4 @@
+from copy import deepcopy
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.interface.base.variable import VariableCollection
 from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
@@ -119,19 +120,19 @@ class OcgCalculationEngine(object):
                 
                 out_vc = VariableCollection()
                 for f in self.funcs:
-                    
+
                     try:
                         ocgis_lh('Calculating: {0}'.format(f['func']),logger='calc.engine')
                         
                         ## initialize the function
                         function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
                              parms=f['kwds'],tgd=new_temporal,use_raw_values=self.use_raw_values,
-                             calc_sample_size=self.calc_sample_size)
+                             calc_sample_size=self.calc_sample_size,meta_attrs=f.get('meta_attrs'))
                     except KeyError:
                         ## likely an eval function which does not have the name
                         ## key
                         function = EvalFunction(field=field,file_only=file_only,vc=out_vc,
-                                                expr=self.funcs[0]['func'])
+                                                expr=self.funcs[0]['func'],meta_attrs=self.funcs[0].get('meta_attrs'))
                         
                     ocgis_lh('calculation initialized',logger='calc.engine',level=logging.DEBUG)
                     

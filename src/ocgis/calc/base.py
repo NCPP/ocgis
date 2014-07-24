@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import abc
 import itertools
@@ -18,6 +19,8 @@ class AbstractFunction(object):
     * **dtype** (type): The output data type for this function. Use 32-bit when possible to avoid conversion issues
       (e.g. netCDF-3). When possible, the input data type will be used for the output data type.
     * **key** (str): The function's unique string identifier.
+    * **standard_name** (str): Standard name to store in output metadata.
+    * **long_name** (str): Long name description to store in output metadata.
 
     :param alias: The string identifier to use for the calculation.
     :type alias: str
@@ -30,16 +33,22 @@ class AbstractFunction(object):
     :param vc: The :class:`ocgis.interface.base.variable.VariableCollection` to append output calculation arrays to.
      If ``None`` a new collection will be created.
     :type vc: :class:`ocgis.interface.base.variable.VariableCollection`
-    :param parms: A dictionary of parameter values.
+    :param parms: A dictionary of parameter values. The includes any parameters for the calculation.
     :type parms: dict
     :param tgd: An instance of :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`.
     :type tgd: :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`
     :param use_raw_values: If ``True``, calculation is performed on raw values from an aggregated data request. This
      requires the execution of :func:`ocgis.calc.base.OcgFunction.aggregate_spatial` to aggregate the calculations on
      individual data cells.
-    :type agg: bool
+    :type agg: boolth
     :param calc_sample_size: If ``True``, also compute sample sizes for the calculation.
     :type calc_sample_size: bool
+    :param meta_attrs: Dictionary with keys as attribute and names with arbitrary values. This will overload default
+     metadata attributes from the calculation.
+
+    >>> meta_attrs = {'standard_name': 'the_real', 'long_name': 'The Real Long Name', 'note_count': 55}
+
+    :type meta_attrs: dict
     """
 
     __metaclass__ = abc.ABCMeta
@@ -58,10 +67,16 @@ class AbstractFunction(object):
     def key(self):
         str
 
-    # : The calculation's long name. Default is the empty string.
-    long_name = ''
-    #: The calculation's standard name. Default is the empty string.
-    standard_name = ''
+    #: The calculation's long name.
+    @abc.abstractproperty
+    def long_name(self):
+        str
+
+    #: The calculation's standard name.
+    @abc.abstractproperty
+    def standard_name(self):
+        str
+
     #: The calculation's output units. Modify :meth:`get_output_units` for more complex units calculations. If the units
     #: are left as the default '_input' then the input variable units are maintained. Otherwise, they will be set to
     #: units attribute value. The string flag is used to allow ``None`` units to be applied.
@@ -71,7 +86,7 @@ class AbstractFunction(object):
     _empty_fill = {'fill': None, 'sample_size': None}
 
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
-                 use_raw_values=False, calc_sample_size=False, fill_value=None):
+                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None):
         self.alias = alias or self.key
         self.dtype = dtype or self.dtype
         self.fill_value = fill_value
@@ -82,6 +97,7 @@ class AbstractFunction(object):
         self.tgd = tgd
         self.use_raw_values = use_raw_values
         self.calc_sample_size = calc_sample_size
+        self.meta_attrs = deepcopy(meta_attrs)
 
     def aggregate_spatial(self, values, weights):
         """
@@ -202,7 +218,6 @@ class AbstractFunction(object):
         Set variable level metadata. If units are to be updated, this must be done on the "units" attribute of the
         variable as this value is read directly from the variable object during conversion.
         """
-
         pass
 
     @classmethod
@@ -262,6 +277,9 @@ class AbstractFunction(object):
 
         # allow more complex manipulations of metadata
         self.set_variable_metadata(dv)
+        # overload the metadata attributes with any provided
+        if self.meta_attrs is not None:
+            dv.meta['attrs'].update(self.meta_attrs)
         # add the variable to the variable collection
         self._set_derived_variable_alias_(dv, parent_variables)
         self.vc.add_variable(dv)

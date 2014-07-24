@@ -53,24 +53,31 @@ Using Computations
 
 Computations are applied by passing a list of "function dictionaries" to the :ref:`calc_headline` argument of the :class:`~ocgis.OcgOperations` object. The other two relevant arguments are :ref:`calc_raw_headline` and :ref:`calc_grouping_headline`.
 
-In its simplest form, a "function dictionary" is composed of a `func` key and a `name` key. The `func` key corresponds to the `name` attribute of the function class. The `name` key in the "function dictionary" is required and is a user-supplied alias. This is required to allow multiple calculations with the same function names to be performed with different parameters (in a single request).
+In its simplest form, a "function dictionary" is composed of a ``'func'`` key and a ``'name'`` key. The ``'func'`` key corresponds to the ``key`` attribute of the function class. The ``'name'`` key in the "function dictionary" is required and is a user-supplied alias. This is required to allow multiple calculations with the same function names to be performed with different parameters (in a single request).
 
-Functions currently available are listed below: :ref:`available_functions`. In the case where a function does not expose a `name` attribute, the `func` value is the lower case string of the function's class name (i.e. Mean = 'mean').
+Functions currently available are listed below: :ref:`available_functions`. In the case where a function does not expose a ``key`` attribute, the ``'func'`` value is the lower case string of the function's class name (i.e. Mean = 'mean').
 
 For example to calculate a monthly mean and median on a hypothetical daily climate dataset (written to CSV format), an OpenClimateGIS call may look like:
 
 >>> from ocgis import OcgOperations, RequestDataset
 ...
->>> rd = RequestDataset('/path/to/data','tas')
->>> calc = [{'func':'mean','name':'monthly_mean'},{'func':'median','name':'monthly_median'}]
->>> ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=['month'],output_format='csv',prefix='my_calculation')
+>>> rd = RequestDataset('/path/to/data', 'tas')
+>>> calc = [{'func': 'mean', 'name': 'monthly_mean'}, {'func': 'median', 'name': 'monthly_median'}]
+>>> ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=['month'], output_format='csv', prefix='my_calculation')
 >>> path = ops.execute()
 
-A calculation with arguments includes a `kwds` key in the function dictionary:
+A calculation with arguments includes a ``'kwds'`` key in the function dictionary:
 
->>> calc = [{'func':'between','name':'between_5_10','kwds':{'lower':5,'upper':10}}]
+>>> calc = [{'func': 'between', 'name': 'between_5_10', 'kwds': {'lower': 5, 'upper': 10}}]
 
 If a function takes parameters, those parameters are documented in the :ref:`available_functions` section. The keyword parameter name maps directly to its keyword name in the ``calculate`` method.
+
+There are also keyword arguments common to all calculations:
+
+ * ``'meta_attrs'``: A dictionary containing metadata attributes to attach to the output calculation variable (e.g. NetCDF attributes)
+
+>>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 'the_value'}}]
+>>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 5, 'hello': 'attribute'}}]
 
 .. _defining_custom_functions:
 

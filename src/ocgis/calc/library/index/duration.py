@@ -13,7 +13,9 @@ class Duration(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunc
     ## int for max)
     dtype = constants.np_float
     description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
-    
+    standard_name = 'duration'
+    long_name = 'Duration'
+
     def calculate(self,values,threshold=None,operation=None,summary='mean'):
         '''
         :param threshold: The threshold value to use for the logical operation.
@@ -98,6 +100,8 @@ class FrequencyDuration(base.AbstractKeyedOutputFunction,Duration):
     dtype = object
     structure_dtype = OrderedDict([['names',['duration','count']],['formats',[constants.np_int,constants.np_int]]])
     parms_definition = {'threshold':float,'operation':str}
+    standard_name = 'frequency_duration'
+    long_name = 'Frequency Duration'
     
     def calculate(self,values,threshold=None,operation=None):
         '''

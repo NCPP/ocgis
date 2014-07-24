@@ -260,6 +260,43 @@ sudo sh -c "echo '/usr/local/libspatialindex/v1.8.1/lib' > /etc/ld.so.conf.d/lib
 sudo ldconfig
 sudo pip install rtree
 
+##############
+# INSTALL ESMF
+##############
+
+# download the ESMF tarball via registration page: 
+#  http://www.earthsystemmodeling.org/download/releases.shtml
+
+# link for building ESMF:
+#  http://www.earthsystemmodeling.org/esmf_releases/public/ESMF_6_3_0rp1/ESMF_usrdoc/
+
+# notes:
+#  * will need fortran and c compiler
+
+ESMF_TAR=esmf_6_3_0rp1_src.tar.gz
+ESMF_VER='v6.3.0rp1'
+
+ESMF_SRCDIR=$SRCDIR/esmf/$ESMF_VER
+mkdir -p $ESMF_SRCDIR
+cd $ESMF_SRCDIR
+tar -xzvf $ESMF_TAR
+cd esmf
+export ESMF_DIR=`pwd`
+make info
+make -j 4
+export ESMF_INSTALL_PREFIX=$INSTALLDIR/esmf/$ESMF_VER
+export ESMF_INSTALL_LIBDIR=$ESMF_INSTALL_PREFIX/lib
+sudo -E make install
+
+## ESMPy install ##
+
+cd $SRCDIR/esmf/$ESMF_VER/esmf/src/addon/ESMPy
+python setup.py build --ESMFMKFILE=$INSTALLDIR/esmf/$ESMF_VER/lib/esmf.mk
+sudo python setup.py install
+
+# to get release
+python -c "import ESMF; print ESMF.__release__"
+
 #################
 # INSTALL POSTGIS
 #################

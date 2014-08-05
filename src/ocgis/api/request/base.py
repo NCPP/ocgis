@@ -32,6 +32,10 @@ class RequestDataset(object):
     ## Multifile datasets are supported for local and remote targets.
     >>> uri = ['/path/to/local/file1.nc', '/path/to/local/file2.nc']
 
+    .. warning:: There is no internal checking on the ordering of the files. If the datasets should be concatenated
+     along the time dimension, it may be a good idea to run the sequence of URIs through a time sorting function
+     :func:`~ocgis.util.helpers.get_sorted_uris_by_time_dimension`.
+
     :param variable: The target variable. If the argument value is ``None``, then a search on the target data object
      will be performed to find variables having a minimum set of dimensions (i.e. time and space). The value of this
      property will then be updated.

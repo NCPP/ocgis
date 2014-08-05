@@ -15,7 +15,9 @@ from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
 
 
+
 class TestBase(unittest.TestCase):
+
     '''All tests should inherit from this. It allows test data to be written to
     a temporary folder and removed easily.'''
     __metaclass__ = abc.ABCMeta
@@ -31,6 +33,67 @@ class TestBase(unittest.TestCase):
         base_dir = os.path.split(__file__)[0]
         ret = os.path.join(base_dir, 'bin')
         return (ret)
+
+    @staticmethod
+    def get_tdata():
+        test_data = TestData()
+        test_data.update(['daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
+        test_data.update(['CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
+        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                         key='cancm4_tasmax_2011')
+        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                         key='cancm4_tasmax_2001')
+        test_data.update(['CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                         key='cancm4_tasmin_2001')
+        test_data.update(['CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
+        test_data.update(['CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
+                         key='cancm4_rhsmax')
+        test_data.update(['maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',
+                         key='maurer_bccr_1950')
+        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
+        test_data.update(['narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
+        test_data.update(['narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
+        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
+        #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
+        #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
+        test_data.update(['maurer', '2010'], 'pr',
+                         ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'],
+                         key='maurer_2010_pr')
+        test_data.update(['maurer', '2010'], 'tas',
+                         ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'],
+                         key='maurer_2010_tas')
+        test_data.update(['maurer', '2010'], 'tasmin',
+                         ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'],
+                         key='maurer_2010_tasmin')
+        test_data.update(['maurer', '2010'], 'tasmax',
+                         ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'],
+                         key='maurer_2010_tasmax')
+        test_data.update(['narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'],
+                         key='narccap_pr_wrfg_ncep')
+        test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
+        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
+        test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
+        test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',
+                         key='snippet_maurer_dtr')
+        test_data.update(['CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
+
+        test_data.update(['misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
+        test_data.update(['misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',
+                         key='subset_test_Tavg_sresa2')
+        test_data.update(['misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',
+                         key='subset_test_Prcp')
+
+        test_data.update(['misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
+        test_data.update(['misc', 'rotated_pole'], 'tas',
+                         'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc',
+                         key='rotated_pole_ichec')
+        test_data.update(['misc', 'rotated_pole'], 'tas',
+                         'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc',
+                         key='rotated_pole_cccma')
+        test_data.update(['misc', 'rotated_pole'], 'pr',
+                         'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc',
+                         key='rotated_pole_cnrm_cerfacs')
+        return test_data
 
     def shortDescription(self):
         return None
@@ -126,67 +189,6 @@ class TestBase(unittest.TestCase):
         finally:
             src.close()
             dest.close()
-
-    @staticmethod
-    def get_tdata():
-        test_data = TestData()
-        test_data.update(['daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
-        test_data.update(['CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                         key='cancm4_tasmax_2011')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                         key='cancm4_tasmax_2001')
-        test_data.update(['CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                         key='cancm4_tasmin_2001')
-        test_data.update(['CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
-        test_data.update(['CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                         key='cancm4_rhsmax')
-        test_data.update(['maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',
-                         key='maurer_bccr_1950')
-        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
-        test_data.update(['narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
-        test_data.update(['narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
-        #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
-        #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
-        test_data.update(['maurer', '2010'], 'pr',
-                         ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'],
-                         key='maurer_2010_pr')
-        test_data.update(['maurer', '2010'], 'tas',
-                         ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'],
-                         key='maurer_2010_tas')
-        test_data.update(['maurer', '2010'], 'tasmin',
-                         ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'],
-                         key='maurer_2010_tasmin')
-        test_data.update(['maurer', '2010'], 'tasmax',
-                         ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'],
-                         key='maurer_2010_tasmax')
-        test_data.update(['narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'],
-                         key='narccap_pr_wrfg_ncep')
-        test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
-        test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
-        test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',
-                         key='snippet_maurer_dtr')
-        test_data.update(['CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
-
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',
-                         key='subset_test_Tavg_sresa2')
-        test_data.update(['misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',
-                         key='subset_test_Prcp')
-
-        test_data.update(['misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
-        test_data.update(['misc', 'rotated_pole'], 'tas',
-                         'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc',
-                         key='rotated_pole_ichec')
-        test_data.update(['misc', 'rotated_pole'], 'tas',
-                         'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc',
-                         key='rotated_pole_cccma')
-        test_data.update(['misc', 'rotated_pole'], 'pr',
-                         'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc',
-                         key='rotated_pole_cnrm_cerfacs')
-        return test_data
 
     def setUp(self):
         if self._reset_env: env.reset()

@@ -1,14 +1,28 @@
 from collections import OrderedDict
+import os
 import numpy as np
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
-    get_added_slice, get_iter, get_ordered_dicts_from_records_array
+    get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension
 import itertools
 from ocgis.test.base import TestBase
 from datetime import datetime as dt
 
 
 class Test(TestBase):
+
+    def test_get_sorted_uris_by_time_dimension(self):
+        rd_2001 = self.test_data.get_rd('cancm4_tasmax_2001')
+        rd_2011 = self.test_data.get_rd('cancm4_tasmax_2011')
+        not_sorted = [rd_2011.uri, rd_2001.uri]
+
+        actual = ['tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
+                  'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc']
+
+        for variable in [None, 'tasmax']:
+            is_sorted = get_sorted_uris_by_time_dimension(not_sorted, variable=variable)
+            to_test = [os.path.split(ii)[1] for ii in is_sorted]
+            self.assertEqual(actual, to_test)
 
     def test_get_ordered_dicts_from_records_array(self):
         """Test converting a records array to a list of ordered dictionaries."""

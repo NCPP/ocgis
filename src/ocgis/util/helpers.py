@@ -18,6 +18,32 @@ from tempfile import mkdtemp
 from fiona.crs import from_epsg
 
 
+def get_sorted_uris_by_time_dimension(uris, variable=None):
+    """
+    Sort a sequence of NetCDF URIs by the maximum time extent in ascending order.
+
+    :param uris: The sequence of NetCDF URIs to sort.
+    :type uris: list[str]
+
+    >>> uris = ['/path/to/file2.nc', 'path/to/file1.nc']
+
+    :param str variable: The target variable for sorting. If ``None`` is provided, then the variable will be
+     autodiscovered.
+    :returns: A sequence of sorted URIs.
+    :rtype: list[str]
+    """
+
+    from ocgis import RequestDataset
+
+    to_sort = {}
+    for uri in uris:
+        rd = RequestDataset(uri=uri, variable=variable)
+        to_sort[rd.get().temporal.extent_datetime[1]] = rd.uri
+    sorted_keys = sorted(to_sort)
+    ret = [to_sort[sk] for sk in sorted_keys]
+    return ret
+
+
 def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
     """
     :param dct:

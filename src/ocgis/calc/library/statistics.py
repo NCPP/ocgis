@@ -12,6 +12,8 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
     parms_definition = {'k': int, 'mode': str, 'operation': str}
     description = ()
     dtype = constants.np_float
+    standard_name = 'moving_window'
+    long_name = 'Moving Window Operation'
 
     _potential_operations = ('mean', 'min', 'max', 'median', 'var', 'std')
 

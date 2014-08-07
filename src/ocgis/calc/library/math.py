@@ -46,6 +46,8 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
     parms_definition = {'v': np.ndarray, 'mode': str}
     description = 'Perform a one-dimensional convolution for each grid element along the time axis. See: http://docs.scipy.org/doc/numpy/reference/generated/numpy.convolve.html'
     dtype = constants.np_float
+    standard_name = 'convolve_1d'
+    long_name = 'Convolution along the Time Dimension'
 
     def calculate(self, values, v=None, mode='same'):
         """

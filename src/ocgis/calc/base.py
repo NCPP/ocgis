@@ -482,7 +482,6 @@ class AbstractParameterizedFunction(AbstractFunction):
                     formatted = v
                 else:
                     formatted = self.parms_definition[k](v)
-                formatted = self.parms_definition[k](v)
             # likely a nonetype
             except TypeError as e:
                 if self.parms_definition[k] is None:

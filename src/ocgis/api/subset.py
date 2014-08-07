@@ -381,6 +381,10 @@ class SubsetOperation(object):
                 msg = str(e) + ' This typically means the selection geometry falls outside the spatial domain of the target dataset.'
                 ocgis_lh(exc=ExtentError(message=msg), alias=alias, logger=self._subset_log)
 
+        # if the subset geometry is unwrapped and the vector wrap option is true, wrap the subset geometry.
+        if subset_sdim.is_unwrapped and self.ops.vector_wrap:
+            subset_sdim.wrap()
+
         return sfield
 
     def _update_subset_geometry_if_point_(self, field, subset_sdim, subset_ugid):

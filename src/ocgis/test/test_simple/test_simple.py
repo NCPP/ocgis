@@ -42,6 +42,8 @@ import tempfile
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
 from ocgis.api.collection import SpatialCollection
+from ocgis.util.itester import itr_products_keywords
+from ocgis.util.shp_cabinet import ShpCabinetIterator
 
 
 @contextmanager
@@ -1374,6 +1376,40 @@ class TestSimple360(TestSimpleBase):
 #    return_shp = True
     fn = 'test_simple_360_01.nc'
     nc_factory = SimpleNc360
+
+    def test_select_geometries_wrapped(self):
+        """
+        Selection geometries should be wrapped appropriately when used to subset a 0-360 dataset when vector wrap is
+        False.
+        """
+
+        def _get_is_wrapped_(bounds):
+            return np.any(np.array(bounds) < 0)
+
+        geom = wkt.loads('POLYGON((267.404839 39.629032,268.767204 39.884946,269.775806 39.854839,269.926344 39.305376,269.753226 38.665591,269.647849 38.319355,269.128495 37.980645,268.654301 37.717204,267.954301 37.626882,267.961828 37.197849,267.269355 37.769892,266.968280 38.959140,266.968280 38.959140,266.968280 38.959140,267.404839 39.629032))')
+        keywords = dict(vector_wrap=[False, True],
+                        output_format=[
+                            'numpy',
+                            'shp'
+                        ]
+                        )
+
+        for ctr, k in enumerate(itr_products_keywords(keywords, as_namedtuple=True)):
+            dct = self.get_dataset()
+            rd = RequestDataset(**dct)
+            ops = OcgOperations(dataset=rd, vector_wrap=k.vector_wrap, output_format=k.output_format, geom=geom,
+                                prefix=str(ctr))
+            ret = ops.execute()
+            if k.output_format == 'shp':
+                path_ugid = ret.replace('.', '_ugid.')
+                rows = list(ShpCabinetIterator(path=path_ugid))
+                bounds = rows[0]['geom'].bounds
+            else:
+                bounds = ret.geoms[1].bounds
+            if k.vector_wrap:
+                self.assertTrue(_get_is_wrapped_(bounds))
+            else:
+                self.assertFalse(_get_is_wrapped_(bounds))
 
     def test_vector_wrap_in_operations(self):
         """Test output is appropriately wrapped."""

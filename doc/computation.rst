@@ -9,7 +9,7 @@
 OpenClimateGIS offers an extensible computation framework that supports:
   1. NumPy-based array calculations
   2. Temporal grouping (level grouping not supported)
-  3. Argumented (e.g. threshold) and multivariate functions (e.g. heat index)
+  3. Parameters (e.g. threshold) and multivariate functions (e.g. heat index)
   4. Overload hooks for aggregation operations
 
 Computations Described
@@ -158,6 +158,11 @@ Mathematical Operations
    :members: calculate
    :undoc-members:
 
+.. autoclass:: ocgis.calc.library.math.Convolve1D
+   :show-inheritance:
+   :members: calculate
+   :undoc-members:
+
 Basic Statistics
 ----------------
 
@@ -187,6 +192,14 @@ Basic Statistics
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.StandardDeviation
+   :show-inheritance:
+   :members: calculate
+   :undoc-members:
+
+Moving Window / Kernel-Based
+----------------------------
+
+.. autoclass:: ocgis.calc.library.statistics.MovingWindow
    :show-inheritance:
    :members: calculate
    :undoc-members:

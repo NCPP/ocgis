@@ -1,4 +1,5 @@
 import math
+from ocgis.calc.library.math import Convolve1D
 import statistics
 import thresholds
 from ocgis.calc.library.index import dynamic_kernel_percentile, heat_index, duration
@@ -13,7 +14,7 @@ class FunctionRegistry(dict):
         
         self.reg += [math.Divide,math.NaturalLogarithm,math.Sum]
         self.reg += [statistics.FrequencyPercentile,statistics.Mean,statistics.StandardDeviation,
-                     statistics.Max,statistics.Median,statistics.Min]
+                     statistics.Max,statistics.Median,statistics.Min, Convolve1D,statistics.MovingWindow]
         self.reg += [thresholds.Between,thresholds.Threshold]
         self.reg += [dynamic_kernel_percentile.DynamicDailyKernelPercentileThreshold,
                      heat_index.HeatIndex,duration.Duration,duration.FrequencyDuration]

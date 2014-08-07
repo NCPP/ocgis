@@ -467,13 +467,21 @@ class AbstractParameterizedFunction(AbstractFunction):
 
         >>> {'threshold':float,'operation':str,'basis':None}
         """
-
-        pass
-
+        dict
+    
     def _format_parms_(self, values):
+        """
+        :param values: A dictionary containing the parameter values to check.
+        :type values: dict[str, type]
+        """
+
         ret = {}
         for k, v in values.iteritems():
             try:
+                if isinstance(v, self.parms_definition[k]):
+                    formatted = v
+                else:
+                    formatted = self.parms_definition[k](v)
                 formatted = self.parms_definition[k](v)
             # likely a nonetype
             except TypeError as e:

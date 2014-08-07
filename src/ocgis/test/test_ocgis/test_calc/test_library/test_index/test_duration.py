@@ -53,7 +53,7 @@ class TestDuration(AbstractCalcBase):
         values = values.reshape(5,2,2)
         values = np.ma.array(values,mask=False)
         ret = duration.calculate(values,4,operation='gte',summary='mean')
-        self.assertNumpyAll(np.ma.array([ 4. ,  2. ,  1.5,  1.5]),ret.flatten())
+        self.assertNumpyAll(np.ma.array([ 4. ,  2. ,  1.5,  1.5],dtype=ret.dtype),ret.flatten())
     
     def test_standard_operations(self):
         ret = self.run_standard_operations(

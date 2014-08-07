@@ -1,3 +1,4 @@
+from ocgis import constants
 from ocgis.test.base import TestBase
 from datetime import datetime as dt
 from ocgis.interface.base.dimension.temporal import TemporalDimension,\
@@ -292,4 +293,4 @@ class TestTemporalGroupDimension(TestBase):
         tgd = td.get_grouping(['month'])
         self.assertEqual(tuple(tgd.date_parts[0]),(None,1,None,None,None,None))
         self.assertTrue(tgd.dgroups[0].all())
-        self.assertNumpyAll(tgd.uid,np.array([1]))
+        self.assertNumpyAll(tgd.uid,np.array([1],dtype=constants.np_int))

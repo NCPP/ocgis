@@ -158,10 +158,11 @@ class OcgCalculationEngine(object):
                         self._progress.mark()
                     except AttributeError:
                         pass
-                    
-                new_temporal = new_temporal or field.temporal
-                new_field = klass(variables=out_vc,temporal=new_temporal,spatial=field.spatial,
-                                  level=field.level,realization=field.realization,meta=field.meta,
-                                  uid=field.uid,name=field.name)
+
+                out_field = function.field
+                new_temporal = new_temporal or out_field.temporal
+                new_field = klass(variables=out_vc,temporal=new_temporal,spatial=out_field.spatial,
+                                  level=out_field.level,realization=out_field.realization,meta=out_field.meta,
+                                  uid=out_field.uid,name=out_field.name)
                 coll[ugid][alias_field] = new_field
         return(coll)

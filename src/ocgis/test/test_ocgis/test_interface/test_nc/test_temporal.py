@@ -62,7 +62,7 @@ class TestNcTemporalDimension(TestBase):
         vec = range(0, 36)
         datetimes = get_datetime_from_months_time_units(vec, units)
         num = get_num_from_months_time_units(datetimes, units, dtype=np.int32)
-        self.assertNumpyAll(num, np.array(vec))
+        self.assertNumpyAll(num, np.array(vec,dtype=np.int32))
         self.assertEqual(num.dtype, np.int32)
 
     def test_months_in_time_units_are_bad_netcdftime(self):

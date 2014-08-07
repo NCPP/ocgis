@@ -262,20 +262,23 @@ class TestOcgCalculationEngine(TestBase):
                             spatial_operation=spatial_operation,aggregate=aggregate)
         ret = ops.execute()
         return(ret)
-    
+
     def test_agg_raw(self):
+        """Test using raw values for calculations as opposed to spatially averaged data values."""
+
         grouping = ['month']
-        funcs = [{'func':'threshold','name':'threshold','ref':Threshold,'kwds':{'operation':'gte','threshold':200}}]
-        raws = [True,False]
-        aggs = [True,False]
-        for raw,agg in itertools.product(raws,aggs):
+        funcs = [{'func': 'threshold', 'name': 'threshold', 'ref': Threshold,
+                  'kwds': {'operation': 'gte', 'threshold': 200}}]
+        raws = [True, False]
+        aggs = [True, False]
+        for raw, agg in itertools.product(raws, aggs):
             coll = self.get_collection(aggregate=agg)
-            ce = OcgCalculationEngine(grouping,funcs,raw,agg)
+            ce = OcgCalculationEngine(grouping, funcs, raw, agg)
             ret = ce.execute(coll)
             value = ret[25]['tas'].variables['threshold'].value
-            ## aggregated data should have a (1,1) spatial dimension
+            # # aggregated data should have a (1,1) spatial dimension
             if agg is True:
-                self.assertNumpyAll(value.shape[-2:],(1,1))
+                self.assertEqual(value.shape[-2:], (1, 1))
 
 
 if __name__ == '__main__':

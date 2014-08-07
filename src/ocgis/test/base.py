@@ -98,12 +98,24 @@ class TestBase(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def assertNumpyAll(self, arr1, arr2):
+    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True):
+        """
+        :type arr1: :class:`numpy.ndarray`
+        :type arr2: :class:`numpy.ndarray`
+        :param check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
+        :type check_fill_value_dtype: bool
+        """
+
         self.assertEqual(type(arr1), type(arr2))
+        if check_arr_dtype:
+            self.assertEqual(arr1.dtype, arr2.dtype)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
             self.assertTrue(np.all(arr1.data == arr2.data))
             self.assertTrue(np.all(arr1.mask == arr2.mask))
-            self.assertEqual(arr1.fill_value, arr2.fill_value)
+            if check_fill_value_dtype:
+                self.assertEqual(arr1.fill_value, arr2.fill_value)
+            else:
+                self.assertTrue(np.equal(arr1.fill_value, arr2.fill_value.astype(arr1.fill_value.dtype)))
             return True
         else:
             return self.assertTrue(np.all(arr1 == arr2))
@@ -165,7 +177,7 @@ class TestBase(unittest.TestCase):
                         if close:
                             self.assertNumpyAllClose(var[:], dvar[:])
                         else:
-                            self.assertNumpyAll(var[:], dvar[:])
+                            self.assertNumpyAll(var[:], dvar[:], check_arr_dtype=check_types)
                 except AssertionError:
                     cmp = var[:] == dvar[:]
                     if cmp.shape == (1,) and cmp.data[0] == True:
@@ -175,7 +187,11 @@ class TestBase(unittest.TestCase):
                 if check_types:
                     self.assertEqual(var[:].dtype, dvar[:].dtype)
                 for k, v in var.__dict__.iteritems():
-                    self.assertNumpyAll(v, getattr(dvar, k))
+                    to_test_attr = getattr(dvar, k)
+                    try:
+                        self.assertNumpyAll(v, to_test_attr)
+                    except AttributeError:
+                        self.assertEqual(v, to_test_attr)
                 self.assertEqual(var.dimensions, dvar.dimensions)
             self.assertEqual(set(src.variables.keys()), set(dest.variables.keys()))
 
@@ -184,8 +200,11 @@ class TestBase(unittest.TestCase):
             else:
                 for k, v in src.__dict__.iteritems():
                     if k not in ignore_attributes['global']:
-                        self.assertNumpyAll(v, dest.__dict__[k])
-
+                        to_test = dest.__dict__[k]
+                        try:
+                            self.assertNumpyAll(v, to_test)
+                        except AttributeError:
+                            self.assertEqual(v, to_test)
         finally:
             src.close()
             dest.close()

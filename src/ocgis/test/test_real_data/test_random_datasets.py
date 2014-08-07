@@ -1,4 +1,5 @@
 import ocgis
+from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
 from ocgis.test.base import TestBase
 import itertools
 from ocgis.api.operations import OcgOperations
@@ -235,7 +236,8 @@ class Test(TestBase):
         ret = ops.execute()
         to_test = ret[23]['tas'].variables['dkp'].value
         reference = np.ma.array(data=[[[[[0,0,838],[831,829,834],[831,830,834],[831,835,830]]]]],
-                                mask=[[[[[True,True,False],[False,False,False],[False,False,False],[False,False,False]]]]])
+                                mask=[[[[[True,True,False],[False,False,False],[False,False,False],[False,False,False]]]]],
+                                dtype=DynamicDailyKernelPercentileThreshold.dtype)
         self.assertNumpyAll(to_test,reference)
     
     def test_selecting_single_value(self):

@@ -2,6 +2,7 @@ from copy import deepcopy, copy
 import unittest
 import itertools
 import numpy as np
+from ocgis import constants
 from shapely import wkt
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
@@ -81,7 +82,7 @@ class TestSpatialBase(TestBase):
 
     @property
     def uid_value(self):
-        return np.ma.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], mask=False)
+        return np.ma.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], mask=False, dtype=constants.np_int)
 
     def write_sdim(self):
         sdim = self.get_sdim(bounds=True)
@@ -449,11 +450,11 @@ class TestSpatialDimension(TestSpatialBase):
                 self.assertEqual(ret.uid,np.array([[9]]))
                 self.assertTrue(poly.almost_equals(ret.geom.polygon.value[0,0]))
                 
-                self.assertNumpyAll(ret.geom.point.value.shape,ret.geom.polygon.shape)
+                self.assertEqual(ret.geom.point.value.shape,ret.geom.polygon.shape)
                 ref_pt = ret.geom.point.value[0,0]
                 ref_poly = ret.geom.polygon.value[0,0]
                 self.assertTrue(ref_poly.intersects(ref_pt))
-            except:
+            except ImportError:
                 with self.assertRaises(ImportError):
                     import_module('rtree')
         
@@ -484,7 +485,7 @@ class TestSpatialDimension(TestSpatialBase):
                     ret = sdim.get_intersects(poly,use_spatial_index=u)
                     to_test = np.ma.array([[[38.]],[[-100.]]],mask=False)
                     self.assertNumpyAll(ret.grid.value,to_test)
-                    self.assertNumpyAll(ret.uid,np.ma.array([[9]]))
+                    self.assertNumpyAll(ret.uid,np.ma.array([[9]],dtype=constants.np_int))
                     self.assertEqual(ret.shape,(1,1))
                     to_test = ret.geom.point.value.compressed()[0]
                     self.assertTrue(to_test.almost_equals(Point(-100,38)))
@@ -643,7 +644,7 @@ class TestSpatialDimension(TestSpatialBase):
         self.assertEqual(sdim_slc.value.shape,(2,1,4))
         self.assertNumpyAll(sdim_slc.value,np.ma.array([[[40,40,40,40]],[[-100,-99,-98,-97]]],mask=False,dtype=float))
         self.assertEqual(sdim_slc.row.value[0],40)
-        self.assertNumpyAll(sdim_slc.col.value,np.array([-100,-99,-98,-97]))
+        self.assertNumpyAll(sdim_slc.col.value,np.array([-100,-99,-98,-97],dtype=float))
     
     def test_grid_slice_2d(self):
         sdim = self.get_sdim(bounds=True)
@@ -657,7 +658,7 @@ class TestSpatialDimension(TestSpatialBase):
         sdim_slc = sdim.grid[1:3,0:3]
         self.assertNumpyAll(sdim_slc.value,
          np.ma.array([[[39,39,39],[38,38,38]],[[-100,-99,-98],[-100,-99,-98]]],mask=False,dtype=float))
-        self.assertNumpyAll(sdim_slc.row.value,np.array([39,38]))
+        self.assertNumpyAll(sdim_slc.row.value,np.array([39,38],dtype=float))
         
     def test_geom_point(self):
         sdim = self.get_sdim(bounds=True)
@@ -746,12 +747,12 @@ class TestSpatialDimension(TestSpatialBase):
         pts = np.array([[pt,pt2]],dtype=object)
         g = SpatialGeometryPointDimension(value=pts)
         self.assertEqual(g.value.mask.any(),False)
-        self.assertNumpyAll(g.uid,np.ma.array([[1,2]]))
+        self.assertNumpyAll(g.uid,np.ma.array([[1,2]],dtype=constants.np_int))
         
         sgdim = SpatialGeometryDimension(point=g)
         sdim = SpatialDimension(geom=sgdim)
         self.assertEqual(sdim.shape,(1,2))
-        self.assertNumpyAll(sdim.uid,np.ma.array([[1,2]]))
+        self.assertNumpyAll(sdim.uid,np.ma.array([[1,2]],dtype=constants.np_int))
         sdim_slc = sdim[:,1]
         self.assertEqual(sdim_slc.shape,(1,1))
         self.assertTrue(sdim_slc.geom.point.value[0,0].almost_equals(pt2))
@@ -762,7 +763,7 @@ class TestSpatialDimension(TestSpatialBase):
             bg = sdim.grid.get_subset_bbox(-99,39,-98,39,closed=False)
             self.assertEqual(bg._value,None)
             self.assertEqual(bg.uid.shape,(1,2))
-            self.assertNumpyAll(bg.uid,np.ma.array([[6,7]]))
+            self.assertNumpyAll(bg.uid,np.ma.array([[6,7]],dtype=constants.np_int))
             with self.assertRaises(EmptySubsetError):
                 sdim.grid.get_subset_bbox(1000,1000,1001,10001)
                 
@@ -796,7 +797,7 @@ class TestSpatialDimension(TestSpatialBase):
         sdim.unwrap()
         sdim.set_grid_bounds_from_geometry()
         self.assertNumpyAll(np.array(sdim.geom.polygon.value[2, 2].bounds), sdim.grid.bounds[2, 2, :].data)
-        self.assertNumpyAll(sdim.geom.polygon.value[2, 2].bounds, (261.5, 37.5, 262.5, 38.5))
+        self.assertEqual(sdim.geom.polygon.value[2, 2].bounds, (261.5, 37.5, 262.5, 38.5))
         self.assertNumpyAll(np.array(sdim.geom.point.value[2, 2]), np.array([ 262.,   38.]))
         self.assertTrue(sdim.is_unwrapped)
 

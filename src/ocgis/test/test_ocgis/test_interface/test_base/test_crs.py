@@ -30,7 +30,21 @@ class TestCoordinateReferenceSystem(TestBase):
         self.assertFalse(None == crs)
 
 class TestWGS84(TestBase):
-    
+
+    def test_wrap_unwrap_with_mask(self):
+        """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23])
+        ret = ops.execute()
+        sdim = ret[23]['tas'].spatial
+        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162], [37.67309213352349, 37.67309213352349, 37.67309213352349], [40.4636506825932, 40.4636506825932, 40.4636506825932], [43.254197169829105, 43.254197169829105, 43.254197169829105]], [[-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125]]], dtype=sdim.grid.value.dtype)
+        self.assertNumpyAll(actual, sdim.grid.value.data)
+
+        WGS84().unwrap(sdim)
+        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162], [37.67309213352349, 37.67309213352349, 37.67309213352349], [40.4636506825932, 40.4636506825932, 40.4636506825932], [43.254197169829105, 43.254197169829105, 43.254197169829105]], [[239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875]]], dtype=sdim.grid.value.dtype)
+        self.assertNumpyAll(actual, sdim.grid.value.data)
+
     def test_wrap_normal_differing_data_types(self):
         row = VectorDimension(value=40.,bounds=[38.,42.])
         col = VectorDimension(value=0,bounds=[-1,1])

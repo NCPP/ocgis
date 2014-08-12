@@ -140,10 +140,10 @@ class WGS84(CoordinateReferenceSystem):
             for tw in to_wrap:
                 if tw is not None:
                     geom = tw.value.data
-                    for (ii,jj),to_wrap in iter_array(geom,return_value=True):
+                    for (ii,jj),to_wrap in iter_array(geom,return_value=True,use_mask=False):
                         geom[ii,jj] = unwrap(to_wrap)
             if spatial._grid is not None:
-                ref = spatial.grid.value[1,:,:]
+                ref = spatial.grid.value.data[1,:,:]
                 select = ref < 0
                 ref[select] = ref[select] + 360
                 if spatial.grid.col is not None:
@@ -164,10 +164,10 @@ class WGS84(CoordinateReferenceSystem):
             for tw in to_wrap:
                 if tw is not None:
                     geom = tw.value.data
-                    for (ii,jj),to_wrap in iter_array(geom,return_value=True):
+                    for (ii,jj),to_wrap in iter_array(geom,return_value=True,use_mask=False):
                         geom[ii,jj] = wrap(to_wrap)
             if spatial._grid is not None:
-                ref = spatial.grid.value[1,:,:]
+                ref = spatial.grid.value.data[1,:,:]
                 select = ref > 180
                 ref[select] = ref[select] - 360
                 if spatial.grid.col is not None:

@@ -10,7 +10,7 @@ from copy import copy
 
 
 class AbstractValueVariable(object):
-    '''
+    """
     :param array-like value:
     :param units:
     :type units: str or :class:`cfunits.Units`
@@ -18,24 +18,23 @@ class AbstractValueVariable(object):
     :param fill_value:
     :type fill_value: int or float matching type of ``dtype``
     :param str name:
-    '''
+    """
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,value=None,units=None,dtype=None,fill_value=None,name=None):
+    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None):
         self._value = value
         self._dtype = dtype
         self._fill_value = fill_value
         self.name = name
-        ## if the units value is not None, then convert to string. cfunits.Units
-        ## may be easily handled this way without checking for the module presence.
+        # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
+        # checking for the module presence.
         self.units = str(units) if units is not None else None
         
     @property
     def cfunits(self):
-        ## the cfunits-python module is not a dependency of ocgis and should be
-        ## imported on demand
+        # the cfunits-python module is not a dependency of ocgis and should be imported on demand
         from cfunits import Units
-        return(Units(self.units))
+        return Units(self.units)
     
     @property
     def dtype(self):
@@ -46,7 +45,7 @@ class AbstractValueVariable(object):
                 ret = self.value.dtype
         else:
             ret = self._dtype
-        return(ret)
+        return ret
     
     @property
     def fill_value(self):
@@ -57,61 +56,63 @@ class AbstractValueVariable(object):
                 ret = self.value.fill_value
         else:
             ret = self._fill_value
-        return(ret)
+        return ret
     
     @property
     def shape(self):
-        return(self.value.shape)
+        return self.value.shape
     
     @property
     def value(self):
         if self._value is None:
             self._value = self._get_value_()
-        return(self._value)
+        return self._value
+
     def _get_value_(self):
-        return(self._value)
+        return self._value
     
     @property
     def _value(self):
-        return(self.__value)
+        return self.__value
+
     @_value.setter
-    def _value(self,value):
+    def _value(self, value):
         self.__value = self._format_private_value_(value)
+
     @abc.abstractmethod
-    def _format_private_value_(self,value):
-        return(value)
+    def _format_private_value_(self, value):
+        return value
     
-    def cfunits_conform(self,to_units,value=None,from_units=None):
-        '''
+    def cfunits_conform(self, to_units, value=None, from_units=None):
+        """
         Conform units of value variable in-place using :mod:`cfunits`.
-        
+
         :param to_units: Target conform units.
         :type t_units: str or :class:`cfunits.Units`
         :param value: Optional value array to use in place of the object's value.
         :type value: :class:`numpy.ma.array`
         :param from_units: Source units to use in place of the object's value.
         :type from_units: str or :class:`cfunits.Units`
-        '''
+        """
+
         from cfunits import Units
-        ## units are required for conversion
+        # units are required for conversion
         if self.cfunits == Units(None):
             raise(NoUnitsError(self.alias))
-        ## allow string unit representations to be passed
+        # allow string unit representations to be passed
         if not isinstance(to_units,Units):
             to_units = Units(to_units)
-        ## pick the value to convert. this is added to keep the import of the
-        ## units library in the AbstractValueVariable.cfunits property
+        # pick the value to convert. this is added to keep the import of the units library in the
+        # AbstractValueVariable.cfunits property
         convert_value = self.value if value is None else value
-        ## use the overloaded "from_units" if passed, otherwise use the object-level
-        ## attribute
+        # use the overloaded "from_units" if passed, otherwise use the object-level attribute
         from_units = self.cfunits if from_units is None else from_units
-        ## units are always converted in place. users need to execute their own
-        ## deep copies
-        self.cfunits.conform(convert_value,from_units,to_units,inplace=True)
-        ## update the units attribute with the destination units
+        # units are always converted in place. users need to execute their own deep copies
+        self.cfunits.conform(convert_value, from_units, to_units, inplace=True)
+        # update the units attribute with the destination units
         self.units = str(to_units)
         
-        return(convert_value)
+        return convert_value
 
 
 class AbstractSourcedVariable(AbstractValueVariable):

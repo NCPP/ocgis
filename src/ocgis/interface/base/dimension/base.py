@@ -134,56 +134,51 @@ class AbstractUidValueDimension(AbstractValueDimension,AbstractUidDimension):
 
 class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
     _axis = None
-    _attrs_slice = ('uid','_value','_src_idx')
+    _attrs_slice = ('uid', '_value', '_src_idx')
     _ndims = 1
     
-    def __init__(self,*args,**kwds):
-        bounds = kwds.pop('bounds',None)
-        self.name_bounds = kwds.pop('name_bounds',None)
-        self._axis = kwds.pop('axis',None)
-        ## if True, an attempt will be made to interpolate bounds if None are
-        ## provided.
-        self._interpolate_bounds = kwds.pop('interpolate_bounds',False)
-        ## if True, bounds were interpolated. if False, they were loaded from
-        ## source data
+    def __init__(self, *args, **kwargs):
+        bounds = kwargs.pop('bounds', None)
+        self.name_bounds = kwargs.pop('name_bounds', None)
+        self._axis = kwargs.pop('axis', None)
+        # if True, an attempt will be made to interpolate bounds if None are provided.
+        self._interpolate_bounds = kwargs.pop('interpolate_bounds', False)
+        # if True, bounds were interpolated. if False, they were loaded from source data
         self._has_interpolated_bounds = False
         
-        AbstractSourcedVariable.__init__(self,
-                                         kwds.pop('data',None),
-                                         src_idx=kwds.pop('src_idx',None),
-                                         value=kwds.get('value'),
-                                         dtype=kwds.get('dtype'))
-        AbstractUidValueDimension.__init__(self,*args,**kwds)
+        AbstractSourcedVariable.__init__(self, kwargs.pop('data', None), src_idx=kwargs.pop('src_idx', None),
+                                         value=kwargs.get('value'), dtype=kwargs.get('dtype'))
+        AbstractUidValueDimension.__init__(self, *args, **kwargs)
                 
-        ## setting bounds requires checking the data type of value set in a
-        ## superclass.
+        # setting bounds requires checking the data type of value set in a superclass.
         self.bounds = bounds
         
         if self._axis is None:
             self._axis = 'undefined'
             
     def __len__(self):
-        return(self.shape[0])
+        return self.shape[0]
     
     @property
     def bounds(self):
-        ## always load the value first. any bounds read from source are set during
-        ## this process. bounds without values are meaningless!
+        # always load the value first. any bounds read from source are set during this process. bounds without values
+        # are meaningless!
         self.value
         
-        ## if the bounds are None, check if an attempt should be made to interpolate
-        ## bounds from the value itself.
+        # if the bounds are None, check if an attempt should be made to interpolate bounds from the value itself.
         if self._interpolate_bounds and self._bounds is None:
             self._bounds = get_interpolated_bounds(self.value)
             self._has_interpolated_bounds = True
         
-        ## if no error is encountered, then the bounds should have been set during
-        ## loading from source. simply return the value. it will be none, if no
-        ## bounds were present in the source data.
-        return(self._bounds)
+        # if no error is encountered, then the bounds should have been set during loading from source. simply return the
+        # value. it will be none, if no bounds were present in the source data.
+        return self._bounds
+
     @bounds.setter
-    def bounds(self,value):
+    def bounds(self, value):
+        # set the bounds variable.
         self._bounds = get_none_or_2d(value)
+        # validate the value
         if value is not None:
             self._validate_bounds_()
             
@@ -193,7 +188,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
             target = self.value
         else:
             target = self.bounds
-        return(target.min(),target.max())
+        return target.min(), target.max()
     
     @property
     def name_bounds(self):

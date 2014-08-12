@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import os
 import numpy as np
+from shapely.geometry import Point
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
     get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension
@@ -194,6 +195,13 @@ class Test(TestBase):
         self.assertFalse(validate_time_subset(time_range,{'month':[6,7,8],'year':[2008]}))
         self.assertFalse(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],{'month':[6,7,8],'year':[2008]}))
         self.assertTrue(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],None))
+
+    def test_iter_array_masked_objects(self):
+        """Test when use mask is False and objects are returned. Ensure the object is operable."""
+
+        arr = np.ma.array([Point(1, 2), Point(1, 4)], mask=[True, False], dtype=object)
+        for (idx, ), obj in iter_array(arr, use_mask=False, return_value=True):
+            self.assertEqual(obj.x, 1)
 
     def test_iter_array(self):
         arrays = [

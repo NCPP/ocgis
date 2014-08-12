@@ -562,6 +562,10 @@ def iter_array(arr,use_mask=True,return_value=False):
     else:
         try:
             mask = arr.mask
+            # if the mask is not being used, to skip some objects, set the arr to the underlying data value after
+            # referencing the mask.
+            if not use_mask:
+                arr = arr.data
         ## array is not masked
         except AttributeError:
             pass

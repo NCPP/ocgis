@@ -260,7 +260,7 @@ class ShpCabinet(object):
                 sql_where = 'UGID = {0}'.format(select_ugid[0])
             else:
                 sql_where = 'UGID IN {0}'.format(tuple(select_ugid))
-            sql = 'SELECT * FROM {0} WHERE {1}'.format(lyr_name, sql_where)
+            sql = 'SELECT * FROM "{0}" WHERE {1}'.format(lyr_name, sql_where)
             features = ds.ExecuteSQL(sql)
         else:
             features = lyr

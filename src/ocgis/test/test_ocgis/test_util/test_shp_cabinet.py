@@ -1,4 +1,5 @@
 import unittest
+import fiona
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPolygonDimension, \
     SpatialGeometryPointDimension
@@ -91,7 +92,20 @@ class TestShpCabinetIterator(TestBase):
             
 
 class TestShpCabinet(TestBase):
-    
+
+    def test_number_in_shapefile_name(self):
+        """Test number in shapefile name."""
+
+        sc = ShpCabinet()
+        path = sc.get_shp_path('state_boundaries')
+        out_path = os.path.join(self._test_dir, '51_states.shp')
+        with fiona.open(path) as source:
+            with fiona.open(out_path, mode='w', driver='ESRI Shapefile', schema=source.meta['schema'], crs=source.meta['crs']) as sink:
+                for record in source:
+                    sink.write(record)
+        ret = list(ShpCabinetIterator(select_ugid=[23], path=out_path))
+        self.assertEqual(len(ret), 1)
+
     def test_iter_geoms_select_ugid_is_sorted(self):
         sc = ShpCabinet()
         with self.assertRaises(ValueError):

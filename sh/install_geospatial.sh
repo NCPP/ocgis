@@ -93,7 +93,7 @@ sudo ldconfig
 # INSTALL GDAL
 ##############
 
-GDAL_VER=1.9.1
+GDAL_VER=1.9.2
 GDAL_SRC=$SRCDIR/gdal/v$GDAL_VER
 GDAL_DIR=$INSTALLDIR/gdal/v$GDAL_VER
 GEOS_CONFIG=$GEOS_DIR/bin/geos-config
@@ -103,7 +103,7 @@ cd $GDAL_SRC
 wget http://download.osgeo.org/gdal/gdal-$GDAL_VER.tar.gz
 tar xzf gdal-$GDAL_VER.tar.gz
 cd gdal-$GDAL_VER
-./configure --prefix=$GDAL_DIR --with-geos=$GEOS_CONFIG --with-python
+./configure --prefix=$GDAL_DIR --with-geos=$GEOS_CONFIG
 make -j $J
 sudo make install
 sudo sh -c "echo '$GDAL_DIR/lib' > /etc/ld.so.conf.d/gdal.conf" 

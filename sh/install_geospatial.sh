@@ -134,16 +134,18 @@ sudo ldconfig
 ########################
 
 NC4_PYTHON_PREFIX=netCDF4-python
-NC4_PYTHON_VER=1.0.4
+NC4_PYTHON_VER=1.1.1
 NC4_PYTHON_SRC=$SRCDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
 NC4_PYTHON_DIR=$INSTALLDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
-NC4_PYTHON_URL=https://netcdf4-python.googlecode.com/files/netCDF4-1.0.4.tar.gz
+NC4_PYTHON_URL=https://github.com/Unidata/netcdf4-python/archive/v
+NC4_PYTHON_URL+=$NC4_PYTHON_VER
+NC4_PYTHON_URL+=rel.tar.gz
 
 mkdir -p $NC4_PYTHON_SRC
 cd $NC4_PYTHON_SRC
 wget $NC4_PYTHON_URL
-tar xzf netCDF4-1.0.4.tar.gz
-cd netCDF4-$NC4_PYTHON_VER
+tar xzf v${NC4_PYTHON_VER}rel.tar.gz
+cd netcdf4-python-${NC4_PYTHON_VER}rel
 
 #### make this the setup.cfg file ####
 echo "[directories]

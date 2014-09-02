@@ -278,6 +278,7 @@ sudo pip install rtree
 ESMF_TAR=esmf_6_3_0rp1_src.tar.gz
 ESMF_VER='v6.3.0rp1'
 
+sudo apt-get install gfortran
 ESMF_SRCDIR=$SRCDIR/esmf/$ESMF_VER
 mkdir -p $ESMF_SRCDIR
 cd $ESMF_SRCDIR

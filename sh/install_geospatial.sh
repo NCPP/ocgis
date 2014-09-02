@@ -26,7 +26,7 @@ sudo ldconfig
 # INSTALL netCDF4
 #################
 
-NC_VER=4.2.1
+NC_VER=4.3.2
 NC_SRC=$SRCDIR/netcdf/v$NC_VER
 NC_DIR=$INSTALLDIR/netcdf/v$NC_VER
 

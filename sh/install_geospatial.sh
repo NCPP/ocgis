@@ -74,7 +74,7 @@ sudo ldconfig
 # INSTALL GEOS
 ##############
 
-GEOS_VER=3.3.5
+GEOS_VER=3.4.2
 GEOS_SRC=$SRCDIR/geos/v$GEOS_VER
 GEOS_DIR=$INSTALLDIR/geos/v$GEOS_VER
 

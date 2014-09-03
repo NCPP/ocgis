@@ -1047,7 +1047,8 @@ class TestSimple(TestSimpleBase):
         output_folder = os.path.join(self._test_dir,ops.prefix)
         ugid_csv_name = 'ocgis_output_ugid.csv'
         contents = os.listdir(output_folder)
-        self.assertEqual(contents,['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp', 'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg', 'ocgis_output_ugid.csv', 'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv'])
+        self.assertEqual(set(contents),
+                         set(['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp', 'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg', 'ocgis_output_ugid.csv', 'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv']))
         self.assertTrue(ugid_csv_name in contents)
         csv_path = os.path.join(output_folder,ugid_csv_name)
         

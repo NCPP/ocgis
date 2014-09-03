@@ -12,6 +12,8 @@ HDF_VER=1.8.9
 HDF_SRC=$SRCDIR/hdf5/v$HDF_VER
 HDF_DIR=$INSTALLDIR/hdf5/v$HDF_VER
 
+# will install zlib - this package is also needed for netCDF
+sudo apt-get install libcurl4-openssl-dev
 mkdir -p $HDF_SRC
 cd $HDF_SRC
 wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-$HDF_VER.tar.gz

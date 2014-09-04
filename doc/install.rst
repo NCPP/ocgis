@@ -10,12 +10,12 @@ Required Dependencies
 ============== ======= =======================================================================
 Package Name   Version URL
 ============== ======= =======================================================================
-Python         2.7.2   http://www.python.org/download/releases/2.7.2/
+Python         2.7.6   http://www.python.org/download/releases/2.7.6/
 ``osgeo``      1.9.1   http://pypi.python.org/pypi/GDAL/
 ``shapely``    1.2     http://pypi.python.org/pypi/Shapely
 ``fiona``      1.0.2   https://pypi.python.org/pypi/Fiona
-``numpy``      1.6.2   http://sourceforge.net/projects/numpy/files/NumPy/1.6.2/
-``netCDF4``    1.2     http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html
+``numpy``      1.8.2   http://sourceforge.net/projects/numpy/files/NumPy/1.8.2/
+``netCDF4``    1.1.1   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================
 
 Optional Dependencies
@@ -46,6 +46,7 @@ Apt-Package         Why?
 =================== =====================================
 libgdal-dev         ``shapely``, ``osgeo``, and ``fiona``
 libgeos-dev         ``shapely`` speedups
+libhdf5-dev         ``netCDF4``
 libnetcdf-dev       ``netCDF4``
 libproj-dev         ``osgeo`` and ``fiona``
 libspatialindex-dev ``rtree``

@@ -12,6 +12,8 @@ HDF_VER=1.8.9
 HDF_SRC=$SRCDIR/hdf5/v$HDF_VER
 HDF_DIR=$INSTALLDIR/hdf5/v$HDF_VER
 
+# will install zlib - this package is also needed for netCDF
+sudo apt-get install libcurl4-openssl-dev
 mkdir -p $HDF_SRC
 cd $HDF_SRC
 wget http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-$HDF_VER.tar.gz
@@ -74,7 +76,7 @@ sudo ldconfig
 # INSTALL GEOS
 ##############
 
-GEOS_VER=3.3.5
+GEOS_VER=3.4.2
 GEOS_SRC=$SRCDIR/geos/v$GEOS_VER
 GEOS_DIR=$INSTALLDIR/geos/v$GEOS_VER
 
@@ -93,7 +95,7 @@ sudo ldconfig
 # INSTALL GDAL
 ##############
 
-GDAL_VER=1.9.1
+GDAL_VER=1.9.2
 GDAL_SRC=$SRCDIR/gdal/v$GDAL_VER
 GDAL_DIR=$INSTALLDIR/gdal/v$GDAL_VER
 GEOS_CONFIG=$GEOS_DIR/bin/geos-config
@@ -103,7 +105,7 @@ cd $GDAL_SRC
 wget http://download.osgeo.org/gdal/gdal-$GDAL_VER.tar.gz
 tar xzf gdal-$GDAL_VER.tar.gz
 cd gdal-$GDAL_VER
-./configure --prefix=$GDAL_DIR --with-geos=$GEOS_CONFIG --with-python
+./configure --prefix=$GDAL_DIR --with-geos=$GEOS_CONFIG --with-static-proj4=$PROJ_DIR
 make -j $J
 sudo make install
 sudo sh -c "echo '$GDAL_DIR/lib' > /etc/ld.so.conf.d/gdal.conf" 
@@ -134,16 +136,18 @@ sudo ldconfig
 ########################
 
 NC4_PYTHON_PREFIX=netCDF4-python
-NC4_PYTHON_VER=1.0.4
+NC4_PYTHON_VER=1.1.1
 NC4_PYTHON_SRC=$SRCDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
 NC4_PYTHON_DIR=$INSTALLDIR/$NC4_PYTHON_PREFIX/v$NC4_PYTHON_VER
-NC4_PYTHON_URL=https://netcdf4-python.googlecode.com/files/netCDF4-1.0.4.tar.gz
+NC4_PYTHON_URL=https://github.com/Unidata/netcdf4-python/archive/v
+NC4_PYTHON_URL+=$NC4_PYTHON_VER
+NC4_PYTHON_URL+=rel.tar.gz
 
 mkdir -p $NC4_PYTHON_SRC
 cd $NC4_PYTHON_SRC
 wget $NC4_PYTHON_URL
-tar xzf netCDF4-1.0.4.tar.gz
-cd netCDF4-$NC4_PYTHON_VER
+tar xzf v${NC4_PYTHON_VER}rel.tar.gz
+cd netcdf4-python-${NC4_PYTHON_VER}rel
 
 #### make this the setup.cfg file ####
 echo "[directories]
@@ -276,6 +280,7 @@ sudo pip install rtree
 ESMF_TAR=esmf_6_3_0rp1_src.tar.gz
 ESMF_VER='v6.3.0rp1'
 
+sudo apt-get install gfortran
 ESMF_SRCDIR=$SRCDIR/esmf/$ESMF_VER
 mkdir -p $ESMF_SRCDIR
 cd $ESMF_SRCDIR

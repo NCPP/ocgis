@@ -46,6 +46,7 @@ Apt-Package         Why?
 =================== =====================================
 libgdal-dev         ``shapely``, ``osgeo``, and ``fiona``
 libgeos-dev         ``shapely`` speedups
+libhdf5-dev         ``netCDF4``
 libnetcdf-dev       ``netCDF4``
 libproj-dev         ``osgeo`` and ``fiona``
 libspatialindex-dev ``rtree``

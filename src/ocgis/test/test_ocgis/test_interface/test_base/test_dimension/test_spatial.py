@@ -124,7 +124,7 @@ class TestSpatialDimension(TestSpatialBase):
         self.assertNumpyAll(a.mask, b.mask)
 
     def get_records(self):
-        path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp'
+        path = '/home/ben.koziol/Dropbox/NESII/project/ocg/bin/shp/state_boundaries/state_boundaries.shp'
         with fiona.open(path, 'r') as source:
             records = list(source)
             meta = source.meta
@@ -696,7 +696,7 @@ class TestSpatialDimension(TestSpatialBase):
             
     def test_geoms_only(self):
         geoms = []
-        with fiona.open('/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
+        with fiona.open('/home/ben.koziol/Dropbox/NESII/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
             for row in source:
                 geoms.append(shape(row['geometry']))
         geoms = np.atleast_2d(geoms)

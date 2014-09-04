@@ -31,7 +31,7 @@ class TestDriverNetcdf(TestBase):
     def get_2d_state_boundaries(self):
         geoms = []
         build = True
-        with fiona.open('/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
+        with fiona.open('/home/ben.koziol/Dropbox/NESII/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
             for ii,row in enumerate(source):
                 if build:
                     nrows = len(source)

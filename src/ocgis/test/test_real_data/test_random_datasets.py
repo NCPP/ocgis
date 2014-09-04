@@ -297,7 +297,7 @@ class Test(TestBase):
         ops.execute()
     
     def test_qed_multifile(self):
-        ddir = '/usr/local/climate_data/QED-2013/multifile'
+        ddir = os.path.join(ocgis.env.DIR_TEST_DATA, 'QED-2013', 'multifile')
         variable = 'txxmmedm'
         ocgis.env.DIR_DATA = ddir
         
@@ -313,6 +313,7 @@ class Test(TestBase):
         """Test Maurer concatenated data may be appropriately subsetted."""
 
         ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
+        ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA, 'maurer', '2010-concatenated')
         # ocgis.env.VERBOSE = True
         # ocgis.env.DEBUG = True
 
@@ -495,7 +496,7 @@ class Test(TestBase):
         self.assertEqual(set(ref.variables.keys()),set(['mean', 'median', 'max', 'min']))
         
     def test_bad_time_dimension(self):
-        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         uri = 'seasonalbias.nc'
         variable = 'bias'
         for output_format in [
@@ -527,7 +528,7 @@ class Test(TestBase):
                 self.assertNcEqual(dataset.uri,ret,check_types=False,ignore_attributes={'global': ['history']})
         
     def test_time_region_climatology(self):
-        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         
         uri = 'climatology_TNn_monthly_max.nc'
         variable = 'climatology_TNn_monthly_max'

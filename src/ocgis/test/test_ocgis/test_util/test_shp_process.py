@@ -8,7 +8,7 @@ import subprocess
 
 
 class TestShpProcess(TestBase):
-    _test_path = '/home/local/WX/ben.koziol/Dropbox/nesii/project/ocg/bin/test_data/test_shp_process'
+    _test_path = '/home/ben.koziol/Dropbox/NESII/project/ocg/bin/test_data/test_shp_process'
 
     def test_shp_process(self):
         copy_path = os.path.join(self._test_dir,'test_shp_process')

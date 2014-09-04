@@ -48,20 +48,30 @@ class TestInspect(TestSimpleBase):
             else:
                 self.assertTrue(os.path.exists(search))
 
-    def test_missing_calendar_attribute(self):
-        # # path to the test data file
+    def test_calendar_attribute_none(self):
+        """Test that the empty string is correctly interpreted as None."""
+
+        # path to the test data file
         out_nc = os.path.join(self._test_dir, self.fn)
 
         ## case of calendar being set to an empty string
         with nc_scope(out_nc, 'a') as ds:
             ds.variables['time'].calendar = ''
+
         rd = ocgis.RequestDataset(uri=out_nc, variable='foo')
-        ## the default for the calendar overload is standard
+        # the default for the calendar overload is standard
         self.assertEqual(rd.t_calendar, None)
+
+    def test_unknown_calendar_attribute(self):
+        """Test a calendar attribute with an unknown calendar attribute."""
+
+        # path to the test data file
+        out_nc = os.path.join(self._test_dir, self.fn)
 
         ## case of a calendar being set a bad value but read anyway
         with nc_scope(out_nc, 'a') as ds:
             ds.variables['time'].calendar = 'foo'
+
         rd = ocgis.RequestDataset(uri=out_nc, variable='foo')
         field = rd.get()
         self.assertEqual(field.temporal.calendar, 'foo')
@@ -106,5 +116,5 @@ class TestInspect(TestSimpleBase):
 
 
 if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'TestInspect.test_missing_calendar_attribute']
     unittest.main()

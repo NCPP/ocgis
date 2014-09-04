@@ -23,8 +23,8 @@ required_headers = ['did','ugid','gid']
 #: Key identifiers for output formats.
 output_formats = ['numpy','nc','csv','csv+','shp','geojson','meta']
 
-#test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
-test_data_download_url_prefix = 'http://www.earthsystemmodeling.org/download/data/ocgis/nc/'
+# Download URL for test datasets.
+test_data_download_url_prefix = None
 
 #: The day value to use for month centroids.
 calc_month_centroid = 16

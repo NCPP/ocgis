@@ -23,8 +23,11 @@ METADATA_ATTRS = ['download_url','metadata_url','download_date','description','h
 OUT_JSON_PATH = '/tmp/ocgis_geometries.json'
 #: if None, do not filter geometries. if the value is a RequestDataset, use it
 #: for filtering geometries.
-FILTER_GEOMETRIES = RequestDataset(uri='/usr/local/climate_data/maurer/2010-concatenated/Maurer02new_OBS_tasmax_daily.1971-2000.nc',
+try:
+    FILTER_GEOMETRIES = RequestDataset(uri='/usr/local/climate_data/maurer/2010-concatenated/Maurer02new_OBS_tasmax_daily.1971-2000.nc',
                                    variable='tasmax')
+except ValueError:
+    pass
 
 
 def get_does_intersect(request_dataset,geom):

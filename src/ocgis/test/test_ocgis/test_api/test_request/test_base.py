@@ -55,7 +55,7 @@ class TestRequestDataset(TestBase):
         ss = str(rd)
         self.assertTrue(ss.startswith('RequestDataset'))
         self.assertTrue('crs' in ss)
-        self.assertEqual(len(ss), 464)
+        self.assertGreater(len(ss), 400)
 
     def test_crs_overload(self):
         kwds = {'crs': CoordinateReferenceSystem(epsg=4362)}
@@ -440,7 +440,7 @@ class TestRequestDatasetCollection(TestBase):
         rdc = RequestDatasetCollection(request_datasets=[rd1, rd2])
         ss = str(rdc)
         self.assertTrue(ss.startswith('RequestDatasetCollection'))
-        self.assertEqual(len(ss), 969)
+        self.assertGreater(len(ss), 900)
 
     def test_name_attribute_used_for_keys(self):
         rd = self.test_data.get_rd('cancm4_tas')

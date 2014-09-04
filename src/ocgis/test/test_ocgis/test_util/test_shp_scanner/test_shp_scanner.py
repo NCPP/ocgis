@@ -1,3 +1,8 @@
+from unittest.case import SkipTest
+
+# this module is deprecated
+raise SkipTest('module deprecated')
+
 from ocgis.test.base import TestBase
 from ocgis.util.shp_scanner.shp_scanner import get_does_intersect,\
     get_select_ugids, build_database, write_json

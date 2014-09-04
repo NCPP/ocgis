@@ -193,7 +193,7 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=rd)
         ret = str(ops)
         self.assertTrue(str(ret).startswith('OcgOperations'))
-        self.assertEqual(len(ret), 1166)
+        self.assertGreater(len(ret), 1000)
 
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)

@@ -431,6 +431,14 @@ class SimpleNc(NcFactory):
     @property
     def filename(self):
         return('test_simple_spatial_01.nc')
+
+    def write2(self):
+        rootgrp = nc.Dataset(os.path.join(self.outdir,self.filename),'w',format='NETCDF4')
+        # rootgrp.createDimension('time', size=5)
+        rootgrp.createVariable('time', int)
+        # rootgrp.variables['time'][:] = [1, 2, 3, 4, 5]
+        rootgrp.variables['time'].calendar = 'foo1'
+        rootgrp.close()
     
     def write(self):
         SEED = 1 #: random number seeding for missing data
@@ -453,9 +461,9 @@ class SimpleNc(NcFactory):
         ## variables for masked data
         MASK = {'n':0,
                 'value':float(1e20)}
-        
+
         ## MANUAL VALUE SETTING ########################################################
-        
+
         d1l1 = [[1,1,2,2],
                 [1,1,2,2],
                 [3,3,4,4],
@@ -648,6 +656,7 @@ class SimpleNcNoSpatialBounds(NcFactory):
         
         ## initialize the output file
         rootgrp = nc.Dataset(os.path.join(self.outdir,self.filename),'w',format='NETCDF4')
+
         ## create the dimensions
         level = rootgrp.createDimension(LEVEL['name'],size=LEVEL['n'])
         time = rootgrp.createDimension(TIME['name'],size=len(timevec))

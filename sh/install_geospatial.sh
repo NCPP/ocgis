@@ -8,7 +8,7 @@ J=4
 # INSTALL HDF5
 ##############
 
-HDF_VER=1.8.9
+HDF_VER=1.8.13
 HDF_SRC=$SRCDIR/hdf5/v$HDF_VER
 HDF_DIR=$INSTALLDIR/hdf5/v$HDF_VER
 
@@ -28,7 +28,7 @@ sudo ldconfig
 # INSTALL netCDF4
 #################
 
-NC_VER=4.2.1
+NC_VER=4.3.2
 NC_SRC=$SRCDIR/netcdf/v$NC_VER
 NC_DIR=$INSTALLDIR/netcdf/v$NC_VER
 

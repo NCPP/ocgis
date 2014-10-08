@@ -34,6 +34,10 @@ class Field(object):
         ## add variables - dimensions are needed first for shape checking
         self.variables = variables
         self._name = name
+        # flag used in regridding operations. this should be updated by the driver.
+        self._should_regrid = False
+        # flag used in regridding to indicate if a coordinate system was assigned by the user in the driver.
+        self._has_assigned_coordinate_system = False
                         
     def __getitem__(self,slc):
         slc = get_formatted_slice(slc,5)
@@ -277,7 +281,8 @@ class Field(object):
         raise(NotImplementedError)
         ## TODO: remember to apply the geometry mask to fresh values!!
 
-    def _set_new_value_mask_(self,field,mask):
+    @staticmethod
+    def _set_new_value_mask_(field,mask):
         ret_shp = field.shape
         rng_realization = range(ret_shp[0])
         rng_temporal = range(ret_shp[1])

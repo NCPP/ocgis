@@ -6,7 +6,7 @@ from fiona.crs import from_string, to_string
 import numpy as np
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound,\
-    ProjectionDoesNotMatch, ImproperPolygonBoundsError
+    ProjectionDoesNotMatch, ImproperPolygonBoundsError, CornersUnavailable
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
 from shapely.geometry.multipolygon import MultiPolygon
@@ -17,68 +17,72 @@ from shapely.geometry.multipoint import MultiPoint
 
 class CoordinateReferenceSystem(object):
     
-    def __init__(self,crs=None,prjs=None,epsg=None):
-        if crs is None:
-            if prjs is not None:
-                crs = from_string(prjs)
+    def __init__(self, value=None, proj4=None, epsg=None):
+        if value is None:
+            if proj4 is not None:
+                value = from_string(proj4)
             elif epsg is not None:
                 sr = SpatialReference()
                 sr.ImportFromEPSG(epsg)
-                crs = from_string(sr.ExportToProj4())
+                value = from_string(sr.ExportToProj4())
             else:
-                raise(NotImplementedError)
+                msg = 'A value dictionary, PROJ.4 string, or EPSG code is required.'
+                raise ValueError(msg)
         else:
-            ## remove unicode and change to python types
-            for k,v in crs.iteritems():
+            # remove unicode to avoid strange issues with proj and and fiona.
+            for k, v in value.iteritems():
                 if type(v) == unicode:
-                    crs[k] = str(v)
+                    value[k] = str(v)
                 else:
                     try:
-                        crs[k] = v.tolist()
+                        value[k] = v.tolist()
+                    # this may be a numpy arr that needs conversion
                     except AttributeError:
                         continue
             
         sr = SpatialReference()
-        sr.ImportFromProj4(to_string(crs))
+        sr.ImportFromProj4(to_string(value))
         self.value = from_string(sr.ExportToProj4())
     
         try:
-            assert(self.value != {})
+            assert self.value != {}
         except AssertionError:
-            ocgis_lh(logger='crs',exc=ValueError('Empty CRS: The conversion to PROJ4 may have failed. The CRS value is: {0}'.format(crs)))
+            msg = 'Empty CRS: The conversion to PROJ.4 may have failed. The CRS value is: {0}'.format(value)
+            ocgis_lh(logger='crs', exc=ValueError(msg))
     
-    def __eq__(self,other):
+    def __eq__(self, other):
         try:
             if self.sr.IsSame(other.sr) == 1:
                 ret = True
             else:
                 ret = False
         except AttributeError:
-            ## likely a nonetype
-            if other == None:
+            # likely a nonetype of other object type
+            if other is None or not isinstance(other, self.__class__):
                 ret = False
             else:
                 raise
-        return(ret)
+        return ret
     
-    def __ne__(self,other):
-        return(not self.__eq__(other))
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __str__(self):
-        ret = 'CoordinateReferenceSystem(value={value})'.format(klass=self.__class__.__name__, value=self.value)
-        return ret
+        return str(self.value)
+
+    @property
+    def proj4(self):
+        return self.sr.ExportToProj4()
     
     @property
     def sr(self):
         sr = SpatialReference()
         sr.ImportFromProj4(to_string(self.value))
-        return(sr)
-    
-    
-class WGS84(CoordinateReferenceSystem):
-    
-    def __init__(self):
-        CoordinateReferenceSystem.__init__(self,epsg=4326)
+        return sr
+
+
+class WrappableCoordinateReferenceSystem(object):
+    """Mean to be used in mixin class that can be wrapped."""
 
     @classmethod
     def get_is_360(cls, spatial):
@@ -87,8 +91,9 @@ class WGS84(CoordinateReferenceSystem):
         :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if not isinstance(spatial.crs, cls):
-            return False
+        if not isinstance(spatial.crs, WrappableCoordinateReferenceSystem):
+            msg = 'Wrapped state may only be determined for geographic (i.e. spherical) coordinate systems.'
+            raise SpatialWrappingError(msg)
 
         try:
             if spatial.grid.col.bounds is None:
@@ -100,12 +105,12 @@ class WGS84(CoordinateReferenceSystem):
             try:
                 if spatial.grid.col is None:
                     try:
-                        check = spatial.get_grid_bounds()
-                    except ImproperPolygonBoundsError:
+                        check = spatial.grid.corners[1]
+                    except CornersUnavailable:
                         check = spatial.grid.value[1, :, :]
                 else:
                     ocgis_lh(exc=e)
-            except AttributeError as e:
+            except AttributeError:
                 # there may be no grid, access the geometries directly
                 try:
                     geoms_to_check = spatial.geom.polygon.value
@@ -113,6 +118,7 @@ class WGS84(CoordinateReferenceSystem):
                     geoms_to_check = spatial.geom.point.value
                 geoms_to_check = geoms_to_check.compressed()
 
+                # if this is switched to true, there are geometries with coordinate values less than 0
                 for geom in geoms_to_check:
                     if type(geom) in [MultiPolygon, MultiPoint]:
                         it = geom
@@ -120,21 +126,30 @@ class WGS84(CoordinateReferenceSystem):
                         it = [geom]
                     for sub_geom in it:
                         try:
-                            if np.any(np.array(sub_geom.exterior.coords) > 180.):
-                                return (True)
+                            coords = np.array(sub_geom.exterior.coords)
+                            if np.any(coords > 180.):
+                                return True
                         ## might be checking a point
                         except AttributeError:
-                            if np.any(np.array(sub_geom) > 180.):
-                                return (True)
+                            coords = np.array(sub_geom)
+                            if np.any(coords > 180.):
+                                return True
                 return False
+
         if np.any(check > 180.):
             ret = True
         else:
             ret = False
+
         return ret
 
-    def unwrap(self,spatial):
+    def unwrap(self, spatial):
+        """
+        :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        """
+
         if not self.get_is_360(spatial):
+            # unwrap the geometries
             unwrap = Wrapper().unwrap
             to_wrap = self._get_to_wrap_(spatial)
             for tw in to_wrap:
@@ -145,20 +160,37 @@ class WGS84(CoordinateReferenceSystem):
             if spatial._grid is not None:
                 ref = spatial.grid.value.data[1,:,:]
                 select = ref < 0
-                ref[select] = ref[select] + 360
+                ref[select] += 360
                 if spatial.grid.col is not None:
                     ref = spatial.grid.col.value
                     select = ref < 0
-                    ref[select] = ref[select] + 360
+                    ref[select] += 360
                     if spatial.grid.col.bounds is not None:
                         ref = spatial.grid.col.bounds
                         select = ref < 0
-                        ref[select] = ref[select] + 360
+                        ref[select] += 360
+
+                # attempt to to unwrap the grid corners if they exist
+                try:
+                    select = spatial.grid.corners[1] < 0
+                    spatial.grid.corners[1][select] += 360
+                except CornersUnavailable:
+                    pass
+
         else:
             ocgis_lh(exc=SpatialWrappingError('Data already has a 0 to 360 coordinate system.'))
-    
+
     def wrap(self,spatial):
+        """
+        Wrap ``spatial`` properties using a 180 degree prime meridian. If bounds _contain_ the prime meridian, the
+        object may not be appropriately wrapped and bounds are removed.
+
+        :param spatial: The object to wrap inplace.
+        :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        """
+
         if self.get_is_360(spatial):
+            # wrap the geometries if they are available
             wrap = Wrapper().wrap
             to_wrap = self._get_to_wrap_(spatial)
             for tw in to_wrap:
@@ -166,21 +198,57 @@ class WGS84(CoordinateReferenceSystem):
                     geom = tw.value.data
                     for (ii,jj),to_wrap in iter_array(geom,return_value=True,use_mask=False):
                         geom[ii,jj] = wrap(to_wrap)
-            if spatial._grid is not None:
-                ref = spatial.grid.value.data[1,:,:]
+
+            # if there is a grid present, wrap its associated elements
+            if spatial.grid is not None:
+                bounds_cross_meridian = False
+                ref = spatial.grid.value.data[1, :, :]
                 select = ref > 180
-                ref[select] = ref[select] - 360
+                ref[select] -= 360
                 if spatial.grid.col is not None:
                     ref = spatial.grid.col.value
                     select = ref > 180
-                    ref[select] = ref[select] - 360
+                    ref[select] -= 360
                     if spatial.grid.col.bounds is not None:
                         ref = spatial.grid.col.bounds
-                        select = ref > 180
-                        ref[select] = ref[select] - 360
+                        # check for bounds containing the prime meridian. to avoid adjusting data, bounds will need to
+                        # be removed.
+                        bounds_min = np.min(ref, axis=1)
+                        bounds_max = np.max(ref, axis=1)
+                        select_min = bounds_min <= 180
+                        select_max = bounds_max > 180
+                        select_cross = np.logical_and(select_min, select_max)
+                        if np.any(select_cross):
+                            spatial.grid.row.bounds
+                            spatial.grid.row.bounds = None
+                            spatial.grid.col.bounds
+                            spatial.grid.col.bounds = None
+                            bounds_cross_meridian = True
+                        else:
+                            select = ref > 180
+                            ref[select] -= 360
+
+                # attempt to wrap the grid corners if they exist
+                try:
+                    ref = spatial.grid.corners.data
+                    if bounds_cross_meridian:
+                        spatial.grid._corners = None
+                    else:
+                        bounds_min = np.min(ref[1], axis=2)
+                        bounds_max = np.max(ref[1], axis=2)
+                        select_min = bounds_min <= 180
+                        select_max = bounds_max > 180
+                        select_cross = np.logical_and(select_min, select_max)
+                        if np.any(select_cross):
+                            spatial.grid._corners = None
+                        else:
+                            select = ref[1] > 180
+                            ref[1][select] -= 360
+                except CornersUnavailable:
+                    pass
         else:
             ocgis_lh(exc=SpatialWrappingError('Data does not have a 0 to 360 coordinate system.'))
-            
+
     def _get_to_wrap_(self,spatial):
         ret = []
         ret.append(spatial.geom.point)
@@ -189,8 +257,50 @@ class WGS84(CoordinateReferenceSystem):
         except ImproperPolygonBoundsError:
             pass
         return(ret)
-            
-            
+
+    @staticmethod
+    def _place_prime_meridian_array_(arr):
+        """
+        Replace any 180 degree values with the value of :attribute:`ocgis.constants.prime_meridian`.
+
+        :param arr: The target array to modify inplace.
+        :type arr: :class:`numpy.array`
+        :rtype: boolean ;class:`numpy.array`
+        """
+        from ocgis import constants
+
+        # find the values that are 180
+        select = arr == 180
+        # replace the values that are 180 with the constant value
+        np.place(arr, select, constants.prime_meridian)
+        # return the mask used for the replacement
+        return select
+
+    
+class Spherical(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
+    """
+    A spherical model of the Earth's surface with equivalent semi-major and semi-minor axes.
+
+    :param semi_major_axis: The radius of the spherical model. The default value is taken from the PROJ.4 (v4.8.0)
+     source code (src/pj_ellps.c).
+    :type semi_major_axis: float
+    """
+    
+    def __init__(self, semi_major_axis=6370997.0):
+        value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis, 'b': semi_major_axis}
+        CoordinateReferenceSystem.__init__(self, value=value)
+        self.major_axis = semi_major_axis
+
+
+class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
+    """
+    A representation of the Earth using the WGS84 datum (i.e. EPSG code 4326).
+    """
+
+    def __init__(self):
+        CoordinateReferenceSystem.__init__(self, epsg=4326)
+
+
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     __metaclass__ = abc.ABCMeta
     
@@ -218,7 +328,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
             else:
                 crs.update({self.map_parameters[k]:kwds[k]})
                 
-        super(CFCoordinateReferenceSystem,self).__init__(crs=crs)
+        super(CFCoordinateReferenceSystem,self).__init__(value=crs)
             
     @abc.abstractproperty
     def grid_mapping_name(self): str

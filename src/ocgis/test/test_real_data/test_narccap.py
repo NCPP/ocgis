@@ -118,7 +118,7 @@ class Test(TestBase):
     def test_read_write_projections(self):
         """Test NARCCAP coordinate systems may be appropriately read and written to NetCDF."""
 
-        data_dir = '/usr/local/climate_data/narccap'
+        data_dir = os.path.join(ocgis.env.DIR_TEST_DATA, 'narccap')
         ocgis.env.DIR_DATA = data_dir
         ocgis.env.OVERWRITE = True
         

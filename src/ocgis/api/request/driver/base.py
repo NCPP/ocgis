@@ -29,9 +29,19 @@ class AbstractDriver(object):
     def get_dimensioned_variables(self):
         return tuple(str, )
 
-    @abc.abstractmethod
     def get_field(self, **kwargs):
-        return object
+        field = self._get_field_(**kwargs)
+        # if this is a source grid for regridding, ensure the flag is updated
+        if self.rd.regrid_source:
+            field._should_regrid = True
+        # update the assigned coordinate system flag
+        if self.rd._has_assigned_coordinate_system:
+            field._has_assigned_coordinate_system = True
+        return field
+
+    @abc.abstractmethod
+    def _get_field_(self, **kwargs):
+        """Return :class:`ocgis.interface.base.field.Field`"""
 
     @abc.abstractmethod
     def get_source_metadata(self):

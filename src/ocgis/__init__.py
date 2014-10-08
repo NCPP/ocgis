@@ -11,8 +11,9 @@ from interface.base import crs
 from calc.library.register import FunctionRegistry
 from api.collection import SpatialCollection
 from interface.base import crs
-
+from ocgis.interface.base.crs import CoordinateReferenceSystem
 from osgeo import ogr, osr
-## tell ogr/osr to raise exceptions
+
+# tell ogr/osr to raise exceptions
 ogr.UseExceptions()
 osr.UseExceptions()

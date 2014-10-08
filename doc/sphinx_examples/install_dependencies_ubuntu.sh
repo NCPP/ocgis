@@ -41,3 +41,41 @@ CFUNITS_SETUP_DIR=`pwd`
 ##  python -c "import cfunits, os;print(os.path.split(cfunits.__file__)[0])"
 CFUNITS_INSTALL_DIR=/usr/local/lib/python2.7/dist-packages/cfunits
 sudo cp -r $CFUNITS_SETUP_DIR/cfunits/etc $CFUNITS_INSTALL_DIR
+
+#########
+# ESMPy #
+#########
+
+# download the ESMF tarball via registration page:
+#  http://www.earthsystemmodeling.org/download/releases.shtml
+
+# link for building ESMF:
+#  http://www.earthsystemmodeling.org/esmf_releases/public/ESMF_6_3_0rp1/ESMF_usrdoc/
+
+# notes:
+#  * will need fortran and c compiler
+
+ESMF_TAR=esmf_6_3_0rp1_src.tar.gz
+ESMF_VER='v6.3.0rp1'
+ESMF_SRCDIR=/tmp/esmf/$ESMF_VER
+ESMF_INSTALL_PREFIX=<path to esmf install directory>
+
+## ESMF framework install ##
+
+sudo apt-get install gfortran g++
+mkdir -p $ESMF_SRCDIR
+cd $ESMF_SRCDIR
+<make sure ESMF tarball is available in the source directory>
+tar -xzvf $ESMF_TAR
+cd esmf
+export ESMF_DIR=`pwd`
+make
+export ESMF_INSTALL_PREFIX=$ESMF_INSTALL_PREFIX
+export ESMF_INSTALL_LIBDIR=$ESMF_INSTALL_PREFIX/lib
+sudo -E make install
+
+## ESMPy install ##
+
+cd $ESMF_INSTALL_PREFIX/esmf/src/addon/ESMPy
+python setup.py build --ESMFMKFILE=$ESMF_INSTALL_PREFIX/lib/esmf.mk
+sudo python setup.py install

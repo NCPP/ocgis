@@ -50,6 +50,9 @@ enabled_numpy_ufuncs = ['exp','log','abs']
 #: The default coordinate system to use if none is provided.
 default_coordinate_system = CFWGS84()
 
+#: The value for the prime meridian to use when wrapping.
+prime_meridian = 179.9999999999999
+
 
 test_run_long_tests = False
 test_run_dev_tests = False

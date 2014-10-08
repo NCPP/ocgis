@@ -363,6 +363,22 @@ A dictionary with keys of 'month' and/or 'year' and values as sequences correspo
 >>> time_region = {'month':[6,7],'year':[2010,2011]}
 >>> time_region = {'year':[2010]}
 
+regrid_destination
+~~~~~~~~~~~~~~~~~~
+
+Please see :ref:`esmpy-regridding` for an overview and limitations.
+
+If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be regridded to match the grid provided in the argument’s object. This argument may be one of three types: :class:`~ocgis.RequestDataset`, :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`, or :class:`~ocgis.interface.base.field.Field`.
+
+>>> regrid_destination = ocgis.RequestDataset(uri='/path/to/destination.nc')
+
+regrid_options
+~~~~~~~~~~~~~~
+
+A dictionary with regridding options. Please see the documentation for :meth:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
+
+>>> regrid_options = {'with_value': True}
+
 :class:`ocgis.ShpCabinet`
 =========================
 

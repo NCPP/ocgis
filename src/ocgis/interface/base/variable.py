@@ -6,7 +6,7 @@ from ocgis.util.helpers import get_iter
 import numpy as np
 from ocgis import constants
 from ocgis.exc import NoUnitsError, VariableInCollectionError
-from copy import copy
+from copy import copy, deepcopy
 
 
 class AbstractValueVariable(object):
@@ -18,10 +18,16 @@ class AbstractValueVariable(object):
     :param fill_value:
     :type fill_value: int or float matching type of ``dtype``
     :param str name:
+    :param conform_units_to:
+    :type units: str or :class:`cfunits.Units`
     """
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None):
+    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None):
+        ## if the units value is not None, then convert to string. cfunits.Units
+        ## may be easily handled this way without checking for the module presence.
+        self.units = str(units) if units is not None else None
+        self.conform_units_to = conform_units_to
         self._value = value
         self._dtype = dtype
         self._fill_value = fill_value
@@ -29,13 +35,25 @@ class AbstractValueVariable(object):
         # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
         # checking for the module presence.
         self.units = str(units) if units is not None else None
-        
+
     @property
     def cfunits(self):
         # the cfunits-python module is not a dependency of ocgis and should be imported on demand
         from cfunits import Units
         return Units(self.units)
-    
+
+    @property
+    def conform_units_to(self):
+        return self._conform_units_to
+
+    @conform_units_to.setter
+    def conform_units_to(self, value):
+        if value is not None:
+            from cfunits import Units
+            if not isinstance(value, Units):
+                value = Units(value)
+        self._conform_units_to = value
+
     @property
     def dtype(self):
         if self._dtype is None:
@@ -69,7 +87,7 @@ class AbstractValueVariable(object):
         return self._value
 
     def _get_value_(self):
-        return self._value
+        raise NotImplementedError
     
     @property
     def _value(self):
@@ -79,12 +97,16 @@ class AbstractValueVariable(object):
     def _value(self, value):
         self.__value = self._format_private_value_(value)
 
-    @abc.abstractmethod
     def _format_private_value_(self, value):
+        if value is not None:
+            # conform the units if a value is passed and the units are not equivalent
+            if self.conform_units_to is not None:
+                if not self.conform_units_to.equals(self.cfunits):
+                    value = self.cfunits_conform(to_units=self.conform_units_to, value=value, from_units=self.cfunits)
         return value
-    
-    def cfunits_conform(self, to_units, value=None, from_units=None):
-        """
+
+    def cfunits_conform(self,to_units,value=None,from_units=None):
+        '''
         Conform units of value variable in-place using :mod:`cfunits`.
 
         :param to_units: Target conform units.
@@ -93,7 +115,8 @@ class AbstractValueVariable(object):
         :type value: :class:`numpy.ma.array`
         :param from_units: Source units to use in place of the object's value.
         :type from_units: str or :class:`cfunits.Units`
-        """
+        :rtype: np.ndarray
+        '''
 
         from cfunits import Units
         # units are required for conversion
@@ -119,7 +142,7 @@ class AbstractSourcedVariable(AbstractValueVariable):
     __metaclass__ = abc.ABCMeta
     
     def __init__(self,data,src_idx=None,value=None,debug=False,did=None,units=None,
-                 dtype=None,fill_value=None,name=None):
+                 dtype=None,fill_value=None,name=None,conform_units_to=None):
         if not debug and value is None and data is None:
             ocgis_lh(exc=ValueError('Sourced variables require a data source if no value is passed.'))
         self._data = data
@@ -128,7 +151,7 @@ class AbstractSourcedVariable(AbstractValueVariable):
         self.did = did
         
         AbstractValueVariable.__init__(self,value=value,units=units,dtype=dtype,fill_value=fill_value,
-                                       name=name)
+                                       name=name,conform_units_to=conform_units_to)
         
     @property
     def _src_idx(self):
@@ -190,11 +213,10 @@ class Variable(AbstractSourcedVariable):
         self.alias = alias or name
         self.meta = meta or {}
         self.uid = uid
-        self._conform_units_to = conform_units_to
-        
+
         super(Variable,self).__init__(value=value,data=data,debug=debug,did=did,
                                       units=units,dtype=dtype,fill_value=fill_value,
-                                      name=name)
+                                      name=name,conform_units_to=conform_units_to)
         
     def __getitem__(self,slc):
         ret = copy(self)
@@ -205,8 +227,33 @@ class Variable(AbstractSourcedVariable):
     def __repr__(self):
         ret = '{0}(alias="{1}",name="{2}",units="{3}")'.format(self.__class__.__name__,self.alias,self.name,self.units)
         return(ret)
+
+    def get_empty_like(self, shape=None):
+        """
+        Create a variable with an empty value array. The ``data`` object is not copied. Otherwise, all attributes are
+        copied. This is useful for cases when the variable needs to be reshaped with all attributes maintained.
+
+        :param shape: If provided, allocate a masked array with the given shape.
+        :type shape: tuple of five ints
+
+        >>> shape = (2, 10, 3, 5, 6)
+
+        :rtype: :class:`ocgis.interface.base.variable.Variable`
+        """
+
+        if shape is None:
+            mask = self.value.mask
+        else:
+            mask = False
+        shape = shape or self.value.shape
+        value = np.ma.array(np.zeros(shape), dtype=self.dtype, fill_value=self.fill_value, mask=mask)
+        ret = Variable(name=self.name, units=self.units, meta=deepcopy(self.meta), value=value, did=self.did,
+                       alias=self.alias, uid=self.uid)
+        return ret
     
     def _format_private_value_(self,value):
+        # the superclass method does nice things like conform units if appropriate
+        value = AbstractValueVariable._format_private_value_(self, value)
         if value is None:
             ret = None
         else:
@@ -227,9 +274,6 @@ class Variable(AbstractSourcedVariable):
         self._value = self._field._get_value_from_source_(self._data,self.name)
         ## ensure the new value has the geometry masked applied
         self._field._set_new_value_mask_(self._field,self._field.spatial.get_mask())
-        ## if there are units to conform to, execute this now
-        if self._conform_units_to:
-            self.cfunits_conform(self._conform_units_to,self.value)
     
     
 class VariableCollection(AbstractCollection):

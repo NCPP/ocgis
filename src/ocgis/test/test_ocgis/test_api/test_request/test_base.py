@@ -4,7 +4,7 @@ from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundE
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get_tuple, get_is_none
 import ocgis
 from ocgis import env, constants
-from ocgis.interface.base.crs import CoordinateReferenceSystem
+from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.test.base import TestBase
 import os
 import pickle
@@ -49,6 +49,16 @@ class TestRequestDataset(TestBase):
         self.uri = os.path.join(ocgis.env.DIR_TEST_DATA, 'CanCM4',
                                 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
         self.variable = 'rhs'
+
+    def test_init(self):
+        rd = RequestDataset(uri=self.uri)
+        self.assertTrue(rd.regrid_source)
+        self.assertFalse(rd.regrid_destination)
+
+        self.assertFalse(rd._has_assigned_coordinate_system)
+        # if a coordinate system was assigned, this flag should become true
+        rd = RequestDataset(uri=self.uri, crs=CFWGS84())
+        self.assertTrue(rd._has_assigned_coordinate_system)
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -294,14 +304,14 @@ class TestRequestDataset(TestBase):
         for pre in preload:
             field = rd.get()
             ## conform units argument needs to be attached to a field variable
-            self.assertEqual(field.variables['tas']._conform_units_to, 'celsius')
+            self.assertEqual(field.variables['tas']._conform_units_to, Units('celsius'))
             sub = field.get_time_region({'year': [2009], 'month': [5]})
             if pre:
                 ## if we wanted to load the data prior to subset then do so and
                 ## manually perform the units conversion
                 to_test = Units.conform(sub.variables['tas'].value, sub.variables['tas'].cfunits, Units('celsius'))
             ## assert the conform attribute makes it though the subset
-            self.assertEqual(sub.variables['tas']._conform_units_to, 'celsius')
+            self.assertEqual(sub.variables['tas']._conform_units_to, Units('celsius'))
             value = sub.variables['tas'].value
             self.assertAlmostEqual(np.ma.mean(value), 5.9219375118132564)
             self.assertAlmostEqual(np.ma.median(value), 10.745431900024414)

@@ -1,5 +1,4 @@
 from copy import deepcopy
-from collections import OrderedDict
 import inspect
 import logging
 import os
@@ -14,7 +13,8 @@ from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class RequestDataset(object):
-    """A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
+    """
+    A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.
 
     >>> from ocgis import RequestDataset
@@ -93,6 +93,11 @@ class RequestDataset(object):
     :param str name: Name of the requested data in the output collection. If ``None``, defaults to ``alias``. If this is
      a multivariate request (i.e. more than one variable) and this is ``None``, then the aliases will be joined by
      ``'_'`` to create the name.
+    :param bool regrid_source: If ``False``, do not regrid this dataset. This is relevant only if a
+     ``regrid_destination`` dataset is present. Please see :ref:`esmpy-regridding` for an overview.
+    :param bool regrid_destination: If ``True``, use this dataset as the destination grid for a regridding operation.
+     Only one :class:`~ocgis.RequestDataset` may be set as the destination grid. Please see :ref:`esmpy-regridding` for
+     an overview.
 
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
@@ -101,10 +106,13 @@ class RequestDataset(object):
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
                  level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None, did=None,
-                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver='netCDF'):
+                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver='netCDF', regrid_source=True,
+                 regrid_destination=False):
 
         self._is_init = True
 
+        # flag used for regridding to determine if the coordinate system was assigned during initialization
+        self._has_assigned_coordinate_system = False if crs is None else True
         self._source_metadata = None
 
         if uri is None:
@@ -145,6 +153,8 @@ class RequestDataset(object):
                 pass
             else:
                 raise
+        self.regrid_source = regrid_source
+        self.regrid_destination = regrid_destination
 
         self._is_init = False
 

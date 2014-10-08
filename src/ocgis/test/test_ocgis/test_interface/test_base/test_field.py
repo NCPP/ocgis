@@ -16,6 +16,7 @@ from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from copy import deepcopy
 from importlib import import_module
+from ocgis.util.itester import itr_products_keywords
 
 
 class AbstractTestField(TestBase):
@@ -107,6 +108,10 @@ class AbstractTestField(TestBase):
 
 
 class TestField(AbstractTestField):
+
+    def test_should_regrid(self):
+        field = self.get_field()
+        self.assertFalse(field._should_regrid)
 
     def test_loading_from_source_spatial_bounds(self):
         """Test row bounds may be set to None when loading from source."""
@@ -225,7 +230,7 @@ class TestField(AbstractTestField):
             if iv:
                 self.assertEqual(field_slc.variables['tmax'].value.shape, (1, 1, 1, 1, 1))
                 self.assertNumpyAll(field_slc.variables['tmax'].value,
-                                    np.ma.array(field.variables['tmax'].value[0, 0, 0, 0, 0]))
+                                    np.ma.array(field.variables['tmax'].value[0, 0, 0, 0, 0]).reshape(1, 1, 1, 1, 1))
             else:
                 self.assertEqual(field_slc.variables['tmax']._value, None)
                 self.assertEqual(field_slc.variables['tmax']._value, field.variables['tmax']._value)
@@ -271,13 +276,21 @@ class TestField(AbstractTestField):
     
     def test_get_intersects_irregular_polygon(self):
         irregular = wkt.loads('POLYGON((-100.106049 38.211305,-99.286894 38.251591,-99.286894 38.258306,-99.286894 38.258306,-99.260036 39.252035,-98.769886 39.252035,-98.722885 37.734583,-100.092620 37.714440,-100.106049 38.211305))')
-        field = self.get_field(with_value=True)
-        for b in [True,False]:
+        keywords = dict(b=[True, False],
+                        with_corners=[True, False])
+        for k in itr_products_keywords(keywords, as_namedtuple=True):
             try:
-                ret = field.get_intersects(irregular,use_spatial_index=b)
+                field = self.get_field(with_value=True)
+                if k.with_corners:
+                    field.spatial.grid.corners
+                ret = field.get_intersects(irregular,use_spatial_index=k.b)
                 self.assertEqual(ret.shape,(2,31,2,2,2))
                 self.assertNumpyAll(ret.variables['tmax'].value.mask[0,2,1,:,:],np.array([[True,False],[False,False]]))
                 self.assertEqual(ret.spatial.uid.data[ret.spatial.get_mask()][0],5)
+                if k.with_corners:
+                    self.assertNumpyAll(ret.spatial.grid.corners.mask, np.array([[[[True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False]]], [[[True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False]]]]))
+                else:
+                    self.assertIsNone(ret.spatial.grid._corners)
             except ImportError:
                 with self.assertRaises(ImportError):
                     import_module('rtree')

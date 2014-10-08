@@ -580,7 +580,7 @@ class TestSimple(TestSimpleBase):
         ref = ret.gvu(1,self.var)
         self.assertEqual(ref.shape,(1,1,1,4,4))
         with nc_scope(os.path.join(self._test_dir,self.fn)) as ds:
-            to_test = ds.variables['foo'][0,0,:,:]
+            to_test = ds.variables['foo'][0,0,:,:].reshape(1, 1, 1, 4, 4)
             self.assertNumpyAll(to_test,ref.data)
         
         calc = [{'func':'mean','name':'my_mean'}]
@@ -819,7 +819,7 @@ class TestSimple(TestSimpleBase):
         output_crs = CoordinateReferenceSystem(epsg=2163)
         ret = self.get_ret(kwds=dict(output_crs=output_crs,output_format='shp'))
         with fiona.open(ret) as f:
-            self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),output_crs)
+            self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),output_crs)
             
     def test_geojson_projection(self):
         output_crs = CoordinateReferenceSystem(epsg=2163)
@@ -970,7 +970,7 @@ class TestSimple(TestSimpleBase):
                         second = output_crs
                     else:
                         second = CoordinateReferenceSystem(epsg=4326)
-                    self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),second)
+                    self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),second)
             
             if o == 'shp':
                 with fiona.open(ret,'r') as f:
@@ -1530,7 +1530,7 @@ class TestSimpleProjected(TestSimpleBase):
                     self.assertEqual(set(uids),set([1,2]))
                 if o == 'shp':
                     with fiona.open(ret) as f:
-                        self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),CFWGS84())
+                        self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),CFWGS84())
                         aliases = set([row['properties']['ALIAS'] for row in f])
                     self.assertEqual(set(['projected','normal']),aliases)
                 if o == 'csv+':
@@ -1590,7 +1590,7 @@ class TestSimpleProjected(TestSimpleBase):
         ugid_shp = os.path.join(os.path.split(ret)[0],ops.prefix+'_ugid.shp')
         
         with fiona.open(ugid_shp) as f:
-            self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),from_crs)
+            self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),from_crs)
             
         ops = OcgOperations(dataset=self.get_dataset(),output_format='shp',
                             geom='ab_polygon',output_crs=CFWGS84(),prefix='xx')
@@ -1598,9 +1598,9 @@ class TestSimpleProjected(TestSimpleBase):
         ugid_shp = os.path.join(os.path.split(ret)[0],ops.prefix+'_ugid.shp')
         
         with fiona.open(ugid_shp) as f:
-            self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),WGS84())
+            self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),WGS84())
         with fiona.open(ret) as f:
-            self.assertEqual(CoordinateReferenceSystem(crs=f.meta['crs']),WGS84())
+            self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),WGS84())
             
 
 if __name__ == "__main__":

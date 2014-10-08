@@ -12,6 +12,7 @@ from types import NoneType
 from shapely.geometry.point import Point
 from ocgis import constants
 from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.interface.base.field import Field
 from ocgis.util.helpers import make_poly, iter_array
 from ocgis.util.shp_cabinet import ShpCabinetIterator, ShpCabinet
 from ocgis.calc.library import register
@@ -24,6 +25,7 @@ from types import FunctionType
 import itertools
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 import datetime
+import numpy as np
 
 
 class Abstraction(base.StringOptionParameter):
@@ -769,7 +771,96 @@ class Prefix(base.StringParameter):
     def _get_meta_(self):
         msg = 'Data output given the following prefix: {0}.'.format(self.value)
         return(msg)
-    
+
+
+class RegridDestination(base.OcgParameter):
+    name = 'regrid_destination'
+    nullable = True
+    default = None
+    input_types = [str, RequestDataset, Field, SpatialDimension]
+    return_type = [Field, SpatialDimension]
+
+    def __init__(self, **kwargs):
+        self.dataset = kwargs.pop('dataset')
+        super(RegridDestination, self).__init__(**kwargs)
+
+    def _get_meta_(self):
+        if self.value is not None:
+            msg = 'Input data was regridded.'
+        else:
+            msg = 'Input data was not regridded.'
+        return msg
+
+    def _parse_(self,value):
+        # get the request dataset from the collection if the value is a string
+        if isinstance(value, basestring):
+            value = self.dataset.value[value]
+        elif value is None:
+            is_regrid_destination = {rd.name: rd.regrid_destination for rd in self.dataset.value.itervalues()}
+            if sum(is_regrid_destination.values()) > 1:
+                msg = 'Only one request dataset may be the destination regrid dataset.'
+                raise DefinitionValidationError(self, msg)
+            elif any(is_regrid_destination.values()):
+                for k, v in is_regrid_destination.iteritems():
+                    if v:
+                        value = self.dataset.value[k]
+                        break
+
+        # if there is a destination, ensure at least one dataset is a source
+        if value is not None:
+            if sum([d.regrid_source for d in self.dataset.value.itervalues()]) < 1:
+                msg = 'There is a destination reqrid target, but no datasets are set as a source.'
+                raise DefinitionValidationError(self, msg)
+
+        # return a field if the value is a requestdataset
+        if isinstance(value, RequestDataset):
+            value = value.get()
+
+        return value
+
+
+class RegridOptions(base.OcgParameter):
+    name = 'regrid_options'
+    nullable = True
+    default = {'with_corners': 'choose', 'value_mask': None}
+    input_types = [dict]
+    return_type = [dict]
+    _possible_with_options = ['choose', True, False]
+    _possible_value_mask_types = [NoneType, np.ndarray]
+
+    def _parse_(self, value):
+        for key in value.keys():
+            if key not in self.default.keys():
+                msg = 'The option "{0}" is not allowed.'.format(key)
+                raise DefinitionValidationError(self, msg)
+
+        if 'with_corners' not in value:
+            value['with_corners'] = 'choose'
+        if 'value_mask' not in value:
+            value['value_mask'] = None
+
+        if value['with_corners'] not in self._possible_with_options:
+            msg = 'Options for "with_corners" are: {0}'.format(self._possible_with_options)
+            raise DefinitionValidationError(self, msg)
+        if not any(isinstance(value['value_mask'], t) for t in self._possible_value_mask_types):
+            msg = 'Types for "value_mask" are: {0}'.format(self._possible_value_mask_types)
+            raise DefinitionValidationError(self, msg)
+        if isinstance(value['value_mask'], np.ndarray):
+            if value['value_mask'].dtype != np.bool:
+                msg = '"value_mask" must be a boolean array.'
+                raise DefinitionValidationError(self, msg)
+
+        return value
+
+    def _get_meta_(self):
+        ret = {}
+        for k, v in self.value.iteritems():
+            if k == 'value_mask' and isinstance(v, np.ndarray):
+                ret[k] = np.ndarray
+            else:
+                ret[k] = v
+        return str(ret)
+
 
 class SearchRadiusMultiplier(base.OcgParameter):
     input_types = [float]

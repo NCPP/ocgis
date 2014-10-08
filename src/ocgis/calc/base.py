@@ -40,7 +40,7 @@ class AbstractFunction(object):
     :param use_raw_values: If ``True``, calculation is performed on raw values from an aggregated data request. This
      requires the execution of :func:`ocgis.calc.base.OcgFunction.aggregate_spatial` to aggregate the calculations on
      individual data cells.
-    :type agg: boolth
+    :type agg: bool
     :param calc_sample_size: If ``True``, also compute sample sizes for the calculation.
     :type calc_sample_size: bool
     :param meta_attrs: Dictionary with keys as attribute and names with arbitrary values. This will overload default
@@ -138,7 +138,7 @@ class AbstractFunction(object):
         pass
 
     def execute(self):
-        """"
+        """
         Execute the computation over the input field.
 
         :rtype: :class:`ocgis.interface.base.variable.VariableCollection`

@@ -147,7 +147,7 @@ class Test(TestBase):
             
             try:
                 for src in source:
-                    self.assertEqual(CoordinateReferenceSystem(crs=src.meta['crs']),CFWGS84())
+                    self.assertEqual(CoordinateReferenceSystem(value=src.meta['crs']),CFWGS84())
             finally:
                 for src in source:
                     src.close()

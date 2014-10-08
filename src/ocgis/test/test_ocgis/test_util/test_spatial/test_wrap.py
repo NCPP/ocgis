@@ -122,11 +122,11 @@ class TestWrapper(TestBase):
                 # the axis multipolygon when wrapped will have an extra polygon as the split portion on the axis will
                 # be in two parts
                 if desc == 'axis_multipolygon':
-                    self.assertNumpyAllClose(wrapped.bounds, geom.bounds)
+                    self.assertNumpyAllClose(np.array(wrapped.bounds), np.array(geom.bounds))
                     self.assertEqual(len(wrapped), 4)
                 # polygon will also be split...
                 elif desc == 'axis_polygon':
-                    self.assertNumpyAllClose(wrapped.bounds, geom.bounds)
+                    self.assertNumpyAllClose(np.array(wrapped.bounds), np.array(geom.bounds))
                     self.assertEqual(len(wrapped), 2)
                 else:
                     raise

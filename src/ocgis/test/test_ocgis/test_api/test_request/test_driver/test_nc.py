@@ -142,7 +142,7 @@ class TestDriverNetcdf(TestBase):
 
         slced = field[:,239,:,:,:]
         self.assertEqual(slced.temporal.value_datetime,np.array([dt(2001,8,28,12)]))
-        self.assertNumpyAll(slced.temporal.bounds_datetime,np.array([dt(2001,8,28),dt(2001,8,29)]))
+        self.assertNumpyAll(slced.temporal.bounds_datetime,np.array([dt(2001,8,28),dt(2001,8,29)]).reshape(1, 2))
 
     def test_load_value_datetime_after_slicing(self):
         ref_test = self.test_data['cancm4_tas']

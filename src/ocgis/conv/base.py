@@ -141,11 +141,7 @@ class AbstractConverter(object):
                         ## will always be WGS84, but it may be overloaded in the
                         ## operations.
                         fiona_meta['crs'] = coll.crs.value
-                        
-                        ## always upper for the properties definition as this happens
-                        ## for each record.
-                        fiona_meta['schema']['properties'] = {k.upper():v for k,v in fiona_meta['schema']['properties'].iteritems()}
-                        
+
                         ## selection geometries will always come out as MultiPolygon
                         ## regardless if they began as points. points are buffered
                         ## during the subsetting process.

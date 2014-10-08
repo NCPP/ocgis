@@ -75,7 +75,7 @@ class DriverNetcdf(AbstractDriver):
 
         return ret
 
-    def get_field(self, format_time=True, interpolate_spatial_bounds=False):
+    def _get_field_(self, format_time=True, interpolate_spatial_bounds=False):
         """
         :param bool format_time:
         :param bool interpolate_spatial_bounds:

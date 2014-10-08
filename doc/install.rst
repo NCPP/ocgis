@@ -23,12 +23,13 @@ Optional Dependencies
 
 There are two optional dependencies. OpenClimateGIS will still operate without these libraries installed but functionality and performance may change.
 
-============== ======= ========================================= =================================================================================================================================
-Package Name   Version URL                                       Usage
-============== ======= ========================================= =================================================================================================================================
-``rtree``      2.7.2   https://pypi.python.org/pypi/Rtree/       Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cfunits``    0.9.6   https://code.google.com/p/cfunits-python/ Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
-============== ======= ========================================= =================================================================================================================================
+============= ======== ====================================================== =================================================================================================================================
+Package Name  Version  URL                                                    Usage
+============= ======== ====================================================== =================================================================================================================================
+``rtree``     2.7.2    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
+``cfunits``   0.9.6    https://code.google.com/p/cfunits-python/              Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
+``ESMPy``     6.3.0rp1 https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+============= ======== ====================================================== =================================================================================================================================
 
 Ubuntu Linux
 ------------
@@ -76,7 +77,10 @@ There are a number of unofficial Windows binaries for Python extensions availabl
 Installing OpenClimateGIS
 -------------------------
 
-1. Download the current release: http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.08b/reg/OCGIS_Framework_Reg.html.
+1. Download the current release:
+
+ * http://www.earthsystemmodeling.org/ocgis_releases/beta_releases/ocgis-0.08b/reg/OCGIS_Framework_Reg.html
+
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.
 4. Run the command:

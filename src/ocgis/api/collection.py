@@ -76,6 +76,9 @@ class AbstractCollection(object):
     def keys(self):
         return self._storage.keys()
 
+    def pop(self, *args, **kwargs):
+        return self._storage.pop(*args, **kwargs)
+
     def update(self, dictionary):
         self._storage.update(dictionary)
 

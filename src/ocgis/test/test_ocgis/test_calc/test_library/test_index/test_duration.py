@@ -96,7 +96,7 @@ class TestFrequencyDuration(AbstractCalcBase):
     
     @longrunning
     def test_real_data_multiple_datasets(self):
-        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         
         rd_tasmax = RequestDataset(uri='Maurer02new_OBS_tasmax_daily.1971-2000.nc',
                                    variable='tasmax',
@@ -119,11 +119,10 @@ class TestFrequencyDuration(AbstractCalcBase):
             variables = [row['VARIABLE'] for row in reader]
         self.assertEqual(set(variables),set(['tasmax','tasmin']))
     
-    @longrunning
     def test_real_data(self):
         uri = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
         variable = 'tasmax'
-        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         
         for output_format in ['numpy','csv+','shp','csv']:
             ops = OcgOperations(dataset={'uri':uri,
@@ -136,7 +135,7 @@ class TestFrequencyDuration(AbstractCalcBase):
                                 calc_raw=False,spatial_operation='clip',
                                 headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key', 'value'],)
             ret = ops.execute()
-            
+
             if output_format == 'numpy':
                 ref = ret[2778]['tasmax'].variables['Frequency Duration'].value
                 self.assertEqual(ref.compressed()[0].shape,(2,))

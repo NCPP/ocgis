@@ -1,15 +1,14 @@
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env, constants
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError,\
-    ImproperPolygonBoundsError, VariableInCollectionError
-from ocgis.util.spatial.wrap import Wrapper
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, ImproperPolygonBoundsError, \
+    VariableInCollectionError
+from ocgis.interface.base.field import Field
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 import logging
 from ocgis.api.collection import SpatialCollection
-from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WGS84
-from ocgis.calc.base import AbstractMultivariateFunction,\
-    AbstractKeyedOutputFunction
-from ocgis.util.helpers import get_default_or_apply, write_geom_dict
+from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, Spherical, WGS84
+from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
+from ocgis.util.helpers import get_default_or_apply
 from copy import deepcopy, copy
 import numpy as np
 from ocgis.calc.eval_function import MultivariateEvalFunction
@@ -24,7 +23,7 @@ class SubsetOperation(object):
      the spatial subset performing as few operations as possible.
     :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
     """
-    
+
     def __init__(self,ops,request_base_size_only=False,progress=None):
         self.ops = ops
         self._request_base_size_only = request_base_size_only
@@ -45,7 +44,7 @@ class SubsetOperation(object):
                                            progress=self._progress)
             self._has_multivariate_calculations = any([self.cengine._check_calculation_members_(self.cengine.funcs,k) \
              for k in [AbstractMultivariateFunction,MultivariateEvalFunction]])
-            
+
         # in the case of netcdf output, geometries must be unioned. this is also true for the case of the selection
         # geometry being requested as aggregated.
         if (self.ops.output_format == 'nc' or self.ops.agg_selection is True) and self.ops.geom is not None:
@@ -64,20 +63,20 @@ class SubsetOperation(object):
 
     def __iter__(self):
         ''':rtype: AbstractCollection'''
-        
+
         ocgis_lh('beginning iteration',logger='conv.__iter__',level=logging.DEBUG)
         self._ugid_unique_store = []
         self._geom_unique_store = []
-        
+
         ## simple iterator for serial operations
         for coll in self._iter_collections_():
             yield(coll)
-        
+
     def _iter_collections_(self):
         '''
         :yields: :class:`~ocgis.SpatialCollection`
         '''
-        
+
         ## multivariate calculations require datasets come in as a list with all
         ## variable inputs part of the same sequence.
         if self._has_multivariate_calculations:
@@ -86,7 +85,7 @@ class SubsetOperation(object):
         ## otherwise, process geometries expects a single element sequence
         else:
             itr_rd = [[rd] for rd in self.ops.dataset.itervalues()]
-        
+
         ## configure the progress object
         self._progress.n_subsettables = len(itr_rd)
         self._progress.n_geometries = get_default_or_apply(self.ops.geom,len,default=1)
@@ -110,7 +109,7 @@ class SubsetOperation(object):
         for rds in itr_rd:
             msg = 'Processing URI(s): {0}'.format([rd.uri for rd in rds])
             ocgis_lh(msg=msg,logger=self._subset_log)
-            
+
             for coll in self._process_subsettables_(rds):
                 ## if there are calculations, do those now and return a new type of collection
                 if self.cengine is not None:
@@ -118,7 +117,7 @@ class SubsetOperation(object):
                              self._subset_log,
                              alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
-                    
+
                     ## look for any optimizations for temporal grouping.
                     if self.ops.optimizations is None:
                         tgds = None
@@ -131,7 +130,7 @@ class SubsetOperation(object):
                     ## if there are no calculations, mark progress to indicate
                     ## a geometry has been completed.
                     self._progress.mark()
-                
+
                 ## conversion of groups.
                 if self.ops.output_grouping is not None:
                     raise(NotImplementedError)
@@ -147,7 +146,7 @@ class SubsetOperation(object):
         """
 
         ocgis_lh(msg='entering _process_geometries_',logger=self._subset_log,level=logging.DEBUG)
-        
+
         ## select headers
         if self.ops.headers is not None:
             headers = self.ops.headers
@@ -159,7 +158,7 @@ class SubsetOperation(object):
                     headers = constants.calc_headers
             else:
                 headers = constants.raw_headers
-                
+
         ## keyed output functions require appending headers regardless. there is
         ## only one keyed output function allowed in a request.
         if self.cengine is not None:
@@ -223,7 +222,7 @@ class SubsetOperation(object):
                     return
             else:
                 ocgis_lh(exc=ExtentError(message=str(e)),alias=rd.alias,logger=self._subset_log)
-        
+
         ## set iterator based on presence of slice. slice always overrides geometry.
         if self.ops.slice is not None:
             itr = [None]
@@ -411,6 +410,139 @@ class SubsetOperation(object):
             subset_sdim.abstraction = 'polygon'
         assert(subset_sdim.abstraction == 'polygon')
 
+    def _check_masking_(self, alias, sfield, subset_ugid):
+        """
+        :param str alias: The field's alias value.
+        :param sfield: The target field containing variables to check for masking.
+        :type sfield: :class:`ocgis.interface.base.field.Field`
+        :param int subset_ugid: The unique identifier for the geometry.
+        """
+
+        for variable in sfield.variables.itervalues():
+            ocgis_lh(msg='Fetching data for variable with alias "{0}".'.format(variable.alias),
+                     logger=self._subset_log)
+            if variable.value.mask.all():
+                # masked data may be okay...
+                if self.ops.snippet or self.ops.allow_empty or (
+                        self.ops.output_format == 'numpy' and self.ops.allow_empty):
+                    if self.ops.snippet:
+                        ocgis_lh('all masked data encountered but allowed for snippet',
+                                 self._subset_log, alias=alias, ugid=subset_ugid, level=logging.WARN)
+                    if self.ops.allow_empty:
+                        ocgis_lh('all masked data encountered but empty returns allowed',
+                                 self._subset_log, alias=alias, ugid=subset_ugid, level=logging.WARN)
+                    if self.ops.output_format == 'numpy':
+                        ocgis_lh('all masked data encountered but numpy data being returned allowed',
+                                 logger=self._subset_log, alias=alias, ugid=subset_ugid, level=logging.WARN)
+                else:
+                    # if the geometry is also masked, it is an empty spatial operation.
+                    if sfield.spatial.abstraction_geometry.value.mask.all():
+                        ocgis_lh(exc=EmptyData, logger=self._subset_log)
+                    # if none of the other conditions are met, raise the masked data error
+                    else:
+                        ocgis_lh(logger=self._subset_log, exc=MaskedDataError(), alias=alias,
+                                 ugid=subset_ugid)
+
+    def _get_regridded_field_with_subset_(self, sfield, subset_sdim_for_regridding=None, with_buffer=True):
+        """
+        Regrid ``sfield`` subsetting the regrid destination in the process.
+
+        :param sfield: The input field to regrid.
+        :type sfield: :class:`ocgis.interface.base.field.Field`
+        :param subset_sdim_for_regridding: The original, unaltered spatial dimension to use for subsetting.
+        :type subset_sdim_for_regridding: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :param bool with_buffer: If ``True``, buffer the geometry used to subset the destination grid.
+        """
+
+        # todo: cache spatial operations on regrid destination field
+
+        from ocgis.regrid.base import iter_regridded_fields
+        from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
+
+        if subset_sdim_for_regridding is None:
+            regrid_destination = self.ops.regrid_destination
+        else:
+            if with_buffer:
+                # buffer the subset geometry by the resolution of the source field to give extents a chance to be
+                # compatible
+                buffer_value = sfield.spatial.grid.resolution
+                buffer_crs = sfield.spatial.crs
+            else:
+                buffer_value, buffer_crs = [None, None]
+            ss = SpatialSubsetOperation(self.ops.regrid_destination)
+            regrid_destination = ss.get_spatial_subset('intersects', subset_sdim_for_regridding,
+                                                       use_spatial_index=env.USE_SPATIAL_INDEX,
+                                                       select_nearest=False, buffer_value=buffer_value,
+                                                       buffer_crs=buffer_crs)
+
+        original_sfield_crs = sfield.spatial.crs
+        # check crs on the source field
+        regrid_required_update_crs = False
+        if not isinstance(sfield.spatial.crs, Spherical):
+            # this as _assigned_ a WGS84 crs hence we cannot assume the default crs
+            if isinstance(sfield.spatial.crs, WGS84) and sfield._has_assigned_coordinate_system:
+                regrid_required_update_crs = True
+            # the data has a coordinate system that is not WGS84
+            elif not isinstance(sfield.spatial.crs, WGS84):
+                regrid_required_update_crs = True
+        if regrid_required_update_crs:
+            # need to load values as source indices will disappear during crs update
+            for variable in sfield.variables.itervalues():
+                variable.value
+            sfield.spatial.update_crs(Spherical())
+        else:
+            sfield.spatial.crs = Spherical()
+
+        # update the coordinate system of the regrid destination if required
+        try:
+            destination_sdim = regrid_destination.spatial
+        except AttributeError:
+            # likely a spatial dimension object
+            destination_sdim = regrid_destination
+        update_regrid_destination_crs = False
+        if not isinstance(destination_sdim.crs, Spherical):
+            if isinstance(regrid_destination, Field):
+                if isinstance(destination_sdim.crs, WGS84) and regrid_destination._has_assigned_coordinate_system:
+                    update_regrid_destination_crs = True
+                elif isinstance(destination_sdim.crs,
+                                WGS84) and not regrid_destination._has_assigned_coordinate_system:
+                    pass
+                else:
+                    update_regrid_destination_crs = True
+            else:
+                if not isinstance(destination_sdim.crs, Spherical):
+                    update_regrid_destination_crs = True
+        if update_regrid_destination_crs:
+            destination_sdim.update_crs(Spherical())
+        else:
+            destination_sdim.crs = Spherical()
+
+        # check that wrapping is equivalent
+        if destination_sdim.is_unwrapped and not sfield.spatial.is_unwrapped:
+            sfield.spatial.unwrap()
+        elif sfield.spatial.is_unwrapped and not destination_sdim.is_unwrapped:
+            sfield.spatial.wrap()
+
+        # remove the mask from the destination field.
+        new_mask = np.zeros(destination_sdim.shape, dtype=bool)
+        destination_sdim.set_mask(new_mask)
+
+        # regrid the input fields.
+        sfield = list(iter_regridded_fields([sfield], destination_sdim, **self.ops.regrid_options))[0]
+
+        if regrid_required_update_crs:
+            sfield.spatial.update_crs(original_sfield_crs)
+        else:
+            sfield.spatial.crs = original_sfield_crs
+
+        # subset the output from the regrid operation as masked values may be introduced on the edges
+        if subset_sdim_for_regridding is not None:
+            ss = SpatialSubsetOperation(sfield)
+            sfield = ss.get_spatial_subset('intersects', subset_sdim_for_regridding, use_spatial_index=env.USE_SPATIAL_INDEX,
+                                           select_nearest=False)
+
+        return sfield
+
     def _process_geometries_(self, itr, field, headers, value_keys, alias):
         """
         :param sequence itr: Contains geometry dictionaries to process. If there
@@ -431,6 +563,10 @@ class SubsetOperation(object):
             # always work with a copy of the target geometry
             subset_sdim = deepcopy(subset_sdim)
             """:type subset_sdim: ocgis.interface.base.dimension.spatial.SpatialDimension"""
+
+            if self.ops.regrid_destination is not None:
+                # if there is regridding, make another copy as this geometry may be manipulated during subsetting of sources
+                subset_sdim_for_regridding = deepcopy(subset_sdim)
 
             # operate on the rotated pole coordinate system by first transforming it to CFWGS84
             original_rotated_pole_crs = self._get_update_rotated_pole_state_(field, subset_sdim)
@@ -469,13 +605,29 @@ class SubsetOperation(object):
 
             # if the base size is being requested, bypass the rest of the operations.
             if not self._request_base_size_only:
+                # perform regridding operations if requested
+                if self.ops.regrid_destination is not None and sfield._should_regrid:
+                    try:
+                        original_sfield_sdim = deepcopy(sfield.spatial)
+                        sfield = self._get_regridded_field_with_subset_(
+                            sfield,
+                            subset_sdim_for_regridding=subset_sdim_for_regridding,
+                            with_buffer=True)
+                    except ValueError:
+                        # attempt without buffering the subset geometry for the target field.
+                        sfield.spatial = original_sfield_sdim
+                        sfield = self._get_regridded_field_with_subset_(
+                            sfield,
+                            subset_sdim_for_regridding=subset_sdim_for_regridding,
+                            with_buffer=False)
+
                 ## if empty returns are allowed, there be an empty field
                 if sfield is not None:
                     ## aggregate if requested
                     if self.ops.aggregate:
                         ocgis_lh('executing spatial average',self._subset_log,alias=alias,ugid=subset_ugid)
                         sfield = sfield.get_spatially_aggregated(new_spatial_uid=subset_ugid)
-                    
+
                     # wrap the returned data.
                     if not env.OPTIMIZE_FOR_CALC:
                         if sfield is not None and sfield.spatial.is_unwrapped:
@@ -487,33 +639,11 @@ class SubsetOperation(object):
                                 # subsets.
                                 sfield.spatial = deepcopy(sfield.spatial)
                                 sfield.spatial.wrap()
-                                
+
                     # check for all masked values
                     if env.OPTIMIZE_FOR_CALC is False and self.ops.file_only is False:
-                        for variable in sfield.variables.itervalues():
-                            ocgis_lh(msg='Fetching data for variable with alias "{0}".'.format(variable.alias),
-                                     logger=self._subset_log)
-                            if variable.value.mask.all():
-                                # masked data may be okay...
-                                if self.ops.snippet or self.ops.allow_empty or (self.ops.output_format == 'numpy' and self.ops.allow_empty):
-                                    if self.ops.snippet:
-                                        ocgis_lh('all masked data encountered but allowed for snippet',
-                                                 self._subset_log,alias=alias,ugid=subset_ugid,level=logging.WARN)
-                                    if self.ops.allow_empty:
-                                        ocgis_lh('all masked data encountered but empty returns allowed',
-                                                 self._subset_log,alias=alias,ugid=subset_ugid,level=logging.WARN)
-                                    if self.ops.output_format == 'numpy':
-                                        ocgis_lh('all masked data encountered but numpy data being returned allowed',
-                                                 logger=self._subset_log,alias=alias,ugid=subset_ugid,level=logging.WARN)
-                                else:
-                                    # if the geometry is also masked, it is an empty spatial operation.
-                                    if sfield.spatial.abstraction_geometry.value.mask.all():
-                                        ocgis_lh(exc=EmptyData,logger=self._subset_log)
-                                    # if none of the other conditions are met, raise the masked data error
-                                    else:
-                                        ocgis_lh(logger=self._subset_log, exc=MaskedDataError(), alias=alias,
-                                                 ugid=subset_ugid)
-                    
+                        self._check_masking_(alias, sfield, subset_ugid)
+
                     ## transform back to rotated pole if necessary
                     if original_rotated_pole_crs is not None:
                         if not isinstance(self.ops.output_crs, CFWGS84):
@@ -526,7 +656,7 @@ class SubsetOperation(object):
                             subset_sdim.update_crs(self.ops.output_crs)
                         # update the subset field CRS
                         sfield.spatial.update_crs(self.ops.output_crs)
-                
+
             # use the field's alias if it is provided. otherwise, let it be automatically assigned
             name = alias if sfield is None else None
 

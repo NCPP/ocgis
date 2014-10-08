@@ -72,6 +72,7 @@ class TestBase(unittest.TestCase):
                          key='narccap_pr_wrfg_ncep')
         test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
         test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
+        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
         test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
         test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',
                          key='snippet_maurer_dtr')
@@ -107,6 +108,7 @@ class TestBase(unittest.TestCase):
         """
 
         self.assertEqual(type(arr1), type(arr2))
+        self.assertEqual(arr1.shape, arr2.shape)
         if check_arr_dtype:
             self.assertEqual(arr1.dtype, arr2.dtype)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
@@ -122,10 +124,14 @@ class TestBase(unittest.TestCase):
 
     def assertNumpyAllClose(self, arr1, arr2):
         self.assertEqual(type(arr1), type(arr2))
+        self.assertEqual(arr1.shape, arr2.shape)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
+            self.assertTrue(np.allclose(arr1.data, arr2.data))
             self.assertTrue(np.all(arr1.mask == arr2.mask))
             self.assertEqual(arr1.fill_value, arr2.fill_value)
-        return self.assertTrue(np.allclose(arr1, arr2))
+            return True
+        else:
+            return self.assertTrue(np.allclose(arr1, arr2))
 
     def assertNumpyNotAll(self, arr1, arr2):
         try:
@@ -138,7 +144,7 @@ class TestBase(unittest.TestCase):
 
     def assertNumpyNotAllClose(self, arr1, arr2):
         try:
-            self.assertNumpyAll(arr1, arr2)
+            self.assertNumpyAllClose(arr1, arr2)
         except AssertionError:
             ret = True
         else:

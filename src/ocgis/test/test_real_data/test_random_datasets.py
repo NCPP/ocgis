@@ -286,7 +286,7 @@ class Test(TestBase):
     @longrunning
     def test_value_conversion(self):
         ## confirm value data types are properly converted
-        ocgis.env.DIR_DATA = '/usr/local/climate_data'
+        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         rd_maurer = ocgis.RequestDataset('Maurer02new_OBS_tasmax_daily.1971-2000.nc',
                                      'tasmax',
                                      alias='maurer_tasmax')
@@ -369,7 +369,7 @@ class Test(TestBase):
     
     @longrunning
     def test_maurer_concatenated_tasmax_region(self):
-        ocgis.env.DIR_DATA = '/usr/local/climate_data/maurer/2010-concatenated'
+        ocgis.env.DIR_DATA = os.path.join(ocgis.env.DIR_TEST_DATA, 'maurer', '2010-concatenated')
         filename = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
         variable = 'tasmax'
 #        ocgis.env.VERBOSE = True

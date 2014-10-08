@@ -52,6 +52,13 @@ class TestAbstractCollection(TestBase):
     def test_keys(self):
         self.assertEqual(self.get_coll().keys(), [2, 1])
 
+    def test_pop(self):
+        self.assertEqual(self.get_coll().pop('hi', 'there'), 'there')
+        coll = self.get_coll()
+        val = coll.pop(2)
+        self.assertEqual(val, 'a')
+        self.assertDictEqual(coll, {1: 'b'})
+
     def test_getitem(self):
         self.assertEqual(self.get_coll()[2], 'a')
 
@@ -143,6 +150,8 @@ class TestSpatialCollection(AbstractTestField):
         kwds = copy(field.__dict__)
         kwds.pop('_raw')
         kwds.pop('_variables')
+        kwds.pop('_should_regrid')
+        kwds.pop('_has_assigned_coordinate_system')
         kwds['name'] = kwds.pop('_name')
         kwds['temporal'] = tgd
         kwds['variables'] = ret
@@ -181,6 +190,8 @@ class TestSpatialCollection(AbstractTestField):
         kwds = copy(field.__dict__)
         kwds.pop('_raw')
         kwds.pop('_variables')
+        kwds.pop('_should_regrid')
+        kwds.pop('_has_assigned_coordinate_system')
         kwds['name'] = kwds.pop('_name')
         kwds['temporal'] = tgd
         kwds['variables'] = ret

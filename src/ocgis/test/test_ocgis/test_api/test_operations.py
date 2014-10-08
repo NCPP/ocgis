@@ -1,4 +1,5 @@
 import unittest
+from ocgis.api.parms.definition import RegridOptions
 from ocgis.test.base import TestBase
 from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.api.parms import definition
@@ -6,6 +7,7 @@ from ocgis import env, constants
 import os
 from datetime import datetime as dt
 from ocgis.api.operations import OcgOperations
+from ocgis.test.test_simple.test_simple import nc_scope
 from ocgis.util.helpers import make_poly
 import itertools
 import ocgis
@@ -13,6 +15,7 @@ from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 import datetime
 from numpy import dtype
+import numpy as np
 
 
 class TestOcgOperations(TestBase):
@@ -36,6 +39,20 @@ class TestOcgOperations(TestBase):
         level_range = [2,2]
         self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
         self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+
+    def test_init(self):
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations()
+        ops = OcgOperations(dataset=self.datasets)
+        self.assertEqual(ops.regrid_destination, None)
+        self.assertDictEqual(ops.regrid_options, RegridOptions.default)
+
+    def test_regrid_destination(self):
+        """Test regridding not allowed with clip operation."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd, regrid_destination=rd, spatial_operation='clip')
 
     def test_conform_units_to(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
@@ -145,7 +162,10 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=rd)
         size = ops.get_base_request_size()
         self.assertEqual(size,{'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')}, 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}}, 'total': 116830.015625})
-        
+
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd, regrid_destination=rd).get_base_request_size()
+
     def test_get_base_request_size_with_geom(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[23])
@@ -370,6 +390,39 @@ class TestOcgOperations(TestBase):
         for v,a in zip(values,ast):
             obj = klass(v)
             self.assertEqual(obj.value,a)
+
+    def test_regridding_to_nc(self):
+        """Write regridded data to netCDF."""
+
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+
+        ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc', snippet=True,
+                            geom='state_boundaries', select_ugid=[25])
+        ret = ops.execute()
+
+        field = ocgis.RequestDataset(ret).get()
+        self.assertIsNotNone(field.spatial.grid.corners)
+        self.assertTrue(np.any(field.variables.first().value.mask))
+
+    def test_regridding_to_shp_vector_wrap(self):
+        """Test writing to shapefile with different vector wrap options."""
+
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
+
+        for vector_wrap in [True, False]:
+            ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='shp', snippet=True,
+                                geom='state_boundaries', select_ugid=[25], vector_wrap=vector_wrap,
+                                prefix=str(vector_wrap))
+            ret = ops.execute()
+            sci = ShpCabinetIterator(path=ret)
+            geoms = [element['geom'] for element in sci]
+            for geom in geoms:
+                if vector_wrap:
+                    self.assertLess(geom.bounds[0], 0)
+                else:
+                    self.assertGreater(geom.bounds[0], 0)
 
 
 if __name__ == "__main__":

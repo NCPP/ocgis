@@ -1,4 +1,5 @@
 from collections import namedtuple
+from copy import deepcopy
 import itertools
 
 
@@ -18,4 +19,4 @@ def itr_products_keywords(keywords, as_namedtuple=False):
             yld.update(dictionary)
         if as_namedtuple:
             yld = yld_tuple(**yld)
-        yield yld
+        yield deepcopy(yld)

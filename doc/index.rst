@@ -23,6 +23,7 @@ Contents:
    install
    api
    computation
+   regrid
    examples
    utility
    constants

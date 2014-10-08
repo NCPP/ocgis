@@ -72,7 +72,7 @@ class OcgParameter(object):
                         ret = self.return_type(ret)
                 except:
                     if type(ret) not in self.return_type:
-                        if not any([isinstance(value,rt) for rt in self.return_type]):
+                        if not any([isinstance(ret,rt) for rt in self.return_type]):
                             raise
         except:
             raise(DefinitionValidationError(self,'Return type does not match.'))

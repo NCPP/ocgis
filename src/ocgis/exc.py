@@ -5,7 +5,7 @@ class OcgException(Exception):
         self.message = message
 
     def __str__(self):
-        return (self.message)
+        return self.message
 
 
 class MultipleElementsFound(OcgException):
@@ -26,6 +26,7 @@ class MultipleElementsFound(OcgException):
 
 
 class CalculationException(OcgException):
+
     def __init__(self, function_klass, message=None):
         self.function_klass = function_klass
         OcgException.__init__(self, message=message)
@@ -145,6 +146,7 @@ class OcgisEnvironmentError(OcgException):
 
 
 class SpatialWrappingError(OcgException):
+    """Raised for errors related to wrapping or unwrapping a geographic coordinate system."""
     pass
 
 
@@ -192,8 +194,9 @@ class EmptySubsetError(SubsetException):
 class NoUnitsError(OcgException):
     """Raised when a :class:`cfunits.Units` object is constructed from ``None``."""
 
-    def __init__(self, variable):
+    def __init__(self, variable, message=None):
         self.variable = variable
+        super(NoUnitsError, self).__init__(message=message)
 
     def __str__(self):
         if self.message is None:
@@ -246,6 +249,16 @@ class VariableNotFoundError(OcgException):
         return msg
 
 
+class RegriddingError(OcgException):
+    """Raised for exceptions related to ESMPy-enabled regridding."""
+    pass
+
+
+class CornersInconsistentError(RegriddingError):
+    """Raised when corners are not available on all sources and/or destination fields."""
+    pass
+
+
 class RequestValidationError(OcgException):
     """Raised when validation fails on a parameter when creating a :class:`~ocgis.RequestDataset` object."""
 
@@ -257,3 +270,9 @@ class RequestValidationError(OcgException):
         message = 'Validation failed on the keyword parameter "{0}" with the message: {1}'.format(self.keyword,
                                                                                                   self.message)
         return message
+
+
+class CornersUnavailable(OcgException):
+    """Raised when grid corners may not be constructed."""
+
+    pass

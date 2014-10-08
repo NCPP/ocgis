@@ -147,3 +147,10 @@ For example, the code below will return all data from the year 2000 for the firs
 >>> tr = [datetime.datetime(2000,1,1),datetime.datetime(2000,12,31,23,59,59)]
 >>> rd = RequestDataset('/my/leveled/data','tas',time_range=tr,level_range=[1,2])
 >>> ret = OcgOperations(dataset=rd).execute()
+
+.. _regridding:
+
+Regridding
+----------
+
+.. literalinclude:: sphinx_examples/regridding.py

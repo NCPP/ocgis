@@ -12,14 +12,15 @@ from ocgis.calc.engine import OcgCalculationEngine
 
 
 class OcgOperations(object):
-    """Entry point for OCGIS operations.
+    """
+    Entry point for all OCGIS operations.
     
-    .. warning:: The object SHOULD NOT be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution.
+    .. warning:: The object SHOULD NOT be reused following an execution as the software may add/modify attribute
+     contents. Instantiate a new object following an execution.
     
     .. note:: The only required argument is `dataset`.
     
-    All keyword arguments are exposed as public attributes which may be 
-    arbitrarily set using standard syntax:
+    All keyword arguments are exposed as public attributes which may be  arbitrarily set using standard syntax:
 
     >>> ops = OcgOperations(RequestDataset('/path/to/some/dataset','foo'))
     >>> ops.aggregate = True
@@ -27,12 +28,14 @@ class OcgOperations(object):
     The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
     validation and input formatting.
 
-    :param dataset: The target dataset(s) for the request. This is the only required parameter.
-    :type dataset: :class:`ocgis.RequestDatasetCollection` or :class:`ocgis.RequestDataset`
+    :param dataset: The target dataset(s) for the request. This is the only required parameter. All elements of datasets
+     will be processed.
+    :type dataset: :class:`~ocgis.RequestDatasetCollection`, :class:`~ocgis.RequestDataset`, or sequence of :class:`~ocgis.RequestDataset`
+     objects
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
-    :param geom: The selection geometry(s) used for the spatial subset. If `None`, 
-     selection defaults to entire spatial domain.
+    :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial
+     domain.
     :type geom: list of dict, list of float, str
     :param aggregate: If `True`, dataset geometries are aggregated to coincident 
      selection geometries.
@@ -41,14 +44,13 @@ class OcgOperations(object):
     :type calc: list of dictionaries or string-based function
     :param calc_grouping: Temporal grouping to apply for calculations.
     :type calc_grouping: list of str or int
-    :param calc_raw: If `True`, perform calculations on the "raw" data regardless 
-     of `aggregation` flag.
+    :param calc_raw: If `True`, perform calculations on the "raw" data regardless  of `aggregation` flag.
     :type calc_raw: bool
-    :param abstraction: The geometric abstraction to use for the dataset geometries. 
-     If `None` (the default), use the highest order geometry available.
+    :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the
+     highest order geometry available.
     :type abstraction: str
-    :param snippet: If `True`, return a data "snippet" composed of the first time 
-     point, first level (if applicable), and the entire spatial domain.
+    :param snippet: If `True`, return a data "snippet" composed of the first time point, first level (if applicable),
+     and the entire spatial domain.
     :type snippet: bool
     :param backend: The processing backend to use.
     :type backend: str
@@ -56,68 +58,65 @@ class OcgOperations(object):
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str
-    :param agg_selection: If `True`, the selection geometry will be aggregated prior 
-     to any spatial operations.
+    :param agg_selection: If `True`, the selection geometry will be aggregated prior to any spatial operations.
     :type agg_selection: bool
-    :param select_ugid: The unique identifiers of specific geometries contained 
-     in canned geometry datasets. These unique identifiers will be selected and 
-     used for spatial operations.
+    :param select_ugid: The unique identifiers of specific geometries contained in canned geometry datasets. These
+     unique identifiers will be selected and used for spatial operations.
     :type select_ugid: list of integers
     :param vector_wrap: If `True`, keep any vector output on a -180 to 180 longitudinal domain.
     :type vector_wrap: bool
-    :param allow_empty: If `True`, do not raise an exception in the case of an empty 
-     geometric selection.
+    :param allow_empty: If `True`, do not raise an exception in the case of an empty geometric selection.
     :type allow_empty: bool
-    :param dir_output: The output directory to which any disk format folders are 
-     written. If the directory does not exist, an exception will be raised. This 
-     will override :attr:`env.DIR_OUTPUT`.
+    :param dir_output: The output directory to which any disk format folders are written. If the directory does not
+     exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
-    :param headers: A sequence of strings specifying the output headers. Default 
-     value of ('did', 'ugid', 'gid') is always applied.
+    :param headers: A sequence of strings specifying the output headers. Default value of ('did', 'ugid', 'gid') is
+     always applied.
     :type headers: sequence
-    :param format_time: If `True` (the default), attempt to coerce time values to 
-     datetime stamps. If `False`, pass values through without a coercion attempt.
+    :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass
+     values through without a coercion attempt.
     :type format_time: bool
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
-    :param output_crs: If provided, all output geometries will be projected to match 
-     the provided CRS.
+    :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
     :type output_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
-    :param search_radius_mult: This value is multiplied by the target data's spatial 
-     resolution to determine the buffer radius for point selection geometries.
+    :param search_radius_mult: This value is multiplied by the target data's spatial resolution to determine the buffer
+     radius for point selection geometries.
     :type search_radius_mult: float
-    :param interpolate_spatial_bounds: If True and no bounds are available, attempt 
-     to interpolate bounds from centroids.
+    :param interpolate_spatial_bounds: If True and no bounds are available, attempt to interpolate bounds from
+     centroids.
     :type interpolate_spatial_bounds: bool
-    :param bool add_auxiliary_files: If ``True``, create a new directory and add metadata
-     and other informational files in addition to the converted file. If ``False``, write
-     the target file only to :attr:`dir_output` and do not create a new directory.
-    :param function callback: A function taking two parameters: ``percent_complete``
-     and ``message``.
-    :param time_range: Upper and lower bounds for time dimension subsetting. If 
-     `None`, return all time points. Using this argument will overload all
-     :class:`~ocgis.RequestDataset` ``time_range`` values.
+    :param bool add_auxiliary_files: If ``True``, create a new directory and add metadata and other informational files
+     in addition to the converted file. If ``False``, write the target file only to :attr:`dir_output` and do not create
+     a new directory.
+    :param function callback: A function taking two parameters: ``percent_complete`` and ``message``.
+    :param time_range: Upper and lower bounds for time dimension subsetting. If `None`, return all time points. Using
+     this argument will overload all :class:`~ocgis.RequestDataset` ``time_range`` values.
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
-    :param time_region: A dictionary with keys of 'month' and/or 'year' and values 
-     as sequences corresponding to target month and/or year values. Empty region 
-     selection for a key may be set to `None`. Using this argument will overload all
-     :class:`~ocgis.RequestDataset` ``time_region`` values.
+    :param time_region: A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target
+     month and/or year values. Empty region selection for a key may be set to `None`. Using this argument will overload
+     all :class:`~ocgis.RequestDataset` ``time_region`` values.
     :type time_region: dict
         
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
     
-    :param level_range: Upper and lower bounds for level dimension subsetting. 
-     If `None`, return all levels. Using this argument will overload all
-     :class:`~ocgis.RequestDataset` ``level_range`` values.
+    :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels. Using this
+     argument will overload all :class:`~ocgis.RequestDataset` ``level_range`` values.
     :type level_range: [int/float, int/float]
-    :param conform_units_to: Destination units for conversion. If this parameter is
-     set, then the :mod:`cfunits` module must be installed. Setting this parameter will override
-     conformed units set on ``dataset`` objects.
+    :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module
+     must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
     :type conform_units_to: str or :class:`cfunits.Units`
     :param bool select_nearest: If ``True``, the nearest geometry to the centroid of the current selection geometry is
      returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the
      selection radius.
+    :param regrid_destination: If provided, regrid ``dataset`` objects using ESMPy to this destination grid. If a string
+     is provided, then the :class:`~ocgis.RequestDataset` with the corresponding name will be selected as the
+     destination. Please see :ref:`esmpy-regridding` for an overview.
+    :type regrid_destination: str, :class:`~ocgis.interface.base.field.Field` or :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+    :param dict regrid_options: Overload the default keywords for regridding. Dictionary elements must map to the names
+     of keyword arguments for :meth:`~ocgis.regrid.base.iter_regridded_fields`. If this is left as ``None``, then the
+     default keyword values are used. Please see :ref:`esmpy-regridding` for an overview.
     """
     
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False, calc=None,
@@ -126,10 +125,9 @@ class OcgOperations(object):
                  dir_output=None, slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
                  search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
                  optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
-                 conform_units_to=None, select_nearest=False):
+                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None):
         
-        # # Tells "__setattr__" to not perform global validation until all
-        # # values are set initially.
+        # tells "__setattr__" to not perform global validation until all values are set initially
         self._is_init = True
         
         self.dataset = Dataset(dataset)
@@ -165,12 +163,13 @@ class OcgOperations(object):
         self.level_range = LevelRange(level_range)
         self.conform_units_to = ConformUnitsTo(conform_units_to)
         self.select_nearest = SelectNearest(select_nearest)
+        self.regrid_destination = RegridDestination(init_value=regrid_destination, dataset=self._get_object_('dataset'))
+        self.regrid_options = RegridOptions(regrid_options)
         
-        ## these values are left in to perhaps be added back in at a later date.
+        # these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
         
-        # # Initial values have been set and global validation should now occur
-        # # when any parameters are updated.
+        # Initial values have been set and global validation should now occur when any parameters are updated.
         self._is_init = False
         self._update_dependents_()
         self._validate_()
@@ -230,7 +229,11 @@ class OcgOperations(object):
                       }
         }
         '''
-        
+
+        if self.regrid_destination is not None:
+            msg = 'Base request size not supported with a regrid destination.'
+            raise DefinitionValidationError(RegridDestination, msg)
+
         def _get_kb_(dtype,elements):
             nbytes = np.array([1],dtype=dtype).nbytes
             return(float((elements*nbytes)/1024.0))
@@ -344,6 +347,12 @@ class OcgOperations(object):
         def _raise_(msg,obj=OutputFormat):
             e = DefinitionValidationError(obj,msg)
             ocgis_lh(exc=e,logger='operations')
+
+        # no regridding with a spatial operation of clip
+        if self.regrid_destination is not None:
+            if self.spatial_operation == 'clip':
+                msg = 'Regridding not allowed with spatial "clip" operation.'
+                raise DefinitionValidationError(SpatialOperation, msg)
             
         ## there are a bunch of constraints on the netCDF format
         if self.output_format == 'nc':

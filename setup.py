@@ -5,7 +5,7 @@ import os
 import tempfile
 
 
-VERSION = '0.09'
+VERSION = '1.0.0'
 
 
 class UninstallCommand(Command):

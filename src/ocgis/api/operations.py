@@ -1,10 +1,9 @@
-from ocgis.api.parms.definition import *  # @UnusedWildImport
+from ocgis.api.parms.definition import *
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
-from ocgis.calc.base import AbstractMultivariateFunction,\
-    AbstractKeyedOutputFunction
+from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
 from ocgis.api.subset import SubsetOperation
 import numpy as np

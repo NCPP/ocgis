@@ -16,10 +16,10 @@ class Test(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
-        self.maurer = self.test_data.get_rd('maurer_bccr_1950')
-        self.cancm4 = self.test_data.get_rd('cancm4_tasmax_2001')
-        self.tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-#        self.albisccp = self.test_data.get_rd('ccsm4')
+        self.maurer = self.test_data_nc.get_rd('maurer_bccr_1950')
+        self.cancm4 = self.test_data_nc.get_rd('cancm4_tasmax_2001')
+        self.tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
+#        self.albisccp = self.test_data_nc.get_rd('ccsm4')
     
     @property
     def california(self):
@@ -68,7 +68,7 @@ class Test(TestBase):
         for key in keys:
             prev_value = None
             for vector_wrap in [True,False]:
-                rd = self.test_data.get_rd(key[0])
+                rd = self.test_data_nc.get_rd(key[0])
                 prefix = 'vw_{0}_{1}'.format(vector_wrap,rd.variable)
                 ops = ocgis.OcgOperations(dataset=rd,geom=geom,snippet=False,
                       vector_wrap=vector_wrap,prefix=prefix)
@@ -152,9 +152,9 @@ class Test(TestBase):
                 for src in source:
                     src.close()
                 
-        rd1 = self.test_data.get_rd('narccap_rcm3')
+        rd1 = self.test_data_nc.get_rd('narccap_rcm3')
         rd1.alias = 'rcm3'
-        rd2 = self.test_data.get_rd('narccap_crcm')
+        rd2 = self.test_data_nc.get_rd('narccap_crcm')
         rd2.alias = 'crcm'
         rd = [
               rd1,

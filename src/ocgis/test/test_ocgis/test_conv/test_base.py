@@ -16,7 +16,7 @@ import numpy as np
 class AbstractTestConverter(TestBase):
     
     def get_spatial_collection(self, field=None):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = field or rd.get()[:, 0, :, 0, 0]
         coll = SpatialCollection()
         coll.add_field(1, None, field)
@@ -28,7 +28,7 @@ class TestAbstractConverter(AbstractTestConverter):
     
     def run_auxiliary_file_tst(self,Converter,file_list,auxiliary_file_list=None):
         auxiliary_file_list = auxiliary_file_list or self._auxiliary_file_list
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
         coll = ops.execute()
         
@@ -36,7 +36,7 @@ class TestAbstractConverter(AbstractTestConverter):
         _add_auxiliary_files = [True,False]
         for ops_arg,add_auxiliary_files in itertools.product(_ops,_add_auxiliary_files):
             ## make a new output directory as to not deal with overwrites
-            outdir = tempfile.mkdtemp(dir=self._test_dir)
+            outdir = tempfile.mkdtemp(dir=self.current_dir_output)
             try:
                 conv = Converter([coll],outdir,'ocgis_output',add_auxiliary_files=add_auxiliary_files,ops=ops_arg)
             ## CsvPlusConverter requires an operations argument
@@ -56,12 +56,12 @@ class TestAbstractConverter(AbstractTestConverter):
             self.assertEqual(set(files),set(to_test))
             
     def run_overwrite_true_tst(self,Converter,include_ops=False):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         _ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
         coll = _ops.execute()
         
         ops = _ops if include_ops else None
-        outdir = tempfile.mkdtemp(dir=self._test_dir)
+        outdir = tempfile.mkdtemp(dir=self.current_dir_output)
         conv = Converter([coll],outdir,'ocgis_output',ops=ops)
         conv.write()
         mtimes = [os.path.getmtime(os.path.join(outdir,f)) for f in os.listdir(outdir)]
@@ -73,7 +73,7 @@ class TestAbstractConverter(AbstractTestConverter):
 
     def test_multiple_variables(self):
         conv_klasses = [CsvConverter, NcConverter]
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         var2 = deepcopy(field.variables['tas'])
         var2.alias = 'tas2'
@@ -81,7 +81,7 @@ class TestAbstractConverter(AbstractTestConverter):
         field = field[:, 0:2, :, 0:5, 0:5]
         coll = self.get_spatial_collection(field=field)
         for conv_klass in conv_klasses:
-            conv = conv_klass([coll], self._test_dir, 'ocgis_output_{0}'.format(conv_klass.__name__))
+            conv = conv_klass([coll], self.current_dir_output, 'ocgis_output_{0}'.format(conv_klass.__name__))
             ret = conv.write()
             if conv_klass == CsvConverter:
                 with open(ret, 'r') as f:
@@ -94,11 +94,11 @@ class TestAbstractConverter(AbstractTestConverter):
                     self.assertNumpyAll(ds.variables['tas'][:], ds.variables['tas2'][:])
 
     def test_overwrite_false_csv(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
         coll = ops.execute()
         
-        outdir = tempfile.mkdtemp(dir=self._test_dir)
+        outdir = tempfile.mkdtemp(dir=self.current_dir_output)
         conv = CsvConverter([coll], outdir, 'ocgis_output')
         conv.write()
         

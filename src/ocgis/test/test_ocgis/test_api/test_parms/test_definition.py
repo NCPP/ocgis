@@ -177,7 +177,7 @@ class Test(TestBase):
             CalcGrouping([[1,2,3],[4,5,6],'fod'])
 
     def test_dataset(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         dd = Dataset(rd)
 
         with open('/tmp/dd.pkl','w') as f:
@@ -189,7 +189,7 @@ class Test(TestBase):
 
 
 class TestCalc(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_meta_attrs(self):
         """Test various forms for meta_attrs in the calculation definition dictionary."""
@@ -299,7 +299,7 @@ class TestCalc(TestBase):
 
 
 class TestConformUnitsTo(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_constructor(self):
         cc = ConformUnitsTo()
@@ -316,7 +316,7 @@ class TestConformUnitsTo(TestBase):
 
 
 class TestGeom(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_init(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
@@ -466,7 +466,7 @@ class TestRegridDestination(TestBase):
         return datasets
 
     def get_rd(self, **kwargs):
-        rd = self.test_data.get_rd('cancm4_tas', kwds=kwargs)
+        rd = self.test_data_nc.get_rd('cancm4_tas', kwds=kwargs)
         return rd
 
     def test_init(self):
@@ -539,7 +539,7 @@ class TestRegridOptions(TestBase):
         self.assertTrue('numpy.ndarray' in ro._get_meta_())
 
 class TestLevelRange(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_constructor(self):
         LevelRange()
@@ -563,7 +563,7 @@ class TestLevelRange(TestBase):
 
 
 class TestTimeRange(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_constructor(self):
         TimeRange()
@@ -585,7 +585,7 @@ class TestTimeRange(TestBase):
 
 
 class TestTimeRegion(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def test_constructor(self):
         TimeRegion()

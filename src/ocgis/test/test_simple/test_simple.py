@@ -1,6 +1,5 @@
 import re
 import unittest
-from cfunits import Units
 from fiona.crs import from_string
 from osgeo.osr import SpatialReference
 from ocgis.api.operations import OcgOperations
@@ -8,19 +7,16 @@ from ocgis.api.interpreter import OcgInterpreter
 import itertools
 import numpy as np
 import datetime
-from ocgis.api.parms.definition import SpatialOperation, OutputFormat
-from ocgis.conv.fiona_ import ShpConverter
-from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry, write_geom_dict
+from ocgis.api.parms.definition import SpatialOperation
+from ocgis.util.helpers import make_poly, FionaMaker, project_shapely_geometry
 from ocgis import exc, env, constants
 import os.path
-from ocgis.util.inspect import Inspect
 from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
 from ocgis.test.base import TestBase
 from shapely.geometry.point import Point
 import ocgis
-from ocgis.exc import ExtentError, DefinitionValidationError,\
-    ImproperPolygonBoundsError
+from ocgis.exc import ExtentError, DefinitionValidationError, ImproperPolygonBoundsError
 from shapely.geometry.polygon import Polygon
 import csv
 import fiona
@@ -32,34 +28,38 @@ from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from copy import deepcopy
 from contextlib import contextmanager
-from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc,\
-    SimpleNcNoBounds, SimpleMaskNc, SimpleNc360, SimpleNcProjection,\
-    SimpleNcNoSpatialBounds, SimpleNcMultivariate
+from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleNcNoBounds, SimpleMaskNc, \
+    SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
 from csv import DictReader
 from ocgis.test.test_base import longrunning
-import webbrowser
 import tempfile
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
-from ocgis.api.collection import SpatialCollection
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 
 
 @contextmanager
-def nc_scope(path,mode='r'):
-    """Provide a transactional scope around a series of operations."""
-    ds = nc.Dataset(path,mode=mode)
+def nc_scope(path, mode='r'):
+    """
+    Provide a transactional scope around a :class:`netCDF4.Dataset` object.
+
+    >>> with nc_scope('/my/file.nc') as ds:
+    >>>     print ds.variables
+
+    :param str path: The full path to the netCDF dataset.
+    :param str mode: The file mode to use when opening the dataset.
+    :returns: An open dataset object that will be closed after leaving the ``with statement``.
+    :rtype: :class:`netCDF4.Dataset`
+    """
+
+    ds = nc.Dataset(path, mode=mode)
     try:
-        yield(ds)
+        yield ds
     except:
         raise
     finally:
         ds.close()
-
-
-class ToTest(Exception):
-    pass
 
 
 class TestSimpleBase(TestBase):
@@ -313,7 +313,7 @@ class TestSimple(TestSimpleBase):
     def test_add_auxiliary_files_false_csv_nc(self):
         rd = self.get_dataset()
         for output_format in ['csv','nc']:
-            dir_output = tempfile.mkdtemp(dir=self._test_dir)
+            dir_output = tempfile.mkdtemp(dir=self.current_dir_output)
             ops = ocgis.OcgOperations(dataset=rd,output_format=output_format,add_auxiliary_files=False,
                                       dir_output=dir_output)
             ret = ops.execute()
@@ -579,7 +579,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'snippet':True})
         ref = ret.gvu(1,self.var)
         self.assertEqual(ref.shape,(1,1,1,4,4))
-        with nc_scope(os.path.join(self._test_dir,self.fn)) as ds:
+        with nc_scope(os.path.join(self.current_dir_output,self.fn)) as ds:
             to_test = ds.variables['foo'][0,0,:,:].reshape(1, 1, 1, 4, 4)
             self.assertNumpyAll(to_test,ref.data)
         
@@ -665,33 +665,29 @@ class TestSimple(TestSimpleBase):
         rd2['alias'] = 'var2'
         
         dataset = [
-#                   RequestDatasetCollection([rd1]),
+                   # RequestDatasetCollection([rd1]),
                    RequestDatasetCollection([rd1,rd2])
                    ]
         calc_sample_size = [
                             True,
-#                            False
+                            # False
                             ]
         calc = [
                 [{'func':'mean','name':'mean'},{'func':'max','name':'max'}],
-#                [{'func':'ln','name':'ln'}],
-#                None,
-#                [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
+                # [{'func':'ln','name':'ln'}],
+                # None,
+                # [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
                 ]
         calc_grouping = [
-#                         None,
+                         # None,
                          ['month'],
-#                         ['month','year']
+                         # ['month','year']
                          ]
-#        output_format = constants.output_formats
         output_format = ['numpy']
         
         for ii,tup in enumerate(itertools.product(dataset,calc_sample_size,calc,calc_grouping,output_format)):
             kwds = dict(zip(['dataset','calc_sample_size','calc','calc_grouping','output_format'],tup))
             kwds['prefix'] = str(ii)
-            
-#            print kwds
-#            print len(kwds['dataset'])
             
             try:
                 ops = OcgOperations(**kwds)
@@ -840,15 +836,16 @@ class TestSimple(TestSimpleBase):
     @longrunning
     def test_combinatorial_projection_with_geometries(self):
         
-#        self.get_ret(kwds={'output_format':'shp','prefix':'as_polygon'})
-#        self.get_ret(kwds={'output_format':'shp','prefix':'as_point','abstraction':'point'})
-        
+        # self.get_ret(kwds={'output_format':'shp','prefix':'as_polygon'})
+        # self.get_ret(kwds={'output_format':'shp','prefix':'as_point','abstraction':'point'})
+
         features = [
          {'NAME':'a','wkt':'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},
          {'NAME':'b','wkt':'POLYGON((-102.212903 39.004301,-102.905376 38.906452,-103.311828 37.694624,-103.326882 37.295699,-103.898925 37.220430,-103.846237 36.746237,-102.619355 37.107527,-102.634409 37.724731,-101.874194 37.882796,-102.212903 39.004301))'},
          {'NAME':'c','wkt':'POLYGON((-105.336559 37.175269,-104.945161 37.303226,-104.726882 37.175269,-104.696774 36.844086,-105.043011 36.693548,-105.283871 36.640860,-105.336559 37.175269))'},
          {'NAME':'d','wkt':'POLYGON((-102.318280 39.741935,-103.650538 39.779570,-103.620430 39.448387,-103.349462 39.433333,-103.078495 39.606452,-102.325806 39.613978,-102.325806 39.613978,-102.333333 39.741935,-102.318280 39.741935))'},
                    ]
+
         for filename in ['polygon','point']:
             if filename == 'point':
                 geometry = 'Point'
@@ -860,7 +857,7 @@ class TestSimple(TestSimpleBase):
                 to_write = features
                 geometry = 'Polygon'
             
-            path = os.path.join(self._test_dir,'ab_{0}.shp'.format(filename))
+            path = os.path.join(self.current_dir_output,'ab_{0}.shp'.format(filename))
             with FionaMaker(path,geometry=geometry) as fm:
                 fm.write(to_write)
         
@@ -872,11 +869,9 @@ class TestSimple(TestSimpleBase):
         no_level_nc.write()
         no_level_uri = os.path.join(env.DIR_OUTPUT,no_level_nc.filename)
             
-        ocgis.env.DIR_SHPCABINET = self._test_dir
+        ocgis.env.DIR_SHPCABINET = self.current_dir_output
 #        ocgis.env.DEBUG = True
 #        ocgis.env.VERBOSE = True
-
-################################################################################
 
         aggregate = [
                      False,
@@ -915,14 +910,11 @@ class TestSimple(TestSimpleBase):
                 [{'func':'mean','name':'my_mean'}]
                 ]
         calc_grouping = ['month']
-        
-################################################################################
-        
+
         args = (aggregate,spatial_operation,epsg,output_format,abstraction,geom,calc,dataset)
         for ii,tup in enumerate(itertools.product(*args)):
             a,s,e,o,ab,g,c,d = tup
-#            print(tup[0:-1],tup[-1]['uri'])
-            
+
             if os.path.split(d['uri'])[1] == 'test_simple_spatial_no_bounds_01.nc':
                 unbounded = True
             else:
@@ -960,9 +952,9 @@ class TestSimple(TestSimpleBase):
                     raise
             
             if o == 'shp':
-                ugid_path = os.path.join(self._test_dir,ops.prefix,ops.prefix+'_ugid.shp')
+                ugid_path = os.path.join(self.current_dir_output,ops.prefix,ops.prefix+'_ugid.shp')
             else:
-                ugid_path = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.shp')
+                ugid_path = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
             
             if o != 'nc':
                 with fiona.open(ugid_path,'r') as f:
@@ -1029,7 +1021,7 @@ class TestSimple(TestSimpleBase):
         kansas = 'POLYGON((-95.071931 37.001478,-95.406622 37.000615,-95.526019 37.001018,-95.785748 36.998114,-95.957961 37.000083,-96.006049 36.998333,-96.519187 37.000577,-96.748696 37.000166,-97.137693 36.999808,-97.465405 36.996467,-97.804250 36.998567,-98.104529 36.998671,-98.347143 36.999061,-98.540219 36.998376,-98.999516 36.998072,-99.437473 36.994558,-99.544639 36.995463,-99.999261 36.995417,-100.088574 36.997652,-100.634245 36.997832,-100.950587 36.996661,-101.071604 36.997466,-101.553676 36.996693,-102.024519 36.988875,-102.037207 36.988994,-102.042010 37.386279,-102.044456 37.641474,-102.043976 37.734398,-102.046061 38.253822,-102.045549 38.263343,-102.047584 38.615499,-102.047568 38.692550,-102.048972 39.037003,-102.047874 39.126753,-102.048801 39.562803,-102.049442 39.568693,-102.051535 39.998918,-101.407393 40.001003,-101.322148 40.001821,-100.754856 40.000198,-100.735049 39.999172,-100.191111 40.000585,-100.180910 40.000478,-99.627859 40.002987,-99.178201 39.999577,-99.064747 39.998338,-98.720632 39.998461,-98.504479 39.997129,-98.264165 39.998434,-97.929588 39.998452,-97.816589 39.999729,-97.361912 39.997380,-96.908287 39.996154,-96.801420 39.994476,-96.454038 39.994172,-96.240598 39.994503,-96.001253 39.995159,-95.780700 39.993489,-95.329701 39.992595,-95.308697 39.999407,-95.240961 39.942105,-95.207597 39.938176,-95.193963 39.910180,-95.150551 39.908054,-95.100722 39.869865,-95.063246 39.866538,-95.033506 39.877844,-95.021772 39.896978,-94.965023 39.900823,-94.938243 39.896081,-94.936511 39.849386,-94.923876 39.833131,-94.898324 39.828332,-94.888505 39.817400,-94.899323 39.793775,-94.933267 39.782773,-94.935114 39.775426,-94.921800 39.757841,-94.877067 39.760679,-94.871185 39.754118,-94.877860 39.739305,-94.905678 39.726755,-94.930856 39.727026,-94.953142 39.736501,-94.961786 39.732038,-94.978570 39.684988,-95.028292 39.661913,-95.056017 39.625689,-95.053613 39.586776,-95.108988 39.560692,-95.102037 39.532848,-95.047599 39.485328,-95.040511 39.462940,-94.986204 39.439461,-94.958494 39.411447,-94.925748 39.381266,-94.898281 39.380640,-94.911343 39.340121,-94.907681 39.323028,-94.881107 39.286046,-94.833476 39.261766,-94.820819 39.211004,-94.790049 39.196883,-94.730531 39.171256,-94.675514 39.174922,-94.646407 39.158427,-94.612653 39.151649,-94.601224 39.141227,-94.608137 39.112801,-94.609281 39.044667,-94.612469 38.837109,-94.613148 38.737222,-94.618717 38.471473,-94.619053 38.392032,-94.617330 38.055784,-94.616735 38.030387,-94.619293 37.679869,-94.618996 37.650374,-94.618764 37.360766,-94.618977 37.327732,-94.620664 37.060147,-94.620379 36.997046,-95.032745 37.000779,-95.071931 37.001478))'
         fiona_crs = crs.WGS84().value
         fiona_properties = {'UGID':'int','STATE_NAME':'str'}
-        fiona_path = os.path.join(self._test_dir,'states.shp')
+        fiona_path = os.path.join(self.current_dir_output,'states.shp')
         fiona_schema = {'geometry':'Polygon',
                         'properties':fiona_properties}
         with fiona.open(fiona_path,'w',driver='ESRI Shapefile',crs=fiona_crs,schema=fiona_schema) as f:
@@ -1038,13 +1030,13 @@ class TestSimple(TestSimpleBase):
             f.write(record_nebraska)
             f.write(record_kansas)
         
-        ocgis.env.DIR_SHPCABINET = self._test_dir
+        ocgis.env.DIR_SHPCABINET = self.current_dir_output
         ops = OcgOperations(dataset=self.get_dataset(),
                             geom='states',
                             output_format='shp')
         ret = ops.execute()
         
-        output_folder = os.path.join(self._test_dir,ops.prefix)
+        output_folder = os.path.join(self.current_dir_output,ops.prefix)
         ugid_csv_name = 'ocgis_output_ugid.csv'
         contents = os.listdir(output_folder)
         self.assertEqual(set(contents),
@@ -1084,7 +1076,7 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(row['properties']['UGID'],row['properties']['GID'])
         self.assertEqual(set([row['properties']['GID'] for row in rows]),set([1,2]))
         self.assertEqual(len(rows),244)
-        self.assertEqual(set(os.listdir(os.path.join(self._test_dir,ops.prefix))),set(['aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_ugid.csv', 'aggregation_clip_metadata.txt', 'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf', 'aggregation_clip.shx', 'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg', 'aggregation_clip_ugid.shx', 'aggregation_clip.shp', 'aggregation_clip_ugid.dbf', 'aggregation_clip.prj', 'aggregation_clip_source_metadata.txt']))
+        self.assertEqual(set(os.listdir(os.path.join(self.current_dir_output,ops.prefix))),set(['aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_ugid.csv', 'aggregation_clip_metadata.txt', 'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf', 'aggregation_clip.shx', 'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg', 'aggregation_clip_ugid.shx', 'aggregation_clip.shp', 'aggregation_clip_ugid.dbf', 'aggregation_clip.prj', 'aggregation_clip_source_metadata.txt']))
             
     def test_csv_conversion(self):
         ocgis.env.OVERWRITE = True
@@ -1096,7 +1088,7 @@ class TestSimple(TestSimpleBase):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='csv',geom=geom)
         ret = ops.execute()
         
-        output_dir = os.path.join(self._test_dir,ops.prefix)
+        output_dir = os.path.join(self.current_dir_output,ops.prefix)
         contents = set(os.listdir(output_dir))
         self.assertEqual(contents,set(['ocgis_output_source_metadata.txt', 'ocgis_output_metadata.txt', 'ocgis_output.log', 'ocgis_output_did.csv', 'ocgis_output.csv']))
         with open(ret,'r') as f:
@@ -1105,7 +1097,7 @@ class TestSimple(TestSimpleBase):
             self.assertDictEqual(row,{'LID': '1', 'UGID': '1', 'VID': '1', 'ALIAS': 'foo', 'DID': '1', 'YEAR': '2000', 'VALUE': '1.0', 'MONTH': '3', 'VARIABLE': 'foo', 'GID': '6', 'TIME': '2000-03-01 12:00:00', 'TID': '1', 'LEVEL': '50', 'DAY': '1'})
         
         did_file = os.path.join(output_dir,ops.prefix+'_did.csv')
-        uri = os.path.join(self._test_dir,self.fn)
+        uri = os.path.join(self.current_dir_output,self.fn)
         with open(did_file,'r') as f:
             reader = csv.DictReader(f)
             row = reader.next()
@@ -1141,7 +1133,7 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
 
         with open(ret,'r') as f:
-            with open(os.path.join(self._test_bin_dir,'test_csv_calc_conversion_two_calculations.csv')) as f2:
+            with open(os.path.join(self.path_bin,'test_csv_calc_conversion_two_calculations.csv')) as f2:
                 reader = csv.DictReader(f)
                 reader2 = csv.DictReader(f2)
                 for row,row2 in zip(reader,reader2):
@@ -1189,7 +1181,7 @@ class TestSimple(TestSimpleBase):
                             prefix='with_ugid')
         ret = ops.execute()
         
-        path = os.path.join(self._test_dir,'with_ugid')
+        path = os.path.join(self.current_dir_output,'with_ugid')
         contents = os.listdir(path)
         self.assertEqual(set(contents),set(['with_ugid_metadata.txt', 'with_ugid.log', 'with_ugid.csv', 'with_ugid_source_metadata.txt', 'shp', 'with_ugid_did.csv']))
         
@@ -1287,8 +1279,6 @@ class TestSimpleMultivariate(TestSimpleBase):
         self.assertEqual([v.name for v in field.variables.itervalues()], ['foo', 'foo2'])
         self.assertEqual(field.variables.values()[0].value.mean(), 2.5)
         self.assertEqual(field.variables.values()[1].value.mean(), 5.5)
-        self.assertDictEqual({v.name: v.cfunits for v in field.variables.itervalues()},
-                             {'foo': Units('K'), 'foo2': Units('mm/s')})
         sub = field[:, 3, 1, 1:3, 1:3]
         self.assertNumpyAll(sub.variables.values()[0].value.data.flatten(), np.array([1.0, 2.0, 3.0, 4.0]))
         self.assertNumpyAll(sub.variables.values()[1].value.data.flatten(), np.array([1.0, 2.0, 3.0, 4.0])+3)
@@ -1334,7 +1324,7 @@ class TestSimpleMultivariate(TestSimpleBase):
             reader = csv.DictReader(f)
             lines = list(reader)
         for row in lines:
-            self.assertEqual(row.pop('URI'), os.path.join(self._test_dir, self.fn))
+            self.assertEqual(row.pop('URI'), os.path.join(self.current_dir_output, self.fn))
         actual = [{'ALIAS': 'foo', 'DID': '1', 'UNITS': 'K', 'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo', 'LONG_NAME': 'foo_foo'}, {'ALIAS': 'foo2', 'DID': '1', 'UNITS': 'mm/s', 'STANDARD_NAME': 'Precipitation Foo', 'VARIABLE': 'foo2', 'LONG_NAME': 'foo_foo_pr'}]
         for a, l in zip(actual, lines):
             self.assertDictEqual(a, l)
@@ -1346,7 +1336,7 @@ class TestSimpleMultivariate(TestSimpleBase):
             rds = self.get_multiple_request_datasets()
             ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
             ret = ops.execute()
-            path_source_metadata = os.path.join(self._test_dir, ops.prefix, '{0}_source_metadata.txt'.format(ops.prefix))
+            path_source_metadata = os.path.join(self.current_dir_output, ops.prefix, '{0}_source_metadata.txt'.format(ops.prefix))
             if o != 'numpy':
                 self.assertTrue(os.path.exists(ret))
                 with open(path_source_metadata, 'r') as f:
@@ -1485,7 +1475,7 @@ class TestSimpleProjected(TestSimpleBase):
     def test_differing_projection_no_output_crs(self):
         nc_normal = SimpleNc()
         nc_normal.write()
-        uri = os.path.join(self._test_dir,nc_normal.filename)
+        uri = os.path.join(self.current_dir_output,nc_normal.filename)
         
         rd_projected = self.get_dataset()
         rd_projected['alias'] = 'projected'
@@ -1504,7 +1494,7 @@ class TestSimpleProjected(TestSimpleBase):
     def test_differing_projection_with_output_crs(self):        
         nc_normal = SimpleNc()
         nc_normal.write()
-        uri = os.path.join(self._test_dir,nc_normal.filename)
+        uri = os.path.join(self.current_dir_output,nc_normal.filename)
         
         rd_projected = self.get_dataset()
         rd_projected['alias'] = 'projected'
@@ -1579,10 +1569,10 @@ class TestSimpleProjected(TestSimpleBase):
             geom = project_shapely_geometry(geom,from_crs.sr,to_sr)
             feature['wkt'] = geom.wkt
             
-        path = os.path.join(self._test_dir,'ab_{0}.shp'.format('polygon'))
+        path = os.path.join(self.current_dir_output,'ab_{0}.shp'.format('polygon'))
         with FionaMaker(path,geometry='Polygon') as fm:
             fm.write(features)
-        ocgis.env.DIR_SHPCABINET = self._test_dir
+        ocgis.env.DIR_SHPCABINET = self.current_dir_output
         
         ops = OcgOperations(dataset=self.get_dataset(),output_format='shp',
                             geom='ab_polygon')

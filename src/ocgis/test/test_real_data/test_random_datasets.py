@@ -23,7 +23,7 @@ class TestCMIP3Masking(TestBase):
     
     @longrunning
     def test_many_request_datasets(self):
-        rd_base = self.test_data.get_rd('subset_test_Prcp')
+        rd_base = self.test_data_nc.get_rd('subset_test_Prcp')
         geom = [-74.0, 40.0, -72.0, 42.0]
         rds = [deepcopy(rd_base) for ii in range(500)]
         for rd in rds:
@@ -33,7 +33,7 @@ class TestCMIP3Masking(TestBase):
     def test(self):
         for key in ['subset_test_Prcp','subset_test_Tavg_sresa2','subset_test_Tavg']:
             ## test method to return a RequestDataset
-            rd = self.test_data.get_rd(key)
+            rd = self.test_data_nc.get_rd(key)
             geoms = [[-74.0, 40.0, -72.0, 42.0],
                      [-74.0, 38.0, -72.0, 40.0]]
             for geom in geoms:
@@ -55,7 +55,7 @@ class TestCnrmCerfacs(TestBase):
 
     @property
     def rd(self):
-        return self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
+        return self.test_data_nc.get_rd('rotated_pole_cnrm_cerfacs')
 
     def test_subset(self):
         """Test data may be subsetted and that coordinate transformations return the same value arrays."""
@@ -97,7 +97,7 @@ class Test(TestBase):
         ## with rotated pole, the uid mask was not being updated correctly following
         ## a transformation back to rotated pole. this needed to be updated explicitly
         ## in subset.py
-        rd = self.test_data.get_rd('rotated_pole_cccma')
+        rd = self.test_data_nc.get_rd('rotated_pole_cccma')
         geom = (5.87161922454834, 47.26985931396479, 15.03811264038086, 55.05652618408209)
         ops = ocgis.OcgOperations(dataset=rd,output_format='shp',geom=geom,
                                   select_ugid=[1],snippet=True)
@@ -112,7 +112,7 @@ class Test(TestBase):
     def test_ichec_rotated_pole(self):
         ## this point is far outside the domain
         ocgis.env.OVERWRITE = True
-        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
         for geom in [[-100.,45.],[-100,45,-99,46]]:
             ops = ocgis.OcgOperations(dataset=rd,output_format='nc',
                               calc=[{'func':'mean','name':'mean'}],
@@ -122,8 +122,8 @@ class Test(TestBase):
                 ops.execute()
     
     def test_narccap_cancm4_point_subset_no_abstraction(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('narccap_tas_rcm3_gfdl')
         rd.alias = 'tas_narccap'
         rds = [rd,rd2]
         geom = [-105.2751,39.9782]
@@ -134,8 +134,8 @@ class Test(TestBase):
             ops.execute()
             
     def test_narccap_cancm4_point_subset_with_abstraction(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('narccap_tas_rcm3_gfdl')
         rd2.alias = 'tas_narccap'
         rds = [
                rd,
@@ -157,8 +157,8 @@ class Test(TestBase):
         self.assertTrue(ret.geoms[1].area > ret.geoms[2].area)
         
     def test_narccap_cancm4_point_subset_with_abstraction_to_csv_shp(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('narccap_tas_rcm3_gfdl')
         rd.alias = 'tas_narccap'
         rds = [
                rd,
@@ -175,7 +175,7 @@ class Test(TestBase):
         self.assertEqual(set([row['properties']['UGID'] for row in rows]),set([1,2]))
     
     def test_collection_field_geometries_equivalent(self):
-        rd = self.test_data.get_rd('cancm4_tas',kwds=dict(time_region={'month':[6,7,8]}))
+        rd = self.test_data_nc.get_rd('cancm4_tas',kwds=dict(time_region={'month':[6,7,8]}))
         geom = ['state_boundaries',[{'properties':{'UGID':16},'geom':Point([-99.80780059778753,41.52315831343389])}]]
         for vw,g in itertools.product([True,False],geom):
             ops = ocgis.OcgOperations(dataset=rd,select_ugid=[16,32],geom=g,
@@ -189,7 +189,7 @@ class Test(TestBase):
     def test_empty_subset_multi_geometry_wrapping(self):
         ## adjacent state boundaries were causing an error with wrapping where
         ## a reference to the source field was being updated.
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[5,6,7])
         ret = ops.execute()
         self.assertEqual(set(ret.keys()),set([5,6,7]))
@@ -197,7 +197,7 @@ class Test(TestBase):
     def test_seasonal_calc(self):
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[3,4,5]]
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
@@ -207,7 +207,7 @@ class Test(TestBase):
 
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
@@ -217,7 +217,7 @@ class Test(TestBase):
         
         calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
         calc_grouping = [[12,1],[2,3]]
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                                   calc_sample_size=True,geom='state_boundaries',
                                   select_ugid=[23])
@@ -229,7 +229,7 @@ class Test(TestBase):
         key = 'dynamic_kernel_percentile_threshold'
         calc = [{'func':key,'name':'dkp','kwds':{'operation':'lt','percentile':90,'width':5}}]
         calc_grouping = [[3,4,5]]
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                                   calc_sample_size=False,geom='state_boundaries',
                                   select_ugid=[23])
@@ -241,7 +241,7 @@ class Test(TestBase):
         self.assertNumpyAll(to_test,reference)
     
     def test_selecting_single_value(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         lat_index = 32
         lon_index = 97
         with nc_scope(rd.uri) as ds:
@@ -360,7 +360,7 @@ class Test(TestBase):
     def test_point_shapefile_subset(self):
         _output_format = ['numpy','nc','csv','csv+']
         for output_format in _output_format:
-            rd = self.test_data.get_rd('cancm4_tas')
+            rd = self.test_data_nc.get_rd('cancm4_tas')
             ops = OcgOperations(dataset=rd,geom='qed_city_centroids',output_format=output_format,
                                 prefix=output_format)
             ret = ops.execute()
@@ -402,7 +402,7 @@ class Test(TestBase):
         _year = [[2011],None,[2012],[2011,2013]]
         
         def run_test(month,year):
-            rd = self.test_data.get_rd('cancm4_rhs',kwds={'time_region':{'month':month,'year':year}})
+            rd = self.test_data_nc.get_rd('cancm4_rhs',kwds={'time_region':{'month':month,'year':year}})
                         
             ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',
                                       select_ugid=[25])
@@ -425,7 +425,7 @@ class Test(TestBase):
         time_range = [dt(2013,1,1),dt(2015,12,31)]
         time_region = {'month':[6,7,8],'year':[2013,2014]}
         kwds = {'time_range':time_range,'time_region':time_region}
-        rd = self.test_data.get_rd('cancm4_rhs',kwds=kwds)
+        rd = self.test_data_nc.get_rd('cancm4_rhs',kwds=kwds)
         ops = ocgis.OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25])
         ret = ops.execute()
         ref = ret[25]['rhs']
@@ -437,7 +437,7 @@ class Test(TestBase):
         time_region = {'month':[6,7,8],'year':[2013,2014,2018]}
         kwds = {'time_range':time_range,'time_region':time_region}
         with self.assertRaises(RequestValidationError):
-            self.test_data.get_rd('cancm4_rhs',kwds=kwds)
+            self.test_data_nc.get_rd('cancm4_rhs',kwds=kwds)
 
     @longrunning
     def test_maurer_2010(self):
@@ -446,7 +446,7 @@ class Test(TestBase):
         calc = [{'func':'mean','name':'mean'},{'func':'median','name':'median'}]
         calc_grouping = ['month']
         for key in keys:
-            rd = self.test_data.get_rd(key)
+            rd = self.test_data_nc.get_rd(key)
             
             dct = rd.inspect_as_dct()
             self.assertEqual(dct['derived']['Count'],'102564')
@@ -471,14 +471,14 @@ class Test(TestBase):
             
     def test_clip_aggregate(self):
         ## this geometry was hanging
-        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2003]}})
+        rd = self.test_data_nc.get_rd('cancm4_tas',kwds={'time_region':{'year':[2003]}})
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[14,16],
                             aggregate=False,spatial_operation='clip',output_format='csv+')
         ret = ops.execute()
     
     @longrunning
     def test_narccap_point_subset_small(self):
-        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
+        rd = self.test_data_nc.get_rd('narccap_pr_wrfg_ncep')
         geom = [-97.74278,30.26694]
 #        ocgis.env.VERBOSE = True
 #        ocgis.env.DEBUG = True
@@ -565,7 +565,7 @@ class Test(TestBase):
         ref = ret[16][variable]
         
     def test_mfdataset_to_nc(self):
-        rd = self.test_data.get_rd('maurer_2010_pr')
+        rd = self.test_data_nc.get_rd('maurer_2010_pr')
         ops = OcgOperations(dataset=rd,output_format='nc',calc=[{'func':'mean','name':'my_mean'}],
                             calc_grouping=['year'],geom='state_boundaries',select_ugid=[23])
         ret = ops.execute()

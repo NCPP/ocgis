@@ -8,7 +8,7 @@ from importlib import import_module
 
 
 class TestEnvImportParm(TestBase):
-    _reset_env = False
+    reset_env = False
     
     def test_constructor(self):
         pm = EnvParmImport('USE_NUMPY',None,'numpy')
@@ -30,7 +30,7 @@ class TestEnvImportParm(TestBase):
         
 
 class Test(TestBase):
-    _reset_env = False
+    reset_env = False
     
     def get_is_available(self,module_name):
         try:
@@ -99,7 +99,7 @@ class Test(TestBase):
         try:
             env.DIR_OUTPUT = out
             env.PREFIX = 'my_prefix'
-            rd = self.test_data.get_rd('daymet_tmax')
+            rd = self.test_data_nc.get_rd('daymet_tmax')
             ops = OcgOperations(dataset=rd,snippet=True)
             self.assertEqual(env.DIR_OUTPUT,ops.dir_output)
             self.assertEqual(env.PREFIX,ops.prefix)

@@ -7,7 +7,7 @@ from ocgis.interface.metadata import NcMetadata
 class TestNcMetadata(TestBase):
 
     def setUp(self):
-        uri = self.test_data.get_rd('cancm4_tasmax_2001').uri
+        uri = self.test_data_nc.get_rd('cancm4_tasmax_2001').uri
         self.rootgrp = nc.Dataset(uri)
 
     def tearDown(self):

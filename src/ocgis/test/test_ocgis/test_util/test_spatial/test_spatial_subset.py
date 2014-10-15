@@ -51,7 +51,7 @@ class TestSpatialSubset(TestBase):
 
     @property
     def rd_rotated_pole(self):
-        rd = self.test_data.get_rd('rotated_pole_cccma')
+        rd = self.test_data_nc.get_rd('rotated_pole_cccma')
         return rd
 
     @property
@@ -86,7 +86,7 @@ class TestSpatialSubset(TestBase):
 
     def get_target(self):
         # 1: standard input file - geographic coordinate system, unwrapped
-        rd_standard = self.test_data.get_rd('cancm4_tas')
+        rd_standard = self.test_data_nc.get_rd('cancm4_tas')
 
         # 2: standard field - geographic coordinate system
         field_standard = rd_standard.get()
@@ -95,7 +95,7 @@ class TestSpatialSubset(TestBase):
         field_rotated_pole = self.rd_rotated_pole.get()
 
         # 4: field with lambert conformal coordinate system
-        rd = self.test_data.get_rd('narccap_lambert_conformal')
+        rd = self.test_data_nc.get_rd('narccap_lambert_conformal')
         field_lambert = rd.get()
 
         # 5: standard input field - geographic coordinate system, wrapped
@@ -156,7 +156,7 @@ class TestSpatialSubset(TestBase):
 
     def test_get_should_wrap(self):
         # a 360 dataset
-        field_360 = self.test_data.get_rd('cancm4_tas').get()
+        field_360 = self.test_data_nc.get_rd('cancm4_tas').get()
         ss = SpatialSubsetOperation(field_360, wrap=True)
         self.assertTrue(ss._get_should_wrap_(ss.target))
         ss = SpatialSubsetOperation(field_360, wrap=False)
@@ -218,7 +218,7 @@ class TestSpatialSubset(TestBase):
         """Test circular geometries. They were causing wrapping errors."""
 
         geoms = TestGeom.get_geometry_dictionaries()
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ss = SpatialSubsetOperation(rd, wrap=True)
         buffered = [element['geom'].buffer(rd.get().spatial.grid.resolution*2) for element in geoms]
         for buff in buffered:
@@ -234,7 +234,7 @@ class TestSpatialSubset(TestBase):
         proj4 = '+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
         output_crs = CoordinateReferenceSystem(proj4=proj4)
         subset_sdim = SpatialDimension.from_records([self.nebraska])
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ss = SpatialSubsetOperation(rd, output_crs=output_crs)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
         self.assertEqual(ret.spatial.crs, output_crs)
@@ -261,7 +261,7 @@ class TestSpatialSubset(TestBase):
         """Test subsetting with wrap set to a boolean value."""
 
         subset_sdim = SpatialDimension.from_records([self.nebraska])
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         self.assertTrue(rd.get().spatial.is_unwrapped)
         ss = SpatialSubsetOperation(rd, wrap=True)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
@@ -303,7 +303,7 @@ class TestSpatialSubset(TestBase):
 
         # test nebraska against an unwrapped dataset specifically
         nebraska = SpatialDimension.from_records([self.nebraska])
-        field = self.test_data.get_rd('cancm4_tas').get()
+        field = self.test_data_nc.get_rd('cancm4_tas').get()
         ss = SpatialSubsetOperation(field)
         prepared = ss._prepare_subset_sdim_(nebraska)
         self.assertTrue(prepared.is_unwrapped)
@@ -314,7 +314,7 @@ class TestSpatialSubset(TestBase):
 
     def test_should_update_crs(self):
         # no output crs provided
-        target = self.test_data.get_rd('cancm4_tas')
+        target = self.test_data_nc.get_rd('cancm4_tas')
         ss = SpatialSubsetOperation(target)
         self.assertFalse(ss.should_update_crs)
 

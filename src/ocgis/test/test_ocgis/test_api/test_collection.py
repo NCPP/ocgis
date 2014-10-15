@@ -17,7 +17,7 @@ import numpy as np
 
 
 class TestAbstractCollection(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def get_coll(self):
         coll = AbstractCollection()

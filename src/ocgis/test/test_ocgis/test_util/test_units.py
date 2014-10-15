@@ -11,12 +11,12 @@ from ocgis.util.units import get_are_units_equivalent, get_are_units_equal,\
 class TestField(TestBase):
     
     def test_units_read_from_file(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         self.assertEqual(field.variables['tas'].cfunits,Units('K'))
         
     def test_units_conform_from_file(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         sub = field.get_time_region({'month':[5],'year':[2005]})
         sub.variables['tas'].cfunits_conform(Units('celsius'))
@@ -71,7 +71,7 @@ class TestUnits(unittest.TestCase):
 
 
 class TestVariableUnits(TestBase):
-    _create_dir = False
+    create_dir = False
     
     @property
     def value(self):

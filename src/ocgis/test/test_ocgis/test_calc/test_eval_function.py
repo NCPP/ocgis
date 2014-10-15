@@ -80,7 +80,7 @@ class TestEvalFunction(TestBase):
             EvalFunction._get_eval_string_(expr,{'tas':'var.value'})
             
     def test_calculation_one_variable_exp_only(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:,0:10,:,:,:]
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
@@ -97,8 +97,8 @@ class TestEvalFunction(TestBase):
         self.assertNumpyAll(ret['es'].value,actual_value)
         
     def test_calculation_two_variables_exp_only(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2001')
         field = rd.get()
         field2 = rd2.get()
         field.variables.add_variable(field2.variables['tasmax'],assign_new_uid=True)
@@ -115,7 +115,7 @@ class TestEvalFunction(TestBase):
         self.assertNumpyAll(ret['foo'].value,actual_value)
         
     def test_calculation_one_variable_exp_and_log(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:,0:10,:,:,:]
         expr = 'es=6.1078*exp(log(17.08085)*(tas-273.16)/(234.175+(tas-273.16)))'
@@ -126,7 +126,7 @@ class TestEvalFunction(TestBase):
         self.assertNumpyAll(ret['es'].value,actual_value)
         
     def test_calculation_file_only_one_variable(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:,0:10,:,:,:]
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
@@ -137,8 +137,8 @@ class TestEvalFunction(TestBase):
         self.assertEqual(ret['es'].fill_value,field.variables['tas'].fill_value)
         
     def test_calculation_file_only_two_variables(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2001')
         field = rd.get()
         field2 = rd2.get()
         field.variables.add_variable(field2.variables['tasmax'],assign_new_uid=True)

@@ -119,10 +119,10 @@ class FionaConverter(AbstractConverter):
         
         return(ret)
     
-    def _write_coll_(self,f,coll):
+    def _write_coll_(self, f, coll):
         fiona_object = f['fiona_object']
-        for geom,properties in coll.get_iter_dict(use_upper_keys=True,conversion_map=f['fiona_conversion']):
-            to_write = {'geometry':mapping(geom),'properties':properties}
+        for geom, properties in coll.get_iter_dict(use_upper_keys=True, conversion_map=f['fiona_conversion']):
+            to_write = {'geometry': mapping(geom), 'properties': properties}
             fiona_object.write(to_write)
 
 

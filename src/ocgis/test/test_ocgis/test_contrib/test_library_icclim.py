@@ -36,12 +36,12 @@ class TestLibraryIcclim(TestBase):
                 for cg in CalcGrouping.iter_possible():
                     calc = [{'func':subclass.key,'name':subclass.key.split('_')[1]}]
                     if klass == AbstractIcclimUnivariateSetFunction:
-                        rd = self.test_data.get_rd('cancm4_tas')
+                        rd = self.test_data_nc.get_rd('cancm4_tas')
                         rd.time_region = {'year':[2001,2002]}
                         calc = [{'func':subclass.key,'name':subclass.key.split('_')[1]}]
                     else:
-                        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-                        tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
+                        tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
+                        tasmax = self.test_data_nc.get_rd('cancm4_tasmax_2001')
                         rd = [tasmin,tasmax]
                         for r in rd:
                             r.time_region = {'year':[2001,2002]}
@@ -90,8 +90,8 @@ class TestLibraryIcclim(TestBase):
 class TestDTR(TestBase):
     
     def test_calculate(self):
-        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-        tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
+        tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
+        tasmax = self.test_data_nc.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
         field.variables.add_variable(deepcopy(tasmax.get().variables['tasmax']), assign_new_uid=True)
         field = field[:,0:600,:,25:50,25:50]
@@ -101,8 +101,8 @@ class TestDTR(TestBase):
         self.assertEqual(ret['icclim_DTR'].value.shape,(1, 12, 1, 25, 25))
         
     def test_bad_keyword_mapping(self):
-        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-        tas = self.test_data.get_rd('cancm4_tas')
+        tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
+        tas = self.test_data_nc.get_rd('cancm4_tas')
         rds = [tasmin,tas]
         calc = [{'func':'icclim_DTR','name':'DTR','kwds':{'tas':'tasmin','tasmax':'tasmax'}}]
         with self.assertRaises(DefinitionValidationError):
@@ -118,9 +118,9 @@ class TestDTR(TestBase):
         ## note the kwds must contain a map of the required variables to their
         ## associated aliases.
         calc = [{'func':'icclim_DTR','name':'DTR','kwds':{'tasmin':'tasmin','tasmax':'tasmax'}}]
-        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
+        tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
         tasmin.time_region = {'year':[2002]}
-        tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
+        tasmax = self.test_data_nc.get_rd('cancm4_tasmax_2001')
         tasmax.time_region = {'year':[2002]}
         rds = [tasmin,tasmax]
         ops = ocgis.OcgOperations(dataset=rds,calc=calc,calc_grouping=['month'],
@@ -131,8 +131,8 @@ class TestDTR(TestBase):
 class TestETR(TestBase):
     
     def test_calculate(self):
-        tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
-        tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
+        tasmin = self.test_data_nc.get_rd('cancm4_tasmin_2001')
+        tasmax = self.test_data_nc.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
         field.variables.add_variable(tasmax.get().variables['tasmax'], assign_new_uid=True)
         field = field[:,0:600,:,25:50,25:50]
@@ -142,7 +142,7 @@ class TestETR(TestBase):
         self.assertEqual(ret['icclim_ETR'].value.shape,(1, 12, 1, 25, 25))
         
     def test_calculate_rotated_pole(self):
-        tasmin_fake = self.test_data.get_rd('rotated_pole_ichec')
+        tasmin_fake = self.test_data_nc.get_rd('rotated_pole_ichec')
         tasmin_fake.alias = 'tasmin'
         tasmax_fake = deepcopy(tasmin_fake)
         tasmax_fake.alias = 'tasmax'
@@ -163,7 +163,7 @@ class TestETR(TestBase):
 class TestTx(TestBase):
             
     def test_calculate_operations(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         slc = [None,None,None,[0,10],[0,10]]
         calc_icclim = [{'func':'icclim_TG','name':'TG'}]
         calc_ocgis = [{'func':'mean','name':'mean'}]
@@ -179,7 +179,7 @@ class TestTx(TestBase):
                                 ret_icclim[1]['tas'].variables['TG'].value)
             
     def test_calculation_operations_to_nc(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         slc = [None,None,None,[0,10],[0,10]]
         ops_ocgis = OcgOperations(calc=[{'func':'icclim_TG','name':'TG'}],
                                   calc_grouping=['month'],
@@ -199,7 +199,7 @@ class TestTx(TestBase):
             self.assertEqual(dict(var.__dict__),{'_FillValue':np.float32(1e20),u'units': u'K', u'standard_name': AbstractIcclimFunction.standard_name, u'long_name': u'Mean of daily mean temperature'})
 
     def test_calculate(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:,:,:,0:10,0:10]
         klasses = [IcclimTG,IcclimTN,IcclimTX]
@@ -217,7 +217,7 @@ class TestTx(TestBase):
 class TestSU(TestBase):
     
     def test_calculate(self):
-        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
         field = rd.get()
         field = field[:,:,:,0:10,0:10]
         for calc_grouping in [['month'],['month','year']]:
@@ -229,14 +229,14 @@ class TestSU(TestBase):
             self.assertNumpyAll(ret_icclim['icclim_SU'].value,ret_ocgis['threshold'].value)
             
     def test_calculation_operations_bad_units(self):
-        rd = self.test_data.get_rd('daymet_tmax')
+        rd = self.test_data_nc.get_rd('daymet_tmax')
         calc_icclim = [{'func':'icclim_SU','name':'SU'}]
         ops_icclim = OcgOperations(calc=calc_icclim,calc_grouping=['month','year'],dataset=rd)
         with self.assertRaises(UnitsValidationError):
             ops_icclim.execute()
             
     def test_calculation_operations_to_nc(self):
-        rd = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
         slc = [None,None,None,[0,10],[0,10]]
         ops_ocgis = OcgOperations(calc=[{'func':'icclim_SU','name':'SU'}],
                                   calc_grouping=['month'],

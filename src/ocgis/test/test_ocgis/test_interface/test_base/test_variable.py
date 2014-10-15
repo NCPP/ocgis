@@ -106,7 +106,7 @@ class TestVariable(TestBase):
             self.assertDictEqual(var.meta, {'foo': 5})
 
 class TestVariableCollection(TestBase):
-    _create_dir = False
+    create_dir = False
 
     def get_variable(self, alias='tas_foo'):
         var = Variable(name='tas', alias=alias, value=np.array([4, 5, 6]))

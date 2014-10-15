@@ -116,7 +116,7 @@ class TestField(AbstractTestField):
     def test_loading_from_source_spatial_bounds(self):
         """Test row bounds may be set to None when loading from source."""
 
-        field = self.test_data.get_rd('cancm4_tas').get()
+        field = self.test_data_nc.get_rd('cancm4_tas').get()
         field.spatial.grid.row.bounds
         field.spatial.grid.row.bounds = None
         self.assertIsNone(field.spatial.grid.row.bounds)

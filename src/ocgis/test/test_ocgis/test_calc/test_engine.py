@@ -30,7 +30,7 @@ class TestOcgCalculationEngine(TestBase):
     def test_with_eval_function_one_variable(self):
         funcs = [{'func':'tas2=tas+4','ref':EvalFunction}]
         engine = self.get_engine(funcs=funcs,grouping=None)
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]]).execute()
         to_test = deepcopy(coll)
         engine.execute(coll)
@@ -39,8 +39,8 @@ class TestOcgCalculationEngine(TestBase):
     def test_with_eval_function_two_variables(self):
         funcs = [{'func':'tas_out=tas+tas2','ref':EvalFunction}]
         engine = self.get_engine(funcs=funcs,grouping=None)
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_tas')
         rd2.alias = 'tas2'
         field = rd.get()
         field2 = rd2.get()
@@ -59,14 +59,14 @@ class TestOcgCalculationEngine(TestBase):
             self.get_engine(kwds=kwds)
         
     def test_execute(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]]).execute()
         engine = self.get_engine()
         ret = engine.execute(coll)
         self.assertEqual(ret[1]['tas'].shape,(1, 12, 1, 10, 10))
     
     def test_execute_tgd(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]],
                                    calc=self.funcs,calc_grouping=self.grouping).execute()
         coll_data = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]]).execute()
@@ -78,7 +78,7 @@ class TestOcgCalculationEngine(TestBase):
         self.assertFalse(np.may_share_memory(coll.gvu(1,'mean'),coll_engine.gvu(1,'mean')))
 
     def test_execute_tgd_malformed(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd,slice=[None,[0,700],None,[0,10],[0,10]],
                                    calc=self.funcs,calc_grouping=['month','year']).execute()
         tgds = {'tas':coll[1]['tas'].temporal}

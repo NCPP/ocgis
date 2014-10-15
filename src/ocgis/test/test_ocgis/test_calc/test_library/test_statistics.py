@@ -47,7 +47,7 @@ class TestMovingWindow(AbstractTestField):
     def test_execute_valid_through_operations(self):
         """Test executing a "valid" convolution mode through operations ensuring the data is appropriately truncated."""
 
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         calc = [{'func': 'moving_window', 'name': 'ma', 'kwds': {'k': 5, 'mode': 'valid', 'operation': 'mean'}}]
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, slice=[None, [0, 365], None, [0, 10], [0, 10]])
         ret = ops.execute()
@@ -200,7 +200,7 @@ class TestMean(AbstractTestField):
                          set(ret.keys()))
         
     def test_file_only(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:,10:20,:,20:30,40:50]
         grouping = ['month']
@@ -219,7 +219,7 @@ class TestMean(AbstractTestField):
     def test_output_datatype(self):
         ## ensure the output data type is the same as the input data type of
         ## the variable.
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                                   calc_grouping=['month'],geom='state_boundaries',
                                   select_ugid=[27])
@@ -229,7 +229,7 @@ class TestMean(AbstractTestField):
         self.assertEqual(ret[27]['tas'].variables['mean'].dtype,var_dtype)
             
     def test_file_only_by_operations(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                                   calc_grouping=['month'],geom='state_boundaries',
                                   select_ugid=[27],file_only=True,output_format='nc')

@@ -7,8 +7,8 @@ from ocgis.exc import DefinitionValidationError
 class Test(TestBase):
 
     def test_nc(self):
-        rd1 = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_rhsmax')
+        rd1 = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_rhsmax')
         rd = [rd1,rd2]
         for output_format in ['shp','csv','csv+','nc']:
             if output_format == 'nc':

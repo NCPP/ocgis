@@ -114,7 +114,7 @@ class TestTemporalDimension(TestBase):
         self.assertEqual(tg.value[0],dt(2012,12,16))
         
         ## grab real data
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         td = TemporalDimension(value=field.temporal.value_datetime)
         tg = td.get_grouping([[3,4,5]])

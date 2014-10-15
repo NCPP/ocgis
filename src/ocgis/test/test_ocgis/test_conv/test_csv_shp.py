@@ -12,14 +12,14 @@ class Test(TestBase):
     def test_geometries_not_duplicated_with_equivalent_ugid(self):
         ## if geometries are equivalent, they should not have duplicates in the
         ## output shapefile.
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
         ops = OcgOperations(dataset=[rd,rd2],geom='state_boundaries',select_ugid=[16],
                             output_format='csv+',snippet=True)
         ops.execute()
         
-        path_shp = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.shp')
-        path_csv = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.csv')
+        path_shp = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
+        path_csv = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.csv')
         with fiona.open(path_shp) as source:
             self.assertEqual(len(list(source)),1)
         with open(path_csv) as source:
@@ -32,13 +32,13 @@ class Test(TestBase):
         row = list(ShpCabinetIterator(key='state_boundaries', select_ugid=[16]))
         row.append(deepcopy(row[0]))
         row[1]['properties']['UGID'] = 17
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
         ops = OcgOperations(dataset=[rd, rd2], geom=row, output_format='csv+', snippet=True)
         ops.execute()
         
-        path_shp = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.shp')
-        path_csv = os.path.join(self._test_dir,ops.prefix,'shp',ops.prefix+'_ugid.csv')
+        path_shp = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
+        path_csv = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.csv')
         with fiona.open(path_shp) as source:
             self.assertEqual(len(list(source)),2)
         with open(path_csv) as source:

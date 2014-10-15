@@ -15,96 +15,68 @@ from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
 
 
+class ToTest(Exception):
+    """
+    Useful when wanting to flag things as not tested.
+    """
+
 
 class TestBase(unittest.TestCase):
+    """
+    All tests should inherit from this. It allows test data to be written to a temporary folder and removed easily.
+    Also simplifies access to static files.
+    """
 
-    '''All tests should inherit from this. It allows test data to be written to
-    a temporary folder and removed easily.'''
     __metaclass__ = abc.ABCMeta
-    _reset_env = True
-    _create_dir = True
+    # set to false to not resent the environment before each test
+    reset_env = True
+    # set to false to not create and destroy a temporary directory before each test
+    create_dir = True
+    # prefix for the temporary test directories
+    _prefix_path_test = 'ocgis_test_'
 
-    def __init__(self, *args, **kwds):
-        self.test_data = self.get_tdata()
-        super(TestBase, self).__init__(*args, **kwds)
+    def __init__(self, *args, **kwargs):
+        self.test_data_nc = self.get_tst_data_nc()
+        self.current_dir_output = None
+        self.ToTest = ToTest
+        super(TestBase, self).__init__(*args, **kwargs)
 
     @property
-    def _test_bin_dir(self):
+    def path_bin(self):
+        """Path to binary test file directory."""
+
         base_dir = os.path.split(__file__)[0]
         ret = os.path.join(base_dir, 'bin')
-        return (ret)
+        return ret
 
-    @staticmethod
-    def get_tdata():
-        test_data = TestData()
-        test_data.update(['daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
-        test_data.update(['CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                         key='cancm4_tasmax_2011')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                         key='cancm4_tasmax_2001')
-        test_data.update(['CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                         key='cancm4_tasmin_2001')
-        test_data.update(['CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
-        test_data.update(['CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                         key='cancm4_rhsmax')
-        test_data.update(['maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc',
-                         key='maurer_bccr_1950')
-        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
-        test_data.update(['narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
-        test_data.update(['narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
-        #        test_data.update(['CCSM4'],'albisccp','albisccp_cfDay_CCSM4_1pctCO2_r2i1p1_00200101-00391231.nc',key='ccsm4')
-        #        test_data.update(['hostetler'],'TG','RegCM3_Daily_srm_GFDL.ncml.nc',key='hostetler')
-        test_data.update(['maurer', '2010'], 'pr',
-                         ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'],
-                         key='maurer_2010_pr')
-        test_data.update(['maurer', '2010'], 'tas',
-                         ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'],
-                         key='maurer_2010_tas')
-        test_data.update(['maurer', '2010'], 'tasmin',
-                         ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'],
-                         key='maurer_2010_tasmin')
-        test_data.update(['maurer', '2010'], 'tasmax',
-                         ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'],
-                         key='maurer_2010_tasmax')
-        test_data.update(['narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'],
-                         key='narccap_pr_wrfg_ncep')
-        test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
-        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
-        test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
-        test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc',
-                         key='snippet_maurer_dtr')
-        test_data.update(['CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
+    def assertDictEqual(self, d1, d2, msg=None):
+        """
+        Asserts two dictionaries are equal. If they are not, identify the first key/value which are not equal.
 
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc',
-                         key='subset_test_Tavg_sresa2')
-        test_data.update(['misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc',
-                         key='subset_test_Prcp')
+        :param dict d1: A dictionary to test.
+        :param dict d2: A dictionary to test.
+        :param str msg: A message to attach to an assertion error.
+        :raises: AssertionError
+        """
 
-        test_data.update(['misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
-        test_data.update(['misc', 'rotated_pole'], 'tas',
-                         'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc',
-                         key='rotated_pole_ichec')
-        test_data.update(['misc', 'rotated_pole'], 'tas',
-                         'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc',
-                         key='rotated_pole_cccma')
-        test_data.update(['misc', 'rotated_pole'], 'pr',
-                         'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc',
-                         key='rotated_pole_cnrm_cerfacs')
-        return test_data
-
-    def shortDescription(self):
-        return None
+        try:
+            unittest.TestCase.assertDictEqual(self, d1, d2, msg=msg)
+        except AssertionError:
+            for k, v in d1.iteritems():
+                self.assertEqual(v, d2[k])
+            self.assertEqual(set(d1.keys()), set(d2.keys()))
 
     def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True):
         """
+        Asserts arrays are equal according to the test criteria.
+
+        :param arr1: An array to compare.
         :type arr1: :class:`numpy.ndarray`
+        :param arr2: An array to compare.
         :type arr2: :class:`numpy.ndarray`
-        :param check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
-        :type check_fill_value_dtype: bool
+        :param bool check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
+        :param bool check_arr_dtype: If ``True``, check the data types of the arrays are equal.
+        :raises: AssertionError
         """
 
         self.assertEqual(type(arr1), type(arr2))
@@ -118,54 +90,28 @@ class TestBase(unittest.TestCase):
                 self.assertEqual(arr1.fill_value, arr2.fill_value)
             else:
                 self.assertTrue(np.equal(arr1.fill_value, arr2.fill_value.astype(arr1.fill_value.dtype)))
-            return True
         else:
-            return self.assertTrue(np.all(arr1 == arr2))
-
-    def assertNumpyAllClose(self, arr1, arr2):
-        self.assertEqual(type(arr1), type(arr2))
-        self.assertEqual(arr1.shape, arr2.shape)
-        if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
-            self.assertTrue(np.allclose(arr1.data, arr2.data))
-            self.assertTrue(np.all(arr1.mask == arr2.mask))
-            self.assertEqual(arr1.fill_value, arr2.fill_value)
-            return True
-        else:
-            return self.assertTrue(np.allclose(arr1, arr2))
-
-    def assertNumpyNotAll(self, arr1, arr2):
-        try:
-            self.assertNumpyAll(arr1, arr2)
-        except AssertionError:
-            ret = True
-        else:
-            raise AssertionError('Arrays are equivalent.')
-        return ret
-
-    def assertNumpyNotAllClose(self, arr1, arr2):
-        try:
-            self.assertNumpyAllClose(arr1, arr2)
-        except AssertionError:
-            ret = True
-        else:
-            raise AssertionError('Arrays are equivalent within precision.')
-        return ret
-
-    def assertDictEqual(self, d1, d2, msg=None):
-        try:
-            unittest.TestCase.assertDictEqual(self, d1, d2, msg=msg)
-        except AssertionError:
-            for k, v in d1.iteritems():
-                self.assertEqual(v, d2[k])
-            self.assertEqual(set(d1.keys()), set(d2.keys()))
+            self.assertTrue(np.all(arr1 == arr2))
 
     def assertNcEqual(self, uri_src, uri_dest, check_types=True, close=False, metadata_only=False,
                       ignore_attributes=None):
         """
-        :param dict ignore_attributes:
+        Assert two netCDF files are equal according to the test criteria.
+
+        :param str uri_src: A URI to a source file.
+        :param str uri_dest: A URI to a destination file.
+        :param bool check_types: If ``True``, check data types of variable arrays.
+        :param bool close: If ``False``, use exact value comparisons without a tolerance.
+        :param bool metadata_only: If ``False``, check array values associated with variables. If ``True``, only check
+         metadata values and not value arrays.
+        :param dict ignore_attributes: Select which attributes to ignore when testing. Keys are associated with variable
+         names. The exception is for dataset-level attributes which are selected with the key `'global'`.
 
         >>> ignore_attributes = {'global': ['history']}
+
+        :raises: AssertionError
         """
+
         src = nc.Dataset(uri_src)
         dest = nc.Dataset(uri_dest)
 
@@ -215,23 +161,147 @@ class TestBase(unittest.TestCase):
             src.close()
             dest.close()
 
-    def setUp(self):
-        if self._reset_env: env.reset()
-        if self._create_dir:
-            self._test_dir = tempfile.mkdtemp(prefix='ocgis_test_')
-            env.DIR_OUTPUT = self._test_dir
+    def assertNumpyAllClose(self, arr1, arr2):
+        """
+        Asserts arrays are close according to the test criteria.
+
+        :param arr1: An array to compare.
+        :type arr1: :class:`numpy.ndarray`
+        :param arr2: An array to compare.
+        :type arr2: :class:`numpy.ndarray`
+        :raises: AssertionError
+        """
+
+        self.assertEqual(type(arr1), type(arr2))
+        self.assertEqual(arr1.shape, arr2.shape)
+        if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
+            self.assertTrue(np.allclose(arr1.data, arr2.data))
+            self.assertTrue(np.all(arr1.mask == arr2.mask))
+            self.assertEqual(arr1.fill_value, arr2.fill_value)
         else:
-            self._create_dir = None
+            self.assertTrue(np.allclose(arr1, arr2))
+
+    def assertNumpyNotAll(self, arr1, arr2):
+        """
+        Asserts arrays are not equal according to the test criteria.
+
+        :param arr1: An array to compare.
+        :type arr1: :class:`numpy.ndarray`
+        :param arr2: An array to compare.
+        :type arr2: :class:`numpy.ndarray`
+        :raises: AssertionError
+        """
+
+        try:
+            self.assertNumpyAll(arr1, arr2)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('Arrays are equivalent.')
+
+    def assertNumpyNotAllClose(self, arr1, arr2):
+        """
+        Asserts arrays are not close according to the test criteria.
+
+        :param arr1: An array to compare.
+        :type arr1: :class:`numpy.ndarray`
+        :param arr2: An array to compare.
+        :type arr2: :class:`numpy.ndarray`
+        :raises: AssertionError
+        """
+
+        try:
+            self.assertNumpyAllClose(arr1, arr2)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('Arrays are equivalent within precision.')
+
+    def get_temporary_output_directory(self):
+        """
+        :returns: A path to a temporary directory with an appropriate prefix.
+        :rtype: str
+        """
+
+        return tempfile.mkdtemp(prefix=self._prefix_path_test)
+
+    @staticmethod
+    def get_tst_data_nc():
+        """
+        :returns: A dictionary-like object with special access methods for test files.
+        :rtype: :class:`ocgis.test.base.TestData`
+        """
+
+        test_data = TestData()
+
+        test_data.update(['CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
+        test_data.update(['CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
+        test_data.update(['CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhsmax')
+        test_data.update(['CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
+        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmax_2001')
+        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_tasmax_2011')
+        test_data.update(['CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmin_2001')
+        test_data.update(['daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
+        test_data.update(['maurer', '2010'], 'pr', ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'], key='maurer_2010_pr')
+        test_data.update(['maurer', '2010'], 'tas', ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'], key='maurer_2010_tas')
+        test_data.update(['maurer', '2010'], 'tasmax', ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'], key='maurer_2010_tasmax')
+        test_data.update(['maurer', '2010'], 'tasmin', ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'], key='maurer_2010_tasmin')
+        test_data.update(['maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc', key='maurer_bccr_1950')
+        test_data.update(['misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
+        test_data.update(['misc', 'rotated_pole'], 'pr', 'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc', key='rotated_pole_cnrm_cerfacs')
+        test_data.update(['misc', 'rotated_pole'], 'tas', 'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc', key='rotated_pole_cccma')
+        test_data.update(['misc', 'rotated_pole'], 'tas', 'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc', key='rotated_pole_ichec')
+        test_data.update(['misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc', key='subset_test_Prcp')
+        test_data.update(['misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
+        test_data.update(['misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc', key='subset_test_Tavg_sresa2')
+        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
+        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
+        test_data.update(['narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
+        test_data.update(['narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
+        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
+        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
+        test_data.update(['narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'], key='narccap_pr_wrfg_ncep')
+        test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
+        test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
+        test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc', key='snippet_maurer_dtr')
+
+        return test_data
+
+    def setUp(self):
+        self.current_dir_output = None
+        if self.reset_env:
+            env.reset()
+        if self.create_dir:
+            self.current_dir_output = self.get_temporary_output_directory()
+            env.DIR_OUTPUT = self.current_dir_output
+
+    def shortDescription(self):
+        """
+        Overloaded method so ``nose`` will not print the docstring associated with a test.
+        """
+
+        return None
 
     def tearDown(self):
         try:
-            if self._create_dir: shutil.rmtree(self._test_dir)
+            if self.create_dir:
+                shutil.rmtree(self.current_dir_output)
         finally:
-            if self._reset_env: env.reset()
+            if self.reset_env:
+                env.reset()
 
 
 class TestData(OrderedDict):
-    def copy_files(self, dest):
+
+    def copy_files(self, dest, verbose=False):
+        """
+        Copy test files from their source to the base directory ``dest``. The folder hierarchy will be recreated under
+        ``dest``.
+
+        :param str dest: The base directory. The directory must exist.
+        :raises: IOError
+        """
+
         if not os.path.exists(dest):
             raise (IOError('Copy destination does not exist: {0}'.format(dest)))
         for k, v in self.iteritems():
@@ -245,28 +315,48 @@ class TestData(OrderedDict):
                 dst = os.path.join(dest_dir, os.path.split(to_copy_uri)[1])
                 if not os.path.exists(dest_dir):
                     os.makedirs(dest_dir)
-                print('copying: {0}...'.format(dst))
+                if verbose:
+                    print 'copying: {0}...'.format(dst)
                 shutil.copy2(to_copy_uri, dst)
-        print('copy completed.')
+        if verbose:
+            print 'copy completed'
 
     def copy_file(self, key, dest):
+        """
+        Copy a single files with unique test key identifier ``key`` to the full path ``dest``.
+
+        :param str key: The unique identifier key to a test dataset.
+        :param str dest: The full path for the test files to be copied to.
+        """
+
         src = self.get_uri(key)
         dest = os.path.join(dest, self[key]['filename'])
         shutil.copy2(src, dest)
-        return (dest)
+        return dest
 
     def get_rd(self, key, kwds=None):
         """
+        :param str key: The unique identifier to the test dataset.
+        :param dict kwds: Any keyword arguments to pass to :class:`ocgis.RequestDataset`
+        :returns: A request dataset object to use for testing!
         :rtype: :class:`ocgis.RequestDataset`
         """
+
         ref = self[key]
         if kwds is None:
             kwds = {}
         kwds.update({'uri': self.get_uri(key), 'variable': ref['variable']})
         rd = RequestDataset(**kwds)
-        return (rd)
+        return rd
 
     def get_uri(self, key):
+        """
+        :param str key: The unique identifier to the test dataset.
+        :returns: The full URI to a dataset.
+        :rtype: str
+        :raises: OSError, ValueError
+        """
+
         ref = self[key]
         coll = deepcopy(ref['collection'])
         if env.DIR_TEST_DATA is None:
@@ -324,8 +414,25 @@ class TestData(OrderedDict):
                     raise (ValueError(
                         '"wget" was unable to fetch the test data URL ({0}) to the destination location: {1}. The command list was: {2}'.format(
                             wget_url, wget_dest, cmd)))
-        return (uri)
+        return uri
 
     def update(self, collection, variable, filename, key=None):
+        """
+        Update storage with a new test dataset.
+
+        :param sequence collection: A sequence of strings that when appended to the base directory will yield the full
+         path to the directory containing the test dataset.
+
+        >>> collection = ['climate_data']
+        >>> collection = ['cmip', 'test_data']
+
+        :param str variable: The variable name to extract from the dataset.
+        :param str filename: The filename of the dataset.
+
+        >>> filename = 'test_data.nc'
+
+        :param str key: If provided, use for the unique key identifier. Otherwise, ``filename`` is used.
+        """
+
         OrderedDict.update(self, {key or filename: {'collection': collection,
                                                     'filename': filename, 'variable': variable}})

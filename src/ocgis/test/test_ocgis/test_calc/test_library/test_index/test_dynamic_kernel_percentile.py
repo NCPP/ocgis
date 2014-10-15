@@ -20,7 +20,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         for year,day in itertools.product(years,days):
             dates.append(datetime.datetime(year,6,day,12))
             
-        ds = nc.Dataset(self.test_data.get_uri('cancm4_tas'))
+        ds = nc.Dataset(self.test_data_nc.get_uri('cancm4_tas'))
         try:
             calendar = ds.variables['time'].calendar
             units = ds.variables['time'].units
@@ -59,7 +59,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     def test_calculate(self):
         ## daily data for three years is wanted for the test. subset a CMIP5
         ## decadal simulation to use for input into the computation.
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         field = rd.get()
         field = field.get_between('temporal',datetime.datetime(2001,1,1),datetime.datetime(2003,12,31,23,59))
         ## the calculation will be for months and years. set the temporal grouping.
@@ -85,7 +85,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     
     @longrunning
     def test_operations(self):
-        uri = self.test_data.get_uri('cancm4_tas')
+        uri = self.test_data_nc.get_uri('cancm4_tas')
         rd = RequestDataset(uri=uri,
                             variable='tas',
 #                            time_range=[datetime.datetime(2001,1,1),datetime.datetime(2003,12,31,23,59)]
@@ -103,7 +103,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     @longrunning
     def test_operations_two_steps(self):
         ## get the request dataset to use as the basis for the percentiles
-        uri = self.test_data.get_uri('cancm4_tas')
+        uri = self.test_data_nc.get_uri('cancm4_tas')
         variable = 'tas'
         rd = RequestDataset(uri=uri,variable=variable)
         ## this is the underly OCGIS dataset object

@@ -807,7 +807,7 @@ class TestSpatialDimension(TestSpatialBase):
     def test_update_crs_rotated_pole(self):
         """Test moving between rotated pole and WGS84."""
 
-        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
         field = rd.get()
         """:type: ocgis.interface.base.field.Field"""
         self.assertIsInstance(field.spatial.crs, CFRotatedPole)

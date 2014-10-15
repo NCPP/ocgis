@@ -14,7 +14,7 @@ class Test(AbstractTestConverter):
         ref._dtype = np.int32
         ref._value = ref.value.astype(np.int32)
         ref._fill_value = None
-        ncconv = NcConverter([coll],self._test_dir,'ocgis_output')
+        ncconv = NcConverter([coll],self.current_dir_output,'ocgis_output')
         ret = ncconv.write()
         with nc_scope(ret) as ds:
             var = ds.variables['tas']
@@ -23,7 +23,7 @@ class Test(AbstractTestConverter):
             self.assertEqual(var._FillValue,np.ma.array([],dtype=np.dtype('int32')).fill_value)
         
     def test_fill_value_copied(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         with nc_scope(rd.uri) as ds:
             fill_value_test = ds.variables['tas']._FillValue
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='nc')

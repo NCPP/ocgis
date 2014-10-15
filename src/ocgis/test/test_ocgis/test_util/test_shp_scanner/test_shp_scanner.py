@@ -28,13 +28,13 @@ class Test(TestBase):
         return(geoms[0]['geom'])
     
     def get_subset_rd(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         ret = OcgOperations(dataset=rd,geom=self.nevada,snippet=True,output_format='nc').execute()
         rd_sub = RequestDataset(uri=ret,variable='tas')
         return(rd_sub)
     
     def test_get_does_intersect_true(self):
-        rd = self.test_data.get_rd('cancm4_tas')
+        rd = self.test_data_nc.get_rd('cancm4_tas')
         for geom in [self.nevada,self.new_york]:
             self.assertTrue(get_does_intersect(rd,geom))
             
@@ -53,7 +53,7 @@ class Test(TestBase):
         from ocgis.util.shp_scanner.labels import StateBoundaries
         keys = {'state_boundaries':['US State Boundaries',StateBoundaries]}
         build_database(keys=keys,filter_request_dataset=self.get_subset_rd())
-        handle,path = tempfile.mkstemp(suffix='.json',dir=self._test_dir)
+        handle,path = tempfile.mkstemp(suffix='.json',dir=self.current_dir_output)
         write_json(path)
         with open(path,'r') as fp:
             data = json.load(fp)

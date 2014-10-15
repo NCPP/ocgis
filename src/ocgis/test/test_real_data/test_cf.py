@@ -10,13 +10,13 @@ import ocgis
 class Test(TestBase):
     
     def test_missing_bounds(self):
-        rd = self.test_data.get_rd('snippet_maurer_dtr')
+        rd = self.test_data_nc.get_rd('snippet_maurer_dtr')
         ip = rd.inspect_as_dct()
 
     def test_climatology(self):
         ## http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#idp5996336
         
-        path = os.path.join(self._test_dir,'climatology.nc')
+        path = os.path.join(self.current_dir_output,'climatology.nc')
         ds = nc.Dataset(path,'w')
         try:
             dim_time = ds.createDimension('time',size=None)

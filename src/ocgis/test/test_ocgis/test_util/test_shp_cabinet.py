@@ -49,7 +49,7 @@ class TestShpCabinetIterator(TestBase):
         with self.assertRaises(ValueError):
             list(sci)
             
-        ops = ocgis.OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
+        ops = ocgis.OcgOperations(dataset=self.test_data_nc.get_rd('cancm4_tas'),
                                   geom='state_boundaries',
                                   select_ugid=[9999])
         with self.assertRaises(ValueError):
@@ -98,7 +98,7 @@ class TestShpCabinet(TestBase):
 
         sc = ShpCabinet()
         path = sc.get_shp_path('state_boundaries')
-        out_path = os.path.join(self._test_dir, '51_states.shp')
+        out_path = os.path.join(self.current_dir_output, '51_states.shp')
         with fiona.open(path) as source:
             with fiona.open(out_path, mode='w', driver='ESRI Shapefile', schema=source.meta['schema'], crs=source.meta['crs']) as sink:
                 for record in source:
@@ -168,14 +168,14 @@ class TestShpCabinet(TestBase):
         for dirpath,dirnames,filenames in os.walk(ocgis.env.DIR_SHPCABINET):
             for filename in filenames:
                 if filename.startswith('state_boundaries') or filename.startswith('world_countries'):
-                    dst = os.path.join(self._test_dir,filename)
+                    dst = os.path.join(self.current_dir_output,filename)
                     src = os.path.join(dirpath,filename)
                     shutil.copy2(src,dst)
-        self.test_get_keys(dir_shpcabinet=self._test_dir)
+        self.test_get_keys(dir_shpcabinet=self.current_dir_output)
         
-        sc = ShpCabinet(path=self._test_dir)
+        sc = ShpCabinet(path=self.current_dir_output)
         path = sc.get_shp_path('world_countries')
-        self.assertEqual(path,os.path.join(self._test_dir,'world_countries.shp'))
+        self.assertEqual(path,os.path.join(self.current_dir_output,'world_countries.shp'))
             
             
 if __name__ == '__main__':

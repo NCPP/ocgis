@@ -11,16 +11,16 @@ class TestShpProcess(TestBase):
     _test_path = '/home/ben.koziol/Dropbox/NESII/project/ocg/bin/test_data/test_shp_process'
 
     def test_shp_process(self):
-        copy_path = os.path.join(self.current_dir_output,'test_shp_process')
-        shutil.copytree(self._test_path,copy_path)
-        shp_path = os.path.join(copy_path,'wc_4326.shp')
+        copy_path = os.path.join(self.current_dir_output, 'test_shp_process')
+        shutil.copytree(self._test_path, copy_path)
+        shp_path = os.path.join(copy_path, 'wc_4326.shp')
         out_folder = tempfile.mkdtemp(dir=self.current_dir_output)
-        sp = ShpProcess(shp_path,out_folder)
-        sp.process(key='world_countries',ugid=None)
-            
+        sp = ShpProcess(shp_path, out_folder)
+        sp.process(key='world_countries', ugid=None)
+
         sc = ShpCabinet(path=out_folder)
-        select_ugid = [33,126,199]
-        geoms = list(sc.iter_geoms('world_countries',select_ugid=select_ugid))
-        self.assertEqual(len(geoms),3)
+        select_ugid = [33, 126, 199]
+        geoms = list(sc.iter_geoms('world_countries', select_ugid=select_ugid))
+        self.assertEqual(len(geoms), 3)
         names = [item['properties']['NAME'] for item in geoms]
-        self.assertEqual(set(names),set(['Canada','Mexico','United States']))
+        self.assertEqual(set(names), set(['Canada', 'Mexico', 'United States']))

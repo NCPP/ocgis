@@ -63,7 +63,11 @@ class TestBase(unittest.TestCase):
             unittest.TestCase.assertDictEqual(self, d1, d2, msg=msg)
         except AssertionError:
             for k, v in d1.iteritems():
-                msg = 'Issue with key "{0}". Values are {1}.'.format(k, (v, d2[k]))
+                try:
+                    msg = 'Issue with key "{0}". Values are {1}.'.format(k, (v, d2[k]))
+                except KeyError:
+                    msg = 'The key "{0}" was not found in the second dictionary.'.format(k)
+                    raise KeyError(msg)
                 self.assertEqual(v, d2[k], msg=msg)
             self.assertEqual(set(d1.keys()), set(d2.keys()))
 
@@ -139,8 +143,21 @@ class TestBase(unittest.TestCase):
                         raise
                 if check_types:
                     self.assertEqual(var[:].dtype, dvar[:].dtype)
+
+                # check values of attributes on all variables
                 for k, v in var.__dict__.iteritems():
-                    to_test_attr = getattr(dvar, k)
+                    try:
+                        to_test_attr = getattr(dvar, k)
+                    except AttributeError:
+                        # if the variable and attribute are flagged to ignore, continue to the next attribute
+                        if dvar._name in ignore_attributes:
+                            if k in ignore_attributes[dvar._name]:
+                                continue
+
+                        # notify if an attribute is missing
+                        msg = 'The attribute "{0}" is not found on the variable "{1}" for URI "{2}".'\
+                            .format(k, dvar._name, uri_dest)
+                        raise AttributeError(msg)
                     try:
                         self.assertNumpyAll(v, to_test_attr)
                     except AttributeError:

@@ -99,6 +99,17 @@ or
 
    python -c 'import ocgis'
 
+Testing the Installation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: There are tests for the optional dependencies. These will fail if the optional dependencies are not installed!
+
+It is recommended that a simple suite of tests are run to verify the new installation:
+
+>>> python setup.py test
+
+Please report any errors to the support email address.
+
 Configuring the :class:`~ocgis.ShpCabinet`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

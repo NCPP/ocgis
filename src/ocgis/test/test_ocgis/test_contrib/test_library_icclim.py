@@ -9,7 +9,7 @@ from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.api.operations import OcgOperations
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.test.test_simple.test_simple import nc_scope, ToTest
+from ocgis.test.test_simple.test_simple import nc_scope
 import ocgis
 from ocgis.test.test_base import longrunning
 import numpy as np

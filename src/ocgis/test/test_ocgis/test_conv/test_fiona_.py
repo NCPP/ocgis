@@ -27,7 +27,7 @@ class TestShpConverter(TestBase):
         path_ugid = os.path.join(self.current_dir_output, conv.prefix+'_ugid.shp')
 
         with fiona.open(path_ugid) as source:
-            self.assertEqual(source.schema['properties'], OrderedDict([(u'COUNTRY', 'str'), (u'UGID', 'int:10')]))
+            self.assertEqual(source.schema['properties'], OrderedDict([(u'COUNTRY', 'str:80'), (u'UGID', 'int:10')]))
 
     def test_none_geom(self):
         """Test a NoneType geometry will pass through the Fiona converter."""

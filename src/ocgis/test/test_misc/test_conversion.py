@@ -3,10 +3,7 @@ from ocgis.test.base import TestBase
 import ocgis
 import netCDF4 as nc
 import os
-from ocgis.api.operations import OcgOperations
-from collections import OrderedDict
 import fiona
-from ocgis.test.test_simple.test_simple import ToTest
 
 
 class Test(TestBase):

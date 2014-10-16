@@ -11,9 +11,9 @@ Required Dependencies
 Package Name   Version URL
 ============== ======= =======================================================================
 Python         2.7.6   http://www.python.org/download/releases/2.7.6/
-``osgeo``      1.9.1   http://pypi.python.org/pypi/GDAL/
-``shapely``    1.2     http://pypi.python.org/pypi/Shapely
-``fiona``      1.0.2   https://pypi.python.org/pypi/Fiona
+``osgeo``      1.9.1   https://pypi.python.org/pypi/GDAL/
+``shapely``    1.2     https://pypi.python.org/pypi/Shapely
+``fiona``      1.4.4   https://pypi.python.org/pypi/Fiona
 ``numpy``      1.8.2   http://sourceforge.net/projects/numpy/files/NumPy/1.8.2/
 ``netCDF4``    1.1.1   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================

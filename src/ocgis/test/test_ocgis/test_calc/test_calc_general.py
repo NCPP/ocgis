@@ -9,7 +9,6 @@ import netCDF4 as nc
 import itertools
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.test.test_simple.test_simple import ToTest
 
 
 class AbstractCalcBase(TestBase):

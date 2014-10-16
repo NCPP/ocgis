@@ -189,7 +189,6 @@ class ShpCabinet(object):
 
         ## get the source CRS
         meta = self.get_meta(path=shp_path)
-        crs = CoordinateReferenceSystem(value=meta['crs'])
 
         ## open the target shapefile
         ds = ogr.Open(shp_path)

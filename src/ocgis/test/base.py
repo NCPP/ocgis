@@ -63,7 +63,8 @@ class TestBase(unittest.TestCase):
             unittest.TestCase.assertDictEqual(self, d1, d2, msg=msg)
         except AssertionError:
             for k, v in d1.iteritems():
-                self.assertEqual(v, d2[k])
+                msg = 'Issue with key "{0}". Values are {1}.'.format(k, (v, d2[k]))
+                self.assertEqual(v, d2[k], msg=msg)
             self.assertEqual(set(d1.keys()), set(d2.keys()))
 
     def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True):

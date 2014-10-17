@@ -13,6 +13,7 @@ from subprocess import CalledProcessError
 import numpy as np
 from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
+from ocgis.util.helpers import get_iter
 
 
 class ToTest(Exception):
@@ -311,6 +312,21 @@ class TestBase(unittest.TestCase):
 
 class TestData(OrderedDict):
 
+    @property
+    def size(self):
+        """
+        :returns: Size of test data in bytes.
+        :rtype: int
+        """
+
+        total = 0
+        for key in self.keys():
+            path = self.get_uri(key)
+            # path is returned as a sequence...sometimes
+            for element in get_iter(path):
+                total += os.path.getsize(element)
+        return total
+
     def copy_files(self, dest, verbose=False):
         """
         Copy test files from their source to the base directory ``dest``. The folder hierarchy will be recreated under
@@ -370,8 +386,8 @@ class TestData(OrderedDict):
     def get_uri(self, key):
         """
         :param str key: The unique identifier to the test dataset.
-        :returns: The full URI to a dataset.
-        :rtype: str
+        :returns: A sequence of URIs for the test dataset selected by key.
+        :rtype: list[str,] or str
         :raises: OSError, ValueError
         """
 

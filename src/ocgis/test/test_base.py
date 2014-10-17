@@ -1,4 +1,3 @@
-import unittest
 from ocgis.test.base import TestBase
 import ocgis
 from unittest.case import SkipTest
@@ -14,7 +13,7 @@ def longrunning(f):
             raise SkipTest("long-running test")
         skip.__name__ = f.__name__
         ret = skip
-    return(ret)
+    return ret
         
     
 def dev(f):
@@ -25,7 +24,7 @@ def dev(f):
             raise SkipTest("development-only test")
         skip.__name__ = f.__name__
         ret = skip
-    return(ret)
+    return ret
 
 
 class Test(TestBase):
@@ -72,6 +71,8 @@ class Test(TestBase):
         self.assertEqual(len(rd.uri),2)
 
 
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+class TestTestData(TestBase):
+
+    def test_size(self):
+        size = self.test_data_nc.size
+        self.assertGreater(size, 1138333)

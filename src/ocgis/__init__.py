@@ -1,5 +1,5 @@
-__VER__ = '1.0.0'
-__RELEASE__ = '1.0.0'
+__VER__ = '1.0.1'
+__RELEASE__ = '1.0.1'
 
 from util.environment import env
 from api.operations import OcgOperations

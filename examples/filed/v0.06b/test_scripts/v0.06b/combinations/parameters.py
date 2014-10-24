@@ -93,7 +93,7 @@ class Dataset(AbstractParameter):
             
 #        values = []
 #        
-#        tdata = TestBase.get_tst_data_nc()
+#        tdata = TestBase.get_tst_data()
 #        
 #        rd = tdata.get_rd('cancm4_tasmax_2001')
 #        

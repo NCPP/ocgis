@@ -10,7 +10,7 @@ import ocgis
 class Test(TestBase):
     
     def test_missing_bounds(self):
-        rd = self.test_data_nc.get_rd('snippet_maurer_dtr')
+        rd = self.test_data.get_rd('snippet_maurer_dtr')
         ip = rd.inspect_as_dct()
 
     def test_climatology(self):

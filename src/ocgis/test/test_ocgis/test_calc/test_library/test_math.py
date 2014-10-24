@@ -202,7 +202,7 @@ class TestConvolve1D(AbstractTestField):
     def test_execute_valid_through_operations(self):
         """Test executing a "valid" convolution mode through operations ensuring the data is appropriately truncated."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         calc = [{'func': 'convolve_1d', 'name': 'convolve', 'kwds': {'v': np.array([1, 1, 1, 1, 1]), 'mode': 'valid'}}]
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, slice=[None, [0, 365], None, [0, 10], [0, 10]])
         ret = ops.execute()

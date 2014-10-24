@@ -20,7 +20,7 @@ class Test(TestBase):
         def callback(a, b):
             percentages.append(a)
 
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
         ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
                                   calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',
@@ -40,7 +40,7 @@ class Test(TestBase):
         for use_optimizations in [True,False]:
             for ii in n:
                 t1 = time.time()
-                rd = self.test_data_nc.get_rd('cancm4_tas')
+                rd = self.test_data.get_rd('cancm4_tas')
                 ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                                           calc_grouping=['month'],output_format='nc',
                                           geom='state_boundaries',
@@ -54,7 +54,7 @@ class Test(TestBase):
         self.assertTrue(tmean[True]['mean'] < tmean[False]['mean'])
     
     def test_multivariate_computation(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
         rd2 = deepcopy(rd)
         rd2.alias = 'tas2'
         calc = [{'func':'divide','name':'ln','kwds':{'arr1':'tas','arr2':'tas2'}}]
@@ -70,7 +70,7 @@ class Test(TestBase):
         self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_with_no_calc_grouping(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
         ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'ln','name':'ln'}],
                                   calc_grouping=None,output_format='nc',
                                   geom='state_boundaries',
@@ -83,7 +83,7 @@ class Test(TestBase):
         self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_with_time_region(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
+        rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'month':[3]}})
         ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                                   calc_grouping=['month'],output_format='nc',
                                   geom='state_boundaries',
@@ -96,7 +96,7 @@ class Test(TestBase):
         self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_with_geom(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                                   calc_grouping=['month'],output_format='nc',
                                   geom='state_boundaries',
@@ -109,7 +109,7 @@ class Test(TestBase):
         self.assertNcEqual(ret,ret_ocgis,ignore_attributes={'global': ['history']})
     
     def test_compute_small(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         
         ## use a smaller netCDF as target
         ops = ocgis.OcgOperations(dataset=rd,
@@ -144,7 +144,7 @@ class Test(TestBase):
         n_tile_dimensions = 1
         tile_range = [100, 100]
 
-        rd = RequestDatasetCollection(self.test_data_nc.get_rd('cancm4_tasmax_2011'))
+        rd = RequestDatasetCollection(self.test_data.get_rd('cancm4_tasmax_2011'))
         
         calc = [{'func': 'mean', 'name': 'my_mean'},
                 {'func': 'freq_perc', 'name': 'perc_90', 'kwds': {'percentile': 90}},

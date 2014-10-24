@@ -11,7 +11,7 @@ class TestOcgInterpreter(TestBase):
         """Test that the output directory is removed appropriately following an operations failure."""
 
         kwds = dict(add_auxiliary_files=[True, False])
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
 
         ## this geometry is outside the domain and will result in an exception
         geom = [1000, 1000, 1100, 1100]

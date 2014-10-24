@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 import unittest
 import itertools
 import numpy as np
-from ocgis import constants
+from ocgis import constants, ShpCabinet
 from shapely import wkt
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
@@ -130,7 +130,8 @@ class TestSingleElementRetriever(TestSpatialBase):
 class TestSpatialDimension(TestSpatialBase):
 
     def get_records(self):
-        path = '/home/ben.koziol/Dropbox/NESII/project/ocg/bin/shp/state_boundaries/state_boundaries.shp'
+        sc = ShpCabinet()
+        path = sc.get_shp_path('state_boundaries')
         with fiona.open(path, 'r') as source:
             records = list(source)
             meta = source.meta
@@ -807,7 +808,7 @@ class TestSpatialDimension(TestSpatialBase):
     def test_update_crs_rotated_pole(self):
         """Test moving between rotated pole and WGS84."""
 
-        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec')
         field = rd.get()
         """:type: ocgis.interface.base.field.Field"""
         self.assertIsInstance(field.spatial.crs, CFRotatedPole)
@@ -892,7 +893,9 @@ class TestSpatialDimension(TestSpatialBase):
             
     def test_geoms_only(self):
         geoms = []
-        with fiona.open('/home/ben.koziol/Dropbox/NESII/project/ocg/bin/shp/state_boundaries/state_boundaries.shp','r') as source:
+        sc = ShpCabinet()
+        path = sc.get_shp_path('state_boundaries')
+        with fiona.open(path, 'r') as source:
             for row in source:
                 geoms.append(shape(row['geometry']))
         geoms = np.atleast_2d(geoms)

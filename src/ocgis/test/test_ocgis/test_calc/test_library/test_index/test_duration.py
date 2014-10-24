@@ -96,54 +96,54 @@ class TestFrequencyDuration(AbstractCalcBase):
     
     @longrunning
     def test_real_data_multiple_datasets(self):
-        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        
-        rd_tasmax = RequestDataset(uri='Maurer02new_OBS_tasmax_daily.1971-2000.nc',
-                                   variable='tasmax',
-                                   time_region={'year':[1991],'month':[7]})
-        rd_tasmin = RequestDataset(uri='Maurer02new_OBS_tasmin_daily.1971-2000.nc',
-                                   variable='tasmin',
-                                   time_region={'year':[1991],'month':[7]})
-        
-        ops = OcgOperations(dataset=[rd_tasmax,rd_tasmin],
+        kwds = {'time_region': {'year': [1991], 'month': [7]}}
+        rd_tasmax = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds=kwds)
+        rd_tasmin = self.test_data.get_rd('maurer_2010_concatenated_tasmin', kwds=kwds)
+
+        ops = OcgOperations(dataset=[rd_tasmax, rd_tasmin],
                             output_format='csv+',
-                            calc=[{'name': 'Frequency Duration', 'func': 'freq_duration', 'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
-                            calc_grouping=['month','year'],
-                            geom='us_counties',select_ugid=[2778],aggregate=True,
-                            calc_raw=False,spatial_operation='clip',
-                            headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key', 'value'],)
+                            calc=[{'name': 'Frequency Duration', 'func': 'freq_duration',
+                                   'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
+                            calc_grouping=['month', 'year'],
+                            geom='us_counties', select_ugid=[2778], aggregate=True,
+                            calc_raw=False, spatial_operation='clip',
+                            headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key', 'value'], )
         ret = ops.execute()
-        
-        with open(ret,'r') as f:
+
+        with open(ret, 'r') as f:
             reader = csv.DictReader(f)
             variables = [row['VARIABLE'] for row in reader]
-        self.assertEqual(set(variables),set(['tasmax','tasmin']))
+        self.assertEqual(set(variables), set(['tasmax', 'tasmin']))
     
     def test_real_data(self):
-        uri = 'Maurer02new_OBS_tasmax_daily.1971-2000.nc'
-        variable = 'tasmax'
-        ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        
-        for output_format in ['numpy','csv+','shp','csv']:
-            ops = OcgOperations(dataset={'uri':uri,
-                                         'variable':variable,
-                                         'time_region':{'year':[1991],'month':[7]}},
-                                output_format=output_format,prefix=output_format,
-                                calc=[{'name': 'Frequency Duration', 'func': 'freq_duration', 'kwds': {'threshold': 15.0, 'operation': 'gte'}}],
-                                calc_grouping=['month','year'],
-                                geom='us_counties',select_ugid=[2778],aggregate=True,
-                                calc_raw=False,spatial_operation='clip',
-                                headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key', 'value'],)
+        """Test calculations on real data."""
+
+        rd = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds={'time_region': {'year': [1991],
+                                                                                            'month': [7]}})
+        for output_format in ['numpy', 'csv+', 'shp', 'csv']:
+            ops = OcgOperations(dataset=rd,
+                                output_format=output_format, prefix=output_format,
+                                calc=[{'name': 'Frequency Duration',
+                                       'func': 'freq_duration',
+                                       'kwds': {'threshold': 15.0, 'operation': 'gte'}}],
+                                calc_grouping=['month', 'year'],
+                                geom='us_counties', select_ugid=[2778], aggregate=True,
+                                calc_raw=False, spatial_operation='clip',
+                                headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key',
+                                         'value'], )
             ret = ops.execute()
 
             if output_format == 'numpy':
                 ref = ret[2778]['tasmax'].variables['Frequency Duration'].value
-                self.assertEqual(ref.compressed()[0].shape,(2,))
-            
+                self.assertEqual(ref.compressed()[0].shape, (2,))
+
             if output_format == 'csv+':
-                real = [{'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7', 'DURATION': '7', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'}, {'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7', 'DURATION': '23', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'}]
-                with open(ret,'r') as f:
+                real = [{'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
+                         'DURATION': '7', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'},
+                        {'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
+                         'DURATION': '23', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'}]
+                with open(ret, 'r') as f:
                     reader = csv.DictReader(f)
                     rows = list(reader)
-                for row,real_row in zip(rows,real):
-                    self.assertDictEqual(row,real_row)
+                for row, real_row in zip(rows, real):
+                    self.assertDictEqual(row, real_row)

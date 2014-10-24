@@ -12,8 +12,8 @@ class Test(TestBase):
     def test_geometries_not_duplicated_with_equivalent_ugid(self):
         ## if geometries are equivalent, they should not have duplicates in the
         ## output shapefile.
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
         ops = OcgOperations(dataset=[rd,rd2],geom='state_boundaries',select_ugid=[16],
                             output_format='csv+',snippet=True)
         ops.execute()
@@ -32,8 +32,8 @@ class Test(TestBase):
         row = list(ShpCabinetIterator(key='state_boundaries', select_ugid=[16]))
         row.append(deepcopy(row[0]))
         row[1]['properties']['UGID'] = 17
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
         ops = OcgOperations(dataset=[rd, rd2], geom=row, output_format='csv+', snippet=True)
         ops.execute()
         

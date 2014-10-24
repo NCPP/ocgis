@@ -22,23 +22,17 @@ class TestOcgOperations(TestBase):
     
     def setUp(self):
         TestBase.setUp(self)
-        env.DIR_DATA = os.path.join(env.DIR_TEST_DATA,'CanCM4')
-        
-        ## data may need to be pulled from remote repository
-        self.test_data_nc.get_rd('cancm4_tasmin_2001')
-        self.test_data_nc.get_rd('cancm4_tasmax_2011')
-        self.test_data_nc.get_rd('cancm4_tas')
-        
-        uris = [
-                'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',
-                'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc',
-                'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc'
-                ]
-        vars = ['tasmin','tasmax','tas']
-        time_range = [dt(2000,1,1),dt(2000,12,31)]
-        level_range = [2,2]
-        self.datasets = [{'uri':uri,'variable':var,'time_range':time_range,'level_range':level_range} for uri,var in zip(uris,vars)]
-        self.datasets_no_range = [{'uri':uri,'variable':var} for uri,var in zip(uris,vars)]
+
+        # data may need to be pulled from remote repository
+        rds = [self.test_data.get_rd('cancm4_tasmin_2001'), self.test_data.get_rd('cancm4_tasmax_2011'),
+               self.test_data.get_rd('cancm4_tas')]
+
+        time_range = [dt(2000, 1, 1), dt(2000, 12, 31)]
+        level_range = [2, 2]
+
+        self.datasets = [{'uri': rd.uri, 'variable': rd.variable, 'time_range': time_range, 'level_range': level_range}
+                         for rd in rds]
+        self.datasets_no_range = [{'uri': rd.uri, 'variable': rd.variable} for rd in rds]
 
     def test_init(self):
         with self.assertRaises(DefinitionValidationError):
@@ -50,13 +44,13 @@ class TestOcgOperations(TestBase):
     def test_regrid_destination(self):
         """Test regridding not allowed with clip operation."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd, spatial_operation='clip')
 
     def test_conform_units_to(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
         rd2.alias = 'foo'
         ops = OcgOperations(dataset=[rd1, rd2], conform_units_to='celsius')
         for ds in ops.dataset.itervalues():
@@ -68,20 +62,20 @@ class TestOcgOperations(TestBase):
             self.assertEqual(ds.conform_units_to, 'fahrenheit')
 
     def test_conform_units_to_bad_units(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
     def test_no_calc_grouping_with_string_expression(self):
         calc = 'es=tas*3'
         calc_grouping = ['month']
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping)
 
     def test_time_range(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
         rd.alias = 'foo'
         tr = [datetime.datetime(2002,1,1),datetime.datetime(2002,3,1)]
         ops = ocgis.OcgOperations(dataset=[rd,rd2],time_range=tr)
@@ -96,8 +90,8 @@ class TestOcgOperations(TestBase):
             self.assertEqual(r.time_range,tuple(tr))
             
     def test_time_region(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
         rd.alias = 'foo'
         tr = {'month':[6],'year':[2005]}
         ops = ocgis.OcgOperations(dataset=[rd,rd2],time_region=tr)
@@ -112,8 +106,8 @@ class TestOcgOperations(TestBase):
             self.assertEqual(r.time_region,tr)
             
     def test_level_range(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
         rd.alias = 'foo'
         lr = [1,2]
         ops = ocgis.OcgOperations(dataset=[rd,rd2],level_range=lr)
@@ -128,8 +122,8 @@ class TestOcgOperations(TestBase):
             self.assertEqual(r.level_range,tuple(lr))
 
     def test_nc_package_validation_raised_first(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('rotated_pole_ichec',kwds={'alias':'tas2'})
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('rotated_pole_ichec',kwds={'alias':'tas2'})
         try:
             ocgis.OcgOperations(dataset=[rd,rd2],output_format='nc')
         except DefinitionValidationError as e:
@@ -144,8 +138,8 @@ class TestOcgOperations(TestBase):
             app.append((perc,msg))
 #            print(perc,msg)
             
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
         dataset = [rd,rd2]
         for ds in dataset:
             ds.time_region = {'month':[6]}
@@ -158,7 +152,7 @@ class TestOcgOperations(TestBase):
         self.assertEqual(app[-1][0],100.0)
     
     def test_get_base_request_size(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         size = ops.get_base_request_size()
         self.assertEqual(size,{'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')}, 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}}, 'total': 116830.015625})
@@ -167,49 +161,49 @@ class TestOcgOperations(TestBase):
             OcgOperations(dataset=rd, regrid_destination=rd).get_base_request_size()
 
     def test_get_base_request_size_with_geom(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[23])
         size = ops.get_base_request_size()
         self.assertEqual(size,{'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0234375, 'shape': (3,), 'dtype': dtype('float64')}, 'row': {'kb': 0.03125, 'shape': (4,), 'dtype': dtype('float64')}}}, 'total': 199.6640625})
         
     def test_get_base_request_size_multifile(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('narccap_pr_wrfg_ncep')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         rds = [rd1,rd2]
         ops = OcgOperations(dataset=rds)
         size = ops.get_base_request_size()
         self.assertEqual({'variables': {'pr': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 228.25, 'shape': (29216,), 'dtype': dtype('float64')}, 'value': {'kb': 1666909.75, 'shape': (1, 29216, 1, 109, 134), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.046875, 'shape': (134,), 'dtype': dtype('float64')}, 'row': {'kb': 0.8515625, 'shape': (109,), 'dtype': dtype('float64')}}, 'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')}, 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}}, 'total': 1783969.9140625},size)
         
     def test_get_base_request_size_multifile_with_geom(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('narccap_pr_wrfg_ncep')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         rds = [rd1,rd2]
         ops = OcgOperations(dataset=rds,geom='state_boundaries',select_ugid=[23])
         size = ops.get_base_request_size()
         self.assertEqual(size,{'variables': {'pr': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 228.25, 'shape': (29216,), 'dtype': dtype('float64')}, 'value': {'kb': 21341.375, 'shape': (1, 29216, 1, 17, 11), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0859375, 'shape': (11,), 'dtype': dtype('float64')}, 'row': {'kb': 0.1328125, 'shape': (17,), 'dtype': dtype('float64')}}, 'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None}, 'temporal': {'kb': 28.515625, 'shape': (3650,), 'dtype': dtype('float64')}, 'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3), 'dtype': dtype('float32')}, 'realization': {'kb': 0.0, 'shape': None, 'dtype': None}, 'col': {'kb': 0.0234375, 'shape': (3,), 'dtype': dtype('float64')}, 'row': {'kb': 0.03125, 'shape': (4,), 'dtype': dtype('float64')}}}, 'total': 21769.5078125})
 
     def test_get_base_request_size_test_data(self):
-        for key in self.test_data_nc.keys():
-            rd = self.test_data_nc.get_rd(key)
+        for key in self.test_data.keys():
+            rd = self.test_data.get_rd(key)
             try:
                 ops = OcgOperations(dataset=rd)
             ## the project cmip data may raise an exception since projection is
             ## not associated with a variable
             except DimensionNotFound:
-                rd = self.test_data_nc.get_rd(key,kwds=dict(dimension_map={'R':'projection','T':'time','X':'longitude','Y':'latitude'}))
+                rd = self.test_data.get_rd(key,kwds=dict(dimension_map={'R':'projection','T':'time','X':'longitude','Y':'latitude'}))
                 ops = OcgOperations(dataset=rd)
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
             
     def test_get_base_request_size_with_calculation(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],
                             calc_grouping=['month'])
         size = ops.get_base_request_size()
         self.assertEqual(size['variables']['tas']['temporal']['shape'][0],3650)
 
     def test_str(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         ret = str(ops)
         self.assertTrue(str(ret).startswith('OcgOperations'))
@@ -277,7 +271,7 @@ class TestOcgOperations(TestBase):
         self.assertEqual(g._shp_key,'mi_watersheds')
         
     def test_geom_having_changed_select_ugid(self):
-        ops = OcgOperations(dataset=self.test_data_nc.get_rd('cancm4_tas'),
+        ops = OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
                             geom='state_boundaries')
         self.assertEqual(len(list(ops.geom)),51)
         ops.select_ugid = [16,17]
@@ -317,7 +311,7 @@ class TestOcgOperations(TestBase):
                 self.assertEqual(obj.value,('day',))
         
         ## only month, year, and day combinations are currently supported
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         calcs = [None,[{'func':'mean','name':'mean'}]]
         acceptable = ['day','month','year']
         for calc in calcs:
@@ -336,7 +330,7 @@ class TestOcgOperations(TestBase):
     def test_calc_grouping_seasonal_with_year(self):
         calc_grouping = [[1,2,3],'year']
         calc = [{'func':'mean','name':'mean'}]
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
                             geom='state_boundaries',select_ugid=[25])
         ret = ops.execute()
@@ -345,7 +339,7 @@ class TestOcgOperations(TestBase):
     def test_calc_grouping_seasonal_with_unique(self):
         calc_grouping = [[12,1,2],'unique']
         calc = [{'func':'mean','name':'mean'}]
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,calc_grouping=calc_grouping,geom='state_boundaries',
                                   select_ugid=[27],output_format='nc',calc=calc)
         ret = ops.execute()
@@ -357,7 +351,7 @@ class TestOcgOperations(TestBase):
                 
     def test_dataset(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        reference_rd = self.test_data_nc.get_rd('cancm4_tas')
+        reference_rd = self.test_data.get_rd('cancm4_tas')
         rd = RequestDataset(reference_rd.uri,reference_rd.variable)
         ds = definition.Dataset(rd)
         self.assertEqual(ds.value,RequestDatasetCollection([rd]))
@@ -365,7 +359,7 @@ class TestOcgOperations(TestBase):
         dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
         ds = definition.Dataset(dsa)
         
-        reference_rd2 = self.test_data_nc.get_rd('narccap_crcm')
+        reference_rd2 = self.test_data.get_rd('narccap_crcm')
         dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
         ds = definition.Dataset(dsb)
         
@@ -394,8 +388,8 @@ class TestOcgOperations(TestBase):
     def test_regridding_to_nc(self):
         """Write regridded data to netCDF."""
 
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
 
         ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc', snippet=True,
                             geom='state_boundaries', select_ugid=[25])
@@ -408,8 +402,8 @@ class TestOcgOperations(TestBase):
     def test_regridding_to_shp_vector_wrap(self):
         """Test writing to shapefile with different vector wrap options."""
 
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_tas')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_tas')
 
         for vector_wrap in [True, False]:
             ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='shp', snippet=True,

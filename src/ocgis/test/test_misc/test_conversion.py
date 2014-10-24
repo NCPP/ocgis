@@ -9,15 +9,15 @@ import fiona
 class Test(TestBase):
 
     def test_nc_projection_writing(self):
-        rd = self.test_data_nc.get_rd('daymet_tmax')
+        rd = self.test_data.get_rd('daymet_tmax')
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='nc')
         ret = ops.execute()
         ds = nc.Dataset(ret)
         self.assertTrue('lambert_conformal_conic' in ds.variables)
 
     def test_csv_plus(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
-        rd2 = self.test_data_nc.get_rd('maurer_bccr_1950')
+        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd2 = self.test_data.get_rd('maurer_bccr_1950')
         ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+',
                                   geom='state_boundaries',agg_selection=True,
                                   select_ugid=[32])
@@ -29,8 +29,8 @@ class Test(TestBase):
         self.assertTrue(len(lines) > 50)
 
     def test_csv_plus_custom_headers(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
-        rd2 = self.test_data_nc.get_rd('maurer_bccr_1950')
+        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd2 = self.test_data.get_rd('maurer_bccr_1950')
         headers = ['did','ugid','gid','alias','value','time']
         ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+',
                                   geom='state_boundaries',agg_selection=True,
@@ -43,8 +43,8 @@ class Test(TestBase):
         self.assertEqual(fheaders,[h.upper() for h in headers])
         
     def test_shp_custom_headers(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
-        rd2 = self.test_data_nc.get_rd('maurer_bccr_1950')
+        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd2 = self.test_data.get_rd('maurer_bccr_1950')
         headers = ['did','ugid','gid','alias','value','time']
         ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='shp',
                                   geom='state_boundaries',agg_selection=True,
@@ -55,14 +55,14 @@ class Test(TestBase):
             self.assertEqual(f.meta['schema']['properties'].keys(),[h.upper() for h in headers])
         
     def test_meta(self):
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='meta',
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()
         self.assertTrue(isinstance(ret,basestring))  
         
     def test_meta_with_source(self):
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv',
                                   geom='state_boundaries',agg_selection=True)
         ret = ops.execute()

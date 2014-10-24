@@ -34,7 +34,7 @@ class MetaConverter(object):
         self.ops = ops
         
     def get_rows(self):
-        lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__RELEASE__)]
+        lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__release__)]
         lines.append('  Generated (UTC): {0}'.format(datetime.datetime.utcnow()))
         lines.append('')
         if self.ops.output_format != 'meta':

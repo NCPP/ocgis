@@ -10,7 +10,7 @@ class TestHeatIndex(AbstractTestField):
     
     def test_units_raise_exception(self):
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
-        ds = [self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data_nc.get_rd('cancm4_rhsmax',kwds=kwds)]
+        ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
         calc = [{'func':'heat_index','name':'heat_index','kwds':{'tas':'tasmax','rhs':'rhsmax'}}]
         ops = ocgis.OcgOperations(dataset=ds,calc=calc,slice=[0,0,0,0,0])
         self.assertEqual(ops.calc_grouping,None)
@@ -20,7 +20,7 @@ class TestHeatIndex(AbstractTestField):
     def test_units_conform_to(self):
         ocgis.env.OVERWRITE = True
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
-        ds = [self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data_nc.get_rd('cancm4_rhsmax',kwds=kwds)]
+        ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
         
         ## set the conform to units
         ds[0].conform_units_to = 'fahrenheit'

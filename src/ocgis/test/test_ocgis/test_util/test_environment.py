@@ -29,7 +29,7 @@ class TestEnvImportParm(TestBase):
         self.assertEqual(pm.value,True)
         
 
-class Test(TestBase):
+class TestEnvironment(TestBase):
     reset_env = False
     
     def get_is_available(self,module_name):
@@ -39,7 +39,10 @@ class Test(TestBase):
         except ImportError:
             av = False
         return(av)
-    
+
+    def test_conf_path(self):
+        env.CONF_PATH
+
     def test_import_attributes(self):
         ## with both modules installed, these are expected to be true
         self.assertEqual(env.USE_CFUNITS,self.get_is_available('cfunits'))
@@ -99,7 +102,7 @@ class Test(TestBase):
         try:
             env.DIR_OUTPUT = out
             env.PREFIX = 'my_prefix'
-            rd = self.test_data_nc.get_rd('daymet_tmax')
+            rd = self.test_data.get_rd('daymet_tmax')
             ops = OcgOperations(dataset=rd,snippet=True)
             self.assertEqual(env.DIR_OUTPUT,ops.dir_output)
             self.assertEqual(env.PREFIX,ops.prefix)

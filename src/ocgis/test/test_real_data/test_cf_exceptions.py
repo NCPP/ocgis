@@ -8,7 +8,7 @@ import numpy as np
 class Test(TestBase):
     
     def test_months_in_units(self):
-        rd = self.test_data_nc.get_rd('clt_month_units')
+        rd = self.test_data.get_rd('clt_month_units')
         field = rd.get()
         self.assertEqual(field.temporal.units,'months since 1979-1-1 0')
         self.assertEqual(field.temporal.value_datetime[50],datetime.datetime(1983,3,16))
@@ -16,7 +16,7 @@ class Test(TestBase):
         self.assertEqual(field.temporal.shape,(120,))
 
     def test_months_in_units_time_range_subsets(self):
-        rd = self.test_data_nc.get_rd('clt_month_units')
+        rd = self.test_data.get_rd('clt_month_units')
         field = rd.get()
         time_range = [field.temporal.value_datetime[0], field.temporal.value_datetime[0]]
         ops = ocgis.OcgOperations(dataset=rd, time_range=time_range)
@@ -24,7 +24,7 @@ class Test(TestBase):
         self.assertEqual((1, 1, 1, 46, 72), ret[1]['clt'].shape)
     
     def test_months_in_units_convert_to_shapefile(self):
-        uri = self.test_data_nc.get_uri('clt_month_units')
+        uri = self.test_data.get_uri('clt_month_units')
         variable = 'clt'
         ## select the month of may for two years
         time_region = {'month':[5],'year':[1982,1983]}
@@ -38,7 +38,7 @@ class Test(TestBase):
             self.assertEqual(len(source),6624)
 
     def test_months_in_units_convert_to_netcdf(self):
-        uri = self.test_data_nc.get_uri('clt_month_units')
+        uri = self.test_data.get_uri('clt_month_units')
         variable = 'clt'
         rd = ocgis.RequestDataset(uri=uri,variable=variable)
         ## subset the clt dataset by the state of nevada and write to netcdf
@@ -53,7 +53,7 @@ class Test(TestBase):
         self.assertNumpyAll(field.temporal.value,field2.temporal.value)
 
     def test_months_in_units_calculation(self):
-        rd = self.test_data_nc.get_rd('clt_month_units')
+        rd = self.test_data.get_rd('clt_month_units')
         calc = [{'func': 'mean', 'name': 'mean'}]
         calc_grouping = ['month']
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping)

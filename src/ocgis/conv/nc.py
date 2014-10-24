@@ -206,7 +206,7 @@ class NcConverter(AbstractConverter):
             arch.spatial.crs.write_to_rootgrp(ds, meta)
 
         ## append to the history attribute
-        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__RELEASE__)
+        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
         if self.ops is not None:
             history_str += ': {0}'.format(self.ops)
         original_history_str = ds.__dict__.get('history', '')

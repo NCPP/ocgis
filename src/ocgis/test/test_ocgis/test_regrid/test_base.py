@@ -48,7 +48,7 @@ class TestRegrid(TestSimpleBase):
             all_coords = np.array(all_coords)
             return all_coords
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         field.spatial.crs = Spherical()
         odd = field[:, :, :, 32, 64]
@@ -73,7 +73,7 @@ class TestRegrid(TestSimpleBase):
         import ipdb;ipdb.set_trace()
 
     def atest_to_spherical(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd, vector_wrap=True).execute() #, geom='state_boundaries', agg_selection=True).execute()
         field = coll[1]['tas']
         grid_original = deepcopy(field.spatial.grid)
@@ -186,7 +186,7 @@ class TestRegrid(TestSimpleBase):
     def test_iter_regridded_fields_different_grid_shapes(self):
         """Test regridding a downscaled dataset to GCM output. The input and output grids have different shapes."""
 
-        downscaled = self.test_data_nc.get_rd('maurer_2010_tas')
+        downscaled = self.test_data.get_rd('maurer_2010_tas')
         downscaled.time_region = {'month': [2], 'year': [1990]}
         downscaled = downscaled.get()
         poly = make_poly([37, 43], [-104, -94])
@@ -194,7 +194,7 @@ class TestRegrid(TestSimpleBase):
         downscaled.spatial.unwrap()
         downscaled.spatial.crs = Spherical()
 
-        gcm = self.test_data_nc.get_rd('cancm4_tas')
+        gcm = self.test_data.get_rd('cancm4_tas')
         gcm = gcm.get()
         poly = make_poly([37, 43], [-104+360, -94+360])
         gcm = gcm.get_intersects(poly)
@@ -226,7 +226,7 @@ class TestRegrid(TestSimpleBase):
     def test_iter_regridded_fields_problem_bounds(self):
         """Test a dataset with crap bounds will work when with_corners is False."""
 
-        dst = self.test_data_nc.get_rd('cancm4_tas').get()[:, :, :, 20:25, 30:35]
+        dst = self.test_data.get_rd('cancm4_tas').get()[:, :, :, 20:25, 30:35]
         dst.spatial.crs = Spherical()
         src = deepcopy(dst[0, 0, 0, :, :])
 
@@ -354,7 +354,7 @@ class TestRegrid(TestSimpleBase):
     def test_iter_regridded_fields_nonoverlapping_extents(self):
         """Test regridding with fields that do not spatially overlap."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         # nebraska and california
         coll = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16, 25], snippet=True,
                                    vector_wrap=False).execute()
@@ -369,7 +369,7 @@ class TestRegrid(TestSimpleBase):
     def test_iter_regridded_fields_partial_extents(self):
         """Test regridding with fields that partially overlap."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         # california and nevada
         coll = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23, 25], snippet=True,
                                    vector_wrap=False).execute()
@@ -449,7 +449,7 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_from_sdim_with_mask(self):
         """Test with masked data."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], snippet=True, vector_wrap=False)
         ret = ops.execute()
         field = ret[23]['tas']
@@ -508,7 +508,7 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_from_sdim_real_data(self):
         """Test creating ESMF field from real data using an OCGIS spatial dimension."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         egrid = get_esmf_grid_from_sdim(field.spatial)
 

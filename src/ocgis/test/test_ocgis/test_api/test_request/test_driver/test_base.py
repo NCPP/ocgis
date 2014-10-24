@@ -9,7 +9,7 @@ class TestAbstractDriver(TestBase):
 
     def test_get_field(self):
         # test updating of regrid source flag
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         driver = DriverNetcdf(rd)
         field = driver.get_field()
         self.assertTrue(field._should_regrid)
@@ -19,17 +19,17 @@ class TestAbstractDriver(TestBase):
         self.assertFalse(field._should_regrid)
 
         # test flag with an assigned coordinate system
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         driver = DriverNetcdf(rd)
         field = driver.get_field()
         self.assertFalse(field._has_assigned_coordinate_system)
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'crs': CFWGS84()})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'crs': CFWGS84()})
         driver = DriverNetcdf(rd)
         field = driver.get_field()
         self.assertTrue(field._has_assigned_coordinate_system)
 
     def test_eq(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         d = DriverNetcdf(rd)
         d2 = deepcopy(d)
         self.assertEqual(d, deepcopy(d))

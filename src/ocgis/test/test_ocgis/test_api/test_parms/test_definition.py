@@ -177,7 +177,7 @@ class Test(TestBase):
             CalcGrouping([[1,2,3],[4,5,6],'fod'])
 
     def test_dataset(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
 
         with open('/tmp/dd.pkl','w') as f:
@@ -466,7 +466,7 @@ class TestRegridDestination(TestBase):
         return datasets
 
     def get_rd(self, **kwargs):
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds=kwargs)
+        rd = self.test_data.get_rd('cancm4_tas', kwds=kwargs)
         return rd
 
     def test_init(self):

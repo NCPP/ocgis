@@ -28,13 +28,13 @@ class Test(TestBase):
         return(geoms[0]['geom'])
     
     def get_subset_rd(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ret = OcgOperations(dataset=rd,geom=self.nevada,snippet=True,output_format='nc').execute()
         rd_sub = RequestDataset(uri=ret,variable='tas')
         return(rd_sub)
     
     def test_get_does_intersect_true(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         for geom in [self.nevada,self.new_york]:
             self.assertTrue(get_does_intersect(rd,geom))
             

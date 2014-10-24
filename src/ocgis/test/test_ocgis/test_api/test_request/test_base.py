@@ -45,10 +45,9 @@ class TestRequestDataset(TestBase):
     def setUp(self):
         TestBase.setUp(self)
         ## download test data
-        self.test_data_nc.get_rd('cancm4_rhs')
-        self.uri = os.path.join(ocgis.env.DIR_TEST_DATA, 'CanCM4',
-                                'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
-        self.variable = 'rhs'
+        rd = self.test_data.get_rd('cancm4_rhs')
+        self.uri = rd.uri
+        self.variable = rd.variable
 
     def test_init(self):
         rd = RequestDataset(uri=self.uri)
@@ -61,7 +60,7 @@ class TestRequestDataset(TestBase):
         self.assertTrue(rd._has_assigned_coordinate_system)
 
     def test_str(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ss = str(rd)
         self.assertTrue(ss.startswith('RequestDataset'))
         self.assertTrue('crs' in ss)
@@ -69,18 +68,18 @@ class TestRequestDataset(TestBase):
 
     def test_crs_overload(self):
         kwds = {'crs': CoordinateReferenceSystem(epsg=4362)}
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds=kwds)
+        rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
         field = rd.get()
         self.assertDictEqual(kwds['crs'].value, field.spatial.crs.value)
 
     def test_uri_cannot_be_set(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
-        other_uri = self.test_data_nc.get_uri('cancm4_rhs')
+        rd = self.test_data.get_rd('cancm4_tas')
+        other_uri = self.test_data.get_uri('cancm4_rhs')
         with self.assertRaises(AttributeError):
             rd.uri = other_uri
 
     def get_multiple_variable_request_dataset_dictionary(self):
-        rd_orig = self.test_data_nc.get_rd('cancm4_tas')
+        rd_orig = self.test_data.get_rd('cancm4_tas')
         dest_uri = os.path.join(self.current_dir_output, os.path.split(rd_orig.uri)[1])
         shutil.copy2(rd_orig.uri, dest_uri)
         with nc_scope(dest_uri, 'a') as ds:
@@ -93,7 +92,7 @@ class TestRequestDataset(TestBase):
         return {'uri': dest_uri, 'variable': ['tas', 'tasmax']}
 
     def test_alias_change_after_init_one_variable(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         self.assertEqual(rd.name, 'tas')
         rd.alias = 'foo'
         self.assertEqual(rd.name, 'foo')
@@ -141,7 +140,7 @@ class TestRequestDataset(TestBase):
             RequestDataset(uri=self.uri, variable=['tas', 'tasmax'], alias='tas_what')
 
     def test_init_combinations(self):
-        rd_orig = self.test_data_nc.get_rd('cancm4_tas')
+        rd_orig = self.test_data.get_rd('cancm4_tas')
         dest_uri = os.path.join(self.current_dir_output, os.path.split(rd_orig.uri)[1])
         shutil.copy2(rd_orig.uri, dest_uri)
         with nc_scope(dest_uri, 'a') as ds:
@@ -243,20 +242,20 @@ class TestRequestDataset(TestBase):
                 raise
 
     def test_variable_not_found(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         rd_bad = RequestDataset(uri=rd.uri, variable='crap')
         with self.assertRaises(VariableNotFoundError):
             rd_bad.get()
 
     def test_level_subset_without_level(self):
         lr = [1, 2]
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         rd.level_range = lr
         with self.assertRaises(ValueError):
             rd.get()
 
     def test_source_dictionary_is_deepcopied(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         self.assertEqual(rd.source_metadata, field.meta)
         ## the source metadata dictionary should be deepcopied prior to passing
@@ -265,41 +264,41 @@ class TestRequestDataset(TestBase):
         self.assertNotEqual(rd.source_metadata, field.meta)
 
     def test_source_index_matches_constant_value(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         self.assertEqual(field.temporal._src_idx.dtype, constants.np_int)
 
     def test_with_units(self):
         units = 'celsius'
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'units': units})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'units': units})
         self.assertEqual(rd.units, 'celsius')
 
     def test_without_units_attempting_conform(self):
         ## this will work because the units read from the metadata are equivalent
-        self.test_data_nc.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius'})
+        self.test_data.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius'})
         ## this will not work because the units are not equivalent
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'conform_units_to': 'coulomb'})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'conform_units_to': 'coulomb'})
         with self.assertRaises(RequestValidationError):
             rd.get()
 
     def test_with_bad_units_attempting_conform(self):
         ## pass bad units to the init and an attempt a conform. values from
         ## the source dataset are not used for overload.
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius', 'units': 'coulomb'})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius', 'units': 'coulomb'})
         with self.assertRaises(RequestValidationError):
             rd.get()
 
     def test_nonsense_units(self):
         with self.assertRaises(RequestValidationError):
-            self.test_data_nc.get_rd('cancm4_tas', kwds={'units': 'nonsense', 'conform_units_to': 'celsius'})
+            self.test_data.get_rd('cancm4_tas', kwds={'units': 'nonsense', 'conform_units_to': 'celsius'})
 
     def test_with_bad_units_passing_to_field(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'units': 'celsius'})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'units': 'celsius'})
         field = rd.get()
         self.assertEqual(field.variables['tas'].units, 'celsius')
 
     def test_get_field_with_overloaded_units(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius'})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'conform_units_to': 'celsius'})
         preload = [False, True]
         for pre in preload:
             field = rd.get()
@@ -321,7 +320,7 @@ class TestRequestDataset(TestBase):
                 self.assertNumpyAll(to_test, value)
 
     def test_get_field_nonequivalent_units_in_source_data(self):
-        new_path = self.test_data_nc.copy_file('cancm4_tas', self.current_dir_output)
+        new_path = self.test_data.copy_file('cancm4_tas', self.current_dir_output)
 
         ## put non-equivalent units on the source data and attempto to conform
         with nc_scope(new_path, 'a') as ds:
@@ -378,15 +377,12 @@ class TestRequestDataset(TestBase):
             self.assertEqual(ref.keys(), ['Start Date', 'End Date', 'Calendar', 'Units', 'Resolution (Days)', 'Count', 'Has Bounds', 'Spatial Reference', 'Proj4 String', 'Extent', 'Interface Type', 'Resolution'])
 
     def test_env_dir_data(self):
-        ## test setting the var to a single directory
+        """Test setting the data directory to a single directory."""
+
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        rd = self.test_data_nc.get_rd('cancm4_rhs')
-        target = os.path.join(env.DIR_DATA, 'CanCM4', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
-        try:
-            self.assertEqual(rd.uri, target)
-        ## attempt to normalize the path
-        except AssertionError:
-            self.assertEqual(rd.uid, os.path.normpath(target))
+        rd = self.test_data.get_rd('cancm4_rhs')
+        target = os.path.join(env.DIR_DATA, 'nc', 'CanCM4', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc')
+        self.assertEqual(rd.uri, target)
 
         ## test none and not finding the data
         env.DIR_DATA = None
@@ -415,7 +411,7 @@ class TestRequestDataset(TestBase):
         self.assertEqual(rd.level_range, tuple([1, 1]))
 
     def test_multiple_uris(self):
-        rd = self.test_data_nc.get_rd('narccap_pr_wrfg_ncep')
+        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         self.assertEqual(len(rd.uri), 2)
         rd.inspect()
 
@@ -432,8 +428,8 @@ class TestRequestDataset(TestBase):
 class TestRequestDatasetCollection(TestBase):
 
     def test_init(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_rhs')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_rhs')
 
         keywords = dict(request_datasets=[None, rd1, [rd1], [rd1, rd2], {'uri': rd1.uri, 'variable': rd1.variable}])
 
@@ -445,15 +441,15 @@ class TestRequestDatasetCollection(TestBase):
                 self.assertEqual(len(rdc), 0)
 
     def test_str(self):
-        rd1 = self.test_data_nc.get_rd('cancm4_tas')
-        rd2 = self.test_data_nc.get_rd('cancm4_rhs')
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd2 = self.test_data.get_rd('cancm4_rhs')
         rdc = RequestDatasetCollection(request_datasets=[rd1, rd2])
         ss = str(rdc)
         self.assertTrue(ss.startswith('RequestDatasetCollection'))
         self.assertGreater(len(ss), 900)
 
     def test_name_attribute_used_for_keys(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         rd.name = 'hi_there'
         rdc = RequestDatasetCollection(request_datasets=[rd])
         self.assertEqual(rdc.keys(), ['hi_there'])
@@ -461,8 +457,8 @@ class TestRequestDatasetCollection(TestBase):
     def test(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
 
-        daymet = self.test_data_nc.get_rd('daymet_tmax')
-        tas = self.test_data_nc.get_rd('cancm4_tas')
+        daymet = self.test_data.get_rd('daymet_tmax')
+        tas = self.test_data.get_rd('cancm4_tas')
 
         uris = [daymet.uri,
                 tas.uri]
@@ -493,7 +489,7 @@ class TestRequestDatasetCollection(TestBase):
         self.assertIsInstance(rdc['a2'], RequestDataset)
 
     def test_with_overloads(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         ## loaded calendar should match file metadata
         self.assertEqual(field.temporal.calendar, '365_day')
@@ -529,7 +525,7 @@ class TestRequestDatasetCollection(TestBase):
 
     def test_with_overloads_real_data(self):
         ## copy the test file as the calendar attribute will be modified
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         filename = os.path.split(rd.uri)[1]
         dest = os.path.join(self.current_dir_output, filename)
         shutil.copy2(rd.uri, dest)

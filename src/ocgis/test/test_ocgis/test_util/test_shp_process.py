@@ -8,11 +8,13 @@ import subprocess
 
 
 class TestShpProcess(TestBase):
-    _test_path = '/home/ben.koziol/Dropbox/NESII/project/ocg/bin/test_data/test_shp_process'
 
     def test_shp_process(self):
         copy_path = os.path.join(self.current_dir_output, 'test_shp_process')
-        shutil.copytree(self._test_path, copy_path)
+        sc = ShpCabinet()
+        test_path = os.path.split(sc.get_shp_path('wc_4326'))[0]
+        shutil.copytree(test_path, copy_path)
+
         shp_path = os.path.join(copy_path, 'wc_4326.shp')
         out_folder = tempfile.mkdtemp(dir=self.current_dir_output)
         sp = ShpProcess(shp_path, out_folder)

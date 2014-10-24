@@ -76,6 +76,6 @@ sudo -E make install
 
 ## ESMPy install ##
 
-cd $ESMF_INSTALL_PREFIX/esmf/src/addon/ESMPy
+cd $ESMF_SRCDIR/esmf/src/addon/ESMPy
 python setup.py build --ESMFMKFILE=$ESMF_INSTALL_PREFIX/lib/esmf.mk
 sudo python setup.py install

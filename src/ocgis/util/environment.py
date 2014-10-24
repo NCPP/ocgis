@@ -20,6 +20,7 @@ class Environment(object):
         self.DIR_BIN = EnvParm('DIR_BIN',None)
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX',None,'rtree')
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS',None,'cfunits')
+        self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         
         self.ops = None
         self._optimize_store = {}

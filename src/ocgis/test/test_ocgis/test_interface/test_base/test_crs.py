@@ -97,7 +97,7 @@ class TestSpherical(TestBase):
     def test_wrap_unwrap_with_mask(self):
         """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23])
         ret = ops.execute()
         sdim = ret[23]['tas'].spatial
@@ -244,7 +244,7 @@ class TestCFAlbersEqualArea(TestBase):
 class TestCFLambertConformalConic(TestBase):
     
     def test_load_from_metadata(self):
-        uri = self.test_data_nc.get_uri('narccap_wrfg')
+        uri = self.test_data.get_uri('narccap_wrfg')
         ds = nc.Dataset(uri,'r')
         meta = NcMetadata(ds)
         crs = CFLambertConformal.load_from_metadata('pr',meta)
@@ -259,16 +259,16 @@ class TestCFLambertConformalConic(TestBase):
 class TestCFRotatedPole(TestBase):
 
     def test_load_from_metadata(self):
-        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec')
         self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
 
     def test_equal(self):
-        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         self.assertEqual(rd.get().spatial.crs, rd2.get().spatial.crs)
 
     def test_in_operations(self):
-        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         rd2.alias = 'tas2'
         # # these projections are equivalent so it is okay to write them to a
@@ -279,7 +279,7 @@ class TestCFRotatedPole(TestBase):
     def test_get_rotated_pole_transformation(self):
         """Test SpatialDimension objects are appropriately transformed."""
 
-        rd = self.test_data_nc.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec')
         field = rd.get()
         field = field[:, 10:20, :, 40:55, 55:65]
         spatial = field.spatial

@@ -10,7 +10,7 @@ from ocgis.test.base import TestBase
 
 
 def test():    
-    tdata = TestBase.get_tst_data_nc()
+    tdata = TestBase.get_tst_data()
     rd = tdata.get_rd('cancm4_tas')
     
     output_formats = [

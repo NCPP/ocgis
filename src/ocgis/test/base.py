@@ -37,7 +37,7 @@ class TestBase(unittest.TestCase):
     _prefix_path_test = 'ocgis_test_'
 
     def __init__(self, *args, **kwargs):
-        self.test_data_nc = self.get_tst_data_nc()
+        self.test_data = self.get_tst_data()
         self.current_dir_output = None
         self.ToTest = ToTest
         super(TestBase, self).__init__(*args, **kwargs)
@@ -245,7 +245,7 @@ class TestBase(unittest.TestCase):
         return tempfile.mkdtemp(prefix=self._prefix_path_test)
 
     @staticmethod
-    def get_tst_data_nc():
+    def get_tst_data():
         """
         :returns: A dictionary-like object with special access methods for test files.
         :rtype: :class:`ocgis.test.base.TestData`
@@ -253,36 +253,49 @@ class TestBase(unittest.TestCase):
 
         test_data = TestData()
 
-        test_data.update(['CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
-        test_data.update(['CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
-        test_data.update(['CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhsmax')
-        test_data.update(['CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmax_2001')
-        test_data.update(['CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_tasmax_2011')
-        test_data.update(['CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmin_2001')
-        test_data.update(['daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
-        test_data.update(['maurer', '2010'], 'pr', ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'], key='maurer_2010_pr')
-        test_data.update(['maurer', '2010'], 'tas', ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'], key='maurer_2010_tas')
-        test_data.update(['maurer', '2010'], 'tasmax', ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'], key='maurer_2010_tasmax')
-        test_data.update(['maurer', '2010'], 'tasmin', ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'], key='maurer_2010_tasmin')
-        test_data.update(['maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc', key='maurer_bccr_1950')
-        test_data.update(['misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
-        test_data.update(['misc', 'rotated_pole'], 'pr', 'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc', key='rotated_pole_cnrm_cerfacs')
-        test_data.update(['misc', 'rotated_pole'], 'tas', 'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc', key='rotated_pole_cccma')
-        test_data.update(['misc', 'rotated_pole'], 'tas', 'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc', key='rotated_pole_ichec')
-        test_data.update(['misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc', key='subset_test_Prcp')
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
-        test_data.update(['misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc', key='subset_test_Tavg_sresa2')
-        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
-        test_data.update(['narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
-        test_data.update(['narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
-        test_data.update(['narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
-        test_data.update(['narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
-        test_data.update(['narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'], key='narccap_pr_wrfg_ncep')
-        test_data.update(['narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
-        test_data.update(['narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
-        test_data.update(['snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc', key='snippet_maurer_dtr')
+        test_data.update(['nc', 'CMIP3'], 'Tavg', 'Extraction_Tavg.nc', key='cmip3_extraction')
+        test_data.update(['nc', 'CanCM4'], 'rhs', 'rhs_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhs')
+        test_data.update(['nc', 'CanCM4'], 'rhsmax', 'rhsmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_rhsmax')
+        test_data.update(['nc', 'CanCM4'], 'tas', 'tas_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tas')
+        test_data.update(['nc', 'CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmax_2001')
+        test_data.update(['nc', 'CanCM4'], 'tasmax', 'tasmax_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc', key='cancm4_tasmax_2011')
+        test_data.update(['nc', 'CanCM4'], 'tasmin', 'tasmin_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc', key='cancm4_tasmin_2001')
+        test_data.update(['nc', 'daymet'], 'tmax', 'tmax.nc', key='daymet_tmax')
+        test_data.update(['nc', 'maurer', '2010'], 'pr', ['nldas_met_update.obs.daily.pr.1990.nc', 'nldas_met_update.obs.daily.pr.1991.nc'], key='maurer_2010_pr')
+        test_data.update(['nc', 'maurer', '2010'], 'tas', ['nldas_met_update.obs.daily.tas.1990.nc', 'nldas_met_update.obs.daily.tas.1991.nc'], key='maurer_2010_tas')
+        test_data.update(['nc', 'maurer', '2010'], 'tasmax', ['nldas_met_update.obs.daily.tasmax.1990.nc', 'nldas_met_update.obs.daily.tasmax.1991.nc'], key='maurer_2010_tasmax')
+        test_data.update(['nc', 'maurer', '2010'], 'tasmin', ['nldas_met_update.obs.daily.tasmin.1990.nc', 'nldas_met_update.obs.daily.tasmin.1991.nc'], key='maurer_2010_tasmin')
+        test_data.update(['nc', 'maurer', '2010-concatenated'], 'tasmax', 'Maurer02new_OBS_tasmax_daily.1971-2000.nc', key='maurer_2010_concatenated_tasmax')
+        test_data.update(['nc', 'maurer', '2010-concatenated'], 'tasmin', 'Maurer02new_OBS_tasmin_daily.1971-2000.nc', key='maurer_2010_concatenated_tasmin')
+        test_data.update(['nc', 'maurer', '2010-concatenated'], 'tas', 'Maurer02new_OBS_tas_daily.1971-2000.nc', key='maurer_2010_concatenated_tas')
+        test_data.update(['nc', 'maurer', '2010-concatenated'], 'pr', 'Maurer02new_OBS_pr_daily.1971-2000.nc', key='maurer_2010_concatenated_pr')
+        test_data.update(['nc', 'maurer', 'bcca'], 'tasmax', 'gridded_obs.tasmax.OBS_125deg.daily.1991.nc', key='maurer_bcca_1991')
+        test_data.update(['nc', 'maurer', 'bccr'], 'Prcp', 'bccr_bcm2_0.1.sresa1b.monthly.Prcp.1950.nc', key='maurer_bccr_1950')
+        test_data.update(['nc', 'misc', 'month_in_time_units'], 'clt', 'clt.nc', key='clt_month_units')
+        test_data.update(['nc', 'misc', 'rotated_pole'], 'pr', 'pr_EUR-11_CNRM-CERFACS-CNRM-CM5_historical_r1i1p1_CLMcom-CCLM4-8-17_v1_mon_198101-199012.nc', key='rotated_pole_cnrm_cerfacs')
+        test_data.update(['nc', 'misc', 'rotated_pole'], 'tas', 'tas_EUR-44_CCCma-CanESM2_rcp85_r1i1p1_SMHI-RCA4_v1_sem_209012-210011.nc', key='rotated_pole_cccma')
+        test_data.update(['nc', 'misc', 'rotated_pole'], 'tas', 'tas_EUR-44_ICHEC-EC-EARTH_historical_r12i1p1_SMHI-RCA4_v1_day_19710101-19751231.nc', key='rotated_pole_ichec')
+        test_data.update(['nc', 'misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc', key='subset_test_Prcp')
+        test_data.update(['nc', 'misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
+        test_data.update(['nc', 'misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc', key='subset_test_Tavg_sresa2')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_RCM3_gfdl_1981010103.nc', key='narccap_rcm3')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_lambert_conformal')
+        test_data.update(['nc', 'narccap'], 'pr', 'pr_WRFG_ccsm_1986010103.nc', key='narccap_wrfg')
+        test_data.update(['nc', 'narccap'], 'pr', ['pr_WRFG_ncep_1981010103.nc', 'pr_WRFG_ncep_1986010103.nc'], key='narccap_pr_wrfg_ncep')
+        test_data.update(['nc', 'narccap'], 'tas', 'tas_HRM3_gfdl_1981010103.nc', key='narccap_rotated_pole')
+        test_data.update(['nc', 'narccap'], 'tas', 'tas_RCM3_gfdl_1981010103.nc', key='narccap_tas_rcm3_gfdl')
+        test_data.update(['nc', 'QED-2013'], 'climatology_TNn_monthly_max', 'climatology_TNn_monthly_max.nc', key='qed_2013_TNn_monthly_max')
+        test_data.update(['nc', 'QED-2013'], 'climatology_TNn_annual_min', 'climatology_TNn_annual_min.nc', key='qed_2013_TNn_annual_min')
+        test_data.update(['nc', 'QED-2013'], 'climatology_TasMin_seasonal_max_of_seasonal_means', 'climatology_TasMin_seasonal_max_of_seasonal_means.nc', key='qed_2013_TasMin_seasonal_max_of_seasonal_means')
+        test_data.update(['nc', 'QED-2013'], 'climatology_Tas_annual_max_of_annual_means', 'climatology_Tas_annual_max_of_annual_means.nc', key='qed_2013_climatology_Tas_annual_max_of_annual_means')
+        test_data.update(['nc', 'QED-2013', 'multifile'], 'txxmmedm', 'maurer02v2_median_txxmmedm_january_1971-2000.nc', key='qed_2013_maurer02v2_median_txxmmedm_january_1971-2000')
+        test_data.update(['nc', 'QED-2013', 'multifile'], 'txxmmedm', 'maurer02v2_median_txxmmedm_february_1971-2000.nc', key='qed_2013_maurer02v2_median_txxmmedm_february_1971-2000')
+        test_data.update(['nc', 'QED-2013', 'multifile'], 'txxmmedm', 'maurer02v2_median_txxmmedm_march_1971-2000.nc', key='qed_2013_maurer02v2_median_txxmmedm_march_1971-2000')
+        test_data.update(['nc', 'snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc', key='snippet_maurer_dtr')
+        test_data.update(['nc', 'snippets'], 'bias', 'seasonalbias.nc', key='snippet_seasonalbias')
 
         return test_data
 
@@ -327,34 +340,6 @@ class TestData(OrderedDict):
                 total += os.path.getsize(element)
         return total
 
-    def copy_files(self, dest, verbose=False):
-        """
-        Copy test files from their source to the base directory ``dest``. The folder hierarchy will be recreated under
-        ``dest``.
-
-        :param str dest: The base directory. The directory must exist.
-        :raises: IOError
-        """
-
-        if not os.path.exists(dest):
-            raise (IOError('Copy destination does not exist: {0}'.format(dest)))
-        for k, v in self.iteritems():
-            uri = self.get_uri(k)
-            if isinstance(uri, basestring):
-                to_copy = [uri]
-            else:
-                to_copy = uri
-            for to_copy_uri in to_copy:
-                dest_dir = os.path.join(*([dest] + v['collection']))
-                dst = os.path.join(dest_dir, os.path.split(to_copy_uri)[1])
-                if not os.path.exists(dest_dir):
-                    os.makedirs(dest_dir)
-                if verbose:
-                    print 'copying: {0}...'.format(dst)
-                shutil.copy2(to_copy_uri, dst)
-        if verbose:
-            print 'copy completed'
-
     def copy_file(self, key, dest):
         """
         Copy a single files with unique test key identifier ``key`` to the full path ``dest``.
@@ -383,6 +368,16 @@ class TestData(OrderedDict):
         rd = RequestDataset(**kwds)
         return rd
 
+    def get_relative_dir(self, key):
+        """
+        :returns: The relative directory with no starting slash.
+        :rtype: str
+        """
+
+        value = self[key]
+        path = os.path.join(*value['collection'])
+        return path
+
     def get_uri(self, key):
         """
         :param str key: The unique identifier to the test dataset.
@@ -394,9 +389,10 @@ class TestData(OrderedDict):
         ref = self[key]
         coll = deepcopy(ref['collection'])
         if env.DIR_TEST_DATA is None:
-            raise (ValueError('The TestDataset object requires env.DIR_TEST_DATA have a path value.'))
+            raise ValueError('The TestDataset object requires env.DIR_TEST_DATA have a path value.')
         coll.insert(0, env.DIR_TEST_DATA)
-        ## determine if the filename is a string or a sequence of paths
+
+        # determine if the filename is a string or a sequence of paths
         filename = ref['filename']
         if isinstance(filename, basestring):
             coll.append(filename)
@@ -407,47 +403,14 @@ class TestData(OrderedDict):
                 copy_coll = copy(coll)
                 copy_coll.append(part)
                 uri.append(os.path.join(*copy_coll))
-        ## ensure the uris exist, if not, we may need to download
-        try:
-            if isinstance(uri, basestring):
-                assert (os.path.exists(uri))
-            else:
-                for element in uri:
-                    assert (os.path.exists(element))
-        except AssertionError:
-            if isinstance(uri, basestring):
-                download_uris = [uri]
-            else:
-                download_uris = uri
-            try:
-                os.makedirs(env.DIR_TEST_DATA)
-            except OSError:
-                if os.path.exists(env.DIR_TEST_DATA):
-                    warn('Target download location exists. Files will be written to the existing location: {0}'.format(
-                        env.DIR_TEST_DATA))
-                else:
-                    raise
-            for download_uri in download_uris:
-                wget_url = ocgis.constants.test_data_download_url_prefix + '/'.join(ref['collection']) + '/' + \
-                           os.path.split(download_uri)[1]
-                wget_dest = os.path.join(*([env.DIR_TEST_DATA] + ref['collection'] + [download_uri]))
-                try:
-                    os.makedirs(os.path.split(wget_dest)[0])
-                except OSError:
-                    if os.path.exists(os.path.split(wget_dest)[0]):
-                        warn('Data download directory exists: {0}'.format(os.path.split(wget_dest)[0]))
-                    else:
-                        raise
-                try:
-                    if env.DEBUG:
-                        cmd = ['wget', '-O', wget_dest, wget_url]
-                    else:
-                        cmd = ['wget', '--quiet', '-O', wget_dest, wget_url]
-                    subprocess.check_call(cmd)
-                except CalledProcessError:
-                    raise (ValueError(
-                        '"wget" was unable to fetch the test data URL ({0}) to the destination location: {1}. The command list was: {2}'.format(
-                            wget_url, wget_dest, cmd)))
+
+        # ensure the uris exist, if not, we may need to download
+        if isinstance(uri, basestring):
+            assert (os.path.exists(uri))
+        else:
+            for element in uri:
+                assert (os.path.exists(element))
+
         return uri
 
     def update(self, collection, variable, filename, key=None):

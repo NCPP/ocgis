@@ -13,8 +13,8 @@ from datetime import datetime as dt
 class Test(TestBase):
 
     def test_get_sorted_uris_by_time_dimension(self):
-        rd_2001 = self.test_data_nc.get_rd('cancm4_tasmax_2001')
-        rd_2011 = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd_2001 = self.test_data.get_rd('cancm4_tasmax_2001')
+        rd_2011 = self.test_data.get_rd('cancm4_tasmax_2011')
         not_sorted = [rd_2011.uri, rd_2001.uri]
 
         actual = ['tasmax_day_CanCM4_decadal2000_r2i1p1_20010101-20101231.nc',

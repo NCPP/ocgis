@@ -145,7 +145,7 @@ class TestOcgisLogging(TestBase):
                 ocgis_lh('something happened',exc=e)
                 
     def test_writing(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,snippet=True,output_format='csv')
         ret = ops.execute()
         folder = os.path.split(ret)[0]

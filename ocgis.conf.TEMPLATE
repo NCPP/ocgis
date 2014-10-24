@@ -1,21 +1,28 @@
 [fabric]
-host =
+hosts =
 key_filename =
 user =
+
+[server]
 venv_name =
-clone_dir =
+dir_clone =
+dir_src =
+dir_data =
+j = 2
 
 [git]
 url = https://github.com/NCPP/ocgis.git
 branch = master
+name = ocgis
 
 [aws]
-instance_name =
-instance_id =
-aws_access_key_id =
-aws_secret_access_key =
-key_name =
-region =
-image_id =
-security_group =
-instance_type =
+instance_name = 
+instance_id = 
+aws_access_key_id = 
+aws_secret_access_key = 
+key_name = 
+region = 
+image_id = 
+security_group = 
+instance_type = 
+ebs_mount_name =

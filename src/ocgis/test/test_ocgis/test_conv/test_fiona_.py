@@ -12,7 +12,7 @@ class TestShpConverter(TestBase):
 
     def get_subset_operation(self):
         geom = TestGeom.get_geometry_dictionaries()
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True, snippet=True)
         subset = SubsetOperation(ops)
         return subset
@@ -32,7 +32,7 @@ class TestShpConverter(TestBase):
     def test_none_geom(self):
         """Test a NoneType geometry will pass through the Fiona converter."""
 
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         slc = [None, 0, None, [10, 20], [10, 20]]
         ops = ocgis.OcgOperations(dataset=rd, slice=slc)
         subset = SubsetOperation(ops)

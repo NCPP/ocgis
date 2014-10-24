@@ -28,7 +28,7 @@ class AbstractCalcBase(TestBase):
             aggregate,calc_grouping,output_format = tup
             if aggregate is True and output_format == 'nc':
                 continue
-            rd = self.test_data_nc.get_rd('cancm4_tas',kwds={'time_region':{'year':[2001,2002]}})
+            rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2001,2002]}})
             try:
                 ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
                        calc=calc,calc_grouping=calc_grouping,output_format=output_format,
@@ -77,7 +77,7 @@ class Test(AbstractCalcBase):
     
     def test_date_groups_all(self):
         calc = [{'func':'mean','name':'mean'}]
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
         
         calc_grouping = 'all'
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
@@ -91,7 +91,7 @@ class Test(AbstractCalcBase):
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds=kwds)
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
         calc = [{'func':'mean','name':'mean'}]
         calc_grouping = ['year','month']
         
@@ -104,7 +104,7 @@ class Test(AbstractCalcBase):
         self.assertEqual(tgroup['month'][-1],12)
         
         kwds = {'time_region':{'year':[2011,2013],'month':[8]}}
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds=kwds)
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
         calc = [{'func':'threshold','name':'threshold','kwds':{'threshold':0.0,'operation':'gte'}}]
         calc_grouping = ['month']
         aggregate = True
@@ -120,7 +120,7 @@ class Test(AbstractCalcBase):
         self.assertEqual(threshold.flatten()[0],62)
         
     def test_computational_nc_output(self):
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
         calc = [{'func':'mean','name':'tasmax_mean'}]
         calc_grouping = ['month','year']
 
@@ -186,7 +186,7 @@ class Test(AbstractCalcBase):
         
     def test_date_groups(self):
         calc = [{'func':'mean','name':'mean'}]
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011')
+        rd = self.test_data.get_rd('cancm4_tasmax_2011')
         
         calc_grouping = ['month']
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
@@ -237,7 +237,7 @@ class Test(AbstractCalcBase):
         rdt = ref.value_datetime
         self.assertEqual(rdt[0],dt(2011,1,1,12))
 
-        rd = self.test_data_nc.get_rd('cancm4_tasmax_2011',kwds={'time_region':{'month':[1],'year':[2011]}})
+        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_region':{'month':[1],'year':[2011]}})
         field = rd.get()
         calc_grouping = ['month','day','year']
         ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
@@ -256,7 +256,7 @@ class TestOcgCalculationEngine(TestBase):
             spatial_operation = 'clip'
         else:
             spatial_operation = 'intersects'
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
                             spatial_operation=spatial_operation,aggregate=aggregate)
         ret = ops.execute()

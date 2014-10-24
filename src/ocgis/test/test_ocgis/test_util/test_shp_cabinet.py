@@ -49,7 +49,7 @@ class TestShpCabinetIterator(TestBase):
         with self.assertRaises(ValueError):
             list(sci)
             
-        ops = ocgis.OcgOperations(dataset=self.test_data_nc.get_rd('cancm4_tas'),
+        ops = ocgis.OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
                                   geom='state_boundaries',
                                   select_ugid=[9999])
         with self.assertRaises(ValueError):

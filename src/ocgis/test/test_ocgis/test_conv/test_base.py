@@ -16,7 +16,7 @@ import numpy as np
 class AbstractTestConverter(TestBase):
     
     def get_spatial_collection(self, field=None):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = field or rd.get()[:, 0, :, 0, 0]
         coll = SpatialCollection()
         coll.add_field(1, None, field)
@@ -28,7 +28,7 @@ class TestAbstractConverter(AbstractTestConverter):
     
     def run_auxiliary_file_tst(self,Converter,file_list,auxiliary_file_list=None):
         auxiliary_file_list = auxiliary_file_list or self._auxiliary_file_list
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
         coll = ops.execute()
         
@@ -56,7 +56,7 @@ class TestAbstractConverter(AbstractTestConverter):
             self.assertEqual(set(files),set(to_test))
             
     def run_overwrite_true_tst(self,Converter,include_ops=False):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         _ops = ocgis.OcgOperations(dataset=rd,output_format='numpy',slice=[None,0,None,[0,10],[0,10]])
         coll = _ops.execute()
         
@@ -73,7 +73,7 @@ class TestAbstractConverter(AbstractTestConverter):
 
     def test_multiple_variables(self):
         conv_klasses = [CsvConverter, NcConverter]
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         var2 = deepcopy(field.variables['tas'])
         var2.alias = 'tas2'
@@ -94,7 +94,7 @@ class TestAbstractConverter(AbstractTestConverter):
                     self.assertNumpyAll(ds.variables['tas'][:], ds.variables['tas2'][:])
 
     def test_overwrite_false_csv(self):
-        rd = self.test_data_nc.get_rd('cancm4_tas')
+        rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
         coll = ops.execute()
         

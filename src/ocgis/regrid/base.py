@@ -24,8 +24,8 @@ def get_sdim_from_esmf_grid(egrid):
     dtype_coords = coords[0].dtype
     # construct the ocgis grid array and fill
     grid_value = np.zeros([2] + shape_coords_list, dtype=dtype_coords)
-    grid_value[0, ...] = coords[0]
-    grid_value[1, ...] = coords[1]
+    grid_value[0, ...] = coords[1]
+    grid_value[1, ...] = coords[0]
 
     # check for corners on the esmf grid
     if all(egrid.coords_done[ESMF.StaggerLoc.CORNER]):
@@ -37,8 +37,8 @@ def get_sdim_from_esmf_grid(egrid):
         for ii, jj in iter_array(coords[0], use_mask=False):
             row_slice = slice(ii, ii+2)
             col_slice = slice(jj, jj+2)
-            row_corners = corner[0][row_slice, col_slice]
-            col_corners = corner[1][row_slice, col_slice]
+            row_corners = corner[1][row_slice, col_slice]
+            col_corners = corner[0][row_slice, col_slice]
             for kk, slc in enumerate(slices):
                 grid_corners[:, ii, jj, kk] = row_corners[slc], col_corners[slc]
     else:
@@ -89,9 +89,9 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
     ogrid = sdim.grid
     egrid = ESMF.Grid(max_index=np.array(ogrid.value.shape[1:]), staggerloc=ESMF.StaggerLoc.CENTER,
                       coord_sys=ESMF.CoordSys.SPH_DEG)
-    row = egrid.get_coords(0, staggerloc=ESMF.StaggerLoc.CENTER)
+    row = egrid.get_coords(1, staggerloc=ESMF.StaggerLoc.CENTER)
     row[:] = ogrid.value[0, ...]
-    col = egrid.get_coords(1, staggerloc=ESMF.StaggerLoc.CENTER)
+    col = egrid.get_coords(0, staggerloc=ESMF.StaggerLoc.CENTER)
     col[:] = ogrid.value[1, ...]
 
     # use a logical or operation to merge with value_mask if present
@@ -115,8 +115,8 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
             egrid.add_coords(staggerloc=[ESMF.StaggerLoc.CORNER])
             # get the coordinate pointers and set the coordinates
             grid_corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-            grid_corner[0][:] = corners_esmf[0]
-            grid_corner[1][:] = corners_esmf[1]
+            grid_corner[1][:] = corners_esmf[0]
+            grid_corner[0][:] = corners_esmf[1]
         except CornersUnavailable:
             pass
 

@@ -54,5 +54,5 @@ default_coordinate_system = CFWGS84()
 prime_meridian = 179.9999999999999
 
 
-test_run_long_tests = False
+test_run_long_tests = True
 test_run_dev_tests = False

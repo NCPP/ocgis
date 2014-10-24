@@ -15,8 +15,8 @@ from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
 
 
-__VER__ = '1.0.0'
-__RELEASE__ = '1.0.0-next'
+__version__ = '1.0.1'
+__release__ = '1.0.1-next'
 
 
 # tell ogr/osr to raise exceptions

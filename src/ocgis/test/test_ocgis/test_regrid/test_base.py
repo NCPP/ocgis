@@ -216,7 +216,7 @@ class TestRegrid(TestSimpleBase):
         for regridded in iter_regridded_fields([downscaled], gcm):
             self.assertEqual(regridded.shape, (1, 28, 1, 3, 5))
             self.assertEqual(regridded.variables.keys(), ['tas'])
-            self.assertAlmostEqual(regridded.variables['tas'].value.data.mean(), 0.058454717908586772)
+            self.assertAlmostEqual(regridded.variables['tas'].value.data.mean(), 0.057409391)
             self.assertNumpyAll(gcm.spatial.get_mask(), mask)
             for variable in regridded.variables.itervalues():
                 vmask = variable.value.mask
@@ -240,24 +240,16 @@ class TestRegrid(TestSimpleBase):
         ret = list(iter_esmf_fields(src))
         self.assertEqual(len(ret), 1)
         tidx, variable_alias, efield = ret[0]
-        self.assertNumpyAll(efield.grid.coords[0][0], dst.spatial.grid.value.data[0])
-        self.assertNumpyAll(efield.grid.coords[0][1], dst.spatial.grid.value.data[1])
-
-        #todo: uncomment when output errors understood
-        # # this should fail as the bounds are strange
-        # with self.assertRaises(ValueError):
-        #     list(iter_regridded_fields([src], dst))
+        self.assertNumpyAll(efield.grid.coords[0][0], dst.spatial.grid.value.data[1])
+        self.assertNumpyAll(efield.grid.coords[0][1], dst.spatial.grid.value.data[0])
 
         ret = list(iter_regridded_fields([src], dst, with_corners=False))[0]
         actual = dst[0, 0, 0, :, :].variables.first().value
         to_test = ret.variables.first().value
         self.assertFalse(to_test.mask.any())
 
-        x = np.abs(ret.variables.first().value - actual)
-        select = x > 0
-
-        #todo: appears to be a systematic error in the output...
-        self.assertNumpyAllClose(to_test, actual)
+        self.assertNumpyAllClose(to_test.data, actual.data)
+        self.assertNumpyAll(to_test.mask, actual.mask)
 
     def test_iter_regridded_fields(self):
         """Test with equivalent input and output expectations. The shapes of the grids are equal."""
@@ -488,19 +480,26 @@ class TestRegrid(TestSimpleBase):
 
             egrid = get_esmf_grid_from_sdim(sdim)
 
-            for idx in [0, 1]:
-                coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx]
-                self.assertNumpyAll(coords, field.spatial.grid.value[idx, ...].data)
+            # ocgis is row major with esmf being column major (i.e. in ocgis rows are stored in the zero index)
+            for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
+                coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
+                self.assertNumpyAll(coords, field.spatial.grid.value[idx_ocgis, ...].data)
 
             corner = egrid.coords[ESMF.StaggerLoc.CORNER]
             if h:
-                corner_row = corner[0]
-                corner_row_actual = np.array([[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5], [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]], dtype=field.spatial.grid.value.dtype)
+                corner_row = corner[1]
+                corner_row_actual = np.array(
+                    [[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5],
+                     [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]],
+                    dtype=field.spatial.grid.value.dtype)
                 self.assertNumpyAll(corner_row, corner_row_actual)
 
                 corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-                corner_col = corner[1]
-                corner_col_actual = np.array([[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=field.spatial.grid.value.dtype)
+                corner_col = corner[0]
+                corner_col_actual = np.array(
+                    [[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
+                     [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
+                     [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=field.spatial.grid.value.dtype)
                 self.assertNumpyAll(corner_col, corner_col_actual)
             else:
                 for idx in [0, 1]:
@@ -513,9 +512,9 @@ class TestRegrid(TestSimpleBase):
         field = rd.get()
         egrid = get_esmf_grid_from_sdim(field.spatial)
 
-        for idx in [0, 1]:
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx]
-            self.assertNumpyAll(coords, field.spatial.grid.value[idx, ...].data)
+        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
+            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
+            self.assertNumpyAll(coords, field.spatial.grid.value[idx_ocgis, ...].data)
 
     def test_get_esmf_grid_from_sdim_change_origin_row(self):
         """Test with different row grid origin."""
@@ -528,18 +527,23 @@ class TestRegrid(TestSimpleBase):
 
         egrid = get_esmf_grid_from_sdim(field.spatial)
 
-        for idx in [0, 1]:
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx]
-            self.assertNumpyAll(coords, field.spatial.grid.value[idx, ...].data)
+        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
+            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
+            self.assertNumpyAll(coords, field.spatial.grid.value[idx_ocgis, ...].data)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[0]
-        corner_row_actual = np.array([[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5], [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
+        corner_row = corner[1]
+        corner_row_actual = np.array(
+            [[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5],
+             [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_row, corner_row_actual)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[1]
-        corner_col_actual = np.array([[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=field.spatial.grid.value.dtype)
+        corner_col = corner[0]
+        corner_col_actual = np.array(
+            [[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
+             [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
+             [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_col, corner_col_actual)
 
     def test_get_esmf_grid_from_sdim_change_origin_col(self):
@@ -553,18 +557,23 @@ class TestRegrid(TestSimpleBase):
 
         egrid = get_esmf_grid_from_sdim(field.spatial)
 
-        for idx in [0, 1]:
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx]
-            self.assertNumpyAll(coords, field.spatial.grid.value[idx, ...].data)
+        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
+            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
+            self.assertNumpyAll(coords, field.spatial.grid.value[idx_ocgis, ...].data)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[0]
-        corner_row_actual = np.array([[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5], [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]], dtype=field.spatial.grid.value.dtype)
+        corner_row = corner[1]
+        corner_row_actual = np.array(
+            [[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5],
+             [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_row, corner_row_actual)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[1]
-        corner_col_actual = np.array([[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
+        corner_col = corner[0]
+        corner_col_actual = np.array(
+            [[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_col, corner_col_actual)
 
     def test_get_esmf_grid_from_sdim_change_origin_row_and_col(self):
@@ -580,17 +589,17 @@ class TestRegrid(TestSimpleBase):
 
         egrid = get_esmf_grid_from_sdim(field.spatial)
 
-        for idx in [0, 1]:
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx]
-            self.assertNumpyAll(coords, field.spatial.grid.value[idx, ...].data)
+        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
+            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
+            self.assertNumpyAll(coords, field.spatial.grid.value[idx_ocgis, ...].data)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[0]
+        corner_row = corner[1]
         corner_row_actual = np.array([[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5], [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_row, corner_row_actual)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[1]
+        corner_col = corner[0]
         corner_col_actual = np.array([[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_col, corner_col_actual)
 

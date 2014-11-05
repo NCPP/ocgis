@@ -10,7 +10,6 @@ from shapely.geometry.multipolygon import MultiPolygon
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis import constants
 from shapely.geometry.point import Point
-from ocgis.exc import ImproperPolygonBoundsError
 import logging
 from ocgis.util.logging_ocgis import ocgis_lh
         

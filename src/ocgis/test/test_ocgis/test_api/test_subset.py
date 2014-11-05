@@ -1,10 +1,9 @@
 from copy import deepcopy
-import os
 import pickle
 from ocgis.conv.numpy_ import NumpyConverter
-from ocgis.exc import CornersUnavailable
+from ocgis.exc import DimensionNotFound
 from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic
-from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
 from ocgis.test.base import TestBase
 import ocgis
 from ocgis.api.subset import SubsetOperation
@@ -13,8 +12,8 @@ import itertools
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
-from ocgis import constants
 import numpy as np
+from ocgis import env
 
 
 class TestSubsetOperation(TestBase):
@@ -31,6 +30,14 @@ class TestSubsetOperation(TestBase):
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True)
         subset = SubsetOperation(ops)
         return subset
+
+    def test_abstraction_not_available(self):
+        """Test appropriate exception is raised when a selected abstraction is not available."""
+
+        rd = self.test_data.get_rd('daymet_tmax')
+        ops = ocgis.OcgOperations(dataset=rd, abstraction='polygon', geom='state_boundaries', select_ugid=[25])
+        with self.assertRaises(ValueError):
+            ops.execute()
 
     def test_init(self):
         for rb, p in itertools.product([True, False], [None, ProgressOcgOperations()]):
@@ -109,7 +116,7 @@ class TestSubsetOperation(TestBase):
                     if isinstance(k.regrid_destination, SpatialDimension):
                         self.assertEqual(field.spatial.crs, Spherical())
                     else:
-                        self.assertEqual(field.spatial.crs, constants.default_coordinate_system)
+                        self.assertEqual(field.spatial.crs, env.DEFAULT_COORDSYS)
                     self.assertTrue(d['variable'].value.mean() > 100)
                     self.assertTrue(np.any(field.spatial.get_mask()))
                     self.assertTrue(np.any(d['variable'].value.mask))
@@ -128,8 +135,7 @@ class TestSubsetOperation(TestBase):
         for coll in ret:
             for dd in coll.get_iter_melted():
                 field = dd['field']
-                with self.assertRaises(CornersUnavailable):
-                    field.spatial.grid.corners
+                self.assertIsNone(field.spatial.grid.corners)
                 for to_test in [field.spatial.grid.row.bounds, field.spatial.grid.col.bounds]:
                     self.assertIsNone(to_test)
 

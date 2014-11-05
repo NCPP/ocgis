@@ -1,8 +1,6 @@
 import numpy as np
 
 #: Standard bounds name used when none is available from the input data.
-from ocgis.interface.base.crs import CFWGS84
-
 ocgis_bounds = 'bounds'
 
 #: Default netCDF4 output file type
@@ -47,11 +45,8 @@ prefix_icclim_function_key = 'icclim'
 #: NumPy functions enabled for functions evaluated from string representations.
 enabled_numpy_ufuncs = ['exp','log','abs']
 
-#: The default coordinate system to use if none is provided.
-default_coordinate_system = CFWGS84()
-
-#: The value for the prime meridian to use when wrapping.
-prime_meridian = 179.9999999999999
+#: The value for the 180th meridian to use when wrapping.
+meridian_180th = 179.9999999999999
 
 
 test_run_long_tests = False

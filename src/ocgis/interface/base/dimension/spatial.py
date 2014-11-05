@@ -7,15 +7,14 @@ from ocgis.util.helpers import iter_array, get_none_or_slice, \
     get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
     get_added_slice, make_poly
 from shapely.geometry.point import Point
-from ocgis import constants
+from ocgis import constants, env
 import itertools
 from shapely.geometry.polygon import Polygon
 from copy import copy
 from shapely.prepared import prep
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.exc import ImproperPolygonBoundsError, EmptySubsetError, SpatialWrappingError, MultipleElementsFound, \
-    CornersUnavailable
+from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound
 from osgeo.ogr import CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint
 from shapely import wkb
 import fiona
@@ -78,11 +77,10 @@ class SpatialDimension(base.AbstractUidDimension):
     _axis = 'SPATIAL'
     _attrs_slice = ('uid','grid','_geom')
 
-    def __init__(self, *args, **kwds):
-        self.grid = kwds.pop('grid', None)
-        self.crs = kwds.pop('crs', None)
-        self.abstraction = kwds.pop('abstraction', 'polygon')
-        self._geom = kwds.pop('geom', None)
+    def __init__(self, *args, **kwargs):
+        self.grid = kwargs.pop('grid', None)
+        self.crs = kwargs.pop('crs', None)
+        self._geom = kwargs.pop('geom', None)
 
         # convert the input crs to CFWGS84 if they are equivalent
         if self.crs == CFWGS84():
@@ -90,12 +88,12 @@ class SpatialDimension(base.AbstractUidDimension):
 
         # remove row and col dimension keywords if they are present. we do not want to pass them to the superclass
         # constructor.
-        row = kwds.pop('row', None)
-        col = kwds.pop('col', None)
+        row = kwargs.pop('row', None)
+        col = kwargs.pop('col', None)
 
         ## attempt to build the geometry dimension
-        point = kwds.pop('point', None)
-        polygon = kwds.pop('polygon', None)
+        point = kwargs.pop('point', None)
+        polygon = kwargs.pop('polygon', None)
         geom_kwds = dict(point=point, polygon=polygon)
         if any([g != None for g in geom_kwds.values()]):
             self._geom = SpatialGeometryDimension(**geom_kwds)
@@ -104,17 +102,23 @@ class SpatialDimension(base.AbstractUidDimension):
         if self._grid is None and self._geom is None:
             self.grid = SpatialGridDimension(row=row, col=col)
 
-        super(SpatialDimension, self).__init__(*args, **kwds)
+        self._abstraction = kwargs.pop('abstraction', None)
+        self.abstraction = self._abstraction
 
-        assert self.abstraction in ('point', 'polygon', None)
-    
+        super(SpatialDimension, self).__init__(*args, **kwargs)
+
+    @property
+    def abstraction(self):
+        return self.geom.abstraction
+
+    @abstraction.setter
+    def abstraction(self, value):
+        self._abstraction = value
+        self.geom.abstraction = value
+
     @property
     def abstraction_geometry(self):
-        if self.abstraction is None:
-            ret = self.geom.get_highest_order_abstraction()
-        else:
-            ret = getattr(self.geom, self.abstraction)
-        return ret
+        return self.geom.get_highest_order_abstraction()
 
     @property
     def geom(self):
@@ -123,7 +127,7 @@ class SpatialDimension(base.AbstractUidDimension):
                 msg = 'At least a grid is required to construct a geometry dimension.'
                 raise ValueError(msg)
             else:
-                self._geom = SpatialGeometryDimension(grid=self.grid, uid=self.grid.uid)
+                self._geom = SpatialGeometryDimension(grid=self.grid, uid=self.grid.uid, abstraction=self._abstraction)
         return self._geom
     
     @property
@@ -165,10 +169,10 @@ class SpatialDimension(base.AbstractUidDimension):
         if self.geom is None:
             ret = self.grid.weights
         else:
-            try:
-                ret = self.geom.polygon.weights
-            except ImproperPolygonBoundsError:
+            if self.geom.polygon is None:
                 ret = self.geom.point.weights
+            else:
+                ret = self.geom.polygon.weights
         return ret
 
     def assert_uniform_mask(self):
@@ -199,14 +203,14 @@ class SpatialDimension(base.AbstractUidDimension):
 
         :param records: A sequence of records returned from an Fiona file object.
         :type records: sequence
-        :param crs: If ``None``, default to :attr:`~ocgis.constants.default_coordinate_system`.
+        :param crs: If ``None``, default to :attr:`~ocgis.env.DEFAULT_COORDSYS`.
         :type crs: dict or :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
         :rtype: :class:`ocgis.interface.base.dimension.SpatialDimension`
         """
 
         if not isinstance(crs, CoordinateReferenceSystem):
             # if there is no crs dictionary passed, assume WGS84
-            crs = crs or constants.default_coordinate_system.value
+            crs = crs or env.DEFAULT_COORDSYS.value
             crs = CoordinateReferenceSystem(value=crs)
 
         # these are mappings used to construct the SpatialDimension
@@ -287,25 +291,25 @@ class SpatialDimension(base.AbstractUidDimension):
         sdim = SpatialDimension(geom=dim_geom, uid=uid, properties=properties, crs=crs, abstraction=mapping_kwds[klass])
 
         return sdim
-    
+        
     def get_clip(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
         assert(type(polygon) in (Polygon, MultiPolygon))
-        
+
         ret, slc = self.get_intersects(polygon, return_indices=True, use_spatial_index=use_spatial_index, select_nearest=select_nearest)
-        
+
         ## clipping with points is okay...
-        try:
+        if ret.geom.polygon is not None:
             ref_value = ret.geom.polygon.value
-        except ImproperPolygonBoundsError:
+        else:
             ref_value = ret.geom.point.value
         for (row_idx, col_idx), geom in iter_array(ref_value, return_value=True):
             ref_value[row_idx, col_idx] = geom.intersection(polygon)
-                
+
         if return_indices:
             ret = (ret, slc)
-        
+
         return(ret)
-        
+
     def get_intersects(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
         """
         :param polygon: The subset geometry objec to use for the intersects operation.
@@ -336,25 +340,23 @@ class SpatialDimension(base.AbstractUidDimension):
             if self.grid is None:
                 raise NotImplementedError
             else:
-                # reset the geometries
-                ret._geom = None
-
                 # subset the grid by its bounding box
                 ret.grid, slc = self.grid.get_subset_bbox(minx, miny, maxx, maxy, return_indices=True,
                                                           use_bounds=use_bounds)
+
+                # slice the geometries if they are available
+                if ret._geom is not None:
+                    ret._geom = ret._geom[slc[0], slc[1]]
+
                 # update the unique identifier to copy the grid uid
                 ret.uid = ret.grid.uid
                 assert not self.uid.mask.any()
-                # attempt to mask the polygons
-                try:
-                    # only use the polygons if the abstraction indicates as much
-                    if self.abstraction == 'point':
-                        raise ImproperPolygonBoundsError
-                    else:
-                        ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon,
-                                                                                    use_spatial_index=use_spatial_index)
-                        grid_mask = ret.geom.polygon.value.mask
-                except ImproperPolygonBoundsError:
+                # attempt to mask the polygons if the abstraction is point or none
+                if self.geom.polygon is not None and self.abstraction in ['polygon', None]:
+                    ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon,
+                                                                                use_spatial_index=use_spatial_index)
+                    grid_mask = ret.geom.polygon.value.mask
+                else:
                     ret._geom._point = ret.geom.point.get_intersects_masked(polygon, use_spatial_index=use_spatial_index)
                     grid_mask = ret.geom.point.value.mask
                 assert not self.uid.mask.any()
@@ -380,12 +382,9 @@ class SpatialDimension(base.AbstractUidDimension):
         ret = ret[adjust['row'], adjust['col']]
 
         if select_nearest:
-            try:
-                if self.abstraction == 'point':
-                    raise ImproperPolygonBoundsError
-                else:
-                    target_geom = ret.geom.polygon.value
-            except ImproperPolygonBoundsError:
+            if self.geom.polygon is not None and self.abstraction in ['polygon', None]:
+                target_geom = ret.geom.polygon.value
+            else:
                 target_geom = ret.geom.point.value
             distances = {}
             centroid = polygon.centroid
@@ -405,36 +404,54 @@ class SpatialDimension(base.AbstractUidDimension):
             ret = (ret, tuple(ret_slc))
 
         return ret
-    
-    def get_geom_iter(self,target=None,as_multipolygon=True):
+
+    def get_geom_iter(self, target=None, as_multipolygon=True):
+        """
+        :param str target: The target geometry. One of "point" or "polygon". If ``None``, return the highest order
+         abstraction.
+        :param bool as_multipolygon: If ``True``, convert all polygons to multipolygons.
+        :returns: An iterator yielding a tuple: (int row index, int column index, Shapely geometry, int unique id)
+        :rtype: tuple
+        :raises: AttributeError
+        """
+
         target = target or self.abstraction
         if target is None:
             value = self.geom.get_highest_order_abstraction().value
         else:
-            value = getattr(self.geom,target).value
+            try:
+                value = getattr(self.geom, target).value
+            except AttributeError:
+                msg = 'The target abstraction "{0}" is not available.'.format(target)
+                raise ValueError(msg)
 
-        ## no need to attempt and convert to MultiPolygon if we are working with
-        ## point data.
+        # no need to attempt and convert to MultiPolygon if we are working with point data.
         if as_multipolygon and target == 'point':
             as_multipolygon = False
 
         r_uid = self.uid
-        for (row_idx,col_idx),geom in iter_array(value,return_value=True):
+        for (row_idx, col_idx), geom in iter_array(value, return_value=True):
             if as_multipolygon:
-                if isinstance(geom,Polygon):
+                if isinstance(geom, Polygon):
                     geom = MultiPolygon([geom])
-            uid = r_uid[row_idx,col_idx]
-            yield(row_idx,col_idx,geom,uid)
+            uid = r_uid[row_idx, col_idx]
+            yield (row_idx, col_idx, geom, uid)
 
     def get_mask(self):
+        """
+        :returns: A deepcopy of a the boolean mask used on the spatial dimension.
+        :rtype: :class:`numpy.ndarray`
+        :raises: ValueError
+        """
+
         if self.grid is None:
             if self.geom.point is None:
                 ret = self.geom.polygon.value.mask
             else:
                 ret = self.geom.point.value.mask
         else:
-            ret = self.grid.value.mask[0,:,:]
-        return(ret.copy())
+            ret = self.grid.value.mask[0, :, :]
+        return ret.copy()
 
     def set_mask(self, mask):
         """
@@ -490,13 +507,11 @@ class SpatialDimension(base.AbstractUidDimension):
                     value_col = self.grid.value.data[1].reshape(-1)
                     self._update_crs_with_geometry_collection_(to_sr, value_row, value_col)# update corners
 
-                    try:
+                    if self.grid.corners is not None:
                         # update the corners
                         corner_row = self.grid.corners.data[0].reshape(-1)
                         corner_col = self.grid.corners.data[1].reshape(-1)
                         self._update_crs_with_geometry_collection_(to_sr, corner_row, corner_col)
-                    except CornersUnavailable:
-                        pass
 
                     self.grid.row = None
                     self.grid.col = None
@@ -599,7 +614,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         if self._value is None:
             if self.row is None or self.col is None:
                 msg = 'Without a value, a row and column dimension are required.'
-                raise(ValueError(msg))
+                raise ValueError(msg)
         
     def __getitem__(self,slc):
         slc = get_formatted_slice(slc,2)
@@ -647,30 +662,27 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 
         if self._corners is None:
             if self.row is None or self.col is None:
-                msg = 'Row and/or column not available.'
-                raise CornersUnavailable(msg)
+                pass
+            elif self.row.bounds is None or self.col.bounds is None:
+                pass
             else:
-                if self.row.bounds is None or self.col.bounds is None:
-                    msg = 'Row and/or column bounds not available.'
-                    raise CornersUnavailable(msg)
-                else:
-                    fill = np.zeros([2]+list(self.shape)+[4], dtype=self.row.value.dtype)
-                    col_bounds = self.col.bounds
-                    row_bounds = self.row.bounds
-                    for ii, jj in itertools.product(range(self.shape[0]), range(self.shape[1])):
-                        fill_element = fill[:, ii, jj]
-                        fill_element[:, 0] = row_bounds[ii, 0], col_bounds[jj, 0]
-                        fill_element[:, 1] = row_bounds[ii, 0], col_bounds[jj, 1]
-                        fill_element[:, 2] = row_bounds[ii, 1], col_bounds[jj, 1]
-                        fill_element[:, 3] = row_bounds[ii, 1], col_bounds[jj, 0]
+                fill = np.zeros([2]+list(self.shape)+[4], dtype=self.row.value.dtype)
+                col_bounds = self.col.bounds
+                row_bounds = self.row.bounds
+                for ii, jj in itertools.product(range(self.shape[0]), range(self.shape[1])):
+                    fill_element = fill[:, ii, jj]
+                    fill_element[:, 0] = row_bounds[ii, 0], col_bounds[jj, 0]
+                    fill_element[:, 1] = row_bounds[ii, 0], col_bounds[jj, 1]
+                    fill_element[:, 2] = row_bounds[ii, 1], col_bounds[jj, 1]
+                    fill_element[:, 3] = row_bounds[ii, 1], col_bounds[jj, 0]
 
-                    mask_value = self.value.mask
-                    mask_fill = np.zeros(fill.shape, dtype=bool)
-                    for (ii, jj), m in iter_array(mask_value[0, :, :], return_value=True):
-                        mask_fill[:, ii, jj, :] = m
-                    fill = np.ma.array(fill, mask=mask_fill)
+                mask_value = self.value.mask
+                mask_fill = np.zeros(fill.shape, dtype=bool)
+                for (ii, jj), m in iter_array(mask_value[0, :, :], return_value=True):
+                    mask_fill[:, ii, jj, :] = m
+                fill = np.ma.array(fill, mask=mask_fill)
 
-                    self._corners = fill
+                self._corners = fill
 
         return self._corners
 
@@ -688,23 +700,24 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         fill = np.zeros([2] + [element + 1 for element in self.shape], dtype=self.value.dtype)
         range_row = range(self.shape[0])
         range_col = range(self.shape[1])
+        _corners = self.corners
         for ii, jj in itertools.product(range_row, range_col):
             ref = fill[:, ii:ii+2, jj:jj+2]
-            ref[:, 0, 0] = self.corners[:, ii, jj, 0]
-            ref[:, 0, 1] = self.corners[:, ii, jj, 1]
-            ref[:, 1, 1] = self.corners[:, ii, jj, 2]
-            ref[:, 1, 0] = self.corners[:, ii, jj, 3]
+            ref[:, 0, 0] = _corners[:, ii, jj, 0]
+            ref[:, 0, 1] = _corners[:, ii, jj, 1]
+            ref[:, 1, 1] = _corners[:, ii, jj, 2]
+            ref[:, 1, 0] = _corners[:, ii, jj, 3]
         return fill
     
     @property
     def extent(self):
         if self.row is None:
-            try:
+            if self.corners is not None:
                 minx = self.corners[1].min()
                 miny = self.corners[0].min()
                 maxx = self.corners[1].max()
                 maxy = self.corners[0].max()
-            except CornersUnavailable:
+            else:
                 minx = self.value[1,:,:].min()
                 miny = self.value[0,:,:].min()
                 maxx = self.value[1,:,:].max()
@@ -720,7 +733,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 miny = self.row.bounds.min()
                 maxx = self.col.bounds.max()
                 maxy = self.row.bounds.max()
-        return(minx,miny,maxx,maxy)
+        return minx, miny, maxx, maxy
 
     @property
     def extent_polygon(self):
@@ -866,34 +879,55 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 class SpatialGeometryDimension(base.AbstractUidDimension):
     _axis = 'GEOM'
     _ndims = 2
-    _attrs_slice = ('uid','grid','_point','_polygon')
-    
-    def __init__(self,*args,**kwds):
-        self.grid = kwds.pop('grid',None)
-        self._point = kwds.pop('point',None)
-        self._polygon = kwds.pop('polygon',None)
-        
-        super(SpatialGeometryDimension,self).__init__(*args,**kwds)
+    _attrs_slice = ('uid', 'grid', '_point', '_polygon')
+
+    def __init__(self, *args, **kwargs):
+        self.grid = kwargs.pop('grid', None)
+        self._point = kwargs.pop('point', None)
+        self._polygon = kwargs.pop('polygon', None)
+        self._abstraction = kwargs.pop('abstraction', None)
+
+        super(SpatialGeometryDimension, self).__init__(*args, **kwargs)
 
         if self.grid is None and self._point is None and self._polygon is None:
             msg = 'At minimum, a grid, point, or polygon dimension is required.'
-            raise(ValueError(msg))
+            raise ValueError(msg)
+
+    @property
+    def abstraction(self):
+        return self._abstraction
+
+    @abstraction.setter
+    def abstraction(self, value):
+        options = ['point', 'polygon', None]
+        if value not in options:
+            raise ValueError('Must be one of: {0}'.format(options))
+        # reset polygons if the point abstraction is set.
+        if value == 'point':
+            self._polygon = None
+        self._abstraction = value
 
     @property
     def point(self):
         if self._point is None and self.grid is not None:
-            self._point = SpatialGeometryPointDimension(grid=self.grid,uid=self.grid.uid)
-        return(self._point)
+            self._point = SpatialGeometryPointDimension(grid=self.grid, uid=self.grid.uid)
+        return self._point
     
     @property
     def polygon(self):
         if self._polygon is None:
-            if self.grid is None:
-                msg = 'Constructing a polygon dimension requires a grid dimension.'
-                raise ImproperPolygonBoundsError(msg)
-            else:
-                self._polygon = SpatialGeometryPolygonDimension(grid=self.grid,uid=self.grid.uid)
-        return(self._polygon)
+            if self.abstraction in ['polygon', None]:
+                if self.grid is not None:
+                    try:
+                        self._polygon = SpatialGeometryPolygonDimension(grid=self.grid, uid=self.grid.uid)
+                    except ValueError:
+                        none_bounds_row = self.grid.row is None or self.grid.row.bounds is None
+                        none_bounds_col = self.grid.col is None or self.grid.col.bounds is None
+                        if any([none_bounds_row, none_bounds_col]):
+                            pass
+                        else:
+                            raise
+        return self._polygon
     
     @property
     def shape(self):
@@ -905,18 +939,26 @@ class SpatialGeometryDimension(base.AbstractUidDimension):
     
     def get_highest_order_abstraction(self):
         """
-        Return the highest order abstraction geometry with preference given by:
+        :returns: Return the highest order abstraction geometry with preference given by:
          1. Polygon
          2. Point
+        :rtype: :class:`~ocgis.interface.base.dimension.spatial.SpatialGeometryDimension`
         """
 
-        try:
-            ret = self.polygon
-            # if the polygon is a NoneType, return the point dimension
-            if ret is None:
-                ret = self.point
-        except ImproperPolygonBoundsError:
+        if self.abstraction == 'point':
             ret = self.point
+        elif self.abstraction == 'polygon':
+            ret = self.polygon
+        else:
+            if self.polygon is None:
+                ret = self.point
+            else:
+                ret = self.polygon
+
+        if ret is None:
+            msg = 'No abstraction geometry found. Is "abstraction" compatible with the geometries available?'
+            raise ValueError(msg)
+
         return ret
     
     def get_iter(self):
@@ -1106,22 +1148,21 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
             # we can construct from a grid dimension having bounds
             if self.grid is None:
                 msg = 'A grid dimension is required for constructing a polygon dimension without a value.'
-                raise ImproperPolygonBoundsError(msg)
+                raise ValueError(msg)
             else:
-                # corners may also be used to construct polygons. if there are none, explain why polygons are not
-                # available
-                try:
-                    if self.grid._corners is None:
-                        if self.grid.row is None or self.grid.col is None:
-                            raise ImproperPolygonBoundsError(
-                                'Polygon dimensions require a grid dimension with row and column dimensions with bounds.')
-                        else:
-                            if self.grid.row.bounds is None or self.grid.col.bounds is None:
-                                raise ImproperPolygonBoundsError(
-                                    'Polygon dimensions require row and column dimension bounds to have delta > 0.')
-                except CornersUnavailable:
-                    msg = 'Polygon dimensions require grid corners.'
-                    raise(ImproperPolygonBoundsError(msg))
+                # corners may also be used to construct polygons. if they are not immediately available, check for
+                # bounds are on the row and column.
+                none_bounds_row = self.grid.row is None or self.grid.row.bounds is None
+                none_bounds_col = self.grid.col is None or self.grid.col.bounds is None
+                should_raise = True
+                if any([none_bounds_row, none_bounds_col]):
+                    if self.grid.corners is not None:
+                        should_raise = False
+                else:
+                    should_raise = False
+                if should_raise:
+                    msg = 'Row/column bounds or grid corners are required to construct polygons.'
+                    raise ValueError(msg)
 
     @property
     def area(self):

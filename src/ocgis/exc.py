@@ -25,6 +25,18 @@ class MultipleElementsFound(OcgException):
         return msg
 
 
+class ShapeError(OcgException):
+    """
+    Raised when an array has an incompatible shape with an operation.
+    """
+
+
+class SingleElementError(ShapeError):
+    """
+    Raised when an operation requires more than a single element.
+    """
+
+
 class CalculationException(OcgException):
 
     def __init__(self, function_klass, message=None):
@@ -150,7 +162,7 @@ class SpatialWrappingError(OcgException):
     pass
 
 
-class ImproperPolygonBoundsError(OcgException):
+class _ImproperPolygonBoundsError(OcgException):
     pass
 
 
@@ -272,7 +284,7 @@ class RequestValidationError(OcgException):
         return message
 
 
-class CornersUnavailable(OcgException):
+class _CornersUnavailable(OcgException):
     """Raised when grid corners may not be constructed."""
 
     pass

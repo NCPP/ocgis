@@ -2,7 +2,7 @@ import abc
 import numpy as np
 from ocgis import constants
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
-    get_formatted_slice, assert_raise, get_interpolated_bounds
+    get_formatted_slice, assert_raise, get_bounds_from_1d
 from copy import copy, deepcopy
 from ocgis.exc import EmptySubsetError, ResolutionError
 from operator import mul
@@ -167,7 +167,7 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
         
         # if the bounds are None, check if an attempt should be made to interpolate bounds from the value itself.
         if self._interpolate_bounds and self._bounds is None:
-            self._bounds = get_interpolated_bounds(self.value)
+            self.set_extrapolated_bounds()
             self._has_interpolated_bounds = True
         
         # if no error is encountered, then the bounds should have been set during loading from source. simply return the
@@ -329,7 +329,12 @@ class VectorDimension(AbstractSourcedVariable,AbstractUidValueDimension):
                 yld.update({ref_name_bounds_lower:None,
                             ref_name_bounds_upper:None})
             yield(ii,yld)
-    
+
+    def set_extrapolated_bounds(self):
+        """Set the bounds variable using extrapolation."""
+
+        self.bounds = get_bounds_from_1d(self.value)
+
     def _format_private_value_(self,value):
         return(self._get_none_or_array_(value,masked=False))
     

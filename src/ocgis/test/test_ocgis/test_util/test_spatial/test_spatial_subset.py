@@ -15,7 +15,7 @@ from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
-from ocgis import constants
+from ocgis import constants, env
 
 
 class TestSpatialSubset(TestBase):
@@ -180,16 +180,16 @@ class TestSpatialSubset(TestBase):
             for subset_sdim in self.get_subset_sdim():
                 for operation in ['intersects', 'clip', 'foo']:
 
+                    use_subset_sdim = deepcopy(subset_sdim)
+                    use_ss = deepcopy(ss)
+
                     # ctr += 1
                     # print ctr
-                    # if ctr != 223:
+                    # if ctr != 73:
                     #     continue
                     # else:
                     #     import ipdb;ipdb.set_trace()
 
-                    use_subset_sdim = deepcopy(subset_sdim)
-                    use_ss = deepcopy(ss)
-                    ctr += 1
                     try:
                         ret = use_ss.get_spatial_subset(operation, use_subset_sdim, use_spatial_index=True,
                                                         select_nearest=False, buffer_value=None, buffer_crs=None)
@@ -242,10 +242,10 @@ class TestSpatialSubset(TestBase):
 
         # test with an input rotated pole coordinate system
         rd = self.rd_rotated_pole
-        ss = SpatialSubsetOperation(rd, output_crs=constants.default_coordinate_system)
+        ss = SpatialSubsetOperation(rd, output_crs=env.DEFAULT_COORDSYS)
         subset_sdim = SpatialDimension.from_records([self.germany])
         ret = ss.get_spatial_subset('intersects', subset_sdim)
-        self.assertEqual(ret.spatial.crs, constants.default_coordinate_system)
+        self.assertEqual(ret.spatial.crs, env.DEFAULT_COORDSYS)
 
     def test_get_spatial_subset_rotated_pole(self):
         """Test input has rotated pole with now output CRS."""

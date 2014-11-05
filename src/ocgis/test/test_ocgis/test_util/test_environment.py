@@ -43,6 +43,9 @@ class TestEnvironment(TestBase):
     def test_conf_path(self):
         env.CONF_PATH
 
+    def test_default_coordsys(self):
+        env.DEFAULT_COORDSYS
+
     def test_import_attributes(self):
         ## with both modules installed, these are expected to be true
         self.assertEqual(env.USE_CFUNITS,self.get_is_available('cfunits'))

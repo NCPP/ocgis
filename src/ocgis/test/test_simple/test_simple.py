@@ -16,7 +16,7 @@ import netCDF4 as nc
 from ocgis.test.base import TestBase
 from shapely.geometry.point import Point
 import ocgis
-from ocgis.exc import ExtentError, DefinitionValidationError, ImproperPolygonBoundsError
+from ocgis.exc import ExtentError, DefinitionValidationError
 from shapely.geometry.polygon import Polygon
 import csv
 import fiona
@@ -392,7 +392,9 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
         ref = ret[1]['foo']
         self.assertEqual(ref.spatial.grid.shape,(1,1))
-        self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0].geom.point.value[0, 0]))
+        # this is a point abstraction. polygons are not available.
+        self.assertIsNone(ref.spatial.geom.polygon)
+        # self.assertTrue(ref.spatial.geom.polygon.value[0,0].intersects(ops.geom[0].geom.point.value[0, 0]))
     
     def test_slicing(self):
         ops = self.get_ops(kwds={'slice':[None,None,0,[0,2],[0,2]]})
@@ -1263,8 +1265,7 @@ class TestSimpleNoSpatialBounds(TestSimpleBase):
     
     def test_interpolate_bounds(self):
         ret = self.get_ops(kwds={'interpolate_spatial_bounds':False}).execute()
-        with self.assertRaises(ImproperPolygonBoundsError):
-            ret[1]['foo'].spatial.geom.polygon
+        self.assertIsNone(ret[1]['foo'].spatial.geom.polygon)
             
         ret = self.get_ops(kwds={'interpolate_spatial_bounds':True}).execute()
         polygons = ret[1]['foo'].spatial.geom.polygon.value

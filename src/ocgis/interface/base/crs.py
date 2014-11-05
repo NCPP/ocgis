@@ -4,9 +4,12 @@ import itertools
 from osgeo.osr import SpatialReference
 from fiona.crs import from_string, to_string
 import numpy as np
+from shapely.geometry import Point, Polygon
+from shapely.geometry.base import BaseMultipartGeometry
+from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound,\
-    ProjectionDoesNotMatch, ImproperPolygonBoundsError, CornersUnavailable
+    ProjectionDoesNotMatch
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
 from shapely.geometry.multipolygon import MultiPolygon
@@ -82,7 +85,52 @@ class CoordinateReferenceSystem(object):
 
 
 class WrappableCoordinateReferenceSystem(object):
-    """Mean to be used in mixin class that can be wrapped."""
+    """Meant to be used in mixin classes for coordinate systems that can be wrapped."""
+
+    _flag_wrapped = 'wrapped'
+    _flag_unwrapped = 'unwrapped'
+    _flag_unknown = 'unknown'
+
+    _flag_action_wrap = 'wrap'
+    _flag_action_unwrap = 'unwrap'
+
+    @classmethod
+    def get_wrap_action(cls, state_src, state_dst):
+        """
+        :param str state_src: The wrapped state of the source dataset.
+        :param str state_dst: The wrapped state of the destination dataset.
+        :returns: The wrapping action to perform on ``state_src``.
+        :rtype: str
+        :raises: NotImplementedError, ValueError
+        """
+
+        possible = [cls._flag_wrapped, cls._flag_unwrapped, cls._flag_unknown]
+        has_issue = None
+        if state_src not in possible:
+            has_issue = 'source'
+        if state_dst not in possible:
+            has_issue = 'destination'
+        if has_issue is not None:
+            msg = 'The wrapped state on "{0}" is not recognized.'.format(has_issue)
+            raise ValueError(msg)
+
+        # the default action is to do nothing.
+        ret = None
+        # if the wrapped state of the destination is unknown, then there is no appropriate wrapping action suitable for
+        # the source.
+        if state_dst == cls._flag_unknown:
+            ret = None
+        # if the destination is wrapped and src is unwrapped, then wrap the src.
+        elif state_dst == cls._flag_wrapped:
+            if state_src == cls._flag_unwrapped:
+                ret = cls._flag_action_wrap
+        # if the destination is unwrapped and the src is wrapped, the source needs to be unwrapped.
+        elif state_dst == cls._flag_unwrapped:
+            if state_src == cls._flag_wrapped:
+                ret = cls._flag_action_unwrap
+        else:
+            raise NotImplementedError(state_dst)
+        return ret
 
     @classmethod
     def get_is_360(cls, spatial):
@@ -104,17 +152,17 @@ class WrappableCoordinateReferenceSystem(object):
             # column dimension is likely missing
             try:
                 if spatial.grid.col is None:
-                    try:
+                    if spatial.grid.corners is not None:
                         check = spatial.grid.corners[1]
-                    except CornersUnavailable:
+                    else:
                         check = spatial.grid.value[1, :, :]
                 else:
                     ocgis_lh(exc=e)
             except AttributeError:
                 # there may be no grid, access the geometries directly
-                try:
+                if spatial.geom.polygon is not None:
                     geoms_to_check = spatial.geom.polygon.value
-                except ImproperPolygonBoundsError:
+                else:
                     geoms_to_check = spatial.geom.point.value
                 geoms_to_check = geoms_to_check.compressed()
 
@@ -171,11 +219,9 @@ class WrappableCoordinateReferenceSystem(object):
                         ref[select] += 360
 
                 # attempt to to unwrap the grid corners if they exist
-                try:
+                if spatial.grid.corners is not None:
                     select = spatial.grid.corners[1] < 0
                     spatial.grid.corners[1][select] += 360
-                except CornersUnavailable:
-                    pass
 
         else:
             ocgis_lh(exc=SpatialWrappingError('Data already has a 0 to 360 coordinate system.'))
@@ -229,7 +275,7 @@ class WrappableCoordinateReferenceSystem(object):
                             ref[select] -= 360
 
                 # attempt to wrap the grid corners if they exist
-                try:
+                if spatial.grid.corners is not None:
                     ref = spatial.grid.corners.data
                     if bounds_cross_meridian:
                         spatial.grid._corners = None
@@ -244,24 +290,70 @@ class WrappableCoordinateReferenceSystem(object):
                         else:
                             select = ref[1] > 180
                             ref[1][select] -= 360
-                except CornersUnavailable:
-                    pass
         else:
             ocgis_lh(exc=SpatialWrappingError('Data does not have a 0 to 360 coordinate system.'))
 
-    def _get_to_wrap_(self,spatial):
+    @staticmethod
+    def _get_to_wrap_(spatial):
         ret = []
         ret.append(spatial.geom.point)
-        try:
+        if spatial.geom.polygon is not None:
             ret.append(spatial.geom.polygon)
-        except ImproperPolygonBoundsError:
-            pass
-        return(ret)
+        return ret
+
+    @classmethod
+    def _get_wrapped_state_from_array_(cls, arr):
+        """
+        :param arr: Input n-dimensional array.
+        :type arr: :class:`numpy.ndarray`
+        :returns: A string flag. See class level ``_flag_*`` attributes for values.
+        :rtype: str
+        """
+
+        gt_m180 = arr > constants.meridian_180th
+        lt_pm = arr < 0
+
+        if np.any(lt_pm):
+            ret = cls._flag_wrapped
+        elif np.any(gt_m180):
+            ret = cls._flag_unwrapped
+        else:
+            ret = cls._flag_unknown
+
+        return ret
+
+    @classmethod
+    def _get_wrapped_state_from_geometry_(cls, geom):
+        """
+        :param geom: The input geometry.
+        :type geom: :class:`~shapely.geometry.point.Point`, :class:`~shapely.geometry.point.Polygon`,
+         :class:`~shapely.geometry.multipoint.MultiPoint`, :class:`~shapely.geometry.multipolygon.MultiPolygon`
+        :returns: A string flag. See class level ``_flag_*`` attributes for values.
+        :rtype: str
+        :raises: NotImplementedError
+        """
+
+        if isinstance(geom, BaseMultipartGeometry):
+            itr = geom
+        else:
+            itr = [geom]
+
+        app = np.array([])
+        for element in itr:
+            if isinstance(element, Point):
+                element_arr = [np.array(element)[0]]
+            elif isinstance(element, Polygon):
+                element_arr = np.array(element.exterior.coords)[:, 0]
+            else:
+                raise NotImplementedError(type(element))
+            app = np.append(app, element_arr)
+
+        return cls._get_wrapped_state_from_array_(app)
 
     @staticmethod
     def _place_prime_meridian_array_(arr):
         """
-        Replace any 180 degree values with the value of :attribute:`ocgis.constants.prime_meridian`.
+        Replace any 180 degree values with the value of :attribute:`ocgis.constants.meridian_180th`.
 
         :param arr: The target array to modify inplace.
         :type arr: :class:`numpy.array`
@@ -272,7 +364,7 @@ class WrappableCoordinateReferenceSystem(object):
         # find the values that are 180
         select = arr == 180
         # replace the values that are 180 with the constant value
-        np.place(arr, select, constants.prime_meridian)
+        np.place(arr, select, constants.meridian_180th)
         # return the mask used for the replacement
         return select
 

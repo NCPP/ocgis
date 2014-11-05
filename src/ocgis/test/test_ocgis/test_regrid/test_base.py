@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 import ESMF
 from shapely.geometry import Polygon, MultiPolygon
 import ocgis
-from ocgis.exc import CornersUnavailable, RegriddingError, ImproperPolygonBoundsError, CornersInconsistentError
+from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, Spherical
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.field import Field
@@ -159,8 +159,7 @@ class TestRegrid(TestSimpleBase):
             ref.spatial.grid.row = None
             ref.spatial.grid.col = None
             ref.spatial.grid._corners = None
-            with self.assertRaises(CornersUnavailable):
-                ref.spatial.grid.corners
+            self.assertIsNone(ref.spatial.grid.corners)
             for with_corners in [True, False]:
                 if with_corners:
                     with self.assertRaises(CornersInconsistentError):
@@ -174,8 +173,7 @@ class TestRegrid(TestSimpleBase):
             ref.spatial.grid.row = None
             ref.spatial.grid.col = None
             ref.spatial.grid._corners = None
-            with self.assertRaises(CornersUnavailable):
-                ref.spatial.grid.corners
+            self.assertIsNone(ref.spatial.grid.corners)
             for with_corners in [True, False]:
                 if with_corners:
                     with self.assertRaises(CornersInconsistentError):
@@ -298,10 +296,8 @@ class TestRegrid(TestSimpleBase):
         for regridded in iter_regridded_fields(sources, destination_field, with_corners=False):
             self.assertIsNone(regridded.spatial.grid.row.bounds)
             self.assertIsNone(regridded.spatial.grid.col.bounds)
-            with self.assertRaises(CornersUnavailable):
-                regridded.spatial.grid.corners
-            with self.assertRaises(ImproperPolygonBoundsError):
-                regridded.spatial.geom.polygon
+            self.assertIsNone(regridded.spatial.grid.corners)
+            self.assertIsNone(regridded.spatial.geom.polygon)
 
         # check that the destination grid is not modified
         self.assertIsNotNone(destination_field.spatial.grid.row.bounds)
@@ -314,8 +310,7 @@ class TestRegrid(TestSimpleBase):
         dest.grid.col.bounds
         dest.grid.col.bounds = None
         dest.grid._corners = None
-        with self.assertRaises(CornersUnavailable):
-            dest.grid.corners
+        self.assertIsNone(dest.grid.corners)
         with self.assertRaises(CornersInconsistentError):
             list(iter_regridded_fields(sources, dest, with_corners=True))
         # if this is now false, then there should be no problem as only centroids are used
@@ -443,8 +438,7 @@ class TestRegrid(TestSimpleBase):
             if k.has_corners:
                 self.assertNumpyAll(sdim.grid.corners, nsdim.grid.corners)
             else:
-                with self.assertRaises(CornersUnavailable):
-                    self.assertIsNone(nsdim.grid.corners)
+                self.assertIsNone(nsdim.grid.corners)
 
     def test_get_esmf_grid_from_sdim_with_mask(self):
         """Test with masked data."""

@@ -1,20 +1,25 @@
 import unittest
 import numpy as np
+from ocgis import constants
 from ocgis.exc import EmptySubsetError, ResolutionError
 from ocgis.interface.base.dimension.base import VectorDimension
 from copy import deepcopy
 from cfunits.cfunits import Units
-from ocgis.util.helpers import get_interpolated_bounds
+from ocgis.test.base import TestBase
+from ocgis.util.helpers import get_bounds_from_1d
 
 
-class TestVectorDimension(unittest.TestCase):
-    
-    def assertNumpyAll(self,arr1,arr2):
-        return(self.assertTrue(np.all(arr1 == arr2)))
-    
-    def assertNumpyNotAll(self,arr1,arr2):
-        return(self.assertFalse(np.all(arr1 == arr2)))
-    
+class TestVectorDimension(TestBase):
+    create_dir = False
+
+    def test_set_extrapolated_bounds(self):
+        value = np.array([1, 2, 3, 4], dtype=float)
+        vd = VectorDimension(value=value)
+        self.assertIsNone(vd.bounds)
+        vd.set_extrapolated_bounds()
+        actual = np.array([[0.5, 1.5], [1.5, 2.5], [2.5, 3.5], [3.5, 4.5]], dtype=float)
+        self.assertNumpyAll(vd.bounds, actual)
+
     def test_bounds_only_two_dimensional(self):
         value = [10,20,30,40,50]
         bounds = [
@@ -66,47 +71,55 @@ class TestVectorDimension(unittest.TestCase):
             VectorDimension(value=181.5,bounds=['a','b'])
 
     def test_one_value(self):
-        values = [5,np.array([5])]
+        """Test passing a single value."""
+
+        values = [5, np.array([5])]
         for value in values:
-            vdim = VectorDimension(value=value,src_idx=10)
-            self.assertEqual(vdim.value[0],5)
-            self.assertEqual(vdim.uid[0],1)
-            self.assertEqual(len(vdim.uid),1)
-            self.assertEqual(vdim.shape,(1,))
-            self.assertNumpyAll(vdim.bounds,None)
-            self.assertEqual(vdim[0].value[0],5)
-            self.assertEqual(vdim[0].uid[0],1)
-            self.assertEqual(vdim[0]._src_idx[0],10)
-            self.assertNumpyAll(vdim[0].bounds,None)
+            vdim = VectorDimension(value=value, src_idx=10)
+            self.assertEqual(vdim.value[0], 5)
+            self.assertEqual(vdim.uid[0], 1)
+            self.assertEqual(len(vdim.uid), 1)
+            self.assertEqual(vdim.shape, (1,))
+            self.assertIsNone(vdim.bounds)
+            self.assertEqual(vdim[0].value[0], 5)
+            self.assertEqual(vdim[0].uid[0], 1)
+            self.assertEqual(vdim[0]._src_idx[0], 10)
+            self.assertIsNone(vdim[0].bounds)
             with self.assertRaises(ResolutionError):
                 vdim.resolution
     
     def test_with_bounds(self):
-        vdim = VectorDimension(value=[4,5,6],bounds=[[3,5],[4,6],[5,7]])
-        self.assertNumpyAll(vdim.bounds,np.array([[3,5],[4,6],[5,7]]))
-        self.assertNumpyAll(vdim.uid,np.array([1,2,3]))
-        self.assertEqual(vdim.resolution,2.0)
+        """Test passing bounds to the constructor."""
+
+        vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
+        self.assertNumpyAll(vdim.bounds, np.array([[3, 5], [4, 6], [5, 7]]))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=constants.np_int))
+        self.assertEqual(vdim.resolution, 2.0)
     
     def test_boolean_slice(self):
-        vdim = VectorDimension(value=[4,5,6],bounds=[[3,5],[4,6],[5,7]])
-        vdim_slc = vdim[np.array([True,False,True])]
+        """Test slicing with boolean values."""
+
+        vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
+        vdim_slc = vdim[np.array([True, False, True])]
         self.assertFalse(len(vdim_slc) > 2)
-        self.assertNumpyAll(vdim_slc.value,[4,6])
-        self.assertNumpyAll(vdim_slc.bounds,[[3,5],[5,7]])
+        self.assertNumpyAll(vdim_slc.value, np.array([4, 6]))
+        self.assertNumpyAll(vdim_slc.bounds, np.array([[3, 5], [5, 7]]))
     
     def test_set_reference(self):
-        vdim = VectorDimension(value=[4,5,6])
+        """Test setting values on the internal value array using indexing."""
+
+        vdim = VectorDimension(value=[4, 5, 6])
         vdim_slc = vdim[1]
-        self.assertEqual(vdim_slc.uid[0],2)
+        self.assertEqual(vdim_slc.uid[0], 2)
         vdim_slc2 = vdim[:]
-        self.assertNumpyAll(vdim_slc2.value,vdim.value)
+        self.assertNumpyAll(vdim_slc2.value, vdim.value)
         vdim._value[1] = 500
-        self.assertNumpyAll(vdim.value,[4,500,6])
+        self.assertNumpyAll(vdim.value, np.array([4, 500, 6]))
         with self.assertRaises(TypeError):
-            vdim.bounds[1,:]
-        self.assertNumpyAll(vdim.value,vdim_slc2.value)
+            vdim.bounds[1, :]
+        self.assertNumpyAll(vdim.value, vdim_slc2.value)
         vdim_slc2._value[2] = 1000
-        self.assertNumpyAll(vdim.value,vdim_slc2.value)
+        self.assertNumpyAll(vdim.value, vdim_slc2.value)
     
     def test_slice_source_idx_only(self):
         vdim = VectorDimension(src_idx=[4,5,6],data='foo')
@@ -138,14 +151,16 @@ class TestVectorDimension(unittest.TestCase):
         for i in [True,False]:
             value = [5.,10.,15.]
             vdim = VectorDimension(value=value,units='celsius',
-                                   bounds=get_interpolated_bounds(np.array(value)),
+                                   bounds=get_bounds_from_1d(np.array(value)),
                                    interpolate_bounds=i)
             vdim.cfunits_conform(Units('kelvin'))
             self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
     
     def test_load_from_source(self):
-        vdim = VectorDimension(src_idx=[0,1,2,3],data='foo')
-        self.assertNumpyAll(vdim.uid,np.array([1,2,3,4]))
+        """Test loading from a fake data source."""
+
+        vdim = VectorDimension(src_idx=[0, 1, 2, 3], data='foo')
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=constants.np_int))
         with self.assertRaises(NotImplementedError):
             vdim.value
         with self.assertRaises(NotImplementedError):

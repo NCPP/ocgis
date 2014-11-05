@@ -21,6 +21,9 @@ class Environment(object):
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX',None,'rtree')
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS',None,'cfunits')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
+
+        from ocgis.interface.base.crs import CFWGS84
+        self.DEFAULT_COORDSYS = EnvParm('DEFAULT_COORDSYS', CFWGS84())
         
         self.ops = None
         self._optimize_store = {}

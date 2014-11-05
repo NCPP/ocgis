@@ -7,14 +7,13 @@ from shapely import wkt
 from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
     SpatialGridDimension, SpatialGeometryPointDimension, SingleElementRetriever
-from ocgis.util.helpers import iter_array, make_poly, get_interpolated_bounds,\
+from ocgis.util.helpers import iter_array, make_poly, get_bounds_from_1d,\
     get_date_list, write_geom_dict
 import fiona
 from fiona.crs import from_epsg
 from shapely.geometry import shape, mapping, Polygon
 from shapely.geometry.point import Point
-from ocgis.exc import EmptySubsetError, ImproperPolygonBoundsError, SpatialWrappingError, MultipleElementsFound, \
-    CornersUnavailable
+from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound
 from ocgis.test.base import TestBase
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole
 from ocgis.interface.base.dimension.base import VectorDimension
@@ -25,7 +24,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.util.spatial.wrap import Wrapper
 
 
-class TestSpatialBase(TestBase):
+class AbstractTestSpatialDimension(TestBase):
 
     def assertGeometriesAlmostEquals(self, a, b):
 
@@ -111,7 +110,7 @@ class TestSpatialBase(TestBase):
                 sink.write(row)
 
 
-class TestSingleElementRetriever(TestSpatialBase):
+class TestSingleElementRetriever(AbstractTestSpatialDimension):
 
     def test_init(self):
         sdim = self.get_sdim()
@@ -127,7 +126,7 @@ class TestSingleElementRetriever(TestSpatialBase):
         self.assertIsNone(single.crs)
 
 
-class TestSpatialDimension(TestSpatialBase):
+class TestSpatialDimension(AbstractTestSpatialDimension):
 
     def get_records(self):
         sc = ShpCabinet()
@@ -144,6 +143,7 @@ class TestSpatialDimension(TestSpatialBase):
 
     def test_init(self):
         sdim = self.get_sdim(bounds=True)
+        self.assertIsNone(sdim.abstraction)
         self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
 
         def _almost_equals_(a, b):
@@ -155,6 +155,23 @@ class TestSpatialDimension(TestSpatialBase):
         to_test = vfunc(sdim.geom.polygon.value.data, self.polygon_value.data)
         self.assertTrue(to_test.all())
         self.assertFalse(sdim.geom.polygon.value.mask.any())
+
+    def test_abstraction(self):
+        sdim = self.get_sdim()
+        self.assertIsNone(sdim.abstraction)
+        self.assertEqual(sdim.abstraction, sdim._abstraction)
+        self.assertIsInstance(sdim.abstraction_geometry, SpatialGeometryPointDimension)
+
+        sdim = self.get_sdim(bounds=True)
+        self.assertIsInstance(sdim.geom.polygon, SpatialGeometryPolygonDimension)
+        sdim.abstraction = 'point'
+        self.assertEqual(sdim.geom.abstraction, 'point')
+        self.assertEqual(sdim.abstraction, sdim._abstraction)
+        self.assertIsInstance(sdim.abstraction_geometry, SpatialGeometryPointDimension)
+
+    def test_abstraction_geometry(self):
+        sdim = self.get_sdim(bounds=True)
+        self.assertIsInstance(sdim.abstraction_geometry, SpatialGeometryPolygonDimension)
 
     def test_init_combinations(self):
         """
@@ -220,21 +237,21 @@ class TestSpatialDimension(TestSpatialBase):
                             continue
                         raise
                     if k['polygon'] is not None or k['grid'] is not None:
-                        try:
+                        if geom.polygon is not None:
                             try:
                                 self.assertGeometriesAlmostEquals(geom.polygon.value, self.polygon_value)
                             except AssertionError:
                                 # coordinates may be ordered differently
                                 self.assertGeometriesAlmostEquals(geom.polygon.value, self.polygon_value_alternate_ordering)
                             self.assertNumpyAll(geom.polygon.uid, self.uid_value)
-                        except ImproperPolygonBoundsError:
+                        else:
                             try:
                                 if k['polygon'] is None and k['grid'].corners is None:
                                     if k['grid'].row is None or k['grid'].col is None:
                                         continue
                             except CornersUnavailable:
                                 continue
-                            if geom.grid.bounds is None:
+                            if geom.grid.corners is None:
                                 if geom.grid.row.bounds is None or geom.grid.col.bounds is None:
                                     continue
                             raise
@@ -271,9 +288,6 @@ class TestSpatialDimension(TestSpatialBase):
                 if sdim.geom.polygon is None and sdim.grid is None:
                     continue
                 raise
-            except ImproperPolygonBoundsError:
-                self.assertIsNone(sdim.grid)
-                continue
 
             try:
                 self.assertNumpyAll(sdim.grid.value, self.grid_value_regular)
@@ -284,20 +298,33 @@ class TestSpatialDimension(TestSpatialBase):
                     raise
 
             try:
-                self.assertNumpyAll(sdim.grid.corners, self.grid_corners_regular)
+                if sdim.grid.corners is not None:
+                    self.assertNumpyAll(sdim.grid.corners, self.grid_corners_regular)
+                else:
+                    if k['row'] is None or k['col'] is None:
+                        pass
+                    else:
+                        if k['row'].bounds is None or k['col'].bounds is None:
+                            pass
+                        else:
+                            raise
             except AttributeError:
                 if k['grid'] is None:
                     pass
                 else:
                     raise
-            except CornersUnavailable:
-                if k['row'] is None or k['col'] is None:
-                    pass
-                else:
-                    if k['row'].bounds is None or k['col'].bounds is None:
-                        pass
-                    else:
-                        raise
+
+    def test_abstraction_behavior(self):
+        """Test abstraction limits what elements are loaded and returned."""
+
+        row = VectorDimension(value=[2, 4])
+        col = VectorDimension(value=[4, 6])
+        for element in [row, col]:
+            element.set_extrapolated_bounds()
+        grid = SpatialGridDimension(row=row, col=col)
+
+        sdim = SpatialDimension(grid=grid, abstraction='point')
+        self.assertIsNone(sdim.geom.polygon)
 
     def test_set_mask(self):
 
@@ -363,7 +390,8 @@ class TestSpatialDimension(TestSpatialBase):
             if k.with_grid or k.with_geom:
                 try:
                     self.assertNumpyAll(sdim.get_mask(), actual)
-                except ImproperPolygonBoundsError:
+                except AttributeError:
+                    # there is actually nothing on this sdim, so the mask may not be retrieved
                     if not k.with_grid and not k.with_point and not k.with_polygon:
                         continue
                     else:
@@ -481,9 +509,9 @@ class TestSpatialDimension(TestSpatialBase):
                 self.assertEqual(ret.shape, (1, 1))
                 try:
                     self.assertTrue(ret.geom.polygon.value[0,0].centroid.almost_equals(pt))
-                ## polygons will not be present if the abstraction is point or there are no bounds on the created
-                ## spatial dimension object
-                except ImproperPolygonBoundsError:
+                # ## polygons will not be present if the abstraction is point or there are no bounds on the created
+                # ## spatial dimension object
+                except AttributeError:
                     if a == 'point' or b is False:
                         self.assertTrue(ret.geom.point.value[0, 0].almost_equals(pt))
                     else:
@@ -497,37 +525,6 @@ class TestSpatialDimension(TestSpatialBase):
                 else:
                     self.assertEqual(ret.shape, (1, 1))
 
-    def test_get_interpolated_bounds(self):
-        
-        sdim = self.get_sdim(bounds=False)
-        test_sdim = self.get_sdim(bounds=True)
-        
-        row_bounds = get_interpolated_bounds(sdim.grid.row.value)
-        col_bounds = get_interpolated_bounds(sdim.grid.col.value)
-        
-        self.assertNumpyAll(row_bounds,test_sdim.grid.row.bounds)
-        self.assertNumpyAll(col_bounds,test_sdim.grid.col.bounds)
-        
-        across_180 = np.array([-180,-90,0,90,180],dtype=float)
-        bounds_180 = get_interpolated_bounds(across_180)
-        self.assertEqual(bounds_180.tostring(),'\x00\x00\x00\x00\x00 l\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00 l@')
-        
-        dates = get_date_list(datetime.datetime(2000,1,31),datetime.datetime(2002,12,31),1)
-        with self.assertRaises(NotImplementedError):
-            get_interpolated_bounds(np.array(dates))
-        
-        with self.assertRaises(ValueError):    
-            get_interpolated_bounds(np.array([0],dtype=float))
-            
-        just_two = get_interpolated_bounds(np.array([50,75],dtype=float))
-        self.assertEqual(just_two.tostring(),'\x00\x00\x00\x00\x00\xc0B@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xe0U@')
-        
-        just_two_reversed = get_interpolated_bounds(np.array([75,50],dtype=float))
-        self.assertEqual(just_two_reversed.tostring(),'\x00\x00\x00\x00\x00\xe0U@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xc0B@')
-
-        zero_origin = get_interpolated_bounds(np.array([0,50,100],dtype=float))
-        self.assertEqual(zero_origin.tostring(),'\x00\x00\x00\x00\x00\x009\xc0\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00@_@')
-                
     def test_get_clip(self):
         sdim = self.get_sdim(bounds=True)
         poly = make_poly((37.75,38.25),(-100.25,-99.75))
@@ -561,8 +558,9 @@ class TestSpatialDimension(TestSpatialBase):
         self.assertEqual(ttt,[1, 0, [-100.0, 39.0],5])
         
         sdim = self.get_sdim(bounds=False)
-        self.assertEqual(sdim.abstraction,'polygon')
-        with self.assertRaises(ImproperPolygonBoundsError):
+        self.assertIsNone(sdim.abstraction)
+        # this abstraction is not available
+        with self.assertRaises(ValueError):
             list(sdim.get_geom_iter(target='polygon'))
         
     def test_get_intersects_point_abstraction(self):
@@ -599,8 +597,7 @@ class TestSpatialDimension(TestSpatialBase):
                     to_test = ret.geom.point.value.compressed()[0]
                     self.assertTrue(to_test.almost_equals(Point(-100,38)))
                     if b is False:
-                        with self.assertRaises(ImproperPolygonBoundsError):
-                            ret.geom.polygon
+                        self.assertIsNone(ret.geom.polygon)
                     else:
                         to_test = ret.geom.polygon.value.compressed()[0].bounds
                         self.assertEqual((-100.5,37.5,-99.5,38.5),to_test)
@@ -720,8 +717,7 @@ class TestSpatialDimension(TestSpatialBase):
 
             if not k.with_polygon:
                 sdim.geom._polygon = None
-                with self.assertRaises(ImproperPolygonBoundsError):
-                    sdim.geom.polygon
+                self.assertIsNone(sdim.geom.polygon)
 
             sdim.update_crs(to_crs)
 
@@ -769,21 +765,20 @@ class TestSpatialDimension(TestSpatialBase):
 
             if k.with_grid:
                 self.assertAlmostEqual(sdim.grid.value.data.mean(), -267630.25728117273)
-                try:
+                if sdim.grid.corners is None:
+                    self.assertFalse(k.with_corners)
+                else:
                     self.assertAlmostEqual(sdim.grid.corners.data.mean(), -267565.33741344721)
-                except CornersUnavailable:
-                    if sdim.grid.row is not None:
-                        raise
-                self.assertIsNone(sdim._geom)
+                self.assertIsNone(sdim._geom._point)
+                self.assertIsNone(sdim._geom._polygon)
                 self.assertIsNone(sdim.grid.row)
                 self.assertIsNone(sdim.grid.col)
 
             try:
                 self.assertEqual(sdim.geom.polygon.value[2, 2].bounds,
                                  (130734.585229303, -832179.0855220362, 220974.77455120225, -719113.1357226598))
-            except ImproperPolygonBoundsError:
-                if not k.with_corners:
-                    pass
+            except AttributeError:
+                self.assertFalse(k.with_corners)
             self.assertEqual(sdim.geom.point.value[2, 2].bounds,
                              (175552.29305101855, -775779.6191590576, 175552.29305101855, -775779.6191590576))
 
@@ -791,11 +786,10 @@ class TestSpatialDimension(TestSpatialBase):
 
             if k.with_grid:
                 self.assertNumpyAllClose(sdim.grid.value, original_grid_value)
-                try:
+                if sdim.grid.corners is None:
+                    self.assertFalse(k.with_corners)
+                else:
                     self.assertNumpyAllClose(sdim.grid.corners, original_grid_corners)
-                except CornersUnavailable:
-                    if not k.with_corners:
-                        pass
 
     def test_update_crs_general_error(self):
         """Test general OGR errors are appropriately raised if it is not a rotated pole transformation."""
@@ -870,8 +864,7 @@ class TestSpatialDimension(TestSpatialBase):
         
     def test_geom_polygon_no_bounds(self):
         sdim = self.get_sdim(bounds=False)
-        with self.assertRaises(ImproperPolygonBoundsError):
-            sdim.geom.polygon.value
+        self.assertIsNone(sdim.geom.polygon)
             
     def test_geom_polygon_bounds(self):
         sdim = self.get_sdim(bounds=True)
@@ -905,30 +898,33 @@ class TestSpatialDimension(TestSpatialBase):
         self.assertEqual(sdim.shape,(1,51))
         
     def test_slicing(self):
+        """Test variations of slicing."""
+
         sdim = self.get_sdim(bounds=True)
-        self.assertEqual(sdim.shape,(3,4))
-        self.assertEqual(sdim._geom,None)
-        self.assertEqual(sdim.geom.point.shape,(3,4))
-        self.assertEqual(sdim.geom.polygon.shape,(3,4))
-        self.assertEqual(sdim.grid.shape,(3,4))
+        self.assertIsNone(sdim._geom._point)
+        self.assertIsNone(sdim._geom._polygon)
+        self.assertEqual(sdim.shape, (3, 4))
+        self.assertEqual(sdim.geom.point.shape, (3, 4))
+        self.assertEqual(sdim.geom.polygon.shape, (3, 4))
+        self.assertEqual(sdim.grid.shape, (3, 4))
         with self.assertRaises(IndexError):
             sdim[0]
-        sdim_slc = sdim[0,1]
-        self.assertEqual(sdim_slc.shape,(1,1))
-        self.assertEqual(sdim_slc.uid,np.array([[2]],dtype=np.int32))
-        self.assertNumpyAll(sdim_slc.grid.value,np.ma.array([[[40.]],[[-99.]]],mask=False))
-        self.assertNotEqual(sdim_slc,None)
-        to_test = sdim_slc.geom.point.value[0,0].y,sdim_slc.geom.point.value[0,0].x
-        self.assertEqual((40.0,-99.0),(to_test))
-        to_test = sdim_slc.geom.polygon.value[0,0].centroid.y,sdim_slc.geom.polygon.value[0,0].centroid.x
-        self.assertEqual((40.0,-99.0),(to_test))
-        
-        refs = [sdim_slc.geom.point.value,sdim_slc.geom.polygon.value]
+        sdim_slc = sdim[0, 1]
+        self.assertEqual(sdim_slc.shape, (1, 1))
+        self.assertEqual(sdim_slc.uid, np.array([[2]], dtype=np.int32))
+        self.assertNumpyAll(sdim_slc.grid.value, np.ma.array([[[40.]], [[-99.]]], mask=False))
+        self.assertNotEqual(sdim_slc, None)
+        to_test = sdim_slc.geom.point.value[0, 0].y, sdim_slc.geom.point.value[0, 0].x
+        self.assertEqual((40.0, -99.0), to_test)
+        to_test = sdim_slc.geom.polygon.value[0, 0].centroid.y, sdim_slc.geom.polygon.value[0, 0].centroid.x
+        self.assertEqual((40.0, -99.0), to_test)
+
+        refs = [sdim_slc.geom.point.value, sdim_slc.geom.polygon.value]
         for ref in refs:
-            self.assertIsInstance(ref,np.ma.MaskedArray)
-        
-        sdim_all = sdim[:,:]
-        self.assertNumpyAll(sdim_all.grid.value,sdim.grid.value)
+            self.assertIsInstance(ref, np.ma.MaskedArray)
+
+        sdim_all = sdim[:, :]
+        self.assertNumpyAll(sdim_all.grid.value, sdim.grid.value)
         
     def test_slicing_1d_none(self):
         sdim = self.get_sdim(bounds=True)
@@ -1056,7 +1052,81 @@ class TestSpatialDimension(TestSpatialBase):
                 getattr(sdim, method)()
 
 
-class TestSpatialGeometryPointDimension(TestSpatialBase):
+class TestSpatialGeometryDimension(TestBase):
+
+    def get(self, **kwargs):
+        with_bounds = kwargs.pop('with_bounds', True)
+
+        row = VectorDimension(value=[2., 4.])
+        col = VectorDimension(value=[4., 6.])
+        if with_bounds:
+            for element in [row, col]:
+                element.set_extrapolated_bounds()
+        grid = SpatialGridDimension(row=row, col=col)
+        kwargs['grid'] = grid
+        gdim = SpatialGeometryDimension(**kwargs)
+
+        return gdim
+
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            SpatialGeometryDimension()
+
+        gdim = self.get()
+        self.assertIsNone(gdim.abstraction)
+        self.assertIsInstance(gdim.point, SpatialGeometryPointDimension)
+        self.assertIsInstance(gdim.polygon, SpatialGeometryPolygonDimension)
+
+        gdim = self.get(abstraction='point')
+        self.assertEqual(gdim.abstraction, 'point')
+        self.assertIsNone(gdim.polygon)
+        self.assertIsInstance(gdim.point, SpatialGeometryPointDimension)
+
+        gdim = self.get()
+        gdim2 = SpatialGeometryDimension(point=gdim.point)
+        self.assertIsNone(gdim2.abstraction)
+
+    def test_abstraction(self):
+        gdim = self.get()
+        with self.assertRaises(ValueError):
+            gdim.abstraction = 'foo'
+        self.assertIsInstance(gdim.polygon, SpatialGeometryPolygonDimension)
+        gdim.abstraction = 'point'
+        self.assertIsNone(gdim.polygon)
+
+    def test_polygon(self):
+        gdim = self.get()
+        self.assertIsNone(gdim.abstraction)
+        self.assertIsInstance(gdim.polygon, SpatialGeometryPolygonDimension)
+
+        gdim = self.get()
+        gdim.abstraction = 'polygon'
+        self.assertIsInstance(gdim.polygon, SpatialGeometryPolygonDimension)
+
+        gdim = self.get(with_bounds=False)
+        self.assertIsNone(gdim.grid.row.bounds)
+        self.assertIsNone(gdim.polygon)
+
+    def test_get_highest_order_abstraction(self):
+        gdim = self.get()
+        self.assertIsNone(gdim.abstraction)
+        self.assertIsInstance(gdim.get_highest_order_abstraction(), SpatialGeometryPolygonDimension)
+
+        gdim = self.get(abstraction='point')
+        self.assertIsInstance(gdim.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+
+        gdim = self.get()
+        gdim.point
+        gdim.grid = None
+        self.assertIsNone(gdim.polygon)
+        self.assertIsInstance(gdim.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+
+        gdim = self.get()
+        gdim2 = SpatialGeometryDimension(point=gdim.point, abstraction='polygon')
+        with self.assertRaises(ValueError):
+            gdim2.get_highest_order_abstraction()
+
+class TestSpatialGeometryPointDimension(AbstractTestSpatialDimension):
 
     def test_get_intersects_masked(self):
         sdim = self.get_sdim(crs=WGS84())
@@ -1076,11 +1146,26 @@ class TestSpatialGeometryPointDimension(TestSpatialBase):
             self.assertIsNotNone(sdim.grid)
 
 
-class TestSpatialGeometryPolygonDimension(TestSpatialBase):
+class TestSpatialGeometryPolygonDimension(AbstractTestSpatialDimension):
+
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            SpatialGeometryPolygonDimension()
+
+        row = VectorDimension(value=[2, 3])
+        col = VectorDimension(value=[4, 5])
+        grid = SpatialGridDimension(row=row, col=col)
+        self.assertIsNone(grid.corners)
+        with self.assertRaises(ValueError):
+            SpatialGeometryPolygonDimension(grid=grid)
+
+        value = grid.value
+        grid = SpatialGridDimension(value=value)
+        with self.assertRaises(ValueError):
+            SpatialGeometryPolygonDimension(grid=grid)
 
     def test_get_value(self):
         # the ordering of vertices when creating from corners is slightly different
-
 
         keywords = dict(with_grid_row_col_bounds=[True, False],
                         with_grid_mask=[True, False])
@@ -1102,7 +1187,7 @@ class TestSpatialGeometryPolygonDimension(TestSpatialBase):
             self.assertGeometriesAlmostEquals(poly, actual)
 
 
-class TestSpatialGridDimension(TestSpatialBase):
+class TestSpatialGridDimension(AbstractTestSpatialDimension):
 
     def assertGridCorners(self, grid):
         """
@@ -1191,11 +1276,15 @@ class TestSpatialGridDimension(TestSpatialBase):
 
             yield sdim.grid
 
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            SpatialGridDimension()
+
     def test_corners(self):
         for grid in self.iter_grid_combinations_for_corners():
             try:
                 self.assertGridCorners(grid)
-            except CornersUnavailable:
+            except AssertionError:
                 if grid.row is None or grid.row.bounds is None:
                     continue
                 else:

@@ -1,7 +1,7 @@
 from copy import deepcopy
 import ESMF
 import numpy as np
-from ocgis.exc import CornersUnavailable, RegriddingError, CornersInconsistentError
+from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.interface.base.crs import Spherical
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.variable import VariableCollection
@@ -109,7 +109,7 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
 
     # attempt to access corners if possible
     if with_corners:
-        try:
+        if sdim.grid.corners is not None:
             corners_esmf = sdim.grid.corners_esmf
             # adding corners. first tell the grid object to allocate corners
             egrid.add_coords(staggerloc=[ESMF.StaggerLoc.CORNER])
@@ -117,8 +117,6 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
             grid_corner = egrid.coords[ESMF.StaggerLoc.CORNER]
             grid_corner[1][:] = corners_esmf[0]
             grid_corner[0][:] = corners_esmf[1]
-        except CornersUnavailable:
-            pass
 
     return egrid
 
@@ -206,15 +204,13 @@ def check_fields_for_regridding(sources, destination, with_corners=True):
     if with_corners:
         has_corners_sources = []
         for source in sources:
-            try:
-                source.spatial.grid.corners
+            if source.spatial.grid.corners is not None:
                 has_corners_sources.append(True)
-            except CornersUnavailable:
+            else:
                 has_corners_sources.append(False)
-        try:
-            sdim.grid.corners
+        if sdim.grid.corners is not None:
             has_corners_destination = True
-        except CornersUnavailable:
+        else:
             has_corners_destination = False
         if not all(has_corners_sources) or not has_corners_destination:
             msg = 'Corners are not available on all sources and destination. Consider setting "with_corners" to False.'
@@ -339,8 +335,8 @@ def iter_regridded_fields(sources, destination, with_corners='choose', value_mas
                         out_sdim.grid.col.bounds = None
                         out_sdim.grid._corners = None
                     # remove any polygons if they exist
-                    if out_sdim._geom is not None:
-                        out_sdim.geom._polygon = None
+                    out_sdim.geom._polygon = None
+                    out_sdim.geom.grid = out_sdim.grid
                 build = False
 
             # perform the regrid operation and fill the new variabales

@@ -1,7 +1,6 @@
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env, constants
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, ImproperPolygonBoundsError, \
-    VariableInCollectionError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, VariableInCollectionError
 from ocgis.interface.base.field import Field
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 import logging
@@ -287,14 +286,10 @@ class SubsetOperation(object):
         """
 
         if self.ops.abstraction is not None:
-            try:
-                getattr(field.spatial.geom, self.ops.abstraction)
-            except ImproperPolygonBoundsError:
-                msg = 'A "polygon" spatial abstraction is not available without the presence of bounds.'
-                exc = ImproperPolygonBoundsError(msg)
-                ocgis_lh(exc=exc, logger='subset')
-            except Exception as e:
-                ocgis_lh(exc=e, logger='subset')
+            attr = getattr(field.spatial.geom, self.ops.abstraction)
+            if attr is None:
+                msg = 'A "{0}" spatial abstraction is not available.'.format(self.ops.abstraction)
+                ocgis_lh(exc=ValueError(msg), logger='subset')
 
     def _get_slice_or_snippet_(self, field):
         """

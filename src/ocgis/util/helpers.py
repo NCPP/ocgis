@@ -15,6 +15,7 @@ from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
 from fiona.crs import from_epsg
+from ocgis.exc import SingleElementError, ShapeError
 
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -162,57 +163,181 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     return(ret)
 
 
-def get_interpolated_bounds(centroids):
-    '''
-    :param centroids: Vector representing center coordinates from which
-     to interpolate bounds.
-    :type centroids: np.ndarray
+def get_is_increasing(vec):
+    """
+    :param vec: A vector array.
+    :type vec: :class:`numpy.ndarray`
+    :returns: ``True`` if the array is increasing from index 0 to -1. ``False`` otherwise.
+    :rtype: bool
+    :raises: SingleElementError, ShapeError
+    """
+
+    if vec.shape == (1,):
+        raise SingleElementError('Increasing can only be determined with a minimum of two elements.')
+    if len(vec.shape) > 1:
+        msg = 'Only vectors allowed.'
+        raise ShapeError(msg)
+
+    if vec[0] < vec[-1]:
+        ret = True
+    else:
+        ret = False
+
+    return ret
+
+
+def get_extrapolated_corners_esmf_vector(vec):
+    """
+    :param vec: A vector.
+    :type vec: :class:`numpy.ndarray`
+    :returns: A two-dimensional corners array with dimension ``(2, vec.shape[0]+1)``.
+    :rtype: :class:`numpy.ndarray`
+    :raises: ShapeError
+    """
+
+    if len(vec.shape) > 1:
+        msg = 'A vector is required.'
+        raise ShapeError(msg)
+
+    corners = np.zeros((2, vec.shape[0]+1), dtype=vec.dtype)
+    corners[:] = get_bounds_vector_from_centroids(vec)
+
+    return corners
+
+
+def get_extrapolated_corners_esmf(arr):
+    """
+    :param arr: Array of centroids.
+    :type arr: :class:`numpy.ndarray`
+    :returns: A two-dimensional array of extrapolated corners with dimension ``(arr.shape[0]+1, arr.shape[1]+1)``.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    # if this is only a single element, we cannot make corners
+    if all([element == 1 for element in arr.shape]):
+        msg = 'At least two elements required to extrapolate corners.'
+        raise SingleElementError(msg)
+
+    # if one of the dimensions has only a single element, the fill approach is different
+    if any([element == 1 for element in arr.shape]):
+        ret = get_extrapolated_corners_esmf_vector(arr.reshape(-1))
+        if arr.shape[1] == 1:
+            ret = ret.swapaxes(0, 1)
+        return ret
+
+    # the corners array has one additional row and column
+    corners = np.zeros((arr.shape[0]+1, arr.shape[1]+1), dtype=arr.dtype)
+
+    # fill the interior of the array first with a 2x2 moving window. then do edges.
+    for ii in range(arr.shape[0]-1):
+        for jj in range(arr.shape[1]-1):
+            window_values = arr[ii:ii+2, jj:jj+2]
+            corners[ii+1, jj+1] = np.mean(window_values)
+
+    # flag to determine if rows are increasing in value
+    row_increasing = get_is_increasing(arr[:, 0])
+    # flag to determine if columns are increasing in value
+    col_increasing = get_is_increasing(arr[0, :])
+
+    # the absolute difference of row and column elements
+    row_diff = np.mean(np.abs(np.diff(arr[:, 0])))
+    col_diff = np.mean(np.abs(np.diff(arr[0, :])))
+
+    # fill the rows accounting for increasing flag
+    for ii in range(1, corners.shape[0]-1):
+        if col_increasing:
+            corners[ii, 0] = corners[ii, 1] - col_diff
+            corners[ii, -1] = corners[ii, -2] + col_diff
+        else:
+            corners[ii, 0] = corners[ii, 1] + col_diff
+            corners[ii, -1] = corners[ii, -2] - col_diff
+
+    # fill the columns accounting for increasing flag
+    for jj in range(1, corners.shape[1]-1):
+        if row_increasing:
+            corners[0, jj] = corners[1, jj] - row_diff
+            corners[-1, jj] = corners[-2, jj] + row_diff
+        else:
+            corners[0, jj] = corners[1, jj] + row_diff
+            corners[-1, jj] = corners[-2, jj] - row_diff
+
+    # fill the extreme corners accounting for increasing flag
+    for row_idx in [0, -1]:
+        if col_increasing:
+            corners[row_idx, 0] = corners[row_idx, 1] - col_diff
+            corners[row_idx, -1] = corners[row_idx, -2] + col_diff
+        else:
+            corners[row_idx, 0] = corners[row_idx, 1] + col_diff
+            corners[row_idx, -1] = corners[row_idx, -2] - col_diff
+
+    return corners
+
+
+def get_bounds_vector_from_centroids(centroids):
+    """
+    :param centroids: Vector representing center coordinates from which to interpolate bounds.
+    :type centroids: :class:`numpy.ndarray`
+    :returns: Vector representing upper and lower bounds for centroids with edges extrapolated.
+    :rtype: :class:`numpy.ndarray` with shape ``centroids.shape[0]+1``
     :raises: NotImplementedError, ValueError
-    
-    >>> import numpy as np
-    >>> centroids = np.array([1,2,3])
-    >>> get_interpolated_bounds(centroids)
-    np.array([[0, 1],[1, 2],[2, 3]])
-    '''
-    
+    """
+
     if len(centroids) < 2:
-        raise(ValueError('Centroid arrays must have length >= 2.'))
-    
-    ## will hold the mean midpoints between coordinate elements
-    mids = np.zeros(centroids.shape[0]-1,dtype=centroids.dtype)
-    ## this is essentially a two-element span moving average kernel
+        raise ValueError('Centroid arrays must have length >= 2.')
+
+    # will hold the mean midpoints between coordinate elements
+    mids = np.zeros(centroids.shape[0] - 1, dtype=centroids.dtype)
+    # this is essentially a two-element span moving average kernel
     for ii in range(mids.shape[0]):
         try:
-            mids[ii] = np.mean(centroids[ii:ii+2])
-        ## if the data type is datetime.datetime raise a more verbose error
-        ## message
+            mids[ii] = np.mean(centroids[ii:ii + 2])
+        # if the data type is datetime.datetime raise a more verbose error message
         except TypeError:
-            if isinstance(centroids[ii],datetime.datetime):
-                raise(NotImplementedError('Bounds interpolation is not implemented for datetime.datetime objects.'))
+            if isinstance(centroids[ii], datetime.datetime):
+                raise NotImplementedError('Bounds interpolation is not implemented for datetime.datetime objects.')
             else:
                 raise
-    ## account for edge effects by averaging the difference of the
-    ## midpoints. if there is only a single value, use the different of the
-    ## original values instead.
+    # account for edge effects by averaging the difference of the midpoints. if there is only a single value, use the
+    # different of the original values instead.
     if len(mids) == 1:
         diff = np.diff(centroids)
     else:
         diff = np.mean(np.diff(mids))
-    ## appends for the edges shifting the nearest coordinate by the mean
-    ## difference
-    mids = np.append([mids[0]-diff],mids)
-    mids = np.append(mids,[mids[-1]+diff])
+    # appends for the edges shifting the nearest coordinate by the mean difference
+    mids = np.append([mids[0] - diff], mids)
+    mids = np.append(mids, [mids[-1] + diff])
 
-    ## loop to fill the bounds array
-    bounds = np.zeros((centroids.shape[0],2),dtype=centroids.dtype)
+    return mids
+
+
+def get_bounds_from_1d(centroids):
+    """
+    :param centroids: Vector representing center coordinates from which to interpolate bounds.
+    :type centroids: :class:`numpy.ndarray`
+    :returns: A *n*-by-2 array with *n* equal to the shape of ``centroids``.
+
+    >>> import numpy as np
+    >>> centroids = np.array([1,2,3])
+    >>> get_bounds_from_1d(centroids)
+    np.array([[0, 1],[1, 2],[2, 3]])
+
+    :rtype: :class:`numpy.ndarray`
+    :raises: NotImplementedError, ValueError
+    """
+
+    mids = get_bounds_vector_from_centroids(centroids)
+
+    # loop to fill the bounds array
+    bounds = np.zeros((centroids.shape[0], 2), dtype=centroids.dtype)
     for ii in range(mids.shape[0]):
         try:
-            bounds[ii,0] = mids[ii]
-            bounds[ii,1] = mids[ii+1]
+            bounds[ii, 0] = mids[ii]
+            bounds[ii, 1] = mids[ii + 1]
         except IndexError:
             break
-        
-    return(bounds)
+
+    return bounds
+
 
 def get_is_date_between(lower,upper,month=None,year=None):
     if month is not None:
@@ -349,6 +474,7 @@ def iter_arg(arg):
     for element in itr:
         yield(element)
 
+
 def get_date_list(start,stop,days):
     ret = []
     delta = datetime.timedelta(days=days)
@@ -358,10 +484,12 @@ def get_date_list(start,stop,days):
         check += delta
     return(ret)
 
+
 def bbox_poly(minx,miny,maxx, maxy):
     rtup = (miny,maxy)
     ctup = (minx,maxx)
     return(make_poly(rtup,ctup))
+
 
 def validate_time_subset(time_range,time_region):
     '''

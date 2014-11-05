@@ -65,6 +65,10 @@ def list_storage():
 
 @task
 def put_file(local_path, remote_path):
+    """
+    Put a file on the remote server: local_path,remote_path
+    """
+
     put(local_path=local_path, remote_path=remote_path)
 
 

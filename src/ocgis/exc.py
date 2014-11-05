@@ -162,10 +162,6 @@ class SpatialWrappingError(OcgException):
     pass
 
 
-class _ImproperPolygonBoundsError(OcgException):
-    pass
-
-
 class MaskedDataError(SubsetException):
     def __init__(self):
         self.message = 'Geometric intersection returned all masked values.'
@@ -282,9 +278,3 @@ class RequestValidationError(OcgException):
         message = 'Validation failed on the keyword parameter "{0}" with the message: {1}'.format(self.keyword,
                                                                                                   self.message)
         return message
-
-
-class _CornersUnavailable(OcgException):
-    """Raised when grid corners may not be constructed."""
-
-    pass

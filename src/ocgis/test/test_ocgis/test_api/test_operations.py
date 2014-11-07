@@ -337,16 +337,18 @@ class TestOcgOperations(TestBase):
         self.assertEqual(ret[25]['tas'].shape,(1,10,1,5,4))
         
     def test_calc_grouping_seasonal_with_unique(self):
-        calc_grouping = [[12,1,2],'unique']
-        calc = [{'func':'mean','name':'mean'}]
+        """Test calc_grouping argument using a seasonal unique flag."""
+
+        calc_grouping = [[12, 1, 2], 'unique']
+        calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd,calc_grouping=calc_grouping,geom='state_boundaries',
-                                  select_ugid=[27],output_format='nc',calc=calc)
+        ops = ocgis.OcgOperations(dataset=rd, calc_grouping=calc_grouping, geom='state_boundaries', select_ugid=[27],
+                                  output_format='nc', calc=calc)
         ret = ops.execute()
-        rd2 = ocgis.RequestDataset(uri=ret,variable='mean')
+        rd2 = ocgis.RequestDataset(uri=ret, variable='mean')
         field = rd2.get()
-        self.assertNotEqual(field.temporal.bounds,None)
-        self.assertEqual(field.temporal.bounds_datetime.tolist(),[[datetime.datetime(2002, 1, 1, 12, 0), datetime.datetime(2002, 2, 28, 12, 0)], [datetime.datetime(2003, 1, 1, 12, 0), datetime.datetime(2003, 2, 28, 12, 0)], [datetime.datetime(2004, 1, 1, 12, 0), datetime.datetime(2004, 2, 28, 12, 0)], [datetime.datetime(2005, 1, 1, 12, 0), datetime.datetime(2005, 2, 28, 12, 0)], [datetime.datetime(2006, 1, 1, 12, 0), datetime.datetime(2006, 2, 28, 12, 0)], [datetime.datetime(2007, 1, 1, 12, 0), datetime.datetime(2007, 2, 28, 12, 0)], [datetime.datetime(2008, 1, 1, 12, 0), datetime.datetime(2008, 2, 28, 12, 0)], [datetime.datetime(2009, 1, 1, 12, 0), datetime.datetime(2009, 2, 28, 12, 0)], [datetime.datetime(2010, 1, 1, 12, 0), datetime.datetime(2010, 2, 28, 12, 0)]])
+        self.assertNotEqual(field.temporal.bounds, None)
+        self.assertEqual(field.temporal.bounds_datetime.tolist(), [[datetime.datetime(2001, 12, 1, 12, 0), datetime.datetime(2002, 2, 28, 12, 0)], [datetime.datetime(2002, 12, 1, 12, 0), datetime.datetime(2003, 2, 28, 12, 0)], [datetime.datetime(2003, 12, 1, 12, 0), datetime.datetime(2004, 2, 28, 12, 0)], [datetime.datetime(2004, 12, 1, 12, 0), datetime.datetime(2005, 2, 28, 12, 0)], [datetime.datetime(2005, 12, 1, 12, 0), datetime.datetime(2006, 2, 28, 12, 0)], [datetime.datetime(2006, 12, 1, 12, 0), datetime.datetime(2007, 2, 28, 12, 0)], [datetime.datetime(2007, 12, 1, 12, 0), datetime.datetime(2008, 2, 28, 12, 0)], [datetime.datetime(2008, 12, 1, 12, 0), datetime.datetime(2009, 2, 28, 12, 0)], [datetime.datetime(2009, 12, 1, 12, 0), datetime.datetime(2010, 2, 28, 12, 0)]])
         self.assertEqual(field.shape,(1, 9, 1, 3, 3))
                 
     def test_dataset(self):

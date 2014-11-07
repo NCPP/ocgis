@@ -12,6 +12,27 @@ import itertools
 from ocgis.exc import IncompleteSeasonError
 
 
+class Test(TestBase):
+
+    def test_iter_boolean_groups_from_time_regions(self):
+        time_regions = [[{'month': [12], 'year': [1900]}, {'month': [2, 1], 'year': [1901]}]]
+        yield_subset = True
+        raise_if_incomplete = False
+
+        start = datetime.datetime(1900, 1, 1)
+        end = datetime.datetime(1902, 12, 31)
+        value = self.get_time_series(start, end)
+        temporal_dimension = TemporalDimension(value=value)
+
+        itr = iter_boolean_groups_from_time_regions(time_regions, temporal_dimension, yield_subset=yield_subset,
+                                                    raise_if_incomplete=raise_if_incomplete)
+        itr = list(itr)
+        self.assertEqual(len(itr), 1)
+        for dgroup, sub in itr:
+            self.assertEqual(sub.value[0].year, 1900)
+            self.assertEqual(sub.value[0].month, 12)
+
+
 class TestTemporalDimension(TestBase):
     
     def get_temporal_dimension(self,add_bounds=True,start=None,stop=None,days=1):
@@ -115,24 +136,26 @@ class TestTemporalDimension(TestBase):
     def test_get_grouping_seasonal_unique_flag(self):
         """Test the unique flag for seasonal groups."""
 
-        ## test with year flag
-        dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
+        dates = get_date_list(dt(2012, 1, 1), dt(2013, 12, 31), 1)
         td = TemporalDimension(value=dates)
-        calc_grouping = [[6,7,8],'unique']
+        calc_grouping = [[6, 7, 8], 'unique']
         tg = td.get_grouping(calc_grouping)
 
-        time_region = {'year':[2012],'month':[6,7,8]}
-        sub1,idx1 = td.get_time_region(time_region,return_indices=True)
-        time_region = {'year':[2013],'month':[6,7,8]}
-        sub2,idx2 = td.get_time_region(time_region,return_indices=True)
-        base_select = np.zeros(td.shape[0],dtype=bool)
+        time_region = {'year': [2012], 'month': [6, 7, 8]}
+        sub1, idx1 = td.get_time_region(time_region, return_indices=True)
+        time_region = {'year': [2013], 'month': [6, 7, 8]}
+        sub2, idx2 = td.get_time_region(time_region, return_indices=True)
+        base_select = np.zeros(td.shape[0], dtype=bool)
         dgroups = deque()
 
-        for software,manual in itertools.izip(tg.dgroups,dgroups):
-            self.assertNumpyAll(software,manual)
-        self.assertEqual(len(tg.dgroups),2)
-        self.assertEqual(tg.value.tolist(),[datetime.datetime(2012, 7, 17, 0, 0), datetime.datetime(2013, 7, 17, 0, 0)])
-        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)], [datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)]])
+        for software, manual in itertools.izip(tg.dgroups, dgroups):
+            self.assertNumpyAll(software, manual)
+        self.assertEqual(len(tg.dgroups), 2)
+        self.assertEqual(tg.value.tolist(),
+                         [datetime.datetime(2012, 7, 17, 0, 0), datetime.datetime(2013, 7, 17, 0, 0)])
+        self.assertEqual(tg.bounds.tolist(),
+                         [[datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)],
+                          [datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)]])
 
         dgroup1 = base_select.copy()
         dgroup1[idx1] = True
@@ -142,22 +165,43 @@ class TestTemporalDimension(TestBase):
         dgroups.append(dgroup1)
         dgroups.append(dgroup2)
 
-        tg = td.get_grouping([[6,7,8],'year'])
+        tg = td.get_grouping([[6, 7, 8], 'year'])
         for ii in range(len(tg.dgroups)):
-            self.assertNumpyAll(tg.dgroups[ii],dgroups[ii])
-        self.assertEqual(len(tg.dgroups),len(dgroups))
+            self.assertNumpyAll(tg.dgroups[ii], dgroups[ii])
+        self.assertEqual(len(tg.dgroups), len(dgroups))
     
     def test_get_grouping_seasonal_unique_flag_winter_season(self):
         """Test with a single winter season using the unique flag."""
 
-        dt1 = datetime.datetime(1900,01,01)
-        dt2 = datetime.datetime(1902,12,31)
-        dates = get_date_list(dt1,dt2,days=1)
+        dt1 = datetime.datetime(1900, 01, 01)
+        dt2 = datetime.datetime(1902, 12, 31)
+        dates = get_date_list(dt1, dt2, days=1)
         td = TemporalDimension(value=dates)
-        group = [[12,1,2],'unique']
+        group = [[12, 1, 2], 'unique']
         tg = td.get_grouping(group)
-        self.assertEqual(tg.value.shape[0],2)
-        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(1901, 1, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)], [datetime.datetime(1902, 1, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
+        self.assertEqual(tg.value.shape[0], 2)
+        self.assertEqual(tg.bounds.tolist(), [[datetime.datetime(1900, 12, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)], [datetime.datetime(1901, 12, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
+
+    def test_get_grouping_seasonal_unique_flag_all_seasons(self):
+        """Test unique flag with all seasons."""
+
+        start = datetime.datetime(1900, 1, 1)
+        end = datetime.datetime(1902, 12, 31)
+        ret = self.get_time_series(start, end)
+        calc_grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], 'unique']
+        td = TemporalDimension(value=ret)
+        group = td.get_grouping(calc_grouping)
+
+        for idx in range(group.shape[0]):
+            bounds_lower = group.bounds[idx, 0]
+            bounds_upper = group.bounds[idx, 1]
+
+            sub = td[group.dgroups[idx]]
+            self.assertEqual(sub.value.min(), bounds_lower)
+            self.assertEqual(sub.value.max(), bounds_upper)
+
+        self.assertEqual(group.value.tolist(), [datetime.datetime(1900, 4, 16, 0, 0), datetime.datetime(1900, 7, 17, 0, 0), datetime.datetime(1900, 10, 16, 0, 0), datetime.datetime(1901, 1, 15, 0, 0), datetime.datetime(1901, 4, 16, 0, 0), datetime.datetime(1901, 7, 17, 0, 0), datetime.datetime(1901, 10, 16, 0, 0), datetime.datetime(1902, 1, 15, 0, 0), datetime.datetime(1902, 4, 16, 0, 0), datetime.datetime(1902, 7, 17, 0, 0), datetime.datetime(1902, 10, 16, 0, 0)])
+        self.assertEqual(group.bounds.tolist(), [[datetime.datetime(1900, 3, 1, 0, 0), datetime.datetime(1900, 5, 31, 0, 0)], [datetime.datetime(1900, 6, 1, 0, 0), datetime.datetime(1900, 8, 31, 0, 0)], [datetime.datetime(1900, 9, 1, 0, 0), datetime.datetime(1900, 11, 30, 0, 0)], [datetime.datetime(1900, 12, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)], [datetime.datetime(1901, 3, 1, 0, 0), datetime.datetime(1901, 5, 31, 0, 0)], [datetime.datetime(1901, 6, 1, 0, 0), datetime.datetime(1901, 8, 31, 0, 0)], [datetime.datetime(1901, 9, 1, 0, 0), datetime.datetime(1901, 11, 30, 0, 0)], [datetime.datetime(1901, 12, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)], [datetime.datetime(1902, 3, 1, 0, 0), datetime.datetime(1902, 5, 31, 0, 0)], [datetime.datetime(1902, 6, 1, 0, 0), datetime.datetime(1902, 8, 31, 0, 0)], [datetime.datetime(1902, 9, 1, 0, 0), datetime.datetime(1902, 11, 30, 0, 0)]])
 
     def test_get_grouping_seasonal_year_flag(self):
         ## test with year flag

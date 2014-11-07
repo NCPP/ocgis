@@ -33,29 +33,38 @@ class TemporalDimension(base.VectorDimension):
         
         return(tgd)
     
-    def _get_grouping_seasonal_unique_(self,grouping):
-        '''
-        Returns a :class:`TemporalGroupDimension` arguments for unique seasons.
-        '''
-        ## remove the unique keyword from the list
+    def _get_grouping_seasonal_unique_(self, grouping):
+        """
+        :param list grouping: A seasonal list containing the unique flag.
+
+        >>> grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], 'unique']
+
+        :returns: A tuple of elements necessary to create a :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`
+         object.
+        :rtype: tuple
+        """
+
+        # remove the unique keyword from the list
         grouping = list(deepcopy(grouping))
         grouping.remove('unique')
         grouping = get_sorted_seasons(grouping)
-        ## turn the seasons into time regions
-        time_regions = get_time_regions(grouping,self._get_datetime_value_(),raise_if_incomplete=False)
-        ## holds the boolean selection arrays
+        # turn the seasons into time regions
+        time_regions = get_time_regions(grouping, self._get_datetime_value_(), raise_if_incomplete=False)
+        # holds the boolean selection arrays
         dgroups = deque()
-        new_bounds = np.array([],dtype=object).reshape(-1,2)
-        repr_dt = np.array([],dtype=object)
-        ## return temporal dimensions and convert to groups
-        for dgroup,sub in iter_boolean_groups_from_time_regions(time_regions,self,yield_subset=True,raise_if_incomplete=False):
+        new_bounds = np.array([], dtype=object).reshape(-1, 2)
+        repr_dt = np.array([], dtype=object)
+        # return temporal dimensions and convert to groups
+        for dgroup, sub in iter_boolean_groups_from_time_regions(time_regions, self, yield_subset=True,
+                                                                 raise_if_incomplete=False):
             dgroups.append(dgroup)
             sub_value_datetime = sub._get_datetime_value_()
-            new_bounds = np.vstack((new_bounds,[min(sub_value_datetime),max(sub_value_datetime)]))
-            repr_dt = np.append(repr_dt,sub_value_datetime[int(sub.shape[0]/2)])
-        ## no date parts yet...
+            new_bounds = np.vstack((new_bounds, [min(sub_value_datetime), max(sub_value_datetime)]))
+            repr_dt = np.append(repr_dt, sub_value_datetime[int(sub.shape[0] / 2)])
+        # no date parts yet...
         date_parts = None
-        return(new_bounds,date_parts,repr_dt,dgroups)
+
+        return new_bounds, date_parts, repr_dt, dgroups
     
     def _get_grouping_all_(self):
         '''
@@ -368,48 +377,54 @@ class TemporalGroupDimension(TemporalDimension):
         TemporalDimension.__init__(self,*args,**kwds)
 
 
-def iter_boolean_groups_from_time_regions(time_regions,temporal_dimension,yield_subset=False,
+def iter_boolean_groups_from_time_regions(time_regions, temporal_dimension, yield_subset=False,
                                           raise_if_incomplete=True):
-    '''
+    """
     :param time_regions: Sequence of nested time region dictionaries.
-    
+
     >>> [[{'month':[1,2],'year':[2024]},...],...]
-    
-    :param temporal_dimension: :class:`TemporalDimension`
-    :yields: boolean ndarray vector with yld.shape == temporal_dimension.shape
-    '''
+
+    :param temporal_dimension: A temporal dimension object.
+    :type temporal_dimension: :class:`ocgis.interface.base.dimension.temporal.TemporalDimension`
+    :param bool yield_subset: If ``True``, yield a tuple with the subset of ``temporal_dimension``.
+    :param bool raise_if_incomplete: If ``True``, raise an exception if the season is incomplete.
+    :returns: boolean ndarray vector with yld.shape == temporal_dimension.shape
+    :raises: IncompleteSeasonError
+    """
+
     for sub_time_regions in time_regions:
-        ## incomplete seasons are searched for in the nested loop. this indicates
-        ## if a time region group should be considered a season.
+        # incomplete seasons are searched for in the nested loop. this indicates if a time region group should be
+        # considered a season.
         is_complete = True
-        idx_append = np.array([],dtype=int)
+        idx_append = np.array([], dtype=int)
         for time_region in sub_time_regions:
-            sub,idx = temporal_dimension.get_time_region(time_region,return_indices=True)
+            sub, idx = temporal_dimension.get_time_region(time_region, return_indices=True)
             ## insert a check to ensure there are months present for each time region
             months = set([d.month for d in sub._get_datetime_value_()])
             try:
-                assert(months == set(time_region['month']))
+                assert (months == set(time_region['month']))
             except AssertionError:
                 if raise_if_incomplete:
                     for m in time_region['month']:
                         if m not in months:
-                            raise(IncompleteSeasonError(time_region,month=m))
+                            raise IncompleteSeasonError(time_region, month=m)
                 else:
                     is_complete = False
-            idx_append = np.append(idx_append,idx)
-        ## if the season is complete append, otherwise pass to next iteration.
+            idx_append = np.append(idx_append, idx)
+
+        # if the season is complete append, otherwise pass to next iteration.
         if is_complete:
-            dgroup = np.zeros(temporal_dimension.shape[0],dtype=bool)
+            dgroup = np.zeros(temporal_dimension.shape[0], dtype=bool)
             dgroup[idx_append] = True
         else:
             continue
-        
+
         if yield_subset:
-            yld = (dgroup,sub)
+            yld = (dgroup, temporal_dimension[dgroup])
         else:
             yld = dgroup
-        
-        yield(yld)
+
+        yield yld
         
 def get_is_interannual(sequence):
     '''

@@ -178,7 +178,7 @@ Any temporal aggregation applied to a dataset should be consistent with the inpu
 
 >>> calc_grouping = 'all'
 
-3. **Seasonal Groups**: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representatative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
+3. **Seasonal Groups**: A sequence of integer sequences. Element sequences must be mutually exclusive (i.e. no repeated integers). Representative times for the climatology are chosen as the center month in a sequence (i.e. January in the sequence [12,1,2]).
 
 Month integers map as expected (1=January, 2=February, etc.). The example below constructs a single season composed of March, April, and May. Note the nested lists.
 

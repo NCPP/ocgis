@@ -81,6 +81,8 @@ Value                    Description
 geom
 ~~~~
 
+.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
+
 If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Again, supplying a value of `None` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute called `UGID` and have a WGS84 latitude/longitude geographic coordinate system.
 
 There are a number of ways to parameterize the `geom` keyword argument:
@@ -162,7 +164,7 @@ calc_grouping
 
 There are three forms for this argument:
 
-1. **Date Part Grouping**: Any combination of 'day', 'month', and 'year'.
+1. **Date Part Grouping**: Any combination of ``'day'``, ``'month'``, and ``'year'``.
 
 >>> calc_grouping = ['day']
 >>> calc_grouping = ['month','year']
@@ -180,23 +182,23 @@ Any temporal aggregation applied to a dataset should be consistent with the inpu
 
 Month integers map as expected (1=January, 2=February, etc.). The example below constructs a single season composed of March, April, and May. Note the nested lists.
 
->>> calc_grouping = [[3,4,5]]
+>>> calc_grouping = [[3, 4, 5]]
 
 The next example consumes all the months in a year.
 
->>> calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
+>>> calc_grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]
 
-Unique, time sequential seasons are possible with the `'unique'` flag:
+Unique, time sequential seasons are possible with the ``'unique'`` flag:
 
->>> calc_grouping = [[12,1,2],'unique']
+>>> calc_grouping = [[12, 1, 2], 'unique']
 
-For example, this returns a calculation based on values with date coordinates in:
+A *unique* season has at least one value associated with each month in the season. If a month is missing, the season will be dropped. The season specification above returns a calculation based on values with date coordinates in:
  * Dec 1900, Jan 1901, Feb 1901
  * Dec 1901, Jan 1902, Feb 1902
 
 It is also possible to group the seasons by year.
 
->>> calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11],'year']
+>>> calc_grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], 'year']
 
 For example, this returns a calculation based on values with date coordinates in:
  * 1900: Dec, Jan, Feb
@@ -258,6 +260,8 @@ Value                  Description
 `nc`                   A NetCDF4 file.
 `geojson`              A GeoJSON representation of the data.
 ====================== ===============================================================================================
+
+.. _agg_selection:
 
 agg_selection
 ~~~~~~~~~~~~~

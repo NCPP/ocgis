@@ -30,6 +30,25 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=dates,bounds=bounds)
         return(td)
 
+    def test_get_grouping(self):
+        td = self.get_temporal_dimension()
+        td = td.get_between(datetime.datetime(1900,1,1),datetime.datetime(1900,12,31,23,59))
+        tgd = td.get_grouping(['year'])
+        self.assertEqual(tgd.value,np.array([datetime.datetime(1900,7,1)]))
+
+    def test_get_grouping_for_all(self):
+        for b in [True,False]:
+            td = self.get_temporal_dimension(add_bounds=b)
+            tgd = td.get_grouping('all')
+            self.assertEqual(tgd.dgroups,[slice(None)])
+            self.assertEqual(td.value[546],tgd.value[0])
+            if b:
+                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1),
+                                                          datetime.datetime(1902,1,1)]]))
+            else:
+                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1,12),
+                                                          datetime.datetime(1901,12,31,12)]]))
+
     def test_get_grouping_other(self):
         tdim = self.get_temporal_dimension()
         grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], 'year']
@@ -47,48 +66,10 @@ class TestTemporalDimension(TestBase):
         actual_date_parts = np.loads('\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x0c\x85cnumpy\ndtype\nq\x04U\x03V16K\x00K\x01\x87Rq\x05(K\x03U\x01|NU\x06monthsq\x06U\x04yearq\x07\x86q\x08}q\t(h\x06h\x04U\x02O8K\x00K\x01\x87Rq\n(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tbK\x00\x86h\x07h\x04U\x02i8K\x00K\x01\x87Rq\x0b(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tbK\x08\x86uK\x10K\x01K\x1btb\x89]q\x0c(]q\r(K\x0cK\x01K\x02eMk\x07\x86q\x0e]q\x0f(K\x03K\x04K\x05eMk\x07\x86q\x10]q\x11(K\x06K\x07K\x08eMk\x07\x86q\x12]q\x13(K\tK\nK\x0beMk\x07\x86q\x14h\rMl\x07\x86q\x15h\x0fMl\x07\x86q\x16h\x11Ml\x07\x86q\x17h\x13Ml\x07\x86q\x18h\rMm\x07\x86q\x19h\x0fMm\x07\x86q\x1ah\x11Mm\x07\x86q\x1bh\x13Mm\x07\x86q\x1cetb.')
         self.assertNumpyAll(actual_date_parts, date_parts)
 
-    def test_get_grouping(self):
-        td = self.get_temporal_dimension()
-        td = td.get_between(datetime.datetime(1900,1,1),datetime.datetime(1900,12,31,23,59))
-        tgd = td.get_grouping(['year'])
-        self.assertEqual(tgd.value,np.array([datetime.datetime(1900,7,1)]))
-        
-    def test_get_grouping_for_all(self):
-        for b in [True,False]:
-            td = self.get_temporal_dimension(add_bounds=b)
-            tgd = td.get_grouping('all')
-            self.assertEqual(tgd.dgroups,[slice(None)])
-            self.assertEqual(td.value[546],tgd.value[0])
-            if b:
-                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1),
-                                                          datetime.datetime(1902,1,1)]]))
-            else:
-                self.assertNumpyAll(tgd.bounds,np.array([[datetime.datetime(1899,1,1,12),
-                                                          datetime.datetime(1901,12,31,12)]]))
-    
-    def test_time_range_subset(self):
-        dt1 = datetime.datetime(1950,01,01,12)
-        dt2 = datetime.datetime(1950,12,31,12)
-        dates = np.array(get_date_list(dt1,dt2,1))
-        r1 = datetime.datetime(1950,01,01)
-        r2 = datetime.datetime(1950,12,31)
-        td = TemporalDimension(value=dates)
-        ret = td.get_between(r1,r2)
-        self.assertEqual(ret.value[-1],datetime.datetime(1950,12,30,12,0))
-        delta = datetime.timedelta(hours=12)
-        lower = dates - delta
-        upper = dates + delta
-        bounds = np.empty((lower.shape[0],2),dtype=object)
-        bounds[:,0] = lower
-        bounds[:,1] = upper
-        td = TemporalDimension(value=dates,bounds=bounds)
-        ret = td.get_between(r1,r2)
-        self.assertEqual(ret.value[-1],datetime.datetime(1950,12,31,12,0))
-    
-    def test_seasonal_get_grouping(self):
+    def test_get_grouping_seasonal(self):
         dates = get_date_list(dt(2012,4,1),dt(2012,10,31),1)
         td = TemporalDimension(value=dates)
-        
+
         ## standard seasonal group
         calc_grouping = [[6,7,8]]
         tg = td.get_grouping(calc_grouping)
@@ -97,13 +78,13 @@ class TestTemporalDimension(TestBase):
         not_selected_months = [s.month for s in td.value[np.invert(tg.dgroups[0])]]
         self.assertEqual(set(calc_grouping[0]),set(selected_months))
         self.assertFalse(set(not_selected_months).issubset(set(calc_grouping[0])))
-        
+
         ## seasons different sizes
         calc_grouping = [[4,5,6,7],[8,9,10]]
         tg = td.get_grouping(calc_grouping)
         self.assertEqual(len(tg.value),2)
         self.assertNumpyAll(tg.dgroups[0],np.invert(tg.dgroups[1]))
-        
+
         ## crosses year boundary
         calc_grouping = [[11,12,1]]
         dates = get_date_list(dt(2012,10,1),dt(2013,3,31),1)
@@ -112,15 +93,73 @@ class TestTemporalDimension(TestBase):
         selected_months = [s.month for s in td.value[tg.dgroups[0]].flat]
         self.assertEqual(set(calc_grouping[0]),set(selected_months))
         self.assertEqual(tg.value[0],dt(2012,12,16))
-        
+
         ## grab real data
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         td = TemporalDimension(value=field.temporal.value_datetime)
         tg = td.get_grouping([[3,4,5]])
         self.assertEqual(tg.value[0],dt(2005,4,16))
-        
-    def test_seasonal_get_grouping_year_flag(self):
+    
+    def test_get_grouping_season_empty_with_year_missing_month(self):
+        dt1 = datetime.datetime(1900,01,01)
+        dt2 = datetime.datetime(1903,1,31)
+        dates = get_date_list(dt1,dt2,days=1)
+        td = TemporalDimension(value=dates)
+        group = [[12,1,2],'unique']
+        tg = td.get_grouping(group)
+        ## there should be a month missing from the last season (february) and it should not be
+        ## considered complete
+        self.assertEqual(tg.value.shape[0],2)
+
+    def test_get_grouping_seasonal_unique_flag(self):
+        """Test the unique flag for seasonal groups."""
+
+        ## test with year flag
+        dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
+        td = TemporalDimension(value=dates)
+        calc_grouping = [[6,7,8],'unique']
+        tg = td.get_grouping(calc_grouping)
+
+        time_region = {'year':[2012],'month':[6,7,8]}
+        sub1,idx1 = td.get_time_region(time_region,return_indices=True)
+        time_region = {'year':[2013],'month':[6,7,8]}
+        sub2,idx2 = td.get_time_region(time_region,return_indices=True)
+        base_select = np.zeros(td.shape[0],dtype=bool)
+        dgroups = deque()
+
+        for software,manual in itertools.izip(tg.dgroups,dgroups):
+            self.assertNumpyAll(software,manual)
+        self.assertEqual(len(tg.dgroups),2)
+        self.assertEqual(tg.value.tolist(),[datetime.datetime(2012, 7, 17, 0, 0), datetime.datetime(2013, 7, 17, 0, 0)])
+        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)], [datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)]])
+
+        dgroup1 = base_select.copy()
+        dgroup1[idx1] = True
+        dgroup2 = base_select.copy()
+        dgroup2[idx2] = True
+
+        dgroups.append(dgroup1)
+        dgroups.append(dgroup2)
+
+        tg = td.get_grouping([[6,7,8],'year'])
+        for ii in range(len(tg.dgroups)):
+            self.assertNumpyAll(tg.dgroups[ii],dgroups[ii])
+        self.assertEqual(len(tg.dgroups),len(dgroups))
+    
+    def test_get_grouping_seasonal_unique_flag_winter_season(self):
+        """Test with a single winter season using the unique flag."""
+
+        dt1 = datetime.datetime(1900,01,01)
+        dt2 = datetime.datetime(1902,12,31)
+        dates = get_date_list(dt1,dt2,days=1)
+        td = TemporalDimension(value=dates)
+        group = [[12,1,2],'unique']
+        tg = td.get_grouping(group)
+        self.assertEqual(tg.value.shape[0],2)
+        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(1901, 1, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)], [datetime.datetime(1902, 1, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
+
+    def test_get_grouping_seasonal_year_flag(self):
         ## test with year flag
         dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
         td = TemporalDimension(value=dates)
@@ -141,7 +180,7 @@ class TestTemporalDimension(TestBase):
         actual = np.loads('\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\\\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdd\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x06\x02\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdd\x06\x03\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdd\x06\x04\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07\xdd\x06\x05\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07\xdd\x06\x06\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07\xdd\x06\x07\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07\xdd\x06\x08\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07\xdd\x06\t\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07\xdd\x06\n\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07\xdd\x06\x0b\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07\xdd\x06\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07\xdd\x06\r\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07\xdd\x06\x0e\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07\xdd\x06\x0f\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07\xdd\x06\x10\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07\xdd\x06\x11\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07\xdd\x06\x12\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07\xdd\x06\x13\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07\xdd\x06\x14\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07\xdd\x06\x15\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07\xdd\x06\x16\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07\xdd\x06\x17\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07\xdd\x06\x18\x00\x00\x00\x00\x00\x00\x85Rq\x1fh\x07U\n\x07\xdd\x06\x19\x00\x00\x00\x00\x00\x00\x85Rq h\x07U\n\x07\xdd\x06\x1a\x00\x00\x00\x00\x00\x00\x85Rq!h\x07U\n\x07\xdd\x06\x1b\x00\x00\x00\x00\x00\x00\x85Rq"h\x07U\n\x07\xdd\x06\x1c\x00\x00\x00\x00\x00\x00\x85Rq#h\x07U\n\x07\xdd\x06\x1d\x00\x00\x00\x00\x00\x00\x85Rq$h\x07U\n\x07\xdd\x06\x1e\x00\x00\x00\x00\x00\x00\x85Rq%h\x07U\n\x07\xdd\x07\x01\x00\x00\x00\x00\x00\x00\x85Rq&h\x07U\n\x07\xdd\x07\x02\x00\x00\x00\x00\x00\x00\x85Rq\'h\x07U\n\x07\xdd\x07\x03\x00\x00\x00\x00\x00\x00\x85Rq(h\x07U\n\x07\xdd\x07\x04\x00\x00\x00\x00\x00\x00\x85Rq)h\x07U\n\x07\xdd\x07\x05\x00\x00\x00\x00\x00\x00\x85Rq*h\x07U\n\x07\xdd\x07\x06\x00\x00\x00\x00\x00\x00\x85Rq+h\x07U\n\x07\xdd\x07\x07\x00\x00\x00\x00\x00\x00\x85Rq,h\x07U\n\x07\xdd\x07\x08\x00\x00\x00\x00\x00\x00\x85Rq-h\x07U\n\x07\xdd\x07\t\x00\x00\x00\x00\x00\x00\x85Rq.h\x07U\n\x07\xdd\x07\n\x00\x00\x00\x00\x00\x00\x85Rq/h\x07U\n\x07\xdd\x07\x0b\x00\x00\x00\x00\x00\x00\x85Rq0h\x07U\n\x07\xdd\x07\x0c\x00\x00\x00\x00\x00\x00\x85Rq1h\x07U\n\x07\xdd\x07\r\x00\x00\x00\x00\x00\x00\x85Rq2h\x07U\n\x07\xdd\x07\x0e\x00\x00\x00\x00\x00\x00\x85Rq3h\x07U\n\x07\xdd\x07\x0f\x00\x00\x00\x00\x00\x00\x85Rq4h\x07U\n\x07\xdd\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq5h\x07U\n\x07\xdd\x07\x11\x00\x00\x00\x00\x00\x00\x85Rq6h\x07U\n\x07\xdd\x07\x12\x00\x00\x00\x00\x00\x00\x85Rq7h\x07U\n\x07\xdd\x07\x13\x00\x00\x00\x00\x00\x00\x85Rq8h\x07U\n\x07\xdd\x07\x14\x00\x00\x00\x00\x00\x00\x85Rq9h\x07U\n\x07\xdd\x07\x15\x00\x00\x00\x00\x00\x00\x85Rq:h\x07U\n\x07\xdd\x07\x16\x00\x00\x00\x00\x00\x00\x85Rq;h\x07U\n\x07\xdd\x07\x17\x00\x00\x00\x00\x00\x00\x85Rq<h\x07U\n\x07\xdd\x07\x18\x00\x00\x00\x00\x00\x00\x85Rq=h\x07U\n\x07\xdd\x07\x19\x00\x00\x00\x00\x00\x00\x85Rq>h\x07U\n\x07\xdd\x07\x1a\x00\x00\x00\x00\x00\x00\x85Rq?h\x07U\n\x07\xdd\x07\x1b\x00\x00\x00\x00\x00\x00\x85Rq@h\x07U\n\x07\xdd\x07\x1c\x00\x00\x00\x00\x00\x00\x85RqAh\x07U\n\x07\xdd\x07\x1d\x00\x00\x00\x00\x00\x00\x85RqBh\x07U\n\x07\xdd\x07\x1e\x00\x00\x00\x00\x00\x00\x85RqCh\x07U\n\x07\xdd\x07\x1f\x00\x00\x00\x00\x00\x00\x85RqDh\x07U\n\x07\xdd\x08\x01\x00\x00\x00\x00\x00\x00\x85RqEh\x07U\n\x07\xdd\x08\x02\x00\x00\x00\x00\x00\x00\x85RqFh\x07U\n\x07\xdd\x08\x03\x00\x00\x00\x00\x00\x00\x85RqGh\x07U\n\x07\xdd\x08\x04\x00\x00\x00\x00\x00\x00\x85RqHh\x07U\n\x07\xdd\x08\x05\x00\x00\x00\x00\x00\x00\x85RqIh\x07U\n\x07\xdd\x08\x06\x00\x00\x00\x00\x00\x00\x85RqJh\x07U\n\x07\xdd\x08\x07\x00\x00\x00\x00\x00\x00\x85RqKh\x07U\n\x07\xdd\x08\x08\x00\x00\x00\x00\x00\x00\x85RqLh\x07U\n\x07\xdd\x08\t\x00\x00\x00\x00\x00\x00\x85RqMh\x07U\n\x07\xdd\x08\n\x00\x00\x00\x00\x00\x00\x85RqNh\x07U\n\x07\xdd\x08\x0b\x00\x00\x00\x00\x00\x00\x85RqOh\x07U\n\x07\xdd\x08\x0c\x00\x00\x00\x00\x00\x00\x85RqPh\x07U\n\x07\xdd\x08\r\x00\x00\x00\x00\x00\x00\x85RqQh\x07U\n\x07\xdd\x08\x0e\x00\x00\x00\x00\x00\x00\x85RqRh\x07U\n\x07\xdd\x08\x0f\x00\x00\x00\x00\x00\x00\x85RqSh\x07U\n\x07\xdd\x08\x10\x00\x00\x00\x00\x00\x00\x85RqTh\x07U\n\x07\xdd\x08\x11\x00\x00\x00\x00\x00\x00\x85RqUh\x07U\n\x07\xdd\x08\x12\x00\x00\x00\x00\x00\x00\x85RqVh\x07U\n\x07\xdd\x08\x13\x00\x00\x00\x00\x00\x00\x85RqWh\x07U\n\x07\xdd\x08\x14\x00\x00\x00\x00\x00\x00\x85RqXh\x07U\n\x07\xdd\x08\x15\x00\x00\x00\x00\x00\x00\x85RqYh\x07U\n\x07\xdd\x08\x16\x00\x00\x00\x00\x00\x00\x85RqZh\x07U\n\x07\xdd\x08\x17\x00\x00\x00\x00\x00\x00\x85Rq[h\x07U\n\x07\xdd\x08\x18\x00\x00\x00\x00\x00\x00\x85Rq\\h\x07U\n\x07\xdd\x08\x19\x00\x00\x00\x00\x00\x00\x85Rq]h\x07U\n\x07\xdd\x08\x1a\x00\x00\x00\x00\x00\x00\x85Rq^h\x07U\n\x07\xdd\x08\x1b\x00\x00\x00\x00\x00\x00\x85Rq_h\x07U\n\x07\xdd\x08\x1c\x00\x00\x00\x00\x00\x00\x85Rq`h\x07U\n\x07\xdd\x08\x1d\x00\x00\x00\x00\x00\x00\x85Rqah\x07U\n\x07\xdd\x08\x1e\x00\x00\x00\x00\x00\x00\x85Rqbh\x07U\n\x07\xdd\x08\x1f\x00\x00\x00\x00\x00\x00\x85Rqcetb.')
         sub1 = td.value[tg.dgroups[1]]
         self.assertNumpyAll(sub1,actual)
-        
+
         ## test crossing year boundary
         for calc_grouping in [[[12,1,2],'year'],['year',[12,1,2]]]:
             tg = td.get_grouping(calc_grouping)
@@ -154,71 +193,17 @@ class TestTemporalDimension(TestBase):
 
             # '[datetime.datetime(2013, 1, 1, 0, 0) datetime.datetime(2013, 1, 2, 0, 0)\n datetime.datetime(2013, 1, 3, 0, 0) datetime.datetime(2013, 1, 4, 0, 0)\n datetime.datetime(2013, 1, 5, 0, 0) datetime.datetime(2013, 1, 6, 0, 0)\n datetime.datetime(2013, 1, 7, 0, 0) datetime.datetime(2013, 1, 8, 0, 0)\n datetime.datetime(2013, 1, 9, 0, 0) datetime.datetime(2013, 1, 10, 0, 0)\n datetime.datetime(2013, 1, 11, 0, 0) datetime.datetime(2013, 1, 12, 0, 0)\n datetime.datetime(2013, 1, 13, 0, 0) datetime.datetime(2013, 1, 14, 0, 0)\n datetime.datetime(2013, 1, 15, 0, 0) datetime.datetime(2013, 1, 16, 0, 0)\n datetime.datetime(2013, 1, 17, 0, 0) datetime.datetime(2013, 1, 18, 0, 0)\n datetime.datetime(2013, 1, 19, 0, 0) datetime.datetime(2013, 1, 20, 0, 0)\n datetime.datetime(2013, 1, 21, 0, 0) datetime.datetime(2013, 1, 22, 0, 0)\n datetime.datetime(2013, 1, 23, 0, 0) datetime.datetime(2013, 1, 24, 0, 0)\n datetime.datetime(2013, 1, 25, 0, 0) datetime.datetime(2013, 1, 26, 0, 0)\n datetime.datetime(2013, 1, 27, 0, 0) datetime.datetime(2013, 1, 28, 0, 0)\n datetime.datetime(2013, 1, 29, 0, 0) datetime.datetime(2013, 1, 30, 0, 0)\n datetime.datetime(2013, 1, 31, 0, 0) datetime.datetime(2013, 2, 1, 0, 0)\n datetime.datetime(2013, 2, 2, 0, 0) datetime.datetime(2013, 2, 3, 0, 0)\n datetime.datetime(2013, 2, 4, 0, 0) datetime.datetime(2013, 2, 5, 0, 0)\n datetime.datetime(2013, 2, 6, 0, 0) datetime.datetime(2013, 2, 7, 0, 0)\n datetime.datetime(2013, 2, 8, 0, 0) datetime.datetime(2013, 2, 9, 0, 0)\n datetime.datetime(2013, 2, 10, 0, 0) datetime.datetime(2013, 2, 11, 0, 0)\n datetime.datetime(2013, 2, 12, 0, 0) datetime.datetime(2013, 2, 13, 0, 0)\n datetime.datetime(2013, 2, 14, 0, 0) datetime.datetime(2013, 2, 15, 0, 0)\n datetime.datetime(2013, 2, 16, 0, 0) datetime.datetime(2013, 2, 17, 0, 0)\n datetime.datetime(2013, 2, 18, 0, 0) datetime.datetime(2013, 2, 19, 0, 0)\n datetime.datetime(2013, 2, 20, 0, 0) datetime.datetime(2013, 2, 21, 0, 0)\n datetime.datetime(2013, 2, 22, 0, 0) datetime.datetime(2013, 2, 23, 0, 0)\n datetime.datetime(2013, 2, 24, 0, 0) datetime.datetime(2013, 2, 25, 0, 0)\n datetime.datetime(2013, 2, 26, 0, 0) datetime.datetime(2013, 2, 27, 0, 0)\n datetime.datetime(2013, 2, 28, 0, 0) datetime.datetime(2013, 12, 1, 0, 0)\n datetime.datetime(2013, 12, 2, 0, 0) datetime.datetime(2013, 12, 3, 0, 0)\n datetime.datetime(2013, 12, 4, 0, 0) datetime.datetime(2013, 12, 5, 0, 0)\n datetime.datetime(2013, 12, 6, 0, 0) datetime.datetime(2013, 12, 7, 0, 0)\n datetime.datetime(2013, 12, 8, 0, 0) datetime.datetime(2013, 12, 9, 0, 0)\n datetime.datetime(2013, 12, 10, 0, 0)\n datetime.datetime(2013, 12, 11, 0, 0)\n datetime.datetime(2013, 12, 12, 0, 0)\n datetime.datetime(2013, 12, 13, 0, 0)\n datetime.datetime(2013, 12, 14, 0, 0)\n datetime.datetime(2013, 12, 15, 0, 0)\n datetime.datetime(2013, 12, 16, 0, 0)\n datetime.datetime(2013, 12, 17, 0, 0)\n datetime.datetime(2013, 12, 18, 0, 0)\n datetime.datetime(2013, 12, 19, 0, 0)\n datetime.datetime(2013, 12, 20, 0, 0)\n datetime.datetime(2013, 12, 21, 0, 0)\n datetime.datetime(2013, 12, 22, 0, 0)\n datetime.datetime(2013, 12, 23, 0, 0)\n datetime.datetime(2013, 12, 24, 0, 0)\n datetime.datetime(2013, 12, 25, 0, 0)\n datetime.datetime(2013, 12, 26, 0, 0)\n datetime.datetime(2013, 12, 27, 0, 0)\n datetime.datetime(2013, 12, 28, 0, 0)\n datetime.datetime(2013, 12, 29, 0, 0)\n datetime.datetime(2013, 12, 30, 0, 0)\n datetime.datetime(2013, 12, 31, 0, 0)]'
             self.assertNumpyAll(td.value[tg.dgroups[1]],np.loads('\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01KZ\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdd\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x01\x02\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdd\x01\x03\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdd\x01\x04\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07\xdd\x01\x05\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07\xdd\x01\x06\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07\xdd\x01\x07\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07\xdd\x01\x08\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07\xdd\x01\t\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07\xdd\x01\n\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07\xdd\x01\x0b\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07\xdd\x01\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07\xdd\x01\r\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07\xdd\x01\x0e\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07\xdd\x01\x0f\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07\xdd\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07\xdd\x01\x11\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07\xdd\x01\x12\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07\xdd\x01\x13\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07\xdd\x01\x14\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07\xdd\x01\x15\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07\xdd\x01\x16\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07\xdd\x01\x17\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07\xdd\x01\x18\x00\x00\x00\x00\x00\x00\x85Rq\x1fh\x07U\n\x07\xdd\x01\x19\x00\x00\x00\x00\x00\x00\x85Rq h\x07U\n\x07\xdd\x01\x1a\x00\x00\x00\x00\x00\x00\x85Rq!h\x07U\n\x07\xdd\x01\x1b\x00\x00\x00\x00\x00\x00\x85Rq"h\x07U\n\x07\xdd\x01\x1c\x00\x00\x00\x00\x00\x00\x85Rq#h\x07U\n\x07\xdd\x01\x1d\x00\x00\x00\x00\x00\x00\x85Rq$h\x07U\n\x07\xdd\x01\x1e\x00\x00\x00\x00\x00\x00\x85Rq%h\x07U\n\x07\xdd\x01\x1f\x00\x00\x00\x00\x00\x00\x85Rq&h\x07U\n\x07\xdd\x02\x01\x00\x00\x00\x00\x00\x00\x85Rq\'h\x07U\n\x07\xdd\x02\x02\x00\x00\x00\x00\x00\x00\x85Rq(h\x07U\n\x07\xdd\x02\x03\x00\x00\x00\x00\x00\x00\x85Rq)h\x07U\n\x07\xdd\x02\x04\x00\x00\x00\x00\x00\x00\x85Rq*h\x07U\n\x07\xdd\x02\x05\x00\x00\x00\x00\x00\x00\x85Rq+h\x07U\n\x07\xdd\x02\x06\x00\x00\x00\x00\x00\x00\x85Rq,h\x07U\n\x07\xdd\x02\x07\x00\x00\x00\x00\x00\x00\x85Rq-h\x07U\n\x07\xdd\x02\x08\x00\x00\x00\x00\x00\x00\x85Rq.h\x07U\n\x07\xdd\x02\t\x00\x00\x00\x00\x00\x00\x85Rq/h\x07U\n\x07\xdd\x02\n\x00\x00\x00\x00\x00\x00\x85Rq0h\x07U\n\x07\xdd\x02\x0b\x00\x00\x00\x00\x00\x00\x85Rq1h\x07U\n\x07\xdd\x02\x0c\x00\x00\x00\x00\x00\x00\x85Rq2h\x07U\n\x07\xdd\x02\r\x00\x00\x00\x00\x00\x00\x85Rq3h\x07U\n\x07\xdd\x02\x0e\x00\x00\x00\x00\x00\x00\x85Rq4h\x07U\n\x07\xdd\x02\x0f\x00\x00\x00\x00\x00\x00\x85Rq5h\x07U\n\x07\xdd\x02\x10\x00\x00\x00\x00\x00\x00\x85Rq6h\x07U\n\x07\xdd\x02\x11\x00\x00\x00\x00\x00\x00\x85Rq7h\x07U\n\x07\xdd\x02\x12\x00\x00\x00\x00\x00\x00\x85Rq8h\x07U\n\x07\xdd\x02\x13\x00\x00\x00\x00\x00\x00\x85Rq9h\x07U\n\x07\xdd\x02\x14\x00\x00\x00\x00\x00\x00\x85Rq:h\x07U\n\x07\xdd\x02\x15\x00\x00\x00\x00\x00\x00\x85Rq;h\x07U\n\x07\xdd\x02\x16\x00\x00\x00\x00\x00\x00\x85Rq<h\x07U\n\x07\xdd\x02\x17\x00\x00\x00\x00\x00\x00\x85Rq=h\x07U\n\x07\xdd\x02\x18\x00\x00\x00\x00\x00\x00\x85Rq>h\x07U\n\x07\xdd\x02\x19\x00\x00\x00\x00\x00\x00\x85Rq?h\x07U\n\x07\xdd\x02\x1a\x00\x00\x00\x00\x00\x00\x85Rq@h\x07U\n\x07\xdd\x02\x1b\x00\x00\x00\x00\x00\x00\x85RqAh\x07U\n\x07\xdd\x02\x1c\x00\x00\x00\x00\x00\x00\x85RqBh\x07U\n\x07\xdd\x0c\x01\x00\x00\x00\x00\x00\x00\x85RqCh\x07U\n\x07\xdd\x0c\x02\x00\x00\x00\x00\x00\x00\x85RqDh\x07U\n\x07\xdd\x0c\x03\x00\x00\x00\x00\x00\x00\x85RqEh\x07U\n\x07\xdd\x0c\x04\x00\x00\x00\x00\x00\x00\x85RqFh\x07U\n\x07\xdd\x0c\x05\x00\x00\x00\x00\x00\x00\x85RqGh\x07U\n\x07\xdd\x0c\x06\x00\x00\x00\x00\x00\x00\x85RqHh\x07U\n\x07\xdd\x0c\x07\x00\x00\x00\x00\x00\x00\x85RqIh\x07U\n\x07\xdd\x0c\x08\x00\x00\x00\x00\x00\x00\x85RqJh\x07U\n\x07\xdd\x0c\t\x00\x00\x00\x00\x00\x00\x85RqKh\x07U\n\x07\xdd\x0c\n\x00\x00\x00\x00\x00\x00\x85RqLh\x07U\n\x07\xdd\x0c\x0b\x00\x00\x00\x00\x00\x00\x85RqMh\x07U\n\x07\xdd\x0c\x0c\x00\x00\x00\x00\x00\x00\x85RqNh\x07U\n\x07\xdd\x0c\r\x00\x00\x00\x00\x00\x00\x85RqOh\x07U\n\x07\xdd\x0c\x0e\x00\x00\x00\x00\x00\x00\x85RqPh\x07U\n\x07\xdd\x0c\x0f\x00\x00\x00\x00\x00\x00\x85RqQh\x07U\n\x07\xdd\x0c\x10\x00\x00\x00\x00\x00\x00\x85RqRh\x07U\n\x07\xdd\x0c\x11\x00\x00\x00\x00\x00\x00\x85RqSh\x07U\n\x07\xdd\x0c\x12\x00\x00\x00\x00\x00\x00\x85RqTh\x07U\n\x07\xdd\x0c\x13\x00\x00\x00\x00\x00\x00\x85RqUh\x07U\n\x07\xdd\x0c\x14\x00\x00\x00\x00\x00\x00\x85RqVh\x07U\n\x07\xdd\x0c\x15\x00\x00\x00\x00\x00\x00\x85RqWh\x07U\n\x07\xdd\x0c\x16\x00\x00\x00\x00\x00\x00\x85RqXh\x07U\n\x07\xdd\x0c\x17\x00\x00\x00\x00\x00\x00\x85RqYh\x07U\n\x07\xdd\x0c\x18\x00\x00\x00\x00\x00\x00\x85RqZh\x07U\n\x07\xdd\x0c\x19\x00\x00\x00\x00\x00\x00\x85Rq[h\x07U\n\x07\xdd\x0c\x1a\x00\x00\x00\x00\x00\x00\x85Rq\\h\x07U\n\x07\xdd\x0c\x1b\x00\x00\x00\x00\x00\x00\x85Rq]h\x07U\n\x07\xdd\x0c\x1c\x00\x00\x00\x00\x00\x00\x85Rq^h\x07U\n\x07\xdd\x0c\x1d\x00\x00\x00\x00\x00\x00\x85Rq_h\x07U\n\x07\xdd\x0c\x1e\x00\x00\x00\x00\x00\x00\x85Rq`h\x07U\n\x07\xdd\x0c\x1f\x00\x00\x00\x00\x00\x00\x85Rqaetb.'))
-    
-    def test_seasonal_get_grouping_unique_flag(self):
-        ## test with year flag
-        dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
-        td = TemporalDimension(value=dates)
-        calc_grouping = [[6,7,8],'unique']
-        tg = td.get_grouping(calc_grouping)
 
-        time_region = {'year':[2012],'month':[6,7,8]}
-        sub1,idx1 = td.get_time_region(time_region,return_indices=True)
-        time_region = {'year':[2013],'month':[6,7,8]}
-        sub2,idx2 = td.get_time_region(time_region,return_indices=True)
-        base_select = np.zeros(td.shape[0],dtype=bool)
-        dgroups = deque()
-        
-        for software,manual in itertools.izip(tg.dgroups,dgroups):
-            self.assertNumpyAll(software,manual)
-        self.assertEqual(len(tg.dgroups),2)
-        self.assertEqual(tg.value.tolist(),[datetime.datetime(2012, 7, 17, 0, 0), datetime.datetime(2013, 7, 17, 0, 0)])
-        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)], [datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)]])
-        
-        dgroup1 = base_select.copy()
-        dgroup1[idx1] = True
-        dgroup2 = base_select.copy()
-        dgroup2[idx2] = True
-        
-        dgroups.append(dgroup1)
-        dgroups.append(dgroup2)
-        
-        tg = td.get_grouping([[6,7,8],'year'])
-        for ii in range(len(tg.dgroups)):
-            self.assertNumpyAll(tg.dgroups[ii],dgroups[ii])
-        self.assertEqual(len(tg.dgroups),len(dgroups))
-        
-    def test_seasonal_get_grouping_unique_flag_winter_season(self):
-        dt1 = datetime.datetime(1900,01,01)
-        dt2 = datetime.datetime(1902,12,31)
-        dates = get_date_list(dt1,dt2,days=1)
-        td = TemporalDimension(value=dates)
-        group = [[12,1,2],'unique']
-        tg = td.get_grouping(group)
-        self.assertEqual(tg.value.shape[0],2)
-        self.assertEqual(tg.bounds.tolist(),[[datetime.datetime(1901, 1, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)], [datetime.datetime(1902, 1, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
-    
-    def test_empty_season_with_year_missing_month(self):
-        dt1 = datetime.datetime(1900,01,01)
-        dt2 = datetime.datetime(1903,1,31)
-        dates = get_date_list(dt1,dt2,days=1)
-        td = TemporalDimension(value=dates)
-        group = [[12,1,2],'unique']
-        tg = td.get_grouping(group)
-        ## there should be a month missing from the last season (february) and it should not be
-        ## considered complete
-        self.assertEqual(tg.value.shape[0],2)
-        
     def test_get_boolean_groups_from_time_regions(self):
         dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
         seasons = [[3,4,5],[6,7,8],[9,10,11],[12,1,2]]
         td = TemporalDimension(value=dates)
         time_regions = get_time_regions(seasons,dates,raise_if_incomplete=False)
-                
+
         dgroups = list(iter_boolean_groups_from_time_regions(time_regions,td))
         ## the last winter season is not complete as it does not have enough years
         self.assertEqual(len(dgroups),7)
-        
+
         to_test = []
         for dgroup in dgroups:
             sub = td[dgroup]
@@ -226,16 +211,16 @@ class TestTemporalDimension(TestBase):
             to_test.append([sub.extent, sub.shape[0], sub[sub.shape[0]/2].value[0]])
         correct = [[(datetime.datetime(2012, 3, 1, 0, 0), datetime.datetime(2012, 5, 31, 0, 0)), 92, datetime.datetime(2012, 4, 16, 0, 0)], [(datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)), 92, datetime.datetime(2012, 7, 17, 0, 0)], [(datetime.datetime(2012, 9, 1, 0, 0), datetime.datetime(2012, 11, 30, 0, 0)), 91, datetime.datetime(2012, 10, 16, 0, 0)], [(datetime.datetime(2012, 12, 1, 0, 0), datetime.datetime(2013, 2, 28, 0, 0)), 90, datetime.datetime(2013, 1, 15, 0, 0)], [(datetime.datetime(2013, 3, 1, 0, 0), datetime.datetime(2013, 5, 31, 0, 0)), 92, datetime.datetime(2013, 4, 16, 0, 0)], [(datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)), 92, datetime.datetime(2013, 7, 17, 0, 0)], [(datetime.datetime(2013, 9, 1, 0, 0), datetime.datetime(2013, 11, 30, 0, 0)), 91, datetime.datetime(2013, 10, 16, 0, 0)]]
         self.assertEqual(to_test,correct)
-        
+
     def test_seasonal_get_time_regions(self):
         dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
-        
+
         ## two simple seasons
         calc_grouping = [[6,7,8],[9,10,11]]
         time_regions = get_time_regions(calc_grouping,dates)
         correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
         self.assertEqual(time_regions,correct)
-        
+
         ## add an interannual season at the back
         calc_grouping = [[6,7,8],[9,10,11],[12,1,2]]
         with self.assertRaises(IncompleteSeasonError):
@@ -243,7 +228,7 @@ class TestTemporalDimension(TestBase):
         time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
         correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
         self.assertEqual(time_regions,correct)
-        
+
         ## put the interannual season in the middle
         calc_grouping = [[9,10,11],[12,1,2],[6,7,8]]
         with self.assertRaises(IncompleteSeasonError):
@@ -251,18 +236,37 @@ class TestTemporalDimension(TestBase):
         time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
         correct = [[{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}]]
         self.assertEqual(time_regions,correct)
-        
+
         ## odd seasons, but covering the whole year
         calc_grouping = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]]
         time_regions = get_time_regions(calc_grouping,dates)
         correct = [[{'month': [1, 2, 3], 'year': [2012]}], [{'month': [4, 5, 6], 'year': [2012]}], [{'month': [7, 8, 9], 'year': [2012]}], [{'month': [10, 11, 12], 'year': [2012]}], [{'month': [1, 2, 3], 'year': [2013]}], [{'month': [4, 5, 6], 'year': [2013]}], [{'month': [7, 8, 9], 'year': [2013]}], [{'month': [10, 11, 12], 'year': [2013]}]]
         self.assertEqual(time_regions,correct)
-        
+
         ## standard seasons
         calc_grouping = [[3,4,5],[6,7,8],[9,10,11],[12,1,2]]
         time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
         correct = [[{'month': [3, 4, 5], 'year': [2012]}], [{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [3, 4, 5], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
         self.assertEqual(time_regions,correct)
+        
+    def test_time_range_subset(self):
+        dt1 = datetime.datetime(1950,01,01,12)
+        dt2 = datetime.datetime(1950,12,31,12)
+        dates = np.array(get_date_list(dt1,dt2,1))
+        r1 = datetime.datetime(1950,01,01)
+        r2 = datetime.datetime(1950,12,31)
+        td = TemporalDimension(value=dates)
+        ret = td.get_between(r1,r2)
+        self.assertEqual(ret.value[-1],datetime.datetime(1950,12,30,12,0))
+        delta = datetime.timedelta(hours=12)
+        lower = dates - delta
+        upper = dates + delta
+        bounds = np.empty((lower.shape[0],2),dtype=object)
+        bounds[:,0] = lower
+        bounds[:,1] = upper
+        td = TemporalDimension(value=dates,bounds=bounds)
+        ret = td.get_between(r1,r2)
+        self.assertEqual(ret.value[-1],datetime.datetime(1950,12,31,12,0))
         
     def test_get_sorted_seasons(self):
         calc_grouping = [[9, 10, 11], [12, 1, 2], [6, 7, 8]]

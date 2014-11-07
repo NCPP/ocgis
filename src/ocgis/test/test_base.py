@@ -1,3 +1,4 @@
+import datetime
 from ocgis.test.base import TestBase, TestData
 import ocgis
 from unittest.case import SkipTest
@@ -27,8 +28,16 @@ def dev(f):
     return ret
 
 
-class Test(TestBase):
-    
+class TestTestBase(TestBase):
+
+    def test_get_time_series(self):
+        start = datetime.datetime(1900, 1, 1)
+        end = datetime.datetime(1902, 12, 31)
+        ret = self.get_time_series(start, end)
+        self.assertEqual(ret[0], start)
+        self.assertEqual(ret[-1], end)
+        self.assertEqual(ret[1]-ret[0], datetime.timedelta(days=1))
+
     def test_assertNumpyAll_bad_mask(self):
         arr = np.ma.array([1,2,3],mask=[True,False,True])
         arr2 = np.ma.array([1,2,3],mask=[False,True,False])

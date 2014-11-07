@@ -1,6 +1,7 @@
 import unittest
 import abc
 import tempfile
+import datetime
 from ocgis import env
 import shutil
 from copy import deepcopy, copy
@@ -243,6 +244,23 @@ class TestBase(unittest.TestCase):
         """
 
         return tempfile.mkdtemp(prefix=self._prefix_path_test)
+
+    def get_time_series(self, start, end):
+        """
+        :param start: The start date.
+        :type start: :class:`datetime.datetime`
+        :param end: The end date.
+        :type end: :class:`datetime.datetime`
+        :returns: A list of dates separated by a day.
+        :rtype: list of :class:`datetime.datetime`
+        """
+
+        delta = datetime.timedelta(days=1)
+        ret = []
+        while start <= end:
+            ret.append(start)
+            start += delta
+        return ret
 
     @staticmethod
     def get_tst_data():

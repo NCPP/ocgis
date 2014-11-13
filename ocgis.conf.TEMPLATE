@@ -1,28 +1,59 @@
 [fabric]
-hosts =
-key_filename =
-user =
+# host string
+hosts = 51.289.53.004
+# full path to ssh key file
+key_filename = ~/.ssh/keyfile.pem
+# remote username
+user = ubuntu
 
 [server]
-venv_name =
-dir_clone =
-dir_src =
-dir_data =
+# name of target virtual environment
+venv_name = ocgis
+# path to git clone directory
+dir_clone = /home/ubuntu/git
+# path prefix to source code directory
+dir_src = /home/ubuntu/src
+# path to mount point for data volume
+dir_data = /home/ubuntu/data
+# path prefix for software installation
+dir_install = /usr/local
+# absolute path to home directory
+dir_home = /home/ubuntu
+# number of processors to use for make command
 j = 2
 
 [git]
+# github clone url
 url = https://github.com/NCPP/ocgis.git
+# default branch for cloning
 branch = master
+# name of the github repository
 name = ocgis
 
-[aws]
-instance_name = 
-instance_id = 
-aws_access_key_id = 
-aws_secret_access_key = 
-key_name = 
-region = 
-image_id = 
-security_group = 
-instance_type = 
-ebs_mount_name =
+# see simple-aws configuration file for details
+[simple-aws]
+aws_access_key_id =
+aws_secret_access_key =
+key_name = keyfile
+region = us-west-2
+security_group = ocgis
+
+[aws-testing]
+# mount name of the ebs volume
+ebs_mount_name = /dev/xvdg
+# snapshot identifier for the test data volume
+ebs_snapshot = snap-ba020831
+# size of the volume in gigabytes
+ebs_volumesize = 100
+# the placement / availability zone of the ebs test volume
+ebs_placement = us-west-2a
+# path to where the log file is written on the remote server
+test_results_path = /tmp/nesii_test_results.log
+# name of the instance to create when testing
+test_instance_name = ocgis-nesii-test
+# size of the instance to create when testing
+test_instance_type = t2.medium
+# image identifier for the test instance
+test_image_id = ami-e7460ed7
+# destination email address for mailing results
+dest_email = foo@mail.com

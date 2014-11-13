@@ -1,10 +1,13 @@
 from ConfigParser import SafeConfigParser
+import datetime
 from fabric.contrib.project import rsync_project
 from fabric.state import env
 from fabric.decorators import task
-from fabric.operations import sudo, run, put
-from fabric.context_managers import cd
+from fabric.operations import sudo, run, put, get
+from fabric.context_managers import cd, shell_env, settings
 import os
+import time
+from fabric.tasks import Task
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 import packages
 
@@ -53,7 +56,15 @@ def ebs_mkfs():
 def ebs_mount():
     """Mount an EBS volume."""
 
-    cmd = ['mount', parser.get('aws', 'ebs_mount_name'), parser.get('server', 'dir_data')]
+    cmd = ['mount', parser.get('aws-testing', 'ebs_mount_name'), parser.get('server', 'dir_data')]
+    fcmd(sudo, cmd)
+
+
+@task
+def ebs_umount():
+    """Unmount an EBS volume."""
+
+    cmd = ['umount', parser.get('server', 'dir_data')]
     fcmd(sudo, cmd)
 
 
@@ -123,6 +134,112 @@ def run_tests(target='all', branch='next', failed='false'):
             raise NotImplementedError(failed)
 
         fcmd(run, cmd)
+
+
+class RunNesiiAwsTests(Task):
+    """
+    Run tests on remote server and return the path to a local log file of tests results.
+    """
+    name = 'run_nesii_aws_tests'
+
+    def run(self, path_local_log, branch='next', sched='true'):
+        """
+        :param str path_local_log: Path to the local log file copied from the remote server.
+        :param str branch: Target git branch to test.
+        :param str sched: If ``'false'``, run tests only once. Otherwise, run tests at 23:00 hours daily.
+        """
+
+        import schedule
+        from logbook import Logger
+
+        self.log = Logger('nesii-testing')
+
+        self.path_local_log = path_local_log
+        self.branch = branch
+
+        if sched == 'true':
+            self.log.info('begin continous loop')
+            schedule.every().day.at("6:00").do(self._run_tests_, should_email=True)
+            while True:
+                schedule.run_pending()
+                time.sleep(1)
+        else:
+            self.log.info('running tests once')
+            self._run_tests_(should_email=True)
+
+    def _run_tests_(self, should_email=False):
+        aws_src = os.getenv('OCGIS_SIMPLEAWS_SRC')
+        aws_conf = os.getenv('OCGIS_CONF_PATH')
+        aws_testing_section = 'aws-testing'
+
+        ebs_volumesize = int(parser.get(aws_testing_section, 'ebs_volumesize'))
+        ebs_snapshot = parser.get(aws_testing_section, 'ebs_snapshot')
+        ebs_mount_name = parser.get(aws_testing_section, 'ebs_mount_name')
+        ebs_placement = parser.get(aws_testing_section, 'ebs_placement')
+        test_results_path = parser.get(aws_testing_section, 'test_results_path')
+        test_instance_name = parser.get(aws_testing_section, 'test_instance_name')
+        test_instance_type = parser.get(aws_testing_section, 'test_instance_type')
+        test_image_id = parser.get(aws_testing_section, 'test_image_id')
+        dest_email = parser.get(aws_testing_section, 'dest_email')
+        dir_clone = parser.get('server', 'dir_clone')
+
+        import sys
+        sys.path.append(aws_src)
+        import aws
+
+        am = aws.AwsManager(aws_conf)
+
+        self.log.info('launching instance')
+        instance = am.launch_new_instance(test_instance_name, image_id=test_image_id, instance_type=test_instance_type,
+                                          placement=ebs_placement)
+
+        with settings(host_string=instance.ip_address, disable_known_hosts=True, connection_attempts=10):
+            try:
+                self.log.info('creating volume')
+                volume = am.conn.create_volume(ebs_volumesize, ebs_placement, snapshot=ebs_snapshot)
+                am.wait_for_status(volume, 'available')
+                try:
+                    self.log.info('attaching volume')
+                    am.conn.attach_volume(volume.id, instance.id, ebs_mount_name, dry_run=False)
+                    am.wait_for_status(volume, 'in-use')
+
+                    ebs_mount()
+
+                    path = os.path.join(dir_clone, parser.get('git', 'name'))
+                    test_target = os.path.join(path, 'src', 'ocgis', 'test')
+                    # test_target = os.path.join(path, 'src', 'ocgis', 'test', 'test_simple')
+                    nose_runner = os.path.join(path, 'fabfile', 'nose_runner.py')
+                    path_src = os.path.join(path, 'src')
+                    with cd(path):
+                        fcmd(run, ['git', 'pull'])
+                        fcmd(run, ['git', 'checkout', self.branch])
+                        fcmd(run, ['git', 'pull'])
+                    with cd(path_src):
+                        with shell_env(OCGIS_TEST_TARGET=test_target):
+                            fcmd(run, ['python', nose_runner])
+                            get(test_results_path, local_path=self.path_local_log)
+
+                    ebs_umount()
+
+                finally:
+                    self.log.info('detaching volume')
+                    volume.detach()
+                    am.wait_for_status(volume, 'available')
+                    self.log.info('deleting volume')
+                    volume.delete()
+            finally:
+                self.log.info('terminating instance')
+                instance.terminate()
+        with open(self.path_local_log, 'r') as f:
+            content = f.read()
+
+        if should_email:
+            self.log.info('sending email')
+            am.send_email(dest_email, dest_email, 'OCGIS_AWS', content)
+
+        self.log.info('success')
+
+r = RunNesiiAwsTests()
 
 
 @task

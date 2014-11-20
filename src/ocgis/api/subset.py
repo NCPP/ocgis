@@ -252,8 +252,7 @@ class SubsetOperation(object):
         coll = SpatialCollection(crs=collection_crs, headers=headers, value_keys=value_keys)
         return coll
 
-    @staticmethod
-    def _get_update_rotated_pole_state_(field, subset_sdim):
+    def _get_update_rotated_pole_state_(self, field, subset_sdim):
         """
         Rotated pole coordinate systems are handled internally by transforming the CRS to a geographic coordinate
         system.
@@ -271,7 +270,7 @@ class SubsetOperation(object):
         original_rotated_pole_crs = None
         if isinstance(field.spatial.crs, CFRotatedPole):
             # only transform if there is a subset geometry
-            if subset_sdim is not None:
+            if subset_sdim is not None or self.ops.aggregate or self.ops.spatial_operation == 'clip':
                 # update the CRS. copy the original CRS for possible later transformation back to rotated pole.
                 original_rotated_pole_crs = copy(field.spatial.crs)
                 field.spatial.update_crs(CFWGS84())
@@ -611,16 +610,15 @@ class SubsetOperation(object):
                     except ValueError:
                         # attempt without buffering the subset geometry for the target field.
                         sfield.spatial = original_sfield_sdim
-                        sfield = self._get_regridded_field_with_subset_(
-                            sfield,
-                            subset_sdim_for_regridding=subset_sdim_for_regridding,
-                            with_buffer=False)
+                        sfield = self._get_regridded_field_with_subset_(sfield,
+                                                                        subset_sdim_for_regridding=subset_sdim_for_regridding,
+                                                                        with_buffer=False)
 
-                ## if empty returns are allowed, there be an empty field
+                # if empty returns are allowed, there be an empty field
                 if sfield is not None:
                     ## aggregate if requested
                     if self.ops.aggregate:
-                        ocgis_lh('executing spatial average',self._subset_log,alias=alias,ugid=subset_ugid)
+                        ocgis_lh('executing spatial average', self._subset_log, alias=alias, ugid=subset_ugid)
                         sfield = sfield.get_spatially_aggregated(new_spatial_uid=subset_ugid)
 
                     # wrap the returned data.
@@ -639,7 +637,7 @@ class SubsetOperation(object):
                     if env.OPTIMIZE_FOR_CALC is False and self.ops.file_only is False:
                         self._check_masking_(alias, sfield, subset_ugid)
 
-                    ## transform back to rotated pole if necessary
+                    # transform back to rotated pole if necessary
                     if original_rotated_pole_crs is not None:
                         if not isinstance(self.ops.output_crs, CFWGS84):
                             sfield.spatial.update_crs(original_rotated_pole_crs)

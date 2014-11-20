@@ -341,132 +341,130 @@ class OcgOperations(object):
                     raise(DefinitionValidationError(Dataset, msg))
 
     def _validate_(self):
-        ocgis_lh(logger='operations',msg='validating operations')
-        
-        def _raise_(msg,obj=OutputFormat):
-            e = DefinitionValidationError(obj,msg)
-            ocgis_lh(exc=e,logger='operations')
+        ocgis_lh(logger='operations', msg='validating operations')
+
+        def _raise_(msg, obj=OutputFormat):
+            e = DefinitionValidationError(obj, msg)
+            ocgis_lh(exc=e, logger='operations')
 
         # no regridding with a spatial operation of clip
         if self.regrid_destination is not None:
             if self.spatial_operation == 'clip':
                 msg = 'Regridding not allowed with spatial "clip" operation.'
                 raise DefinitionValidationError(SpatialOperation, msg)
-            
-        ## there are a bunch of constraints on the netCDF format
+
+        # there are a bunch of constraints on the netCDF format
         if self.output_format == 'nc':
-            ## we can only write one requestdataset to netCDF
+            # we can only write one requestdataset to netCDF
             if len(self.dataset) > 1 and self.calc is None:
                 msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
                        'There are currently {dcount} RequestDatasets. Note, this is different than a '
                        'multifile dataset.'.format(dcount=len(self.dataset)))
-                _raise_(msg,OutputFormat)
-            ## we can write multivariate functions to netCDF however
+                _raise_(msg, OutputFormat)
+            # we can write multivariate functions to netCDF however
             else:
                 if self.calc is not None and len(self.dataset) > 1:
-                    ## count the occurrences of these classes in the calculation
-                    ## list.
-                    klasses_to_check = [AbstractMultivariateFunction,MultivariateEvalFunction]
+                    # count the occurrences of these classes in the calculation list.
+                    klasses_to_check = [AbstractMultivariateFunction, MultivariateEvalFunction]
                     multivariate_checks = []
                     for klass in klasses_to_check:
                         for calc in self.calc:
-                            multivariate_checks.append(issubclass(calc['ref'],klass))
+                            multivariate_checks.append(issubclass(calc['ref'], klass))
                     if sum(multivariate_checks) != 1:
                         msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
                                'There are currently {dcount} RequestDatasets. Note, this is different than a '
                                'multifile dataset.'.format(dcount=len(self.dataset)))
-                        _raise_(msg,OutputFormat)
+                        _raise_(msg, OutputFormat)
                     else:
-                        ## there is a multivariate calculation and this requires
-                        ## multiple request dataset
+                        # there is a multivariate calculation and this requires multiple request dataset
                         pass
-            ## clipped data which creates an arbitrary geometry may not be written
-            ## to netCDF
+
+            # clipped data which creates an arbitrary geometry may not be written to netCDF
             if self.spatial_operation != 'intersects':
                 msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
-                _raise_(msg,OutputFormat)
-            ## data may not be aggregated either
+                _raise_(msg, OutputFormat)
+            # data may not be aggregated either
             if self.aggregate:
                 msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
-                _raise_(msg,OutputFormat)
-            ## either the input data CRS or WGS84 is required for data output
-            if self.output_crs is not None and not isinstance(self.output_crs,CFWGS84):
+                _raise_(msg, OutputFormat)
+            # either the input data CRS or WGS84 is required for data output
+            if self.output_crs is not None and not isinstance(self.output_crs, CFWGS84):
                 msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
-                _raise_(msg,OutputFormat)
-            ## calculations on raw values are not relevant as not aggregation can
-            ## occur anyway.
+                _raise_(msg, OutputFormat)
+            # calculations on raw values are not relevant as not aggregation can occur anyway.
             if self.calc is not None:
                 if self.calc_raw:
                     msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
                     _raise_(msg)
-                ## no keyed output functions to netCDF
-                if OcgCalculationEngine._check_calculation_members_(self.calc,AbstractKeyedOutputFunction):
+                # no keyed output functions to netCDF
+                if OcgCalculationEngine._check_calculation_members_(self.calc, AbstractKeyedOutputFunction):
                     msg = 'Keyed function output may not be written to netCDF.'
                     _raise_(msg)
-            
-        ## collect projections for the dataset sets. None is returned if one
-        ## is not parsable. the WGS84 default is actually done in the RequestDataset
-        ## object.
+
+        # collect projections for the dataset sets. None is returned if one is not parsable. the WGS84 default is
+        # actually done in the RequestDataset object.
         projections = []
         for rd in self.dataset.itervalues():
             if not any([_ == rd.crs for _ in projections]):
                 projections.append(rd.crs)
-        ## if there is not output CRS and projections differ, raise an exception.
-        ## however, it is okay to have data with different projections in the
-        ## numpy output.
-        if len(projections) > 1 and self.output_format != 'numpy': #@UndefinedVariable
+
+        # if there is not output CRS and projections differ, raise an exception. however, it is okay to have data with
+        # different projections in the numpy output.
+        if len(projections) > 1 and self.output_format != 'numpy':  # @UndefinedVariable
             if self.output_crs is None:
-                _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',obj=OutputCRS)
-        ## clip and/or aggregation operations may not be written back to CFRotatedPole
-        ## at this time. hence, the output crs must be set to CFWGS84.
-        if CFRotatedPole in map(type,projections):
-            if self.output_crs is not None and not isinstance(self.output_crs,WGS84):
+                _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',
+                        obj=OutputCRS)
+
+        # clip and/or aggregation operations may not be written back to CFRotatedPole at this time. hence, the output
+        # crs must be set to CFWGS84.
+        if CFRotatedPole in map(type, projections):
+            if self.output_crs is not None and not isinstance(self.output_crs, WGS84):
                 msg = ('{0} data may only be written to the same coordinate system (i.e. "output_crs=None") '
-                       'or {1}.').format(CFRotatedPole.__name__,CFWGS84.__name__)
-                _raise_(msg,obj=OutputCRS)
+                       'or {1}.').format(CFRotatedPole.__name__, CFWGS84.__name__)
+                _raise_(msg, obj=OutputCRS)
             if self.aggregate or self.spatial_operation == 'clip':
-                msg = ('{0} data if clipped or spatially averaged must be written to '
-                       '{1}. The "output_crs" is being updated to {2}.').format(
-                       CFRotatedPole.__name__,CFWGS84.__name__,
-                       CFWGS84.__name__)
-                ocgis_lh(level=logging.WARN,msg=msg,logger='operations')
+                msg = (
+                '{0} data if clipped or spatially averaged must be written to ' '{1}. The "output_crs" is being updated to {2}.').format(
+                    CFRotatedPole.__name__, CFWGS84.__name__, CFWGS84.__name__)
+                ocgis_lh(level=logging.WARN, msg=msg, logger='operations')
                 self._get_object_('output_crs')._value = CFWGS84()
-        ## only WGS84 may be written to to GeoJSON
+
+        # only WGS84 may be written to to GeoJSON
         if self.output_format == 'geojson':
             if any([element != WGS84() for element in projections if element is not None]):
                 _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
             if self.output_crs is not None:
                 if self.output_crs != WGS84():
                     _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
-        
-        ## snippet only relevant for subsetting not operations with a calculation
-        ## or time region
+
+        # snippet only relevant for subsetting not operations with a calculation or time region
         if self.snippet:
             if self.calc is not None:
-                _raise_('Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',obj=Snippet)
+                _raise_(
+                    'Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',
+                    obj=Snippet)
             for rd in self.dataset.itervalues():
                 if rd.time_region is not None:
-                    _raise_('Snippets are not implemented for time regions.',obj=Snippet)
-        
-        ## no slicing with a geometry - can easily lead to extent errors
+                    _raise_('Snippets are not implemented for time regions.', obj=Snippet)
+
+        # no slicing with a geometry - can easily lead to extent errors
         if self.slice is not None:
-            assert(self.geom is None)
-        
-        ## file only operations only valid for netCDF and calculations.
+            assert (self.geom is None)
+
+        # file only operations only valid for netCDF and calculations.
         if self.file_only:
             if self.output_format != 'nc':
-                _raise_('Only netCDF may be written with file_only as True.',obj=FileOnly)
+                _raise_('Only netCDF may be written with file_only as True.', obj=FileOnly)
             if self.calc is None:
-                _raise_('File only outputs are only relevant for computations.',obj=FileOnly)
-        
-        ## validate any calculations against the operations object. if the calculation
-        ## is a string eval function do not validate.
+                _raise_('File only outputs are only relevant for computations.', obj=FileOnly)
+
+        # validate any calculations against the operations object. if the calculation is a string eval function do not
+        # validate.
         if self.calc is not None:
             if self._get_object_('calc')._is_eval_function:
                 if self.calc_grouping is not None:
                     msg = 'Calculation groups are not applicable for string function expressions.'
-                    _raise_(msg,obj=CalcGrouping)
+                    _raise_(msg, obj=CalcGrouping)
             else:
                 for c in self.calc:
                     c['ref'].validate(self)
-        

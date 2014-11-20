@@ -298,6 +298,21 @@ class TestCalc(TestBase):
             Calc(calc)
 
 
+class TestCalcGrouping(TestBase):
+
+    def test_init(self):
+        A = Aggregate
+
+        a = A(True)
+        self.assertEqual(a.value,True)
+
+        a = A(False)
+        self.assertEqual(a.value,False)
+
+        a = A('True')
+        self.assertEqual(a.value,True)
+
+
 class TestConformUnitsTo(TestBase):
     create_dir = False
 

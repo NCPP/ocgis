@@ -246,11 +246,11 @@ class AbstractFunction(object):
             fill_value = np.ma.array([], dtype=dtype).fill_value
 
         # the value parameters should come in as a dictionary with two keys
-        try:
+        if isinstance(value, dict):
             fill = value['fill']
             sample_size = value['sample_size']
         # some computations will just pass the array without the sample size if _get_temporal_agg_fill_ is bypassed.
-        except ValueError:
+        else:
             fill = value
             sample_size = None
 

@@ -5,6 +5,7 @@ import datetime
 
 from numpy import dtype
 import numpy as np
+from ocgis.util.inspect import Inspect
 
 from ocgis.api.parms.definition import RegridOptions
 from ocgis.interface.base.crs import CFWGS84
@@ -13,7 +14,7 @@ from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValid
 from ocgis.api.parms import definition
 from ocgis import env, constants
 from ocgis.api.operations import OcgOperations
-from ocgis.util.helpers import make_poly
+from ocgis.util.helpers import make_poly, write_geom_dict, bbox_poly
 import ocgis
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
@@ -394,6 +395,16 @@ class TestOcgOperations(TestBase):
         for v,a in zip(values,ast):
             obj = klass(v)
             self.assertEqual(obj.value,a)
+
+    def test_keyword_spatial_operations_bounding_box(self):
+        geom = [-80, 22.5, 50, 70.0]
+        rd = self.test_data.get_rd('subset_test_slp')
+        ops = OcgOperations(dataset=rd, geom=geom)
+        ret = ops.execute()
+        field = ret[1]['slp']
+        self.assertEqual(field.shape, (1, 365, 1, 18, 143))
+        slp = field.variables.first()
+        self.assertEqual(slp.value.mask.sum(), 611010)
 
     def test_keyword_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')

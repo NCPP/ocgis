@@ -46,7 +46,8 @@ prefix_icclim_function_key = 'icclim'
 enabled_numpy_ufuncs = ['exp','log','abs']
 
 #: The value for the 180th meridian to use when wrapping.
-meridian_180th = 179.9999999999999
+meridian_180th = 180.
+# meridian_180th = 179.9999999999999
 
 
 test_run_long_tests = False

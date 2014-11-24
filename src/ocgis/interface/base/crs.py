@@ -133,70 +133,95 @@ class WrappableCoordinateReferenceSystem(object):
         return ret
 
     @classmethod
-    def get_is_360(cls, spatial):
+    def get_wrapped_state(cls, sdim):
         """
-        :param spatial:
-        :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :param sdim: The spatial dimension used to determine the wrapped state. This function only checks grid centroids
+         and geometry exteriors. Bounds/corners on the grid are excluded.
+        :type sdim: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if not isinstance(spatial.crs, WrappableCoordinateReferenceSystem):
-            msg = 'Wrapped state may only be determined for geographic (i.e. spherical) coordinate systems.'
-            raise SpatialWrappingError(msg)
-
-        try:
-            if spatial.grid.col.bounds is None:
-                check = spatial.grid.col.value
-            else:
-                check = spatial.grid.col.bounds
-        except AttributeError as e:
-            # column dimension is likely missing
-            try:
-                if spatial.grid.col is None:
-                    if spatial.grid.corners is not None:
-                        check = spatial.grid.corners[1]
-                    else:
-                        check = spatial.grid.value[1, :, :]
-                else:
-                    ocgis_lh(exc=e)
-            except AttributeError:
-                # there may be no grid, access the geometries directly
-                if spatial.geom.polygon is not None:
-                    geoms_to_check = spatial.geom.polygon.value
-                else:
-                    geoms_to_check = spatial.geom.point.value
-                geoms_to_check = geoms_to_check.compressed()
-
-                # if this is switched to true, there are geometries with coordinate values less than 0
-                for geom in geoms_to_check:
-                    if type(geom) in [MultiPolygon, MultiPoint]:
-                        it = geom
-                    else:
-                        it = [geom]
-                    for sub_geom in it:
-                        try:
-                            coords = np.array(sub_geom.exterior.coords)
-                            if np.any(coords > 180.):
-                                return True
-                        ## might be checking a point
-                        except AttributeError:
-                            coords = np.array(sub_geom)
-                            if np.any(coords > 180.):
-                                return True
-                return False
-
-        if np.any(check > 180.):
-            ret = True
+        if sdim.grid is not None:
+            ret = cls._get_wrapped_state_from_array_(sdim.grid.value[1].data)
         else:
-            ret = False
-
+            stops = (cls._flag_wrapped, cls._flag_unwrapped)
+            ret = cls._flag_unknown
+            if sdim.geom.polygon is not None:
+                geoms = sdim.geom.polygon.value.data.flat
+            else:
+                geoms = sdim.geom.point.value.data.flat
+            for geom in geoms:
+                flag = cls._get_wrapped_state_from_geometry_(geom)
+                if flag in stops:
+                    ret = flag
+                    break
         return ret
+
+    #todo: remove commented code
+    # @classmethod
+    # def get_is_360(cls, spatial):
+    #     """
+    #     :param spatial:
+    #     :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+    #     """
+    #
+    #     if not isinstance(spatial.crs, WrappableCoordinateReferenceSystem):
+    #         msg = 'Wrapped state may only be determined for geographic (i.e. spherical) coordinate systems.'
+    #         raise SpatialWrappingError(msg)
+    #
+    #     try:
+    #         # if spatial.grid.col.bounds is None:
+    #         check = spatial.grid.col.value
+    #         # else:
+    #         #     check = spatial.grid.col.bounds
+    #     except AttributeError as e:
+    #         # column dimension is likely missing
+    #         try:
+    #             if spatial.grid.col is None:
+    #                 # if spatial.grid.corners is not None:
+    #                 #     check = spatial.grid.corners[1]
+    #                 # else:
+    #                 check = spatial.grid.value[1, :, :]
+    #             else:
+    #                 ocgis_lh(exc=e)
+    #         except AttributeError:
+    #             # there may be no grid, access the geometries directly
+    #             if spatial.geom.polygon is not None:
+    #                 geoms_to_check = spatial.geom.polygon.value
+    #             else:
+    #                 geoms_to_check = spatial.geom.point.value
+    #             geoms_to_check = geoms_to_check.compressed()
+    #
+    #             # if this is switched to true, there are geometries with coordinate values less than 0
+    #             for geom in geoms_to_check:
+    #                 if type(geom) in [MultiPolygon, MultiPoint]:
+    #                     it = geom
+    #                 else:
+    #                     it = [geom]
+    #                 for sub_geom in it:
+    #                     try:
+    #                         coords = np.array(sub_geom.exterior.coords)
+    #                         if np.all(coords[:, 0] >= 0.):
+    #                             return True
+    #                     ## might be checking a point
+    #                     except AttributeError:
+    #                         coords = np.array(sub_geom)
+    #                         if np.all(coords[0] >= 0.):
+    #                             return True
+    #             return False
+    #
+    #     if np.all(check >= 0.):
+    #         ret = True
+    #     else:
+    #         ret = False
+    #
+    #     return ret
 
     def unwrap(self, spatial):
         """
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if not self.get_is_360(spatial):
+        if self.get_wrapped_state(spatial) == self._flag_wrapped:
             # unwrap the geometries
             unwrap = Wrapper().unwrap
             to_wrap = self._get_to_wrap_(spatial)
@@ -224,7 +249,7 @@ class WrappableCoordinateReferenceSystem(object):
                     spatial.grid.corners[1][select] += 360
 
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data already has a 0 to 360 coordinate system.'))
+            ocgis_lh(exc=SpatialWrappingError('Data does not need to be unwrapped.'))
 
     def wrap(self,spatial):
         """
@@ -235,7 +260,7 @@ class WrappableCoordinateReferenceSystem(object):
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if self.get_is_360(spatial):
+        if self.get_wrapped_state(spatial) == self._flag_unwrapped:
             # wrap the geometries if they are available
             wrap = Wrapper().wrap
             to_wrap = self._get_to_wrap_(spatial)
@@ -291,7 +316,7 @@ class WrappableCoordinateReferenceSystem(object):
                             select = ref[1] > 180
                             ref[1][select] -= 360
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data does not have a 0 to 360 coordinate system.'))
+            ocgis_lh(exc=SpatialWrappingError('Data does not need to be wrapped.'))
 
     @staticmethod
     def _get_to_wrap_(spatial):

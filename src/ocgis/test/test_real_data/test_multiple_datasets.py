@@ -82,6 +82,10 @@ class Test(TestBase):
     
     def test_aggregate_clip(self):
         kwds = {'aggregate':True,'spatial_operation':'clip'}
+        ops = self.get_ops(kwds=kwds)
+        # for k, v in ops.dataset.iteritems():
+        #     v.get()[0, 0, 0, :, :].spatial.write_fiona('/tmp/{0}.shp'.format(k))
+        # import ipdb;ipdb.set_trace()
         ref = self.get_ref(kwds)
         for field in ref.values():
             for variable in field.variables.values():

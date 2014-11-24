@@ -296,6 +296,7 @@ class TestBase(unittest.TestCase):
         test_data.update(['nc', 'misc', 'subset_test'], 'Prcp', 'sresa2.ncar_pcm1.3.monthly.Prcp.RAW.1950-2099.nc', key='subset_test_Prcp')
         test_data.update(['nc', 'misc', 'subset_test'], 'Tavg', 'Tavg_bccr_bcm2_0.1.sresa2.nc', key='subset_test_Tavg')
         test_data.update(['nc', 'misc', 'subset_test'], 'Tavg', 'sresa2.bccr_bcm2_0.1.monthly.Tavg.RAW.1950-2099.nc', key='subset_test_Tavg_sresa2')
+        test_data.update(['nc', 'misc', 'subset_test'], 'slp', 'slp.1955.nc', key='subset_test_slp')
         test_data.update(['nc', 'narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_crcm')
         test_data.update(['nc', 'narccap'], 'pr', 'pr_CRCM_ccsm_1981010103.nc', key='narccap_polar_stereographic')
         test_data.update(['nc', 'narccap'], 'pr', 'pr_HRM3_gfdl_1981010103.nc', key='narccap_hrm3')

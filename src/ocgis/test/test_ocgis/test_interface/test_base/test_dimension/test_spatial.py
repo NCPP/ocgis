@@ -8,14 +8,15 @@ from ocgis.interface.base.dimension.spatial import SpatialDimension,\
     SpatialGeometryDimension, SpatialGeometryPolygonDimension,\
     SpatialGridDimension, SpatialGeometryPointDimension, SingleElementRetriever
 from ocgis.util.helpers import iter_array, make_poly, get_bounds_from_1d,\
-    get_date_list, write_geom_dict
+    get_date_list, write_geom_dict, bbox_poly
 import fiona
 from fiona.crs import from_epsg
 from shapely.geometry import shape, mapping, Polygon
 from shapely.geometry.point import Point
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound
 from ocgis.test.base import TestBase
-from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole
+from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole, \
+    WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 import datetime
 from importlib import import_module
@@ -396,30 +397,6 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
                         continue
                     else:
                         raise
-
-    def test_is_unwrapped(self):
-        """Test if a dataset's longitudinal domain extends from 0 to 360 or -180 to 180."""
-
-        # the state boundaries file is not unwrapped
-        sdim = self.get_spatial_dimension_from_records()
-        self.assertFalse(sdim.is_unwrapped)
-
-        # choose a record and unwrap it
-        idx = sdim.properties['STATE_NAME'] == 'Nebraska'
-        sub = sdim[:, idx]
-        wrapper = Wrapper()
-        unwrapped = wrapper.unwrap(sub.abstraction_geometry.value[0, 0])
-        sub.abstraction_geometry.value[0, 0] = unwrapped
-        self.assertTrue(sub.is_unwrapped)
-
-    def test_is_unwrapped_wrong_crs(self):
-        """Test exception is appropriately raised with the wrong CRS."""
-
-        sdim = self.get_spatial_dimension_from_records()
-        sdim.crs = CoordinateReferenceSystem(epsg=2346)
-        self.assertFalse(sdim.is_unwrapped)
-        sdim.crs = None
-        self.assertFalse(sdim.is_unwrapped)
 
     def test_overloaded_crs(self):
         """Test CFWGS84 coordinate system is always used if the input CRS is equivalent."""
@@ -992,7 +969,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         with self.assertRaises(SpatialWrappingError):
             sdim.unwrap()
         sdim.crs = WGS84()
-        self.assertFalse(sdim.is_unwrapped)
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
         sdim.unwrap()
 
         assertUnwrapped(sdim.grid.value)
@@ -1010,13 +987,13 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         self.assertNumpyAll(np.array(sdim.geom.polygon.value[2, 2].bounds), np.array(bounds_from_corner))
         self.assertEqual(sdim.geom.polygon.value[2, 2].bounds, (261.5, 37.5, 262.5, 38.5))
         self.assertNumpyAll(np.array(sdim.geom.point.value[2, 2]), np.array([ 262.,   38.]))
-        self.assertTrue(sdim.is_unwrapped)
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
 
     def test_wrap(self):
         """Test wrapping a SpatialDimension"""
 
         def assertWrapped(arr):
-            select = arr > 180
+            select = arr >= constants.meridian_180th
             self.assertFalse(select.any())
 
         sdim = self.get_sdim(crs=WGS84())
@@ -1050,6 +1027,13 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         for method in ['wrap', 'unwrap']:
             with self.assertRaises(SpatialWrappingError):
                 getattr(sdim, method)()
+
+    def test_wrapped_state(self):
+        sdim = self.get_sdim()
+        self.assertIsNone(sdim.wrapped_state)
+
+        sdim = self.get_sdim(crs=CFWGS84())
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
 
 
 class TestSpatialGeometryDimension(TestBase):

@@ -6,7 +6,7 @@ import numpy as np
 from ocgis import CoordinateReferenceSystem, RequestDataset
 import ocgis
 from ocgis.exc import EmptySubsetError
-from ocgis.interface.base.crs import CFWGS84, CFRotatedPole
+from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
@@ -18,11 +18,11 @@ from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis import constants, env
 
 
-class TestSpatialSubset(TestBase):
+class TestSpatialSubsetOperation(TestBase):
 
     def __init__(self, *args, **kwargs):
         self._target = None
-        super(TestSpatialSubset, self).__init__(*args, **kwargs)
+        super(TestSpatialSubsetOperation, self).__init__(*args, **kwargs)
 
     def __iter__(self):
         keywords = dict(target=self.target,
@@ -262,16 +262,16 @@ class TestSpatialSubset(TestBase):
 
         subset_sdim = SpatialDimension.from_records([self.nebraska])
         rd = self.test_data.get_rd('cancm4_tas')
-        self.assertTrue(rd.get().spatial.is_unwrapped)
+        self.assertEqual(rd.get().spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
         ss = SpatialSubsetOperation(rd, wrap=True)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
-        self.assertFalse(ret.spatial.is_unwrapped)
+        self.assertEqual(ret.spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
         self.assertAlmostEqual(ret.spatial.grid.value.data[1].mean(), -99.84375)
 
         # test with wrap false
         ss = SpatialSubsetOperation(rd, wrap=False)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
-        self.assertTrue(ret.spatial.is_unwrapped)
+        self.assertEqual(ret.spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
         self.assertAlmostEqual(ret.spatial.grid.value.data[1].mean(), 260.15625)
 
     def test_prepare_target(self):
@@ -306,7 +306,7 @@ class TestSpatialSubset(TestBase):
         field = self.test_data.get_rd('cancm4_tas').get()
         ss = SpatialSubsetOperation(field)
         prepared = ss._prepare_subset_sdim_(nebraska)
-        self.assertTrue(prepared.is_unwrapped)
+        self.assertEqual(prepared.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
 
     def test_sdim(self):
         for ss, k in self:

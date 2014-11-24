@@ -140,17 +140,18 @@ class SpatialDimension(base.AbstractUidDimension):
             assert(isinstance(value, SpatialGridDimension))
         self._grid = value
 
-    @property
-    def is_unwrapped(self):
-        """
-        Return ``True`` if the coordinates of the spatial data have a 0 to 360 longitudinal domain."""
-
-        try:
-            ret = self.crs.get_is_360(self)
-        # None and coordinate systems w/out spherical coordinate systems have no wrapping checks
-        except AttributeError:
-            ret = False
-        return ret
+    #todo: remove commented code
+    # @property
+    # def is_unwrapped(self):
+    #     """
+    #     Return ``True`` if the coordinates of the spatial data have a 0 to 360 longitudinal domain."""
+    #
+    #     try:
+    #         ret = self.crs.get_is_360(self)
+    #     # None and coordinate systems w/out spherical coordinate systems have no wrapping checks
+    #     except AttributeError:
+    #         ret = False
+    #     return ret
 
     @property
     def shape(self):
@@ -173,6 +174,14 @@ class SpatialDimension(base.AbstractUidDimension):
                 ret = self.geom.point.weights
             else:
                 ret = self.geom.polygon.weights
+        return ret
+
+    @property
+    def wrapped_state(self):
+        try:
+            ret = self.crs.get_wrapped_state(self)
+        except AttributeError:
+            ret = None
         return ret
 
     def assert_uniform_mask(self):
@@ -505,7 +514,9 @@ class SpatialDimension(base.AbstractUidDimension):
                     # update grid values
                     value_row = self.grid.value.data[0].reshape(-1)
                     value_col = self.grid.value.data[1].reshape(-1)
-                    self._update_crs_with_geometry_collection_(to_sr, value_row, value_col)# update corners
+                    self._update_crs_with_geometry_collection_(to_sr, value_row, value_col)
+                    self.grid.value.data[0] = value_row.reshape(*self.grid.shape)
+                    self.grid.value.data[1] = value_col.reshape(*self.grid.shape)
 
                     if self.grid.corners is not None:
                         # update the corners

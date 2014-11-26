@@ -750,6 +750,8 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(ops)
         
         self.assertNcEqual(rd['uri'], ret, ignore_attributes={'global': ['history']})
+        with nc_scope(ret) as ds:
+            self.assertEqual(ds.file_format, constants.netCDF_default_data_model)
         
     def test_nc_conversion_calc(self):
         calc_grouping = ['month']

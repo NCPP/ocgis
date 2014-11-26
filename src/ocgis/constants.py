@@ -4,7 +4,7 @@ import numpy as np
 ocgis_bounds = 'bounds'
 
 #: Default netCDF4 output file type
-netCDF_default_data_model = 'NETCDF4_CLASSIC'
+netCDF_default_data_model = 'NETCDF4'
 
 #: Standard headers for subset operations.
 raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','year','month','day','level','value']

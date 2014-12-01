@@ -370,6 +370,18 @@ class TestDriverNetcdf(TestBase):
         field = rd.get()
         self.assertNotEqual(field.temporal.bounds,None)
 
+    def test_open(self):
+        # test a multifile dataset where the variable does not appear in all datasets
+        uri1 = self.test_data.get_uri('cancm4_tas')
+        uri2 = self.test_data.get_uri('cancm4_tasmax_2001')
+        uri = [uri1, uri2]
+        rd = RequestDataset(uri=uri, variable='tas')
+        driver = DriverNetcdf(rd)
+        with self.assertRaises(KeyError):
+            driver.open()
+        with self.assertRaises(KeyError):
+            rd.source_metadata
+
 
 class Test(TestBase):
 

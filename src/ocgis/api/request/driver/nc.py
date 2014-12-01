@@ -15,7 +15,7 @@ from ocgis.interface.metadata import NcMetadata
 from ocgis.interface.nc.dimension import NcVectorDimension
 from ocgis.interface.nc.field import NcField
 from ocgis.interface.nc.temporal import NcTemporalDimension
-from ocgis.util.helpers import assert_raise, itersubclasses
+from ocgis.util.helpers import assert_raise, itersubclasses, get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -243,7 +243,25 @@ class DriverNetcdf(AbstractDriver):
         try:
             ret = nc.Dataset(self.rd.uri, 'r')
         except TypeError:
-            ret = nc.MFDataset(self.rd.uri)
+            try:
+                ret = nc.MFDataset(self.rd.uri)
+            except KeyError as e:
+                # it is possible the variable is not in one of the data URIs. check for this to raise a cleaner error.
+                for uri in get_iter(self.rd.uri):
+                    ds = nc.Dataset(uri, 'r')
+                    try:
+                        for variable in get_iter(self.rd.variable):
+                            try:
+                                ds.variables[variable]
+                            except KeyError:
+                                msg = 'The variable "{0}" was not found in URI "{1}".'.format(variable, uri)
+                                raise KeyError(msg)
+                    finally:
+                        ds.close()
+
+                # if all variables were found, raise the other error
+                raise e
+
         return ret
 
 

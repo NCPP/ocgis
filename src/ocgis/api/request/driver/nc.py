@@ -1,6 +1,7 @@
 from copy import deepcopy
 import logging
 import netCDF4 as nc
+from warnings import warn
 
 import numpy as np
 
@@ -325,10 +326,13 @@ def get_dimension_map(variable, metadata):
             ocgis_lh(msg, logger='nc.driver', level=logging.WARNING, check_duplicate=True)
             bounds_var = None
 
-        try:
-            assert(isinstance(bounds_var, basestring))
-        except AssertionError:
-            assert(bounds_var is None)
+        # bounds variables sometime appear oddly, if it is not none and not a string, display what the value is, raise a
+        # warning and continue setting the bounds variable to None.
+        if not isinstance(bounds_var, basestring):
+            if bounds_var is not None:
+                msg = 'Bounds variable is not a string and is not None. The value is "{0}". Setting bounds to None.'.format(bounds_var)
+                warn(msg)
+                bounds_var = None
 
         value.update({'bounds': bounds_var})
 

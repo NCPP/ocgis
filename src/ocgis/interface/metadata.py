@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
+from warnings import warn
 import numpy as np
 
 
@@ -100,6 +101,12 @@ class NcMetadata(AbstractMetadata):
         lines.append('// global attributes:')
         template = '    :{0} = {1} ;'
         for key, value in self['dataset'].iteritems():
-            lines.append(template.format(key, value))
+            try:
+                lines.append(template.format(key, value))
+            except UnicodeEncodeError:
+                # for a unicode string, if "\u" is in the string and an inappropriate unicode character is used, then
+                # template formatting will break.
+                msg = 'Unable to encode attribute "{0}". Skipping printing of attribute value.'.format(key)
+                warn(msg)
 
         return lines

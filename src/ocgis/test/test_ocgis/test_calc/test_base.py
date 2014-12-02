@@ -1,7 +1,8 @@
+from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.base import AbstractUnivariateFunction,\
-    AbstractUnivariateSetFunction, AbstractFunction
-from ocgis import constants
+    AbstractUnivariateSetFunction, AbstractFunction, AbstractMultivariateFunction
+from ocgis import constants, OcgOperations
 from cfunits.cfunits import Units
 from ocgis.exc import UnitsValidationError
 import numpy as np
@@ -61,6 +62,25 @@ class TestAbstractFunction(AbstractTestField):
                 else:
                     self.assertDictEqual(meta_attrs, {'something_new': 'is about to happen'})
 
+
+class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):
+    description = ''
+    dtype = int
+    key = 'fmv'
+    long_name = 'long'
+    standard_name = 'short'
+    required_variables = ['tas', 'pr']
+
+    def calculate(self, *args, **kwargs):
+        pass
+
+
+class TestAbstractMultivariateFunction(TestBase):
+
+    def test_init(self):
+        self.assertEqual(AbstractMultivariateFunction.__bases__, (AbstractFunction,))
+
+        FakeAbstractMultivariateFunction()
 
             
 class TestAbstractUnivariateFunction(AbstractTestField):

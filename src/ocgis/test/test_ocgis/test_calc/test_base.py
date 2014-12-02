@@ -1,10 +1,11 @@
+from copy import deepcopy
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.base import AbstractUnivariateFunction,\
     AbstractUnivariateSetFunction, AbstractFunction, AbstractMultivariateFunction
-from ocgis import constants, OcgOperations
+from ocgis import constants, OcgOperations, FunctionRegistry
 from cfunits.cfunits import Units
-from ocgis.exc import UnitsValidationError
+from ocgis.exc import UnitsValidationError, DefinitionValidationError
 import numpy as np
 
 
@@ -82,7 +83,28 @@ class TestAbstractMultivariateFunction(TestBase):
 
         FakeAbstractMultivariateFunction()
 
-            
+    def test_validate(self):
+        FunctionRegistry.append(FakeAbstractMultivariateFunction)
+        rd1 = self.test_data.get_rd('cancm4_tas')
+        rd1.alias = 'tas2'
+        rd2 = deepcopy(rd1)
+        rd2.alias = 'pr2'
+
+        # test non-string keyword arguments will not raise an exception
+        calc = [{'func': 'fmv', 'name': 'fmv', 'kwds': {'tas': 'tas2', 'pr': 'pr2', 'random': {}}}]
+        OcgOperations(dataset=[rd1, rd2], calc=calc)
+
+        # test with an alias map missing
+        calc = [{'func': 'fmv', 'name': 'fmv', 'kwds': {'pr': 'pr2', 'random': {}}}]
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=[rd1, rd2], calc=calc)
+
+        # test with the wrong alias mapped
+        calc = [{'func': 'fmv', 'name': 'fmv', 'kwds': {'tas': 'tas2', 'pr': 'pr3', 'random': {}}}]
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=[rd1, rd2], calc=calc)
+
+
 class TestAbstractUnivariateFunction(AbstractTestField):
     
     def test_validate_units(self):

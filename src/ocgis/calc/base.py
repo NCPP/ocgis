@@ -638,15 +638,23 @@ class AbstractMultivariateFunction(AbstractFunction):
                                             'Multivariate functions do not calculate sample size at this time.')
             ocgis_lh(exc=exc, logger='calc.base')
 
-        # ensure the required variables are presents
-        aliases = [d.alias for d in ops.dataset.itervalues()]
+        # ensure the required variables are present
         should_raise = False
         for c in ops.calc:
             if c['func'] == cls.key:
-                if not len(set(c['kwds'].keys()).intersection(set(cls.required_variables))) >= 2:
+                kwds = c['kwds']
+
+                # check the required variables are keyword arguments
+                if not len(set(kwds.keys()).intersection(set(cls.required_variables))) >= 2:
                     should_raise = True
-                if not len(set(c['kwds'].values()).intersection(set(aliases))) >= 2:
-                    should_raise = True
+                    break
+
+                # ensure the mapped aliases exist
+                for xx in cls.required_variables:
+                    to_check = kwds[xx]
+                    if to_check not in ops.dataset:
+                        should_raise = True
+
                 break
         if should_raise:
             from ocgis.api.parms.definition import Calc

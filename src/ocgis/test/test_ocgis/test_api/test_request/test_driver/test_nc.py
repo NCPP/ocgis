@@ -1,3 +1,5 @@
+from ocgis.interface.nc.spatial import NcSpatialGridDimension
+from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis import constants
 from copy import deepcopy
 import os
@@ -7,7 +9,7 @@ import unittest
 from ocgis import RequestDataset
 from ocgis.api.request.driver.nc import DriverNetcdf, get_dimension_map
 from ocgis.interface.metadata import NcMetadata
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, nc_scope
 import netCDF4 as nc
 from ocgis.interface.base.crs import WGS84, CFWGS84, CFLambertConformal
 import numpy as np
@@ -20,7 +22,6 @@ from ocgis.exc import EmptySubsetError, DimensionNotFound
 import datetime
 from unittest.case import SkipTest
 import ocgis
-from ocgis.test.test_simple.test_simple import nc_scope
 from importlib import import_module
 from collections import OrderedDict
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -81,21 +82,34 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(rd.variable, ('tas', 'tasmax'))
         self.assertEqual(rd.variable, rd.alias)
 
-    def test_load_dtype_on_dimensions(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        field = rd.get()
-        with nc_scope(rd.uri) as ds:
-            test_dtype_temporal = ds.variables['time'].dtype
-            test_dtype_value = ds.variables['tas'].dtype
-        self.assertEqual(field.temporal.dtype,test_dtype_temporal)
-        self.assertEqual(field.variables['tas'].dtype,test_dtype_value)
-        self.assertEqual(field.temporal.dtype,np.float64)
-
-    def test_load(self):
+    def test_get_field(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri)
         field = rd.get()
+
+        self.assertIsInstance(field.spatial.grid, NcSpatialGridDimension)
+
+        # test names are correctly set when creating the field
+        self.assertEqual(field.temporal.name, 'time')
+        self.assertEqual(field.temporal.name_value, 'time')
+        self.assertEqual(field.temporal.name_bounds, 'time_bnds')
+        row = field.spatial.grid.row
+        self.assertEqual(row.name, 'lat')
+        self.assertEqual(row.name_value, 'lat')
+        self.assertEqual(row.name_bounds, 'lat_bnds')
+        col = field.spatial.grid.col
+        self.assertEqual(col.name, 'lon')
+        self.assertEqual(col.name_value, 'lon')
+        self.assertEqual(col.name_bounds, 'lon_bnds')
+
+        # test attributes are loaded
+        self.assertEqual(len(field.attrs), 31)
+        self.assertEqual(len(field.variables['tas'].attrs), 10)
+        self.assertEqual(len(field.temporal.attrs), 6)
+        self.assertEqual(len(field.spatial.grid.row.attrs), 5)
+        self.assertEqual(len(field.spatial.grid.col.attrs), 5)
+
         ds = nc.Dataset(uri,'r')
 
         self.assertEqual(field.level,None)
@@ -118,14 +132,50 @@ class TestDriverNetcdf(TestBase):
 
         ds.close()
 
-    def test_multifile_load(self):
-        uri = self.test_data.get_uri('narccap_pr_wrfg_ncep')
-        rd = RequestDataset(uri,'pr')
-        field = rd.get()
-        self.assertEqual(field.temporal.extent_datetime,(datetime.datetime(1981, 1, 1, 0, 0), datetime.datetime(1991, 1, 1, 0, 0)))
-        self.assertAlmostEqual(field.temporal.resolution,0.125)
+    def test_get_field_different_dimension_names_and_values(self):
+        """Test dimension names and dimension values are correctly read from netCDF."""
 
-    def test_load_dtype_fill_value(self):
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            ds.createDimension('lat', 1)
+            ds.createDimension('lon', 1)
+            ds.createDimension('tme', 1)
+            ds.createDimension('the_bounds', 2)
+            latitude = ds.createVariable('latitude', int, dimensions=('lat',))
+            longitude = ds.createVariable('longitude', int, dimensions=('lon',))
+            time = ds.createVariable('time', int, dimensions=('tme',))
+            time_bounds = ds.createVariable('long_live_the_bounds', int, dimensions=('tme', 'the_bounds'))
+            time.units = 'days since 0000-01-01'
+            time.bounds = 'long_live_the_bounds'
+            value = ds.createVariable('value', int, dimensions=('tme', 'lat', 'lon'))
+
+            latitude[:] = 5
+            longitude[:] = 6
+            time[:] = 6
+            value[:] = np.array([7]).reshape(1, 1, 1)
+
+        rd = RequestDataset(path)
+        driver = DriverNetcdf(rd)
+        field = driver._get_field_()
+        self.assertEqual(field.temporal.name, 'tme')
+        self.assertEqual(field.temporal.name_value, 'time')
+        self.assertEqual(field.spatial.grid.row.name, 'lat')
+        self.assertEqual(field.spatial.grid.row.name_value, 'latitude')
+        self.assertEqual(field.spatial.grid.col.name, 'lon')
+        self.assertEqual(field.spatial.grid.col.name_value, 'longitude')
+        self.assertEqual(field.temporal.name_bounds, 'long_live_the_bounds')
+
+    def test_get_field_dtype_on_dimensions(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        with nc_scope(rd.uri) as ds:
+            test_dtype_temporal = ds.variables['time'].dtype
+            test_dtype_value = ds.variables['tas'].dtype
+        self.assertEqual(field.temporal.dtype,test_dtype_temporal)
+        self.assertEqual(field.variables['tas'].dtype,test_dtype_value)
+        self.assertEqual(field.temporal.dtype,np.float64)
+
+    def test_get_field_dtype_fill_value(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         ## dtype and fill_value should be read from metadata. when accessed they
@@ -134,7 +184,7 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(field.variables['tas'].fill_value,np.float32(1e20))
         self.assertEqual(field.variables['tas']._value,None)
 
-    def test_load_datetime_slicing(self):
+    def test_get_field_datetime_slicing(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri)
@@ -147,7 +197,7 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(slced.temporal.value_datetime,np.array([dt(2001,8,28,12)]))
         self.assertNumpyAll(slced.temporal.bounds_datetime,np.array([dt(2001,8,28),dt(2001,8,29)]).reshape(1, 2))
 
-    def test_load_value_datetime_after_slicing(self):
+    def test_get_field_value_datetime_after_slicing(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri)
@@ -155,7 +205,7 @@ class TestDriverNetcdf(TestBase):
         slced = field[:,10:130,:,4:7,100:37]
         self.assertEqual(slced.temporal.value_datetime.shape,(120,))
 
-    def test_load_bounds_datetime_after_slicing(self):
+    def test_get_field_bounds_datetime_after_slicing(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri)
@@ -163,7 +213,7 @@ class TestDriverNetcdf(TestBase):
         slced = field[:,10:130,:,4:7,100:37]
         self.assertEqual(slced.temporal.bounds_datetime.shape,(120,2))
 
-    def test_load_slice(self):
+    def test_get_field_slice(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri)
@@ -186,7 +236,7 @@ class TestDriverNetcdf(TestBase):
 
         ds.close()
 
-    def test_load_time_range(self):
+    def test_get_field_time_range(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(variable=ref_test['variable'],uri=uri,time_range=[dt(2005,2,15),dt(2007,4,18)])
@@ -195,7 +245,7 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(field.temporal.value_datetime[-1],dt(2007, 4, 18, 12, 0))
         self.assertEqual(field.shape,(1,793,1,64,128))
 
-    def test_load_time_region(self):
+    def test_get_field_time_region(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         ds = nc.Dataset(uri,'r')
@@ -217,7 +267,7 @@ class TestDriverNetcdf(TestBase):
 
         ds.close()
 
-    def test_load_time_region_with_years(self):
+    def test_get_field_time_region_with_years(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
         ds = nc.Dataset(uri,'r')
@@ -239,7 +289,7 @@ class TestDriverNetcdf(TestBase):
 
         ds.close()
 
-    def test_load_geometry_subset(self):
+    def test_get_field_geometry_subset(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
 
@@ -272,7 +322,7 @@ class TestDriverNetcdf(TestBase):
                 with self.assertRaises(ImportError):
                     import_module('rtree')
 
-    def test_load_time_region_slicing(self):
+    def test_get_field_time_region_slicing(self):
         ref_test = self.test_data['cancm4_tas']
         uri = self.test_data.get_uri('cancm4_tas')
 
@@ -293,7 +343,7 @@ class TestDriverNetcdf(TestBase):
         sub2 = field[:,:,:,0,1]
         self.assertEqual(sub2.shape,(1, 124, 1, 1, 1))
 
-    def test_load_remote(self):
+    def test_get_field_remote(self):
         raise(SkipTest("server IO errors"))
         uri = 'http://cida.usgs.gov/thredds/dodsC/maurer/maurer_brekke_w_meta.ncml'
         variable = 'sresa1b_bccr-bcm2-0_1_Tavg'
@@ -313,7 +363,7 @@ class TestDriverNetcdf(TestBase):
         finally:
             ds.close()
 
-    def test_load_with_projection(self):
+    def test_get_field_with_projection(self):
         uri = self.test_data.get_uri('narccap_wrfg')
         rd = RequestDataset(uri,'pr')
         field = rd.get()
@@ -328,7 +378,7 @@ class TestDriverNetcdf(TestBase):
         self.assertAlmostEqual(field.spatial.geom.point.value[0,100].x,278.52630062012787)
         self.assertAlmostEqual(field.spatial.geom.point.value[0,100].y,21.4615681252577)
 
-    def test_load_projection_axes(self):
+    def test_get_field_projection_axes(self):
         uri = self.test_data.get_uri('cmip3_extraction')
         variable = 'Tavg'
         rd = RequestDataset(uri,variable)
@@ -347,7 +397,7 @@ class TestDriverNetcdf(TestBase):
         self.assertNumpyAll(to_test[:],field.variables['Tavg'].value.squeeze())
         ds.close()
 
-    def test_load_projection_axes_slicing(self):
+    def test_get_field_projection_axes_slicing(self):
         uri = self.test_data.get_uri('cmip3_extraction')
         variable = 'Tavg'
         rd = RequestDataset(uri,variable,dimension_map={'R':'projection','T':'time','X':'longitude','Y':'latitude'})
@@ -360,7 +410,14 @@ class TestDriverNetcdf(TestBase):
         self.assertNumpyAll(to_test[15,:,:,:],sub.variables[variable].value.squeeze())
         ds.close()
 
-    def test_load_climatology_bounds(self):
+    def test_get_field_multifile_load(self):
+        uri = self.test_data.get_uri('narccap_pr_wrfg_ncep')
+        rd = RequestDataset(uri,'pr')
+        field = rd.get()
+        self.assertEqual(field.temporal.extent_datetime,(datetime.datetime(1981, 1, 1, 0, 0), datetime.datetime(1991, 1, 1, 0, 0)))
+        self.assertAlmostEqual(field.temporal.resolution,0.125)
+
+    def test_get_field_climatology_bounds(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd,output_format='nc',geom='state_boundaries',
                                   select_ugid=[27],calc=[{'func':'mean','name':'mean'}],
@@ -369,6 +426,87 @@ class TestDriverNetcdf(TestBase):
         rd = RequestDataset(uri=ret,variable='mean')
         field = rd.get()
         self.assertNotEqual(field.temporal.bounds,None)
+
+    def test_get_field_without_row_column_vectors(self):
+        """Test loading a field objects without row and column vectors."""
+
+        path = self.get_netcdf_path_no_row_column()
+
+        rd = RequestDataset(path)
+        driver = DriverNetcdf(rd)
+        new_field = driver.get_field()
+        self.assertIsNotNone(new_field.crs)
+        grid = new_field.spatial.grid
+        self.assertIsNone(grid.row)
+        self.assertIsNone(grid.col)
+        self.assertEqual(grid.name_row, 'yc')
+        self.assertEqual(grid.name_col, 'xc')
+        self.assertIsNone(grid._value)
+        actual = np.ma.array([[[4.0, 4.0], [5.0, 5.0]], [[40.0, 50.0], [40.0, 50.0]]])
+        self.assertNumpyAll(grid.value, actual)
+        var = new_field.variables.first()
+        self.assertEqual(var.shape, (1, 2, 1, 2, 2))
+        self.assertEqual(var.value.shape, (1, 2, 1, 2, 2))
+
+        new_field = driver.get_field()
+        grid = new_field.spatial.grid
+        self.assertEqual(grid.shape, (2, 2))
+        self.assertIsNone(grid._value)
+        sub = new_field[:, :, :, 0, 1]
+        sub_grid = sub.spatial.grid
+        self.assertIsInstance(sub_grid, NcSpatialGridDimension)
+        self.assertEqual(sub.shape, (1, 2, 1, 1, 1))
+        self.assertIsNone(sub_grid._value)
+        self.assertEqual(sub_grid.shape, (1, 1))
+        actual = np.ma.array([[[4.0]], [[50.0]]])
+        self.assertNumpyAll(actual, sub_grid.value)
+        sub_var = sub.variables.first()
+        self.assertEqual(sub_var.shape, (1, 2, 1, 1, 1))
+        self.assertEqual(sub_var.value.shape, (1, 2, 1, 1, 1))
+
+        path2 = os.path.join(self.current_dir_output, 'foo2.nc')
+        with self.nc_scope(path2, 'w') as ds:
+            new_field.write_to_netcdf_dataset(ds)
+        self.assertNcEqual(path, path2, ignore_attributes={'foo': ['grid_mapping']},
+                           ignore_variables=['latitude_longitude'])
+
+    def test_get_vector_dimension(self):
+        # test exception raised with no row and column
+        path = self.get_netcdf_path_no_row_column()
+        rd = RequestDataset(path)
+        driver = DriverNetcdf(rd)
+        k = 'row'
+        v = {'name_uid': 'yc_id', 'axis': 'Y', 'adds': {'interpolate_bounds': False}, 'name': 'yc', 'cls': VectorDimension}
+        source_metadata = rd.source_metadata
+        res = driver._get_vector_dimension_(k, v, source_metadata)
+        self.assertEqual(res['name'], 'yc')
+
+    def test_get_name_bounds_suffix(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        source_metadata = rd.source_metadata
+        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        self.assertEqual(res, 'bnds')
+
+        # remove any mention of bounds from the dimension map and try again
+        for value in source_metadata['dim_map'].itervalues():
+            try:
+                value['bounds'] = None
+            except TypeError:
+                # likely a nonetype
+                if value is not None:
+                    raise
+        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        self.assertIsNone(res)
+
+        # now remove the bounds key completely
+        for value in source_metadata['dim_map'].itervalues():
+            try:
+                value.pop('bounds')
+            except AttributeError:
+                if value is not None:
+                    raise
+        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        self.assertIsNone(res)
 
     def test_open(self):
         # test a multifile dataset where the variable does not appear in all datasets
@@ -422,7 +560,3 @@ class Test(TestBase):
             self.assertTrue('lat_bnds' in list(ocgis_lh.duplicates)[0])
         finally:
             ocgis_lh.shutdown()
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

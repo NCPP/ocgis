@@ -118,34 +118,36 @@ class Test(AbstractCalcBase):
         ret = ops.execute()
         threshold = ret[2762]['tasmax'].variables['threshold'].value
         self.assertEqual(threshold.flatten()[0],62)
-        
-    def test_computational_nc_output(self):
-        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
-        calc = [{'func':'mean','name':'tasmax_mean'}]
-        calc_grouping = ['month','year']
 
-        ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping,
+    def test_computational_nc_output(self):
+        """Test writing a computation to netCDF."""
+
+        rd = self.test_data.get_rd('cancm4_tasmax_2011', kwds={
+        'time_range': [datetime.datetime(2011, 1, 1), datetime.datetime(2011, 12, 31)]})
+        calc = [{'func': 'mean', 'name': 'tasmax_mean'}]
+        calc_grouping = ['month', 'year']
+
+        ops = ocgis.OcgOperations(rd, calc=calc, calc_grouping=calc_grouping,
                                   output_format='nc')
         ret = ops.execute()
-        ds = nc.Dataset(ret,'r')
-        ref = ds.variables['time']
-        self.assertEqual(ref.climatology,'climatology_bounds')
-        self.assertEqual(len(ref[:]),12)
-        ref = ds.variables['climatology_bounds']
-        self.assertEqual(ref[:].shape[0],12)
-        ds.close()
 
-        ops = ocgis.OcgOperations(dataset={'uri':ret,'variable':calc[0]['name']},
-                                  output_format='nc',prefix='subset_climatology')
+        with self.nc_scope(ret) as ds:
+            ref = ds.variables['time']
+            self.assertEqual(ref.climatology, 'climatology_bounds')
+            self.assertEqual(len(ref[:]), 12)
+            ref = ds.variables['climatology_bounds']
+            self.assertEqual(ref[:].shape[0], 12)
+
+        ops = ocgis.OcgOperations(dataset={'uri': ret, 'variable': calc[0]['name']},
+                                  output_format='nc', prefix='subset_climatology')
         ret = ops.execute()
-        
-        ds = nc.Dataset(ret,'r')
-        ref = ds.variables['time'][:]
-        self.assertEqual(len(ref),12)
-        self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
-                         set([u'_FillValue', u'units', u'long_name', u'standard_name']))
-        ds.close()
-        
+
+        with self.nc_scope(ret) as ds:
+            ref = ds.variables['time'][:]
+            self.assertEqual(len(ref), 12)
+            self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
+                             set([u'_FillValue', u'units', u'long_name', u'standard_name', 'grid_mapping']))
+
     def test_frequency_percentiles(self):
         ## data comes in as 4-dimensional array. (time,level,row,column)
         

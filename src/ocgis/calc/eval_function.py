@@ -58,7 +58,8 @@ class EvalFunction(AbstractUnivariateFunction):
         if self.file_only:
             fill = self._empty_fill
         ## evaluate the expression and update the data type.
-        ## TODO: with numpy 1.8.+ you can do the type modification inplace. this
+
+        #todo: with numpy 1.8.+ you can do the type modification inplace. this
         ## will make the type conversion operation less memory intensive.
         else:
             fill = eval(expr)

@@ -1,12 +1,11 @@
 from ocgis.api.operations import OcgOperations
 from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, nc_scope
 import itertools
 import datetime
 import numpy as np
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
-from ocgis.test.test_simple.test_simple import nc_scope
 from ocgis.test.test_base import longrunning
 
 

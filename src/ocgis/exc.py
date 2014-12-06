@@ -8,6 +8,30 @@ class OcgException(Exception):
         return self.message
 
 
+########################################################################################################################
+
+
+class BoundsAlreadyAvailableError(OcgException):
+    """Raised when an attempt is made to extrapolate bounds and they are already present."""
+
+    def __str__(self):
+        msg = 'Bounds/corners already available.'
+        return msg
+
+
+class CannotFormatTimeError(OcgException):
+    """
+    Raised when datetime objects from numeric are blocked by "format_time".
+    """
+
+    def __init__(self, property_name):
+        self.property_name = property_name
+
+    def __str__(self):
+        msg = 'Attempted to retrieve datetime values from "{0}" with "format_time" as "False". Set "format_time" to "True".'.format(self.property_name)
+        return msg
+
+
 class MultipleElementsFound(OcgException):
     """
     Raised when multiple elements are encountered in a :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
@@ -96,7 +120,6 @@ class DimensionNotFound(CFException):
     def __str__(self):
         msg = 'Dimension data not found for axis: {0}'.format(self.axis)
         return msg
-
 
 
 class DefinitionValidationError(OcgException):

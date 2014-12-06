@@ -103,7 +103,7 @@ class SpatialCollection(AbstractCollection):
         
         # self._uid_ctr_field = 1
         # self._ugid = OrderedDict()
-        
+
     @property
     def _archetype_field(self):
         ukey = self.keys()[0]
@@ -138,21 +138,21 @@ class SpatialCollection(AbstractCollection):
             self.update({ugid:{}})
         assert(name not in self[ugid])
         self[ugid].update({name:field})
-                
-    def get_iter_dict(self,use_upper_keys=False,conversion_map=None):
+
+    def get_iter_dict(self, use_upper_keys=False, conversion_map=None):
         r_headers = self.headers
         use_conversion = False if conversion_map is None else True
-        for ugid,field_dict in self.iteritems():
+        for ugid, field_dict in self.iteritems():
             for field in field_dict.itervalues():
                 for row in field.get_iter(value_keys=self.value_keys):
                     row['ugid'] = ugid
-                    yld_row = {k:row[k] for k in r_headers}
+                    yld_row = {k: row.get(k) for k in r_headers}
                     if use_conversion:
-                        for k,v in conversion_map.iteritems():
+                        for k, v in conversion_map.iteritems():
                             yld_row[k] = v(yld_row[k])
                     if use_upper_keys:
-                        yld_row = {k.upper():v for k,v in yld_row.iteritems()}
-                    yield(row['geom'],yld_row)
+                        yld_row = {k.upper(): v for k, v in yld_row.iteritems()}
+                    yield row['geom'], yld_row
                     
     def get_iter_elements(self):
         for ugid,fields in self.iteritems():

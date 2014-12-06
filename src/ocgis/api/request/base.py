@@ -3,6 +3,7 @@ import inspect
 import logging
 import os
 import itertools
+from ocgis.interface.base.field import Field
 from ocgis.api.collection import AbstractCollection
 from ocgis.api.request.driver.nc import DriverNetcdf
 from ocgis.exc import RequestValidationError, NoUnitsError
@@ -434,8 +435,9 @@ class RequestDataset(object):
 
 
 class RequestDatasetCollection(AbstractCollection):
-    '''A set of :class:`ocgis.RequestDataset` objects.
-    
+    """
+    A set of :class:`ocgis.RequestDataset` and/or :class:`~ocgis.Field` objects.
+
     >>> from ocgis import RequestDatasetCollection, RequestDataset
     >>> uris = ['http://some.opendap.dataset1', 'http://some.opendap.dataset2']
     >>> variables = ['tasmax', 'tasmin']
@@ -446,59 +448,115 @@ class RequestDatasetCollection(AbstractCollection):
     >>> rdc = RequestDatasetCollection()
     >>> for rd in request_datasets:
     ...     rdc.update(rd)
-    
-    :param request_datasets: A sequence of :class:`ocgis.RequestDataset` objects.
-    :type request_datasets: sequence of :class:`ocgis.RequestDataset` objects
-    '''
-    
-    def __init__(self, request_datasets=None):
+
+    :param target: A sequence of request dataset or field objects.
+    :type target: sequence[:class:`~ocgis.RequestDataset` and/or :class:`~ocgis.Field` objects, ...]
+    """
+
+    def __init__(self, target=None):
         super(RequestDatasetCollection, self).__init__()
 
-        self._did = []
+        self._unique_id_store = []
 
-        if request_datasets is not None:
-            for rd in get_iter(request_datasets, dtype=(dict, RequestDataset)):
-                self.update(rd)
+        if target is not None:
+            for element in get_iter(target, dtype=(dict, RequestDataset, Field)):
+                self.update(element)
 
     def __str__(self):
         ret = '{klass}(request_datasets=[{request_datasets}])'
         request_datasets = ', '.join([str(rd) for rd in self.itervalues()])
         return ret.format(klass=self.__class__.__name__, request_datasets=request_datasets)
-    
-    def update(self,request_dataset):
-        """Add a :class:`ocgis.RequestDataset` to the collection.
-        
-        :param request_dataset: The :class:`ocgis.RequestDataset` to add.
-        :type request_dataset: :class:`ocgis.RequestDataset`
+
+    def iter_request_datasets(self):
         """
-        try:
-            new_key = request_dataset.name
-        except AttributeError:
-            request_dataset = RequestDataset(**request_dataset)
-            new_key = request_dataset.name
-            
-        if request_dataset.did is None:
-            if len(self._did) == 0:
-                did = 1
+        :returns: An iterator over only the request dataset objects contained in the collection. Field objects are
+         excluded.
+        :rtype: `~ocgis.RequestDataset`
+        """
+
+        for value in self.itervalues():
+            if isinstance(value, Field):
+                continue
             else:
-                did = max(self._did) + 1
-            self._did.append(did)
-            request_dataset.did = did
+                yield value
+
+    def update(self, target):
+        """
+        Add an object to the collection.
+        
+        :param target: The object to add.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        """
+
+        try:
+            new_key = target.name
+        except AttributeError:
+            target = RequestDataset(**target)
+            new_key = target.name
+
+        unique_id = self._get_unique_id_(target)
+
+        if unique_id is None:
+            if len(self._unique_id_store) == 0:
+                unique_id = 1
+            else:
+                unique_id = max(self._unique_id_store) + 1
+            self._unique_id_store.append(unique_id)
+            self._set_unique_id_(target, unique_id)
         else:
-            self._did.append(request_dataset.did)
-            
+            self._unique_id_store.append(unique_id)
+
         if new_key in self._storage:
-            raise(KeyError('Name "{0}" already in collection. Attempted to add dataset with URI "{1}".'\
-                           .format(request_dataset.name,request_dataset.uri)))
+            raise KeyError('Name "{0}" already in collection. Names must be unique'.format(target.name))
         else:
-            self._storage.update({request_dataset.name:request_dataset})
-            
+            self._storage.update({target.name: target})
+
     def _get_meta_rows_(self):
+        """
+        :returns: A list of strings containing metadata on the collection objects.
+        :rtype: list[str, ...]
+        """
+
         rows = ['* dataset=']
         for value in self.itervalues():
-            rows += value._get_meta_rows_()
+            try:
+                rows += value._get_meta_rows_()
+            except AttributeError:
+                # likely a field object
+                msg = '{klass}(name={name}, ...)'.format(klass=value.__class__.__name__, name=value.name)
+                rows.append(msg)
             rows.append('')
-        return(rows)
+
+        return rows
+
+    @staticmethod
+    def _get_unique_id_(target):
+        """
+        :param target: The object to retrieve the unique identifier from.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        :returns: The unique identifier of the object if available. ``None`` will be returned if no unique can be found.
+        :rtype: int or ``None``
+        """
+
+        try:
+            ret = target.did
+        except AttributeError:
+            ret = target.uid
+
+        return ret
+
+    @staticmethod
+    def _set_unique_id_(target, uid):
+        """
+        :param target: The target object for setting the unique identifier.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        :param int target: The unique identifier.
+        """
+
+        if isinstance(target, RequestDataset):
+            target.did = uid
+        elif isinstance(target, Field):
+            target.uid = uid
 
 
 def get_tuple(value):

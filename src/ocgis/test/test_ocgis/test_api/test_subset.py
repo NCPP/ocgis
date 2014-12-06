@@ -1,18 +1,25 @@
 from copy import deepcopy
+import csv
+import os
 import pickle
+import itertools
+
+import ESMF
+import numpy as np
+
+from ocgis.api.parms.definition import OutputFormat
+from ocgis.interface.base.field import Field
+from ocgis.api.operations import OcgOperations
 from ocgis.conv.numpy_ import NumpyConverter
-from ocgis.exc import DimensionNotFound
-from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic
-from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
+from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84
+from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.test.base import TestBase
 import ocgis
 from ocgis.api.subset import SubsetOperation
 from ocgis.api.collection import SpatialCollection
-import itertools
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
-import numpy as np
 from ocgis import env
 
 
@@ -31,6 +38,34 @@ class TestSubsetOperation(TestBase):
         subset = SubsetOperation(ops)
         return subset
 
+    def test_init(self):
+        for rb, p in itertools.product([True, False], [None, ProgressOcgOperations()]):
+            sub = SubsetOperation(self.get_operations(), request_base_size_only=rb, progress=p)
+            for ii, coll in enumerate(sub):
+                self.assertIsInstance(coll, SpatialCollection)
+        self.assertEqual(ii, 0)
+
+    def test_process_subsettables(self):
+        # test extrapolating spatial bounds with no row and column
+        for with_corners in [False, True]:
+            field = self.get_field()
+            field.spatial.grid.value
+            if with_corners:
+                field.spatial.grid.set_extrapolated_corners()
+            field.spatial.grid.row = None
+            field.spatial.grid.col = None
+            if with_corners:
+                self.assertIsNotNone(field.spatial.grid.corners)
+            else:
+                self.assertIsNone(field.spatial.grid.corners)
+            ops = OcgOperations(dataset=field, interpolate_spatial_bounds=True)
+            so = SubsetOperation(ops)
+            rds = ops.dataset.values()
+            res = list(so._process_subsettables_(rds))
+            self.assertEqual(len(res), 1)
+            coll = res[0]
+            self.assertIsNotNone(coll[1][field.name].spatial.grid.corners)
+
     def test_abstraction_not_available(self):
         """Test appropriate exception is raised when a selected abstraction is not available."""
 
@@ -39,12 +74,104 @@ class TestSubsetOperation(TestBase):
         with self.assertRaises(ValueError):
             ops.execute()
 
-    def test_init(self):
-        for rb, p in itertools.product([True, False], [None, ProgressOcgOperations()]):
-            sub = SubsetOperation(self.get_operations(), request_base_size_only=rb, progress=p)
-            for ii, coll in enumerate(sub):
-                self.assertIsInstance(coll, SpatialCollection)
-        self.assertEqual(ii, 0)
+    def test_dataset_as_field(self):
+        """Test with dataset as field not loaded from file - hence, no metadata."""
+
+        kwds = dict(output_format=list(OutputFormat.iter_possible()),
+                    crs=[None, WGS84()])
+
+        for ii, k in enumerate(self.iter_product_keywords(kwds)):
+            field = self.get_field(crs=k.crs)
+
+            ops = OcgOperations(dataset=field)
+            ret = ops.execute()
+            self.assertNumpyAll(ret.gvu(1, 'foo'), field.variables['foo'].value)
+
+            ops = OcgOperations(dataset=field, output_format=k.output_format, prefix=str(ii))
+            try:
+                ret = ops.execute()
+            except ValueError as ve:
+                self.assertIsNone(k.crs)
+                self.assertIn(k.output_format, ['csv', 'csv+', 'geojson', 'shp'])
+                continue
+
+            if k.output_format == 'numpy':
+                self.assertIsInstance(ret[1]['foo'], Field)
+                continue
+            if k.output_format == 'meta':
+                self.assertIsInstance(ret, basestring)
+                self.assertTrue(len(ret) > 50)
+                continue
+            if k.output_format == 'esmpy':
+                self.assertIsInstance(ret, ESMF.Field)
+                continue
+
+            folder = os.path.split(ret)[0]
+
+            path_did = os.path.join(folder, '{0}_did.csv'.format(ops.prefix))
+            with open(path_did, 'r') as f:
+                rows = list(csv.DictReader(f))
+            self.assertEqual(rows, [{'ALIAS': 'foo', 'DID': '1', 'URI': '', 'UNITS': '', 'STANDARD_NAME': '', 'VARIABLE': 'foo', 'LONG_NAME': ''}])
+
+            path_source_metadata = os.path.join(folder, '{0}_source_metadata.txt'.format(ops.prefix))
+            with open(path_source_metadata, 'r') as f:
+                rows = f.readlines()
+            self.assertEqual(rows, [])
+
+            if k.output_format == 'nc':
+                with self.nc_scope(ret) as ds:
+                    variables_expected = [u'time', u'row', u'col', u'foo']
+                    try:
+                        self.assertAsSetEqual(ds.variables.keys(), variables_expected)
+                    except AssertionError:
+                        self.assertIsNotNone(k.crs)
+                        variables_expected.append('latitude_longitude')
+                        self.assertAsSetEqual(ds.variables.keys(), variables_expected)
+                    self.assertNumpyAll(ds.variables['time'][:], field.temporal.value_numtime)
+                    self.assertNumpyAll(ds.variables['row'][:], field.spatial.grid.row.value)
+                    self.assertNumpyAll(ds.variables['col'][:], field.spatial.grid.col.value)
+                    self.assertNumpyAll(ds.variables['foo'][:], field.variables['foo'].value.data.squeeze())
+
+            contents = os.listdir(folder)
+
+            expected_contents = [xx.format(ops.prefix) for xx in '{0}_source_metadata.txt', '{0}_did.csv', '{0}.log', '{0}_metadata.txt']
+            if k.output_format == 'nc':
+                expected_contents.append('{0}.nc'.format(ops.prefix))
+                self.assertAsSetEqual(contents, expected_contents)
+            elif k.output_format == 'csv+':
+                expected_contents.append('{0}.csv'.format(ops.prefix))
+                expected_contents.append('shp')
+                self.assertAsSetEqual(contents, expected_contents)
+            elif k.output_format == 'shp':
+                expected_contents = ['{0}.shp', '{0}.dbf', '{0}.shx', '{0}.cpg', '{0}.log', '{0}_metadata.txt', '{0}_source_metadata.txt', '{0}_did.csv', '{0}.prj']
+                expected_contents = [xx.format(ops.prefix) for xx in expected_contents]
+                self.assertAsSetEqual(contents, expected_contents)
+
+    def test_dataset_as_field_from_file(self):
+        """Test with dataset argument coming in as a field as opposed to a request dataset collection."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        geom = 'state_boundaries'
+        select_ugid = [23]
+        field = rd.get()
+        ops = OcgOperations(dataset=field, snippet=True, geom=geom, select_ugid=select_ugid)
+        ret = ops.execute()
+        field_out_from_field = ret[23]['tas']
+        self.assertEqual(field_out_from_field.shape, (1, 1, 1, 4, 3))
+        ops = OcgOperations(dataset=rd, snippet=True, geom=geom, select_ugid=select_ugid)
+        ret = ops.execute()
+        field_out_from_rd = ret[23]['tas']
+        self.assertNumpyAll(field_out_from_field.variables['tas'].value, field_out_from_rd.variables['tas'].value)
+
+    def test_geometry_dictionary(self):
+        """Test geometry dictionaries come out properly as collections."""
+
+        subset = self.get_subset_operation()
+        conv = NumpyConverter(subset, None, None)
+        coll = conv.write()
+        actual = "ccollections\nOrderedDict\np0\n((lp1\n(lp2\ncnumpy.core.multiarray\nscalar\np3\n(cnumpy\ndtype\np4\n(S'i8'\np5\nI0\nI1\ntp6\nRp7\n(I3\nS'<'\np8\nNNNI-1\nI-1\nI0\ntp9\nbS'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np10\ntp11\nRp12\nacnumpy.core.multiarray\n_reconstruct\np13\n(cnumpy\nndarray\np14\n(I0\ntp15\nS'b'\np16\ntp17\nRp18\n(I1\n(I1\ntp19\ng4\n(S'V16'\np20\nI0\nI1\ntp21\nRp22\n(I3\nS'|'\np23\nN(S'COUNTRY'\np24\nS'UGID'\np25\ntp26\n(dp27\ng24\n(g4\n(S'O8'\np28\nI0\nI1\ntp29\nRp30\n(I3\nS'|'\np31\nNNNI-1\nI-1\nI63\ntp32\nbI0\ntp33\nsg25\n(g7\nI8\ntp34\nsI16\nI1\nI27\ntp35\nbI00\n(lp36\n(S'France'\np37\nI1\ntp38\natp39\nbaa(lp40\ng3\n(g7\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np41\ntp42\nRp43\nag13\n(g14\n(I0\ntp44\ng16\ntp45\nRp46\n(I1\n(I1\ntp47\ng22\nI00\n(lp48\n(S'Germany'\np49\nI2\ntp50\natp51\nbaa(lp52\ng3\n(g7\nS'\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np53\ntp54\nRp55\nag13\n(g14\n(I0\ntp56\ng16\ntp57\nRp58\n(I1\n(I1\ntp59\ng22\nI00\n(lp60\n(S'Italy'\np61\nI3\ntp62\natp63\nbaatp64\nRp65\n."
+        actual = pickle.loads(actual)
+        self.assertEqual(coll.properties, actual)
 
     def test_regridding_bounding_box_wrapped(self):
         """Test subsetting with a wrapped bounding box with the target as a 0-360 global grid."""
@@ -62,16 +189,6 @@ class TestSubsetOperation(TestBase):
         self.assertEqual(field.spatial.grid.value.mean(), -29.75)
         self.assertIsNotNone(field.spatial.grid.corners)
         self.assertAlmostEqual(field.variables.first().value.mean(), 262.08338758680554)
-
-    def test_geometry_dictionary(self):
-        """Test geometry dictionaries come out properly as collections."""
-
-        subset = self.get_subset_operation()
-        conv = NumpyConverter(subset, None, None)
-        coll = conv.write()
-        actual = "ccollections\nOrderedDict\np0\n((lp1\n(lp2\ncnumpy.core.multiarray\nscalar\np3\n(cnumpy\ndtype\np4\n(S'i8'\np5\nI0\nI1\ntp6\nRp7\n(I3\nS'<'\np8\nNNNI-1\nI-1\nI0\ntp9\nbS'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np10\ntp11\nRp12\nacnumpy.core.multiarray\n_reconstruct\np13\n(cnumpy\nndarray\np14\n(I0\ntp15\nS'b'\np16\ntp17\nRp18\n(I1\n(I1\ntp19\ng4\n(S'V16'\np20\nI0\nI1\ntp21\nRp22\n(I3\nS'|'\np23\nN(S'COUNTRY'\np24\nS'UGID'\np25\ntp26\n(dp27\ng24\n(g4\n(S'O8'\np28\nI0\nI1\ntp29\nRp30\n(I3\nS'|'\np31\nNNNI-1\nI-1\nI63\ntp32\nbI0\ntp33\nsg25\n(g7\nI8\ntp34\nsI16\nI1\nI27\ntp35\nbI00\n(lp36\n(S'France'\np37\nI1\ntp38\natp39\nbaa(lp40\ng3\n(g7\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np41\ntp42\nRp43\nag13\n(g14\n(I0\ntp44\ng16\ntp45\nRp46\n(I1\n(I1\ntp47\ng22\nI00\n(lp48\n(S'Germany'\np49\nI2\ntp50\natp51\nbaa(lp52\ng3\n(g7\nS'\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np53\ntp54\nRp55\nag13\n(g14\n(I0\ntp56\ng16\ntp57\nRp58\n(I1\n(I1\ntp59\ng22\nI00\n(lp60\n(S'Italy'\np61\nI3\ntp62\natp63\nbaatp64\nRp65\n."
-        actual = pickle.loads(actual)
-        self.assertEqual(coll.properties, actual)
 
     def test_regridding_same_field(self):
         """Test regridding operations with same field used to regrid the source."""

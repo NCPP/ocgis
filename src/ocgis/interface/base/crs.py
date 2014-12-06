@@ -1,26 +1,31 @@
 from copy import copy, deepcopy
 import tempfile
 import itertools
+import abc
+import logging
+
 from osgeo.osr import SpatialReference
+
 from fiona.crs import from_string, to_string
 import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.multipoint import MultiPoint
+
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound,\
-    ProjectionDoesNotMatch
+from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
+
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
-from shapely.geometry.multipolygon import MultiPolygon
-import abc
-import logging
-from shapely.geometry.multipoint import MultiPoint
 
 
 class CoordinateReferenceSystem(object):
     
-    def __init__(self, value=None, proj4=None, epsg=None):
+    def __init__(self, value=None, proj4=None, epsg=None, name=None):
+        self.name = name or constants.default_coordinate_system_name
+
         if value is None:
             if proj4 is not None:
                 value = from_string(proj4)
@@ -82,6 +87,20 @@ class CoordinateReferenceSystem(object):
         sr = SpatialReference()
         sr.ImportFromProj4(to_string(self.value))
         return sr
+
+    def write_to_rootgrp(self, rootgrp):
+        """
+        Write the coordinate system to an open netCDF file.
+
+        :param rootgrp: An open netCDF dataset object for writing.
+        :type rootgrp: :class:`netCDF4.Dataset`
+        :returns: The netCDF variable object created to hold the coordinate system metadata.
+        :rtype: :class:`netCDF4.Variable`
+        """
+
+        variable = rootgrp.createVariable(self.name, 'c')
+        variable.proj4 = self.proj4
+        return variable
 
 
 class WrappableCoordinateReferenceSystem(object):
@@ -405,7 +424,7 @@ class Spherical(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
     
     def __init__(self, semi_major_axis=6370997.0):
         value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis, 'b': semi_major_axis}
-        CoordinateReferenceSystem.__init__(self, value=value)
+        CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
         self.major_axis = semi_major_axis
 
 
@@ -415,7 +434,7 @@ class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
     """
 
     def __init__(self):
-        CoordinateReferenceSystem.__init__(self, epsg=4326)
+        CoordinateReferenceSystem.__init__(self, epsg=4326, name='latitude_longitude')
 
 
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
@@ -424,29 +443,30 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     ## if False, no attempt to read projection coordinates will be made. they
     ## will be set to a None default.
     _find_projection_coordinates = True
-    
-    def __init__(self,**kwds):
-        self.projection_x_coordinate = kwds.pop('projection_x_coordinate',None)
-        self.projection_y_coordinate = kwds.pop('projection_y_coordinate',None)
-        
+
+    def __init__(self, **kwds):
+        self.projection_x_coordinate = kwds.pop('projection_x_coordinate', None)
+        self.projection_y_coordinate = kwds.pop('projection_y_coordinate', None)
+
+        name = kwds.pop('name', None)
+
         check_keys = kwds.keys()
         for key in kwds.keys():
             check_keys.remove(key)
         if len(check_keys) > 0:
-            exc = ValueError('The keyword parameter(s) "{0}" was/were not provided.'.format(check_keys))
-            ocgis_lh(exc=exc,logger='crs')
-        
+            raise ValueError('The keyword parameter(s) "{0}" was/were not provided.')
+
         self.map_parameters_values = kwds
-        crs = {'proj':self.proj_name}
+        crs = {'proj': self.proj_name}
         for k in self.map_parameters.keys():
             if k in self.iterable_parameters:
-                v = getattr(self,self.iterable_parameters[k])(kwds[k])
+                v = getattr(self, self.iterable_parameters[k])(kwds[k])
                 crs.update(v)
             else:
-                crs.update({self.map_parameters[k]:kwds[k]})
-                
-        super(CFCoordinateReferenceSystem,self).__init__(value=crs)
-            
+                crs.update({self.map_parameters[k]: kwds[k]})
+
+        super(CFCoordinateReferenceSystem, self).__init__(value=crs, name=name)
+
     @abc.abstractproperty
     def grid_mapping_name(self): str
     
@@ -510,20 +530,26 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         kwds.pop('grid_mapping_name',None)
         kwds['projection_x_coordinate'] = pc_x
         kwds['projection_y_coordinate'] = pc_y
+
+        # add the correct name to the coordinate system
+        kwds['name'] = r_grid_mapping['name']
         
         cls._load_from_metadata_finalize_(kwds,var,meta)
-        
-        return(cls(**kwds))
-    
-    def write_to_rootgrp(self,rootgrp,meta):
-        name = meta['grid_mapping_variable_name']
-        crs = rootgrp.createVariable(name,meta['variables'][name]['dtype'])
-        attrs = meta['variables'][name]['attrs']
-        crs.setncatts(attrs)
+
+        return cls(**kwds)
     
     @classmethod
     def _load_from_metadata_finalize_(cls,kwds,var,meta):
         pass
+
+    def write_to_rootgrp(self, rootgrp):
+        variable = super(CFCoordinateReferenceSystem, self).write_to_rootgrp(rootgrp)
+        variable.grid_mapping_name = self.grid_mapping_name
+        for k, v in self.map_parameters_values.iteritems():
+            if v is None:
+                v = ''
+            setattr(variable, k, v)
+        return variable
 
 
 class CFWGS84(WGS84,CFCoordinateReferenceSystem,):
@@ -532,8 +558,9 @@ class CFWGS84(WGS84,CFCoordinateReferenceSystem,):
     map_parameters = None
     proj_name = None
     
-    def __init__(self):
-        WGS84.__init__(self)
+    def __init__(self, *args, **kwargs):
+        self.map_parameters_values = {}
+        WGS84.__init__(self, *args, **kwargs)
     
     @classmethod
     def load_from_metadata(cls,var,meta):
@@ -572,7 +599,7 @@ class CFLambertConformal(CFCoordinateReferenceSystem):
     @classmethod
     def _load_from_metadata_finalize_(cls,kwds,var,meta):
         kwds['units'] = meta['variables'][kwds['projection_x_coordinate']]['attrs'].get('units')
-        
+
         
 class CFPolarStereographic(CFCoordinateReferenceSystem):
     grid_mapping_name = 'polar_stereographic'
@@ -639,9 +666,11 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
 
         try:
             rc_original = {'row': {'name': spatial.grid.row.name,
-                                   'meta': spatial.grid.row.meta},
+                                   'meta': spatial.grid.row.meta,
+                                   'attrs': spatial.grid.row.attrs},
                            'col': {'name': spatial.grid.col.name,
-                                   'meta': spatial.grid.col.meta}}
+                                   'meta': spatial.grid.col.meta,
+                                   'attrs': spatial.grid.col.attrs}}
         # a previously transformed rotated pole spatial dimension will not have row and columns. these should be
         # available in the state dictionary
         except AttributeError:
@@ -665,6 +694,16 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             new_spatial.crs = CFWGS84()
 
         return new_spatial
+
+    def write_to_rootgrp(self, rootgrp):
+        """
+        .. note:: See :meth:`~ocgis.interface.base.crs.CoordinateReferenceSystem.write_to_rootgrp`.
+        """
+
+        variable = super(CFRotatedPole, self).write_to_rootgrp(rootgrp)
+        variable.proj4 = ''
+        variable.proj4_transform = self._trans_proj
+        return variable
 
     def _get_rotated_pole_transformation_for_grid_(self, grid, inverse=False, rc_original=None):
         """
@@ -751,13 +790,16 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             new_row = new_row[:, 0]
             new_col = new_col[0, :]
             new_grid.row = VectorDimension(value=new_row, name=dict_row['name'],
-                                           meta=dict_row['meta'])
+                                           meta=dict_row['meta'],
+                                           attrs=dict_row['attrs'])
             new_grid.col = VectorDimension(value=new_col, name=dict_col['name'],
-                                           meta=dict_col['meta'])
+                                           meta=dict_col['meta'],
+                                           attrs=dict_col['attrs'])
             new_col, new_row = np.meshgrid(new_col, new_row)
         else:
-            new_grid._row_src_idx = new_grid.row._src_idx
-            new_grid._col_src_idx = new_grid.col._src_idx
+            from ocgis.interface.nc.spatial import NcSpatialGridDimension
+            assert isinstance(new_grid, NcSpatialGridDimension)
+            new_grid._src_idx = {'row': new_grid.row._src_idx, 'col': new_grid.col._src_idx}
             new_grid.row = None
             new_grid.col = None
 
@@ -774,10 +816,12 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         try:
             meta = rc_original[key]['meta']
             name = rc_original[key]['name']
+            attrs = rc_original[key]['attrs']
         except TypeError:
             if rc_original is None:
                 meta = None
                 name = None
+                attrs = None
             else:
                 raise
-        return {'meta': meta, 'name': name}
+        return {'meta': meta, 'name': name, 'attrs': attrs}

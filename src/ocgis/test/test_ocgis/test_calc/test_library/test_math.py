@@ -186,7 +186,6 @@ class TestConvolve1D(AbstractTestField):
     def test_execute_valid(self):
         """Test convolution with the 'valid' mode."""
 
-        #todo: add to docs
         field = self.get_convolve1d_field(slice_stop=4)
         parms = {'v': np.array([1, 1, 1]), 'mode': 'valid'}
         cd = Convolve1D(field=field, parms=parms)

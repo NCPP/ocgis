@@ -1,18 +1,21 @@
+import os
 import unittest
-import itertools
+from copy import deepcopy
+import netCDF4 as nc
+
 from shapely.geometry import Point, MultiPoint
+import numpy as np
+from shapely.geometry.multipolygon import MultiPolygon
+
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
-    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem
+    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem, \
+    CFCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
 from ocgis.exc import SpatialWrappingError
-from ocgis.test.base import TestBase
-import numpy as np
-from copy import deepcopy
-from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.util.helpers import get_temp_path, write_geom_dict, make_poly
-import netCDF4 as nc
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.util.helpers import make_poly
 from ocgis.interface.metadata import NcMetadata
 import ocgis
 from ocgis.util.itester import itr_products_keywords
@@ -41,6 +44,12 @@ class TestCoordinateReferenceSystem(TestBase):
                 self.assertEqual(crs, prev_crs)
             prev_crs = deepcopy(crs)
 
+        # test with a name parameter
+        crs = CoordinateReferenceSystem(epsg=4326)
+        self.assertEqual(crs.name, constants.default_coordinate_system_name)
+        crs = CoordinateReferenceSystem(epsg=4326, name='foo')
+        self.assertEqual(crs.name, 'foo')
+
     def test_ne(self):
         crs1 = CoordinateReferenceSystem(epsg=4326)
         crs2 = CoordinateReferenceSystem(epsg=2136)
@@ -53,6 +62,14 @@ class TestCoordinateReferenceSystem(TestBase):
         # try nonetype and string
         self.assertNotEqual(None, crs1)
         self.assertNotEqual('input', crs1)
+
+    def test_write_to_rootgrp(self):
+        crs = CoordinateReferenceSystem(epsg=4326, name='hello_world')
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            variable = crs.write_to_rootgrp(ds)
+            self.assertIsInstance(variable, nc.Variable)
+            self.assertEqual(variable.proj4, crs.proj4)
 
 
 class TestWrappableCoordinateSystem(TestBase):
@@ -201,6 +218,7 @@ class TestSpherical(TestBase):
         crs = Spherical(semi_major_axis=6370998.1)
         self.assertDictEqual(crs.value, {'a': 6370998.1, 'no_defs': True, 'b': 6370998.1, 'proj': 'longlat',
                                          'towgs84': '0,0,0,0,0,0,0'})
+        self.assertEqual(crs.name, 'latitude_longitude')
 
     def test_place_prime_meridian_array(self):
         arr = np.array([123, 180, 200, 180], dtype=float)
@@ -320,6 +338,16 @@ class TestWGS84(TestBase):
         self.assertEqual(WGS84(), CoordinateReferenceSystem(epsg=4326))
         self.assertIsInstance(WGS84(), WrappableCoordinateReferenceSystem)
         self.assertNotIsInstance(WGS84(), Spherical)
+        self.assertEqual(WGS84().name, 'latitude_longitude')
+
+
+class TestCFWGS84(TestBase):
+
+    def test_init(self):
+        crs = CFWGS84()
+        self.assertEqual(crs.map_parameters_values, {})
+        self.assertIsInstance(crs, WGS84)
+        self.assertIsInstance(crs, CFCoordinateReferenceSystem)
 
 
 class TestCFAlbersEqualArea(TestBase):
@@ -348,33 +376,48 @@ class TestCFLambertConformalConic(TestBase):
         ds = nc.Dataset(uri,'r')
         meta = NcMetadata(ds)
         crs = CFLambertConformal.load_from_metadata('pr',meta)
+        self.assertEqual(crs.name, 'Lambert_Conformal')
         self.assertEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
         self.assertIsInstance(crs,CFLambertConformal)
         self.assertEqual(['xc','yc'],[crs.projection_x_coordinate,crs.projection_y_coordinate])
         self.assertNumpyAll(np.array([ 30.,  60.]),crs.map_parameters_values.pop('standard_parallel'))
         self.assertEqual(crs.map_parameters_values,{u'latitude_of_projection_origin': 47.5, u'longitude_of_central_meridian': -97.0, u'false_easting': 3325000.0, u'false_northing': 2700000.0, 'units': u'm'})
         ds.close()
-        
+
+    def test_write_to_rootgrp(self):
+        uri = self.test_data.get_uri('narccap_wrfg')
+        ds = nc.Dataset(uri,'r')
+        meta = NcMetadata(ds)
+        ds.close()
+        crs = CFLambertConformal.load_from_metadata('pr',meta)
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            variable = crs.write_to_rootgrp(ds)
+            self.assertEqual(variable.grid_mapping_name, crs.grid_mapping_name)
+            for k, v in crs.map_parameters_values.iteritems():
+                variable_v = variable.__dict__[k]
+                try:
+                    self.assertEqual(variable_v, v)
+                except ValueError:
+                    self.assertNumpyAll(variable_v, v)
+
+        with nc_scope(path) as ds:
+            meta2 = NcMetadata(ds)
+        meta['variables']['Lambert_Conformal'] = meta2['variables']['Lambert_Conformal']
+        crs2 = CFLambertConformal.load_from_metadata('pr', meta)
+        self.assertEqual(crs, crs2)
+
+        path2 = os.path.join(self.current_dir_output, 'foo2.nc')
+        with nc_scope(path2, 'w') as ds:
+            crs2.write_to_rootgrp(ds)
+
         
 class TestCFRotatedPole(TestBase):
-
-    def test_load_from_metadata(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
 
     def test_equal(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         self.assertEqual(rd.get().spatial.crs, rd2.get().spatial.crs)
-
-    def test_in_operations(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        rd2 = deepcopy(rd)
-        rd2.alias = 'tas2'
-        # # these projections are equivalent so it is okay to write them to a
-        ## common output file
-        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
-        ops.execute()
 
     def test_get_rotated_pole_transformation(self):
         """Test SpatialDimension objects are appropriately transformed."""
@@ -413,6 +456,10 @@ class TestCFRotatedPole(TestBase):
         self.assertNumpyAll(field.variables['tas'].value, field_copy.variables['tas'].value)
 
         inverse_spatial = original_crs.get_rotated_pole_transformation(new_spatial, inverse=True)
+        for attr in ['row', 'col']:
+            target = getattr(inverse_spatial.grid, attr)
+            target_actual = getattr(spatial.grid, attr)
+            self.assertDictEqual(target.attrs, target_actual.attrs)
         inverse_spatial.assert_uniform_mask()
 
         self.assertNumpyAll(inverse_spatial.uid, spatial.uid)
@@ -422,8 +469,25 @@ class TestCFRotatedPole(TestBase):
         self.assertEqual(spatial.grid.row.name, inverse_spatial.grid.row.name)
         self.assertDictEqual(spatial.grid.col.meta, inverse_spatial.grid.col.meta)
         self.assertEqual(spatial.grid.col.name, inverse_spatial.grid.col.name)
-        
 
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    def test_in_operations(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd2 = deepcopy(rd)
+        rd2.alias = 'tas2'
+        # these projections are equivalent so it is okay to write them to a common output file
+        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
+        ops.execute()
+
+    def test_load_from_metadata(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
+
+    def test_write_to_rootgrp(self):
+        rd = self.test_data.get_rd('narccap_rotated_pole')
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+
+        with nc_scope(path, 'w') as ds:
+            variable = rd.crs.write_to_rootgrp(ds)
+            self.assertIsInstance(variable, nc.Variable)
+            self.assertEqual(variable.proj4, '')
+            self.assertEqual(variable.proj4_transform, rd.crs._trans_proj)

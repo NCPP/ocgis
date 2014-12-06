@@ -88,7 +88,16 @@ class FionaConverter(AbstractConverter):
         # pull the fiona schema properties together by mapping fiona types to the data types of the first row of the
         # output data file
         archetype_field = coll._archetype_field
-        fiona_crs = archetype_field.spatial.crs.value
+
+        try:
+            crs = archetype_field.spatial.crs
+            fiona_crs = crs.value
+        except AttributeError:
+            if crs is None:
+                raise ValueError('"crs" is None. A coordinate system is required for writing to Fiona output.')
+            else:
+                raise
+
         geom, arch_row = coll.get_iter_dict().next()
         fiona_properties = OrderedDict()
         for header in coll.headers:
@@ -147,10 +156,7 @@ class FionaConverter(AbstractConverter):
         fiona_object = f['fiona_object']
         for geom, properties in coll.get_iter_dict(use_upper_keys=True, conversion_map=f['fiona_conversion']):
             to_write = {'geometry': mapping(geom), 'properties': properties}
-            try:
-                fiona_object.write(to_write)
-            except Exception as e:
-                import ipdb;ipdb.set_trace()
+            fiona_object.write(to_write)
 
 
 class ShpConverter(FionaConverter):

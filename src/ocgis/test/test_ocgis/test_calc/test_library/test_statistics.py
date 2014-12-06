@@ -6,8 +6,8 @@ from cfunits.cfunits import Units
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow
 from ocgis.interface.base.variable import DerivedVariable, Variable
+from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-from ocgis.test.test_simple.test_simple import nc_scope
 import ocgis
 from ocgis.util.itester import itr_products_keywords
 
@@ -28,7 +28,6 @@ class TestMovingWindow(AbstractTestField):
         self.assertEqual(ret[4], np.mean(values[2:7]))
 
     def test_execute(self):
-        #todo: add to docs
         field = self.get_field(month_count=1, with_value=True)
         field = field[:, 0:4, :, :, :]
         field.variables['tmax'].value[:] = 1

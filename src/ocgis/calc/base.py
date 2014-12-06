@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from copy import deepcopy
 import numpy as np
 import abc
@@ -238,6 +239,30 @@ class AbstractFunction(object):
 
     def _add_to_collection_(self, units=None, value=None, parent_variables=None, alias=None, dtype=None,
                             fill_value=None):
+        """
+        :param str units: The units for the derived variable.
+
+        >>> units = 'kelvin'
+
+        :param value: The value for the derived variable.
+        :type value: :class:`numpy.ma.core.MaskedArray` or dict
+
+        >>> import numpy as np
+        >>> value = np.zeros((2, 3, 4, 5, 6))
+        >>> value = np.ma.array(value)
+
+        *or*
+
+        >>> sample_size = value.copy()
+        >>> sample_size[:] = 5
+        >>> value = {'fill': value, 'sample_size': sample_size}
+
+        :param parent_variables: A variable collection containing variable data used to derive the current output.
+        :type parent_variables: :class:`ocgis.interface.base.variable.VariableCollection`
+        :param str alias: The alias of the derived variable.
+        :param type dtype: The type of the derived variable.
+        :param fill_value: The mask fill value of the derived variable.
+        """
 
         # dtype should come in with each new variable
         assert (dtype is not None)
@@ -256,14 +281,12 @@ class AbstractFunction(object):
 
         alias = alias or self.alias
         fdef = self.get_function_definition()
-        meta = {'attrs': {'standard_name': self.standard_name, 'long_name': self.long_name}}
-        parents = VariableCollection(variables=parent_variables)
 
-        # attempt to copy the grid_mapping attribute for the derived variable
-        try:
-            meta['attrs']['grid_mapping'] = parents.first().meta['attrs']['grid_mapping']
-        except KeyError:
-            pass
+        attrs = OrderedDict()
+        attrs['standard_name'] = self.standard_name
+        attrs['long_name'] = self.long_name
+
+        parents = VariableCollection(variables=parent_variables)
 
         # if the operation is file only, creating a variable with an empty value will raise an exception. pass a dummy
         # data source because even if the value is trying to be loaded it should not be accessible!
@@ -272,23 +295,27 @@ class AbstractFunction(object):
         else:
             data = None
 
-        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents, meta=meta,
-                             data=data, dtype=dtype, fill_value=fill_value)
+        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents, data=data,
+                             dtype=dtype, fill_value=fill_value, attrs=attrs)
 
         # allow more complex manipulations of metadata
         self.set_variable_metadata(dv)
         # overload the metadata attributes with any provided
         if self.meta_attrs is not None:
-            dv.meta['attrs'].update(self.meta_attrs)
+            # dv.meta['attrs'].update(self.meta_attrs)
+            dv.attrs.update(self.meta_attrs)
         # add the variable to the variable collection
         self._set_derived_variable_alias_(dv, parent_variables)
         self.vc.add_variable(dv)
 
         # add the sample size if it is present in the fill dictionary
         if sample_size is not None:
-            meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
+            # meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
+            attrs = OrderedDict()
+            attrs['standard_name'] = constants.default_sample_size_standard_name
+            attrs['long_name'] = constants.default_sample_size_long_name
             dv = DerivedVariable(name=None, alias='n_' + dv.alias, units=None, value=sample_size, fdef=None,
-                                 parents=parents, meta=meta, dtype=constants.np_int, fill_value=fill_value)
+                                 parents=parents, dtype=constants.np_int, fill_value=fill_value, attrs=attrs)
             self.vc.add_variable(dv)
 
     @abc.abstractmethod

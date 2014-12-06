@@ -1,66 +1,44 @@
 import re
 import unittest
-from fiona.crs import from_string
-from osgeo.osr import SpatialReference
-from ocgis.api.operations import OcgOperations
-from ocgis.api.interpreter import OcgInterpreter
 import itertools
-import numpy as np
 import datetime
-from ocgis.api.parms.definition import SpatialOperation
-from ocgis.util.helpers import make_poly, project_shapely_geometry
-from ocgis import exc, env, constants
 import os.path
 from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
-from ocgis.test.base import TestBase
-from shapely.geometry.point import Point
-import ocgis
-from ocgis.exc import ExtentError, DefinitionValidationError
-from shapely.geometry.polygon import Polygon
 import csv
-import fiona
 from collections import OrderedDict
-from ocgis.interface.base import crs
+from copy import deepcopy
+from csv import DictReader
+import tempfile
+
+from fiona.crs import from_string
+from osgeo.osr import SpatialReference
+import numpy as np
+from shapely.geometry.point import Point
+from shapely.geometry.polygon import Polygon
+import fiona
 from shapely.geometry.geo import mapping
 from shapely import wkt
+
+from ocgis.api.operations import OcgOperations
+from ocgis.api.interpreter import OcgInterpreter
+from ocgis.api.parms.definition import SpatialOperation
+from ocgis.util.helpers import make_poly, project_shapely_geometry
+from ocgis import exc, env, constants
+from ocgis.test.base import TestBase, nc_scope
+import ocgis
+from ocgis.exc import ExtentError, DefinitionValidationError
+from ocgis.interface.base import crs
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, WrappableCoordinateReferenceSystem
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
-from copy import deepcopy
-from contextlib import contextmanager
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleNcNoBounds, SimpleMaskNc, \
     SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
-from csv import DictReader
 from ocgis.test.test_base import longrunning
-import tempfile
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 from ocgis.util.spatial.fiona_maker import FionaMaker
-
-
-@contextmanager
-def nc_scope(path, mode='r'):
-    """
-    Provide a transactional scope around a :class:`netCDF4.Dataset` object.
-
-    >>> with nc_scope('/my/file.nc') as ds:
-    >>>     print ds.variables
-
-    :param str path: The full path to the netCDF dataset.
-    :param str mode: The file mode to use when opening the dataset.
-    :returns: An open dataset object that will be closed after leaving the ``with statement``.
-    :rtype: :class:`netCDF4.Dataset`
-    """
-
-    ds = nc.Dataset(path, mode=mode)
-    try:
-        yield ds
-    except:
-        raise
-    finally:
-        ds.close()
 
 
 class TestSimpleBase(TestBase):
@@ -292,13 +270,13 @@ class TestSimple(TestSimpleBase):
         """Test units and calendar are copied to the time bounds."""
 
         rd = self.get_dataset()
-        ops = ocgis.OcgOperations(dataset=rd,output_format='nc')
+        ops = ocgis.OcgOperations(dataset=rd, output_format='nc')
         ret = ops.execute()
         with nc_scope(ret) as ds:
             time_attrs = deepcopy(ds.variables['time'].__dict__)
             time_attrs.pop('bounds')
-            self.assertEqual(dict(time_attrs),
-                             dict(ds.variables['time_bnds'].__dict__))
+            time_attrs.pop('axis')
+            self.assertEqual(dict(time_attrs), dict(ds.variables['time_bnds'].__dict__))
             
     def test_units_calendar_on_time_bounds_calculation(self):
         rd = self.get_dataset()
@@ -411,24 +389,24 @@ class TestSimple(TestSimpleBase):
         ## pass only three slices
         with self.assertRaises(DefinitionValidationError):
             self.get_ops(kwds={'slice':[None,[1,3],[1,3]]})
-        
+
     def test_file_only(self):
-        ret = self.get_ret(kwds={'output_format':'nc','file_only':True,
-                                 'calc':[{'func':'mean','name':'my_mean'}],
-                                 'calc_grouping':['month']})
+        ret = self.get_ret(
+            kwds={'output_format': 'nc', 'file_only': True, 'calc': [{'func': 'mean', 'name': 'my_mean'}],
+                  'calc_grouping': ['month']})
         try:
-            ds = nc.Dataset(ret,'r')
-            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(),
-                            np.ma.core.MaskedConstant))
-            self.assertEqual(set(ds.variables['my_mean'].ncattrs()),set([u'_FillValue', u'units', u'long_name', u'standard_name']))
+            ds = nc.Dataset(ret, 'r')
+            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(), np.ma.core.MaskedConstant))
+            self.assertEqual(set(ds.variables['my_mean'].ncattrs()),
+                             set([u'_FillValue', u'units', u'long_name', u'standard_name', 'grid_mapping']))
         finally:
             ds.close()
-            
+
         with self.assertRaises(DefinitionValidationError):
-            self.get_ret(kwds={'file_only':True,'output_format':'shp'})
-            
+            self.get_ret(kwds={'file_only': True, 'output_format': 'shp'})
+
         with self.assertRaises(DefinitionValidationError):
-            self.get_ret(kwds={'file_only':True})
+            self.get_ret(kwds={'file_only': True})
 
     def test_return_all(self):
         ret = self.get_ret()
@@ -595,26 +573,26 @@ class TestSimple(TestSimpleBase):
         with self.assertRaises(DefinitionValidationError):
             rd = self.get_dataset(time_region={'month':[1]})
             OcgOperations(dataset=rd,snippet=True)
-        
-    def test_calc(self):
-        calc = [{'func':'mean','name':'my_mean'}]
-        group = ['month','year']
-        
-        ## raw
-        ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group})
-        ref = ret.gvu(1,'my_mean')
-        self.assertEqual(ref.shape,(1,2,2,4,4))
-        with self.assertRaises(KeyError):
-            ret.gvu(1,'n')
 
-        ## aggregated
-        for calc_raw in [True,False]:
-            ret = self.get_ret(kwds={'calc':calc,'calc_grouping':group,
-                                     'aggregate':True,'calc_raw':calc_raw})
-            ref = ret.gvu(1,'my_mean')
-            self.assertEqual(ref.shape,(1,2,2,1,1))
-            self.assertEqual(ref.flatten().mean(),2.5)
-            self.assertDictEqual(ret[1]['foo'].variables['my_mean'].meta['attrs'], {'long_name': 'Mean', 'standard_name': 'mean'})
+    def test_calc(self):
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
+        group = ['month', 'year']
+
+        # raw
+        ret = self.get_ret(kwds={'calc': calc, 'calc_grouping': group})
+        ref = ret.gvu(1, 'my_mean')
+        self.assertEqual(ref.shape, (1, 2, 2, 4, 4))
+        with self.assertRaises(KeyError):
+            ret.gvu(1, 'n')
+
+        # aggregated
+        for calc_raw in [True, False]:
+            ret = self.get_ret(kwds={'calc': calc, 'calc_grouping': group, 'aggregate': True, 'calc_raw': calc_raw})
+            ref = ret.gvu(1, 'my_mean')
+            self.assertEqual(ref.shape, (1, 2, 2, 1, 1))
+            self.assertEqual(ref.flatten().mean(), 2.5)
+            self.assertDictEqual(ret[1]['foo'].variables['my_mean'].attrs,
+                                 {'long_name': 'Mean', 'standard_name': 'mean'})
 
     def test_calc_multivariate(self):
         rd1 = self.get_dataset()
@@ -643,7 +621,7 @@ class TestSimple(TestSimpleBase):
             if of == 'nc':
                 with nc_scope(ret) as ds:
                     self.assertEqual(ds.variables['foo2'][:].mean(),6.5)
-                    
+
     def test_calc_eval_multivariate(self):
         rd = self.get_dataset()
         rd2 = self.get_dataset()
@@ -651,14 +629,18 @@ class TestSimple(TestSimpleBase):
         calc = 'foo3=foo+foo2+4'
         ocgis.env.OVERWRITE = True
         for of in OutputFormat.iter_possible():
-            ops = ocgis.OcgOperations(dataset=[rd,rd2],calc=calc,output_format=of,
-                                      slice=[None,[0,10],None,None,None])
+            try:
+                ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc, output_format=of,
+                                          slice=[None, [0, 10], None, None, None])
+            except DefinitionValidationError:
+                self.assertEqual(of, 'esmpy')
+                continue
             ret = ops.execute()
             if of == 'numpy':
-                self.assertIsInstance(ret[1]['foo_foo2'],DerivedMultivariateField)
+                self.assertIsInstance(ret[1]['foo_foo2'], DerivedMultivariateField)
             if of == 'nc':
                 with nc_scope(ret) as ds:
-                    self.assertEqual(ds.variables['foo3'][:].mean(),9.0)
+                    self.assertEqual(ds.variables['foo3'][:].mean(), 9.0)
     
     @longrunning   
     def test_calc_sample_size(self):
@@ -749,10 +731,23 @@ class TestSimple(TestSimpleBase):
         ops = OcgOperations(dataset=rd, output_format='nc')
         ret = self.get_ret(ops)
         
-        self.assertNcEqual(rd['uri'], ret, ignore_attributes={'global': ['history']})
-        with nc_scope(ret) as ds:
+        self.assertNcEqual(ret, rd['uri'], ignore_attributes={'global': ['history'],
+                                                              'time_bnds': ['calendar', 'units'],
+                                                              rd['variable']: ['grid_mapping'],
+                                                              'time': ['axis'],
+                                                              'level': ['axis'],
+                                                              'latitude': ['axis'],
+                                                              'longitude': ['axis']},
+                           ignore_variables=['latitude_longitude'])
+
+        with self.nc_scope(ret) as ds:
+            expected = {'time': 'T', 'level': 'Z', 'latitude': 'Y', 'longitude': 'X'}
+            for k, v in expected.iteritems():
+                var = ds.variables[k]
+                self.assertEqual(var.axis, v)
+        with self.nc_scope(ret) as ds:
             self.assertEqual(ds.file_format, constants.netCDF_default_data_model)
-        
+
     def test_nc_conversion_calc(self):
         calc_grouping = ['month']
         calc = [{'func':'mean','name':'my_mean'},
@@ -789,6 +784,7 @@ class TestSimple(TestSimpleBase):
         
         ops = OcgOperations(dataset={'uri': no_level, 'variable': 'foo'}, output_format='nc', prefix='no_level_again')
         no_level_again = ops.execute()
+
         self.assertNcEqual(no_level, no_level_again, ignore_attributes={'global': ['history']})
         
         ds = nc.Dataset(no_level_again)
@@ -943,11 +939,6 @@ class TestSimple(TestSimpleBase):
                         continue
                     if s == 'clip':
                         continue
-                else:
-                    raise
-            except ImproperPolygonBoundsError:
-                if ab == 'polygon' and unbounded:
-                    continue
                 else:
                     raise
             except ExtentError:
@@ -1191,35 +1182,44 @@ class TestSimple(TestSimpleBase):
                 reader2 = csv.DictReader(f2)
                 for row,row2 in zip(reader,reader2):
                     self.assertDictEqual(row,row2)
-    
+
     def test_calc_multivariate_conversion(self):
         rd1 = self.get_dataset()
         rd1['alias'] = 'var1'
         rd2 = self.get_dataset()
         rd2['alias'] = 'var2'
-        calc = [{'name':'divide','func':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
-                
+        calc = [{'name': 'divide', 'func': 'divide', 'kwds': {'arr1': 'var1', 'arr2': 'var2'}}]
+
         for o in constants.output_formats:
             calc_grouping = ['month']
-            ops = OcgOperations(dataset=[rd1,rd2],calc=calc,calc_grouping=calc_grouping,output_format=o,
-                                prefix=o+'yay')
+
+            try:
+                ops = OcgOperations(dataset=[rd1, rd2], calc=calc, calc_grouping=calc_grouping, output_format=o,
+                                    prefix=o + 'yay')
+            except DefinitionValidationError:
+                self.assertEqual(o, 'esmpy')
+                continue
+
             ret = ops.execute()
-            
-            if o in ['csv','csv+']:
-                with open(ret,'r') as f:
+
+            if o in ['csv', 'csv+']:
+                with open(ret, 'r') as f:
                     reader = csv.DictReader(f)
                     row = reader.next()
-                    self.assertDictEqual(row,{'LID': '1', 'UGID': '1', 'CID':'1', 'LEVEL': '50', 'DID': '', 'YEAR': '2000', 'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'divide', 'VALUE': '1.0', 'MONTH': '3', 'GID': '1', 'CALC_KEY': 'divide', 'TID': '1', 'DAY': '16'})
-    
+                    self.assertDictEqual(row,
+                                         {'LID': '1', 'UGID': '1', 'CID': '1', 'LEVEL': '50', 'DID': '', 'YEAR': '2000',
+                                          'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'divide', 'VALUE': '1.0',
+                                          'MONTH': '3', 'GID': '1', 'CALC_KEY': 'divide', 'TID': '1', 'DAY': '16'})
+
             if o == 'nc':
                 with nc_scope(ret) as ds:
-                    self.assertIn('divide',ds.variables)
+                    self.assertIn('divide', ds.variables)
                     self.assertTrue(np.all(ds.variables['divide'][:] == 1.))
-                    
+
             if o == 'shp':
                 with fiona.open(ret) as f:
                     row = f.next()
-                    self.assertIn('CID',row['properties'])
+                    self.assertIn('CID', row['properties'])
     
     def test_meta_conversion(self):
         ops = OcgOperations(dataset=self.get_dataset(),output_format='meta')
@@ -1389,10 +1389,15 @@ class TestSimpleMultivariate(TestSimpleBase):
             if o == 'nc':
                 continue
             rds = self.get_multiple_request_datasets()
-            ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
+            try:
+                ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
+            except DefinitionValidationError:
+                # only one dataset for esmpy output
+                self.assertEqual(o, 'esmpy')
+                continue
             ret = ops.execute()
             path_source_metadata = os.path.join(self.current_dir_output, ops.prefix, '{0}_source_metadata.txt'.format(ops.prefix))
-            if o != 'numpy':
+            if o not in ['numpy', 'meta']:
                 self.assertTrue(os.path.exists(ret))
                 with open(path_source_metadata, 'r') as f:
                     lines = f.readlines()
@@ -1503,7 +1508,6 @@ class TestSimple360(TestSimpleBase):
                     # field = rd.get()
                     # field.spatial.write_fiona('/tmp/touch.shp')
                     # write_geom_dict({1:g},path='/tmp/should_touch.shp')
-                    # import ipdb;ipdb.set_trace()
                     raise
                 
     def test_spatial(self):
@@ -1602,7 +1606,9 @@ class TestSimpleProjected(TestSimpleBase):
     def test_nc_projection(self):
         dataset = self.get_dataset()
         ret = self.get_ret(kwds={'output_format': 'nc'})
-        self.assertNcEqual(dataset['uri'], ret, ignore_attributes={'global': ['history']})
+        self.assertNcEqual(dataset['uri'], ret,
+                           ignore_attributes={'global': ['history'], 'time_bnds': ['calendar', 'units'],
+                                              'crs': ['proj4', 'units']})
         
     def test_nc_projection_to_shp(self):
         ret = self.get_ret(kwds={'output_format':'shp'})

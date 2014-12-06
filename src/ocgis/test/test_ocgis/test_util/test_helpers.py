@@ -1,17 +1,19 @@
 from collections import OrderedDict
 import os
+import itertools
+from datetime import datetime as dt, datetime
+
 import numpy as np
 from shapely.geometry import Point
+
 from ocgis.exc import SingleElementError, ShapeError
 from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
     get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
     get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, get_is_increasing, \
-    get_extrapolated_corners_esmf_vector
-import itertools
+    get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners
 from ocgis.test.base import TestBase
-from datetime import datetime as dt, datetime
 
 
 class Test1(AbstractTestSpatialDimension):
@@ -196,8 +198,49 @@ class Test1(AbstractTestSpatialDimension):
         ret = get_bounds_vector_from_centroids(centroids)
         self.assertNumpyAll(ret, np.array([3.5, 0.5, -2.5]))
 
+    def test_get_ocgis_corners_from_esmf_corners(self):
+        sdim = self.get_sdim()
+        ecorners = sdim.grid.corners_esmf
+        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
+        self.assertNumpyAll(ocorners, sdim.grid.corners)
+
+        sdim = self.get_sdim()[0, 0]
+        self.assertEqual(sdim.shape, (1, 1))
+        ecorners = sdim.grid.corners_esmf
+        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
+        self.assertNumpyAll(ocorners, sdim.grid.corners)
+
 
 class Test2(TestBase):
+
+    def test_get_iter(self):
+        element = 'hi'
+        ret = list(get_iter(element))
+        self.assertEqual(ret, ['hi'])
+
+        element = np.array([5, 6, 7])
+        ret = list(get_iter(element))
+        self.assertNumpyAll(ret[0], np.array([5, 6, 7]))
+
+        ## test dtype ##################################################################################################
+
+        class FooIterable(object):
+
+            def __init__(self):
+                self.value = [4, 5, 6]
+
+            def __iter__(self):
+                for element in self.value:
+                    yield element
+
+        element = FooIterable()
+        ret = list(get_iter(element))
+        self.assertEqual(ret, [4, 5, 6])
+        for dtype in FooIterable, (FooIterable, list):
+            ret = list(get_iter(element, dtype=dtype))
+            self.assertIsInstance(ret, list)
+            self.assertEqual(len(ret), 1)
+            self.assertIsInstance(ret[0], FooIterable)
 
     def test_get_sorted_uris_by_time_dimension(self):
         rd_2001 = self.test_data.get_rd('cancm4_tasmax_2001')
@@ -350,7 +393,8 @@ class Test2(TestBase):
         upper = dt(2013, 1, 2, 0, 0)
         self.assertTrue(get_is_date_between(lower,upper,year=2013))
             
-    def test_get_formatted_slc(self):
+    def test_get_formatted_slice(self):
+
         ret = get_formatted_slice(slice(None,None,None),10)
         self.assertEqual(ret,[slice(None,None,None)]*10)
         
@@ -373,6 +417,22 @@ class Test2(TestBase):
         ret = get_formatted_slice((1,),1)
         self.assertEqual(ret,slice(1))
     
+    def test_set_name_attributes(self):
+
+        class Foo(object):
+
+            def __init__(self, name):
+                self.name = name
+
+        a = Foo(None)
+        b = Foo('harbringer')
+
+        name_mapping = {a: 'evil_twin', b: 'again', None: 'whatever'}
+        set_name_attributes(name_mapping)
+
+        self.assertEqual(a.name, 'evil_twin')
+        self.assertEqual(b.name, 'harbringer')
+
     def test_validate_time_subset(self):
         time_range = [dt(2000,1,1),dt(2001,1,1)]
         self.assertTrue(validate_time_subset(time_range,{'year':[2000,2001]}))

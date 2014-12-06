@@ -163,6 +163,6 @@ class OcgCalculationEngine(object):
                 new_temporal = new_temporal or out_field.temporal
                 new_field = klass(variables=out_vc,temporal=new_temporal,spatial=out_field.spatial,
                                   level=out_field.level,realization=out_field.realization,meta=out_field.meta,
-                                  uid=out_field.uid,name=out_field.name)
+                                  uid=out_field.uid,name=out_field.name,attrs=out_field.attrs)
                 coll[ugid][alias_field] = new_field
         return(coll)

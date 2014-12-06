@@ -6,14 +6,36 @@ ocgis_bounds = 'bounds'
 #: Default netCDF4 output file type
 netCDF_default_data_model = 'NETCDF4'
 
+#: Default temporal calendar.
+default_temporal_calendar = 'standard'
+
+#: Default temporal units.
+default_temporal_units = 'days since 0001-01-01 00:00:00'
+
+#: Default name for coordinate systems in netCDF file if none is provided.
+default_coordinate_system_name = 'coordinate_system'
+
+#: Default sample size variable standard name.
+default_sample_size_standard_name = 'sample_size'
+
+#: Default sample size variable long name.
+default_sample_size_long_name = 'Statistical Sample Size'
+
+#: Default row coordinate name.
+default_name_row_coordinates = 'yc'
+
+#: Default column coordinate name.
+default_name_col_coordinates = 'xc'
+
+#: Default corners dimension name.
+default_name_corners_dimension = 'ncorners'
+
 #: Standard headers for subset operations.
 raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','year','month','day','level','value']
 #: Standard headers for computation.
 calc_headers = ['did','vid','cid','ugid','tid','lid','gid','variable','alias','calc_key','calc_alias','time','year','month','day','level','value']
 #: Standard headers for multivariate calculations.
 multi_headers = ['did','cid','ugid','tid','lid','gid','calc_key','calc_alias','time','year','month','day','level','value']
-
-level_headers = ['lid','level']
 
 #: Required headers for every request.
 required_headers = ['did','ugid','gid']

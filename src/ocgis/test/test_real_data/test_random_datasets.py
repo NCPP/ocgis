@@ -1,6 +1,8 @@
+from netCDF4 import date2num
+from ocgis.util.inspect import Inspect
 import ocgis
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, nc_scope
 import itertools
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
@@ -11,7 +13,6 @@ from ocgis.interface.base.crs import CFWGS84
 import fiona
 from csv import DictReader
 from ocgis.api.request.base import RequestDataset
-from ocgis.test.test_simple.test_simple import nc_scope
 from copy import deepcopy
 from ocgis.test.test_base import longrunning
 from shapely.geometry.point import Point
@@ -195,35 +196,40 @@ class Test(TestBase):
         self.assertEqual(set(ret.keys()),set([5,6,7]))
     
     def test_seasonal_calc(self):
-        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
-        calc_grouping = [[3,4,5]]
-        rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                  calc_sample_size=True,geom='state_boundaries',
-                                  select_ugid=[23])
-        ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['n_my_std'].value.mean(),920.0)
-        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,1,1,4,3))
+        """Test some calculations using a seasonal grouping."""
 
-        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
-        calc_grouping = [[12,1,2],[3,4,5],[6,7,8],[9,10,11]]
+        calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'std', 'name': 'my_std'}]
+        calc_grouping = [[3, 4, 5]]
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                  calc_sample_size=True,geom='state_boundaries',
-                                  select_ugid=[23])
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, calc_sample_size=True,
+                                  geom='state_boundaries', select_ugid=[23])
         ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,4,1,4,3))
-        self.assertNumpyAll(ret[23]['tas'].temporal.value,np.array([ 56955.,  56680.,  56771.,  56863.]))
-        
-        calc = [{'func':'mean','name':'my_mean'},{'func':'std','name':'my_std'}]
-        calc_grouping = [[12,1],[2,3]]
+        self.assertEqual(ret[23]['tas'].variables['n_my_std'].value.mean(), 920.0)
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape, (1, 1, 1, 4, 3))
+
+        calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'std', 'name': 'my_std'}]
+        calc_grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                  calc_sample_size=True,geom='state_boundaries',
-                                  select_ugid=[23])
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, calc_sample_size=True,
+                                  geom='state_boundaries', select_ugid=[23])
         ret = ops.execute()
-        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape,(1,2,1,4,3))
-        self.assertNumpyAll(ret[23]['tas'].temporal.bounds,np.array([[ 55115.,  58765.],[ 55146.,  58490.]]))
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape, (1, 4, 1, 4, 3))
+        temporal = ret[23]['tas'].temporal
+        numtime = temporal.value_numtime
+        numtime_actual = np.array([56993.,  56718.,  56809.,  56901.])
+        self.assertNumpyAll(numtime, numtime_actual)
+
+        calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'std', 'name': 'my_std'}]
+        calc_grouping = [[12, 1], [2, 3]]
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, calc_sample_size=True,
+                                  geom='state_boundaries', select_ugid=[23])
+        ret = ops.execute()
+        self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape, (1, 2, 1, 4, 3))
+        temporal = ret[23]['tas'].temporal
+        bounds_numtime = temporal.bounds_numtime
+        bounds_numtime_actual = np.array([[55152.0, 58804.0], [55183.0, 58529.0]])
+        self.assertNumpyAll(bounds_numtime, bounds_numtime_actual)
 
     def test_seasonal_calc_dkp(self):        
         key = 'dynamic_kernel_percentile_threshold'
@@ -494,7 +500,10 @@ class Test(TestBase):
                         self.assertTrue(float(row['TIME']) < -50000)
 
             if output_format == 'nc':
-                self.assertNcEqual(dataset.uri, ret, check_types=False, ignore_attributes={'global': ['history']})
+                self.assertNcEqual(ret, dataset.uri, check_types=False,
+                                   ignore_attributes={'global': ['history'], 'bounds_time': ['calendar', 'units'],
+                                                      'bias': ['_FillValue', 'grid_mapping', 'units']},
+                                   ignore_variables=['latitude_longitude'])
         
     def test_time_region_climatology(self):
         """Test for reading metadata from QED 2013 climate data files."""

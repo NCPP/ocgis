@@ -13,6 +13,7 @@ from ocgis.interface.base.field import Field
 from ocgis.util.inspect import Inspect
 from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
+from ocgis.interface.base.dimension.temporal import TemporalDimension
 
 
 __version__ = '1.0.1'

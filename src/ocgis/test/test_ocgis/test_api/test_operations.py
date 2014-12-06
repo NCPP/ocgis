@@ -2,21 +2,22 @@ import csv
 from datetime import datetime as dt
 import itertools
 import datetime
+import os
+from unittest import SkipTest
 
+import ESMF
 from numpy import dtype
 import numpy as np
-from ocgis.util.inspect import Inspect
 
-from ocgis.api.parms.definition import RegridOptions
+from ocgis.api.parms.definition import RegridOptions, OutputFormat
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase
 from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.api.parms import definition
-from ocgis import env, constants
+from ocgis import constants
 from ocgis.api.operations import OcgOperations
-from ocgis.util.helpers import make_poly, write_geom_dict, bbox_poly
+from ocgis.util.helpers import make_poly
 import ocgis
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 
 
@@ -80,10 +81,10 @@ class TestOcgOperations(TestBase):
             rd = self.test_data.get_rd(key)
             try:
                 ops = OcgOperations(dataset=rd)
-            ## the project cmip data may raise an exception since projection is
-            ## not associated with a variable
+            # the project cmip data may raise an exception since projection is not associated with a variable
             except DimensionNotFound:
-                rd = self.test_data.get_rd(key,kwds=dict(dimension_map={'R':'projection','T':'time','X':'longitude','Y':'latitude'}))
+                rd = self.test_data.get_rd(key, kwds=dict(
+                    dimension_map={'R': 'projection', 'T': 'time', 'X': 'longitude', 'Y': 'latitude'}))
                 ops = OcgOperations(dataset=rd)
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
@@ -257,19 +258,17 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
-    def test_keyword_dataset(self):
-        env.DIR_DATA = ocgis.env.DIR_TEST_DATA
-        reference_rd = self.test_data.get_rd('cancm4_tas')
-        rd = RequestDataset(reference_rd.uri,reference_rd.variable)
-        ds = definition.Dataset(rd)
-        self.assertEqual(ds.value,RequestDatasetCollection([rd]))
-
-        dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
-        ds = definition.Dataset(dsa)
-
-        reference_rd2 = self.test_data.get_rd('narccap_crcm')
-        dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
-        ds = definition.Dataset(dsb)
+    def test_keyword_dataset_esmf(self):
+        """Test with operations on an ESMF Field."""
+        raise SkipTest
+        efield = self.get_esmf_field()
+        output_format = OutputFormat.iter_possible()
+        for kk in output_format:
+            ops = OcgOperations(dataset=efield, output_format=kk, prefix=kk)
+            ret = ops.execute()
+        # self.inspect(ret)
+        raise
+        import ipdb;ipdb.set_trace()
 
     def test_keyword_geom(self):
         geom = make_poly((37.762,38.222),(-102.281,-101.754))
@@ -336,6 +335,38 @@ class TestOcgOperations(TestBase):
         ops.level_range = lr
         for r in ops.dataset.itervalues():
             self.assertEqual(r.level_range,tuple(lr))
+
+    def test_keyword_prefix(self):
+        # the meta output format should not create an output directory
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd, output_format='meta')
+        ops.execute()
+        self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
+
+    def test_keyword_output_format_esmpy(self):
+        """Test with the ESMPy output format."""
+        raise SkipTest
+        #todo: test spatial subsetting
+        #todo: test calculations
+        slc = [None, None, None, [0, 10], [0, 10]]
+        kwds = dict(as_field=[False, True],
+                    with_slice=[True, False])
+        for k in self.iter_product_keywords(kwds):
+            rd = self.test_data.get_rd('cancm4_tas')
+            if k.as_field:
+                rd = rd.get()
+            if k.with_slice:
+                slc = slc
+            else:
+                slc = None
+            ops = OcgOperations(dataset=rd, output_format='esmpy', slice=slc)
+            ret = ops.execute()
+            self.assertIsInstance(ret, ESMF.Field)
+            try:
+                self.assertEqual(ret.shape, (1, 3650, 1, 10, 10))
+            except AssertionError:
+                self.assertFalse(k.with_slice)
+                self.assertEqual(ret.shape, (1, 3650, 1, 64, 128))
 
     def test_keyword_output_format_nc_package_validation_raised_first(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -446,3 +477,9 @@ class TestOcgOperations(TestBase):
         ops.time_region = tr
         for r in ops.dataset.itervalues():
             self.assertEqual(r.time_region,tr)
+
+    def test_validate(self):
+        # snippets should be allowed for field objects
+        field = self.test_data.get_rd('cancm4_tas').get()
+        ops = OcgOperations(dataset=field, snippet=True)
+        self.assertTrue(ops.snippet)

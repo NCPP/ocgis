@@ -1,17 +1,20 @@
+import logging
+from copy import deepcopy, copy
+
+import numpy as np
+from shapely.geometry import Point, MultiPoint
+
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env, constants
-from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, VariableInCollectionError
+from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, VariableInCollectionError, \
+    BoundsAlreadyAvailableError
 from ocgis.interface.base.field import Field
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
-import logging
 from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, Spherical, WGS84, WrappableCoordinateReferenceSystem
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.util.helpers import get_default_or_apply
-from copy import deepcopy, copy
-import numpy as np
 from ocgis.calc.eval_function import MultivariateEvalFunction
-from shapely.geometry import Point, MultiPoint
 from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension
 
 
@@ -106,8 +109,20 @@ class SubsetOperation(object):
 
         ## process the data collections
         for rds in itr_rd:
-            msg = 'Processing URI(s): {0}'.format([rd.uri for rd in rds])
-            ocgis_lh(msg=msg,logger=self._subset_log)
+
+            try:
+                msg = 'Processing URI(s): {0}'.format([rd.uri for rd in rds])
+            except AttributeError:
+                # field objects do not have uris associated with them
+                msg = []
+                for rd in rds:
+                    try:
+                        msg.append(rd.uri)
+                    except AttributeError:
+                        # likely a field object
+                        msg.append(rd.name)
+                msg = 'Processing URI(s) / field names: {0}'.format(msg)
+            ocgis_lh(msg=msg, logger=self._subset_log)
 
             for coll in self._process_subsettables_(rds):
                 ## if there are calculations, do those now and return a new type of collection
@@ -181,12 +196,38 @@ class SubsetOperation(object):
         ocgis_lh('processing...',self._subset_log,alias=alias,level=logging.DEBUG)
         ## return the field object
         try:
-            ## look for field optimizations
+            # look for field optimizations
             if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
                 field = [self.ops.optimizations['fields'][rd.alias] for rd in rds]
+            # no field optimizations, extract the target data from the dataset collection
             else:
-                field = [rd.get(format_time=self.ops.format_time,
-                                interpolate_spatial_bounds=self.ops.interpolate_spatial_bounds) for rd in rds]
+                len_rds = len(rds)
+                field = [None]*len_rds
+                for ii in range(len_rds):
+                    rds_element = rds[ii]
+                    try:
+                        field_object = rds_element.get(format_time=self.ops.format_time)
+                    except AttributeError:
+                        # likely a field object which does not need to be loaded from source
+                        if not self.ops.format_time:
+                            raise NotImplementedError
+                        field_object = rds_element
+
+                    # extrapolate the spatial bounds if requested
+                    if self.ops.interpolate_spatial_bounds:
+                        try:
+                            try:
+                                field_object.spatial.grid.row.set_extrapolated_bounds()
+                                field_object.spatial.grid.col.set_extrapolated_bounds()
+                            except AttributeError:
+                                # row/col is likely none. attempt to extrapolate using the grid values
+                                field_object.spatial.grid.set_extrapolated_corners()
+                        except BoundsAlreadyAvailableError:
+                            msg = 'Bounds/corners already on object. Ignoring "interpolate_spatial_bounds".'
+                            ocgis_lh(msg=msg, logger=self._subset_log, level=logging.WARNING)
+
+                    field[ii] = field_object
+
             # update the spatial abstraction to match the operations value. sfield will be none if the operation returns
             # empty and it is allowed to have empty returns.
             for f in field:
@@ -211,8 +252,8 @@ class SubsetOperation(object):
         # this error is related to subsetting by time or level. spatial subsetting occurs below.
         except EmptySubsetError as e:
             if self.ops.allow_empty:
-                ocgis_lh(msg='time or level subset empty but empty returns allowed',
-                         logger=self._subset_log,level=logging.WARN)
+                ocgis_lh(msg='time or level subset empty but empty returns allowed', logger=self._subset_log,
+                         level=logging.WARN)
                 coll = SpatialCollection(headers=headers)
                 coll.add_field(1, None, None, name='_'.join([rd.name for rd in rds]))
                 try:
@@ -220,7 +261,7 @@ class SubsetOperation(object):
                 finally:
                     return
             else:
-                ocgis_lh(exc=ExtentError(message=str(e)),alias=rd.alias,logger=self._subset_log)
+                ocgis_lh(exc=ExtentError(message=str(e)), alias=str([rd.name for rd in rds]), logger=self._subset_log)
 
         ## set iterator based on presence of slice. slice always overrides geometry.
         if self.ops.slice is not None:
@@ -450,7 +491,7 @@ class SubsetOperation(object):
         :param bool with_buffer: If ``True``, buffer the geometry used to subset the destination grid.
         """
 
-        # todo: cache spatial operations on regrid destination field
+        #todo: cache spatial operations on regrid destination field
 
         from ocgis.regrid.base import iter_regridded_fields
         from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation

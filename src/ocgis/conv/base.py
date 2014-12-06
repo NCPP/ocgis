@@ -1,40 +1,43 @@
-from ocgis.conv.meta import MetaConverter
 import os.path
 import abc
 import csv
-from ocgis.util.helpers import get_ordered_dicts_from_records_array
-from ocgis.util.inspect import Inspect
-from ocgis.util.logging_ocgis import ocgis_lh
 import logging
+from csv import DictWriter
+
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
 from shapely.geometry.geo import mapping
-from csv import DictWriter
+
+from ocgis.interface.base.field import Field
+from ocgis.conv.meta import MetaConverter
+from ocgis.util.helpers import get_ordered_dicts_from_records_array
+from ocgis.util.inspect import Inspect
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class AbstractConverter(object):
-    '''Base converter object. Intended for subclassing.
-    
-    :param colls: A sequence of `~ocgis.OcgCollection` objects.
-    :type colls: sequence of `~ocgis.OcgCollection` objects
+    """
+    Base converter object. Intended for subclassing.
+
+    :param colls: A sequence of :class:`~ocgis.SpatialCollection` objects.
+    :type colls: sequence of :class:`~ocgis.SpatialCollection`
     :param str outdir: Path to the output directory.
     :param str prefix: The string prepended to the output file or directory.
-    :param :class:~`ocgis.OcgOperations ops: Optional operations definition. This
-     is required for some converters.
+    :param :class:~`ocgis.OcgOperations ops: Optional operations definition. This is required for some converters.
     :param bool add_meta: If False, do not add a source and OCGIS metadata file.
-    :param bool add_auxiliary_files: If False, do not create an output folder. Write
-     only the target ouput file.
+    :param bool add_auxiliary_files: If False, do not create an output folder. Write only the target ouput file.
     :parm bool overwrite: If True, attempt to overwrite any existing output files.
-    '''
+    """
+
     __metaclass__ = abc.ABCMeta
     _ext = None
-    _add_did_file = True ## add a descriptor file for the request datasets
-    _add_ugeom = False ## added user geometry in the output folder
-    _add_ugeom_nest = True ## nest the user geometry in a shp folder
-    _add_source_meta = True ## add a source metadata file
-        
-    def __init__(self,colls,outdir,prefix,ops=None,add_meta=True,add_auxiliary_files=True,
+    _add_did_file = True  # add a descriptor file for the request datasets
+    _add_ugeom = False  # added user geometry in the output folder
+    _add_ugeom_nest = True  # nest the user geometry in a shp folder
+    _add_source_meta = True  # add a source metadata file
+
+    def __init__(self, colls, outdir=None, prefix=None, ops=None, add_meta=True, add_auxiliary_files=True,
                  overwrite=False):
         self.colls = colls
         self.ops = ops
@@ -44,17 +47,17 @@ class AbstractConverter(object):
         self.add_auxiliary_files = add_auxiliary_files
         self.overwrite = overwrite
         self._log = ocgis_lh.get_logger('conv')
-        
+
         if self._ext is None:
             self.path = self.outdir
         else:
-            self.path = os.path.join(self.outdir,prefix+'.'+self._ext)
+            self.path = os.path.join(self.outdir, prefix + '.' + self._ext)
             if os.path.exists(self.path):
                 if not self.overwrite:
                     msg = 'Output path exists "{0}" and must be removed before proceeding. Set "overwrite" argument or env.OVERWRITE to True to overwrite.'.format(self.path)
-                    ocgis_lh(logger=self._log,exc=IOError(msg))
-            
-        ocgis_lh('converter initialized',level=logging.DEBUG,logger=self._log)
+                    raise IOError(msg)
+
+        ocgis_lh('converter initialized', level=logging.DEBUG, logger=self._log)
         
     def _build_(self,*args,**kwds): raise(NotImplementedError)
     
@@ -216,41 +219,55 @@ class AbstractConverter(object):
                 with open(out_path,'w') as f:
                     f.write(lines)
             
-            ## add the dataset descriptor file if specified and OCGIS operations
-            ## are present.
+            # add the dataset descriptor file if requested
             if self._add_did_file:
-                ocgis_lh('writing dataset description (DID) file','conv',logging.DEBUG)
+                ocgis_lh('writing dataset description (DID) file', 'conv', logging.DEBUG)
                 from ocgis.conv.csv_ import OcgDialect
-                
-                headers = ['DID','VARIABLE','ALIAS','URI','STANDARD_NAME','UNITS','LONG_NAME']
-                out_path = os.path.join(self.outdir,self.prefix+'_did.csv')
-                with open(out_path,'w') as f:
-                    writer = csv.writer(f,dialect=OcgDialect)
+
+                headers = ['DID', 'VARIABLE', 'ALIAS', 'URI', 'STANDARD_NAME', 'UNITS', 'LONG_NAME']
+                out_path = os.path.join(self.outdir, self.prefix + '_did.csv')
+                with open(out_path, 'w') as f:
+                    writer = csv.writer(f, dialect=OcgDialect)
                     writer.writerow(headers)
                     for rd in self.ops.dataset.itervalues():
-                        for d in rd:
-                            row = [rd.did,d['variable'],d['alias'],rd.uri]
-                            ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
-                            row.append(ref_variable.get('standard_name',None))
-                            row.append(ref_variable.get('units',None))
-                            row.append(ref_variable.get('long_name',None))
-                            writer.writerow(row)
-                
-            ## add source metadata if requested
+                        try:
+                            for d in rd:
+                                row = [rd.did, d['variable'], d['alias'], rd.uri]
+                                ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
+                                row.append(ref_variable.get('standard_name', None))
+                                row.append(ref_variable.get('units', None))
+                                row.append(ref_variable.get('long_name', None))
+                                writer.writerow(row)
+                        except NotImplementedError:
+                            if isinstance(rd, Field):
+                                for variable in rd.variables.itervalues():
+                                    row = [rd.uid, variable.name, variable.alias, None, variable.attrs.get('standard_name'), variable.units, variable.attrs.get('long_name')]
+                                    writer.writerow(row)
+                            else:
+                                raise
+
+            # add source metadata if requested
             if self._add_source_meta:
-                ocgis_lh('writing source metadata file','conv',logging.DEBUG)
-                out_path = os.path.join(self.outdir,self.prefix+'_source_metadata.txt')
+                ocgis_lh('writing source metadata file', 'conv', logging.DEBUG)
+                out_path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
                 to_write = []
+
                 for rd in self.ops.dataset.itervalues():
-                    ip = Inspect(meta=rd.source_metadata, uri=rd.uri)
-                    to_write += ip.get_report_no_variable()
-                with open(out_path,'w') as f:
+                    try:
+                        metadata = rd.source_metadata
+                    except AttributeError:
+                        # assume field object and do not write anything
+                        continue
+                    else:
+                        ip = Inspect(meta=metadata, uri=rd.uri)
+                        to_write += ip.get_report_no_variable()
+                with open(out_path, 'w') as f:
                     f.writelines('\n'.join(to_write))
-        
+
         ## return the internal path unless overloaded by subclasses.
         ret = self._get_return_()
         
-        return(ret)
+        return ret
     
     @classmethod
     def get_converter_map(cls):
@@ -260,16 +277,17 @@ class AbstractConverter(object):
 #        from ocgis.conv.shpidx import ShpIdxConverter
 #        from ocgis.conv.keyed import KeyedConverter
         from ocgis.conv.nc import NcConverter
-        
-        mmap = {'shp':ShpConverter,
-                'csv':CsvConverter,
-                'csv+':CsvPlusConverter,
-                'numpy':NumpyConverter,
-                'geojson':GeoJsonConverter,
-#                'shpidx':ShpIdxConverter,
-#                'keyed':KeyedConverter,
-                'nc':NcConverter}
-        return(mmap)
+
+        mmap = {'shp': ShpConverter,
+                'csv': CsvConverter,
+                'csv+': CsvPlusConverter,
+                'numpy': NumpyConverter,
+                'geojson': GeoJsonConverter,
+                # 'shpidx':ShpIdxConverter,
+                # 'keyed':KeyedConverter,
+                'nc': NcConverter,
+                'meta': MetaConverter}
+        return mmap
         
     @classmethod
     def get_converter(cls,output_format):
@@ -282,3 +300,13 @@ class AbstractConverter(object):
         AbstractConverter'''
         
         return(cls.get_converter_map()[output_format])
+
+    @classmethod
+    def validate_ops(cls, ops):
+        """
+        Validate an operations object.
+
+        :param ops: The input operations object to validate.
+        :type ops: :class:`ocgis.OcgOperations`
+        :raises: DefinitionValidationError
+        """

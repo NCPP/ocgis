@@ -21,8 +21,10 @@ class TestOptionalDependencies(TestSimpleBase):
         ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc')
         ret = ops.execute()
         ignore_attributes = {'time_bnds': ['units', 'calendar'],
-                             'global': ['history']}
-        self.assertNcEqual(ret, rd1.uri, ignore_attributes=ignore_attributes)
+                             'global': ['history'],
+                             'foo': ['grid_mapping']}
+        ignore_variables = ['latitude_longitude']
+        self.assertNcEqual(ret, rd1.uri, ignore_attributes=ignore_attributes, ignore_variables=ignore_variables)
 
     def test_rtree(self):
         from ocgis.util.spatial.index import SpatialIndex

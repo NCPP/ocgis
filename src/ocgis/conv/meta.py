@@ -62,6 +62,16 @@ class MetaConverter(object):
             else:
                 ret.append(line)
         return(ret)
+
+    @classmethod
+    def validate_ops(cls, ops):
+        """
+        Validate an operations object.
+
+        :param ops: The input operations object to validate.
+        :type ops: :class:`ocgis.OcgOperations`
+        :raises: DefinitionValidationError
+        """
         
     def write(self):
         return('\n'.join(self.get_rows()))

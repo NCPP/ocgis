@@ -1,20 +1,27 @@
+from contextlib import contextmanager
 import unittest
 import abc
 import tempfile
 import datetime
+import subprocess
+import itertools
+from ocgis.api.collection import SpatialCollection
+from ocgis.interface.base.field import Field
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis import env
 import shutil
 from copy import deepcopy, copy
 import os
 from collections import OrderedDict
-import subprocess
 import ocgis
-from warnings import warn
-from subprocess import CalledProcessError
 import numpy as np
 from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
+from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.base.dimension.temporal import TemporalDimension
+from ocgis.interface.base.variable import Variable
 from ocgis.util.helpers import get_iter
+from ocgis.util.itester import itr_products_keywords
 
 
 class ToTest(Exception):
@@ -51,6 +58,9 @@ class TestBase(unittest.TestCase):
         ret = os.path.join(base_dir, 'bin')
         return ret
 
+    def assertAsSetEqual(self, sequence1, sequence2, msg=None):
+        self.assertSetEqual(set(sequence1), set(sequence2), msg=msg)
+
     def assertDictEqual(self, d1, d2, msg=None):
         """
         Asserts two dictionaries are equal. If they are not, identify the first key/value which are not equal.
@@ -73,7 +83,7 @@ class TestBase(unittest.TestCase):
                 self.assertEqual(v, d2[k], msg=msg)
             self.assertEqual(set(d1.keys()), set(d2.keys()))
 
-    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True):
+    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True):
         """
         Asserts arrays are equal according to the test criteria.
 
@@ -83,10 +93,15 @@ class TestBase(unittest.TestCase):
         :type arr2: :class:`numpy.ndarray`
         :param bool check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
         :param bool check_arr_dtype: If ``True``, check the data types of the arrays are equal.
+        :param bool check_arr_type: If ``True``, check the types of the incoming arrays:
+
+        >>> type(arr1) == type(arr2)
+
         :raises: AssertionError
         """
 
-        self.assertEqual(type(arr1), type(arr2))
+        if check_arr_type:
+            self.assertEqual(type(arr1), type(arr2))
         self.assertEqual(arr1.shape, arr2.shape)
         if check_arr_dtype:
             self.assertEqual(arr1.dtype, arr2.dtype)
@@ -101,7 +116,7 @@ class TestBase(unittest.TestCase):
             self.assertTrue(np.all(arr1 == arr2))
 
     def assertNcEqual(self, uri_src, uri_dest, check_types=True, close=False, metadata_only=False,
-                      ignore_attributes=None):
+                      ignore_attributes=None, ignore_variables=None):
         """
         Assert two netCDF files are equal according to the test criteria.
 
@@ -116,8 +131,10 @@ class TestBase(unittest.TestCase):
 
         >>> ignore_attributes = {'global': ['history']}
 
-        :raises: AssertionError
+        :param list ignore_variables: A list of variable names to ignore.
         """
+
+        ignore_variables = ignore_variables or []
 
         src = nc.Dataset(uri_src)
         dest = nc.Dataset(uri_dest)
@@ -130,21 +147,30 @@ class TestBase(unittest.TestCase):
             self.assertEqual(set(src.dimensions.keys()), set(dest.dimensions.keys()))
 
             for varname, var in src.variables.iteritems():
+
+                if varname in ignore_variables:
+                    continue
+
                 dvar = dest.variables[varname]
+
+                var_value = var[:]
+                dvar_value = dvar[:]
+
                 try:
                     if not metadata_only:
                         if close:
-                            self.assertNumpyAllClose(var[:], dvar[:])
+                            self.assertNumpyAllClose(var_value, dvar_value)
                         else:
-                            self.assertNumpyAll(var[:], dvar[:], check_arr_dtype=check_types)
+                            self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types)
                 except AssertionError:
-                    cmp = var[:] == dvar[:]
+                    cmp = var_value == dvar_value
                     if cmp.shape == (1,) and cmp.data[0] == True:
                         pass
                     else:
                         raise
+
                 if check_types:
-                    self.assertEqual(var[:].dtype, dvar[:].dtype)
+                    self.assertEqual(var_value.dtype, dvar_value.dtype)
 
                 # check values of attributes on all variables
                 for k, v in var.__dict__.iteritems():
@@ -164,8 +190,36 @@ class TestBase(unittest.TestCase):
                         self.assertNumpyAll(v, to_test_attr)
                     except AttributeError:
                         self.assertEqual(v, to_test_attr)
+
+                # check values of attributes on all variables
+                for k, v in dvar.__dict__.iteritems():
+                    try:
+                        to_test_attr = getattr(var, k)
+                    except AttributeError:
+                        # if the variable and attribute are flagged to ignore, continue to the next attribute
+                        if var._name in ignore_attributes:
+                            if k in ignore_attributes[var._name]:
+                                continue
+
+                        # notify if an attribute is missing
+                        msg = 'The attribute "{0}" is not found on the variable "{1}" for URI "{2}".'\
+                            .format(k, var._name, uri_src)
+                        raise AttributeError(msg)
+                    try:
+                        self.assertNumpyAll(v, to_test_attr)
+                    except AttributeError:
+                        self.assertEqual(v, to_test_attr)
+
                 self.assertEqual(var.dimensions, dvar.dimensions)
-            self.assertEqual(set(src.variables.keys()), set(dest.variables.keys()))
+
+            sets = [set(xx.variables.keys()) for xx in [src, dest]]
+            for ignore_variable, s in itertools.product(ignore_variables, sets):
+                try:
+                    s.remove(ignore_variable)
+                except KeyError:
+                    # likely missing in one or the other
+                    continue
+            self.assertEqual(*sets)
 
             if 'global' not in ignore_attributes:
                 self.assertDictEqual(src.__dict__, dest.__dict__)
@@ -236,6 +290,80 @@ class TestBase(unittest.TestCase):
             pass
         else:
             raise AssertionError('Arrays are equivalent within precision.')
+
+    def get_esmf_field(self, **kwargs):
+        """
+        :keyword field: (``=None``) The field object. If ``None``, call :meth:`~ocgis.test.base.TestBase.get_field`
+        :type field: :class:`~ocgis.Field`
+        :param kwargs: Other keyword arguments to :meth:`ocgis.test.base.TestBase.get_field`.
+        :returns: An ESMF field object.
+        :rtype: :class:`ESMF.Field`
+        """
+
+        from ocgis.conv.esmpy import ESMPyConverter
+
+        field = kwargs.pop('field', None) or self.get_field(**kwargs)
+        coll = SpatialCollection()
+        coll.add_field(1, None, field)
+        conv = ESMPyConverter([coll])
+        efield = conv.write()
+        return efield
+
+    def get_field(self, nlevel=None, nrlz=None, crs=None):
+        """
+        :param int nlevel: The number of level elements.
+        :param int nrlz: The number of realization elements.
+        :param crs: The coordinate system for the field.
+        :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+        :returns: A small field object for testing.
+        :rtype: `~ocgis.Field`
+        """
+
+        np.random.seed(1)
+        row = VectorDimension(value=[4., 5.], name='row')
+        col = VectorDimension(value=[40., 50.], name='col')
+        grid = SpatialGridDimension(row=row, col=col)
+        sdim = SpatialDimension(grid=grid, crs=crs)
+        temporal = TemporalDimension(value=[datetime.datetime(2000, 1, 1), datetime.datetime(2000, 2, 1)])
+
+        if nlevel is None:
+            nlevel = 1
+            level = None
+        else:
+            level = VectorDimension(value=range(1, nlevel+1), name='level')
+
+        if nrlz is None:
+            nrlz = 1
+            realization = None
+        else:
+            realization = VectorDimension(value=range(1, nrlz+1), name='realization')
+
+        variable = Variable(name='foo', value=np.random.rand(nrlz, 2, nlevel, 2, 2))
+        field = Field(spatial=sdim, temporal=temporal, variables=variable, level=level, realization=realization)
+
+        return field
+
+    def get_netcdf_path_no_row_column(self):
+        """
+        Create a NetCDF with no row and column dimensions.
+
+        :returns: Path to the created NetCDF in the current test directory.
+        :rtype: str
+        """
+
+        field = self.get_field()
+        field.spatial.grid.row.set_extrapolated_bounds()
+        field.spatial.grid.col.set_extrapolated_bounds()
+        field.spatial.grid.value
+        field.spatial.grid.corners
+        self.assertIsNotNone(field.spatial.grid.corners)
+        field.spatial.grid.row = field.spatial.grid.col = None
+        self.assertIsNone(field.spatial.grid.row)
+        self.assertIsNone(field.spatial.grid.col)
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            field.write_to_netcdf_dataset(ds)
+        return path
 
     def get_temporary_output_directory(self):
         """
@@ -317,6 +445,21 @@ class TestBase(unittest.TestCase):
         test_data.update(['nc', 'snippets'], 'bias', 'seasonalbias.nc', key='snippet_seasonalbias')
 
         return test_data
+
+    def inspect(self, uri, variable=None):
+        from ocgis.util.inspect import Inspect
+        print Inspect(uri, variable=None)
+
+    def iter_product_keywords(self, keywords, as_namedtuple=True):
+        return itr_products_keywords(keywords, as_namedtuple=as_namedtuple)
+
+    def nautilus(self, path):
+        if not os.path.isdir(path):
+            path = os.path.split(path)[0]
+        subprocess.call(['nautilus', path])
+
+    def nc_scope(self, *args, **kwargs):
+        return nc_scope(*args, **kwargs)
 
     def setUp(self):
         self.current_dir_output = None
@@ -452,3 +595,31 @@ class TestData(OrderedDict):
 
         OrderedDict.update(self, {key or filename: {'collection': collection,
                                                     'filename': filename, 'variable': variable}})
+
+
+@contextmanager
+def nc_scope(path, mode='r', format=None):
+    """
+    Provide a transactional scope around a :class:`netCDF4.Dataset` object.
+
+    >>> with nc_scope('/my/file.nc') as ds:
+    >>>     print ds.variables
+
+    :param str path: The full path to the netCDF dataset.
+    :param str mode: The file mode to use when opening the dataset.
+    :param str format: The NetCDF format.
+    :returns: An open dataset object that will be closed after leaving the ``with`` statement.
+    :rtype: :class:`netCDF4.Dataset`
+    """
+
+    kwds = {'mode': mode}
+    if format is not None:
+        kwds['format'] = format
+
+    ds = nc.Dataset(path, **kwds)
+    try:
+        yield ds
+    except:
+        raise
+    finally:
+        ds.close()

@@ -1,5 +1,5 @@
 from csv import DictReader
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, nc_scope
 from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
 import ocgis
@@ -9,7 +9,6 @@ from ocgis.conv.nc import NcConverter
 import itertools
 from copy import deepcopy
 import tempfile
-from ocgis.test.test_simple.test_simple import nc_scope
 import numpy as np
 
 
@@ -20,7 +19,7 @@ class AbstractTestConverter(TestBase):
         field = field or rd.get()[:, 0, :, 0, 0]
         coll = SpatialCollection()
         coll.add_field(1, None, field)
-        return(coll)
+        return coll
 
 
 class TestAbstractConverter(AbstractTestConverter):

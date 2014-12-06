@@ -53,7 +53,10 @@ Additional information on arguments are found in their respective sections.
 dataset
 ~~~~~~~
 
-A `dataset` is the target file(s) where data is stored. A `dataset` may be on the local machine or network location accessible by the software. Unsecured OpenDAP datasets may also be accessed.
+A ``dataset`` is the target file(s) or object(s) containing data to process. A ``dataset`` may be:
+ 1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
+ 2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
+ 3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
 
 .. autoclass:: ocgis.RequestDataset
    :members: inspect, inspect_as_dct

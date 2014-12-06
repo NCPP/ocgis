@@ -1,3 +1,4 @@
+from ocgis.interface.base.attributes import Attributes
 from ocgis.calc.base import AbstractUnivariateSetFunction,\
     AbstractMultivariateFunction
 from ocgis import constants
@@ -48,22 +49,16 @@ _icclim_function_map = {
                         }
 
 
-class NcVariableSimulator(object):
-    
-    def __init__(self,meta):
-        self.meta = meta
-        
-    def setncattr(self,key,value):
-        self.meta['attrs'][key] = value
-        
-        
-class NcDatasetSimulator(NcVariableSimulator):
-    
-    def __getattr__(self,name):
-        return(self.meta['dataset'][name])
-    
-    def setncattr(self,key,value):
-        self.meta['dataset'][key] = value
+class NcAttributesSimulator(object):
+
+    def __init__(self, attrs):
+        self.attrs = attrs
+
+    def __getattr__(self, name):
+        return self.attrs[name]
+
+    def setncattr(self, key, value):
+        self.attrs[key] = value
         
         
 class AbstractIcclimFunction(object):
@@ -76,10 +71,7 @@ class AbstractIcclimFunction(object):
     _allowed_temporal_groupings = [('month',),('month','year'),('year',)]
     
     def set_field_metadata(self):
-        sim = NcDatasetSimulator(self.field.meta)
-        
-        ## we are going to strip the metadata elements and store in a dictionary
-        ## JSON representation
+        # we are going to strip the metadata elements and store in a dictionary JSON representation
         
         def _get_value_(key,target):
             try:
@@ -95,37 +87,33 @@ class AbstractIcclimFunction(object):
                     except KeyError:
                         pass
             return('',key)
-        
-        ## reorganize the output metadata pushing source global attributes to a
-        ## new attribute. the old attributes are serialized to a JSON string
-        original = deepcopy(sim.meta['dataset'])
-        sim.meta['dataset'] = OrderedDict()
-        sim.meta['dataset'][self._global_attribute_source_name] = original
-        ## copy attributes from the original dataset
+
+        # reorganize the output metadata pushing source global attributes to a new attribute. the old attributes are
+        # serialized to a JSON string
+        original = deepcopy(self.field.attrs)
+        self.field.attrs = OrderedDict()
+        sim = NcAttributesSimulator(self.field.attrs)
+        sim.attrs[self._global_attribute_source_name] = original
+        # copy attributes from the original dataset
         for key in self._global_attributes_maintain:
-            value,value_key = _get_value_(key,sim.meta['dataset'][self._global_attribute_source_name])
-            sim.meta['dataset'][value_key] = value
-        ref = sim.meta['dataset'][self._global_attribute_source_name]
-        sim.meta['dataset'][self._global_attribute_source_name] = self._get_json_string_(ref)
+            value,value_key = _get_value_(key,sim.attrs[self._global_attribute_source_name])
+            sim.attrs[value_key] = value
+        ref = sim.attrs[self._global_attribute_source_name]
+        sim.attrs[self._global_attribute_source_name] = self._get_json_string_(ref)
         
-        ## update global attributes using ICCLIM functions
+        # update global attributes using ICCLIM functions
         indice_name = self.key.split('_')[1]
-        set_globattr.history(sim,
-                             self.tgd.grouping,
-                             indice_name,
-                             [self.field.temporal.value_datetime.min(),
-                             self.field.temporal.value_datetime.max()])
+        set_globattr.history(sim,self.tgd.grouping,indice_name,[self.field.temporal.value_datetime.min(),self.field.temporal.value_datetime.max()])
         set_globattr.title(sim,indice_name)
         set_globattr.references(sim)
         set_globattr.institution(sim,'Climate impact portal (http://climate4impact.eu)')
         set_globattr.comment(sim,indice_name)
-    
-    def set_variable_metadata(self,variable):
-        sim = NcVariableSimulator(variable.meta)
+
+    def set_variable_metadata(self, variable):
+        sim = NcAttributesSimulator(variable.attrs)
         _icclim_function_map[self.key]['meta'](sim)
-        ## update the variable's units from the metadata as this is modified
-        ## inside ICCLIM
-        variable.units = variable.meta['attrs']['units']
+        # update the variable's units from the metadata as this is modified inside ICCLIM
+        variable.units = variable.attrs['units']
     
     @staticmethod
     def _get_json_string_(dct):

@@ -53,7 +53,15 @@ class CsvPlusConverter(CsvConverter):
         if not self.ops.aggregate:
             fiona_path = os.path.join(self._get_or_create_shp_folder_(),self.prefix+'_gid.shp')
             archetype_field = coll._archetype_field
-            fiona_crs = archetype_field.spatial.crs.value
+
+            try:
+                fiona_crs = archetype_field.spatial.crs.value
+            except AttributeError:
+                if archetype_field.spatial.crs is None:
+                    raise ValueError('"crs" is None. A coordinate systems is required for writing to Fiona output.')
+                else:
+                    raise
+
             fiona_schema = {'geometry':archetype_field.spatial.abstraction_geometry._geom_type,
                             'properties':OrderedDict([['DID','int'],['UGID','int'],['GID','int']])}
             fiona_object = fiona.open(fiona_path,'w',driver='ESRI Shapefile',crs=fiona_crs,schema=fiona_schema)

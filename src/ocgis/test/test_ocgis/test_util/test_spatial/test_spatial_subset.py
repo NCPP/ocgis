@@ -188,7 +188,6 @@ class TestSpatialSubsetOperation(TestBase):
                     # if ctr != 73:
                     #     continue
                     # else:
-                    #     import ipdb;ipdb.set_trace()
 
                     try:
                         ret = use_ss.get_spatial_subset(operation, use_subset_sdim, use_spatial_index=True,

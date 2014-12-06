@@ -1,4 +1,5 @@
 from ocgis.api.collection import AbstractCollection
+from ocgis.interface.base.attributes import Attributes
 from ocgis.util.logging_ocgis import ocgis_lh
 import abc
 from collections import OrderedDict
@@ -22,13 +23,15 @@ class AbstractValueVariable(object):
     :type units: str or :class:`cfunits.Units`
     """
     __metaclass__ = abc.ABCMeta
+    _value = None
+    _conform_units_to = None
     
     def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None):
-        ## if the units value is not None, then convert to string. cfunits.Units
-        ## may be easily handled this way without checking for the module presence.
+        # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
+        # checking for the module presence.
         self.units = str(units) if units is not None else None
         self.conform_units_to = conform_units_to
-        self._value = value
+        self.value = value
         self._dtype = dtype
         self._fill_value = fill_value
         self.name = name
@@ -58,7 +61,7 @@ class AbstractValueVariable(object):
     def dtype(self):
         if self._dtype is None:
             if self._value is None:
-                raise(ValueError('dtype not specified at object initialization and value has not been loaded.'))
+                raise ValueError('dtype not specified at object initialization and value has not been loaded.')
             else:
                 ret = self.value.dtype
         else:
@@ -83,19 +86,12 @@ class AbstractValueVariable(object):
     @property
     def value(self):
         if self._value is None:
-            self._value = self._get_value_()
+            self._value = self._format_private_value_(self._get_value_())
         return self._value
 
-    def _get_value_(self):
-        raise NotImplementedError
-    
-    @property
-    def _value(self):
-        return self.__value
-
-    @_value.setter
-    def _value(self, value):
-        self.__value = self._format_private_value_(value)
+    @value.setter
+    def value(self, value):
+        self._value = self._format_private_value_(value)
 
     def _format_private_value_(self, value):
         if value is not None:
@@ -104,6 +100,10 @@ class AbstractValueVariable(object):
                 if not self.conform_units_to.equals(self.cfunits):
                     value = self.cfunits_conform(to_units=self.conform_units_to, value=value, from_units=self.cfunits)
         return value
+
+    @abc.abstractmethod
+    def _get_value_(self):
+        """Return the value field."""
 
     def cfunits_conform(self,to_units,value=None,from_units=None):
         '''
@@ -138,50 +138,36 @@ class AbstractValueVariable(object):
         return convert_value
 
 
-class AbstractSourcedVariable(AbstractValueVariable):
+class AbstractSourcedVariable(object):
     __metaclass__ = abc.ABCMeta
     
-    def __init__(self,data,src_idx=None,value=None,debug=False,did=None,units=None,
-                 dtype=None,fill_value=None,name=None,conform_units_to=None):
-        if not debug and value is None and data is None:
-            ocgis_lh(exc=ValueError('Sourced variables require a data source if no value is passed.'))
+    def __init__(self, data, src_idx):
         self._data = data
         self._src_idx = src_idx
-        self._debug = debug
-        self.did = did
-        
-        AbstractValueVariable.__init__(self,value=value,units=units,dtype=dtype,fill_value=fill_value,
-                                       name=name,conform_units_to=conform_units_to)
-        
+
     @property
     def _src_idx(self):
-        return(self.__src_idx)
+        return self.__src_idx
+
     @_src_idx.setter
-    def _src_idx(self,value):
+    def _src_idx(self, value):
         self.__src_idx = self._format_src_idx_(value)
     
-    def _format_src_idx_(self,value):
-        if value is None:
-            ret = value
-        else:
-            ret = value
-        return(ret)
-    
+    def _format_src_idx_(self, value):
+        return np.array(value)
+
     def _get_value_(self):
-        if self._data is None and self._value is None:
-            ocgis_lh(exc=ValueError('Values were requested from data source, but no data source is available.'))
-        elif self._src_idx is None and self._value is None:
-            ocgis_lh(exc=ValueError('Values were requested from data source, but no source index source is available.'))
-        else:
+        if self._value is None:
             self._set_value_from_source_()
-        return(self._value)
+        return self._value
             
     @abc.abstractmethod
-    def _set_value_from_source_(self): pass
+    def _set_value_from_source_(self):
+        """Should set ``_value`` using the data source and index."""
 
 
-class Variable(AbstractSourcedVariable):
-    '''
+class Variable(AbstractSourcedVariable, AbstractValueVariable, Attributes):
+    """
     :param name: Representative name for the variable.
     :type name: str
     :param alias: Optional unique name for the variable.
@@ -205,18 +191,20 @@ class Variable(AbstractSourcedVariable):
     :type fill_value: int or float
     :param conform_units_to: Target units for conversion.
     :type conform_units_to: str convertible to :class:`cfunits.Units`
-    '''
-    
-    def __init__(self,name=None,alias=None,units=None,meta=None,uid=None,
-                 value=None,did=None,data=None,debug=False,conform_units_to=None,
-                 dtype=None,fill_value=None):
+    :param dict attrs: A dictionary of arbitrary key-value attributes.
+    """
+
+    def __init__(self, name=None, alias=None, units=None, meta=None, uid=None, value=None, did=None, data=None,
+                 conform_units_to=None, dtype=None, fill_value=None, attrs=None):
         self.alias = alias or name
         self.meta = meta or {}
         self.uid = uid
+        self.did = did
 
-        super(Variable,self).__init__(value=value,data=data,debug=debug,did=did,
-                                      units=units,dtype=dtype,fill_value=fill_value,
-                                      name=name,conform_units_to=conform_units_to)
+        AbstractSourcedVariable.__init__(self, data, None)
+        Attributes.__init__(self, attrs=attrs)
+        AbstractValueVariable.__init__(self, value=value, units=units, dtype=dtype, fill_value=fill_value, name=name,
+                                       conform_units_to=conform_units_to)
         
     def __getitem__(self,slc):
         ret = copy(self)
@@ -224,9 +212,11 @@ class Variable(AbstractSourcedVariable):
             ret._value = self._value[slc]
         return(ret)
                 
-    def __repr__(self):
-        ret = '{0}(alias="{1}",name="{2}",units="{3}")'.format(self.__class__.__name__,self.alias,self.name,self.units)
-        return(ret)
+    def __str__(self):
+        units = '{0}' if self.units is None else '"{0}"'
+        units = units.format(self.units)
+        ret = '{0}(name="{1}", alias="{2}", units={3})'.format(self.__class__.__name__, self.alias, self.name, units)
+        return ret
 
     def get_empty_like(self, shape=None):
         """
@@ -248,7 +238,7 @@ class Variable(AbstractSourcedVariable):
         shape = shape or self.value.shape
         value = np.ma.array(np.zeros(shape), dtype=self.dtype, fill_value=self.fill_value, mask=mask)
         ret = Variable(name=self.name, units=self.units, meta=deepcopy(self.meta), value=value, did=self.did,
-                       alias=self.alias, uid=self.uid)
+                       alias=self.alias, uid=self.uid, attrs=deepcopy(self.attrs))
         return ret
     
     def _format_private_value_(self,value):

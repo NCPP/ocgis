@@ -1,3 +1,4 @@
+from ocgis.conv.base import AbstractConverter
 from ocgis.api.parms.definition import *
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis import env
@@ -6,7 +7,6 @@ from ocgis.conv.meta import MetaConverter
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
 from ocgis.api.subset import SubsetOperation
-import numpy as np
 from ocgis.calc.engine import OcgCalculationEngine
 
 
@@ -27,10 +27,10 @@ class OcgOperations(object):
     The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
     validation and input formatting.
 
-    :param dataset: The target dataset(s) for the request. This is the only required parameter. All elements of datasets
-     will be processed.
-    :type dataset: :class:`~ocgis.RequestDatasetCollection`, :class:`~ocgis.RequestDataset`, or sequence of :class:`~ocgis.RequestDataset`
-     objects
+    :param dataset: The target dataset(s) for the request. This is the only required parameter. All elements of
+     ``dataset`` will be processed.
+    :type dataset: :class:`~ocgis.RequestDatasetCollection`, :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field`, or
+     sequence of :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field` objects
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
     :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial
@@ -72,8 +72,8 @@ class OcgOperations(object):
     :param headers: A sequence of strings specifying the output headers. Default value of ('did', 'ugid', 'gid') is
      always applied.
     :type headers: sequence
-    :param format_time: If `True` (the default), attempt to coerce time values to datetime stamps. If `False`, pass
-     values through without a coercion attempt.
+    :param format_time: If ``True`` (the default), attempt to coerce time values to datetime stamps. If ``False``, pass
+     values through without a coercion attempt. This only affects :class:`~ocgis.RequestDataset` objects.
     :type format_time: bool
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
@@ -233,33 +233,34 @@ class OcgOperations(object):
             msg = 'Base request size not supported with a regrid destination.'
             raise DefinitionValidationError(RegridDestination, msg)
 
-        def _get_kb_(dtype,elements):
-            nbytes = np.array([1],dtype=dtype).nbytes
-            return(float((elements*nbytes)/1024.0))
-        
+        def _get_kb_(dtype, elements):
+            nbytes = np.array([1], dtype=dtype).nbytes
+            return float((elements * nbytes) / 1024.0)
+
         def _get_zero_or_kb_(dimension):
-            ret = {'shape':None,'kb':0.0,'dtype':None}
+            ret = {'shape': None, 'kb': 0.0, 'dtype': None}
             if dimension is not None:
                 try:
                     ret['dtype'] = dimension.dtype
                     ret['shape'] = dimension.shape
-                    ret['kb'] = _get_kb_(dimension.dtype,dimension.shape[0])
-                ## dtype may not be available, check if it is the realization dimension.
-                ## this is often not associated with a variable.
+                    ret['kb'] = _get_kb_(dimension.dtype, dimension.shape[0])
+                # dtype may not be available, check if it is the realization dimension. this is often not associated
+                # with a variable.
                 except ValueError:
-                    if dimension._axis != 'R':
+                    if dimension.axis != 'R':
                         raise
-            return(ret)
-        
+            return ret
+
         ops_size = deepcopy(self)
-        subset = SubsetOperation(ops_size,request_base_size_only=True)
+        subset = SubsetOperation(ops_size, request_base_size_only=True)
         ret = dict(variables={})
         for coll in subset:
             for row in coll.get_iter_melted():
-                elements = reduce(lambda x,y: x*y,row['field'].shape)
-                kb = _get_kb_(row['variable'].dtype,elements)
+                elements = reduce(lambda x, y: x * y, row['field'].shape)
+                kb = _get_kb_(row['variable'].dtype, elements)
                 ret['variables'][row['variable_alias']] = {}
-                ret['variables'][row['variable_alias']]['value'] = {'shape':row['field'].shape,'kb':kb,'dtype':row['variable'].dtype}
+                ret['variables'][row['variable_alias']]['value'] = {'shape': row['field'].shape, 'kb': kb,
+                                                                    'dtype': row['variable'].dtype}
                 ret['variables'][row['variable_alias']]['realization'] = _get_zero_or_kb_(row['field'].realization)
                 ret['variables'][row['variable_alias']]['temporal'] = _get_zero_or_kb_(row['field'].temporal)
                 ret['variables'][row['variable_alias']]['level'] = _get_zero_or_kb_(row['field'].level)
@@ -272,7 +273,7 @@ class OcgOperations(object):
                 for v3 in v2.itervalues():
                     total += float(v3['kb'])
         ret['total'] = total
-        return(ret)
+        return ret
     
     def get_meta(self):
         meta_converter = MetaConverter(self)
@@ -440,10 +441,8 @@ class OcgOperations(object):
         # snippet only relevant for subsetting not operations with a calculation or time region
         if self.snippet:
             if self.calc is not None:
-                _raise_(
-                    'Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',
-                    obj=Snippet)
-            for rd in self.dataset.itervalues():
+                _raise_('Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',obj=Snippet)
+            for rd in self.dataset.iter_request_datasets():
                 if rd.time_region is not None:
                     _raise_('Snippets are not implemented for time regions.', obj=Snippet)
 
@@ -468,3 +467,7 @@ class OcgOperations(object):
             else:
                 for c in self.calc:
                     c['ref'].validate(self)
+
+        # validate the converter
+        converter_klass = AbstractConverter.get_converter(self.output_format)
+        converter_klass.validate_ops(self)

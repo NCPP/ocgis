@@ -1,15 +1,19 @@
 import unittest
+import pickle
+import tempfile
+from unittest import SkipTest
+
 from cfunits import Units
+import numpy as np
+
+from ocgis import env
 from ocgis.api.parms.definition import *
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
 from ocgis.util.helpers import make_poly
-import pickle
-import tempfile
 from ocgis.test.base import TestBase
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.shp_cabinet import ShpCabinet
-import numpy as np
 from ocgis.calc.eval_function import MultivariateEvalFunction
 
 
@@ -136,56 +140,38 @@ class Test(TestBase):
         pp.value = ' Old__man '
         self.assertEqual(pp.value,'Old__man')
 
-    def test_calc_grouping(self):
-        cg = CalcGrouping(['day','month'])
-        self.assertEqual(cg.value,('day','month'))
+
+class TestAbstraction(TestBase):
+    create_dir = False
+
+    def test_init_(self):
+        K = Abstraction
+
+        k = K()
+        self.assertEqual(k.value,None)
+        self.assertEqual(str(k),'abstraction="None"')
+
+        k = K('point')
+        self.assertEqual(k.value,'point')
+
         with self.assertRaises(DefinitionValidationError):
-            cg.value = ['d','foo']
+            K('pt')
 
-    def test_calc_grouping_all(self):
-        cg = CalcGrouping('all')
-        self.assertEqual(cg.value,'all')
 
-    def test_calc_grouping_seasonal_aggregation(self):
-        cg = CalcGrouping([[1,2,3],[4,5,6]])
-        self.assertEqual(cg.value,([1,2,3],[4,5,6]))
+class TestAggregate(TestBase):
+    create_dir = False
 
-        ## element groups must be composed of unique elements
-        with self.assertRaises(DefinitionValidationError):
-            CalcGrouping([[1,2,3],[4,4,6]])
+    def test_init(self):
+        A = Aggregate
 
-        ## element groups must have an empty intersection
-        with self.assertRaises(DefinitionValidationError):
-            CalcGrouping([[1,2,3],[1,4,6]])
+        a = A(True)
+        self.assertEqual(a.value,True)
 
-        ## months must be between 1 and 12
-        with self.assertRaises(DefinitionValidationError):
-            CalcGrouping([[1,2,3],[4,5,66]])
+        a = A(False)
+        self.assertEqual(a.value,False)
 
-    def test_calc_grouping_seasonal_aggregation_with_year(self):
-        cg = CalcGrouping([[1,2,3],[4,5,6],'year'])
-        self.assertEqual(cg.value,([1,2,3],[4,5,6],'year'))
-
-    def test_calc_grouping_seasonal_aggregation_with_unique(self):
-        cg = CalcGrouping([[1,2,3],[4,5,6],'unique'])
-        self.assertEqual(cg.value,([1,2,3],[4,5,6],'unique'))
-
-    def test_calc_grouping_seasonal_aggregation_with_bad_flag(self):
-        with self.assertRaises(DefinitionValidationError):
-            CalcGrouping([[1,2,3],[4,5,6],'foo'])
-        with self.assertRaises(DefinitionValidationError):
-            CalcGrouping([[1,2,3],[4,5,6],'fod'])
-
-    def test_dataset(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        dd = Dataset(rd)
-
-        with open('/tmp/dd.pkl','w') as f:
-            pickle.dump(dd,f)
-
-        uri = '/a/bad/path'
-        with self.assertRaises(ValueError):
-            rd = RequestDataset(uri,'foo')
+        a = A('True')
+        self.assertEqual(a.value,True)
 
 
 class TestCalc(TestBase):
@@ -299,18 +285,47 @@ class TestCalc(TestBase):
 
 
 class TestCalcGrouping(TestBase):
+    create_dir = False
 
-    def test_init(self):
-        A = Aggregate
+    def init(self):
+        cg = CalcGrouping(['day', 'month'])
+        self.assertEqual(cg.value, ('day', 'month'))
+        with self.assertRaises(DefinitionValidationError):
+            cg.value = ['d', 'foo']
 
-        a = A(True)
-        self.assertEqual(a.value,True)
+    def test_all(self):
+        cg = CalcGrouping('all')
+        self.assertEqual(cg.value, 'all')
 
-        a = A(False)
-        self.assertEqual(a.value,False)
+    def test_seasonal_aggregation(self):
+        cg = CalcGrouping([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(cg.value, ([1, 2, 3], [4, 5, 6]))
 
-        a = A('True')
-        self.assertEqual(a.value,True)
+        # # element groups must be composed of unique elements
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1, 2, 3], [4, 4, 6]])
+
+        ## element groups must have an empty intersection
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1, 2, 3], [1, 4, 6]])
+
+        ## months must be between 1 and 12
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1, 2, 3], [4, 5, 66]])
+
+    def test_seasonal_aggregation_with_year(self):
+        cg = CalcGrouping([[1, 2, 3], [4, 5, 6], 'year'])
+        self.assertEqual(cg.value, ([1, 2, 3], [4, 5, 6], 'year'))
+
+    def test_seasonal_aggregation_with_unique(self):
+        cg = CalcGrouping([[1, 2, 3], [4, 5, 6], 'unique'])
+        self.assertEqual(cg.value, ([1, 2, 3], [4, 5, 6], 'unique'))
+
+    def test_seasonal_aggregation_with_bad_flag(self):
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1, 2, 3], [4, 5, 6], 'foo'])
+        with self.assertRaises(DefinitionValidationError):
+            CalcGrouping([[1, 2, 3], [4, 5, 6], 'fod'])
 
 
 class TestConformUnitsTo(TestBase):
@@ -328,6 +343,141 @@ class TestConformUnitsTo(TestBase):
 
         cc = ConformUnitsTo(Units('celsius'))
         self.assertTrue(cc.value.equals(Units('celsius')))
+
+
+class TestHeaders(TestBase):
+    create_dir = False
+
+    def test_init(self):
+        headers = ['did', 'value']
+        for htype in [list, tuple]:
+            hvalue = htype(headers)
+            hh = Headers(hvalue)
+            self.assertEqual(hh.value, tuple(constants.required_headers + ['value']))
+
+        headers = ['foo']
+        with self.assertRaises(DefinitionValidationError):
+            Headers(headers)
+
+        headers = []
+        hh = Headers(headers)
+        self.assertEqual(hh.value, tuple(constants.required_headers))
+
+
+class TestDataset(TestBase):
+    create_dir = False
+
+    def test_init(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        dd = Dataset(rd)
+
+        with open('/tmp/dd.pkl', 'w') as f:
+            pickle.dump(dd, f)
+
+        uri = '/a/bad/path'
+        with self.assertRaises(ValueError):
+            RequestDataset(uri, 'foo')
+
+        # test with a dictionary
+        v = {'uri': rd.uri, 'variable': rd.variable}
+        dd = Dataset(v)
+        self.assertEqual(dd.value[rd.variable].variable, rd.variable)
+
+        # test with a list/tuple
+        v2 = v.copy()
+        v2['alias'] = 'tas2'
+        dd = Dataset([v, v2])
+        self.assertEqual(set(dd.value.keys()), set([v['variable'], v2['alias']]))
+        dd = Dataset((v, v2))
+        self.assertEqual(set(dd.value.keys()), set([v['variable'], v2['alias']]))
+
+        # test with a request dataset
+        dd = Dataset(rd)
+        self.assertIsInstance(dd.value, RequestDatasetCollection)
+
+        # test with a request dataset collection
+        dd = Dataset(dd.value)
+        self.assertIsInstance(dd.value, RequestDatasetCollection)
+
+        # test with a bad type
+        with self.assertRaises(DefinitionValidationError):
+            Dataset(5)
+
+        # test with field does not load anything
+        field = self.test_data.get_rd('cancm4_tas').get()
+        dd = Dataset(field)
+        rfield = dd.value.first()
+        self.assertIsNone(rfield.temporal._value)
+        self.assertIsNone(rfield.spatial.grid._value)
+        self.assertIsNone(rfield.spatial.grid.row._value)
+        self.assertIsNone(rfield.spatial.grid.col._value)
+        self.assertIsNone(rfield.variables.first()._value)
+
+        # test with a Field object
+        field = self.test_data.get_rd('cancm4_tas').get()[:, 0, :, :, :]
+        field_value = field.variables.first().value
+        dd = Dataset(field)
+        self.assertIsInstance(dd.value, RequestDatasetCollection)
+        rdc_value = dd.value.first().variables.first().value
+        # do not do a deep copy on the field object...
+        self.assertTrue(np.may_share_memory(field_value, rdc_value))
+
+        # we do want a deepcopy on the request dataset object and request dataset collection
+        rd = self.test_data.get_rd('cancm4_tas')
+        dd = Dataset(rd)
+        self.assertIsInstance(dd.value.first(), RequestDataset)
+        self.assertNotEqual(id(rd), id(dd.value.first()))
+        rdc = RequestDatasetCollection(target=[rd])
+        dd = Dataset(rdc)
+        self.assertNotEqual(id(rdc), id(dd.value))
+
+        # test loading dataset directly from uri with some overloads
+        reference_rd = self.test_data.get_rd('cancm4_tas')
+        rd = RequestDataset(reference_rd.uri, reference_rd.variable)
+        ds = Dataset(rd)
+        self.assertEqual(ds.value, RequestDatasetCollection([rd]))
+        dsa = {'uri': reference_rd.uri, 'variable': reference_rd.variable}
+        Dataset(dsa)
+        reference_rd2 = self.test_data.get_rd('narccap_crcm')
+        dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
+        Dataset(dsb)
+
+    def test_init_esmf(self):
+        raise SkipTest
+        #todo: what to do about time values, units, etc.
+        efield = self.get_esmf_field()
+        dd = Dataset(efield)
+        self.assertIsInstance(dd.value, RequestDatasetCollection)
+        ofield = dd.value.first()
+        self.assertIsInstance(ofield, Field)
+        ofield_value = ofield.variables.first().value
+        self.assertTrue(np.may_share_memory(ofield_value, efield))
+        self.assertNumpyAll(ofield_value, efield)
+
+    def test_get_meta(self):
+        # test with standard request dataset collection
+        rd = self.test_data.get_rd('cancm4_tas')
+        dd = Dataset(rd)
+        self.assertIsInstance(dd.get_meta(), list)
+
+        # test passing a field object
+        dd = Dataset(rd.get())
+        ret = dd.get_meta()
+        self.assertEqual(ret, ['* dataset=', 'NcField(name=tas, ...)', ''])
+
+    def test_unfiled(self):
+        env.DIR_DATA = ocgis.env.DIR_TEST_DATA
+        reference_rd = self.test_data.get_rd('cancm4_tas')
+        rd = RequestDataset(reference_rd.uri,reference_rd.variable)
+        ds = Dataset(rd)
+        self.assertEqual(ds.value,RequestDatasetCollection([rd]))
+
+        dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
+        Dataset(dsa)
+
+        reference_rd2 = self.test_data.get_rd('narccap_crcm')
+        dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
+        Dataset(dsb)
 
 
 class TestGeom(TestBase):
@@ -444,13 +594,40 @@ class TestGeom(TestBase):
                 self.assertEqual(sdim.properties['COUNTRY'][0], gdict['properties']['COUNTRY'])
 
 
-class TestRegridDestination(TestBase):
+class TestLevelRange(TestBase):
+    create_dir = False
 
-    @property
-    def possible_values(self):
-        rd = self.get_rd()
-        possible = [None, 'tas', rd, rd.get(), rd.get().spatial]
-        return possible
+    def test_constructor(self):
+        LevelRange()
+
+    def test_normal_int(self):
+        lr = LevelRange([5,10])
+        self.assertEqual(lr.value,(5,10))
+
+    def test_normal_float(self):
+        value = [4.5,6.5]
+        lr = LevelRange(value)
+        self.assertEqual(tuple(value),lr.value)
+
+    def test_bad_length(self):
+        with self.assertRaises(DefinitionValidationError):
+            LevelRange([5,6,7,8])
+
+    def test_bad_ordination(self):
+        with self.assertRaises(DefinitionValidationError):
+            LevelRange([11,10])
+
+
+class TestOutputFormat(TestBase):
+    create_dir = False
+
+    def test_init_esmpy(self):
+        raise SkipTest
+        oo = OutputFormat('esmpy')
+        self.assertEqual(oo.value, 'esmpy')
+
+
+class TestRegridDestination(TestBase):
 
     @property
     def possible_datasets(self):
@@ -479,6 +656,12 @@ class TestRegridDestination(TestBase):
         datasets = {ii: d for ii, d in enumerate(datasets, start=1)}
 
         return datasets
+
+    @property
+    def possible_values(self):
+        rd = self.get_rd()
+        possible = [None, 'tas', rd, rd.get(), rd.get().spatial]
+        return possible
 
     def get_rd(self, **kwargs):
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwargs)
@@ -553,28 +736,17 @@ class TestRegridOptions(TestBase):
         ro = RegridOptions({'value_mask': np.array([True])})
         self.assertTrue('numpy.ndarray' in ro._get_meta_())
 
-class TestLevelRange(TestBase):
-    create_dir = False
 
-    def test_constructor(self):
-        LevelRange()
+class TestSpatialOperation(TestBase):
 
-    def test_normal_int(self):
-        lr = LevelRange([5,10])
-        self.assertEqual(lr.value,(5,10))
+    def test_init(self):
+        values = (None, 'clip', 'intersects')
+        ast = ('intersects', 'clip', 'intersects')
 
-    def test_normal_float(self):
-        value = [4.5,6.5]
-        lr = LevelRange(value)
-        self.assertEqual(tuple(value),lr.value)
-
-    def test_bad_length(self):
-        with self.assertRaises(DefinitionValidationError):
-            LevelRange([5,6,7,8])
-
-    def test_bad_ordination(self):
-        with self.assertRaises(DefinitionValidationError):
-            LevelRange([11,10])
+        klass = SpatialOperation
+        for v, a in zip(values, ast):
+            obj = klass(v)
+            self.assertEqual(obj.value, a)
 
 
 class TestTimeRange(TestBase):

@@ -1,39 +1,69 @@
 from copy import deepcopy
+
+from cfunits.cfunits import Units
+import numpy as np
+
+from ocgis.interface.base.variable import VariableCollection, DerivedVariable
+
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-from ocgis.calc.base import AbstractUnivariateFunction,\
-    AbstractUnivariateSetFunction, AbstractFunction, AbstractMultivariateFunction
+from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
+    AbstractMultivariateFunction
 from ocgis import constants, OcgOperations, FunctionRegistry
-from cfunits.cfunits import Units
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
-import numpy as np
 
 
 class FooNeedsUnits(AbstractUnivariateFunction):
     description = 'calculation with units'
     dtype = constants.np_float
     key = 'fnu'
-    required_units = ['K','kelvin']
+    required_units = ['K', 'kelvin']
     standard_name = 'foo_needs_units'
     long_name = 'Foo Needs Units'
     
-    def calculate(self,values):
-        return(values)
+    def calculate(self, values):
+        return values
             
             
 class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
     description = 'calculation with units'
     dtype = constants.np_float
     key = 'fnu'
-    required_units = ['K','kelvin']
+    required_units = ['K', 'kelvin']
     standard_name = ''
     long_name = ''
     
     def calculate(self,values):
-        return(np.ma.mean(values,axis=0))
+        return np.ma.mean(values,axis=0)
+
+
+class FooSampleSize(FooNeedsUnitsSet):
+    standard_name = 'the_standard'
+    long_name = 'the_standard_long_name'
 
 
 class TestAbstractFunction(AbstractTestField):
+
+    def test_add_to_collection(self):
+        kwds = dict(calc_sample_size=[False, True])
+
+        for k in self.iter_product_keywords(kwds):
+            field = self.get_field(with_value=True)
+            tgd = field.temporal.get_grouping(['month'])
+            fb = FooSampleSize(field=field, calc_sample_size=k.calc_sample_size, tgd=tgd)
+            res = fb.execute()
+            variable = res.first()
+            self.assertIsInstance(res, VariableCollection)
+            self.assertIsInstance(variable, DerivedVariable)
+            attrs = {'standard_name': fb.standard_name, 'long_name': fb.long_name}
+            self.assertDictEqual(attrs, variable.attrs)
+
+            if k.calc_sample_size:
+                alias = 'n_{0}'.format(variable.alias)
+                ss = res[alias]
+                attrs = {'standard_name': constants.default_sample_size_standard_name,
+                         'long_name': constants.default_sample_size_long_name}
+                self.assertDictEqual(ss.attrs, attrs)
 
     def test_execute_meta_attrs(self):
         """Test overloaded metadata attributes are appropriately applied."""
@@ -52,12 +82,12 @@ class TestAbstractFunction(AbstractTestField):
                 fb = FooNeedsUnits(field=field, meta_attrs=meta_attrs)
                 ret = fb.execute()
                 if oload:
-                    actual = {'attrs': {'long_name': 'Foo Needs Units', 'standard_name': 'never!',
-                                         'something_new': 'is about to happen'}}
+                    actual = {'long_name': 'Foo Needs Units', 'standard_name': 'never!',
+                              'something_new': 'is about to happen'}
                 else:
-                    actual = {'attrs': {'long_name': 'Foo Needs Units', 'standard_name': 'foo_needs_units',
-                                         'something_new': 'is about to happen'}}
-                self.assertEqual(ret['fnu'].meta, actual)
+                    actual = {'long_name': 'Foo Needs Units', 'standard_name': 'foo_needs_units',
+                              'something_new': 'is about to happen'}
+                self.assertDictEqual(ret['fnu'].attrs, actual)
                 if oload:
                     self.assertDictEqual(meta_attrs, {'something_new': 'is about to happen', 'standard_name': 'never!'})
                 else:

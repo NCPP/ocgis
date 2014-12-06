@@ -1,14 +1,90 @@
+from collections import OrderedDict
 from numpy.ma import MaskedArray
 from cfunits import Units
 from ocgis.exc import VariableInCollectionError, NoUnitsError
+from ocgis.interface.base.attributes import Attributes
 from ocgis.test.base import TestBase
-from ocgis.interface.base.variable import Variable, VariableCollection
+from ocgis.interface.base.variable import Variable, VariableCollection, AbstractSourcedVariable, AbstractValueVariable
 import numpy as np
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
 
 
+class FakeAbstractSourcedVariable(AbstractSourcedVariable):
+
+    def _set_value_from_source_(self):
+        self._value = self._src_idx*2
+
+
+class TestAbstractSourcedVariable(TestBase):
+
+    def iter(self):
+        src_idx = [1, 2]
+        data = 'foo'
+        kwds = dict(src_idx=[src_idx, None],
+                    data=[data, None])
+
+        for k in self.iter_product_keywords(kwds):
+            yield k
+
+    def test_init(self):
+        for k in self.iter():
+            FakeAbstractSourcedVariable(k.data, k.src_idx)
+
+        FakeAbstractSourcedVariable(None, None)
+
+    def test_format_src_idx(self):
+        aa = FakeAbstractSourcedVariable('foo', src_idx=[1, 2])
+        self.assertNumpyAll(aa._format_src_idx_([1, 2]), np.array([1, 2]))
+
+    def test_get_value(self):
+        aa = FakeAbstractSourcedVariable('foo', src_idx=[1, 2])
+        aa._value = None
+        self.assertNumpyAll(aa._get_value_(), np.array([1, 2])*2)
+
+    def test_src_idx(self):
+        aa = FakeAbstractSourcedVariable('foo', src_idx=[1, 2])
+        self.assertNumpyAll(aa._src_idx, np.array([1, 2]))
+
+
+
+class FakeAbstractValueVariable(AbstractValueVariable):
+
+    def _get_value_(self):
+        return np.array(self._value)
+
+
+class TestAbstractValueVariable(TestBase):
+    create_dir = False
+
+    def test_init(self):
+        kwds = dict(value=[[4, 5, 6]])
+
+        for k in self.iter_product_keywords(kwds):
+            av = FakeAbstractValueVariable(value=k.value)
+            self.assertEqual(av.value, k.value)
+
+
 class TestVariable(TestBase):
+
+    def test_init(self):
+        self.assertEqual(Variable.__bases__, (AbstractSourcedVariable, AbstractValueVariable, Attributes))
+
+        # test passing attributes
+        var = Variable(attrs={'a': 6}, value=np.array([5]))
+        self.assertEqual(var.attrs['a'], 6)
+
+    def test_init_with_value_with_dtype_fill_value(self):
+        var = Variable(data='foo',dtype=np.float,fill_value=9,value=np.array([1,2,3,4]))
+        self.assertEqual(var.dtype,np.float)
+        self.assertEqual(var.fill_value,9)
+
+    def test_init_with_value_without_dtype_fill_value(self):
+        value = np.array([1,2,3,4])
+        value = np.ma.array(value)
+        var = Variable(data='foo',value=value)
+        self.assertEqual(var.dtype,value.dtype)
+        self.assertEqual(var.fill_value,value.fill_value)
 
     def test_init_without_value_dtype_fill_value(self):
         var = Variable(data='foo')
@@ -16,23 +92,15 @@ class TestVariable(TestBase):
             var.dtype
         with self.assertRaises(ValueError):
             var.fill_value
-            
+
     def test_init_without_value_with_dtype_fill_value(self):
         var = Variable(data='foo',dtype=np.float,fill_value=9)
         self.assertEqual(var.dtype,np.float)
         self.assertEqual(var.fill_value,9)
-        
-    def test_init_with_value_with_dtype_fill_value(self):
-        var = Variable(data='foo',dtype=np.float,fill_value=9,value=np.array([1,2,3,4]))
-        self.assertEqual(var.dtype,np.float)
-        self.assertEqual(var.fill_value,9)
-        
-    def test_init_with_value_without_dtype_fill_value(self):
-        value = np.array([1,2,3,4])
-        value = np.ma.array(value)
-        var = Variable(data='foo',value=value)
-        self.assertEqual(var.dtype,value.dtype)
-        self.assertEqual(var.fill_value,value.fill_value)
+
+    def test_str(self):
+        var = Variable(name='toon')
+        self.assertEqual(str(var), 'Variable(name="toon", alias="toon", units=None)')
 
     def test_conform_units_to(self):
         """Test using the conform_units_to keyword argument."""
@@ -91,10 +159,14 @@ class TestVariable(TestBase):
         value = np.array([1, 2, 3, 4, 5])
         value = np.ma.array(value, mask=[False, True, False, True, False])
         kwargs['value'] = value
+        kwargs['attrs'] = OrderedDict(foo=5)
         var = Variable(**kwargs)
 
         for shape in [None, (2, 2)]:
             new_var = var.get_empty_like(shape=shape)
+            self.assertDictEqual(new_var.attrs, kwargs['attrs'])
+            new_var.attrs['hi'] = 'wow'
+            self.assertNotEqual(new_var.attrs, kwargs['attrs'])
             self.assertEqual(new_var.uid, var.uid)
             if shape is None:
                 actual = np.ma.array(np.zeros(5), dtype=var.dtype, fill_value=var.fill_value, mask=value.mask)

@@ -124,9 +124,12 @@ class SimpleNcNoLevel(NcFactory):
         bound = rootgrp.createDimension('bound',size=2)
         ## create the variables
         times = rootgrp.createVariable(TIME['name'],'f8',('time',))
+        times.axis = 'T'
         bounds_times = rootgrp.createVariable('time_bnds','f8',('time','bound'))
         cols = rootgrp.createVariable('longitude','f8',('lon',))
+        cols.axis = 'X'
         rows = rootgrp.createVariable('latitude','f8',('lat',))
+        rows.axis = 'Y'
         bounds_col = rootgrp.createVariable(SPACE['col_bnds'],'f8',('lon','bound'))
         bounds_row = rootgrp.createVariable(SPACE['row_bnds'],'f8',('lat','bound'))
         value = rootgrp.createVariable(VAR,'f8',('time','lat','lon'),fill_value=1e20)
@@ -381,12 +384,16 @@ class SimpleNcProjection(NcFactory):
         bound = rootgrp.createDimension('bound',size=2)
         ## create the variables
         times = rootgrp.createVariable(TIME['name'],'f8',('time',))
+        times.axis = 'T'
         bounds_times = rootgrp.createVariable('time_bnds','f8',('time','bound'))
         levels = rootgrp.createVariable(LEVEL['name'],'i4',('level',))
+        levels.axis = 'Z'
         bounds_levels = rootgrp.createVariable('level_bnds','i4',('level','bound'))
         cols = rootgrp.createVariable('longitude','f8',('lon',))
+        cols.axis = 'X'
         cols.standard_name = 'projection_x_coordinate'
         rows = rootgrp.createVariable('latitude','f8',('lat',))
+        rows.axis = 'Y'
         rows.standard_name = 'projection_y_coordinate'
         bounds_col = rootgrp.createVariable(SPACE['col_bnds'],'f8',('lon','bound'))
         bounds_row = rootgrp.createVariable(SPACE['row_bnds'],'f8',('lat','bound'))
@@ -409,7 +416,7 @@ class SimpleNcProjection(NcFactory):
         value.units = 'huge'
         value.grid_mapping = 'crs'
 
-        grid_mapping = rootgrp.createVariable('crs','u1')
+        grid_mapping = rootgrp.createVariable('crs','c')
         grid_mapping.grid_mapping_name = "lambert_conformal_conic"
         grid_mapping.standard_parallel = [30., 60.]
         grid_mapping.longitude_of_central_meridian = -97.

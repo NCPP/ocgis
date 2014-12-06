@@ -51,7 +51,7 @@ class OcgInterpreter(Interpreter):
         # flag to indicate a directory is made. mostly a precaution to make sure the appropriate directory is is removed.
         made_output_directory = False
 
-        if self.ops.output_format == 'numpy':
+        if self.ops.output_format in ['numpy', 'esmpy', 'meta']:
             # no output directory for numpy output
             outdir = None
         else:
@@ -77,10 +77,10 @@ class OcgInterpreter(Interpreter):
             ## if file logging is enable, perform some logic based on the operational
             ## parameters.
             if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files == True:
-                if self.ops.output_format == 'numpy':
+                if self.ops.output_format in ['numpy', 'esmpy', 'meta']:
                     to_file = None
                 else:
-                    to_file = os.path.join(outdir,prefix+'.log')
+                    to_file = os.path.join(outdir, prefix+'.log')
             else:
                 to_file = None
             

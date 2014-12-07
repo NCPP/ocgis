@@ -1,13 +1,14 @@
-from ocgis.test.base import TestBase
-import ocgis
-from ocgis.util.large_array import compute
 import netCDF4 as nc
-import numpy as np
-from ocgis.calc import tile
-from ocgis.api.request.base import RequestDatasetCollection
-from ocgis.test.test_base import longrunning
 from copy import deepcopy
 import time
+
+import numpy as np
+
+from ocgis.test.base import TestBase, attr
+import ocgis
+from ocgis.util.large_array import compute
+from ocgis.calc import tile
+from ocgis.api.request.base import RequestDatasetCollection
 
 
 class Test(TestBase):
@@ -32,7 +33,7 @@ class Test(TestBase):
         hundreds = hundreds >= 100.0
         self.assertEqual(hundreds.sum(), 1)
 
-    @longrunning
+    @attr('slow')
     def test_timing_use_optimizations(self):
         n = range(10)
         t = {True:[],False:[]}
@@ -133,7 +134,7 @@ class Test(TestBase):
         ret_ocgis = ops.execute()
         self.assertNcEqual(ret_compute,ret_ocgis,ignore_attributes={'global': ['history']})
     
-    @longrunning
+    @attr('slow')
     def test_compute_large(self):
         """Test calculations using compute are equivalent with standard calculations."""
 

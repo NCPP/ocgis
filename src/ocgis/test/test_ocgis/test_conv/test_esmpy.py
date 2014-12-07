@@ -1,5 +1,4 @@
 from copy import deepcopy
-from unittest import SkipTest
 
 import ESMF
 import numpy as np
@@ -8,13 +7,12 @@ from ocgis.exc import DefinitionValidationError
 from ocgis import SpatialCollection, OcgOperations
 from ocgis.conv.base import AbstractConverter
 from ocgis.conv.esmpy import ESMPyConverter
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 
 
+@attr('esmpy7')
 class TestESMPyConverter(AbstractTestConverter):
-
-    def setUp(self):
-        raise SkipTest
 
     def get_conv(self, with_corners=True, value_mask=None, esmf_field_name=None, field=None):
         coll = self.get_spatial_collection(field=field)

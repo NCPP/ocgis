@@ -1,5 +1,11 @@
 import unittest
-from ocgis.test.base import TestBase, nc_scope
+import json
+from collections import OrderedDict
+from copy import deepcopy
+
+import numpy as np
+
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction,\
     IcclimDTR, IcclimETR, IcclimTN, IcclimTX,\
     AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction
@@ -10,18 +16,12 @@ from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.api.operations import OcgOperations
 from ocgis.calc.library.thresholds import Threshold
 import ocgis
-from ocgis.test.test_base import longrunning
-import numpy as np
-import json
-from collections import OrderedDict
-from copy import deepcopy
 from ocgis.util.helpers import itersubclasses
 from ocgis.contrib import library_icclim
 
 
 class TestLibraryIcclim(TestBase):
     
-#    @longrunning
     def test_standard_AbstractIcclimFunction(self):
         shapes = ([('month',), 12],[('month', 'year'), 24],[('year',),2])
         ocgis.env.OVERWRITE = True
@@ -259,7 +259,7 @@ class TestSU(TestBase):
                                        u'long_name': 'Summer days (number of days where daily maximum temperature > 25 degrees)',
                                        'grid_mapping': 'latitude_longitude'})
     
-    @longrunning
+    @attr('remote')
     def test_calculate_opendap(self):
         ## test against an opendap target ensuring icclim and ocgis operations
         ## are equivalent in the netcdf output

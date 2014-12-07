@@ -1,8 +1,8 @@
 import os
 import shutil
-from ocgis.test.test_base import longrunning
-from ocgis import OcgOperations, RequestDataset
-from ocgis.test.base import TestBase
+
+from ocgis import OcgOperations
+from ocgis.test.base import TestBase, attr
 
 
 class TestCombinatorial(TestBase):
@@ -20,7 +20,7 @@ class TestCombinatorial(TestBase):
                 else:
                     yield k, rd.get()
 
-    @longrunning
+    @attr('slow')
     def test(self):
         import logbook
 

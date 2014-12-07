@@ -1,12 +1,13 @@
 import unittest
-from ocgis.test.base import TestBase, nc_scope
 import os
+
+import numpy as np
+
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.request.base import RequestDataset
 import ocgis
 from ocgis.api.operations import OcgOperations
-import numpy as np
 from ocgis.exc import DefinitionValidationError, ExtentError
-from ocgis.test.test_base import longrunning
 from ocgis.interface.base.crs import CFRotatedPole, CFWGS84
 
 
@@ -113,7 +114,7 @@ class Test(TestBase):
         crs = field.spatial.crs
         self.assertDictEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
 
-    @longrunning
+    @attr('slow')
     def test_read_write_projections(self):
         """Test NARCCAP coordinate systems may be appropriately read and written to NetCDF."""
 

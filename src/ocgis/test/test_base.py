@@ -1,34 +1,11 @@
 import datetime
 from netCDF4 import Dataset
 import os
-from ocgis.interface.base.field import Field
-from ocgis.test.base import TestBase, TestData
-import ocgis
-from unittest.case import SkipTest
-from ocgis import constants
+
 import numpy as np
 
-
-def longrunning(f):
-    if constants.test_run_long_tests:
-        ret = f
-    else:
-        def skip(*args):
-            raise SkipTest("long-running test")
-        skip.__name__ = f.__name__
-        ret = skip
-    return ret
-        
-    
-def dev(f):
-    if constants.test_run_dev_tests:
-        ret = f
-    else:
-        def skip(*args):
-            raise SkipTest("development-only test")
-        skip.__name__ = f.__name__
-        ret = skip
-    return ret
+from ocgis.interface.base.field import Field
+from ocgis.test.base import TestBase
 
 
 class TestTestBase(TestBase):

@@ -1,16 +1,14 @@
 import unittest
 import pickle
 import tempfile
-from unittest import SkipTest
 
 from cfunits import Units
-import numpy as np
 
 from ocgis import env
 from ocgis.api.parms.definition import *
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
 from ocgis.util.helpers import make_poly
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.shp_cabinet import ShpCabinet
@@ -442,8 +440,8 @@ class TestDataset(TestBase):
         dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
 
+    @attr('esmpy7')
     def test_init_esmf(self):
-        raise SkipTest
         #todo: what to do about time values, units, etc.
         efield = self.get_esmf_field()
         dd = Dataset(efield)
@@ -621,8 +619,8 @@ class TestLevelRange(TestBase):
 class TestOutputFormat(TestBase):
     create_dir = False
 
+    @attr('esmpy7')
     def test_init_esmpy(self):
-        raise SkipTest
         oo = OutputFormat('esmpy')
         self.assertEqual(oo.value, 'esmpy')
 

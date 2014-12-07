@@ -5,23 +5,35 @@ import tempfile
 import datetime
 import subprocess
 import itertools
-from ocgis.api.collection import SpatialCollection
-from ocgis.interface.base.field import Field
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis import env
 import shutil
 from copy import deepcopy, copy
 import os
 from collections import OrderedDict
-import ocgis
-import numpy as np
-from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
+
+import numpy as np
+
+from ocgis.api.collection import SpatialCollection
+from ocgis.interface.base.field import Field
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
+from ocgis import env
+import ocgis
+from ocgis.api.request.base import RequestDataset
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.interface.base.variable import Variable
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
+
+
+"""
+Definitions for various "attrs":
+ * slow: long-running tests that are typically ran before a release
+ * remote: tests relying on remote datasets that are typically run before a release
+ * esmpy7: tests requiring a branch version of ESMF
+
+nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis/test
+"""
 
 
 class ToTest(Exception):
@@ -595,6 +607,23 @@ class TestData(OrderedDict):
 
         OrderedDict.update(self, {key or filename: {'collection': collection,
                                                     'filename': filename, 'variable': variable}})
+
+
+def attr(*args, **kwargs):
+    """
+    Decorator that adds attributes to classes or functions for use with the Attribute (-a) plugin.
+
+    http://nose.readthedocs.org/en/latest/plugins/attrib.html
+    """
+
+    def wrap_ob(ob):
+        for name in args:
+            setattr(ob, name, True)
+        for name, value in kwargs.iteritems():
+            setattr(ob, name, value)
+        return ob
+
+    return wrap_ob
 
 
 @contextmanager

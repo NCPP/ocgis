@@ -1,14 +1,12 @@
-from ocgis.test.base import TestBase
-from ocgis.calc.library.index.duration import Duration, FrequencyDuration
-import numpy as np
-from ocgis.exc import DefinitionValidationError
-import ocgis
-from ocgis.api.operations import OcgOperations
 import csv
-from ocgis.api.request.base import RequestDataset
-import webbrowser
+
+import numpy as np
+
+from ocgis.test.base import attr
+from ocgis.calc.library.index.duration import Duration, FrequencyDuration
+from ocgis.exc import DefinitionValidationError
+from ocgis.api.operations import OcgOperations
 from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
-from ocgis.test.test_base import longrunning
 
 
 class TestDuration(AbstractCalcBase):
@@ -94,7 +92,7 @@ class TestFrequencyDuration(AbstractCalcBase):
             else:
                 raise(dct['exception'])
     
-    @longrunning
+    @attr('slow')
     def test_real_data_multiple_datasets(self):
         kwds = {'time_region': {'year': [1991], 'month': [7]}}
         rd_tasmax = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds=kwds)

@@ -25,7 +25,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.definition import SpatialOperation
 from ocgis.util.helpers import make_poly, project_shapely_geometry
 from ocgis import exc, env, constants
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import TestBase, nc_scope, attr
 import ocgis
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.interface.base import crs
@@ -33,7 +33,6 @@ from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, 
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleNcNoBounds, SimpleMaskNc, \
     SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
-from ocgis.test.test_base import longrunning
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
 from ocgis.util.itester import itr_products_keywords
@@ -642,7 +641,7 @@ class TestSimple(TestSimpleBase):
                 with nc_scope(ret) as ds:
                     self.assertEqual(ds.variables['foo3'][:].mean(), 9.0)
     
-    @longrunning   
+    @attr('slow')
     def test_calc_sample_size(self):
         rd1 = self.get_dataset()
         rd1['alias'] = 'var1'
@@ -834,7 +833,7 @@ class TestSimple(TestSimpleBase):
         with self.assertRaises(DefinitionValidationError):    
             OcgOperations(dataset=self.get_dataset(),headers=['foo'],output_format='csv')
     
-    @longrunning
+    @attr('slow')
     def test_combinatorial_projection_with_geometries(self):
         
         # self.get_ret(kwds={'output_format':'shp','prefix':'as_polygon'})

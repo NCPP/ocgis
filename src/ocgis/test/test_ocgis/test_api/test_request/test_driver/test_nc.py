@@ -1,29 +1,28 @@
-from ocgis.interface.nc.spatial import NcSpatialGridDimension
-from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis import constants
 from copy import deepcopy
 import os
 import shutil
 import tempfile
-import unittest
+import netCDF4 as nc
+from datetime import datetime as dt
+import datetime
+from collections import OrderedDict
+
+import numpy as np
+import fiona
+from shapely.geometry.geo import shape
+
+from ocgis.interface.nc.spatial import NcSpatialGridDimension
+from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis import constants
 from ocgis import RequestDataset
 from ocgis.api.request.driver.nc import DriverNetcdf, get_dimension_map
 from ocgis.interface.metadata import NcMetadata
-from ocgis.test.base import TestBase, nc_scope
-import netCDF4 as nc
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.interface.base.crs import WGS84, CFWGS84, CFLambertConformal
-import numpy as np
-from datetime import datetime as dt
 from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension, SpatialGeometryDimension, \
     SpatialDimension
-import fiona
-from shapely.geometry.geo import shape
 from ocgis.exc import EmptySubsetError, DimensionNotFound
-import datetime
-from unittest.case import SkipTest
 import ocgis
-from importlib import import_module
-from collections import OrderedDict
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis import ShpCabinet
 
@@ -300,27 +299,23 @@ class TestDriverNetcdf(TestBase):
         ca = ca.geom.polygon.value[0,0]
 
         for u in [True,False]:
-            try:
-                rd = RequestDataset(variable=ref_test['variable'],uri=uri,alias='foo')
-                field = rd.get()
-                ca_sub = field.get_intersects(ca,use_spatial_index=u)
-                self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
-                self.assertTrue(ca_sub.variables['foo'].value.mask.any())
-                self.assertFalse(field.spatial.uid.mask.any())
-                self.assertFalse(field.spatial.get_mask().any())
+            rd = RequestDataset(variable=ref_test['variable'],uri=uri,alias='foo')
+            field = rd.get()
+            ca_sub = field.get_intersects(ca,use_spatial_index=u)
+            self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
+            self.assertTrue(ca_sub.variables['foo'].value.mask.any())
+            self.assertFalse(field.spatial.uid.mask.any())
+            self.assertFalse(field.spatial.get_mask().any())
 
-                ca_sub = field.get_intersects(ca.envelope,use_spatial_index=u)
-                self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
-                self.assertFalse(ca_sub.variables['foo'].value.mask.any())
+            ca_sub = field.get_intersects(ca.envelope,use_spatial_index=u)
+            self.assertEqual(ca_sub.shape,(1, 3650, 1, 5, 4))
+            self.assertFalse(ca_sub.variables['foo'].value.mask.any())
 
-                rd = RequestDataset(variable=ref_test['variable'],uri=uri,alias='foo',time_region={'year':[2007]})
-                field = rd.get()
-                ca_sub = field.get_intersects(ca,use_spatial_index=u)
-                self.assertEqual(ca_sub.shape,(1, 365, 1, 5, 4))
-                self.assertEqual(set([2007]),set([d.year for d in ca_sub.temporal.value_datetime]))
-            except ImportError:
-                with self.assertRaises(ImportError):
-                    import_module('rtree')
+            rd = RequestDataset(variable=ref_test['variable'],uri=uri,alias='foo',time_region={'year':[2007]})
+            field = rd.get()
+            ca_sub = field.get_intersects(ca,use_spatial_index=u)
+            self.assertEqual(ca_sub.shape,(1, 365, 1, 5, 4))
+            self.assertEqual(set([2007]),set([d.year for d in ca_sub.temporal.value_datetime]))
 
     def test_get_field_time_region_slicing(self):
         ref_test = self.test_data['cancm4_tas']
@@ -343,8 +338,8 @@ class TestDriverNetcdf(TestBase):
         sub2 = field[:,:,:,0,1]
         self.assertEqual(sub2.shape,(1, 124, 1, 1, 1))
 
+    @attr('remote')
     def test_get_field_remote(self):
-        raise(SkipTest("server IO errors"))
         uri = 'http://cida.usgs.gov/thredds/dodsC/maurer/maurer_brekke_w_meta.ncml'
         variable = 'sresa1b_bccr-bcm2-0_1_Tavg'
         rd = RequestDataset(uri,variable,time_region={'month':[1,10],'year':[2011,2013]})

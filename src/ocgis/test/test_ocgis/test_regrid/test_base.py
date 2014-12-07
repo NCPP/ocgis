@@ -1,5 +1,4 @@
 from copy import deepcopy
-from unittest import SkipTest
 import itertools
 
 import ESMF
@@ -18,6 +17,7 @@ from ocgis.interface.base.field import Field
 from ocgis.interface.base.variable import VariableCollection, Variable
 from ocgis.regrid.base import check_fields_for_regridding, iter_regridded_fields, get_esmf_grid_from_sdim, \
     iter_esmf_fields, get_sdim_from_esmf_grid, get_ocgis_field_from_esmpy_field
+from ocgis.test.base import attr
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.helpers import make_poly
@@ -618,8 +618,8 @@ class TestRegrid(TestSimpleBase):
         egrid = get_esmf_grid_from_sdim(field.spatial, value_mask=value_mask)
         self.assertNumpyAll(egrid.mask[0], np.invert(value_mask.astype(bool)).astype(egrid.mask[0].dtype))
 
+    @attr('esmpy7')
     def test_get_ocgis_field_from_esmpy_field(self):
-        raise SkipTest
         #todo: return spherical crs if none is passed. check something on the grid
         np.random.seed(1)
         temporal = TemporalDimension(value=[3000., 4000., 5000.])
@@ -720,9 +720,10 @@ class TestRegrid(TestSimpleBase):
             self.assertTrue(np.may_share_memory(ofield_tmin_value, efield))
             self.assertFalse(np.may_share_memory(ofield_tmin_value, tmin.value))
 
+    @attr('esmpy7')
     def test_get_ocgis_field_from_esmpy_spatial_only(self):
         """Test with spatial information only."""
-        raise SkipTest
+
         row = VectorDimension(value=[5, 6])
         col = VectorDimension(value=[7, 8])
         grid = SpatialGridDimension(row=row, col=col)

@@ -3,7 +3,6 @@ from datetime import datetime as dt
 import itertools
 import datetime
 import os
-from unittest import SkipTest
 
 import ESMF
 from numpy import dtype
@@ -11,7 +10,7 @@ import numpy as np
 
 from ocgis.api.parms.definition import RegridOptions, OutputFormat
 from ocgis.interface.base.crs import CFWGS84
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.api.parms import definition
 from ocgis import constants
@@ -258,9 +257,10 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
+    @attr('esmpy7')
     def test_keyword_dataset_esmf(self):
         """Test with operations on an ESMF Field."""
-        raise SkipTest
+
         efield = self.get_esmf_field()
         output_format = OutputFormat.iter_possible()
         for kk in output_format:
@@ -343,9 +343,10 @@ class TestOcgOperations(TestBase):
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 
+    @attr('esmpy7')
     def test_keyword_output_format_esmpy(self):
         """Test with the ESMPy output format."""
-        raise SkipTest
+
         #todo: test spatial subsetting
         #todo: test calculations
         slc = [None, None, None, [0, 10], [0, 10]]

@@ -1,28 +1,26 @@
-from netCDF4 import date2num
-from ocgis.util.inspect import Inspect
+import itertools
+from datetime import datetime as dt
+import unittest
+from csv import DictReader
+from copy import deepcopy
+import os
+
+import numpy as np
+import fiona
+from shapely.geometry.point import Point
+
 import ocgis
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
-from ocgis.test.base import TestBase, nc_scope
-import itertools
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.operations import OcgOperations
-from datetime import datetime as dt
-from ocgis.exc import DefinitionValidationError, MaskedDataError, ExtentError, RequestValidationError
-import numpy as np
-import unittest
+from ocgis.exc import MaskedDataError, ExtentError, RequestValidationError
 from ocgis.interface.base.crs import CFWGS84
-import fiona
-from csv import DictReader
 from ocgis.api.request.base import RequestDataset
-from copy import deepcopy
-from ocgis.test.test_base import longrunning
-from shapely.geometry.point import Point
-from ocgis.util.shp_cabinet import ShpCabinetIterator
-import os
 
 
 class TestCMIP3Masking(TestBase):
     
-    @longrunning
+    @attr('slow')
     def test_many_request_datasets(self):
         rd_base = self.test_data.get_rd('subset_test_Prcp')
         geom = [-74.0, 40.0, -72.0, 42.0]
@@ -289,7 +287,7 @@ class Test(TestBase):
             values = np.squeeze(ds.variables['tas'][:])
             self.assertNumpyAll(data_values,values)
     
-    @longrunning
+    @attr('slow')
     def test_value_conversion(self):
         ## confirm value data types are properly converted
         ocgis.env.DIR_DATA = ocgis.env.DIR_TEST_DATA
@@ -313,7 +311,7 @@ class Test(TestBase):
         field = rd.get()
         self.assertEqual(field.shape, (1, 3, 1, 222, 462))
 
-    @longrunning
+    @attr('slow')
     def test_maurer_concatenated_shp(self):
         """Test Maurer concatenated data may be appropriately subsetted."""
 
@@ -349,7 +347,7 @@ class Test(TestBase):
             if output_format == 'numpy':
                 self.assertEqual(len(ret), 4)
     
-    @longrunning
+    @attr('slow')
     def test_maurer_concatenated_tasmax_region(self):
         rd = self.test_data.get_rd('maurer_2010_concatenated_tasmax')
         ops = ocgis.OcgOperations(dataset=rd, geom='us_counties', select_ugid=[2778],
@@ -420,7 +418,7 @@ class Test(TestBase):
         with self.assertRaises(RequestValidationError):
             self.test_data.get_rd('cancm4_rhs',kwds=kwds)
 
-    @longrunning
+    @attr('slow')
     def test_maurer_2010(self):
         ## inspect the multi-file maurer datasets
         keys = ['maurer_2010_pr','maurer_2010_tas','maurer_2010_tasmin','maurer_2010_tasmax']
@@ -457,7 +455,7 @@ class Test(TestBase):
                             aggregate=False,spatial_operation='clip',output_format='csv+')
         ret = ops.execute()
     
-    @longrunning
+    @attr('slow')
     def test_narccap_point_subset_small(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         geom = [-97.74278,30.26694]

@@ -1,15 +1,16 @@
-from ocgis.api.operations import OcgOperations
 from itertools import izip
-import numpy as np
-from ocgis.test.base import TestBase
-import ocgis
-import fiona
 import os
+from copy import deepcopy
+
+import numpy as np
+import fiona
+
+from ocgis.api.operations import OcgOperations
+from ocgis.test.base import TestBase, attr
+import ocgis
 from ocgis.exc import DefinitionValidationError
 from ocgis.util.shp_cabinet import ShpCabinetIterator
-from copy import deepcopy
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
-from ocgis.test.test_base import longrunning
 
 
 class Test(TestBase):
@@ -133,7 +134,7 @@ class Test(TestBase):
         values = [v.variables[k] for k,v in ret[1].iteritems()]
         self.assertTrue(np.all(values[0].value == values[1].value))
 
-    @longrunning
+    @attr('slow')
     def test_consolidating_projections(self):
         
         def assert_projection(path,check_ugid=True):

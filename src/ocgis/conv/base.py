@@ -2,16 +2,13 @@ import os.path
 import abc
 import csv
 import logging
-from csv import DictWriter
 
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
-from shapely.geometry.geo import mapping
 
 from ocgis.interface.base.field import Field
 from ocgis.conv.meta import MetaConverter
-from ocgis.util.helpers import get_ordered_dicts_from_records_array
 from ocgis.util.inspect import Inspect
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -27,7 +24,7 @@ class AbstractConverter(object):
     :param :class:~`ocgis.OcgOperations ops: Optional operations definition. This is required for some converters.
     :param bool add_meta: If False, do not add a source and OCGIS metadata file.
     :param bool add_auxiliary_files: If False, do not create an output folder. Write only the target ouput file.
-    :parm bool overwrite: If True, attempt to overwrite any existing output files.
+    :param bool overwrite: If True, attempt to overwrite any existing output files.
     """
 
     __metaclass__ = abc.ABCMeta
@@ -121,10 +118,10 @@ class AbstractConverter(object):
                         
                         if self._add_ugeom_nest:
                             fiona_path = os.path.join(self._get_or_create_shp_folder_(),ugid_shp_name)
-                            csv_path = os.path.join(self._get_or_create_shp_folder_(),ugid_csv_name)
+                            # csv_path = os.path.join(self._get_or_create_shp_folder_(),ugid_csv_name)
                         else:
                             fiona_path = os.path.join(self.outdir,ugid_shp_name)
-                            csv_path = os.path.join(self.outdir,ugid_csv_name)
+                            # csv_path = os.path.join(self.outdir,ugid_csv_name)
 
                         if coll.meta is None:
                             # convert the collection properties to fiona properties
@@ -151,11 +148,11 @@ class AbstractConverter(object):
                         fiona_meta['schema']['geometry'] = 'MultiPolygon'
 
                         fiona_object = fiona.open(fiona_path,'w',**fiona_meta)
-                        csv_file = open(csv_path,'w')
+                        # csv_file = open(csv_path,'w')
                         
-                        from ocgis.conv.csv_ import OcgDialect
-                        csv_object = DictWriter(csv_file,fiona_meta['schema']['properties'].keys(),dialect=OcgDialect)
-                        csv_object.writeheader()
+                        # from ocgis.conv.csv_ import OcgDialect
+                        # csv_object = DictWriter(csv_file,fiona_meta['schema']['properties'].keys(),dialect=OcgDialect)
+                        # csv_object.writeheader()
                         
                     build = False
                 self._write_coll_(f,coll)
@@ -174,13 +171,10 @@ class AbstractConverter(object):
                                                       'ugid':coll.properties.values()[0]['UGID']})
                     
                         ## if it is unique write the geometry to the output files
-                        properties_to_append = get_ordered_dicts_from_records_array(coll.properties.values()[0])[0]
-                        to_write = {'geometry':mapping(r_geom),
-                                    'properties':properties_to_append}
-                        fiona_object.write(to_write)
+                        coll.write_ugeom(fobject=fiona_object)
                         
-                        ## write the geometry attributes to the corresponding shapefile
-                        csv_object.writerow(properties_to_append)
+                        # ## write the geometry attributes to the corresponding shapefile
+                        # csv_object.writerow(properties_to_append)
 
         finally:
             
@@ -203,10 +197,10 @@ class AbstractConverter(object):
                         fiona_object.close()
                     except UnboundLocalError:
                         pass
-                    try:
-                        csv_file.close()
-                    except UnboundLocalError:
-                        pass
+                    # try:
+                    #     csv_file.close()
+                    # except UnboundLocalError:
+                    #     pass
         
         ## the metadata and dataset descriptor files may only be written if
         ## OCGIS operations are present.

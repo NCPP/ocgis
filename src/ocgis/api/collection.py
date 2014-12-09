@@ -1,7 +1,13 @@
 import abc
 from collections import OrderedDict
+
+import fiona
+from shapely.geometry import mapping, MultiPoint, MultiPolygon
+from shapely.geometry.base import BaseMultipartGeometry
+
 from ocgis.interface.base.crs import CFWGS84
 from ocgis import constants
+from ocgis.util.helpers import get_ordered_dicts_from_records_array
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -88,6 +94,7 @@ class AbstractCollection(object):
 
 class SpatialCollection(AbstractCollection):
     _default_headers = constants.raw_headers
+    _multi_cast = {'Point': MultiPoint, 'Polygon': MultiPolygon}
     
     def __init__(self, meta=None, key=None, crs=None, headers=None, value_keys=None):
         super(SpatialCollection, self).__init__()
@@ -173,3 +180,58 @@ class SpatialCollection(AbstractCollection):
         else:
             field = ref[alias_field]
         return(field.variables[alias_variable].value)
+
+    def write_ugeom(self, path=None, driver='ESRI Shapefile', fobject=None):
+        """
+        Write the user geometries to a ``fiona``-supported file format.
+
+        :param str path: Full path of file to write. If ``None``, ``fobject`` is required.
+        :param str driver: The ``fiona`` driver to use for writing. Ignored if ``fobject`` is provided.
+        :param fobject: An open ``fiona`` file object to write to. If ``path`` is provided and this is not ``None``,
+         then ``path`` will be ignored.
+        :type fobject: :class:`fiona.collection.Collection`
+        """
+
+        from ocgis.conv.fiona_ import FionaConverter
+
+        build = True if fobject is None else False
+        is_open = False
+        needs_casting = False
+        try:
+            for ugid, geom in self.geoms.iteritems():
+                if build:
+                    # it is possible to end with a mix of singleton and multi-geometries
+                    type_check = set()
+                    for check_geom in self.geoms.itervalues():
+                        type_check.update([check_geom.geom_type])
+                    if len(type_check) > 1:
+                        needs_casting = True
+                        for xx in type_check:
+                            if xx.startswith('Multi'):
+                                geometry = xx
+                            else:
+                                cast_target_key = xx
+                    else:
+                        geometry = type_check.pop()
+
+                    fiona_properties = OrderedDict()
+                    archetype_properties = self.properties[ugid]
+                    for name in archetype_properties.dtype.names:
+                        fiona_properties[name] = FionaConverter.get_field_type(type(archetype_properties[name][0]))
+                    fiona_schema = {'geometry': geometry, 'properties': fiona_properties}
+                    fiona_kwds = {'schema': fiona_schema, 'driver': driver, 'mode': 'w'}
+                    if self.crs is not None:
+                        fiona_kwds['crs'] = self.crs.value
+                    fobject = fiona.open(path, **fiona_kwds)
+                    is_open = True
+                    build = False
+                properties = get_ordered_dicts_from_records_array(self.properties[ugid])[0]
+                if needs_casting:
+                    if not isinstance(geom, BaseMultipartGeometry):
+                        geom = self._multi_cast[cast_target_key]([geom])
+                mapped_geom = mapping(geom)
+                record = {'geometry': mapped_geom, 'properties': properties}
+                fobject.write(record)
+        finally:
+            if is_open:
+                fobject.close()

@@ -1059,16 +1059,9 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
         
         output_folder = os.path.join(self.current_dir_output,ops.prefix)
-        ugid_csv_name = 'ocgis_output_ugid.csv'
         contents = os.listdir(output_folder)
         self.assertEqual(set(contents),
-                         set(['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp', 'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg', 'ocgis_output_ugid.csv', 'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv']))
-        self.assertTrue(ugid_csv_name in contents)
-        csv_path = os.path.join(output_folder,ugid_csv_name)
-        
-        with open(csv_path,'r') as f:
-            rows = f.readlines()
-        self.assertEqual(rows,['UGID,STATE_NAME\n', '1,Nebraska\n', '2,Kansas\n'])
+                         set(['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp', 'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg', 'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv']))
         
         with fiona.open(ret) as f:
             rows = list(f)
@@ -1119,7 +1112,7 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(row['properties']['UGID'],row['properties']['GID'])
         self.assertEqual(set([row['properties']['GID'] for row in rows]),set([1,2]))
         self.assertEqual(len(rows),244)
-        self.assertEqual(set(os.listdir(os.path.join(self.current_dir_output,ops.prefix))),set(['aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_ugid.csv', 'aggregation_clip_metadata.txt', 'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf', 'aggregation_clip.shx', 'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg', 'aggregation_clip_ugid.shx', 'aggregation_clip.shp', 'aggregation_clip_ugid.dbf', 'aggregation_clip.prj', 'aggregation_clip_source_metadata.txt']))
+        self.assertEqual(set(os.listdir(os.path.join(self.current_dir_output,ops.prefix))),set(['aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_metadata.txt', 'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf', 'aggregation_clip.shx', 'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg', 'aggregation_clip_ugid.shx', 'aggregation_clip.shp', 'aggregation_clip_ugid.dbf', 'aggregation_clip.prj', 'aggregation_clip_source_metadata.txt']))
             
     def test_csv_conversion(self):
         ocgis.env.OVERWRITE = True
@@ -1239,7 +1232,7 @@ class TestSimple(TestSimpleBase):
         
         shp_path = os.path.join(path,'shp')
         contents = os.listdir(shp_path)
-        self.assertEqual(set(contents),set(['with_ugid_ugid.csv', 'with_ugid_gid.dbf', 'with_ugid_gid.prj', 'with_ugid_ugid.shx', 'with_ugid_gid.shp', 'with_ugid_ugid.prj', 'with_ugid_ugid.cpg', 'with_ugid_ugid.shp', 'with_ugid_gid.cpg', 'with_ugid_gid.shx', 'with_ugid_ugid.dbf']))
+        self.assertEqual(set(contents),set(['with_ugid_gid.dbf', 'with_ugid_gid.prj', 'with_ugid_ugid.shx', 'with_ugid_gid.shp', 'with_ugid_ugid.prj', 'with_ugid_ugid.cpg', 'with_ugid_ugid.shp', 'with_ugid_gid.cpg', 'with_ugid_gid.shx', 'with_ugid_ugid.dbf']))
         
         gid_path = os.path.join(shp_path,'with_ugid_gid.shp')
         with fiona.open(gid_path) as f:

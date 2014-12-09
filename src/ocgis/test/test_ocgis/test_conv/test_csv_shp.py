@@ -1,10 +1,11 @@
+import os
+from copy import deepcopy
+
+import fiona
+
 from ocgis.test.base import TestBase
 from ocgis.api.operations import OcgOperations
-import os
-import fiona
-import csv
 from ocgis.util.shp_cabinet import ShpCabinetIterator
-from copy import deepcopy
 
 
 class Test(TestBase):
@@ -19,13 +20,8 @@ class Test(TestBase):
         ops.execute()
         
         path_shp = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
-        path_csv = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.csv')
         with fiona.open(path_shp) as source:
             self.assertEqual(len(list(source)),1)
-        with open(path_csv) as source:
-            reader = csv.DictReader(source)
-            rows_csv = list(reader)
-            self.assertEqual(len(rows_csv),1)
 
     def test_geometries_different_ugid(self):
         # equivalent geometries with different ugid values should be included
@@ -38,11 +34,5 @@ class Test(TestBase):
         ops.execute()
         
         path_shp = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
-        path_csv = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.csv')
         with fiona.open(path_shp) as source:
             self.assertEqual(len(list(source)),2)
-        with open(path_csv) as source:
-            reader = csv.DictReader(source)
-            rows_csv = list(reader)
-            self.assertEqual(len(rows_csv),2)
-

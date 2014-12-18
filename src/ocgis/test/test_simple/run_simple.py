@@ -16,8 +16,11 @@ def main():
 
     simple_suite.run(result)
 
+    print
+    print 'Ran {0} tests.'.format(result.testsRun)
+    print
+
     if len(result.errors) > 0:
-        print
         print '#########################################################'
         print 'There are {0} errors. See below for tracebacks:'.format(len(result.errors))
         print '#########################################################'
@@ -29,7 +32,6 @@ def main():
         print 'There are {0} errors. See above for tracebacks.'.format(len(result.errors))
         print '#########################################################'
     else:
-        print
         print 'All tests passed.'
     print
 

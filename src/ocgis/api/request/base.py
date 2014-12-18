@@ -3,6 +3,8 @@ import inspect
 import logging
 import os
 import itertools
+
+from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
 from ocgis.api.collection import AbstractCollection
 from ocgis.api.request.driver.nc import DriverNetcdf
@@ -14,6 +16,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class RequestDataset(object):
+    #todo: document vector format
     """
     A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.
@@ -103,7 +106,7 @@ class RequestDataset(object):
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     """
-    _Drivers = {d.key: d for d in [DriverNetcdf]}
+    _Drivers = {d.key: d for d in [DriverNetcdf, DriverVector]}
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
                  level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None, did=None,
@@ -247,7 +250,7 @@ class RequestDataset(object):
 
     @property
     def name(self):
-        if self._name is None:
+        if self._name is None and self.alias is not None:
             ret = '_'.join(self._alias)
         else:
             ret = self._name
@@ -340,11 +343,11 @@ class RequestDataset(object):
         return self.driver.get_field(**kwargs)
 
     def inspect(self):
-        '''Print inspection output using :class:`~ocgis.Inspect`. This is a
-        convenience method.'''
-        from ocgis import Inspect
-        ip = Inspect(request_dataset=self)
-        return ip
+        """
+        Print a string containing important information about the source driver.
+        """
+
+        return self.driver.inspect()
 
     def inspect_as_dct(self):
         '''

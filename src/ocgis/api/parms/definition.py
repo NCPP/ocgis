@@ -1,31 +1,32 @@
-from shapely.geometry import MultiPoint
-from shapely.geometry.base import BaseGeometry
-from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
-from shapely.geometry.polygon import Polygon
 from collections import OrderedDict
-import ocgis
 from os.path import exists
-from shapely.geometry.multipolygon import MultiPolygon
 from types import NoneType
-from shapely.geometry.point import Point
-from ocgis import constants
-from ocgis.interface.base.dimension.spatial import SpatialDimension
-from ocgis.interface.base.field import Field
-from ocgis.util.helpers import make_poly, iter_array
-from ocgis.util.shp_cabinet import ShpCabinetIterator, ShpCabinet
-from ocgis.calc.library import register
-from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
-from ocgis.util.logging_ocgis import ocgis_lh
 import logging
 import os
 from copy import deepcopy
 from types import FunctionType
 import itertools
-from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 import datetime
+
+from shapely.geometry import MultiPoint
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import Polygon
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.point import Point
 import numpy as np
+
+from ocgis.api.parms import base
+from ocgis.exc import DefinitionValidationError
+from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
+import ocgis
+from ocgis import constants
+from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.interface.base.field import Field
+from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.calc.library import register
+from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
+from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 
 
 class Abstraction(base.StringOptionParameter):

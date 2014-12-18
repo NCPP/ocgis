@@ -124,6 +124,10 @@ class DriverNetcdf(AbstractDriver):
 
         return metadata
 
+    def inspect(self):
+        from ocgis import Inspect
+        print Inspect(request_dataset=self.rd)
+
     def _get_vector_dimension_(self, k, v, source_metadata):
         """
         :param str k: The string name/key of the dimension to load.

@@ -1,18 +1,17 @@
 from collections import OrderedDict
 import os
-from ocgis import env
+import csv
+from copy import deepcopy
+
 import ogr
 from shapely.geometry.multipolygon import MultiPolygon
-import csv
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.polygon import Polygon
 from shapely import wkb
 import fiona
-from ocgis.interface.base.crs import CoordinateReferenceSystem
-from copy import deepcopy
-from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension, SpatialGeometryDimension, \
-    SpatialDimension, SpatialGeometryPointDimension
-import numpy as np
+
+from ocgis import env
+from ocgis.interface.base.dimension.spatial import SpatialDimension
 
 
 class ShpCabinetIterator(object):

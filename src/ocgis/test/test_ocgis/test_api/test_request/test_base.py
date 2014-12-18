@@ -1,6 +1,15 @@
 from copy import deepcopy
-import unittest
 import itertools
+import os
+import pickle
+from datetime import datetime as dt
+import shutil
+import datetime
+
+import numpy as np
+from cfunits.cfunits import Units
+
+from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.interface.base.field import Field
 from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError, RequestValidationError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get_tuple, get_is_none
@@ -8,14 +17,7 @@ import ocgis
 from ocgis import env, constants
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.test.base import TestBase, nc_scope
-import os
-import pickle
-from datetime import datetime as dt
-import shutil
-import datetime
 from ocgis.api.operations import OcgOperations
-import numpy as np
-from cfunits.cfunits import Units
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
 
@@ -60,6 +62,12 @@ class TestRequestDataset(TestBase):
         rd = RequestDataset(uri=self.uri, crs=CFWGS84())
         self.assertTrue(rd._has_assigned_coordinate_system)
 
+    def test_init_driver(self):
+        uri = ShpCabinet().get_shp_path('state_boundaries')
+        rd = RequestDataset(uri=uri, driver='vector')
+        self.assertIsNone(rd.variable)
+        self.assertIsInstance(rd.get(), Field)
+
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ss = str(rd)
@@ -72,6 +80,11 @@ class TestRequestDataset(TestBase):
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
         field = rd.get()
         self.assertDictEqual(kwds['crs'].value, field.spatial.crs.value)
+
+    def test_name(self):
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        rd = RequestDataset(uri=path, driver='vector')
+        self.assertIsNone(rd.name)
 
     def test_uri_cannot_be_set(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -346,9 +359,13 @@ class TestRequestDataset(TestBase):
             rd2 = pickle.load(f)
         self.assertTrue(rd == rd2)
 
-    def test_inspect_method(self):
+    def test_inspect(self):
         rd = RequestDataset(self.uri, self.variable)
         rd.inspect()
+
+        uri = ShpCabinet().get_shp_path('state_boundaries')
+        rd = RequestDataset(uri=uri, driver='vector')
+        str(rd.inspect())
 
     def test_inspect_as_dct(self):
         variables = [

@@ -515,6 +515,11 @@ class TestDriverNetcdf(TestBase):
         with self.assertRaises(KeyError):
             rd.source_metadata
 
+    def test_inspect(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        driver.inspect()
+
 
 class Test(TestBase):
 

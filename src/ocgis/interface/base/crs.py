@@ -5,18 +5,14 @@ import abc
 import logging
 
 from osgeo.osr import SpatialReference
-
 from fiona.crs import from_string, to_string
 import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
-from shapely.geometry.multipolygon import MultiPolygon
-from shapely.geometry.multipoint import MultiPoint
 
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
-
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
 
@@ -174,66 +170,6 @@ class WrappableCoordinateReferenceSystem(object):
                     ret = flag
                     break
         return ret
-
-    #todo: remove commented code
-    # @classmethod
-    # def get_is_360(cls, spatial):
-    #     """
-    #     :param spatial:
-    #     :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
-    #     """
-    #
-    #     if not isinstance(spatial.crs, WrappableCoordinateReferenceSystem):
-    #         msg = 'Wrapped state may only be determined for geographic (i.e. spherical) coordinate systems.'
-    #         raise SpatialWrappingError(msg)
-    #
-    #     try:
-    #         # if spatial.grid.col.bounds is None:
-    #         check = spatial.grid.col.value
-    #         # else:
-    #         #     check = spatial.grid.col.bounds
-    #     except AttributeError as e:
-    #         # column dimension is likely missing
-    #         try:
-    #             if spatial.grid.col is None:
-    #                 # if spatial.grid.corners is not None:
-    #                 #     check = spatial.grid.corners[1]
-    #                 # else:
-    #                 check = spatial.grid.value[1, :, :]
-    #             else:
-    #                 ocgis_lh(exc=e)
-    #         except AttributeError:
-    #             # there may be no grid, access the geometries directly
-    #             if spatial.geom.polygon is not None:
-    #                 geoms_to_check = spatial.geom.polygon.value
-    #             else:
-    #                 geoms_to_check = spatial.geom.point.value
-    #             geoms_to_check = geoms_to_check.compressed()
-    #
-    #             # if this is switched to true, there are geometries with coordinate values less than 0
-    #             for geom in geoms_to_check:
-    #                 if type(geom) in [MultiPolygon, MultiPoint]:
-    #                     it = geom
-    #                 else:
-    #                     it = [geom]
-    #                 for sub_geom in it:
-    #                     try:
-    #                         coords = np.array(sub_geom.exterior.coords)
-    #                         if np.all(coords[:, 0] >= 0.):
-    #                             return True
-    #                     ## might be checking a point
-    #                     except AttributeError:
-    #                         coords = np.array(sub_geom)
-    #                         if np.all(coords[0] >= 0.):
-    #                             return True
-    #             return False
-    #
-    #     if np.all(check >= 0.):
-    #         ret = True
-    #     else:
-    #         ret = False
-    #
-    #     return ret
 
     def unwrap(self, spatial):
         """

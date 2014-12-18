@@ -1,5 +1,4 @@
 import os
-import unittest
 from copy import deepcopy
 import netCDF4 as nc
 
@@ -96,8 +95,6 @@ class TestWrappableCoordinateSystem(TestBase):
                 self.assertIsNone(ret)
 
     def test_get_wrapped_state(self):
-        #todo: test only geometries
-
         refv = WrappableCoordinateReferenceSystem
         refm = refv.get_wrapped_state
 

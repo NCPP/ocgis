@@ -1293,6 +1293,13 @@ class TestSpatialGridDimension(AbstractTestSpatialDimension):
             sdim.assert_uniform_mask()
         sdim.geom.polygon.value.mask[2, 2] = False
 
+        sdim.grid.corners.mask[0, 2, 1, 3] = True
+        with self.assertRaises(AssertionError):
+            sdim.assert_uniform_mask()
+        sdim.grid.corners.mask[0, 2, 1, 3] = False
+        self.assertIsNotNone(sdim.grid.corners)
+        sdim.assert_uniform_mask()
+
     def test_corners(self):
         for grid in self.iter_grid_combinations_for_corners():
             try:

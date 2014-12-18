@@ -50,3 +50,7 @@ class AbstractDriver(object):
     @abc.abstractmethod
     def open(self):
         return object
+
+    @abc.abstractmethod
+    def inspect(self):
+        pass

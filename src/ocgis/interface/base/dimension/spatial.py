@@ -145,19 +145,6 @@ class SpatialDimension(base.AbstractUidDimension):
             assert(isinstance(value, SpatialGridDimension))
         self._grid = value
 
-    #todo: remove commented code
-    # @property
-    # def is_unwrapped(self):
-    #     """
-    #     Return ``True`` if the coordinates of the spatial data have a 0 to 360 longitudinal domain."""
-    #
-    #     try:
-    #         ret = self.crs.get_is_360(self)
-    #     # None and coordinate systems w/out spherical coordinate systems have no wrapping checks
-    #     except AttributeError:
-    #         ret = False
-    #     return ret
-
     @property
     def shape(self):
         if self.grid is None:
@@ -210,6 +197,16 @@ class SpatialDimension(base.AbstractUidDimension):
 
         for arr1, arr2 in itertools.combinations(to_compare, 2):
             assert np.all(arr1 == arr2)
+
+        # check the mask on corners
+        if self._grid is not None and self._grid._corners is not None:
+            corners_mask = self._grid._corners.mask
+            for (ii, jj), mask_value in iter_array(to_compare[0], return_value=True):
+                to_check = corners_mask[:, ii, jj, :]
+                if mask_value:
+                    assert to_check.all()
+                else:
+                    assert not to_check.any()
 
     @classmethod
     def from_records(cls, records, crs=None):
@@ -852,7 +849,12 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         return(ret)
 
     def set_extrapolated_corners(self):
-        #todo: doc
+        """
+        Extrapolate corners from grid centroids. If corners are already available, an exception will be raised.
+
+        :raises: BoundsAlreadyAvailableError
+        """
+
         if self.corners is not None:
             raise BoundsAlreadyAvailableError
         else:

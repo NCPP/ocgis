@@ -1,11 +1,13 @@
-from copy import deepcopy
+import logging
+
+import numpy as np
+
 from ocgis.util.logging_ocgis import ocgis_lh
+
 from ocgis.interface.base.variable import VariableCollection
 from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
 from ocgis.calc.base import AbstractMultivariateFunction
-import logging
 from ocgis.calc.eval_function import EvalFunction
-import numpy as np
 
 
 class OcgCalculationEngine(object):
@@ -127,12 +129,13 @@ class OcgCalculationEngine(object):
                         ## initialize the function
                         function = f['ref'](alias=f['name'],dtype=dtype,field=field,file_only=file_only,vc=out_vc,
                              parms=f['kwds'],tgd=new_temporal,use_raw_values=self.use_raw_values,
-                             calc_sample_size=self.calc_sample_size,meta_attrs=f.get('meta_attrs'))
+                             calc_sample_size=self.calc_sample_size,meta_attrs=f.get('meta_attrs'), add_parents=True)
                     except KeyError:
                         ## likely an eval function which does not have the name
                         ## key
                         function = EvalFunction(field=field,file_only=file_only,vc=out_vc,
-                                                expr=self.funcs[0]['func'],meta_attrs=self.funcs[0].get('meta_attrs'))
+                                                expr=self.funcs[0]['func'],meta_attrs=self.funcs[0].get('meta_attrs'),
+                                                add_parents=True)
                         
                     ocgis_lh('calculation initialized',logger='calc.engine',level=logging.DEBUG)
                     

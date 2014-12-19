@@ -1,5 +1,4 @@
 import os
-import datetime
 from copy import copy, deepcopy
 
 import fiona
@@ -7,6 +6,7 @@ from shapely.geometry import Point, shape, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 import numpy as np
 
+import datetime
 from ocgis.api.collection import SpatialCollection, AbstractCollection
 from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical
 from ocgis.test.base import TestBase
@@ -127,16 +127,15 @@ class TestSpatialCollection(AbstractTestField):
         self.assertEqual(sp[25]['tmax'].variables['tmax'].value.shape,(2, 31, 2, 3, 4))
 
     def test_calculation_iteration(self):
-        field = self.get_field(with_value=True,month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
-                                              name='tmin',alias='tmin'))
+        field = self.get_field(with_value=True, month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
         field.temporal.name_uid = 'tid'
         field.level.name_uid = 'lid'
         field.spatial.geom.name_uid = 'gid'
 
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64, add_parents=True)
         ret = mu.execute()
 
         kwds = copy(field.__dict__)
@@ -155,29 +154,33 @@ class TestSpatialCollection(AbstractTestField):
 
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
-        sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.calc_headers)
+        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.calc_headers)
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
-        for ii,row in enumerate(sp.get_iter_dict()):
+            sp.add_field(row['properties']['UGID'], row['geom'], cfield, properties=row['properties'])
+        for ii, row in enumerate(sp.get_iter_dict()):
             if ii == 0:
-                self.assertEqual(row[0].bounds,(-100.5, 39.5, -99.5, 40.5))
-                self.assertDictEqual(row[1],{'lid': 1, 'ugid': 1, 'vid': 1, 'cid': 1, 'did': 1, 'year': 2000, 'time': datetime.datetime(2000, 1, 16, 0, 0), 'calc_alias': 'my_mean_tmax', 'value': 0.44808476666433006, 'month': 1, 'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean', 'tid': 1, 'level': 50, 'day': 16})
-            self.assertEqual(len(row),2)
-            self.assertEqual(len(row[1]),len(constants.calc_headers))
+                self.assertEqual(row[0].bounds, (-100.5, 39.5, -99.5, 40.5))
+                self.assertDictEqual(row[1], {'lid': 1, 'ugid': 1, 'vid': 1, 'cid': 1, 'did': 1, 'year': 2000,
+                                              'time': datetime.datetime(2000, 1, 16, 0, 0),
+                                              'calc_alias': 'my_mean_tmax', 'value': 0.44808476666433006, 'month': 1,
+                                              'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean',
+                                              'tid': 1, 'level': 50, 'day': 16})
+            self.assertEqual(len(row), 2)
+            self.assertEqual(len(row[1]), len(constants.calc_headers))
 
     def test_calculation_iteration_two_calculations(self):
-        field = self.get_field(with_value=True,month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
-                                              name='tmin',alias='tmin'))
+        field = self.get_field(with_value=True, month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
         field.temporal.name_uid = 'tid'
         field.level.name_uid = 'lid'
         field.spatial.geom.name_uid = 'gid'
 
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field,tgd=tgd,alias='my_mean',dtype=np.float64)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64, add_parents=True)
         ret = mu.execute()
-        thresh = Threshold(field=field,vc=ret,tgd=tgd,alias='a_treshold',parms={'operation':'gte','threshold':0.5})
+        thresh = Threshold(field=field, vc=ret, tgd=tgd, alias='a_treshold', add_parents=True,
+                           parms={'operation': 'gte', 'threshold': 0.5})
         ret = thresh.execute()
 
         kwds = copy(field.__dict__)
@@ -196,20 +199,24 @@ class TestSpatialCollection(AbstractTestField):
 
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
-        sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.calc_headers)
+        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.calc_headers)
         for row in sc.iter_geoms('state_boundaries'):
-            sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
+            sp.add_field(row['properties']['UGID'], row['geom'], cfield, properties=row['properties'])
 
         cids = set()
-        for ii,row in enumerate(sp.get_iter_dict()):
+        for ii, row in enumerate(sp.get_iter_dict()):
             cids.update([row[1]['cid']])
             if ii == 0:
-                self.assertEqual(row[0].bounds,(-100.5, 39.5, -99.5, 40.5))
-                self.assertDictEqual(row[1],{'lid': 1, 'ugid': 1, 'vid': 1, 'cid': 1, 'did': 1, 'year': 2000, 'time': datetime.datetime(2000, 1, 16, 0, 0), 'calc_alias': 'my_mean_tmax', 'value': 0.44808476666433006, 'month': 1, 'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean', 'tid': 1, 'level': 50, 'day': 16})
-            self.assertEqual(len(row),2)
-            self.assertEqual(len(row[1]),len(constants.calc_headers))
-        self.assertEqual(ii+1,2*2*2*3*4*51*4)
-        self.assertEqual(len(cids),4)
+                self.assertEqual(row[0].bounds, (-100.5, 39.5, -99.5, 40.5))
+                self.assertDictEqual(row[1], {'lid': 1, 'ugid': 1, 'vid': 1, 'cid': 1, 'did': 1, 'year': 2000,
+                                              'time': datetime.datetime(2000, 1, 16, 0, 0),
+                                              'calc_alias': 'my_mean_tmax', 'value': 0.44808476666433006, 'month': 1,
+                                              'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean',
+                                              'tid': 1, 'level': 50, 'day': 16})
+            self.assertEqual(len(row), 2)
+            self.assertEqual(len(row[1]), len(constants.calc_headers))
+        self.assertEqual(ii + 1, 2 * 2 * 2 * 3 * 4 * 51 * 4)
+        self.assertEqual(len(cids), 4)
 
     def test_get_iter_melted(self):
         sp = self.get_collection()

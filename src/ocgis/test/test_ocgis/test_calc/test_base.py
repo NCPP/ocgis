@@ -4,7 +4,6 @@ from cfunits.cfunits import Units
 import numpy as np
 
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
-
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
@@ -64,6 +63,19 @@ class TestAbstractFunction(AbstractTestField):
                 attrs = {'standard_name': constants.default_sample_size_standard_name,
                          'long_name': constants.default_sample_size_long_name}
                 self.assertDictEqual(ss.attrs, attrs)
+
+    def test_add_to_collection_parents(self):
+        """Test adding parents to the output derived variable."""
+
+        field = self.get_field(with_value=True)
+        ff = FooNeedsUnits(field=field)
+        res = ff.execute()
+        self.assertIsNone(res['fnu'].parents)
+
+        ff = FooNeedsUnits(field=field, add_parents=True)
+        res = ff.execute()
+        var = res['fnu']
+        self.assertIsInstance(var.parents, VariableCollection)
 
     def test_execute_meta_attrs(self):
         """Test overloaded metadata attributes are appropriately applied."""

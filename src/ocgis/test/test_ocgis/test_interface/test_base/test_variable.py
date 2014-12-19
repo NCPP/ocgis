@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
 from numpy.ma import MaskedArray
 from cfunits import Units
+import numpy as np
+
 from ocgis.exc import VariableInCollectionError, NoUnitsError
 from ocgis.interface.base.attributes import Attributes
 from ocgis.test.base import TestBase
-from ocgis.interface.base.variable import Variable, VariableCollection, AbstractSourcedVariable, AbstractValueVariable
-import numpy as np
+from ocgis.interface.base.variable import Variable, VariableCollection, AbstractSourcedVariable, AbstractValueVariable, \
+    DerivedVariable
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
 
@@ -63,6 +66,17 @@ class TestAbstractValueVariable(TestBase):
         for k in self.iter_product_keywords(kwds):
             av = FakeAbstractValueVariable(value=k.value)
             self.assertEqual(av.value, k.value)
+
+
+class TestDerivedVariable(TestBase):
+
+    def test_init(self):
+        self.assertEqual(DerivedVariable.__bases__, (Variable,))
+
+        fdef = [{'func': 'mean', 'name': 'mean'}]
+        dv = DerivedVariable(fdef=fdef)
+        self.assertEqual(dv.fdef, fdef)
+        self.assertIsNone(dv.parents)
 
 
 class TestVariable(TestBase):

@@ -1,13 +1,12 @@
+import abc
+from copy import copy, deepcopy
+
+import numpy as np
+
 from ocgis.api.collection import AbstractCollection
 from ocgis.interface.base.attributes import Attributes
-from ocgis.util.logging_ocgis import ocgis_lh
-import abc
-from collections import OrderedDict
 from ocgis.util.helpers import get_iter
-import numpy as np
-from ocgis import constants
 from ocgis.exc import NoUnitsError, VariableInCollectionError
-from copy import copy, deepcopy
 
 
 class AbstractValueVariable(object):
@@ -301,12 +300,22 @@ class VariableCollection(AbstractCollection):
         variables = [v.__getitem__(slc) for v in self.itervalues()]
         ret = VariableCollection(variables=variables)
         return ret
-        
-        
+
+
 class DerivedVariable(Variable):
-    
-    def __init__(self,**kwds):
-        self.fdef = kwds.pop('fdef')
-        self.parents = kwds.pop('parents')
-        
-        super(DerivedVariable,self).__init__(**kwds)
+    """
+    Variable class for derived variables.
+
+    :param dict fdef: The function definition dictionary.
+
+    >>> fdef = {'name': 'mean', 'func': 'mean'}
+
+    :param parents: The parent variables used to derive the current variable.
+    :type parents: :class:`ocgis.interface.base.variable.VariableCollection`
+    """
+
+    def __init__(self, **kwargs):
+        self.fdef = kwargs.pop('fdef')
+        self.parents = kwargs.pop('parents', None)
+
+        super(DerivedVariable, self).__init__(**kwargs)

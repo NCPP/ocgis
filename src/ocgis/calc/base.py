@@ -1,13 +1,15 @@
 from collections import OrderedDict
 from copy import deepcopy
-import numpy as np
 import abc
 import itertools
+import logging
+
+import numpy as np
+
 from ocgis.interface.base.variable import DerivedVariable, VariableCollection
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis import constants
-import logging
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 
@@ -50,6 +52,7 @@ class AbstractFunction(object):
     >>> meta_attrs = {'standard_name': 'the_real', 'long_name': 'The Real Long Name', 'note_count': 55}
 
     :type meta_attrs: dict
+    :param bool add_parents: If ``True``, maintain parent variables following a calculation.
     """
 
     __metaclass__ = abc.ABCMeta
@@ -87,7 +90,7 @@ class AbstractFunction(object):
     _empty_fill = {'fill': None, 'sample_size': None}
 
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
-                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None):
+                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None, add_parents=False):
         self.alias = alias or self.key
         self.dtype = dtype or self.dtype
         self.fill_value = fill_value
@@ -99,6 +102,7 @@ class AbstractFunction(object):
         self.use_raw_values = use_raw_values
         self.calc_sample_size = calc_sample_size
         self.meta_attrs = deepcopy(meta_attrs)
+        self.add_parents = add_parents
 
     def aggregate_spatial(self, values, weights):
         """
@@ -286,7 +290,10 @@ class AbstractFunction(object):
         attrs['standard_name'] = self.standard_name
         attrs['long_name'] = self.long_name
 
-        parents = VariableCollection(variables=parent_variables)
+        if self.add_parents:
+            parents = VariableCollection(variables=parent_variables)
+        else:
+            parents = None
 
         # if the operation is file only, creating a variable with an empty value will raise an exception. pass a dummy
         # data source because even if the value is trying to be loaded it should not be accessible!

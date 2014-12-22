@@ -224,6 +224,10 @@ class TestCalc(TestBase):
         cc = Calc(None)
         self.assertEqual(str(cc), 'calc=None')
 
+        calc = [{'func': 'mean', 'name': 'my_mean', 'kwds': {'a': np.zeros(1000)}}]
+        cc = Calc(calc)
+        self.assertEqual(str(cc), "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict([('a', <type 'numpy.ndarray'>)])}]")
+
     def test_get_meta(self):
         for poss in Calc._possible:
             cc = Calc(poss)

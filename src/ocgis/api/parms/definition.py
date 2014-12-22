@@ -127,6 +127,9 @@ class Calc(base.IterableParameter,base.OcgParameter):
             cb = deepcopy(self.value)
             for ii in cb:
                 ii.pop('ref')
+                for k, v in ii['kwds'].iteritems():
+                    if type(v) not in [str, unicode, float, int, basestring]:
+                        ii['kwds'][k] = type(v)
             ret = '{0}={1}'.format(self.name, cb)
         return ret
     

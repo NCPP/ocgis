@@ -1,10 +1,13 @@
+import calendar
+from collections import OrderedDict, defaultdict
 import itertools
+
 import numpy as np
+
+from datetime import datetime
 from ocgis.calc import base
 from ocgis import constants
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractParameterizedFunction
-from ocgis.calc.library.math import Convolve1D
-from ocgis.util.helpers import iter_array
 
 
 class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
@@ -121,6 +124,226 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
                     raise StopIteration
         else:
             raise NotImplementedError(mode)
+
+
+class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterizedFunction):
+    key = 'daily_perc'
+    parms_definition = {'percentile': float, 'window_width': int, 'only_leap_years': bool}
+    description = ''
+    dtype = constants.np_float
+    standard_name = 'daily_percentile'
+    long_name = 'Daily Percentile'
+
+    def __init__(self, *args, **kwargs):
+        super(DailyPercentile, self).__init__(*args, **kwargs)
+
+        if self.file_only:
+            self.tgd = self.field.temporal.get_grouping(['month', 'day'])
+            self.field.temporal = self.tgd
+
+    def calculate(self, values, percentile=None, window_width=None, only_leap_years=False):
+        assert(values.shape[0] == 1)
+        assert(values.shape[2] == 1)
+        # assert(self.tgd is not None)
+        # dtype = [('month', int), ('day', int), ('value', object)]
+        arr = values[0, :, 0, :, :]
+        assert(arr.ndim == 3)
+        dt_arr = self.field.temporal.value_datetime
+        dp = self.get_daily_percentile(arr, dt_arr, percentile, window_width, only_leap_years=only_leap_years)
+        shape_fill = list(values.shape)
+        shape_fill[1] = len(dp)
+        fill = np.zeros(shape_fill, dtype=self.dtype)
+        fill = np.ma.array(fill, mask=False)
+        tgd = self.field.temporal.get_grouping(['month', 'day'])
+        month_day_map = {(dt.month, dt.day): ii for ii, dt in enumerate(tgd.value_datetime)}
+        for key, value in dp.iteritems():
+            fill[0, month_day_map[key], 0, :, :] = value
+        self.field.temporal = tgd
+        for idx in range(fill.shape[1]):
+            fill.mask[0, idx, 0, :, :] = values.mask[0, 0, 0, :, :]
+        return fill
+
+    @staticmethod
+    def get_daily_percentile_from_request_dataset(rd, alias=None):
+        ret = {}
+        alias = alias or rd.alias
+        field = rd.get()
+        dt = field.temporal.value_datetime
+        value = field.variables[alias].value
+        for idx in range(len(dt)):
+            curr = dt[idx]
+            ret[(curr.month, curr.day)] = value[0, idx, 0, :, :]
+        return ret
+
+    def get_daily_percentile(self, arr, dt_arr, percentile, window_width, only_leap_years=False):
+        """
+        Creates a dictionary with keys=calendar day (month,day) and values=numpy.ndarray (2D)
+        Example - to get the 2D percentile array corresponding to the 15th May: percentile_dict[5,15]
+
+        :param arr: array of values
+        :type arr: :class:`numpy.ndarray` (3D) of float
+        :param dt_arr: Corresponding time steps vector (base period: usually 1961-1990).
+        :type dt_arr: :class:`numpy.ndarray` (1D) of :class:`datetime.datetime` objects
+        :param percentile: Percentile to compute which must be between 0 and 100 inclusive.
+        :type percentile: int
+        :param window_width: Window width - must be odd.
+        :type window_width: int
+        :param only_leap_years: Option for February 29th. If ``True``, use only leap years when computing the basis.
+        :type only_leap_years: bool
+        :rtype: dict
+        """
+
+        # we reduce the number of dimensions
+        if arr.ndim == 5:
+            arr = arr[0, :, 0, :, :]
+        elif arr.ndim == 3:
+            pass
+        else:
+            raise NotImplementedError(arr.ndim)
+        dt_arr = dt_arr.squeeze()
+
+        # step1: creation of the dictionary with all calendar days:
+        dic_caldays = self.get_dict_caldays(dt_arr)
+
+        percentile_dict = OrderedDict()
+
+        dt_hour = dt_arr[0].hour # (we get hour of a date only one time, because usually the hour is the same for all dates in input dt_arr)
+
+        for month in dic_caldays.keys():
+            for day in dic_caldays[month]:
+
+                # step2: we do a mask for the datetime vector for current calendar day (day/month)
+                dt_arr_mask = self.get_mask_dt_arr(dt_arr, month, day, dt_hour, window_width, only_leap_years)
+
+                # step3: we are looking for the indices of non-masked dates (i.e. where dt_arr_mask==False)
+                indices_non_masked = np.where(dt_arr_mask==False)[0]
+
+                # step4: we subset our arr
+                arr_subset = arr[indices_non_masked, :, :]
+
+                # step5: we compute the percentile for current arr_subset
+                ############## WARNING: type(arr_subset) = numpy.ndarray. Numpy.percentile does not work with masked arrays,
+                ############## so if arr_subset has aberrant values like 999999 or 1e+20, the result will be wrong.
+                ############## Check with numpy.nanpercentile (Numpy version 1.9) !!!
+                arr_percentille_current_calday = np.percentile(arr_subset, percentile, axis=0)
+
+                # step6: we add to the dictionnary...
+                percentile_dict[month,day] = arr_percentille_current_calday
+
+            # print 'Creating percentile dictionary: month ', month, '---> OK'
+
+        # print 'Percentile dictionary is created.'
+
+        return percentile_dict
+
+    @staticmethod
+    def get_dict_caldays(dt_arr):
+        """
+        Create a dictionary of calendar days, where keys=months, values=days.
+
+        :param dt_arr: time steps vector
+        :type dt_arr: :class:`numpy.core.multiarray.ndarray` (1D) of :class:`datetime.datetime` objects
+        :rtype: dict
+        """
+
+        dic = defaultdict(list)
+
+        for dt in dt_arr:
+            dic[dt.month].append(dt.day)
+
+        for key in dic.keys():
+            dic[key] = list(set(dic[key]))
+
+        return dic
+
+    @staticmethod
+    def get_masked(current_date, month, day, hour, window_width, only_leap_years):
+        """
+        Returns ``True`` if ``current_date`` is not in the window centered on the given calendar day (month-day). Returns
+        ``False``, if it enters in the window.
+
+        :param current_date: The date to check for inclusion in a given window.
+        :type current_date: :class:`datetime.datetime`
+        :param month: Month of the corresponding calendar day.
+        :type month: int
+        :param day: Day of the corresponding calendar day.
+        :type day: int
+        :param hour: Hour of the current day.
+        :type hour: int
+        :param window_width: Window width - must be odd.
+        :type window_width: int
+        :param only_leap_years: Option for February 29th. If ``True``, use only date from other leap years when constructing
+         the comparison basis.
+        :type only_leap_years: bool
+        :rtype: bool (if ``True``, the date will be masked)
+        """
+
+        yyyy = current_date.year
+
+        if (day==29 and month==02):
+            if calendar.isleap(yyyy):
+                dt1 = datetime(yyyy,month,day,hour)
+                diff = abs(current_date-dt1).days
+                toReturn = diff > window_width/2
+            else:
+                if only_leap_years:
+                    toReturn=True
+                else:
+                    dt1 = datetime(yyyy,02,28,hour)
+                    diff = (current_date-dt1).days
+                    toReturn = (diff < (-(window_width/2) + 1)) or (diff > window_width/2)
+        else:
+            d1 = datetime(yyyy,month,day, hour)
+
+            # In the case the current date is in December and calendar day (day-month) is at the beginning of year.
+            # For example we are looking for dates around January 2nd, and the current date is 31 Dec 1999,
+            # we will compare it with 02 Jan 2000 (1999 + 1)
+            d2 = datetime(yyyy+1,month,day, hour)
+
+            # In the case the current date is in January and calendar day (day-month) is at the end of year.
+            # For example we are looking for dates around December 31st, and the current date is 02 Jan 2003,
+            # we will compare it with 01 Jan 2002 (2003 - 1)
+            d3 = datetime(yyyy-1,month,day, hour)
+
+            diff=min(abs(current_date-d1).days,abs(current_date-d2).days,abs(current_date-d3).days)
+            toReturn = diff > window_width/2
+
+        return toReturn
+
+    def get_mask_dt_arr(self, dt_arr, month, day, dt_hour, window_width, only_leap_years):
+        """
+        Creates a binary mask for a datetime vector for a given calendar day (month-day).
+
+        :param dt_arr: Time steps vector.
+        :type dt_arr: :class:`numpy.ndarray` (1D) of :class:`datetime.datetime` objects
+        :param month: Month of a calendar day.
+        :type month: int
+        :param day: Day of a calendar day.
+        :type day: int
+        :param window_width: Window width - must be odd.
+        :type window_width: int
+        :param only_leap_years: Option for February 29th. If ``True``, use only leap years when constructing the basis.
+        :type only_leap_years: bool
+        :rtype: :class:`numpy.ndarray` (1D)
+        """
+
+        mask = np.array([self.get_masked(dt, month, day, dt_hour, window_width, only_leap_years) for dt in dt_arr])
+        return mask
+
+    @staticmethod
+    def get_year_list(dt_arr):
+        """
+        Just to get a list of all years conteining in time steps vector (dt_arr).
+        """
+
+        year_list = []
+        for dt in dt_arr:
+            year_list.append(dt.year)
+
+        year_list = list(set(year_list))
+
+        return year_list
+
 
 
 class FrequencyPercentile(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):

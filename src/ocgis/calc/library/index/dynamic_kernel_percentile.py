@@ -11,7 +11,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, Abstr
     parms_definition = {'operation': str, 'percentile': float, 'daily_percentile': None, 'width': int}
     dtype = constants.np_int
     description = 'Implementation of moving window percentile threshold calculations similar to ECA indices: http://eca.knmi.nl/documents/atbd.pdf'
-    standard_name = 'dynamice_kernel_percentile'
+    standard_name = 'dynamic_kernel_percentile'
     long_name = 'Dynamic Kernel Percentile'
 
     def __init__(self, *args, **kwargs):
@@ -75,7 +75,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, Abstr
     def get_daily_percentile(arr, dt_arr, percentile, window_width, only_leap_years=False):
         """
         Creates a dictionary with keys=calendar day (month,day) and values=numpy.ndarray (2D)
-        Example - to get the 2D percentile array corresponding to the 15th Mai: percentile_dict[5,15]
+        Example - to get the 2D percentile array corresponding to the 15th May: percentile_dict[5,15]
 
         :param arr: array of values
         :type arr: :class:`numpy.ndarray` (3D) of float

@@ -1,15 +1,16 @@
-from ocgis.interface.base.attributes import Attributes
-from ocgis.calc.base import AbstractUnivariateSetFunction,\
-    AbstractMultivariateFunction
-from ocgis import constants
-from icclim import calc_indice
-from icclim import set_longname_units as slu
-from icclim import set_globattr
 import abc
-import numpy as np
 from collections import OrderedDict
 from copy import deepcopy
 import json
+
+from icclim.percentile_dict import get_percentile_dict
+from icclim import calc_indice, calc_indice_perc
+from icclim import set_longname_units as slu
+from icclim import set_globattr
+import numpy as np
+
+from ocgis.calc.base import AbstractUnivariateSetFunction, AbstractMultivariateFunction, AbstractParameterizedFunction
+from ocgis import constants
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.parms.definition import CalcGrouping
 
@@ -46,6 +47,24 @@ _icclim_function_map = {
                         'icclim_SD5cm':{'func':calc_indice.SD5cm_calculation,'meta':slu.SD5cm_setvarattr},
                         'icclim_SD50cm':{'func':calc_indice.SD50cm_calculation,'meta':slu.SD50cm_setvarattr},
                         'icclim_CDD':{'func':calc_indice.CDD_calculation,'meta':slu.CDD_setvarattr},
+                        'icclim_TG10p':{'func':calc_indice_perc.TG10p_calculation,'meta':slu.TG10p_setvarattr},
+                        'icclim_TX10p':{'func':calc_indice_perc.TX10p_calculation,'meta':slu.TX10p_setvarattr},
+                        'icclim_TN10p':{'func':calc_indice_perc.TN10p_calculation,'meta':slu.TN10p_setvarattr},
+                        'icclim_TG90p':{'func':calc_indice_perc.TG90p_calculation,'meta':slu.TG90p_setvarattr},
+                        'icclim_TX90p':{'func':calc_indice_perc.TX90p_calculation,'meta':slu.TX90p_setvarattr},
+                        'icclim_TN90p':{'func':calc_indice_perc.TN90p_calculation,'meta':slu.TN90p_setvarattr},
+                        'icclim_WSDI':{'func':calc_indice_perc.WSDI_calculation,'meta':slu.WSDI_setvarattr},
+                        'icclim_CSDI':{'func':calc_indice_perc.CSDI_calculation,'meta':slu.CSDI_setvarattr},
+                        'icclim_R75p':{'func':calc_indice_perc.R75p_calculation,'meta':slu.R75p_setvarattr},
+                        'icclim_R75TOT':{'func':calc_indice_perc.R75TOT_calculation,'meta':slu.R75TOT_setvarattr},
+                        'icclim_R95p':{'func':calc_indice_perc.R95p_calculation,'meta':slu.R95p_setvarattr},
+                        'icclim_R95TOT':{'func':calc_indice_perc.R95TOT_calculation,'meta':slu.R95TOT_setvarattr},
+                        'icclim_R99p':{'func':calc_indice_perc.R99p_calculation,'meta':slu.R99p_setvarattr},
+                        'icclim_R99TOT':{'func':calc_indice_perc.R99TOT_calculation,'meta':slu.R99TOT_setvarattr},
+                        'icclim_CD': {'func': calc_indice_perc.CD_calculation, 'meta': slu.CD_setvarattr},
+                        'icclim_CW': {'func': calc_indice_perc.CW_calculation, 'meta': slu.CW_setvarattr},
+                        'icclim_WD': {'func': calc_indice_perc.WD_calculation, 'meta': slu.WD_setvarattr},
+                        'icclim_WW': {'func': calc_indice_perc.WW_calculation, 'meta': slu.WW_setvarattr},
                         }
 
 
@@ -151,12 +170,15 @@ class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction,AbstractUnivari
     __metaclass__ = abc.ABCMeta
     
     def calculate(self,values):
-        return(_icclim_function_map[self.key]['func'](values,values.fill_value))
+        return self._get_icclim_func_()(values, values.fill_value)
     
     @classmethod
     def validate(cls,ops):
-        cls.validate_icclim(cls,ops)
-        super(AbstractIcclimUnivariateSetFunction,cls).validate(ops)
+        cls.validate_icclim(cls, ops)
+        super(AbstractIcclimUnivariateSetFunction, cls).validate(ops)
+
+    def _get_icclim_func_(self):
+        return _icclim_function_map[self.key]['func']
     
     
 class AbstractIcclimMultivariateFunction(AbstractIcclimFunction,AbstractMultivariateFunction):
@@ -166,8 +188,56 @@ class AbstractIcclimMultivariateFunction(AbstractIcclimFunction,AbstractMultivar
     def validate(cls,ops):
         cls.validate_icclim(cls,ops)
         super(AbstractIcclimMultivariateFunction,cls).validate(ops)
-    
-        
+
+
+class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, AbstractParameterizedFunction):
+    __metaclass__ = abc.ABCMeta
+    parms_definition = {'percentile_dict': dict}
+    window_width = 5
+    only_leap_years = False
+
+    def __init__(self, *args, **kwargs):
+        self._storage_percentile_dict = {}
+        AbstractIcclimUnivariateSetFunction.__init__(self, *args, **kwargs)
+
+        if self.field is not None:
+            assert(self.field.shape[0] == 1)
+            assert(self.field.shape[2] == 1)
+
+    @abc.abstractproperty
+    def percentile(self):
+        """
+        The percentile value to use for computing the percentile basis. Value is between 0 and 100.
+
+        :type: int
+        """
+        pass
+
+    def calculate(self, values, percentile_dict=None):
+
+        # if the percentile dictionary is not provided compute it
+        if percentile_dict is None:
+            try:
+                percentile_dict = self._storage_percentile_dict[self._curr_variable.alias]
+            except KeyError:
+                variable = self.field.variables[self._curr_variable.alias]
+                value = variable.value[0, :, 0, :, :]
+                assert(value.ndim == 3)
+                percentile_dict = get_percentile_dict(value, self.field.temporal.value_datetime, self.percentile,
+                                                      self.window_width, only_leap_years=self.only_leap_years)
+                self._storage_percentile_dict[self._curr_variable.alias] = percentile_dict
+
+        dt_arr = self.field.temporal.value_datetime[self._curr_group]
+        ret = _icclim_function_map[self.key]['func'](values, dt_arr, percentile_dict, fill_val=values.fill_value)
+        return ret
+
+    @staticmethod
+    def get_percentile_dict(*args, **kwargs):
+        """See :func:`icclim.percentile_dict.get_percentile_dict` documentation."""
+
+        return get_percentile_dict(*args, **kwargs)
+
+
 class IcclimTG(AbstractIcclimUnivariateSetFunction):
     dtype = constants.np_float
     key = 'icclim_TG'
@@ -321,3 +391,193 @@ class IcclimSD50(IcclimCSU):
 class IcclimCDD(IcclimCSU):
     dtype = constants.np_float
     key = 'icclim_CDD'
+
+
+class IcclimTG10p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TG10p'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimTX10p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TX10p'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimTN10p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TN10p'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimTG90p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TG90p'
+    dtype = constants.np_float
+    percentile = 90
+
+
+class IcclimTX90p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TX90p'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimTN90p(AbstractIcclimPercentileIndice):
+    key = 'icclim_TN90p'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimWSDI(AbstractIcclimPercentileIndice):
+    key = 'icclim_WSDI'
+    dtype = constants.np_float
+    percentile = 90
+
+
+class IcclimCSDI(AbstractIcclimPercentileIndice):
+    key = 'icclim_CSDI'
+    dtype = constants.np_float
+    percentile = 10
+
+
+class IcclimR75p(AbstractIcclimPercentileIndice):
+    key = 'icclim_R75p'
+    dtype = constants.np_float
+    percentile = 75
+
+
+class IcclimR75TOT(AbstractIcclimPercentileIndice):
+    key = 'icclim_R75TOT'
+    dtype = constants.np_float
+    percentile = 75
+
+
+class IcclimR95p(AbstractIcclimPercentileIndice):
+    key = 'icclim_R95p'
+    dtype = constants.np_float
+    percentile = 95
+
+
+class IcclimR95TOT(AbstractIcclimPercentileIndice):
+    key = 'icclim_R95TOT'
+    dtype = constants.np_float
+    percentile = 95
+
+
+class IcclimR99p(AbstractIcclimPercentileIndice):
+    key = 'icclim_R99p'
+    dtype = constants.np_float
+    percentile = 99
+
+
+class IcclimR99TOT(AbstractIcclimPercentileIndice):
+    key = 'icclim_R99TOT'
+    dtype = constants.np_float
+    percentile = 99
+
+
+class IcclimCD(AbstractIcclimMultivariateFunction, AbstractParameterizedFunction):
+    key = 'icclim_CD'
+    dtype = constants.np_float
+    required_variables = ['tas', 'pr']
+    time_aggregation_external = False
+    parms_definition = {'tas_25th_percentile_dict': dict, 'pr_25th_percentile_dict': dict}
+    window_width = 5
+    percentile_tas = 25
+    percentile_pr = 25
+
+    def __init__(self, *args, **kwargs):
+        self._storage_percentile_dict = {}
+        super(IcclimCD, self).__init__(*args, **kwargs)
+
+    def calculate(self, tas=None, pr=None, tas_25th_percentile_dict=None, pr_25th_percentile_dict=None):
+        """
+        See documentation for :func:`icclim.calc_indice_perc.CD_calculation`.
+        """
+
+        return self._calculate_(tas=tas, pr=pr, tas_percentile_dict=tas_25th_percentile_dict,
+                                pr_percentile_dict=pr_25th_percentile_dict)
+
+    def _calculate_(self, tas=None, pr=None, tas_percentile_dict=None, pr_percentile_dict=None):
+        """
+        Allows subclasses to overload parameter definitions for `calculate`.
+        """
+
+        assert(tas.ndim == 3)
+        assert(pr.ndim == 3)
+
+        try:
+            dt_arr = self.field.temporal.value_datetime[self._curr_group]
+        except AttributeError:
+            if not hasattr(self, '_curr_group'):
+                dt_arr = self.field.temporal.value_datetime
+            else:
+                raise
+
+        if tas_percentile_dict is None:
+            try:
+                tas_percentile_dict = self._storage_percentile_dict['tas']
+                pr_percentile_dict = self._storage_percentile_dict['pr']
+            except KeyError:
+                dt_arr_perc = self.field.temporal.value_datetime
+                alias_tas = self.parms['tas']
+                alias_pr = self.parms['pr']
+                t_arr_perc = self.field.variables[alias_tas].value.squeeze()
+                p_arr_perc = self.field.variables[alias_pr].value.squeeze()
+                tas_percentile_dict = get_percentile_dict(t_arr_perc, dt_arr_perc, self.percentile_tas, self.window_width)
+                pr_percentile_dict = get_percentile_dict(p_arr_perc, dt_arr_perc, self.percentile_pr, self.window_width)
+                self._storage_percentile_dict['tas'] = tas_percentile_dict
+                self._storage_percentile_dict['pr'] = pr_percentile_dict
+
+        ret = _icclim_function_map[self.key]['func'](tas, tas_percentile_dict, pr, pr_percentile_dict, dt_arr,
+                                                     fill_val=tas.fill_value)
+        # convert output to a masked array
+        ret_mask = ret == tas.fill_value
+        ret = np.ma.array(ret, mask=ret_mask, fill_value=tas.fill_value)
+        return ret
+
+
+class IcclimCW(IcclimCD):
+    key = 'icclim_CW'
+    parms_definition = {'tas_25th_percentile_dict': dict, 'pr_75th_percentile_dict': dict}
+    percentile_tas = 25
+    percentile_pr = 75
+
+    def calculate(self, tas=None, pr=None, tas_25th_percentile_dict=None, pr_75th_percentile_dict=None):
+        """
+        See documentation for :func:`icclim.calc_indice_perc.CW_calculation`.
+        """
+
+        return self._calculate_(tas=tas, pr=pr, tas_percentile_dict=tas_25th_percentile_dict,
+                                pr_percentile_dict=pr_75th_percentile_dict)
+
+
+class IcclimWD(IcclimCD):
+    key = 'icclim_WD'
+    parms_definition = {'tas_75th_percentile_dict': dict, 'pr_25th_percentile_dict': dict}
+    percentile_tas = 75
+    percentile_pr = 25
+
+    def calculate(self, tas=None, pr=None, tas_75th_percentile_dict=None, pr_25th_percentile_dict=None):
+        """
+        See documentation for :func:`icclim.calc_indice_perc.WD_calculation`.
+        """
+
+        return self._calculate_(tas=tas, pr=pr, tas_percentile_dict=tas_75th_percentile_dict,
+                                pr_percentile_dict=pr_25th_percentile_dict)
+
+
+class IcclimWW(IcclimCD):
+    key = 'icclim_WW'
+    parms_definition = {'tas_75th_percentile_dict': dict, 'pr_75th_percentile_dict': dict}
+    percentile_tas = 75
+    percentile_pr = 75
+
+    def calculate(self, tas=None, pr=None, tas_75th_percentile_dict=None, pr_75th_percentile_dict=None):
+        """
+        See documentation for :func:`icclim.calc_indice_perc.WW_calculation`.
+        """
+
+        return self._calculate_(tas=tas, pr=pr, tas_percentile_dict=tas_75th_percentile_dict,
+                                pr_percentile_dict=pr_75th_percentile_dict)

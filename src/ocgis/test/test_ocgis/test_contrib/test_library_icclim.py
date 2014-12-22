@@ -1,14 +1,24 @@
+from netCDF4 import date2num
 import unittest
 import json
 from collections import OrderedDict
 from copy import deepcopy
+# noinspection PyUnresolvedReferences
+from datetime import datetime
 
+from numpy.ma import MaskedArray
 import numpy as np
 
+from ocgis.calc.base import AbstractParameterizedFunction
+from ocgis.interface.base.variable import Variable, VariableCollection
+from ocgis.interface.base.field import Field
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
+from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.nc.temporal import NcTemporalDimension
 from ocgis.test.base import TestBase, nc_scope, attr
-from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction,\
-    IcclimDTR, IcclimETR, IcclimTN, IcclimTX,\
-    AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction
+from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, IcclimTN, \
+    IcclimTX, AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction, IcclimTG10p, \
+    AbstractIcclimPercentileIndice, IcclimCD
 from ocgis.calc.library.statistics import Mean
 from ocgis.api.parms.definition import Calc, CalcGrouping
 from ocgis.calc.library.register import FunctionRegistry, register_icclim
@@ -18,6 +28,7 @@ from ocgis.calc.library.thresholds import Threshold
 import ocgis
 from ocgis.util.helpers import itersubclasses
 from ocgis.contrib import library_icclim
+from ocgis.util.large_array import compute
 
 
 class TestLibraryIcclim(TestBase):
@@ -26,10 +37,15 @@ class TestLibraryIcclim(TestBase):
         shapes = ([('month',), 12],[('month', 'year'), 24],[('year',),2])
         ocgis.env.OVERWRITE = True
         keys = set(library_icclim._icclim_function_map.keys())
+        ignore = [AbstractIcclimPercentileIndice]
         for klass in [
                       AbstractIcclimUnivariateSetFunction,
                       AbstractIcclimMultivariateFunction]:
             for subclass in itersubclasses(klass):
+
+                if any([subclass == i for i in ignore]):
+                    continue
+
                 keys.remove(subclass.key)
                 self.assertEqual([('month',),('month','year'),('year',)],subclass._allowed_temporal_groupings)
                 for cg in CalcGrouping.iter_possible():
@@ -44,7 +60,11 @@ class TestLibraryIcclim(TestBase):
                         rd = [tasmin,tasmax]
                         for r in rd:
                             r.time_region = {'year':[2001,2002]}
-                        calc[0].update({'kwds':{'tasmin':'tasmin','tasmax':'tasmax'}})
+                        if subclass == IcclimCD or issubclass(subclass, IcclimCD):
+                            kwds = {'tas': 'tasmax', 'pr': 'tasmin'}
+                        else:
+                            kwds = {'tasmin': 'tasmin', 'tasmax': 'tasmax'}
+                        calc[0].update({'kwds': kwds})
                     try:
                         ops = ocgis.OcgOperations(dataset=rd,
                                                   output_format='nc',
@@ -84,7 +104,150 @@ class TestLibraryIcclim(TestBase):
         value = [{'func':'icclim_TG_bad','name':'TG'}]
         with self.assertRaises(DefinitionValidationError):
             Calc(value)
-            
+
+
+class TestCD(TestBase):
+
+    def get_field_tdim(self):
+        np.random.seed(1)
+        start = datetime(2000, 1, 1)
+        end = datetime(2001, 12, 31)
+        time_series = self.get_time_series(start, end)
+        row = VectorDimension(value=[1, 2])
+        col = VectorDimension(value=[3, 4, 5])
+        grid = SpatialGridDimension(row=row, col=col)
+        sdim = SpatialDimension(grid=grid)
+        calendar = 'standard'
+        units = 'days since 1500-01-01'
+        time_series = date2num(time_series, units, calendar)
+        tdim = NcTemporalDimension(value=time_series, calendar=calendar, units=units)
+        field = Field(temporal=tdim, spatial=sdim, variables=VariableCollection())
+        var_tas = Variable(name='tas', value=np.random.rand(*field.shape))
+        value_pr = np.random.lognormal(0.0, 0.5, field.shape)
+        var_pr = Variable(name='pr', value=value_pr)
+        field.variables.add_variable(var_tas)
+        field.variables.add_variable(var_pr)
+        return field, tdim
+
+    def test_init(self):
+        self.assertEqual(IcclimCD.__bases__, (AbstractIcclimMultivariateFunction, AbstractParameterizedFunction))
+
+        icd = IcclimCD()
+        self.assertEqual(icd._storage_percentile_dict, {})
+
+    def test_calculate(self):
+        field, tdim = self.get_field_tdim()
+        tas = field.variables['tas'].value.squeeze()
+        pr = field.variables['pr'].value.squeeze()
+        tgd = tdim.get_grouping(['month'])
+        icd = IcclimCD(field=field, tgd=tgd, parms={'tas': 'tas', 'pr': 'pr'})
+        res = icd.calculate(tas=tas, pr=pr)
+        self.assertEqual(res.shape, tuple(field.shape[-2:]))
+        self.assertIsInstance(res, MaskedArray)
+        self.assertSetEqual(set(icd._storage_percentile_dict.keys()), set(['tas', 'pr']))
+        icd.calculate(tas=tas, pr=pr)
+        self.assertSetEqual(set(icd._storage_percentile_dict.keys()), set(['tas', 'pr']))
+
+    def test_execute(self):
+        field, tdim = self.get_field_tdim()
+        field.meta['dataset'] = {}
+        tgd = tdim.get_grouping(['month'])
+        icd = IcclimCD(field=field, tgd=tgd, parms={'tas': 'tas', 'pr': 'pr'})
+        res = icd.execute()
+        self.assertIsInstance(res, VariableCollection)
+        var = res[IcclimCD.key]
+        self.assertEqual(var.units, 'days')
+        self.assertEqual(var.name, IcclimCD.key)
+        self.assertEqual(var.shape, (1, 12, 1, 2, 3))
+
+    def test_operations(self):
+        calc_grouping = ['month']
+
+        calc = [{'func': 'icclim_CD', 'name': 'CD'}]
+        rd = self.test_data.get_rd('cancm4_tas')
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping)
+
+        # test overloaded parameters make their way into the function
+        rd2 = self.test_data.get_rd('cancm4_tas')
+        rd2.alias = 'pr'
+        calc = [{'func': 'icclim_CD', 'name': 'CD',
+                 'kwds': {'tas': 'tas', 'pr': 'pr', 'tas_25th_percentile_dict': {}, 'pr_25th_percentile_dict': {}}}]
+        ops = OcgOperations(dataset=[rd, rd2], calc=calc, calc_grouping=calc_grouping,
+                            slice=[None, None, None, [40, 43], [40, 43]])
+        try:
+            ops.execute()
+        except KeyError as e:
+            # the empty dictionary contains no keys
+            self.assertEqual(e.message, (1, 1))
+
+        # test with different aliases for the multivariate variables
+        rd.alias = 'tas1'
+        rd2.alias = 'pr1'
+        calc = [{'func': 'icclim_CD', 'name': 'CD', 'kwds': {'tas': 'tas1', 'pr': 'pr1'}}]
+        ops = OcgOperations(dataset=[rd, rd2], calc=calc, calc_grouping=calc_grouping,
+                            slice=[None, [0, 366], None, [40, 43], [40, 43]])
+        ops.execute()
+
+
+class TestTG10p(TestBase):
+
+    def test_init(self):
+        tg = IcclimTG10p()
+
+    def test_execute(self):
+        for pd in [False, True]:
+
+            if pd:
+                percentile_dict = {}
+                parms = {'percentile_dict': percentile_dict}
+            else:
+                parms = None
+
+            tas = self.test_data.get_rd('cancm4_tas').get()
+            tas = tas[:, :, :, 10:12, 20:22]
+            tgd = tas.temporal.get_grouping(['month'])
+            tg = IcclimTG10p(field=tas, tgd=tgd, parms=parms)
+            try:
+                ret = tg.execute()
+            except KeyError:
+                self.assertTrue(pd)
+                continue
+            self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
+            self.assertEqual(ret['icclim_TG10p'].value.mean(), 30.0625)
+
+    def test_large_array_compute_local(self):
+        """Test tiling works for percentile-based indice on a local dataset."""
+
+        calc = [{'func': 'icclim_TG10p', 'name': 'itg'}]
+        calc_grouping = ['month']
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, output_format='nc', geom='state_boundaries',
+                                  select_ugid=[24])
+        ret = compute(ops, 5, verbose=False)
+
+        with nc_scope(ret) as ds:
+            try:
+                self.assertAlmostEqual(ds.variables['itg'][:].mean(), np.float32(29.518518))
+            except Exception as e:
+                import ipdb;ipdb.set_trace()
+                pass
+
+    @attr('remote')
+    def test_large_array_compute_remote(self):
+        """Test tiling works for percentile-based indice getting data from a remote URL."""
+
+        calc = [{'func': 'icclim_TG10p', 'name': 'itg'}]
+        calc_grouping = ['month']
+        uri = 'http://opendap.knmi.nl/knmi/thredds/dodsC/IS-ENES/TESTSETS/tasmax_day_EC-EARTH_rcp26_r8i1p1_20760101-21001231.nc'
+        rd = ocgis.RequestDataset(uri=uri, variable='tasmax')
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, output_format='nc', geom='state_boundaries',
+                                  select_ugid=[24])
+        ret = compute(ops, 5, verbose=False)
+
+        with nc_scope(ret) as ds:
+            self.assertAlmostEqual(ds.variables['itg'][:].mean(), 78.113095238095241)
+
             
 class TestDTR(TestBase):
     

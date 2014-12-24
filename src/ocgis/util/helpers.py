@@ -3,19 +3,20 @@ import itertools
 import os
 import tempfile
 import sys
-import datetime
 from copy import deepcopy
 from tempfile import mkdtemp
 
 import numpy as np
+from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-from osgeo import ogr
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
 from fiona.crs import from_epsg
 
+from ocgis.util.shp_process import ShpProcess
+import datetime
 from ocgis.exc import SingleElementError, ShapeError
 
 
@@ -43,6 +44,28 @@ class ProgressBar(object):
         sys.stdout.write("#"*(40 - self.px))
         sys.stdout.write("]\n")
         sys.stdout.flush()
+
+
+def add_shapefile_unique_identifier(in_path, out_path, name=None, template=None):
+    """
+    >>> add_shapefile_unique_identifier('/path/to/foo.shp', '/path/to/new_foo.shp')
+    '/path/to/new_foo.shp'
+
+    :param str in_path: Full path to the input shapefile.
+    :param str out_path: Full path to the output shapefile.
+    :param str name: The name of the unique identifer. If ``None``, defaults to
+     :attr:`ocgis.constants.ocgis_unique_geometry_identifier`.
+    :param str template: The integer attribute to copy as the unique identifier.
+    :returns: Path to the copied shapefile with the addition of a unique integer attribute called ``name``.
+    :rtype: str
+    """
+
+    out_folder, key = os.path.split(out_path)
+    sp = ShpProcess(in_path, out_folder)
+    key = os.path.splitext(key)[0]
+    sp.process(key=key, ugid=template, name=name)
+
+    return out_path
 
 
 def format_bool(value):
@@ -412,6 +435,26 @@ def get_ocgis_corners_from_esmf_corners(ecorners):
     return grid_corners
 
 
+def get_ordered_dicts_from_records_array(arr):
+    """
+    Convert a NumPy records array to an ordered dictionary.
+
+    :param arr: The records array to convert with shape (m,).
+    :type arr: :class:`numpy.core.multiarray.ndarray`
+    :rtype: list[:class:`collections.OrderedDict`]
+    """
+
+    ret = []
+    _names = arr.dtype.names
+    for ii in range(arr.shape[0]):
+        fill = OrderedDict()
+        row = arr[ii]
+        for name in _names:
+            fill[name] = row[name]
+        ret.append(fill)
+    return ret
+
+
 def get_reduced_slice(arr):
     arr_min, arr_max = arr.min(), arr.max()
     assert (arr_max - arr_min + 1 == arr.shape[0])
@@ -517,6 +560,99 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     return(ret)
 
 
+def itersubclasses(cls, _seen=None):
+    """
+    itersubclasses(cls)
+
+    Generator over all subclasses of a given class, in depth first order.
+
+    >>> list(itersubclasses(int)) == [bool]
+    True
+    >>> class A(object): pass
+    >>> class B(A): pass
+    >>> class C(A): pass
+    >>> class D(B,C): pass
+    >>> class E(D): pass
+    >>>
+    >>> for cls in itersubclasses(A):
+    ...     print(cls.__name__)
+    B
+    D
+    E
+    C
+    >>> # get ALL (new-style) classes currently defined
+    >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
+    ['type', ...'tuple', ...]
+    """
+
+    if not isinstance(cls, type):
+        raise TypeError('itersubclasses must be called with '
+                        'new-style classes, not %.100r' % cls)
+    if _seen is None: _seen = set()
+    try:
+        subs = cls.__subclasses__()
+    except TypeError: # fails only when cls is type
+        subs = cls.__subclasses__(cls)
+    for sub in subs:
+        if sub not in _seen:
+            _seen.add(sub)
+            yield sub
+            for sub in itersubclasses(sub, _seen):
+                yield sub
+
+
+def iter_array(arr, use_mask=True, return_value=False):
+    try:
+        shp = arr.shape
+    # assume array is not a numpy array
+    except AttributeError:
+        arr = np.array(arr, ndmin=1)
+        shp = arr.shape
+    iter_args = [range(0, ii) for ii in shp]
+    if use_mask and not np.ma.isMaskedArray(arr):
+        use_mask = False
+    else:
+        try:
+            mask = arr.mask
+            # if the mask is not being used, to skip some objects, set the arr to the underlying data value after
+            # referencing the mask.
+            if not use_mask:
+                arr = arr.data
+        # array is not masked
+        except AttributeError:
+            pass
+
+    for ii in itertools.product(*iter_args):
+        if use_mask:
+            try:
+                if mask[ii]:
+                    continue
+                else:
+                    idx = ii
+            # occurs with singleton dimension of masked array
+            except IndexError:
+                if mask:
+                    continue
+                else:
+                    idx = ii
+        else:
+            idx = ii
+        if return_value:
+            ret = (idx, arr[ii])
+        else:
+            ret = idx
+        yield ret
+
+def locate(pattern, root=os.curdir, followlinks=True):
+    """
+    Locate all files matching supplied filename pattern in and below supplied root directory.
+    """
+
+    for path, dirs, files in os.walk(os.path.abspath(root), followlinks=followlinks):
+        for filename in filter(lambda x: x == pattern, files):
+            yield os.path.join(path, filename)
+
+
 def project_shapely_geometry(geom, from_sr, to_sr):
     if from_sr.IsSame(to_sr) == 1:
         ret = geom
@@ -617,6 +753,7 @@ def validate_time_subset(time_range,time_region):
                 ret = True
     return(ret)
 
+
 def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
     """
     :param dct:
@@ -642,172 +779,6 @@ def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
             source.write(rec)
     return path
 
-
-def locate(pattern, root=os.curdir, followlinks=True):
-    """
-    Locate all files matching supplied filename pattern in and below supplied root directory.
-    """
-
-    for path, dirs, files in os.walk(os.path.abspath(root), followlinks=followlinks):
-        for filename in filter(lambda x: x == pattern, files):
-            yield os.path.join(path, filename)
-
-
-def get_ordered_dicts_from_records_array(arr):
-    """
-    Convert a NumPy records array to an ordered dictionary.
-
-    :param arr: The records array to convert with shape (m,).
-    :type arr: :class:`numpy.core.multiarray.ndarray`
-    :rtype: list[:class:`collections.OrderedDict`]
-    """
-
-    ret = []
-    _names = arr.dtype.names
-    for ii in range(arr.shape[0]):
-        fill = OrderedDict()
-        row = arr[ii]
-        for name in _names:
-            fill[name] = row[name]
-        ret.append(fill)
-    return ret
-
-
-def iter_array(arr, use_mask=True, return_value=False):
-    try:
-        shp = arr.shape
-    # assume array is not a numpy array
-    except AttributeError:
-        arr = np.array(arr, ndmin=1)
-        shp = arr.shape
-    iter_args = [range(0, ii) for ii in shp]
-    if use_mask and not np.ma.isMaskedArray(arr):
-        use_mask = False
-    else:
-        try:
-            mask = arr.mask
-            # if the mask is not being used, to skip some objects, set the arr to the underlying data value after
-            # referencing the mask.
-            if not use_mask:
-                arr = arr.data
-        # array is not masked
-        except AttributeError:
-            pass
-
-    for ii in itertools.product(*iter_args):
-        if use_mask:
-            try:
-                if mask[ii]:
-                    continue
-                else:
-                    idx = ii
-            # occurs with singleton dimension of masked array
-            except IndexError:
-                if mask:
-                    continue
-                else:
-                    idx = ii
-        else:
-            idx = ii
-        if return_value:
-            ret = (idx, arr[ii])
-        else:
-            ret = idx
-        yield ret
-
-    
-def itersubclasses(cls, _seen=None):
-    """
-    itersubclasses(cls)
-
-    Generator over all subclasses of a given class, in depth first order.
-
-    >>> list(itersubclasses(int)) == [bool]
-    True
-    >>> class A(object): pass
-    >>> class B(A): pass
-    >>> class C(A): pass
-    >>> class D(B,C): pass
-    >>> class E(D): pass
-    >>> 
-    >>> for cls in itersubclasses(A):
-    ...     print(cls.__name__)
-    B
-    D
-    E
-    C
-    >>> # get ALL (new-style) classes currently defined
-    >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
-    ['type', ...'tuple', ...]
-    """
-    
-    if not isinstance(cls, type):
-        raise TypeError('itersubclasses must be called with '
-                        'new-style classes, not %.100r' % cls)
-    if _seen is None: _seen = set()
-    try:
-        subs = cls.__subclasses__()
-    except TypeError: # fails only when cls is type
-        subs = cls.__subclasses__(cls)
-    for sub in subs:
-        if sub not in _seen:
-            _seen.add(sub)
-            yield sub
-            for sub in itersubclasses(sub, _seen):
-                yield sub
-                
-def approx_resolution(vec):
-    """
-    >>> vec = [1,2,3,4,5]
-    >>> approx_resolution(vec)
-    1.0
-    """
-    diff = []
-    for i in range(len(vec)):
-        curr = vec[i]
-        try:
-            nxt = vec[i+1]
-            diff.append(abs(curr-nxt))
-        except IndexError:
-            break
-    return(np.mean(diff))
-
-def keep(prep_igeom=None,igeom=None,target=None):
-    test_geom = prep_igeom or igeom
-    if test_geom.intersects(target) and not target.touches(igeom):
-        ret = True
-    else:
-        ret = False
-    return(ret)
-
-def prep_keep(prep_igeom,igeom,target):
-    if prep_igeom.intersects(target) and not target.touches(igeom):
-        ret = True
-    else:
-        ret = False
-    return(ret)
-
-def contains(grid,lower,upper,res=0.0):
-    
-    ## small ranges on coordinates requires snapping to closest coordinate
-    ## to ensure values are selected through logical comparison.
-    ugrid = np.unique(grid)
-    lower = ugrid[np.argmin(np.abs(ugrid-(lower-0.5*res)))]
-    upper = ugrid[np.argmin(np.abs(ugrid-(upper+0.5*res)))]
-    
-    s1 = grid >= lower
-    s2 = grid <= upper
-    ret = s1*s2
-
-    return(ret)
-
-#def itr_array(a):
-#    "a -- 2-d ndarray"
-#    assert(len(a.shape) == 2)
-#    ix = a.shape[0]
-#    jx = a.shape[1]
-#    for ii,jj in itertools.product(range(ix),range(jx)):
-#        yield ii,jj
         
 def make_poly(rtup,ctup):
     """
@@ -853,152 +824,3 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_pref
             f.close()
             ret = f.name
     return(str(ret))
-
-#def get_wkt_from_shp(path,objectid,layer_idx=0):
-#    """
-#    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
-#    >>> objectid = 10
-#    >>> wkt = get_wkt_from_shp(path,objectid)
-#    >>> assert(wkt.startswith('POLYGON ((-91.730366281818348 43.499571367976877,'))
-#    """
-#    ds = ogr.Open(path)
-#    try:
-#        lyr = ds.GetLayerByIndex(layer_idx)
-#        lyr_name = lyr.GetName()
-#        if objectid is None:
-#            sql = 'SELECT * FROM {0}'.format(lyr_name)
-#        else:
-#            sql = 'SELECT * FROM {0} WHERE ObjectID = {1}'.format(lyr_name,objectid)
-#        data = ds.ExecuteSQL(sql)
-#        #import pdb; pdb.set_trace()
-#        feat = data.GetNextFeature()
-#        geom = feat.GetGeometryRef()
-#        wkt = geom.ExportToWkt()
-#        return(wkt)
-#    finally:
-#        ds.Destroy()
-#
-#   
-#class ShpIterator(object):
-#    
-#    def __init__(self,path):
-#        assert(os.path.exists(path))
-#        self.path = path
-#        
-#    def get_fields(self):
-#        ds = ogr.Open(self.path)
-#        try:
-#            lyr = ds.GetLayerByIndex(0)
-#            lyr.ResetReading()
-#            feat = lyr.GetNextFeature()
-#            return(feat.keys())
-#        finally:
-#            ds.Destroy()
-#        
-#    def iter_features(self,fields,lyridx=0,geom='geom',skiperrors=False,
-#                      to_shapely=False):
-#        
-#        ds = ogr.Open(self.path)
-#        try:
-#            lyr = ds.GetLayerByIndex(lyridx)
-#            lyr.ResetReading()
-#            for feat in lyr:
-#                ## get the values
-#                values = []
-#                for field in fields:
-#                    try:
-#                        values.append(feat.GetField(field))
-#                    except:
-#                        try:
-#                            if skiperrors is True:
-#                                warnings.warn('Error in GetField("{0}")'.format(field))
-#                            else:
-#                                raise
-#                        except ValueError:
-#                            msg = 'Illegal field requested in GetField("{0}")'.format(field)
-#                            raise ValueError(msg)
-##                values = [feat.GetField(field) for field in fields]
-#                attrs = dict(zip(fields,values))
-#                ## get the geometry
-#                
-#                wkt_str = feat.GetGeometryRef().ExportToWkt()
-##                geom_obj = feat.GetGeometryRef()
-##                geom_obj.TransformTo(to_sr)
-##                wkt_str = geom_obj.ExportToWkt()
-#                
-#                if to_shapely:
-#                    ## additional load to clean geometries
-#                    geom_data = wkt.loads(wkt_str)
-#                    geom_data = wkb.loads(geom_data.wkb)
-#                else:
-#                    geom_data = wkt_str
-#                attrs.update({geom:geom_data})
-#                yield attrs
-#        finally:
-#            ds.Destroy()
-#
-#
-#def get_shp_as_multi(path,uid_field=None,attr_fields=[],make_id=False,id_name='ugid'):
-#    """
-#    >>> path = '/home/bkoziol/git/OpenClimateGIS/bin/shp/state_boundaries.shp'
-#    >>> uid_field = 'objectid'
-#    >>> ret = get_shp_as_multi(path,uid_field)
-#    """
-#    ## the iterator object instantiated here to make sure the shapefile exists
-#    ## and there is access to the field acquisition.
-#    shpitr = ShpIterator(path)
-#    
-#    if uid_field is None or uid_field == '':
-#        uid_field = []
-#    else:
-#        uid_field = [str(uid_field)]
-#    try:
-#        fields = uid_field + attr_fields
-#    except TypeError:
-#        if attr_fields.lower() == 'all':
-#            fields = shpitr.get_fields()
-#            fields = [f.lower() for f in fields]
-#            try:
-#                if uid_field[0].lower() in fields:
-#                    fields.pop(uid_field[0].lower())
-#            except IndexError:
-#                if len(uid_field) == 0:
-#                    pass
-#                else:
-#                    raise
-#            fields = uid_field + fields
-#        else:
-#            raise
-#    data = [feat for feat in shpitr.iter_features(fields,to_shapely=True)]
-#    ## add unique identifier if requested and the passed uid field is none
-#    for ii,gd in enumerate(data,start=1):
-#        if len(uid_field) == 0 and make_id is True:
-#            gd[id_name] = ii
-#        else:
-#            geom_id = gd.pop(uid_field[0])
-#            gd[id_name] = int(geom_id)
-#    
-#    ## check the WKT is a polygon and the unique identifier is a unique integer
-#    uids = []
-#    for feat in data:
-#        if len(uid_field) > 0:
-#            feat[uid_field[0]] = int(feat[uid_field[0]])
-#            uids.append(feat[uid_field[0]])
-#    assert(len(uids) == len(set(uids)))
-#    return(data)
-#
-#def get_sr(srid):
-#    sr = osr.SpatialReference()
-#    sr.ImportFromEPSG(srid)
-#    return(sr)
-
-def get_area(geom,sr_orig,sr_dest):
-    geom = ogr.CreateGeometryFromWkb(geom.wkb)
-    geom.AssignSpatialReference(sr_orig)
-    geom.TransformTo(sr_dest)
-    return(geom.GetArea())
-
-#def get_area_srid(geom,srid_orig,srid_dest):
-#    sr = get_sr(srid_orig)
-#    sr2 = get_sr(srid_dest)
-#    return(get_area(geom,sr,sr2))

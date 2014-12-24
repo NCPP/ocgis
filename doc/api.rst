@@ -86,9 +86,9 @@ geom
 
 .. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
 
-If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Again, supplying a value of `None` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute called `UGID` and have a WGS84 latitude/longitude geographic coordinate system.
+If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute matching the value of :attr:`ocgis.constants.ocgis_unique_geometry_identifier` and have a WGS84 latitude/longitude geographic coordinate system. If an ESRI Shapefile is being accessed and the file does not contain the unique identifier, the function :func:`~ocgis.util.helpers.add_shapefile_unique_identifier` may be used to add the appropriate unique identifier attribute.
 
-There are a number of ways to parameterize the `geom` keyword argument:
+There are a number of ways to parameterize the ``geom`` keyword argument:
 
 1. Bounding Box
 

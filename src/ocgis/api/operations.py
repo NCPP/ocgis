@@ -33,22 +33,22 @@ class OcgOperations(object):
      sequence of :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field` objects
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
-    :param geom: The selection geometry(s) used for the spatial subset. If `None`, selection defaults to entire spatial
+    :param geom: The selection geometry(s) used for the spatial subset. If ``None``, selection defaults to entire spatial
      domain.
     :type geom: list of dict, list of float, str
-    :param aggregate: If `True`, dataset geometries are aggregated to coincident 
+    :param aggregate: If ``True``, dataset geometries are aggregated to coincident
      selection geometries.
     :type aggregate: bool
     :param calc: Calculations to be performed on the dataset subset.
     :type calc: list of dictionaries or string-based function
     :param calc_grouping: Temporal grouping to apply for calculations.
     :type calc_grouping: list of str or int
-    :param calc_raw: If `True`, perform calculations on the "raw" data regardless  of `aggregation` flag.
+    :param calc_raw: If ``True``, perform calculations on the "raw" data regardless of ``aggregation`` flag.
     :type calc_raw: bool
     :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the
      highest order geometry available.
     :type abstraction: str
-    :param snippet: If `True`, return a data "snippet" composed of the first time point, first level (if applicable),
+    :param snippet: If ``True``, return a data "snippet" composed of the first time point, first level (if applicable),
      and the entire spatial domain.
     :type snippet: bool
     :param backend: The processing backend to use.
@@ -57,7 +57,7 @@ class OcgOperations(object):
     :type prefix: str
     :param output_format: The desired output format.
     :type output_format: str
-    :param agg_selection: If `True`, the selection geometry will be aggregated prior to any spatial operations.
+    :param agg_selection: If ``True``, the selection geometry will be aggregated prior to any spatial operations.
     :type agg_selection: bool
     :param select_ugid: The unique identifiers of specific geometries contained in canned geometry datasets. These
      unique identifiers will be selected and used for spatial operations.

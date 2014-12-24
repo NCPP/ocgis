@@ -3,6 +3,9 @@ import numpy as np
 #: Standard bounds name used when none is available from the input data.
 ocgis_bounds = 'bounds'
 
+#: Standard name for the unique identifier in GIS files.
+ocgis_unique_geometry_identifier = 'UGID'
+
 #: Default netCDF4 output file type
 netCDF_default_data_model = 'NETCDF4'
 

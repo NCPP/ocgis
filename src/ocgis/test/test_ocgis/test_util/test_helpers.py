@@ -1,19 +1,24 @@
 from collections import OrderedDict
 import os
 import itertools
-from datetime import datetime as dt, datetime
 
+import fiona
 import numpy as np
-from shapely.geometry import Point
+from shapely.geometry import Point, mapping
 
+from datetime import datetime as dt, datetime
+from ocgis.constants import ocgis_unique_geometry_identifier
+from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
 from ocgis.exc import SingleElementError, ShapeError
 from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
     get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
     get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, get_is_increasing, \
-    get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners
+    get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
+    add_shapefile_unique_identifier
 from ocgis.test.base import TestBase
+from ocgis.util.shp_cabinet import ShpCabinetIterator
 
 
 class Test1(AbstractTestSpatialDimension):
@@ -212,6 +217,51 @@ class Test1(AbstractTestSpatialDimension):
 
 
 class Test2(TestBase):
+
+    def test_add_shapefile_unique_identifier(self):
+        in_path = os.path.join(self.current_dir_output, 'foo_in.shp')
+
+        # create a shapefile without a ugid and another integer attribute
+        data = [{'geom': Point(1, 2), 'fid': 6}, {'geom': Point(2, 3), 'fid': 60}]
+        crs = Spherical()
+        driver = 'ESRI Shapefile'
+        schema = {'properties': {'fid': 'int'}, 'geometry': 'Point'}
+        with fiona.open(in_path, 'w', driver=driver, crs=crs.value, schema=schema) as source:
+            for xx in data:
+                record = {'properties': {'fid': xx['fid']}, 'geometry': mapping(xx['geom'])}
+                source.write(record)
+
+        out_path = os.path.join(self.current_dir_output, 'foo_out.shp')
+        add_shapefile_unique_identifier(in_path, out_path)
+
+        sci = ShpCabinetIterator(path=out_path)
+        records = list(sci)
+        self.assertAsSetEqual([1, 2], [xx['properties'][ocgis_unique_geometry_identifier] for xx in records])
+        self.assertAsSetEqual([6, 60], [xx['properties']['fid'] for xx in records])
+        self.assertEqual(CoordinateReferenceSystem(records[0]['meta']['crs']), crs)
+
+        # test it works for the current working directory
+        cwd = os.getcwd()
+        os.chdir(self.current_dir_output)
+        try:
+            add_shapefile_unique_identifier(in_path, 'foo3.shp')
+            self.assertTrue(os.path.exists(os.path.join(self.current_dir_output, 'foo3.shp')))
+        finally:
+            os.chdir(cwd)
+
+        # test using a template attribute
+        out_path = os.path.join(self.current_dir_output, 'template.shp')
+        add_shapefile_unique_identifier(in_path, out_path, template='fid')
+        sci = ShpCabinetIterator(path=out_path)
+        records = list(sci)
+        self.assertAsSetEqual([6, 60], [xx['properties'][ocgis_unique_geometry_identifier] for xx in records])
+
+        # test with a different name attribute
+        out_path = os.path.join(self.current_dir_output, 'name.shp')
+        add_shapefile_unique_identifier(in_path, out_path, template='fid', name='new_id')
+        with fiona.open(out_path) as sci:
+            records = list(sci)
+        self.assertAsSetEqual([6, 60], [xx['properties']['new_id'] for xx in records])
 
     def test_get_iter(self):
         element = 'hi'

@@ -1,4 +1,4 @@
-from distutils.core import setup, Command
+from setuptools import setup, Command, find_packages
 import sys
 from subprocess import check_call
 import os
@@ -126,49 +126,17 @@ class InstallDependenciesUbuntu(Command):
         os.chdir(cwd)
         print('dependencies installed.')
 
+
 ########################################################################################################################
 # check python version
 ########################################################################################################################
+
 
 python_version = float(sys.version_info[0]) + float(sys.version_info[1]) / 10
 if python_version != 2.7:
     raise (ImportError(
         'This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
 
-########################################################################################################################
-# attempt package imports
-########################################################################################################################
-
-pkgs = ['numpy', 'netCDF4', 'osgeo', 'shapely', 'fiona']
-for pkg in pkgs:
-    __import__(pkg)
-
-
-########################################################################################################################
-# get package structure
-########################################################################################################################
-
-
-def _get_dot_(path, root='src'):
-    ret = []
-    path_parse = path
-    while True:
-        path_parse, tail = os.path.split(path_parse)
-        if tail == root:
-            break
-        else:
-            ret.append(tail)
-    ret.reverse()
-    return '.'.join(ret)
-
-
-package_dir = {'': 'src'}
-src_path = os.path.join(package_dir.keys()[0], package_dir.values()[0], 'ocgis')
-packages = []
-for dirpath, dirnames, filenames in os.walk(src_path):
-    if '__init__.py' in filenames:
-        package = _get_dot_(dirpath)
-        packages.append(package)
 
 ########################################################################################################################
 # set up data files for installation
@@ -193,11 +161,11 @@ setup(
     url='http://ncpp.github.io/ocgis/install.html#installing-openclimategis',
     license='NCSA License',
     platforms=['all'],
-    packages=packages,
-    package_dir=package_dir,
+    packages=find_packages(where='./src'),
+    package_dir={'': 'src'},
     package_data=package_data,
     cmdclass={'uninstall': UninstallCommand,
               'install_dependencies_ubuntu': InstallDependenciesUbuntu,
               'test': SimpleTestCommand},
-    requires=['numpy', 'netCDF4', 'fiona', 'shapely'],
+    install_requires=['numpy', 'netCDF4', 'fiona', 'shapely'],
 )

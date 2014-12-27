@@ -1,8 +1,8 @@
 from collections import deque
 import itertools
 from copy import copy
-
 import numpy as np
+
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
@@ -21,6 +21,7 @@ from ocgis.util.helpers import iter_array, get_none_or_slice, \
     get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners
 from ocgis import constants, env
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
+from ocgis.util.ugrid.helpers import get_update_feature, write_to_netcdf_dataset
 
 
 class GeomMapping(object):
@@ -1246,6 +1247,22 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
     @property
     def weights(self):
         return(self.area/self.area.max())
+
+    def write_to_netcdf_dataset_ugrid(self, dataset):
+        """
+        Write a UGRID formatted netCDF4 file following conventions: https://github.com/ugrid-conventions/ugrid-conventions/tree/v0.9.0
+
+        :param dataset: An open netCDF4 dataset object.
+        :type dataset: :class:`netCDF4.Dataset`
+        """
+
+        def _iter_features_():
+            for ctr, geom in enumerate(self.value.data.flat):
+                yld = {'geometry': {'type': geom.geom_type, 'coordinates': [np.array(geom.exterior.coords).tolist()]}}
+                yld = get_update_feature(ctr, yld)
+                yield yld
+
+        write_to_netcdf_dataset(dataset, list(_iter_features_()))
 
     def _get_value_(self):
         fill = self._get_geometry_fill_()

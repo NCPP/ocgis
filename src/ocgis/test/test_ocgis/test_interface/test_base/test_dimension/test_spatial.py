@@ -1,8 +1,8 @@
 from copy import deepcopy, copy
 import os
 import itertools
-
 import numpy as np
+
 from shapely import wkt
 import fiona
 from fiona.crs import from_epsg
@@ -20,6 +20,7 @@ from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, 
     WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.ugrid.convert import mesh2_nc_to_shapefile
 
 
 class AbstractTestSpatialDimension(TestBase):
@@ -1157,6 +1158,30 @@ class TestSpatialGeometryPolygonDimension(AbstractTestSpatialDimension):
                 actual.mask[1, 1] = True
             poly = sdim.geom.polygon.value
             self.assertGeometriesAlmostEquals(poly, actual)
+
+    def test_write_to_netcdf_dataset_ugrid(self):
+        ugrid_polygons = [
+         'POLYGON((-1.5019011406844105 0.18377693282636276,-1.25475285171102646 0.02534854245880869,-1.35614702154626099 -0.28517110266159684,-1.68567807351077303 -0.50697084917617241,-1.99619771863117879 -0.41191381495564006,-2.08491761723700897 -0.24714828897338403,-1.9264892268694549 -0.03802281368821281,-1.88212927756653992 0.13307984790874539,-1.5019011406844105 0.18377693282636276))',
+         'POLYGON((-2.25602027883396694 0.63371356147021585,-1.76172370088719887 0.51330798479087481,-1.88212927756653992 0.13307984790874539,-1.9264892268694549 -0.03802281368821281,-2.30671736375158432 0.01901140684410674,-2.51584283903675532 0.27249683143219272,-2.52217997465145771 0.48795944233206612,-2.25602027883396694 0.63371356147021585))',
+         'POLYGON((-1.55893536121673004 0.86818757921419554,-1.03929024081115307 0.65906210392902409,-1.07097591888466415 0.46261089987325743,-1.5019011406844105 0.18377693282636276,-1.88212927756653992 0.13307984790874539,-1.76172370088719887 0.51330798479087481,-1.55893536121673004 0.86818757921419554))',
+         'POLYGON((-2.13561470215462634 0.87452471482889749,-1.83143219264892276 0.98225602027883419,-1.83143219264892276 0.98225602027883419,-1.55893536121673004 0.86818757921419554,-1.58428390367553851 0.66539923954372648,-1.76172370088719887 0.51330798479087481,-2.12294043092522156 0.44993662864385309,-2.25602027883396694 0.63371356147021585,-2.13561470215462634 0.87452471482889749))'
+        ]
+
+        polygons = [wkt.loads(xx) for xx in ugrid_polygons]
+        polygons = np.atleast_2d(np.array(polygons))
+        spoly = SpatialGeometryPolygonDimension(value=polygons)
+
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            spoly.write_to_netcdf_dataset_ugrid(ds)
+
+        shp_path = os.path.join(self.current_dir_output, 'ugrid.shp')
+        mesh2_nc_to_shapefile(path, shp_path)
+        with fiona.open(shp_path) as source:
+            for record in source:
+                geom = shape(record['geometry'])
+                check = [geom.almost_equals(xx) for xx in polygons.flat]
+                self.assertEqual(sum(check), 1)
 
 
 class TestSpatialGridDimension(AbstractTestSpatialDimension):

@@ -1,14 +1,17 @@
+from collections import OrderedDict
 from copy import deepcopy
 import itertools
 import os
 import pickle
-from datetime import datetime as dt
 import shutil
-import datetime
-
 import numpy as np
+
 from cfunits.cfunits import Units
 
+from datetime import datetime as dt
+import datetime
+from ocgis.api.request.driver.nc import DriverNetcdf
+from ocgis.api.request.driver.vector import DriverVector
 from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.interface.base.field import Field
 from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError, RequestValidationError
@@ -24,6 +27,16 @@ from ocgis.util.itester import itr_products_keywords
 
 class Test(TestBase):
 
+    def test_get_is_none_false(self):
+        possible_false = ['a', ['a', 'b'], ['b', None]]
+        for p in possible_false:
+            self.assertFalse(get_is_none(p))
+
+    def test_get_is_none_true(self):
+        possible_true = [None, [None, None]]
+        for p in possible_true:
+            self.assertTrue(get_is_none(p))
+
     def test_get_tuple(self):
         value = [4, 5]
         ret = get_tuple(value)
@@ -31,16 +44,6 @@ class Test(TestBase):
         value[1] = 10
         self.assertEqual(value, [4, 10])
         self.assertEqual(ret, (4, 5))
-
-    def test_get_is_none_true(self):
-        possible_true = [None, [None, None]]
-        for p in possible_true:
-            self.assertTrue(get_is_none(p))
-
-    def test_get_is_none_false(self):
-        possible_false = ['a', ['a', 'b'], ['b', None]]
-        for p in possible_false:
-            self.assertFalse(get_is_none(p))
 
 
 class TestRequestDataset(TestBase):
@@ -80,6 +83,27 @@ class TestRequestDataset(TestBase):
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
         field = rd.get()
         self.assertDictEqual(kwds['crs'].value, field.spatial.crs.value)
+
+    def test_Drivers(self):
+        # always test for netcdf first
+        self.assertIsInstance(RequestDataset._Drivers, OrderedDict)
+        self.assertEqual(RequestDataset._Drivers.values()[0], DriverNetcdf)
+
+    def test_get_autodiscovered_driver(self):
+        uri_shp = '/path/to/shapefile.shp'
+        uri_nc = '/path/to/netcdf/file/foo.nc'
+
+        driver = RequestDataset._get_autodiscovered_driver_(uri_shp)
+        self.assertEqual(driver, DriverVector)
+
+        for poss in [uri_nc, [uri_nc, uri_nc]]:
+            driver = RequestDataset._get_autodiscovered_driver_(poss)
+            self.assertEqual(driver, DriverNetcdf)
+
+        with self.assertRaises(RequestValidationError):
+            RequestDataset._get_autodiscovered_driver_('something/meaninglyess.foobuar')
+        with self.assertRaises(RequestValidationError):
+            RequestDataset._get_autodiscovered_driver_('something/meaninglyess')
 
     def test_name(self):
         path = ShpCabinet().get_shp_path('state_boundaries')

@@ -3,14 +3,14 @@ import os
 import shutil
 import tempfile
 import netCDF4 as nc
-from datetime import datetime as dt
-import datetime
 from collections import OrderedDict
-
 import numpy as np
+
 import fiona
 from shapely.geometry.geo import shape
 
+from datetime import datetime as dt
+import datetime
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis import constants
@@ -59,6 +59,9 @@ class TestDriverNetcdf(TestBase):
         geom = SpatialGeometryDimension(polygon=poly)
         sdim = SpatialDimension(geom=geom,properties=attrs,crs=WGS84())
         return(sdim)
+
+    def test_extensions(self):
+        self.assertEqual(DriverNetcdf.extensions, ('nc',))
 
     def test_get_dimensioned_variables_one_variable_in_target_dataset(self):
         uri = self.test_data.get_uri('cancm4_tas')

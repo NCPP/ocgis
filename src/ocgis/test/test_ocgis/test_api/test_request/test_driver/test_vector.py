@@ -26,6 +26,9 @@ class TestDriverVector(TestBase):
         sci = driver.open()
         driver.close(sci)
 
+    def test_extensions(self):
+        self.assertEqual(DriverVector.extensions, ('shp',))
+
     def test_get_crs(self):
         driver = self.get_driver()
         self.assertEqual(WGS84(), driver.get_crs())

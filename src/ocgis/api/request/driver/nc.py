@@ -2,7 +2,6 @@ from copy import deepcopy
 import logging
 import netCDF4 as nc
 from warnings import warn
-
 import numpy as np
 
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
@@ -21,6 +20,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class DriverNetcdf(AbstractDriver):
+    extensions = ('nc',)
     key = 'netCDF'
 
     def __init__(self, *args, **kwargs):

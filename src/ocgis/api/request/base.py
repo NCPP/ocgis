@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from copy import deepcopy
 import inspect
 import logging
@@ -93,7 +94,15 @@ class RequestDataset(object):
     :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module
      must be installed.
     :type conform_units_to: str or :class:`cfunits.Units` or sequence
-    :param str driver: Only valid for ``'netCDF'``. Additional drivers may be added in the future.
+    :param str driver: If ``None``, autodiscover the appropriate driver. Other accepted values are listed below.
+
+    ============ ================= =============================================
+    Value        File Extension(s) Description
+    ============ ================= =============================================
+    ``'netCDF'`` ``'nc'``          A netCDF file using a CF metadata convention.
+    ``'vector'`` ``'shp'``         An ESRI Shapefile.
+    ============ ================= =============================================
+
     :param str name: Name of the requested data in the output collection. If ``None``, defaults to ``alias``. If this is
      a multivariate request (i.e. more than one variable) and this is ``None``, then the aliases will be joined by
      ``'_'`` to create the name.
@@ -106,11 +115,15 @@ class RequestDataset(object):
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     """
-    _Drivers = {d.key: d for d in [DriverNetcdf, DriverVector]}
+
+    # contains key-value links to drivers. as new drivers are added, this dictionary must be updated.
+    _Drivers = OrderedDict()
+    _Drivers[DriverNetcdf.key] = DriverNetcdf
+    _Drivers[DriverVector.key] = DriverVector
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
                  level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None, did=None,
-                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver='netCDF', regrid_source=True,
+                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver=None, regrid_source=True,
                  regrid_destination=False):
 
         self._is_init = True
@@ -124,10 +137,14 @@ class RequestDataset(object):
         else:
             self._uri = self._get_uri_(uri)
 
-        try:
-            self.driver = self._Drivers[driver](self)
-        except KeyError:
-            raise RequestValidationError('driver', 'Driver not found: {0}'.format(driver))
+        if driver is None:
+            klass = self._get_autodiscovered_driver_(self.uri)
+        else:
+            try:
+                klass = self._Drivers[driver]
+            except KeyError:
+                raise RequestValidationError('driver', 'Driver not found: {0}'.format(driver))
+        self.driver = klass(self)
 
         self.variable = variable
 
@@ -370,6 +387,19 @@ class RequestDataset(object):
         ret = ip._as_dct_()
         return ret
 
+    @classmethod
+    def _get_autodiscovered_driver_(cls, uri):
+        #todo: doc
+
+        for element in get_iter(uri):
+            extension = os.path.splitext(element)[1][1:]
+            for driver in cls._Drivers.itervalues():
+                if extension in driver.extensions:
+                    return driver
+
+        msg = 'Driver not found for URI: {0}'.format(uri)
+        raise RequestValidationError('driver/uri', msg)
+
     def _get_meta_rows_(self):
         if self.time_range is None:
             tr = None
@@ -562,14 +592,6 @@ class RequestDatasetCollection(AbstractCollection):
             target.uid = uid
 
 
-def get_tuple(value):
-    if isinstance(value, basestring) or value is None:
-        ret = (value,)
-    else:
-        ret = tuple(value)
-    return ret
-
-
 def get_first_or_sequence(value):
     if len(value) > 1:
         ret = value
@@ -580,6 +602,14 @@ def get_first_or_sequence(value):
 
 def get_is_none(value):
     return all([v is None for v in get_iter(value)])
+
+
+def get_tuple(value):
+    if isinstance(value, basestring) or value is None:
+        ret = (value,)
+    else:
+        ret = tuple(value)
+    return ret
 
 
 def validate_units(keyword, sequence):

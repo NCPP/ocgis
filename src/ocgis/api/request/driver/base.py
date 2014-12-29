@@ -14,6 +14,13 @@ class AbstractDriver(object):
         return '"{0}"'.format(self.key)
 
     @abc.abstractproperty
+    def extensions(self):
+        """
+        :returns: A list of acceptable extensions for this driver.
+        :rtype: (str,)
+        """
+
+    @abc.abstractproperty
     def key(self):
         str
 

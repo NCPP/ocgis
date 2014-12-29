@@ -16,8 +16,10 @@ class AbstractDriver(object):
     @abc.abstractproperty
     def extensions(self):
         """
-        :returns: A list of acceptable extensions for this driver.
+        :returns: A sequence of regular expressions used to match appropriate URIs.
         :rtype: (str,)
+
+        >>> ('.*\.shp',)
         """
 
     @abc.abstractproperty

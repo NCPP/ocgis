@@ -6,7 +6,7 @@ from ocgis.api.request.driver.base import AbstractDriver
 
 
 class DriverVector(AbstractDriver):
-    extensions = ('shp',)
+    extensions = ('.*\.shp',)
     key = 'vector'
 
     def close(self, obj):

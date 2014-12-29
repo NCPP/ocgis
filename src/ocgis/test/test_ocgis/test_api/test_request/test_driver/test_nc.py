@@ -60,9 +60,6 @@ class TestDriverNetcdf(TestBase):
         sdim = SpatialDimension(geom=geom,properties=attrs,crs=WGS84())
         return(sdim)
 
-    def test_extensions(self):
-        self.assertEqual(DriverNetcdf.extensions, ('nc',))
-
     def test_get_dimensioned_variables_one_variable_in_target_dataset(self):
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(uri=uri)

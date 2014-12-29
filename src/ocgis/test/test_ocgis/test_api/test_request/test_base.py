@@ -92,11 +92,12 @@ class TestRequestDataset(TestBase):
     def test_get_autodiscovered_driver(self):
         uri_shp = '/path/to/shapefile.shp'
         uri_nc = '/path/to/netcdf/file/foo.nc'
+        uri_nc_opendap = 'http://cida.usgs.gov/thredds/dodsC/maurer/maurer_brekke_w_meta.ncml'
 
         driver = RequestDataset._get_autodiscovered_driver_(uri_shp)
         self.assertEqual(driver, DriverVector)
 
-        for poss in [uri_nc, [uri_nc, uri_nc]]:
+        for poss in [uri_nc, [uri_nc, uri_nc], uri_nc_opendap, [uri_nc_opendap, uri_nc_opendap]]:
             driver = RequestDataset._get_autodiscovered_driver_(poss)
             self.assertEqual(driver, DriverNetcdf)
 

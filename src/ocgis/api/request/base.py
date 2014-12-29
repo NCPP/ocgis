@@ -4,6 +4,7 @@ import inspect
 import logging
 import os
 import itertools
+import re
 
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
@@ -389,13 +390,18 @@ class RequestDataset(object):
 
     @classmethod
     def _get_autodiscovered_driver_(cls, uri):
-        #todo: doc
+        """
+        :param str uri: The target URI containing data for which to choose a driver.
+        :returns: The correct driver for opening the ``uri``.
+        :rtype: :class:`ocgis.api.request.driver.base.AbstractDriver`
+        :raises: RequestValidationError
+        """
 
         for element in get_iter(uri):
-            extension = os.path.splitext(element)[1][1:]
             for driver in cls._Drivers.itervalues():
-                if extension in driver.extensions:
-                    return driver
+                for pattern in driver.extensions:
+                    if re.match(pattern, element) is not None:
+                        return driver
 
         msg = 'Driver not found for URI: {0}'.format(uri)
         raise RequestValidationError('driver/uri', msg)

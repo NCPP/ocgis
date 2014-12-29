@@ -1,12 +1,12 @@
+import numpy as np
+
 from ocgis.test.base import nc_scope
 from ocgis.util.itester import itr_products_keywords
 from ocgis.api.operations import OcgOperations
 from ocgis.conv.nc import NcConverter
-import numpy as np
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 import ocgis
 from ocgis import constants
-from datetime import datetime as dt
 
 
 class TestNcConverter(AbstractTestConverter):
@@ -40,13 +40,13 @@ class TestNcConverter(AbstractTestConverter):
         coll = self.get_spatial_collection(field=self.get_field())
         conv = NcConverter([coll], self.current_dir_output, 'foo')
         file_format = conv._get_file_format_()
-        self.assertEqual(file_format, constants.netCDF_default_data_model)
+        self.assertEqual(file_format, constants.NETCDF_DEFAULT_DATA_MODEL)
 
         # add operations with a field as the dataset
         ops = OcgOperations(dataset=coll[1]['foo'], output_format='nc')
         conv = NcConverter([coll], self.current_dir_output, 'foo', ops=ops)
         file_format = conv._get_file_format_()
-        self.assertEqual(file_format, constants.netCDF_default_data_model)
+        self.assertEqual(file_format, constants.NETCDF_DEFAULT_DATA_MODEL)
 
         # add operations and use a request dataset
         coll = self.get_spatial_collection()

@@ -6,15 +6,15 @@ import os
 from copy import deepcopy
 from types import FunctionType
 import itertools
-import datetime
+import numpy as np
 
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
-import numpy as np
 
+import datetime
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
@@ -215,7 +215,7 @@ class Calc(base.IterableParameter,base.OcgParameter):
             ## library is an optional dependency.
             except KeyError:
                 ## this will register the icclim indices.
-                if function_key.startswith('{0}_'.format(constants.prefix_icclim_function_key)):
+                if function_key.startswith('{0}_'.format(constants.ICCLIM_PREFIX_FUNCTION_KEY)):
                     register.register_icclim(fr)
                 else:
                     raise(DefinitionValidationError(self,dve_msg))
@@ -661,7 +661,7 @@ class Headers(base.IterableParameter,base.OcgParameter):
     name = 'headers'
     default = None
     return_type = tuple
-    valid = set(constants.raw_headers+constants.calc_headers+constants.multi_headers)
+    valid = set(constants.HEADERS_RAW+constants.HEADERS_CALC+constants.HEADERS_MULTI)
     input_types = [list,tuple]
     nullable = True
     element_type = str
@@ -679,10 +679,10 @@ class Headers(base.IterableParameter,base.OcgParameter):
         return(msg)
     
     def parse_all(self,value):
-        for header in constants.required_headers:
+        for header in constants.HEADERS_REQUIRED:
             if header in value:
                 value.remove(header)
-        return(constants.required_headers+value)
+        return(constants.HEADERS_REQUIRED+value)
     
     def validate_all(self,values):
         if len(values) == 0:
@@ -772,7 +772,7 @@ class OutputCRS(base.OcgParameter):
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = 'numpy'
-    valid = constants.output_formats
+    valid = constants.OUTPUT_FORMATS
 
     @classmethod
     def iter_possible(cls):

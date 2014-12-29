@@ -1,13 +1,13 @@
 from collections import OrderedDict
 import os
 import itertools
+import numpy as np
 
 import fiona
-import numpy as np
 from shapely.geometry import Point, mapping
 
 from datetime import datetime as dt, datetime
-from ocgis.constants import ocgis_unique_geometry_identifier
+from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
 from ocgis.exc import SingleElementError, ShapeError
 from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
@@ -236,7 +236,7 @@ class Test2(TestBase):
 
         sci = ShpCabinetIterator(path=out_path)
         records = list(sci)
-        self.assertAsSetEqual([1, 2], [xx['properties'][ocgis_unique_geometry_identifier] for xx in records])
+        self.assertAsSetEqual([1, 2], [xx['properties'][OCGIS_UNIQUE_GEOMETRY_IDENTIFIER] for xx in records])
         self.assertAsSetEqual([6, 60], [xx['properties']['fid'] for xx in records])
         self.assertEqual(CoordinateReferenceSystem(records[0]['meta']['crs']), crs)
 
@@ -254,7 +254,7 @@ class Test2(TestBase):
         add_shapefile_unique_identifier(in_path, out_path, template='fid')
         sci = ShpCabinetIterator(path=out_path)
         records = list(sci)
-        self.assertAsSetEqual([6, 60], [xx['properties'][ocgis_unique_geometry_identifier] for xx in records])
+        self.assertAsSetEqual([6, 60], [xx['properties'][OCGIS_UNIQUE_GEOMETRY_IDENTIFIER] for xx in records])
 
         # test with a different name attribute
         out_path = os.path.join(self.current_dir_output, 'name.shp')

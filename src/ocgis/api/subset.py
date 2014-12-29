@@ -1,7 +1,7 @@
 import logging
 from copy import deepcopy, copy
-
 import numpy as np
+
 from shapely.geometry import Point, MultiPoint
 
 from ocgis.calc.engine import OcgCalculationEngine
@@ -167,11 +167,11 @@ class SubsetOperation(object):
         else:
             if self.cengine is not None:
                 if self._has_multivariate_calculations:
-                    headers = constants.multi_headers
+                    headers = constants.HEADERS_MULTI
                 else:
-                    headers = constants.calc_headers
+                    headers = constants.HEADERS_CALC
             else:
-                headers = constants.raw_headers
+                headers = constants.HEADERS_RAW
 
         ## keyed output functions require appending headers regardless. there is
         ## only one keyed output function allowed in a request.

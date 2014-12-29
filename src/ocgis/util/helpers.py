@@ -5,8 +5,8 @@ import tempfile
 import sys
 from copy import deepcopy
 from tempfile import mkdtemp
-
 import numpy as np
+
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from osgeo.ogr import CreateGeometryFromWkb
@@ -54,7 +54,7 @@ def add_shapefile_unique_identifier(in_path, out_path, name=None, template=None)
     :param str in_path: Full path to the input shapefile.
     :param str out_path: Full path to the output shapefile.
     :param str name: The name of the unique identifer. If ``None``, defaults to
-     :attr:`ocgis.constants.ocgis_unique_geometry_identifier`.
+     :attr:`ocgis.constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER`.
     :param str template: The integer attribute to copy as the unique identifier.
     :returns: Path to the copied shapefile with the addition of a unique integer attribute called ``name``.
     :rtype: str

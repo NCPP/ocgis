@@ -256,7 +256,7 @@ class TestDriverNetcdf(TestBase):
         var = ds.variables['time']
         real_temporal = nc.num2date(var[:],var.units,var.calendar)
         select = [True if x.month == 8 else False for x in real_temporal]
-        indices = np.arange(0,var.shape[0],dtype=constants.np_int)[np.array(select)]
+        indices = np.arange(0,var.shape[0],dtype=constants.NP_INT)[np.array(select)]
         self.assertNumpyAll(indices,field.temporal._src_idx)
         self.assertNumpyAll(field.temporal.value_datetime,real_temporal[indices])
         self.assertNumpyAll(field.variables['tas'].value.data.squeeze(),ds.variables['tas'][indices,:,:])
@@ -278,7 +278,7 @@ class TestDriverNetcdf(TestBase):
         var = ds.variables['time']
         real_temporal = nc.num2date(var[:],var.units,var.calendar)
         select = [True if x.month == 8 and x.year in [2008,2010] else False for x in real_temporal]
-        indices = np.arange(0,var.shape[0],dtype=constants.np_int)[np.array(select)]
+        indices = np.arange(0,var.shape[0],dtype=constants.NP_INT)[np.array(select)]
         self.assertNumpyAll(indices,field.temporal._src_idx)
         self.assertNumpyAll(field.temporal.value_datetime,real_temporal[indices])
         self.assertNumpyAll(field.variables['tas'].value.data.squeeze(),ds.variables['tas'][indices,:,:])
@@ -385,7 +385,7 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(field.temporal.value_datetime[0],datetime.datetime(1950, 1, 16, 0, 0))
         self.assertEqual(field.temporal.value_datetime[-1],datetime.datetime(2099, 12, 15, 0, 0))
         self.assertEqual(field.level,None)
-        self.assertNumpyAll(field.realization.value,np.arange(1,37,dtype=constants.np_int))
+        self.assertNumpyAll(field.realization.value,np.arange(1,37,dtype=constants.NP_INT))
 
         ds = nc.Dataset(uri,'r')
         to_test = ds.variables['Tavg']

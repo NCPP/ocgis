@@ -163,7 +163,7 @@ class DriverNetcdf(AbstractDriver):
 
             # extract the data length to use when creating the source index arrays.
             length = source_metadata['dimensions'][ref_axis['dimension']]['len']
-            src_idx = np.arange(0, length, dtype=constants.np_int)
+            src_idx = np.arange(0, length, dtype=constants.NP_INT)
 
             # get the target data type for the dimension
             try:
@@ -248,8 +248,8 @@ class DriverNetcdf(AbstractDriver):
         else:
             shape_src_idx = [source_metadata['dimensions'][xx]['len'] for xx in kwds_grid['row']['dimensions']]
             src_idx = {}
-            src_idx['row'] = np.arange(0, shape_src_idx[0], dtype=constants.np_int)
-            src_idx['col'] = np.arange(0, shape_src_idx[1], dtype=constants.np_int)
+            src_idx['row'] = np.arange(0, shape_src_idx[0], dtype=constants.NP_INT)
+            src_idx['col'] = np.arange(0, shape_src_idx[1], dtype=constants.NP_INT)
             name_row = kwds_grid['row']['name']
             name_col = kwds_grid['col']['name']
             kwds_grid = {'name_row': name_row, 'name_col': name_col, 'data': self.rd, 'src_idx': src_idx}

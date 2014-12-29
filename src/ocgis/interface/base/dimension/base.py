@@ -1,7 +1,6 @@
 import abc
 from copy import copy, deepcopy
 from operator import mul
-
 import numpy as np
 
 from ocgis import constants
@@ -130,7 +129,7 @@ class AbstractUidDimension(AbstractDimension):
             ret = None
         else:
             n = reduce(mul, self.value.shape)
-            ret = np.arange(1, n + 1, dtype=constants.np_int).reshape(self.value.shape)
+            ret = np.arange(1, n + 1, dtype=constants.NP_INT).reshape(self.value.shape)
             ret = np.ma.array(ret, mask=False)
         return ret
 
@@ -166,7 +165,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
 
         bounds = kwargs.pop('bounds', None)
         # used for creating name_bounds as well as the name of the bounds dimension in netCDF
-        self.name_bounds_suffix = kwargs.pop('name_bounds_suffix', None) or constants.ocgis_bounds
+        self.name_bounds_suffix = kwargs.pop('name_bounds_suffix', None) or constants.OCGIS_BOUNDS
         self._name_bounds = kwargs.pop('name_bounds', None)
         self.axis = kwargs.pop('axis', None)
         # if True, bounds were interpolated. if False, they were loaded from source data. used in conforming units.
@@ -225,9 +224,9 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
         if self.bounds is None and self.value.shape[0] < 2:
             raise(ResolutionError('With no bounds and a single coordinate, approximate resolution may not be determined.'))
         elif self.bounds is None:
-            res_array = np.diff(self.value[0:constants.resolution_limit])
+            res_array = np.diff(self.value[0:constants.RESOLUTION_LIMIT])
         else:
-            res_bounds = self.bounds[0:constants.resolution_limit]
+            res_bounds = self.bounds[0:constants.RESOLUTION_LIMIT]
             res_array = res_bounds[:,1] - res_bounds[:,0]
         ret = np.abs(res_array).mean()
         return(ret)
@@ -370,7 +369,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
         :type dataset: :class:`netCDF4.Dataset`
         :param bool unlimited: If ``True``, create the dimension on the netCDF object with ``size=None``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createDimension.
-        :param str bounds_dimension_name: If ``None``, default to :attrs:`ocgis.constants.ocgis_bounds`.
+        :param str bounds_dimension_name: If ``None``, default to :attrs:`ocgis.constants.OCGIS_BOUNDS`.
         :param kwargs: Extra keyword arguments in addition to ``dimensions`` to pass to ``createVariable``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         """
@@ -423,7 +422,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
             shp = self._value.shape[0]
         else:
             shp = self._src_idx.shape[0]
-        ret = np.arange(1,shp+1,dtype=constants.np_int)
+        ret = np.arange(1,shp+1,dtype=constants.NP_INT)
         ret = np.atleast_1d(ret)
         return(ret)
     

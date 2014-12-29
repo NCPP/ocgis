@@ -93,7 +93,7 @@ class AbstractCollection(object):
 
 
 class SpatialCollection(AbstractCollection):
-    _default_headers = constants.raw_headers
+    _default_headers = constants.HEADERS_RAW
     _multi_cast = {'Point': MultiPoint, 'Polygon': MultiPolygon}
     
     def __init__(self, meta=None, key=None, crs=None, headers=None, value_keys=None):

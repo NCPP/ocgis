@@ -1,6 +1,6 @@
-import datetime
 import netCDF4 as nc
 
+import datetime
 import ocgis
 from ocgis.conv.base import AbstractConverter
 from ocgis import constants
@@ -20,7 +20,7 @@ class NcConverter(AbstractConverter):
         file_format = set()
         # if no operations are present, use the default data model
         if self.ops is None:
-            ret = constants.netCDF_default_data_model
+            ret = constants.NETCDF_DEFAULT_DATA_MODEL
         else:
             for rd in self.ops.dataset.iter_request_datasets():
                 rr = rd.source_metadata['file_format']
@@ -36,7 +36,7 @@ class NcConverter(AbstractConverter):
                     ret = list(file_format)[0]
                 except IndexError:
                     # likely all field objects in the dataset. use the default netcdf data model
-                    ret = constants.netCDF_default_data_model
+                    ret = constants.NETCDF_DEFAULT_DATA_MODEL
         return ret
     
     def _write_coll_(self, ds, coll):

@@ -1,75 +1,79 @@
 import numpy as np
 
-#: Standard bounds name used when none is available from the input data.
-ocgis_bounds = 'bounds'
+
+# : Standard bounds name used when none is available from the input data.
+OCGIS_BOUNDS = 'bounds'
 
 #: Standard name for the unique identifier in GIS files.
-ocgis_unique_geometry_identifier = 'UGID'
+OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = 'UGID'
 
 #: Default netCDF4 output file type
-netCDF_default_data_model = 'NETCDF4'
+NETCDF_DEFAULT_DATA_MODEL = 'NETCDF4'
 
 #: Default temporal calendar.
-default_temporal_calendar = 'standard'
+DEFAULT_TEMPORAL_CALENDAR = 'standard'
 
 #: Default temporal units.
-default_temporal_units = 'days since 0001-01-01 00:00:00'
+DEFAULT_TEMPORAL_UNITS = 'days since 0001-01-01 00:00:00'
 
 #: Default name for coordinate systems in netCDF file if none is provided.
-default_coordinate_system_name = 'coordinate_system'
+DEFAULT_COORDINATE_SYSTEM_NAME = 'coordinate_system'
 
 #: Default sample size variable standard name.
-default_sample_size_standard_name = 'sample_size'
+DEFAULT_SAMPLE_SIZE_STANDARD_NAME = 'sample_size'
 
 #: Default sample size variable long name.
-default_sample_size_long_name = 'Statistical Sample Size'
+DEFAULT_SAMPLE_SIZE_LONG_NAME = 'Statistical Sample Size'
 
 #: Default row coordinate name.
-default_name_row_coordinates = 'yc'
+DEFAULT_NAME_ROW_COORDINATES = 'yc'
 
 #: Default column coordinate name.
-default_name_col_coordinates = 'xc'
+DEFAULT_NAME_COL_COORDINATES = 'xc'
 
 #: Default corners dimension name.
-default_name_corners_dimension = 'ncorners'
+DEFAULT_NAME_CORNERS_DIMENSION = 'ncorners'
 
 #: Standard headers for subset operations.
-raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','year','month','day','level','value']
+HEADERS_RAW = ['did', 'vid', 'ugid', 'tid', 'lid', 'gid', 'variable', 'alias', 'time', 'year', 'month', 'day', 'level',
+               'value']
 #: Standard headers for computation.
-calc_headers = ['did','vid','cid','ugid','tid','lid','gid','variable','alias','calc_key','calc_alias','time','year','month','day','level','value']
+HEADERS_CALC = ['did', 'vid', 'cid', 'ugid', 'tid', 'lid', 'gid', 'variable', 'alias', 'calc_key', 'calc_alias', 'time',
+                'year', 'month', 'day', 'level', 'value']
 #: Standard headers for multivariate calculations.
-multi_headers = ['did','cid','ugid','tid','lid','gid','calc_key','calc_alias','time','year','month','day','level','value']
+HEADERS_MULTI = ['did', 'cid', 'ugid', 'tid', 'lid', 'gid', 'calc_key', 'calc_alias', 'time', 'year', 'month', 'day',
+                 'level', 'value']
 
 #: Required headers for every request.
-required_headers = ['did','ugid','gid']
+HEADERS_REQUIRED = ['did', 'ugid', 'gid']
 
 #: Key identifiers for output formats.
-output_formats = ['numpy','nc','csv','csv+','shp','geojson','meta']
+OUTPUT_FORMATS = ['numpy', 'nc', 'csv', 'csv+', 'shp', 'geojson', 'meta']
 
 # Download URL for test datasets.
-test_data_download_url_prefix = None
+TEST_DATA_DOWNLOAD_PREFIX = None
 
 #: The day value to use for month centroids.
-calc_month_centroid = 16
+CALC_MONTH_CENTROID = 16
 #: The month value to use for year centroids.
-calc_year_centroid_month = 7
+CALC_YEAR_CENTROID_MONTH = 7
 #: The default day value for year centroids.
-calc_year_centroid_day = 1
+CALC_YEAR_CENTROID_DAY = 1
 
 #: The number of values to use when calculating data resolution.
-resolution_limit = 100
+RESOLUTION_LIMIT = 100
 
 #: The data type to use for NumPy integers.
-np_int = np.int32
+NP_INT = np.int32
 #: The data type to use for NumPy floats.
-np_float = np.float32
+NP_FLOAT = np.float32
 
 #: Function key prefix for the `icclim` indices library.
-prefix_icclim_function_key = 'icclim'
+ICCLIM_PREFIX_FUNCTION_KEY = 'icclim'
 
 #: NumPy functions enabled for functions evaluated from string representations.
-enabled_numpy_ufuncs = ['exp','log','abs']
+ENABLED_NUMPY_UFUNCS = ['exp', 'log', 'abs']
 
 #: The value for the 180th meridian to use when wrapping.
-meridian_180th = 180.
-# meridian_180th = 179.9999999999999
+MERIDIAN_180TH = 180.
+# MERIDIAN_180TH = 179.9999999999999

@@ -1,13 +1,13 @@
 import csv
-from datetime import datetime as dt
 import itertools
-import datetime
 import os
-
-import ESMF
 from numpy import dtype
 import numpy as np
 
+import ESMF
+
+from datetime import datetime as dt
+import datetime
 from ocgis.api.parms.definition import RegridOptions, OutputFormat
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase, attr
@@ -310,7 +310,7 @@ class TestOcgOperations(TestBase):
         for htype in [list,tuple]:
             hvalue = htype(headers)
             hh = definition.Headers(hvalue)
-            self.assertEqual(hh.value,tuple(constants.required_headers+['value']))
+            self.assertEqual(hh.value,tuple(constants.HEADERS_REQUIRED+['value']))
 
         headers = ['foo']
         with self.assertRaises(DefinitionValidationError):
@@ -318,7 +318,7 @@ class TestOcgOperations(TestBase):
 
         headers = []
         hh = definition.Headers(headers)
-        self.assertEqual(hh.value,tuple(constants.required_headers))
+        self.assertEqual(hh.value,tuple(constants.HEADERS_REQUIRED))
 
     def test_keyword_level_range(self):
         rd = self.test_data.get_rd('cancm4_tas')

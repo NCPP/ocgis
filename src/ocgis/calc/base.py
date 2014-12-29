@@ -3,7 +3,6 @@ from copy import deepcopy
 import abc
 import itertools
 import logging
-
 import numpy as np
 
 from ocgis.interface.base.variable import DerivedVariable, VariableCollection
@@ -319,10 +318,10 @@ class AbstractFunction(object):
         if sample_size is not None:
             # meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
             attrs = OrderedDict()
-            attrs['standard_name'] = constants.default_sample_size_standard_name
-            attrs['long_name'] = constants.default_sample_size_long_name
+            attrs['standard_name'] = constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME
+            attrs['long_name'] = constants.DEFAULT_SAMPLE_SIZE_LONG_NAME
             dv = DerivedVariable(name=None, alias='n_' + dv.alias, units=None, value=sample_size, fdef=None,
-                                 parents=parents, dtype=constants.np_int, fill_value=fill_value, attrs=attrs)
+                                 parents=parents, dtype=constants.NP_INT, fill_value=fill_value, attrs=attrs)
             self.vc.add_variable(dv)
 
     @abc.abstractmethod
@@ -357,7 +356,7 @@ class AbstractFunction(object):
 
         ## this array holds output from the sample size computations
         if self.calc_sample_size:
-            fill_sample_size = np.ma.zeros(fill.shape, dtype=constants.np_int)
+            fill_sample_size = np.ma.zeros(fill.shape, dtype=constants.NP_INT)
         else:
             fill_sample_size = None
 

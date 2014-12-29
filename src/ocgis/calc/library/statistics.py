@@ -1,7 +1,6 @@
 import calendar
 from collections import OrderedDict, defaultdict
 import itertools
-
 import numpy as np
 
 from datetime import datetime
@@ -14,7 +13,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
     key = 'moving_window'
     parms_definition = {'k': int, 'mode': str, 'operation': str}
     description = ()
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'moving_window'
     long_name = 'Moving Window Operation'
 
@@ -130,7 +129,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
     key = 'daily_perc'
     parms_definition = {'percentile': float, 'window_width': int, 'only_leap_years': bool}
     description = ''
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'daily_percentile'
     long_name = 'Daily Percentile'
 
@@ -350,7 +349,7 @@ class FrequencyPercentile(base.AbstractUnivariateSetFunction,base.AbstractParame
     key = 'freq_perc'
     parms_definition = {'percentile':float}
     description = 'The percentile value along the time axis. See: http://docs.scipy.org/doc/numpy-dev/reference/generated/numpy.percentile.html.'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'frequency_percentile'
     long_name = 'Frequency Percentile'
     
@@ -366,7 +365,7 @@ class FrequencyPercentile(base.AbstractUnivariateSetFunction,base.AbstractParame
 class Max(base.AbstractUnivariateSetFunction):
     description = 'Max value for the series.'
     key = 'max'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'max'
     long_name = 'max'
     
@@ -377,7 +376,7 @@ class Max(base.AbstractUnivariateSetFunction):
 class Min(base.AbstractUnivariateSetFunction):
     description = 'Min value for the series.'
     key = 'min'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'min'
     long_name = 'Min'
     
@@ -388,7 +387,7 @@ class Min(base.AbstractUnivariateSetFunction):
 class Mean(base.AbstractUnivariateSetFunction):
     description = 'Compute mean value of the set.'
     key = 'mean'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'mean'
     long_name = 'Mean'
     
@@ -399,7 +398,7 @@ class Mean(base.AbstractUnivariateSetFunction):
 class Median(base.AbstractUnivariateSetFunction):
     description = 'Compute median value of the set.'
     key = 'median'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'median'
     long_name = 'median'
     
@@ -410,7 +409,7 @@ class Median(base.AbstractUnivariateSetFunction):
 class StandardDeviation(base.AbstractUnivariateSetFunction):
     description = 'Compute standard deviation of the set.'
     key = 'std'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     standard_name = 'standard_deviation'
     long_name = 'Standard Deviation'
     

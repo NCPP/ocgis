@@ -2,12 +2,12 @@ import abc
 from collections import OrderedDict
 from copy import deepcopy
 import json
+import numpy as np
 
 from icclim.percentile_dict import get_percentile_dict
 from icclim import calc_indice, calc_indice_perc
 from icclim import set_longname_units as slu
 from icclim import set_globattr
-import numpy as np
 
 from ocgis.calc.base import AbstractUnivariateSetFunction, AbstractMultivariateFunction, AbstractParameterizedFunction
 from ocgis import constants
@@ -239,7 +239,7 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
 
 
 class IcclimTG(AbstractIcclimUnivariateSetFunction):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_TG'
 
 
@@ -268,7 +268,7 @@ class IcclimTNn(IcclimTG):
 
 
 class IcclimCSU(AbstractIcclimUnivariateSetFunction):
-    dtype = constants.np_int
+    dtype = constants.NP_INT
     key = 'icclim_CSU'
 
 
@@ -289,26 +289,26 @@ class IcclimID(IcclimCSU):
 
 
 class IcclimHD17(IcclimTG):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_HD17'
     required_units = ['K','kelvin']
 
 
 class IcclimGD4(IcclimTG):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_GD4'
     required_units = ['K','kelvin']
 
 
 class IcclimSU(IcclimCSU):
-    dtype = constants.np_int
+    dtype = constants.NP_INT
     key = 'icclim_SU'
     required_units = ['K','kelvin']
     
     
 class IcclimDTR(AbstractIcclimMultivariateFunction):
     key = 'icclim_DTR'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     required_variables = ['tasmin','tasmax']
     time_aggregation_external = False
     
@@ -329,157 +329,157 @@ class IcclimvDTR(IcclimDTR):
 
 
 class IcclimRR(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_RR'
 
 
 class IcclimRR1(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_RR1'
 
 
 class IcclimCWD(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_CWD'
 
 
 class IcclimSDII(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_SDII'
 
 
 class IcclimR10mm(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_R10mm'
 
 
 class IcclimR20mm(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_R20mm'
 
 
 class IcclimRX1day(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_RX1day'
 
 
 class IcclimRX5day(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_RX5day'
 
 
 class IcclimSD(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_SD'
 
 
 class IcclimSD1(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_SD1'
 
 
 class IcclimSD5(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_SD5cm'
 
 
 class IcclimSD50(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_SD50cm'
 
 
 class IcclimCDD(IcclimCSU):
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'icclim_CDD'
 
 
 class IcclimTG10p(AbstractIcclimPercentileIndice):
     key = 'icclim_TG10p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimTX10p(AbstractIcclimPercentileIndice):
     key = 'icclim_TX10p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimTN10p(AbstractIcclimPercentileIndice):
     key = 'icclim_TN10p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimTG90p(AbstractIcclimPercentileIndice):
     key = 'icclim_TG90p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 90
 
 
 class IcclimTX90p(AbstractIcclimPercentileIndice):
     key = 'icclim_TX90p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimTN90p(AbstractIcclimPercentileIndice):
     key = 'icclim_TN90p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimWSDI(AbstractIcclimPercentileIndice):
     key = 'icclim_WSDI'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 90
 
 
 class IcclimCSDI(AbstractIcclimPercentileIndice):
     key = 'icclim_CSDI'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 10
 
 
 class IcclimR75p(AbstractIcclimPercentileIndice):
     key = 'icclim_R75p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 75
 
 
 class IcclimR75TOT(AbstractIcclimPercentileIndice):
     key = 'icclim_R75TOT'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 75
 
 
 class IcclimR95p(AbstractIcclimPercentileIndice):
     key = 'icclim_R95p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 95
 
 
 class IcclimR95TOT(AbstractIcclimPercentileIndice):
     key = 'icclim_R95TOT'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 95
 
 
 class IcclimR99p(AbstractIcclimPercentileIndice):
     key = 'icclim_R99p'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 99
 
 
 class IcclimR99TOT(AbstractIcclimPercentileIndice):
     key = 'icclim_R99TOT'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     percentile = 99
 
 
 class IcclimCD(AbstractIcclimMultivariateFunction, AbstractParameterizedFunction):
     key = 'icclim_CD'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     required_variables = ['tas', 'pr']
     time_aggregation_external = False
     parms_definition = {'tas_25th_percentile_dict': dict, 'pr_25th_percentile_dict': dict}

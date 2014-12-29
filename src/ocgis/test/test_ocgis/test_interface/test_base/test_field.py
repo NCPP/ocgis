@@ -1,14 +1,14 @@
 import os
-from datetime import datetime as dt
-import datetime
 import itertools
 from copy import deepcopy
 from collections import OrderedDict
-
 import numpy as np
+
 from shapely import wkt
 from shapely.ops import cascaded_union
 
+from datetime import datetime as dt
+import datetime
 from ocgis import constants
 from ocgis import RequestDataset
 from ocgis.interface.base.attributes import Attributes
@@ -586,12 +586,12 @@ class TestField(AbstractTestField):
         with nc_scope(path, 'w') as ds:
             field.write_to_netcdf_dataset(ds)
             self.assertAsSetEqual(ds.variables.keys(), ['time', 'time_bounds', 'level', 'level_bounds',
-                                                        constants.default_name_row_coordinates,
-                                                        constants.default_name_col_coordinates, 'yc_corners',
+                                                        constants.DEFAULT_NAME_ROW_COORDINATES,
+                                                        constants.DEFAULT_NAME_COL_COORDINATES, 'yc_corners',
                                                         'xc_corners', 'tmax'])
             self.assertAsSetEqual(ds.dimensions.keys(),
-                                  ['time', 'bounds', 'level', constants.default_name_row_coordinates,
-                                   constants.default_name_col_coordinates, constants.default_name_corners_dimension])
+                                  ['time', 'bounds', 'level', constants.DEFAULT_NAME_ROW_COORDINATES,
+                                   constants.DEFAULT_NAME_COL_COORDINATES, constants.DEFAULT_NAME_CORNERS_DIMENSION])
 
     def test_write_to_netcdf_dataset_without_temporal(self):
         """Test without a temporal dimensions."""

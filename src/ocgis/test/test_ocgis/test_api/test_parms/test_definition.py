@@ -355,7 +355,7 @@ class TestHeaders(TestBase):
         for htype in [list, tuple]:
             hvalue = htype(headers)
             hh = Headers(hvalue)
-            self.assertEqual(hh.value, tuple(constants.required_headers + ['value']))
+            self.assertEqual(hh.value, tuple(constants.HEADERS_REQUIRED + ['value']))
 
         headers = ['foo']
         with self.assertRaises(DefinitionValidationError):
@@ -363,7 +363,7 @@ class TestHeaders(TestBase):
 
         headers = []
         hh = Headers(headers)
-        self.assertEqual(hh.value, tuple(constants.required_headers))
+        self.assertEqual(hh.value, tuple(constants.HEADERS_REQUIRED))
 
 
 class TestDataset(TestBase):

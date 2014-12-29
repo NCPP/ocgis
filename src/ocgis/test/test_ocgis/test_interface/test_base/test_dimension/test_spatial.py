@@ -96,7 +96,7 @@ class AbstractTestSpatialDimension(TestBase):
 
     @property
     def uid_value(self):
-        return np.ma.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], mask=False, dtype=constants.np_int)
+        return np.ma.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], mask=False, dtype=constants.NP_INT)
 
     def write_sdim(self):
         sdim = self.get_sdim(bounds=True)
@@ -558,7 +558,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
                 ret = sdim.get_intersects(poly,use_spatial_index=u)
                 to_test = np.ma.array([[[38.]],[[-100.]]],mask=False)
                 self.assertNumpyAll(ret.grid.value,to_test)
-                self.assertNumpyAll(ret.uid,np.ma.array([[9]],dtype=constants.np_int))
+                self.assertNumpyAll(ret.uid,np.ma.array([[9]],dtype=constants.NP_INT))
                 self.assertEqual(ret.shape,(1,1))
                 to_test = ret.geom.point.value.compressed()[0]
                 self.assertTrue(to_test.almost_equals(Point(-100,38)))
@@ -888,12 +888,12 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         pts = np.array([[pt,pt2]],dtype=object)
         g = SpatialGeometryPointDimension(value=pts)
         self.assertEqual(g.value.mask.any(),False)
-        self.assertNumpyAll(g.uid,np.ma.array([[1,2]],dtype=constants.np_int))
+        self.assertNumpyAll(g.uid,np.ma.array([[1,2]],dtype=constants.NP_INT))
         
         sgdim = SpatialGeometryDimension(point=g)
         sdim = SpatialDimension(geom=sgdim)
         self.assertEqual(sdim.shape,(1,2))
-        self.assertNumpyAll(sdim.uid,np.ma.array([[1,2]],dtype=constants.np_int))
+        self.assertNumpyAll(sdim.uid,np.ma.array([[1,2]],dtype=constants.NP_INT))
         sdim_slc = sdim[:,1]
         self.assertEqual(sdim_slc.shape,(1,1))
         self.assertTrue(sdim_slc.geom.point.value[0,0].almost_equals(pt2))
@@ -904,7 +904,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
             bg = sdim.grid.get_subset_bbox(-99,39,-98,39,closed=False)
             self.assertEqual(bg._value,None)
             self.assertEqual(bg.uid.shape,(1,2))
-            self.assertNumpyAll(bg.uid,np.ma.array([[6,7]],dtype=constants.np_int))
+            self.assertNumpyAll(bg.uid,np.ma.array([[6,7]],dtype=constants.NP_INT))
             with self.assertRaises(EmptySubsetError):
                 sdim.grid.get_subset_bbox(1000,1000,1001,10001)
                 
@@ -962,7 +962,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         """Test wrapping a SpatialDimension"""
 
         def assertWrapped(arr):
-            select = arr >= constants.meridian_180th
+            select = arr >= constants.MERIDIAN_180TH
             self.assertFalse(select.any())
 
         sdim = self.get_sdim(crs=WGS84())
@@ -1452,18 +1452,18 @@ class TestSpatialGridDimension(AbstractTestSpatialDimension):
                     self.assertNumpyAll(ds.variables[grid.row.name][:], row.value)
                     self.assertNumpyAll(ds.variables[grid.col.name][:], col.value)
                 else:
-                    yc = ds.variables[constants.default_name_row_coordinates]
-                    xc = ds.variables[constants.default_name_col_coordinates]
+                    yc = ds.variables[constants.DEFAULT_NAME_ROW_COORDINATES]
+                    xc = ds.variables[constants.DEFAULT_NAME_COL_COORDINATES]
                     self.assertNumpyAll(yc[:], grid.value[0].data)
                     self.assertNumpyAll(xc[:], grid.value[1].data)
                     self.assertEqual(yc.axis, 'Y')
                     self.assertEqual(xc.axis, 'X')
                 if k.with_corners and not k.with_rc:
                     name_yc_corners, name_xc_corners = ['{0}_corners'.format(xx) for xx in
-                                                        [constants.default_name_row_coordinates,
-                                                         constants.default_name_col_coordinates]]
+                                                        [constants.DEFAULT_NAME_ROW_COORDINATES,
+                                                         constants.DEFAULT_NAME_COL_COORDINATES]]
                     for idx, name in zip([0, 1], [name_yc_corners, name_xc_corners]):
                         var = ds.variables[name]
                         self.assertNumpyAll(var[:], grid.corners[idx].data)
-                    self.assertEqual(ds.variables[constants.default_name_row_coordinates].corners, name_yc_corners)
-                    self.assertEqual(ds.variables[constants.default_name_col_coordinates].corners, name_xc_corners)
+                    self.assertEqual(ds.variables[constants.DEFAULT_NAME_ROW_COORDINATES].corners, name_yc_corners)
+                    self.assertEqual(ds.variables[constants.DEFAULT_NAME_COL_COORDINATES].corners, name_xc_corners)

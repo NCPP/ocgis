@@ -6,7 +6,7 @@ import argparse
 import fiona
 from shapely.geometry.geo import shape, mapping
 
-from ocgis.constants import ocgis_unique_geometry_identifier
+from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 
 
 class ShpProcess(object):
@@ -24,7 +24,7 @@ class ShpProcess(object):
         :param str key: The name of the new output shapefile.
         :param str ugid: The integer attribute to copy as the unique identifier.
         :param str name: The name of the unique identifer. If ``None``, defaults to
-         :attr:`ocgis.constants.ocgis_unique_geometry_identifier`.
+         :attr:`ocgis.constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER`.
         """
 
         # get the original shapefile file name
@@ -39,7 +39,7 @@ class ShpProcess(object):
         # update the schema to include UGID
         meta = self._get_meta_()
 
-        identifier = name or ocgis_unique_geometry_identifier
+        identifier = name or OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
         if identifier in meta['schema']['properties']:
             meta['schema']['properties'].pop(identifier)
         new_properties = OrderedDict({identifier: 'int'})

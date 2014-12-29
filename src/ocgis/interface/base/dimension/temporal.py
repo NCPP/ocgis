@@ -1,12 +1,12 @@
 from collections import deque
 import itertools
-import datetime
 from copy import deepcopy
 import netCDF4 as nc
-
-import netcdftime
 import numpy as np
 
+import netcdftime
+
+import datetime
 import base
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -31,7 +31,7 @@ class TemporalDimension(base.VectorDimension):
     _date_parts = ('year', 'month', 'day', 'hour', 'minute', 'second')
 
     def __init__(self, *args, **kwargs):
-        self.calendar = kwargs.pop('calendar', constants.default_temporal_calendar)
+        self.calendar = kwargs.pop('calendar', constants.DEFAULT_TEMPORAL_CALENDAR)
         self.format_time = kwargs.pop('format_time', True)
 
         kwargs['axis'] = kwargs.get('axis') or 'T'
@@ -40,7 +40,7 @@ class TemporalDimension(base.VectorDimension):
 
         super(TemporalDimension, self).__init__(*args, **kwargs)
 
-        self.units = self.units or constants.default_temporal_units
+        self.units = self.units or constants.DEFAULT_TEMPORAL_UNITS
         # test if the units are the special case with months in the time units
         if self.units.startswith('months'):
             self._has_months_units = True
@@ -136,7 +136,7 @@ class TemporalDimension(base.VectorDimension):
                 except ValueError:
                     arr[idx] = arr[idx]
         else:
-            arr = get_datetime_from_months_time_units(arr, self.units, month_centroid=constants.calc_month_centroid)
+            arr = get_datetime_from_months_time_units(arr, self.units, month_centroid=constants.CALC_MONTH_CENTROID)
         return arr
 
     def get_grouping(self, grouping):
@@ -445,7 +445,7 @@ class TemporalDimension(base.VectorDimension):
         try:
             set_grouping = set(grouping)
             if set_grouping == set(['month']):
-                ref_calc_month_centroid = constants.calc_month_centroid
+                ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
                     month = ref_value[idx]['month']
                     ## get the start year from the bounds data
@@ -453,14 +453,14 @@ class TemporalDimension(base.VectorDimension):
                     ## create the datetime object
                     ret[idx] = datetime.datetime(start_year,month,ref_calc_month_centroid)
             elif set_grouping == set(['year']):
-                ref_calc_year_centroid_month = constants.calc_year_centroid_month
-                ref_calc_year_centroid_day = constants.calc_year_centroid_day
+                ref_calc_year_centroid_month = constants.CALC_YEAR_CENTROID_MONTH
+                ref_calc_year_centroid_day = constants.CALC_YEAR_CENTROID_DAY
                 for idx in range(ret.shape[0]):
                     year = ref_value[idx]['year']
                     ## create the datetime object
                     ret[idx] = datetime.datetime(year,ref_calc_year_centroid_month,ref_calc_year_centroid_day)
             elif set_grouping == set(['month','year']):
-                ref_calc_month_centroid = constants.calc_month_centroid
+                ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
                     year,month = ref_value[idx]['year'],ref_value[idx]['month']
                     ret[idx] = datetime.datetime(year,month,ref_calc_month_centroid)
@@ -497,7 +497,7 @@ class TemporalDimension(base.VectorDimension):
                 else:
                     center_month = int(np.floor(np.mean([r_bounds[0].month,r_bounds[1].month])))
                 center_year = int(np.floor(np.mean([r_bounds[0].year,r_bounds[1].year])))
-                fill = datetime.datetime(center_year,center_month,constants.calc_month_centroid)
+                fill = datetime.datetime(center_year,center_month,constants.CALC_MONTH_CENTROID)
                 ret[idx] = fill
         return(ret)
     

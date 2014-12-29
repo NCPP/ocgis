@@ -1,8 +1,8 @@
 from collections import OrderedDict
 import os
 from copy import deepcopy
-
 import numpy as np
+
 from cfunits.cfunits import Units
 
 from ocgis.interface.base.attributes import Attributes
@@ -86,7 +86,7 @@ class TestVectorDimension(TestBase):
         self.assertIsNone(vd.name_value)
         self.assertEqual(vd.name_uid, 'None_uid')
         self.assertEqual(vd.name_bounds, 'None_bounds')
-        self.assertEqual(vd.name_bounds_suffix, constants.ocgis_bounds)
+        self.assertEqual(vd.name_bounds_suffix, constants.OCGIS_BOUNDS)
         self.assertIsNone(vd.axis)
 
         # test passing attributes to the constructor
@@ -163,7 +163,7 @@ class TestVectorDimension(TestBase):
         """Test loading from a fake data source."""
 
         vdim = VectorDimension(src_idx=[0, 1, 2, 3], data='foo')
-        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=constants.np_int))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=constants.NP_INT))
         with self.assertRaises(NotImplementedError):
             vdim.value
         with self.assertRaises(NotImplementedError):
@@ -255,7 +255,7 @@ class TestVectorDimension(TestBase):
 
         vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
         self.assertNumpyAll(vdim.bounds, np.array([[3, 5], [4, 6], [5, 7]]))
-        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=constants.np_int))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=constants.NP_INT))
         self.assertEqual(vdim.resolution, 2.0)
 
     def test_with_units(self):
@@ -319,7 +319,7 @@ class TestVectorDimension(TestBase):
                 self.assertEqual(var.axis, axis_actual)
 
                 try:
-                    self.assertIn(constants.ocgis_bounds, ds.dimensions)
+                    self.assertIn(constants.OCGIS_BOUNDS, ds.dimensions)
                 except AssertionError:
                     try:
                         self.assertFalse(k.with_bounds)

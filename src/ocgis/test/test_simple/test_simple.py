@@ -1,7 +1,6 @@
 import re
 import unittest
 import itertools
-import datetime
 import os.path
 from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
@@ -10,28 +9,29 @@ from collections import OrderedDict
 from copy import deepcopy
 from csv import DictReader
 import tempfile
+import numpy as np
 
 from fiona.crs import from_string
 from osgeo.osr import SpatialReference
-import numpy as np
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 import fiona
 from shapely.geometry.geo import mapping
 from shapely import wkt
 
+import datetime
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.definition import SpatialOperation
 from ocgis.util.helpers import make_poly, project_shapely_geometry
 from ocgis import exc, env, constants
-from ocgis.test.base import TestBase, nc_scope, attr
+from ocgis.test.base import TestBase, nc_scope
 import ocgis
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.interface.base import crs
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, WrappableCoordinateReferenceSystem
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
-from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleNcNoBounds, SimpleMaskNc, \
+from ocgis.api.request.base import RequestDataset
+from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleMaskNc, \
     SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
@@ -661,7 +661,7 @@ class TestSimple(TestSimpleBase):
                 var = ds.variables[k]
                 self.assertEqual(var.axis, v)
         with self.nc_scope(ret) as ds:
-            self.assertEqual(ds.file_format, constants.netCDF_default_data_model)
+            self.assertEqual(ds.file_format, constants.NETCDF_DEFAULT_DATA_MODEL)
 
     def test_nc_conversion_calc(self):
         calc_grouping = ['month']
@@ -744,7 +744,7 @@ class TestSimple(TestSimpleBase):
         ret = ops.execute()
         with open(ret) as f:
             reader = DictReader(f)
-            self.assertEqual(reader.fieldnames,[c.upper() for c in constants.required_headers]+['VALUE'])
+            self.assertEqual(reader.fieldnames,[c.upper() for c in constants.HEADERS_REQUIRED]+['VALUE'])
         
         with self.assertRaises(DefinitionValidationError):    
             OcgOperations(dataset=self.get_dataset(),headers=['foo'],output_format='csv')
@@ -955,7 +955,7 @@ class TestSimple(TestSimpleBase):
         rd2['alias'] = 'var2'
         calc = [{'name': 'divide', 'func': 'divide', 'kwds': {'arr1': 'var1', 'arr2': 'var2'}}]
 
-        for o in constants.output_formats:
+        for o in constants.OUTPUT_FORMATS:
             calc_grouping = ['month']
 
             try:

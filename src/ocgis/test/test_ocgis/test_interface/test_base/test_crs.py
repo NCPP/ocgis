@@ -1,9 +1,9 @@
 import os
 from copy import deepcopy
 import netCDF4 as nc
+import numpy as np
 
 from shapely.geometry import Point, MultiPoint
-import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
@@ -45,7 +45,7 @@ class TestCoordinateReferenceSystem(TestBase):
 
         # test with a name parameter
         crs = CoordinateReferenceSystem(epsg=4326)
-        self.assertEqual(crs.name, constants.default_coordinate_system_name)
+        self.assertEqual(crs.name, constants.DEFAULT_COORDINATE_SYSTEM_NAME)
         crs = CoordinateReferenceSystem(epsg=4326, name='foo')
         self.assertEqual(crs.name, 'foo')
 
@@ -221,7 +221,7 @@ class TestSpherical(TestBase):
         arr = np.array([123, 180, 200, 180], dtype=float)
         ret = Spherical._place_prime_meridian_array_(arr)
         self.assertNumpyAll(ret, np.array([False, True, False, True]))
-        self.assertNumpyAll(arr, np.array([123., constants.meridian_180th, 200., constants.meridian_180th]))
+        self.assertNumpyAll(arr, np.array([123., constants.MERIDIAN_180TH, 200., constants.MERIDIAN_180TH]))
 
     def test_wrap_unwrap_with_mask(self):
         """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""

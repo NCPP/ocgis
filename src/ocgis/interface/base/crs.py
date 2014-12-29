@@ -3,10 +3,10 @@ import tempfile
 import itertools
 import abc
 import logging
+import numpy as np
 
 from osgeo.osr import SpatialReference
 from fiona.crs import from_string, to_string
-import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
@@ -20,7 +20,7 @@ from ocgis.util.helpers import iter_array
 class CoordinateReferenceSystem(object):
     
     def __init__(self, value=None, proj4=None, epsg=None, name=None):
-        self.name = name or constants.default_coordinate_system_name
+        self.name = name or constants.DEFAULT_COORDINATE_SYSTEM_NAME
 
         if value is None:
             if proj4 is not None:
@@ -290,7 +290,7 @@ class WrappableCoordinateReferenceSystem(object):
         :rtype: str
         """
 
-        gt_m180 = arr > constants.meridian_180th
+        gt_m180 = arr > constants.MERIDIAN_180TH
         lt_pm = arr < 0
 
         if np.any(lt_pm):
@@ -333,7 +333,7 @@ class WrappableCoordinateReferenceSystem(object):
     @staticmethod
     def _place_prime_meridian_array_(arr):
         """
-        Replace any 180 degree values with the value of :attribute:`ocgis.constants.meridian_180th`.
+        Replace any 180 degree values with the value of :attribute:`ocgis.constants.MERIDIAN_180TH`.
 
         :param arr: The target array to modify inplace.
         :type arr: :class:`numpy.array`
@@ -344,7 +344,7 @@ class WrappableCoordinateReferenceSystem(object):
         # find the values that are 180
         select = arr == 180
         # replace the values that are 180 with the constant value
-        np.place(arr, select, constants.meridian_180th)
+        np.place(arr, select, constants.MERIDIAN_180TH)
         # return the mask used for the replacement
         return select
 

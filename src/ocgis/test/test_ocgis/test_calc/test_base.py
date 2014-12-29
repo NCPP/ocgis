@@ -1,7 +1,7 @@
 from copy import deepcopy
+import numpy as np
 
 from cfunits.cfunits import Units
-import numpy as np
 
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
 from ocgis.test.base import TestBase
@@ -14,7 +14,7 @@ from ocgis.exc import UnitsValidationError, DefinitionValidationError
 
 class FooNeedsUnits(AbstractUnivariateFunction):
     description = 'calculation with units'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'fnu'
     required_units = ['K', 'kelvin']
     standard_name = 'foo_needs_units'
@@ -26,7 +26,7 @@ class FooNeedsUnits(AbstractUnivariateFunction):
             
 class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
     description = 'calculation with units'
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     key = 'fnu'
     required_units = ['K', 'kelvin']
     standard_name = ''
@@ -60,8 +60,8 @@ class TestAbstractFunction(AbstractTestField):
             if k.calc_sample_size:
                 alias = 'n_{0}'.format(variable.alias)
                 ss = res[alias]
-                attrs = {'standard_name': constants.default_sample_size_standard_name,
-                         'long_name': constants.default_sample_size_long_name}
+                attrs = {'standard_name': constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME,
+                         'long_name': constants.DEFAULT_SAMPLE_SIZE_LONG_NAME}
                 self.assertDictEqual(ss.attrs, attrs)
 
     def test_add_to_collection_parents(self):

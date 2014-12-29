@@ -1,10 +1,10 @@
 import os
 from copy import copy, deepcopy
+import numpy as np
 
 import fiona
 from shapely.geometry import Point, shape, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
-import numpy as np
 
 import datetime
 from ocgis.api.collection import SpatialCollection, AbstractCollection
@@ -154,7 +154,7 @@ class TestSpatialCollection(AbstractTestField):
 
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
-        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.calc_headers)
+        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_CALC)
         for row in sc.iter_geoms('state_boundaries'):
             sp.add_field(row['properties']['UGID'], row['geom'], cfield, properties=row['properties'])
         for ii, row in enumerate(sp.get_iter_dict()):
@@ -166,7 +166,7 @@ class TestSpatialCollection(AbstractTestField):
                                               'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean',
                                               'tid': 1, 'level': 50, 'day': 16})
             self.assertEqual(len(row), 2)
-            self.assertEqual(len(row[1]), len(constants.calc_headers))
+            self.assertEqual(len(row[1]), len(constants.HEADERS_CALC))
 
     def test_calculation_iteration_two_calculations(self):
         field = self.get_field(with_value=True, month_count=2)
@@ -199,7 +199,7 @@ class TestSpatialCollection(AbstractTestField):
 
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
-        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.calc_headers)
+        sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_CALC)
         for row in sc.iter_geoms('state_boundaries'):
             sp.add_field(row['properties']['UGID'], row['geom'], cfield, properties=row['properties'])
 
@@ -214,7 +214,7 @@ class TestSpatialCollection(AbstractTestField):
                                               'alias': 'tmax', 'variable': 'tmax', 'gid': 1, 'calc_key': 'mean',
                                               'tid': 1, 'level': 50, 'day': 16})
             self.assertEqual(len(row), 2)
-            self.assertEqual(len(row[1]), len(constants.calc_headers))
+            self.assertEqual(len(row[1]), len(constants.HEADERS_CALC))
         self.assertEqual(ii + 1, 2 * 2 * 2 * 3 * 4 * 51 * 4)
         self.assertEqual(len(cids), 4)
 
@@ -246,7 +246,7 @@ class TestSpatialCollection(AbstractTestField):
                 self.assertDictEqual(row[1],{'lid': 1, 'ugid': 1, 'vid': 1, 'alias': 'tmax', 'did': 1, 'year': 2000, 'value': 0.7203244934421581, 'month': 1, 'variable': 'tmax', 'gid': 2, 'time': datetime.datetime(2000, 1, 1, 12, 0), 'tid': 1, 'level': 50, 'day': 1})
             self.assertIsInstance(row[0],MultiPolygon)
             self.assertEqual(len(row),2)
-            self.assertEqual(len(row[1]),len(constants.raw_headers))
+            self.assertEqual(len(row[1]),len(constants.HEADERS_RAW))
 
     def test_multivariate_iteration(self):
         field = self.get_field(with_value=True,month_count=1)
@@ -266,7 +266,7 @@ class TestSpatialCollection(AbstractTestField):
 
         sc = ShpCabinet()
         meta = sc.get_meta('state_boundaries')
-        sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.multi_headers)
+        sp = SpatialCollection(meta=meta,key='state_boundaries',headers=constants.HEADERS_MULTI)
         for row in sc.iter_geoms('state_boundaries'):
             sp.add_field(row['properties']['UGID'],row['geom'],cfield,properties=row['properties'])
 

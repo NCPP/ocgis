@@ -762,7 +762,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         try:
             ret = np.mean([self.row.resolution,self.col.resolution])
         except AttributeError:
-            resolution_limit = int(constants.resolution_limit)/2
+            resolution_limit = int(constants.RESOLUTION_LIMIT)/2
             r_value = self.value[:,0:resolution_limit,0:resolution_limit]
             rows = np.mean(np.diff(r_value[0,:,:],axis=0))
             cols = np.mean(np.diff(r_value[1,:,:],axis=1))
@@ -883,8 +883,8 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             self.col.write_to_netcdf_dataset(dataset, **kwargs)
         except AttributeError:
             # likely no row and column. write the grid value.
-            name_yc = constants.default_name_row_coordinates
-            name_xc = constants.default_name_col_coordinates
+            name_yc = constants.DEFAULT_NAME_ROW_COORDINATES
+            name_xc = constants.DEFAULT_NAME_COL_COORDINATES
             dataset.createDimension(name_yc, size=self.shape[0])
             dataset.createDimension(name_xc, size=self.shape[1])
             value = self.value
@@ -898,7 +898,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 
             if self.corners is not None:
                 corners = self.corners
-                ncorners = constants.default_name_corners_dimension
+                ncorners = constants.DEFAULT_NAME_CORNERS_DIMENSION
                 dataset.createDimension(ncorners, size=4)
                 name_yc_corner = '{0}_corners'.format(name_yc)
                 name_xc_corner = '{0}_corners'.format(name_xc)
@@ -931,7 +931,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 shp = len(self.row), len(self.col)
             else:
                 shp = self._value.shape[1], self._value.shape[2]
-        ret = np.arange(1, (shp[0] * shp[1]) + 1, dtype=constants.np_int).reshape(shp)
+        ret = np.arange(1, (shp[0] * shp[1]) + 1, dtype=constants.NP_INT).reshape(shp)
         ret = np.ma.array(ret, mask=False)
         return ret
 
@@ -1066,7 +1066,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
 
     @property
     def weights(self):
-        ret = np.ones(self.value.shape,dtype=constants.np_float)
+        ret = np.ones(self.value.shape,dtype=constants.NP_FLOAT)
         ret = np.ma.array(ret,mask=self.value.mask)
         return(ret)
 
@@ -1238,7 +1238,7 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
     @property
     def area(self):
         r_value = self.value
-        fill = np.ones(r_value.shape,dtype=constants.np_float)
+        fill = np.ones(r_value.shape,dtype=constants.NP_FLOAT)
         fill = np.ma.array(fill,mask=r_value.mask)
         for (ii,jj),geom in iter_array(r_value,return_value=True):
             fill[ii,jj] = geom.area

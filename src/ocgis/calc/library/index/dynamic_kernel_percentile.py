@@ -1,15 +1,16 @@
 import numpy as np
+from collections import OrderedDict, defaultdict
+import calendar
+
 from ocgis.calc.base import AbstractParameterizedFunction, AbstractUnivariateSetFunction
 from ocgis import constants
-from collections import OrderedDict, defaultdict
 from datetime import datetime
-import calendar
 
 
 class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, AbstractParameterizedFunction):
     key = 'dynamic_kernel_percentile_threshold'
     parms_definition = {'operation': str, 'percentile': float, 'daily_percentile': None, 'width': int}
-    dtype = constants.np_int
+    dtype = constants.NP_INT
     description = 'Implementation of moving window percentile threshold calculations similar to ECA indices: http://eca.knmi.nl/documents/atbd.pdf'
     standard_name = 'dynamic_kernel_percentile'
     long_name = 'Dynamic Kernel Percentile'

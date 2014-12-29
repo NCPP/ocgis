@@ -1,14 +1,14 @@
 from copy import deepcopy
 from netCDF4 import num2date, date2num
 import os
-from datetime import datetime as dt
-import datetime
 from collections import deque
 import itertools
-
-import netcdftime
 import numpy as np
 
+import netcdftime
+
+from datetime import datetime as dt
+import datetime
 from ocgis.util.itester import itr_products_keywords
 from ocgis import constants
 from ocgis.test.base import TestBase, nc_scope
@@ -136,8 +136,8 @@ class TestTemporalDimension(TestBase):
         self.assertEqual(td.axis, 'T')
         self.assertEqual(td.name, 'time')
         self.assertEqual(td.name_uid, 'tid')
-        self.assertEqual(td.calendar, constants.default_temporal_calendar)
-        self.assertEqual(td.units, constants.default_temporal_units)
+        self.assertEqual(td.calendar, constants.DEFAULT_TEMPORAL_CALENDAR)
+        self.assertEqual(td.units, constants.DEFAULT_TEMPORAL_UNITS)
         self.assertIsInstance(td, VectorDimension)
         self.assertFalse(td._has_months_units)
         self.assertTrue(td.format_time)
@@ -169,8 +169,8 @@ class TestTemporalDimension(TestBase):
         value_datetime = np.array([dt(2000, 1, 15), dt(2000, 2, 15)])
         bounds_datetime = np.array([[dt(2000, 1, 1), dt(2000, 2, 1)],
                                     [dt(2000, 2, 1), dt(2000, 3, 1)]])
-        value = date2num(value_datetime, constants.default_temporal_units, calendar=constants.default_temporal_calendar)
-        bounds_num = date2num(bounds_datetime, constants.default_temporal_units, calendar=constants.default_temporal_calendar)
+        value = date2num(value_datetime, constants.DEFAULT_TEMPORAL_UNITS, calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
+        bounds_num = date2num(bounds_datetime, constants.DEFAULT_TEMPORAL_UNITS, calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
         bounds_options = [None, bounds_num, bounds_datetime]
         value_options = [value, value, value_datetime]
         for format_time in [True, False]:
@@ -280,7 +280,7 @@ class TestTemporalDimension(TestBase):
                     self.assertIsInstance(values['time'], float)
 
     def test_get_numtime(self):
-        units_options = [constants.default_temporal_units, 'months since 1960-5']
+        units_options = [constants.DEFAULT_TEMPORAL_UNITS, 'months since 1960-5']
         value_options = [np.array([5000., 5001]), np.array([5, 6, 7])]
         for units, value in zip(units_options, value_options):
             td = TemporalDimension(value=value, units=units)
@@ -377,7 +377,7 @@ class TestTemporalDimension(TestBase):
         tgd = field.temporal.get_grouping(calc_grouping)
         self.assertEqual(tgd.shape, (4,))
         self.assertEqual([xx[1] for xx in calc_grouping], [xx.month for xx in tgd.value.flat])
-        self.assertEqual(set([xx.day for xx in tgd.value.flat]), {constants.calc_month_centroid})
+        self.assertEqual(set([xx.day for xx in tgd.value.flat]), {constants.CALC_MONTH_CENTROID})
         self.assertEqual([2006, 2005, 2005, 2005], [xx.year for xx in tgd.value.flat])
         self.assertNumpyAll(tgd.bounds_numtime, np.array([[55152.0, 58804.0], [55211.0, 58590.0], [55303.0, 58682.0], [55395.0, 58773.0]]))
 
@@ -592,7 +592,7 @@ class TestTemporalDimension(TestBase):
 
     def test_value_datetime_and_value_numtime(self):
         value_datetime = np.array([dt(2000, 1, 15), dt(2000, 2, 15)])
-        value = date2num(value_datetime, constants.default_temporal_units, calendar=constants.default_temporal_calendar)
+        value = date2num(value_datetime, constants.DEFAULT_TEMPORAL_UNITS, calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
         keywords = dict(value=[value, value_datetime],
                         format_time=[True, False])
         for k in itr_products_keywords(keywords, as_namedtuple=True):
@@ -660,7 +660,7 @@ class TestTemporalGroupDimension(TestBase):
         tgd = td.get_grouping(['month'])
         self.assertEqual(tuple(tgd.date_parts[0]), (None, 1, None, None, None, None))
         self.assertTrue(tgd.dgroups[0].all())
-        self.assertNumpyAll(tgd.uid, np.array([1], dtype=constants.np_int))
+        self.assertNumpyAll(tgd.uid, np.array([1], dtype=constants.NP_INT))
 
     def test_write_to_netcdf_dataset(self):
         tgd = self.get_tgd()

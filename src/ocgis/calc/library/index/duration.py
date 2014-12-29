@@ -1,9 +1,10 @@
-from ocgis.calc import base
 import numpy as np
+from collections import OrderedDict
+
+from ocgis.calc import base
 from ocgis.util.helpers import iter_array
 from ocgis.exc import DefinitionValidationError
 from ocgis import constants
-from collections import OrderedDict
 
 
 class Duration(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):
@@ -11,7 +12,7 @@ class Duration(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunc
     parms_definition = {'threshold':float,'operation':str,'summary':str}
     ## output data type will vary by the summary operation (e.g. float for mean,
     ## int for max)
-    dtype = constants.np_float
+    dtype = constants.NP_FLOAT
     description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
     standard_name = 'duration'
     long_name = 'Duration'
@@ -98,7 +99,7 @@ class FrequencyDuration(base.AbstractKeyedOutputFunction,Duration):
     key = 'freq_duration'
     description = 'Count the frequency of spell durations within the temporal aggregation.'
     dtype = object
-    structure_dtype = OrderedDict([['names',['duration','count']],['formats',[constants.np_int,constants.np_int]]])
+    structure_dtype = OrderedDict([['names',['duration','count']],['formats',[constants.NP_INT,constants.NP_INT]]])
     parms_definition = {'threshold':float,'operation':str}
     standard_name = 'frequency_duration'
     long_name = 'Frequency Duration'

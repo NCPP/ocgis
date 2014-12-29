@@ -312,7 +312,7 @@ class TestRequestDataset(TestBase):
     def test_source_index_matches_constant_value(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        self.assertEqual(field.temporal._src_idx.dtype, constants.np_int)
+        self.assertEqual(field.temporal._src_idx.dtype, constants.NP_INT)
 
     def test_with_units(self):
         units = 'celsius'

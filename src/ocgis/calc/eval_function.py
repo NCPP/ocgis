@@ -1,8 +1,9 @@
-from ocgis.calc.base import AbstractUnivariateFunction
-from ocgis import constants
 import numpy as np
 import re
 from copy import deepcopy
+
+from ocgis.calc.base import AbstractUnivariateFunction
+from ocgis import constants
 
 
 class EvalFunction(AbstractUnivariateFunction):
@@ -12,7 +13,7 @@ class EvalFunction(AbstractUnivariateFunction):
     :param str expr: The string function to evaluate. The function must have an
      equals sign. The function may contain multiple variables aliases. Mathematical
      operators include standard arithmetic symbols and NumPy functions. The list of
-     enabled functions is contained in :attr:~`ocgis.constants.enabled_numpy_ufuncs`.
+     enabled functions is contained in :attr:~`ocgis.constants.ENABLED_NUMPY_UFUNCS`.
     '''
     description = None
     dtype = None
@@ -76,7 +77,7 @@ class EvalFunction(AbstractUnivariateFunction):
         :param str expr: The string function to evaluate. The function must have an
           equals sign. The function may contain multiple variables aliases. Mathematical
           operators include standard arithmetic symbols and NumPy functions. The list of
-          enabled functions is contained in :attr:~`ocgis.constants.enabled_numpy_ufuncs`.
+          enabled functions is contained in :attr:~`ocgis.constants.ENABLED_NUMPY_UFUNCS`.
         :returns bool:
         '''
         ## do not count the output variable name
@@ -87,7 +88,7 @@ class EvalFunction(AbstractUnivariateFunction):
         strings = set([s for s in strings if re.search('[A-Za-z]',s) is not None])
         strings_left = deepcopy(strings)
         for s in strings:
-            if s in constants.enabled_numpy_ufuncs:
+            if s in constants.ENABLED_NUMPY_UFUNCS:
                 strings_left.remove(s)
         ## if there are more than one variable alias in the equation, the expression
         ## is multivariate
@@ -103,7 +104,7 @@ class EvalFunction(AbstractUnivariateFunction):
         :param str expr: The string function to evaluate. The function must have an
           equals sign. The function may contain multiple variables aliases. Mathematical
           operators include standard arithmetic symbols and NumPy functions. The list of
-          enabled functions is contained in :attr:~`ocgis.constants.enabled_numpy_ufuncs`.
+          enabled functions is contained in :attr:~`ocgis.constants.ENABLED_NUMPY_UFUNCS`.
         :param dict map_vars: Maps variable aliases to their output representation
          in ``expr``.
          
@@ -130,12 +131,12 @@ class EvalFunction(AbstractUnivariateFunction):
         ## "strings" must be entirely composed of enabled numpy functions and the
         ## variable aliases originating from the keys in "map_vars"
         for s in strings:
-            if s not in constants.enabled_numpy_ufuncs and s not in map_vars.keys():
+            if s not in constants.ENABLED_NUMPY_UFUNCS and s not in map_vars.keys():
                 raise(ValueError('Unable to parse expression string: "{0}". '
                                  'Ensure the NumPy functions are enabled and appropriate '
                                  'variables have been requested. The problem string value is "{1}".'.format(expr,s)))
         ## update the names of the numpy functions to use the module prefix "np"
-        for np_func in constants.enabled_numpy_ufuncs:
+        for np_func in constants.ENABLED_NUMPY_UFUNCS:
             expr = expr.replace(np_func,'np.'+np_func)
         ## update the variable aliases to match the key-value relationship in
         ## "map_vars"

@@ -84,6 +84,14 @@ class TestRequestDataset(TestBase):
         field = rd.get()
         self.assertDictEqual(kwds['crs'].value, field.spatial.crs.value)
 
+    def test_driver(self):
+        uri_nc = self.test_data.get_uri('cancm4_tas')
+        rd = RequestDataset(uri_nc)
+        self.assertIsInstance(rd.driver, DriverNetcdf)
+
+        rd = RequestDataset(uri_nc, driver='vector')
+        self.assertIsInstance(rd.driver, DriverVector)
+
     def test_Drivers(self):
         # always test for netcdf first
         self.assertIsInstance(RequestDataset._Drivers, OrderedDict)

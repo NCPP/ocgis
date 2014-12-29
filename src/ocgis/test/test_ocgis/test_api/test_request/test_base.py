@@ -71,6 +71,13 @@ class TestRequestDataset(TestBase):
         self.assertIsNone(rd.variable)
         self.assertIsInstance(rd.get(), Field)
 
+        uri_nc = self.test_data.get_uri('cancm4_tas')
+        rd = RequestDataset(uri_nc)
+        self.assertIsInstance(rd.driver, DriverNetcdf)
+
+        rd = RequestDataset(uri_nc, driver='vector')
+        self.assertIsInstance(rd.driver, DriverVector)
+
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ss = str(rd)
@@ -83,14 +90,6 @@ class TestRequestDataset(TestBase):
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
         field = rd.get()
         self.assertDictEqual(kwds['crs'].value, field.spatial.crs.value)
-
-    def test_driver(self):
-        uri_nc = self.test_data.get_uri('cancm4_tas')
-        rd = RequestDataset(uri_nc)
-        self.assertIsInstance(rd.driver, DriverNetcdf)
-
-        rd = RequestDataset(uri_nc, driver='vector')
-        self.assertIsInstance(rd.driver, DriverVector)
 
     def test_Drivers(self):
         # always test for netcdf first

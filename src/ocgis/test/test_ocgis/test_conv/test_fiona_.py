@@ -1,6 +1,8 @@
 from collections import OrderedDict
 import os
+
 import fiona
+
 import ocgis
 from ocgis.api.subset import SubsetOperation
 from ocgis.conv.fiona_ import ShpConverter

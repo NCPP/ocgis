@@ -9,7 +9,7 @@ from shapely.ops import cascaded_union
 
 from datetime import datetime as dt
 import datetime
-from ocgis import constants
+from ocgis import constants, SpatialCollection
 from ocgis import RequestDataset
 from ocgis.interface.base.attributes import Attributes
 from ocgis.interface.base.crs import WGS84, Spherical
@@ -147,6 +147,20 @@ class TestField(AbstractTestField):
     def test_init_empty(self):
         with self.assertRaises(ValueError):
             Field()
+
+    def test_as_spatial_collection(self):
+        field = self.get_field(with_value=True)
+        coll = field.as_spatial_collection()
+        self.assertIsInstance(coll, SpatialCollection)
+        self.assertIsInstance(coll[1][field.name], Field)
+        self.assertIsNone(coll.properties[1])
+
+        # test with some properties
+        properties = np.zeros(1, dtype={'names': ['color', 'desc'], 'formats': [object, int]})
+        properties[0] = ('blue', 4)
+        field.spatial.properties = properties
+        coll = field.as_spatial_collection()
+        self.assertEqual(coll.properties[1], properties[0])
 
     def test_crs(self):
         field = self.get_field(with_value=True)

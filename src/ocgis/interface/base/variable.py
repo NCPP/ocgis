@@ -1,11 +1,10 @@
 import abc
 from copy import copy, deepcopy
-
 import numpy as np
 
 from ocgis.api.collection import AbstractCollection
 from ocgis.interface.base.attributes import Attributes
-from ocgis.util.helpers import get_iter
+from ocgis.util.helpers import get_iter, iter_array
 from ocgis.exc import NoUnitsError, VariableInCollectionError
 
 
@@ -204,13 +203,13 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable, Attributes):
         Attributes.__init__(self, attrs=attrs)
         AbstractValueVariable.__init__(self, value=value, units=units, dtype=dtype, fill_value=fill_value, name=name,
                                        conform_units_to=conform_units_to)
-        
-    def __getitem__(self,slc):
+
+    def __getitem__(self, slc):
         ret = copy(self)
         if ret._value is not None:
             ret._value = self._value[slc]
-        return(ret)
-                
+        return (ret)
+
     def __str__(self):
         units = '{0}' if self.units is None else '"{0}"'
         units = units.format(self.units)
@@ -239,30 +238,50 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable, Attributes):
         ret = Variable(name=self.name, units=self.units, meta=deepcopy(self.meta), value=value, did=self.did,
                        alias=self.alias, uid=self.uid, attrs=deepcopy(self.attrs))
         return ret
-    
-    def _format_private_value_(self,value):
+
+    def iter_melted(self, use_mask=True):
+        """
+        :param bool use_mask: If ``True`` (the default), do not yield masked values. If ``False``, yield the underlying
+         masked data value.
+        :returns: A dictionary containing variable values for each index location in the array.
+        :rtype: dict
+        """
+
+        units = self.units
+        uid = self.uid
+        did = self.did
+        alias = self.alias
+        name = self.name
+        attrs = self.attrs
+
+        for idx, value in iter_array(self.value, use_mask=use_mask, return_value=True):
+            yld = {'value': value, 'units': units, 'uid': uid, 'did': did, 'alias': alias, 'name': name, 'slice': idx,
+                   'attrs': attrs}
+            yield yld
+
+    def _format_private_value_(self, value):
         # the superclass method does nice things like conform units if appropriate
         value = AbstractValueVariable._format_private_value_(self, value)
         if value is None:
             ret = None
         else:
-            assert(isinstance(value,np.ndarray))
-            if not isinstance(value,np.ma.MaskedArray):
-                ret = np.ma.array(value,mask=False)
+            assert (isinstance(value, np.ndarray))
+            if not isinstance(value, np.ma.MaskedArray):
+                ret = np.ma.array(value, mask=False)
             else:
                 ret = value
-        return(ret)
-    
+        return ret
+
     def _get_value_(self):
         if self._value is None:
             self._set_value_from_source_()
-        return(self._value)
-    
+        return self._value
+
     def _set_value_from_source_(self):
-        ## load the value from source using the referenced field
-        self._value = self._field._get_value_from_source_(self._data,self.name)
-        ## ensure the new value has the geometry masked applied
-        self._field._set_new_value_mask_(self._field,self._field.spatial.get_mask())
+        # load the value from source using the referenced field
+        self._value = self._field._get_value_from_source_(self._data, self.name)
+        # ensure the new value has the geometry masked applied
+        self._field._set_new_value_mask_(self._field, self._field.spatial.get_mask())
     
     
 class VariableCollection(AbstractCollection):
@@ -301,6 +320,16 @@ class VariableCollection(AbstractCollection):
         ret = VariableCollection(variables=variables)
         return ret
 
+    def iter_melted(self, **kwargs):
+        """
+        :returns: Call :meth:`~ocgis.Variable.iter_melted` passing ``kwargs`` for each variable in the collection.
+        :rtype: see :meth:`~ocgis.Variable.iter_melted`
+        """
+
+        for variable in self.itervalues():
+            for row in variable.iter_melted(**kwargs):
+                yield row
+
 
 class DerivedVariable(Variable):
     """
@@ -319,3 +348,21 @@ class DerivedVariable(Variable):
         self.parents = kwargs.pop('parents', None)
 
         super(DerivedVariable, self).__init__(**kwargs)
+
+    def iter_melted(self, **kwargs):
+        calc_key = self.fdef['func']
+        calc_alias = self.fdef['name']
+
+        if self.parents is not None:
+            first = self.parents.first()
+            name = first.name
+            alias = first.alias
+        else:
+            name, alias = None, None
+
+        for row in super(DerivedVariable, self).iter_melted(**kwargs):
+            row['calc_key'] = calc_key
+            row['calc_alias'] = calc_alias
+            row['name'] = name
+            row['alias'] = alias
+            yield row

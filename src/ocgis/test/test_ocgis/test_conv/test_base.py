@@ -1,15 +1,16 @@
 from csv import DictReader
-from ocgis.test.base import TestBase, nc_scope
-from ocgis.api.collection import SpatialCollection
-from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
-import ocgis
 import os
-from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
-from ocgis.conv.nc import NcConverter
 import itertools
 from copy import deepcopy
 import tempfile
 import numpy as np
+
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.api.collection import SpatialCollection
+from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
+import ocgis
+from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
+from ocgis.conv.nc import NcConverter
 
 
 class AbstractTestConverter(TestBase):
@@ -38,9 +39,9 @@ class TestAbstractConverter(AbstractTestConverter):
             outdir = tempfile.mkdtemp(dir=self.current_dir_output)
             try:
                 conv = Converter([coll],outdir,'ocgis_output',add_auxiliary_files=add_auxiliary_files,ops=ops_arg)
-            ## CsvPlusConverter requires an operations argument
+            ## CsvShapefileConverter requires an operations argument
             except ValueError as e:
-                if Converter == CsvPlusConverter and ops_arg is None:
+                if Converter == CsvShapefileConverter and ops_arg is None:
                     continue
                 else:
                     raise(e)
@@ -114,7 +115,7 @@ class TestAbstractConverter(AbstractTestConverter):
         self.run_overwrite_true_tst(ShpConverter)
         
     def test_overwrite_true_csv_shp(self):
-        self.run_overwrite_true_tst(CsvPlusConverter,include_ops=True)
+        self.run_overwrite_true_tst(CsvShapefileConverter,include_ops=True)
 
     def test_add_auxiliary_files_csv(self):        
         self.run_auxiliary_file_tst(CsvConverter,['ocgis_output.csv'])
@@ -126,7 +127,7 @@ class TestAbstractConverter(AbstractTestConverter):
         self.run_auxiliary_file_tst(NcConverter,['ocgis_output.nc'])
             
     def test_add_auxiliary_files_csv_shp(self):
-        self.run_auxiliary_file_tst(CsvPlusConverter,['ocgis_output.csv', 'shp'])
+        self.run_auxiliary_file_tst(CsvShapefileConverter,['ocgis_output.csv', 'shp'])
     
     def test_add_auxiliary_files_shp(self):        
         self.run_auxiliary_file_tst(ShpConverter,['ocgis_output.dbf', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output.cpg', 'ocgis_output.prj'])

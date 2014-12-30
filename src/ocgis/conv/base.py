@@ -273,13 +273,13 @@ class AbstractConverter(object):
         """
 
         from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
-        from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
+        from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
         from ocgis.conv.numpy_ import NumpyConverter
         from ocgis.conv.nc import NcConverter
 
         mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
                 constants.OUTPUT_FORMAT_CSV: CsvConverter,
-                constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvPlusConverter,
+                constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvShapefileConverter,
                 constants.OUTPUT_FORMAT_NUMPY: NumpyConverter,
                 constants.OUTPUT_FORMAT_GEOJSON: GeoJsonConverter,
                 # 'shpidx':ShpIdxConverter,

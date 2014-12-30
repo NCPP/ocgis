@@ -1,8 +1,8 @@
 from collections import OrderedDict
-
 from numpy.ma import MaskedArray
-from cfunits import Units
 import numpy as np
+
+from cfunits import Units
 
 from ocgis.exc import VariableInCollectionError, NoUnitsError
 from ocgis.interface.base.attributes import Attributes
@@ -77,6 +77,23 @@ class TestDerivedVariable(TestBase):
         dv = DerivedVariable(fdef=fdef)
         self.assertEqual(dv.fdef, fdef)
         self.assertIsNone(dv.parents)
+
+    def test_iter_melted(self):
+        fdef = {'func': 'mean', 'name': 'mean_alias'}
+        tmax = Variable(name='tmax', alias='tmax_alias')
+        parents = VariableCollection(variables=tmax)
+
+        for p in [None, parents]:
+            dv = DerivedVariable(fdef=fdef, value=np.array([1, 2]), name='mean', alias='my_mean', parents=p)
+            for row in dv.iter_melted():
+                self.assertEqual(row['calc_key'], 'mean')
+                self.assertEqual(row['calc_alias'], 'mean_alias')
+                for key in ['name', 'alias']:
+                    if p is None:
+                        self.assertIsNone(row[key])
+                    else:
+                        self.assertEqual(row['name'], 'tmax')
+                        self.assertEqual(row['alias'], 'tmax_alias')
 
 
 class TestVariable(TestBase):
@@ -191,6 +208,60 @@ class TestVariable(TestBase):
             new_var.meta['hi'] = 'there'
             self.assertDictEqual(var.meta, {'foo': 5})
 
+    def test_iter_melted(self):
+
+        def _assert_key_(attr, key, row, actual_none=None):
+            key_value = row[key]
+            if attr is not None:
+                self.assertEqual(key_value, attr)
+            else:
+                if actual_none is None:
+                    self.assertIsNone(key_value)
+                else:
+                    self.assertEqual(key_value, actual_none)
+
+        keywords = dict(value=[np.ma.array([[4, 5], [6, 7]], mask=[[False, True], [False, False]])],
+                        use_mask=[True, False],
+                        name=[None, 'tmax'],
+                        alias=[None, 'tmax_alias'],
+                        units=[None, 'celsius'],
+                        uid=[None, 3],
+                        did=[None, 7],
+                        name_uid=[None, 'vid'],
+                        attrs=[None, {'foo': 1, 'foo3': 2}])
+
+        for k in self.iter_product_keywords(keywords):
+            var = Variable(value=k.value, name=k.name, alias=k.alias, units=k.units, uid=k.uid, did=k.did,
+                           attrs=k.attrs)
+            rows = []
+            for row in var.iter_melted(use_mask=k.use_mask):
+                self.assertAsSetEqual(row.keys(), ['slice', 'name', 'did', 'value', 'alias', 'units', 'uid', 'attrs'])
+                self.assertIn('slice', row)
+
+                if k.name is None:
+                    if k.alias is None:
+                        self.assertIsNone(row['alias'])
+                    else:
+                        self.assertEqual(row['alias'], k.alias)
+                else:
+                    if k.alias is None:
+                        self.assertEqual(row['alias'], k.name)
+                    else:
+                        self.assertEqual(row['alias'], k.alias)
+
+                _assert_key_(k.name, 'name', row)
+                _assert_key_(k.units, 'units', row)
+                _assert_key_(k.uid, 'uid', row)
+                _assert_key_(k.did, 'did', row)
+                _assert_key_(k.attrs, 'attrs', row, actual_none=OrderedDict())
+
+                rows.append(row)
+            if k.use_mask:
+                self.assertEqual(len(rows), 3)
+            else:
+                self.assertEqual(len(rows), 4)
+
+
 class TestVariableCollection(TestBase):
     create_dir = False
 
@@ -248,3 +319,11 @@ class TestVariableCollection(TestBase):
             self.assertNumpyAll(v.value, np.ma.array([4]))
         for k, v in ret.iteritems():
             self.assertTrue(np.may_share_memory(v.value, ret[k].value))
+
+    def test_iter_melted(self):
+        variables = [self.get_variable(), self.get_variable('tas_foo2')]
+        vc = VariableCollection(variables=variables)
+        test = set()
+        for row in vc.iter_melted():
+            test.update([row['alias']])
+        self.assertAsSetEqual(test, [xx.alias for xx in variables])

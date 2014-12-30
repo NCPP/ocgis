@@ -3,8 +3,8 @@ from copy import copy, deepcopy
 from collections import deque
 import itertools
 import logging
-
 import numpy as np
+
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
@@ -14,7 +14,7 @@ from ocgis.interface.base.attributes import Attributes
 from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice, \
     set_name_attributes
 from ocgis.interface.base.variable import Variable, VariableCollection
-from ocgis import constants
+from ocgis import SpatialCollection
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -153,6 +153,16 @@ class Field(Attributes):
             v._field = self
             if v._value is not None:
                 assert v._value.shape == self.shape
+
+    def as_spatial_collection(self):
+        """
+        :returns: A spatial collection containing the field.
+        :rtype: :class:`~ocgis.SpatialCollection`
+        """
+
+        coll = SpatialCollection()
+        coll.add_field(1, None, self, properties=self.spatial.properties, name=self.name)
+        return coll
 
     def get_between(self, dim, lower, upper):
         pos = self._axis_map[dim]

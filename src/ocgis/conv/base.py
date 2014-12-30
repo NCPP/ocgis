@@ -7,6 +7,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
 
+from ocgis import constants
 from ocgis.interface.base.field import Field
 from ocgis.conv.meta import MetaConverter
 from ocgis.util.inspect import Inspect
@@ -265,22 +266,27 @@ class AbstractConverter(object):
     
     @classmethod
     def get_converter_map(cls):
+        """
+        :returns: A dictionary with keys corresponding to an output format's short name. Values correspond to the
+         converter class.
+        :rtype: dict
+        """
+
         from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
         from ocgis.conv.csv_ import CsvConverter, CsvPlusConverter
         from ocgis.conv.numpy_ import NumpyConverter
-#        from ocgis.conv.shpidx import ShpIdxConverter
-#        from ocgis.conv.keyed import KeyedConverter
         from ocgis.conv.nc import NcConverter
 
-        mmap = {'shp': ShpConverter,
-                'csv': CsvConverter,
-                'csv+': CsvPlusConverter,
-                'numpy': NumpyConverter,
-                'geojson': GeoJsonConverter,
+        mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
+                constants.OUTPUT_FORMAT_CSV: CsvConverter,
+                constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvPlusConverter,
+                constants.OUTPUT_FORMAT_NUMPY: NumpyConverter,
+                constants.OUTPUT_FORMAT_GEOJSON: GeoJsonConverter,
                 # 'shpidx':ShpIdxConverter,
                 # 'keyed':KeyedConverter,
-                'nc': NcConverter,
-                'meta': MetaConverter}
+                constants.OUTPUT_FORMAT_NETCDF: NcConverter,
+                constants.OUTPUT_FORMAT_METADATA: MetaConverter}
+
         return mmap
         
     @classmethod

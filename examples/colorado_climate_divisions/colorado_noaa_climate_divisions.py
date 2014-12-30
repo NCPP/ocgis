@@ -12,19 +12,17 @@ ocgis.env.OVERWRITE = True
 
 
 select = lambda x: x['properties']['STATE'] == 'Colorado'
-rows = filter(select,ocgis.ShpCabinetIterator(path=SHP_PATH))
-select_ugid = map(lambda x: x['properties']['UGID'],rows)
+rows = filter(select, ocgis.ShpCabinetIterator(path=SHP_PATH))
+select_ugid = map(lambda x: x['properties']['UGID'], rows)
 select_ugid.sort()
 
 rds = []
 for fn in FILENAMES:
     variable = fn.split('_')[0]
-    rd = ocgis.RequestDataset(uri=fn,variable=variable,conform_units_to='Celsius')
+    rd = ocgis.RequestDataset(uri=fn, variable=variable, conform_units_to='Celsius')
     rds.append(rd)
 
-ops = ocgis.OcgOperations(dataset=rds,select_ugid=select_ugid,spatial_operation='clip',
-                          aggregate=True,output_format='csv+',geom=SHP_PATH)
+ops = ocgis.OcgOperations(dataset=rds, select_ugid=select_ugid, spatial_operation='clip', aggregate=True,
+                          output_format='csv-shp', geom=SHP_PATH)
 ret = ops.execute()
 print(ret)
-
-import ipdb;ipdb.set_trace()

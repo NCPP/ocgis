@@ -3,19 +3,20 @@ from csv import DictReader
 import os
 import shutil
 import itertools
+import numpy as np
+
 import fiona
+from shapely import wkt
+
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
 from ocgis.exc import DefinitionValidationError, ExtentError
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
 from ocgis.util.spatial.fiona_maker import FionaMaker
-from shapely import wkt
-
-from ocgis import OcgOperations, env
+from ocgis import OcgOperations, env, constants
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc, SimpleNcNoBounds, SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
-import numpy as np
 
 
 class TestCombinatorial(TestBase):
@@ -187,13 +188,13 @@ class TestProjectionCombinations(TestSimpleBase):
         # self.get_ret(kwds={'output_format':'shp','prefix':'as_point','abstraction':'point'})
 
         features = [
-         {'NAME':'a','wkt':'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},
-         {'NAME':'b','wkt':'POLYGON((-102.212903 39.004301,-102.905376 38.906452,-103.311828 37.694624,-103.326882 37.295699,-103.898925 37.220430,-103.846237 36.746237,-102.619355 37.107527,-102.634409 37.724731,-101.874194 37.882796,-102.212903 39.004301))'},
-         {'NAME':'c','wkt':'POLYGON((-105.336559 37.175269,-104.945161 37.303226,-104.726882 37.175269,-104.696774 36.844086,-105.043011 36.693548,-105.283871 36.640860,-105.336559 37.175269))'},
-         {'NAME':'d','wkt':'POLYGON((-102.318280 39.741935,-103.650538 39.779570,-103.620430 39.448387,-103.349462 39.433333,-103.078495 39.606452,-102.325806 39.613978,-102.325806 39.613978,-102.333333 39.741935,-102.318280 39.741935))'},
-                   ]
+            {'NAME': 'a', 'wkt': 'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},
+            {'NAME': 'b', 'wkt': 'POLYGON((-102.212903 39.004301,-102.905376 38.906452,-103.311828 37.694624,-103.326882 37.295699,-103.898925 37.220430,-103.846237 36.746237,-102.619355 37.107527,-102.634409 37.724731,-101.874194 37.882796,-102.212903 39.004301))'},
+            {'NAME': 'c', 'wkt': 'POLYGON((-105.336559 37.175269,-104.945161 37.303226,-104.726882 37.175269,-104.696774 36.844086,-105.043011 36.693548,-105.283871 36.640860,-105.336559 37.175269))'},
+            {'NAME': 'd', 'wkt': 'POLYGON((-102.318280 39.741935,-103.650538 39.779570,-103.620430 39.448387,-103.349462 39.433333,-103.078495 39.606452,-102.325806 39.613978,-102.325806 39.613978,-102.333333 39.741935,-102.318280 39.741935))'},
+        ]
 
-        for filename in ['polygon','point']:
+        for filename in ['polygon', 'point']:
             if filename == 'point':
                 geometry = 'Point'
                 to_write = deepcopy(features)
@@ -204,84 +205,83 @@ class TestProjectionCombinations(TestSimpleBase):
                 to_write = features
                 geometry = 'Polygon'
 
-            path = os.path.join(self.current_dir_output,'ab_{0}.shp'.format(filename))
-            with FionaMaker(path,geometry=geometry) as fm:
+            path = os.path.join(self.current_dir_output, 'ab_{0}.shp'.format(filename))
+            with FionaMaker(path, geometry=geometry) as fm:
                 fm.write(to_write)
 
         no_bounds_nc = SimpleNcNoBounds()
         no_bounds_nc.write()
-        no_bounds_uri = os.path.join(env.DIR_OUTPUT,no_bounds_nc.filename)
+        no_bounds_uri = os.path.join(env.DIR_OUTPUT, no_bounds_nc.filename)
 
         no_level_nc = SimpleNcNoLevel()
         no_level_nc.write()
-        no_level_uri = os.path.join(env.DIR_OUTPUT,no_level_nc.filename)
+        no_level_uri = os.path.join(env.DIR_OUTPUT, no_level_nc.filename)
 
         ocgis.env.DIR_SHPCABINET = self.current_dir_output
-#        ocgis.env.DEBUG = True
-#        ocgis.env.VERBOSE = True
+        # ocgis.env.DEBUG = True
+        #        ocgis.env.VERBOSE = True
 
         aggregate = [
-                     False,
-                     True
-                     ]
+            False,
+            True
+        ]
         spatial_operation = [
-                             'intersects',
-                             'clip'
-                             ]
+            'intersects',
+            'clip'
+        ]
         epsg = [
-                2163,
-                4326,
-                None
-                ]
+            2163,
+            4326,
+            None
+        ]
         output_format = [
-                         'nc',
-                         'shp',
-                         'csv+'
-                         ]
+            constants.OUTPUT_FORMAT_NETCDF,
+            constants.OUTPUT_FORMAT_SHAPEFILE,
+            constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        ]
         abstraction = [
-                       'polygon',
-                       'point',
-                       None
-                       ]
+            'polygon',
+            'point',
+            None
+        ]
         dataset = [
-                   self.get_dataset(),
-                   {'uri':no_bounds_uri,'variable':'foo'},
-                   {'uri':no_level_uri,'variable':'foo'}
-                   ]
+            self.get_dataset(),
+            {'uri': no_bounds_uri, 'variable': 'foo'},
+            {'uri': no_level_uri, 'variable': 'foo'}
+        ]
         geom = [
-                'ab_polygon',
-                'ab_point'
-                ]
+            'ab_polygon',
+            'ab_point'
+        ]
         calc = [
-                None,
-                [{'func':'mean','name':'my_mean'}]
-                ]
+            None,
+            [{'func': 'mean', 'name': 'my_mean'}]
+        ]
         calc_grouping = ['month']
 
-        args = (aggregate,spatial_operation,epsg,output_format,abstraction,geom,calc,dataset)
-        for ii,tup in enumerate(itertools.product(*args)):
-            a,s,e,o,ab,g,c,d = tup
+        args = (aggregate, spatial_operation, epsg, output_format, abstraction, geom, calc, dataset)
+        for ii, tup in enumerate(itertools.product(*args)):
+            a, s, e, o, ab, g, c, d = tup
 
             if os.path.split(d['uri'])[1] == 'test_simple_spatial_no_bounds_01.nc':
                 unbounded = True
             else:
                 unbounded = False
 
-            if o == 'nc' and e == 4326:
+            if o == constants.OUTPUT_FORMAT_NETCDF and e == 4326:
                 output_crs = CFWGS84()
             else:
                 output_crs = CoordinateReferenceSystem(epsg=e) if e is not None else None
 
-            kwds = dict(aggregate=a,spatial_operation=s,output_format=o,output_crs=output_crs,
-                        geom=g,abstraction=ab,dataset=d,prefix=str(ii),calc=c,
-                        calc_grouping=calc_grouping)
+            kwds = dict(aggregate=a, spatial_operation=s, output_format=o, output_crs=output_crs, geom=g,
+                        abstraction=ab, dataset=d, prefix=str(ii), calc=c, calc_grouping=calc_grouping)
 
             try:
                 ops = OcgOperations(**kwds)
                 ret = ops.execute()
             except DefinitionValidationError:
-                if o == 'nc':
-                    if e not in [4326,None]:
+                if o == constants.OUTPUT_FORMAT_NETCDF:
+                    if e not in [4326, None]:
                         continue
                     if s == 'clip':
                         continue
@@ -293,32 +293,33 @@ class TestProjectionCombinations(TestSimpleBase):
                 else:
                     raise
 
-            if o == 'shp':
-                ugid_path = os.path.join(self.current_dir_output,ops.prefix,ops.prefix+'_ugid.shp')
+            if o == constants.OUTPUT_FORMAT_SHAPEFILE:
+                ugid_path = os.path.join(self.current_dir_output, ops.prefix, ops.prefix + '_ugid.shp')
             else:
-                ugid_path = os.path.join(self.current_dir_output,ops.prefix,'shp',ops.prefix+'_ugid.shp')
+                ugid_path = os.path.join(self.current_dir_output, ops.prefix, constants.OUTPUT_FORMAT_SHAPEFILE,
+                                         ops.prefix + '_ugid.shp')
 
-            if o != 'nc':
-                with fiona.open(ugid_path,'r') as f:
+            if o != constants.OUTPUT_FORMAT_NETCDF:
+                with fiona.open(ugid_path, 'r') as f:
                     if e:
                         second = output_crs
                     else:
                         second = CoordinateReferenceSystem(epsg=4326)
-                    self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']),second)
+                    self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), second)
 
-            if o == 'shp':
-                with fiona.open(ret,'r') as f:
+            if o == constants.OUTPUT_FORMAT_SHAPEFILE:
+                with fiona.open(ret, 'r') as f:
                     if a and ab == 'point':
                         second = 'MultiPoint'
                     elif ab is None:
-                        field = RequestDataset(uri=d['uri'],variable='foo').get()
+                        field = RequestDataset(uri=d['uri'], variable='foo').get()
                         second = field.spatial.geom.get_highest_order_abstraction()._geom_type
                     else:
                         second = ab.title()
 
-                    if second in ['Polygon','MultiPolygon']:
-                        second = ['Polygon','MultiPolygon']
-                    elif second in ['Point','MultiPoint']:
-                        second = ['Point','MultiPoint']
+                    if second in ['Polygon', 'MultiPolygon']:
+                        second = ['Polygon', 'MultiPolygon']
+                    elif second in ['Point', 'MultiPoint']:
+                        second = ['Point', 'MultiPoint']
 
                     self.assertTrue(f.meta['schema']['geometry'] in second)

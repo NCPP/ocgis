@@ -47,8 +47,15 @@ HEADERS_MULTI = ['did', 'cid', 'ugid', 'tid', 'lid', 'gid', 'calc_key', 'calc_al
 #: Required headers for every request.
 HEADERS_REQUIRED = ['did', 'ugid', 'gid']
 
-#: Key identifiers for output formats.
-OUTPUT_FORMATS = ['numpy', 'nc', 'csv', 'csv+', 'shp', 'geojson', 'meta']
+OUTPUT_FORMAT_CSV = 'csv'
+OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
+OUTPUT_FORMAT_CSV_SHAPEFILE_OLD = 'csv+'
+OUTPUT_FORMAT_ESMPY_GRID = 'esmpy'
+OUTPUT_FORMAT_GEOJSON = 'geojson'
+OUTPUT_FORMAT_METADATA = 'meta'
+OUTPUT_FORMAT_NETCDF = 'nc'
+OUTPUT_FORMAT_NUMPY = 'numpy'
+OUTPUT_FORMAT_SHAPEFILE = 'shp'
 
 # Download URL for test datasets.
 TEST_DATA_DOWNLOAD_PREFIX = None

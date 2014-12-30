@@ -771,19 +771,24 @@ class OutputCRS(base.OcgParameter):
 
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
-    default = 'numpy'
-    valid = constants.OUTPUT_FORMATS
+    default = constants.OUTPUT_FORMAT_NUMPY
+    valid = [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_GEOJSON,
+             constants.OUTPUT_FORMAT_METADATA, constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_NUMPY,
+             constants.OUTPUT_FORMAT_SHAPEFILE]
+
+    def __init__(self, init_value=None):
+        if init_value == constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD:
+            init_value = constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        super(OutputFormat, self).__init__(init_value=init_value)
 
     @classmethod
     def iter_possible(cls):
-        from ocgis.conv.base import AbstractConverter
-        mmap = AbstractConverter.get_converter_map()
-        for key in mmap.keys():
-            yield key
+        for element in cls.valid:
+            yield element
 
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)
-        return(ret)
+        return ret
     
     
 class Prefix(base.StringParameter):

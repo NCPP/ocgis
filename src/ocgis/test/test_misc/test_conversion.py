@@ -1,9 +1,11 @@
 import unittest
-from ocgis.test.base import TestBase
-import ocgis
 import netCDF4 as nc
 import os
+
 import fiona
+
+from ocgis.test.base import TestBase
+import ocgis
 
 
 class Test(TestBase):
@@ -15,32 +17,30 @@ class Test(TestBase):
         ds = nc.Dataset(ret)
         self.assertTrue('lambert_conformal_conic' in ds.variables)
 
-    def test_csv_plus(self):
+    def test_csv_shp(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
         rd2 = self.test_data.get_rd('maurer_bccr_1950')
-        ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+',
-                                  geom='state_boundaries',agg_selection=True,
-                                  select_ugid=[32])
+        ops = ocgis.OcgOperations(dataset=[rd1, rd2], snippet=True, output_format='csv-shp', geom='state_boundaries',
+                                  agg_selection=True, select_ugid=[32])
         ret = ops.execute()
-        meta = os.path.join(os.path.split(ret)[0],'ocgis_output_source_metadata.txt')
-        
-        with open(meta,'r') as f:
+        meta = os.path.join(os.path.split(ret)[0], 'ocgis_output_source_metadata.txt')
+
+        with open(meta, 'r') as f:
             lines = f.readlines()
         self.assertTrue(len(lines) > 50)
 
-    def test_csv_plus_custom_headers(self):
+    def test_csv_shp_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
         rd2 = self.test_data.get_rd('maurer_bccr_1950')
-        headers = ['did','ugid','gid','alias','value','time']
-        ops = ocgis.OcgOperations(dataset=[rd1,rd2],snippet=True,output_format='csv+',
-                                  geom='state_boundaries',agg_selection=True,
-                                  select_ugid=[32],headers=headers)
+        headers = ['did', 'ugid', 'gid', 'alias', 'value', 'time']
+        ops = ocgis.OcgOperations(dataset=[rd1, rd2], snippet=True, output_format='csv-shp', geom='state_boundaries',
+                                  agg_selection=True, select_ugid=[32], headers=headers)
         ret = ops.execute()
-        
-        with open(ret,'r') as f:
+
+        with open(ret, 'r') as f:
             line = f.readline()
         fheaders = [h.strip() for h in line.split(',')]
-        self.assertEqual(fheaders,[h.upper() for h in headers])
+        self.assertEqual(fheaders, [h.upper() for h in headers])
         
     def test_shp_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')

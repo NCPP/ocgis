@@ -1,7 +1,7 @@
 import csv
-
 import numpy as np
 
+from ocgis import constants
 from ocgis.test.base import attr
 from ocgis.calc.library.index.duration import Duration, FrequencyDuration
 from ocgis.exc import DefinitionValidationError
@@ -99,7 +99,7 @@ class TestFrequencyDuration(AbstractCalcBase):
         rd_tasmin = self.test_data.get_rd('maurer_2010_concatenated_tasmin', kwds=kwds)
 
         ops = OcgOperations(dataset=[rd_tasmax, rd_tasmin],
-                            output_format='csv+',
+                            output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
                             calc=[{'name': 'Frequency Duration', 'func': 'freq_duration',
                                    'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
                             calc_grouping=['month', 'year'],
@@ -118,7 +118,8 @@ class TestFrequencyDuration(AbstractCalcBase):
 
         rd = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds={'time_region': {'year': [1991],
                                                                                             'month': [7]}})
-        for output_format in ['numpy', 'csv+', 'shp', 'csv']:
+        for output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
+                              constants.OUTPUT_FORMAT_SHAPEFILE, constants.OUTPUT_FORMAT_CSV]:
             ops = OcgOperations(dataset=rd,
                                 output_format=output_format, prefix=output_format,
                                 calc=[{'name': 'Frequency Duration',
@@ -135,7 +136,7 @@ class TestFrequencyDuration(AbstractCalcBase):
                 ref = ret[2778]['tasmax'].variables['Frequency Duration'].value
                 self.assertEqual(ref.compressed()[0].shape, (2,))
 
-            if output_format == 'csv+':
+            if output_format == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
                 real = [{'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
                          'DURATION': '7', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'},
                         {'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',

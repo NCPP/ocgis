@@ -1,14 +1,15 @@
 import unittest
 import numpy as np
+import itertools
+
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 import ocgis
 import datetime
 from ocgis.test.base import TestBase
-import netCDF4 as nc
-import itertools
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.library.thresholds import Threshold
+from ocgis import constants
 
 
 class AbstractCalcBase(TestBase):
@@ -18,54 +19,55 @@ class AbstractCalcBase(TestBase):
         ret = np.ma.array(ret,mask=False)
         assert(len(ret.shape) == 3)
         return(ret)
-    
-    def run_standard_operations(self,calc,capture=False,output_format=None):
-        _aggregate = [False,True]
-        _calc_grouping = [['month'],['month','year'],'all']
-        _output_format = output_format or ['numpy','csv+','nc']
+
+    def run_standard_operations(self, calc, capture=False, output_format=None):
+        _aggregate = [False, True]
+        _calc_grouping = [['month'], ['month', 'year'], 'all']
+        _output_format = output_format or [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
+                                           constants.OUTPUT_FORMAT_NETCDF]
         captured = []
-        for ii,tup in enumerate(itertools.product(_aggregate,_calc_grouping,_output_format)):
-            aggregate,calc_grouping,output_format = tup
-            if aggregate is True and output_format == 'nc':
+        for ii, tup in enumerate(itertools.product(_aggregate, _calc_grouping, _output_format)):
+            aggregate, calc_grouping, output_format = tup
+            if aggregate is True and output_format == constants.OUTPUT_FORMAT_NETCDF:
                 continue
-            rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2001,2002]}})
+            rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2001, 2002]}})
             try:
-                ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
-                       calc=calc,calc_grouping=calc_grouping,output_format=output_format,
-                       aggregate=aggregate,prefix=('standard_ops_'+str(ii)))
+                ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[25], calc=calc,
+                                    calc_grouping=calc_grouping, output_format=output_format, aggregate=aggregate,
+                                    prefix=('standard_ops_' + str(ii)))
                 ret = ops.execute()
-                if output_format == 'numpy':
+                if output_format == constants.OUTPUT_FORMAT_NUMPY:
                     ref = ret[25]['tas'].variables[calc[0]['name']].value
                     if aggregate:
-                        space_shape = [1,1]
+                        space_shape = [1, 1]
                     else:
-                        space_shape = [5,4]
+                        space_shape = [5, 4]
                     if calc_grouping == ['month']:
                         shp1 = [12]
                     elif calc_grouping == 'all':
-                        raise(NotImplementedError('calc_grouping all'))
+                        raise NotImplementedError('calc_grouping all')
                     else:
                         shp1 = [24]
                     test_shape = [1] + shp1 + [1] + space_shape
-                    self.assertEqual(ref.shape,tuple(test_shape))
+                    self.assertEqual(ref.shape, tuple(test_shape))
                     if not aggregate:
-                        ## ensure the geometry mask is appropriately update by the function
+                        # ensure the geometry mask is appropriately update by the function
                         try:
-                            self.assertTrue(np.ma.is_masked(ref[0,0,0,0,0]))
-                        ## likely a structure array with multiple masked elements per index
+                            self.assertTrue(np.ma.is_masked(ref[0, 0, 0, 0, 0]))
+                        # likely a structure array with multiple masked elements per index
                         except TypeError:
-                            self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0,0,0,0,0]]))
+                            self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0, 0, 0, 0, 0]]))
             except ValueError:
                 raise
             except AssertionError:
                 raise
             except Exception as e:
                 if capture:
-                    parms = dict(aggregate=aggregate,calc_grouping=calc_grouping,output_format=output_format)
-                    captured.append({'exception':e,'parms':parms})
+                    parms = dict(aggregate=aggregate, calc_grouping=calc_grouping, output_format=output_format)
+                    captured.append({'exception': e, 'parms': parms})
                 else:
                     raise
-        return(captured)
+        return captured
 
 
 class Test(AbstractCalcBase):

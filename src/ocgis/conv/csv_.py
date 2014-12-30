@@ -1,12 +1,14 @@
 import csv
-from ocgis.conv.base import AbstractConverter
 from csv import excel
 import os
 from collections import OrderedDict
 import logging
-from ocgis.util.logging_ocgis import ocgis_lh
+
 import fiona
 from shapely.geometry.geo import mapping
+
+from ocgis.conv.base import AbstractConverter
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class OcgDialect(excel):
@@ -67,7 +69,7 @@ class CsvPlusConverter(CsvConverter):
             fiona_object = fiona.open(fiona_path,'w',driver='ESRI Shapefile',crs=fiona_crs,schema=fiona_schema)
         else:
             ocgis_lh('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.',
-                     'conv.csv+',
+                     'conv.csv-shp',
                      logging.WARN)
             fiona_object = None
         

@@ -623,10 +623,17 @@ class TestLevelRange(TestBase):
 class TestOutputFormat(TestBase):
     create_dir = False
 
+    def test_init(self):
+        of = OutputFormat(constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD)
+        self.assertEqual(of.value, constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+
     @attr('esmpy7')
     def test_init_esmpy(self):
-        oo = OutputFormat('esmpy')
-        self.assertEqual(oo.value, 'esmpy')
+        oo = OutputFormat(constants.OUTPUT_FORMAT_ESMPY_GRID)
+        self.assertEqual(oo.value, constants.OUTPUT_FORMAT_ESMPY_GRID)
+
+    def test_valid(self):
+        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp'])
 
 
 class TestRegridDestination(TestBase):

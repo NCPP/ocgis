@@ -3,9 +3,9 @@ import csv
 import os
 import pickle
 import itertools
+import numpy as np
 
 import ESMF
-import numpy as np
 
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import Field
@@ -20,7 +20,7 @@ from ocgis.api.collection import SpatialCollection
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
-from ocgis import env
+from ocgis import env, constants
 
 
 class TestSubsetOperation(TestBase):
@@ -92,17 +92,18 @@ class TestSubsetOperation(TestBase):
                 ret = ops.execute()
             except ValueError as ve:
                 self.assertIsNone(k.crs)
-                self.assertIn(k.output_format, ['csv', 'csv+', 'geojson', 'shp'])
+                self.assertIn(k.output_format, [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
+                                                constants.OUTPUT_FORMAT_GEOJSON, constants.OUTPUT_FORMAT_SHAPEFILE])
                 continue
 
-            if k.output_format == 'numpy':
+            if k.output_format == constants.OUTPUT_FORMAT_NUMPY:
                 self.assertIsInstance(ret[1]['foo'], Field)
                 continue
-            if k.output_format == 'meta':
+            if k.output_format == constants.OUTPUT_FORMAT_METADATA:
                 self.assertIsInstance(ret, basestring)
                 self.assertTrue(len(ret) > 50)
                 continue
-            if k.output_format == 'esmpy':
+            if k.output_format == constants.OUTPUT_FORMAT_ESMPY_GRID:
                 self.assertIsInstance(ret, ESMF.Field)
                 continue
 
@@ -111,7 +112,9 @@ class TestSubsetOperation(TestBase):
             path_did = os.path.join(folder, '{0}_did.csv'.format(ops.prefix))
             with open(path_did, 'r') as f:
                 rows = list(csv.DictReader(f))
-            self.assertEqual(rows, [{'ALIAS': 'foo', 'DID': '1', 'URI': '', 'UNITS': '', 'STANDARD_NAME': '', 'VARIABLE': 'foo', 'LONG_NAME': ''}])
+            self.assertEqual(rows, [
+                {'ALIAS': 'foo', 'DID': '1', 'URI': '', 'UNITS': '', 'STANDARD_NAME': '', 'VARIABLE': 'foo',
+                 'LONG_NAME': ''}])
 
             path_source_metadata = os.path.join(folder, '{0}_source_metadata.txt'.format(ops.prefix))
             with open(path_source_metadata, 'r') as f:
@@ -134,16 +137,18 @@ class TestSubsetOperation(TestBase):
 
             contents = os.listdir(folder)
 
-            expected_contents = [xx.format(ops.prefix) for xx in '{0}_source_metadata.txt', '{0}_did.csv', '{0}.log', '{0}_metadata.txt']
+            expected_contents = [xx.format(ops.prefix) for xx in
+                                 '{0}_source_metadata.txt', '{0}_did.csv', '{0}.log', '{0}_metadata.txt']
             if k.output_format == 'nc':
                 expected_contents.append('{0}.nc'.format(ops.prefix))
                 self.assertAsSetEqual(contents, expected_contents)
-            elif k.output_format == 'csv+':
+            elif k.output_format == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
                 expected_contents.append('{0}.csv'.format(ops.prefix))
                 expected_contents.append('shp')
                 self.assertAsSetEqual(contents, expected_contents)
-            elif k.output_format == 'shp':
-                expected_contents = ['{0}.shp', '{0}.dbf', '{0}.shx', '{0}.cpg', '{0}.log', '{0}_metadata.txt', '{0}_source_metadata.txt', '{0}_did.csv', '{0}.prj']
+            elif k.output_format == constants.OUTPUT_FORMAT_SHAPEFILE:
+                expected_contents = ['{0}.shp', '{0}.dbf', '{0}.shx', '{0}.cpg', '{0}.log', '{0}_metadata.txt',
+                                     '{0}_source_metadata.txt', '{0}_did.csv', '{0}.prj']
                 expected_contents = [xx.format(ops.prefix) for xx in expected_contents]
                 self.assertAsSetEqual(contents, expected_contents)
 

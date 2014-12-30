@@ -244,8 +244,8 @@ snippet
 ====================== ===========================================================================
 Value                  Description
 ====================== ===========================================================================
-`True`                 Return only the first time point and the first level slice (if applicable).
-`False` (default)      Return all data.
+``True``               Return only the first time point and the first level slice (if applicable).
+``False`` (default)    Return all data.
 ====================== ===========================================================================
 
 .. _output_format_headline:
@@ -256,12 +256,12 @@ output_format
 ====================== ===============================================================================================
 Value                  Description
 ====================== ===============================================================================================
-`numpy` (default)      Return a `ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
-`shp`                  A shapefile representation of the data.
-`csv`                  A CSV file representation of the data.
-`csv+`                 In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
-`nc`                   A NetCDF4 file.
-`geojson`              A GeoJSON representation of the data.
+``'numpy'`` (default)  Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
+``'shp'``              A shapefile representation of the data.
+``'csv'``              A CSV file representation of the data.
+``'csv-shp'``          In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
+``'nc'``               A NetCDF4 file.
+``'geojson'``          A GeoJSON representation of the data.
 ====================== ===============================================================================================
 
 .. _agg_selection:
@@ -269,12 +269,12 @@ Value                  Description
 agg_selection
 ~~~~~~~~~~~~~
 
-================= ===============================================
-Value             Description
-================= ===============================================
-`True`            Aggregate (union) `geom`_ to a single geometry.
-`False` (default) Leave `geom`_ as is.
-================= ===============================================
+=================== ===============================================
+Value               Description
+=================== ===============================================
+``True``            Aggregate (union) `geom`_ to a single geometry.
+``False`` (default) Leave `geom`_ as is.
+=================== ===============================================
 
 The purpose of this data manipulation is to ease the method required to aggregate (union) geometries into arbitrary regions. A simple example would be unioning the U.S. state boundaries of Utah, Nevada, Arizona, and New Mexico into a single polygon representing a "Southwestern Region".
 

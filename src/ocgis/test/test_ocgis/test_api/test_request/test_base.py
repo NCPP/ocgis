@@ -678,5 +678,6 @@ class TestRequestDatasetCollection(TestBase):
                     'variable': u'tas',
                     't_calendar': u'365_day'}]
         rdc = RequestDatasetCollection(dataset)
-        ops = OcgOperations(dataset=rdc, geom='state_boundaries', select_ugid=[25], output_format='csv+')
+        ops = OcgOperations(dataset=rdc, geom='state_boundaries', select_ugid=[25],
+                            output_format=constants.OUTPUT_FORMAT_SHAPEFILE)
         ops.execute()

@@ -1,4 +1,4 @@
-from collections import deque
+from collections import deque, OrderedDict
 import itertools
 from copy import copy
 import numpy as np
@@ -15,7 +15,6 @@ from shapely.geometry.geo import mapping, shape
 
 import base
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem, WGS84
-from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.helpers import iter_array, get_none_or_slice, \
     get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
     get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners
@@ -184,7 +183,6 @@ class SpatialDimension(base.AbstractUidDimension):
         :raises: AssertionError
         """
 
-        #todo: check mask on grid corners
         to_compare = []
         if self._grid is not None:
             to_compare.append(self._grid.value[0].mask)
@@ -323,6 +321,55 @@ class SpatialDimension(base.AbstractUidDimension):
 
         return(ret)
 
+    def get_fiona_schema(self):
+        """
+        :returns: A :module:`fiona` schema dictionary.
+        :rtype: dict
+        """
+
+        fproperties = OrderedDict()
+        if self.properties is not None:
+            from ocgis.conv.fiona_ import FionaConverter
+
+            dtype = self.properties.dtype
+            for idx, name in enumerate(dtype.names):
+                fproperties[name] = FionaConverter.get_field_type(dtype[idx])
+        schema = {'geometry': self.abstraction_geometry.geom_type,
+                  'properties': fproperties}
+        return schema
+
+    def get_geom_iter(self, target=None, as_multipolygon=True):
+        """
+        :param str target: The target geometry. One of "point" or "polygon". If ``None``, return the highest order
+         abstraction.
+        :param bool as_multipolygon: If ``True``, convert all polygons to multipolygons.
+        :returns: An iterator yielding a tuple: (int row index, int column index, Shapely geometry, int unique id)
+        :rtype: tuple
+        :raises: AttributeError
+        """
+
+        target = target or self.abstraction
+        if target is None:
+            value = self.geom.get_highest_order_abstraction().value
+        else:
+            try:
+                value = getattr(self.geom, target).value
+            except AttributeError:
+                msg = 'The target abstraction "{0}" is not available.'.format(target)
+                raise ValueError(msg)
+
+        # no need to attempt and convert to MultiPolygon if we are working with point data.
+        if as_multipolygon and target == 'point':
+            as_multipolygon = False
+
+        r_uid = self.uid
+        for (row_idx, col_idx), geom in iter_array(value, return_value=True):
+            if as_multipolygon:
+                if isinstance(geom, Polygon):
+                    geom = MultiPolygon([geom])
+            uid = r_uid[row_idx, col_idx]
+            yield (row_idx, col_idx, geom, uid)
+
     def get_intersects(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
         """
         :param polygon: The subset geometry objec to use for the intersects operation.
@@ -331,7 +378,7 @@ class SpatialDimension(base.AbstractUidDimension):
         :param bool use_spatial_index: If ``True``, use an ``rtree`` spatial index.
         :param bool select_nearest: If ``True``, select the geometry nearest ``polygon`` using
          :meth:`shapely.geometry.base.BaseGeometry.distance`.
-        :raises: ValueError, NotImplementedError, ImproperPolygonBoundsError
+        :raises: ValueError, NotImplementedError
         :rtype: If ``return_indices`` is ``False``: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`.
          If ``return_indices`` is ``True``: (:class:`ocgis.interface.base.dimension.spatial.SpatialDimension`,
          (:class:`slice`, :class:`slice`))
@@ -417,38 +464,6 @@ class SpatialDimension(base.AbstractUidDimension):
             ret = (ret, tuple(ret_slc))
 
         return ret
-
-    def get_geom_iter(self, target=None, as_multipolygon=True):
-        """
-        :param str target: The target geometry. One of "point" or "polygon". If ``None``, return the highest order
-         abstraction.
-        :param bool as_multipolygon: If ``True``, convert all polygons to multipolygons.
-        :returns: An iterator yielding a tuple: (int row index, int column index, Shapely geometry, int unique id)
-        :rtype: tuple
-        :raises: AttributeError
-        """
-
-        target = target or self.abstraction
-        if target is None:
-            value = self.geom.get_highest_order_abstraction().value
-        else:
-            try:
-                value = getattr(self.geom, target).value
-            except AttributeError:
-                msg = 'The target abstraction "{0}" is not available.'.format(target)
-                raise ValueError(msg)
-
-        # no need to attempt and convert to MultiPolygon if we are working with point data.
-        if as_multipolygon and target == 'point':
-            as_multipolygon = False
-
-        r_uid = self.uid
-        for (row_idx, col_idx), geom in iter_array(value, return_value=True):
-            if as_multipolygon:
-                if isinstance(geom, Polygon):
-                    geom = MultiPolygon([geom])
-            uid = r_uid[row_idx, col_idx]
-            yield (row_idx, col_idx, geom, uid)
 
     def get_mask(self):
         """
@@ -1053,44 +1068,64 @@ class SpatialGeometryDimension(base.AbstractUidDimension):
 
 
 class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
+    """
+    :keyword str geom_type: (``=None``) If ``None``, default to :attrs:`ocgis.interface.base.dimension.spatial.SpatialGeometryPointDimension.__geom_type_default`.
+     If ``'auto'``, automatically determine the geometry type from the value data.
+    """
+
     _ndims = 2
     _attrs_slice = ('uid', '_value', 'grid')
-    _geom_type = 'Point'
+    _geom_type_default = 'Point'
 
     def __init__(self, *args, **kwargs):
-        self.grid = kwargs.pop('grid', None)
+        self._geom_type = None
 
-        kwargs['name'] = kwargs.get('name') or self._geom_type.lower()
+        self.grid = kwargs.pop('grid', None)
+        self.geom_type = kwargs.pop('geom_type', None) or self._geom_type_default
 
         super(SpatialGeometryPointDimension, self).__init__(*args, **kwargs)
 
+        if self.name is None:
+            self.name = self.geom_type.lower()
+
+    @property
+    def geom_type(self):
+        if self._geom_type == 'auto':
+            for geom in self.value.data.flat:
+                if geom.geom_type.startswith('Multi'):
+                    break
+            self._geom_type = geom.geom_type
+        return self._geom_type
+
+    @geom_type.setter
+    def geom_type(self, value):
+        self._geom_type = value
+
     @property
     def weights(self):
-        ret = np.ones(self.value.shape,dtype=constants.NP_FLOAT)
-        ret = np.ma.array(ret,mask=self.value.mask)
-        return(ret)
+        ret = np.ones(self.value.shape, dtype=constants.NP_FLOAT)
+        ret = np.ma.array(ret, mask=self.value.mask)
+        return ret
 
-    def get_intersects_masked(self,polygon,use_spatial_index=True):
+    def get_intersects_masked(self, polygon, use_spatial_index=True):
         """
         :param polygon: The Shapely geometry to use for subsetting.
         :type polygon: :class:`shapely.geometry.Polygon' or :class:`shapely.geometry.MultiPolygon'
-        :param bool use_spatial_index: If ``False``, do not use the :class:`rtree.index.Index`
-         for spatial subsetting. If the geometric case is simple, it may marginally
-         improve execution times to turn this off. However, turning this off for
-         a complex case will negatively impact (significantly) spatial operation
-         execution times.
+        :param bool use_spatial_index: If ``False``, do not use the :class:`rtree.index.Index` for spatial subsetting.
+         If the geometric case is simple, it may marginally improve execution times to turn this off. However, turning
+         this off for a complex case will negatively impact (significantly) spatial operation execution times.
         :raises: NotImplementedError, EmptySubsetError
         :returns: :class:`ocgis.interface.base.dimension.spatial.SpatialGeometryPointDimension`
         """
 
         # only polygons are acceptable for subsetting. if a point is required, buffer it.
-        if type(polygon) not in (Polygon,MultiPolygon):
-            raise(NotImplementedError(type(polygon)))
+        if type(polygon) not in (Polygon, MultiPolygon):
+            raise NotImplementedError(type(polygon))
 
         # return a shallow copy of self
         ret = copy(self)
-        # create the fill array and reference the mask. this is the outpout geometry value array.
-        fill = np.ma.array(ret.value,mask=True)
+        # create the fill array and reference the mask. this is the output geometry value array.
+        fill = np.ma.array(ret.value, mask=True)
         ref_fill_mask = fill.mask
 
         # this is the path if a spatial index is used.
@@ -1102,33 +1137,32 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
             _add = si.add
             _value = self.value
             # add the geometries to the index
-            for (ii,jj),id_value in iter_array(self.uid,return_value=True):
-                _add(id_value,_value[ii,jj])
+            for (ii, jj), id_value in iter_array(self.uid, return_value=True):
+                _add(id_value, _value[ii, jj])
             # this mapping simulates a dictionary for the item look-ups from two-dimensional arrays
-            geom_mapping = GeomMapping(self.uid,self.value)
+            geom_mapping = GeomMapping(self.uid, self.value)
             _uid = ret.uid
             # return the identifiers of the objects intersecting the target geometry and update the mask accordingly
-            for intersect_id in si.iter_intersects(polygon,geom_mapping,keep_touches=False):
+            for intersect_id in si.iter_intersects(polygon, geom_mapping, keep_touches=False):
                 sel = _uid == intersect_id
                 ref_fill_mask[sel] = False
         # this is the slower simpler case
         else:
-            ## prepare the polygon for faster spatial operations
+            # prepare the polygon for faster spatial operations
             prepared = prep(polygon)
-            ## we are not keeping touches at this point. remember the mask is an
-            ## inverse.
-            for (ii,jj),geom in iter_array(self.value,return_value=True):
+            # we are not keeping touches at this point. remember the mask is an inverse.
+            for (ii, jj), geom in iter_array(self.value, return_value=True):
                 bool_value = False
                 if prepared.intersects(geom):
                     if polygon.touches(geom):
                         bool_value = True
                 else:
                     bool_value = True
-                ref_fill_mask[ii,jj] = bool_value
+                ref_fill_mask[ii, jj] = bool_value
 
         # if everything is masked, this is an empty subset
         if ref_fill_mask.all():
-            raise(EmptySubsetError(self.name))
+            raise EmptySubsetError(self.name)
 
         # set the returned value to the fill array
         ret._value = fill
@@ -1155,7 +1189,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
             r_value[idx_row, idx_col] = r_loads(ogr_geom.ExportToWkb())
 
     def write_fiona(self,path,crs,driver='ESRI Shapefile'):
-        schema = {'geometry':self._geom_type,
+        schema = {'geometry':self.geom_type,
                   'properties':{'UGID':'int'}}
         ref_prep = self._write_fiona_prep_geom_
         ref_uid = self.uid
@@ -1169,47 +1203,49 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
 
         return(path)
 
-    def _write_fiona_prep_geom_(self,geom):
-        return(geom)
+    @staticmethod
+    def _write_fiona_prep_geom_(geom):
+        return geom
 
-    def _format_private_value_(self,value):
+    def _format_private_value_(self, value):
         if value is not None:
             try:
-                assert(len(value.shape) == 2)
+                assert (len(value.shape) == 2)
                 ret = value
-            except (AssertionError,AttributeError):
-                ocgis_lh(exc=ValueError('Geometry values must come in as 2-d NumPy arrays to avoid array interface modifications by shapely.'))
+            except (AssertionError, AttributeError):
+                msg = 'Geometry values must come in as 2-d NumPy arrays to avoid array interface modifications by shapely.'
+                raise ValueError(msg)
         else:
             ret = None
-        ret = self._get_none_or_array_(ret,masked=True)
-        return(ret)
+        ret = self._get_none_or_array_(ret, masked=True)
+        return ret
 
-    def _get_geometry_fill_(self,shape=None):
+    def _get_geometry_fill_(self, shape=None):
         if shape is None:
-            shape = (self.grid.shape[0],self.grid.shape[1])
+            shape = (self.grid.shape[0], self.grid.shape[1])
             mask = self.grid.value[0].mask
         else:
             mask = False
-        fill = np.ma.array(np.zeros(shape),mask=mask,dtype=object)
+        fill = np.ma.array(np.zeros(shape), mask=mask, dtype=object)
 
-        return(fill)
+        return fill
 
     def _get_value_(self):
-        # we are interested in creating geometries for all the underly coordinates regardless if the data is masked
+        # we are interested in creating geometries for all the underlying coordinates regardless if the data is masked
         ref_grid = self.grid.value.data
 
         fill = self._get_geometry_fill_()
         r_data = fill.data
-        for idx_row,idx_col in iter_array(ref_grid[0],use_mask=False):
-            y = ref_grid[0,idx_row,idx_col]
-            x = ref_grid[1,idx_row,idx_col]
-            pt = Point(x,y)
-            r_data[idx_row,idx_col] = pt
-        return(fill)
+        for idx_row, idx_col in iter_array(ref_grid[0], use_mask=False):
+            y = ref_grid[0, idx_row, idx_col]
+            x = ref_grid[1, idx_row, idx_col]
+            pt = Point(x, y)
+            r_data[idx_row, idx_col] = pt
+        return fill
 
 
 class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
-    _geom_type = 'MultiPolygon'
+    _geom_type_default = 'MultiPolygon'
 
     def __init__(self, *args, **kwargs):
         kwargs['name'] = kwargs.get('name') or 'polygon'

@@ -456,6 +456,8 @@ class TestBase(unittest.TestCase):
         test_data.update(['nc', 'snippets'], 'dtr', 'snippet_Maurer02new_OBS_dtr_daily.1971-2000.nc', key='snippet_maurer_dtr')
         test_data.update(['nc', 'snippets'], 'bias', 'seasonalbias.nc', key='snippet_seasonalbias')
 
+        # test_data.update(['shp', 'state_boundaries'], None, 'state_boundaries.shp', key='state_boundaries')
+
         return test_data
 
     def inspect(self, uri, variable=None):

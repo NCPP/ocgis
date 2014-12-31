@@ -313,7 +313,7 @@ class TestProjectionCombinations(TestSimpleBase):
                         second = 'MultiPoint'
                     elif ab is None:
                         field = RequestDataset(uri=d['uri'], variable='foo').get()
-                        second = field.spatial.geom.get_highest_order_abstraction()._geom_type
+                        second = field.spatial.geom.get_highest_order_abstraction().geom_type
                     else:
                         second = ab.title()
 

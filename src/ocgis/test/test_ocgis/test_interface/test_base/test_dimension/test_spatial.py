@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from copy import deepcopy, copy
 import os
 import itertools
@@ -6,7 +7,7 @@ import numpy as np
 from shapely import wkt
 import fiona
 from fiona.crs import from_epsg
-from shapely.geometry import shape, mapping, Polygon
+from shapely.geometry import shape, mapping, Polygon, MultiPoint
 from shapely.geometry.point import Point
 
 from ocgis import constants, ShpCabinet
@@ -17,7 +18,7 @@ from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFo
 from ocgis.test.base import TestBase
 from ocgis.interface.base.dimension.base import AbstractUidValueDimension
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole, \
-    WrappableCoordinateReferenceSystem
+    WrappableCoordinateReferenceSystem, Spherical
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.ugrid.convert import mesh2_nc_to_shapefile
@@ -511,6 +512,16 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
             ref_poly = ret.geom.polygon.value[0,0]
             self.assertTrue(ref_poly.intersects(ref_pt))
         
+    def test_get_fiona_schema(self):
+        sdim = self.get_sdim(crs=Spherical())
+        schema = sdim.get_fiona_schema()
+        self.assertEqual(schema, {'geometry': 'MultiPolygon', 'properties': OrderedDict()})
+
+        properties = np.zeros(2, dtype={'names': ['a', 'b'], 'formats': [np.int32, np.float64]})
+        sdim.properties = properties
+        schema = sdim.get_fiona_schema()
+        self.assertEqual(schema, {'geometry': 'MultiPolygon', 'properties': OrderedDict([('a', 'int'), ('b', 'float')])})
+
     def test_get_geom_iter(self):
         sdim = self.get_sdim(bounds=True)
         tt = list(sdim.get_geom_iter())
@@ -1083,14 +1094,39 @@ class TestSpatialGeometryDimension(TestBase):
         with self.assertRaises(ValueError):
             gdim2.get_highest_order_abstraction()
 
+
 class TestSpatialGeometryPointDimension(AbstractTestSpatialDimension):
 
     def test_init(self):
         row = VectorDimension(value=[5])
         col = VectorDimension(value=[7])
         grid = SpatialGridDimension(row=row, col=col)
-        sgpd = SpatialGeometryPointDimension(grid=grid)
+        sgpd = SpatialGeometryPointDimension(grid=grid, geom_type='Wrong')
+        self.assertEqual(sgpd.name, 'wrong')
+        self.assertEqual(sgpd.geom_type, 'Wrong')
+
+        value = np.array([[Point(1, 2)]], dtype=object)
+        sgpd = SpatialGeometryPointDimension(value=value)
         self.assertEqual(sgpd.name, 'point')
+
+    def test_geom_type(self):
+        row = VectorDimension(value=[5])
+        col = VectorDimension(value=[7])
+        grid = SpatialGridDimension(row=row, col=col)
+        sgpd = SpatialGeometryPointDimension(grid=grid)
+        self.assertEqual(sgpd.geom_type, 'Point')
+
+        mp = MultiPoint([Point(1, 2), Point(3, 4)])
+        value = np.array([[None, None]])
+        value[0, 1] = Point(3, 4)
+        value[0, 0] = mp
+        sgpd = SpatialGeometryPointDimension(value=value)
+        self.assertEqual(sgpd.geom_type, 'Point')
+        sgpd = SpatialGeometryPointDimension(value=value, geom_type=None)
+        self.assertEqual(sgpd.geom_type, 'Point')
+
+        sgpd = SpatialGeometryPointDimension(value=value, geom_type='auto')
+        self.assertEqual(sgpd.geom_type, 'MultiPoint')
 
     def test_get_intersects_masked(self):
         sdim = self.get_sdim(crs=WGS84())
@@ -1136,6 +1172,7 @@ class TestSpatialGeometryPolygonDimension(AbstractTestSpatialDimension):
         gd = SpatialGeometryPolygonDimension(grid=grid)
         self.assertEqual(gd.name, 'polygon')
         self.assertIsInstance(gd, SpatialGeometryPointDimension)
+        self.assertEqual(gd.geom_type, 'MultiPolygon')
 
     def test_get_value(self):
         # the ordering of vertices when creating from corners is slightly different

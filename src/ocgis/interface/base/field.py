@@ -12,7 +12,7 @@ from shapely.geometry.point import Point
 
 from ocgis.interface.base.attributes import Attributes
 from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice, \
-    set_name_attributes
+    set_name_attributes, iter_array
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis import SpatialCollection
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -161,6 +161,7 @@ class Field(Attributes):
         """
 
         coll = SpatialCollection()
+        # if there are no vector dimensions, there is no need for a melted representation
         coll.add_field(1, None, self, properties=self.spatial.properties, name=self.name)
         return coll
 
@@ -316,7 +317,7 @@ class Field(Attributes):
         ret.variables = VariableCollection(variables=new_variables)
 
         ## the geometry type of the point dimension is now MultiPoint
-        ret.spatial.geom.point._geom_type = 'MultiPoint'
+        ret.spatial.geom.point.geom_type = 'MultiPoint'
 
         ## we want to keep a copy of the raw data around for later calculations.
         ret._raw = copy(self)

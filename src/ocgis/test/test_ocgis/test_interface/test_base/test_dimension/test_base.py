@@ -24,6 +24,14 @@ class FakeAbstractDimension(AbstractDimension):
 class TestAbstractDimension(TestBase):
     create_dir = False
 
+    @property
+    def example_properties(self):
+        properties = np.zeros(3, dtype={'names': ['a', 'b'], 'formats': [int, float]})
+        properties[0] = (1, 2.5)
+        properties[1] = (2, 3.5)
+        properties[2] = (3, 4.5)
+        return properties
+
     def test_init(self):
         ad = FakeAbstractDimension()
         self.assertEqual(ad.name, None)
@@ -32,6 +40,8 @@ class TestAbstractDimension(TestBase):
         self.assertEqual(ad.name, 'time')
 
         self.assertEqual(ad.meta, {})
+
+        FakeAbstractDimension(properties=self.example_properties)
 
 
 class FakeAbstractUidDimension(AbstractUidDimension):

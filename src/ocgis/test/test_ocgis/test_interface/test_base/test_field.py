@@ -5,6 +5,7 @@ from collections import OrderedDict
 import numpy as np
 
 from shapely import wkt
+from shapely.geometry import Point
 from shapely.ops import cascaded_union
 
 from datetime import datetime as dt

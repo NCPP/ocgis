@@ -2,6 +2,8 @@ from collections import OrderedDict
 import os
 
 import fiona
+from ocgis.api.request.base import RequestDataset
+from ocgis.util.shp_cabinet import ShpCabinet
 
 import ocgis
 from ocgis.api.subset import SubsetOperation

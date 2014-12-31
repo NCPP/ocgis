@@ -1,15 +1,16 @@
-from ocgis.conv.base import AbstractConverter
-import datetime
 import numpy as np
 from types import NoneType
-import fiona
 from collections import OrderedDict
-from shapely.geometry.geo import mapping
-from fiona.rfc3339 import FionaTimeType, FionaDateType, FionaDateTimeType
 import abc
+
+import fiona
+from shapely.geometry.geo import mapping
+
+from ocgis.conv.base import AbstractConverter
+import datetime
 from ocgis.util.logging_ocgis import ocgis_lh
 
-    
+
 class FionaConverter(AbstractConverter):
     __metaclass__ = abc.ABCMeta
     
@@ -33,7 +34,11 @@ class FionaConverter(AbstractConverter):
                            np.float16: 'float',
                            np.int16: 'int',
                            np.int32: 'int',
-                           str: 'str'}
+                           str: 'str',
+                           np.dtype('int32'): 'int',
+                           np.dtype('int64'): 'int',
+                           np.dtype('float32'): 'float',
+                           np.dtype('float64'): 'float'}
 
     @classmethod
     def get_field_type(cls, the_type, key=None, fiona_conversion=None):
@@ -124,7 +129,7 @@ class FionaConverter(AbstractConverter):
 
         # polygon geometry types are always converted to multipolygons to avoid later collections having multipolygon
         # geometries.
-        geometry_type = archetype_field.spatial.abstraction_geometry._geom_type
+        geometry_type = archetype_field.spatial.abstraction_geometry.geom_type
         if geometry_type == 'Polygon':
             geometry_type = 'MultiPolygon'
 

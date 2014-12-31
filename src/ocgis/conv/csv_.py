@@ -65,7 +65,7 @@ class CsvShapefileConverter(CsvConverter):
                 else:
                     raise
 
-            fiona_schema = {'geometry': archetype_field.spatial.abstraction_geometry._geom_type,
+            fiona_schema = {'geometry': archetype_field.spatial.abstraction_geometry.geom_type,
                             'properties': OrderedDict([['DID', 'int'], ['UGID', 'int'], ['GID', 'int']])}
             fiona_object = fiona.open(fiona_path, 'w', driver='ESRI Shapefile', crs=fiona_crs, schema=fiona_schema)
         else:

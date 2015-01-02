@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from collections import deque
+from collections import deque, OrderedDict
 import itertools
 import logging
 import numpy as np
@@ -184,6 +184,13 @@ class Field(Attributes):
                                             select_nearest=select_nearest))
 
     def get_iter(self, add_masked_value=True, value_keys=None):
+        """
+        :param bool add_masked_value: If ``False``, do not yield masked variable values.
+        :param value_keys: A sequence of keys if the variable is a structure array.
+        :type value_keys: [str, ...]
+        :returns: A dictionary for each value for each variable.
+        :rtype: dict
+        """
 
         def _get_dimension_iterator_1d_(target):
             attr = getattr(self, target)
@@ -246,7 +253,7 @@ class Field(Attributes):
                     yield to_yld
                 
     def get_shallow_copy(self):
-        return(copy(self))
+        return copy(self)
     
     def get_spatially_aggregated(self,new_spatial_uid=None):
 
@@ -281,14 +288,10 @@ class Field(Attributes):
             ret.spatial.geom.point._value = unioned
             ret.spatial.geom.point.uid = new_spatial_uid
 
-        try:
-            if ret.spatial.geom.polygon is not None:
-                unioned = _get_geometry_union_(ret.spatial.geom.polygon.value)
-                ret.spatial.geom.polygon._value = _get_geometry_union_(ret.spatial.geom.polygon.value)
-                ret.spatial.geom.polygon.uid = new_spatial_uid
-        except ImproperPolygonBoundsError:
-            msg = 'No polygon representation to aggregate.'
-            ocgis_lh(msg=msg,logger='field',level=logging.WARN)
+        if ret.spatial.geom.polygon is not None:
+            unioned = _get_geometry_union_(ret.spatial.geom.polygon.value)
+            ret.spatial.geom.polygon._value = _get_geometry_union_(ret.spatial.geom.polygon.value)
+            ret.spatial.geom.polygon.uid = new_spatial_uid
 
         ## update the spatial uid
         ret.spatial.uid = new_spatial_uid
@@ -324,13 +327,33 @@ class Field(Attributes):
 
         return(ret)
 
-    def get_time_region(self,time_region):
+    def get_time_region(self, time_region):
         ret = copy(self)
-        ret.temporal,indices = self.temporal.get_time_region(time_region,return_indices=True)
-        slc = [slice(None),indices,slice(None),slice(None),slice(None)]
+        ret.temporal, indices = self.temporal.get_time_region(time_region, return_indices=True)
+        slc = [slice(None), indices, slice(None), slice(None), slice(None)]
         variables = self.variables.get_sliced_variables(slc)
         ret.variables = variables
-        return(ret)
+        return ret
+
+    def iter(self):
+        """
+        :returns: An ordered dictionary with variable values as keys with geometry information.
+        :rtype: :class:`collections.OrderedDict`
+        :raises: ValueError
+        """
+
+        if any([getattr(self, xx) is not None for xx in ['realization', 'temporal', 'level']]):
+            msg = 'Use "iter_melted" for fields having dimensions in addition to space.'
+            raise ValueError(msg)
+
+        spatial_name_uid = self.spatial.name_uid
+        self_uid = self.uid
+        for (sridx, scidx, geom, gid) in self.spatial.get_geom_iter():
+            yld = OrderedDict([['geom', geom], ['did', self_uid], [spatial_name_uid, gid]])
+            for variable in self.variables.itervalues():
+                value = variable.value.data[0, 0, 0, sridx, scidx]
+                yld[variable.alias] = value
+            yield yld
 
     def write_to_netcdf_dataset(self, dataset, file_only=False, **kwargs):
         """

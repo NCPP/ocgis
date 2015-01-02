@@ -68,15 +68,15 @@ class TestRequestDataset(TestBase):
     def test_init_driver(self):
         uri = ShpCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=uri, driver='vector')
-        self.assertIsNone(rd.variable)
+        self.assertIsNotNone(rd.variable)
         self.assertIsInstance(rd.get(), Field)
 
         uri_nc = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(uri_nc)
         self.assertIsInstance(rd.driver, DriverNetcdf)
 
-        rd = RequestDataset(uri_nc, driver='vector')
-        self.assertIsInstance(rd.driver, DriverVector)
+        with self.assertRaises(ValueError):
+            RequestDataset(uri_nc, driver='vector')
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -116,7 +116,12 @@ class TestRequestDataset(TestBase):
     def test_name(self):
         path = ShpCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=path, driver='vector')
-        self.assertIsNone(rd.name)
+        self.assertIsNotNone(rd.name)
+
+        rd = RequestDataset(uri=path, driver='vector', name='states')
+        self.assertEqual(rd.name, 'states')
+        field = rd.get()
+        self.assertEqual(field.name, 'states')
 
     def test_uri_cannot_be_set(self):
         rd = self.test_data.get_rd('cancm4_tas')

@@ -17,7 +17,7 @@ class DriverVector(AbstractDriver):
         return CoordinateReferenceSystem(self.rd.source_metadata['crs'])
 
     def get_dimensioned_variables(self):
-        return None
+        return self.rd.source_metadata['schema']['properties'].keys()
 
     def get_source_metadata(self):
         try:

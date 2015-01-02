@@ -332,6 +332,26 @@ class TestField(AbstractTestField):
                 self.assertTrue(row['value'] > 3)
         self.assertEqual(set(vids), set([1, 2]))
 
+    def test_iter(self):
+        field = self.get_field(with_value=True)
+        with self.assertRaises(ValueError):
+            list(field.iter())
+
+        field = self.get_field(with_value=True, with_realization=False, with_level=False, with_temporal=False)
+        other = deepcopy(field.variables.first())
+        other.alias = 'tmax2'
+        other.uid = 2
+        field.variables.add_variable(other)
+        gids = []
+        for row in field.iter():
+            self.assertIsInstance(row, OrderedDict)
+            self.assertEqual(row.keys(), ['geom', 'did', 'gid', 'tmax', 'tmax2'])
+            for variable in field.variables.itervalues():
+                self.assertIn(variable.alias, row)
+            gids.append(row[field.spatial.name_uid])
+        self.assertEqual(len(gids), len(set(gids)))
+        self.assertEqual(len(gids), 12)
+
     def test_name(self):
         field = self.get_field(field_name='foo')
         self.assertEqual(field.name, 'foo')

@@ -32,7 +32,8 @@ class TestDriverVector(TestBase):
 
     def test_get_dimensioned_variables(self):
         driver = self.get_driver()
-        self.assertIsNone(driver.get_dimensioned_variables())
+        target = driver.get_dimensioned_variables()
+        self.assertEqual(target, [u'UGID', u'STATE_FIPS', u'ID', u'STATE_NAME', u'STATE_ABBR'])
 
     def test_get_field(self):
         driver = self.get_driver()
@@ -40,6 +41,9 @@ class TestDriverVector(TestBase):
         sub = field[:, :, :, :, 25]
         self.assertEqual(sub.spatial.properties.shape, (1,))
         self.assertTrue(len(sub.spatial.properties.dtype.names) > 2)
+        self.assertEqual(len(field.variables), 5)
+        for variable in field.variables.itervalues():
+            self.assertEqual(variable.shape, (1, 1, 1, 1, 51))
 
         # test with a variable
         driver = self.get_driver(variable=['ID', 'STATE_NAME'])

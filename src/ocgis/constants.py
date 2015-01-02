@@ -4,9 +4,6 @@ import numpy as np
 # : Standard bounds name used when none is available from the input data.
 OCGIS_BOUNDS = 'bounds'
 
-#: Standard name for the unique identifier in GIS files.
-OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = 'UGID'
-
 #: Default netCDF4 output file type
 NETCDF_DEFAULT_DATA_MODEL = 'NETCDF4'
 
@@ -34,18 +31,54 @@ DEFAULT_NAME_COL_COORDINATES = 'xc'
 #: Default corners dimension name.
 DEFAULT_NAME_CORNERS_DIMENSION = 'ncorners'
 
+
+class HEADERS(object):
+    ID_DATASET = 'did'
+    ID_VARIABLE = 'vid'
+    ID_SELECTION_GEOMETRY = 'ugid'
+    ID_TEMPORAL = 'tid'
+    ID_LEVEL = 'lid'
+    ID_GEOMETRY = 'gid'
+    ID_CALCULATION = 'cid'
+
+    VARIABLE = 'variable'
+    VARIABLE_ALIAS = 'alias'
+
+    TEMPORAL = 'time'
+    TEMPORAL_YEAR = 'year'
+    TEMPORAL_MONTH = 'month'
+    TEMPORAL_DAY = 'day'
+
+    LEVEL = 'level'
+
+    VALUE = 'value'
+
+    CALCULATION_KEY = 'calc_key'
+    CALCULATION_ALIAS = 'calc_alias'
+
+
 #: Standard headers for subset operations.
-HEADERS_RAW = ['did', 'vid', 'ugid', 'tid', 'lid', 'gid', 'variable', 'alias', 'time', 'year', 'month', 'day', 'level',
-               'value']
+HEADERS_RAW = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_TEMPORAL,
+               HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS, HEADERS.TEMPORAL,
+               HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
+
 #: Standard headers for computation.
-HEADERS_CALC = ['did', 'vid', 'cid', 'ugid', 'tid', 'lid', 'gid', 'variable', 'alias', 'calc_key', 'calc_alias', 'time',
-                'year', 'month', 'day', 'level', 'value']
-#: Standard headers for multivariate calculations.
-HEADERS_MULTI = ['did', 'cid', 'ugid', 'tid', 'lid', 'gid', 'calc_key', 'calc_alias', 'time', 'year', 'month', 'day',
-                 'level', 'value']
+HEADERS_CALC = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
+                HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS,
+                HEADERS.CALCULATION_KEY, HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR,
+                HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
+
+#: Standard headers for multivariate calculation.
+HEADERS_MULTI = [HEADERS.ID_DATASET, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
+                 HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.CALCULATION_KEY,
+                 HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH,
+                 HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
 
 #: Required headers for every request.
-HEADERS_REQUIRED = ['did', 'ugid', 'gid']
+HEADERS_REQUIRED = [HEADERS.ID_DATASET, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_GEOMETRY]
+
+#: Standard name for the unique identifier in GIS files.
+OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HEADERS.ID_SELECTION_GEOMETRY.upper()
 
 OUTPUT_FORMAT_CSV = 'csv'
 OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
@@ -84,3 +117,6 @@ ENABLED_NUMPY_UFUNCS = ['exp', 'log', 'abs']
 #: The value for the 180th meridian to use when wrapping.
 MERIDIAN_180TH = 180.
 # MERIDIAN_180TH = 179.9999999999999
+
+# The standard key used to identify geometries in a dictionary.
+DEFAULT_GEOMETRY_KEY = 'geom'

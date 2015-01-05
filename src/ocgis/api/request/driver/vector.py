@@ -62,15 +62,14 @@ class DriverVector(AbstractDriver):
         try:
             records = list(ds)
             sdim = SpatialDimension.from_records(records, crs=self.get_crs())
-            if self.rd.variable is not None:
-                vc = VariableCollection()
-                for xx in self.rd:
-                    value = np.array([yy['properties'][xx['variable']] for yy in records]).reshape(1, 1, 1, 1, -1)
-                    var = Variable(name=xx['variable'], alias=xx['alias'], units=xx['units'], conform_units_to=xx['units'],
-                                   value=value)
-                    vc.add_variable(var, assign_new_uid=True)
-            else:
-                vc = None
+            # do not load the properties - they are transformed to variables in the case of the values put into fields
+            sdim.properties = None
+            vc = VariableCollection()
+            for xx in self.rd:
+                value = np.array([yy['properties'][xx['variable']] for yy in records]).reshape(1, 1, 1, 1, -1)
+                var = Variable(name=xx['variable'], alias=xx['alias'], units=xx['units'], conform_units_to=xx['units'],
+                               value=value)
+                vc.add_variable(var, assign_new_uid=True)
             field = Field(spatial=sdim, variables=vc, name=self.rd.name)
             return field
         finally:

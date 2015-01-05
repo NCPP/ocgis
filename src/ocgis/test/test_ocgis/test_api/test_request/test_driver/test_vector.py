@@ -38,9 +38,7 @@ class TestDriverVector(TestBase):
     def test_get_field(self):
         driver = self.get_driver()
         field = driver.get_field()
-        sub = field[:, :, :, :, 25]
-        self.assertEqual(sub.spatial.properties.shape, (1,))
-        self.assertTrue(len(sub.spatial.properties.dtype.names) > 2)
+        self.assertIsNone(field.spatial.properties)
         self.assertEqual(len(field.variables), 5)
         for variable in field.variables.itervalues():
             self.assertEqual(variable.shape, (1, 1, 1, 1, 51))

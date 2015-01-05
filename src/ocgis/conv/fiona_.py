@@ -54,6 +54,21 @@ class FionaConverter(AbstractConverter):
         :raises: AttributeError
         """
 
+        # bypass for string types...
+        try:
+            the_types_type = the_type.type
+        except AttributeError:
+            # likely not a numpy type
+            pass
+        else:
+            if the_types_type == np.string_:
+                length = the_type.str[2:]
+                ret = 'str:{0}'.format(length)
+                if key is not None:
+                    fiona_conversion[key] = unicode
+                return ret
+
+        # this is for other types...
         ret = None
         for k, v in fiona.FIELD_TYPES_MAP.iteritems():
             if the_type == v:

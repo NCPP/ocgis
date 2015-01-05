@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import os
+import datetime
 
 import fiona
 from ocgis.api.request.base import RequestDataset
@@ -10,6 +11,7 @@ from ocgis.api.subset import SubsetOperation
 from ocgis.conv.fiona_ import ShpConverter
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
+import numpy as np
 
 
 class TestShpConverter(TestBase):
@@ -32,6 +34,28 @@ class TestShpConverter(TestBase):
 
         with fiona.open(path_ugid) as source:
             self.assertEqual(source.schema['properties'], OrderedDict([(u'COUNTRY', 'str:80'), (u'UGID', 'int:10')]))
+
+    def test_get_field_type(self):
+        target = ShpConverter.get_field_type(np.int32)
+        self.assertEqual(target, 'int')
+        key = 'foo'
+        fiona_conversion = {}
+        ShpConverter.get_field_type(np.int32, key=key, fiona_conversion=fiona_conversion)
+        self.assertEqual(fiona_conversion[key], int)
+
+        target = ShpConverter.get_field_type(str)
+        self.assertEqual(target, 'str')
+
+        target = ShpConverter.get_field_type(datetime.datetime)
+        self.assertEqual(target, 'str')
+
+        the_type = np.dtype('S20')
+        target = ShpConverter.get_field_type(the_type)
+        self.assertEqual(target, 'str:20')
+        key = 'hey'
+        fiona_conversion = {}
+        ShpConverter.get_field_type(the_type, key=key, fiona_conversion=fiona_conversion)
+        self.assertEqual(fiona_conversion[key], unicode)
 
     def test_none_geom(self):
         """Test a NoneType geometry will pass through the Fiona converter."""

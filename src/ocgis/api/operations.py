@@ -348,6 +348,10 @@ class OcgOperations(object):
             e = DefinitionValidationError(obj, msg)
             ocgis_lh(exc=e, logger='operations')
 
+        # assert the driver may be written to the appropriate output format
+        for rd in self.dataset.iter_request_datasets():
+            rd.driver.validate_ops(self)
+
         # no regridding with a spatial operation of clip
         if self.regrid_destination is not None:
             if self.spatial_operation == 'clip':

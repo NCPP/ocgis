@@ -8,6 +8,7 @@ import ESMF
 
 from datetime import datetime as dt
 import datetime
+from ocgis.api.request.base import RequestDataset
 from ocgis.api.parms.definition import RegridOptions, OutputFormat
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase, attr
@@ -17,7 +18,7 @@ from ocgis import constants
 from ocgis.api.operations import OcgOperations
 from ocgis.util.helpers import make_poly
 import ocgis
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.shp_cabinet import ShpCabinetIterator, ShpCabinet
 
 
 class TestOcgOperations(TestBase):
@@ -484,3 +485,9 @@ class TestOcgOperations(TestBase):
         field = self.test_data.get_rd('cancm4_tas').get()
         ops = OcgOperations(dataset=field, snippet=True)
         self.assertTrue(ops.snippet)
+
+        # test driver validation is called appropriately
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        rd = RequestDataset(path)
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=rd, output_format='csv')

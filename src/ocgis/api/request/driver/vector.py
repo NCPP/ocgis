@@ -1,4 +1,5 @@
 import numpy as np
+from ocgis import constants
 
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis.interface.base.field import Field
@@ -8,6 +9,7 @@ from ocgis.api.request.driver.base import AbstractDriver
 class DriverVector(AbstractDriver):
     extensions = ('.*\.shp',)
     key = 'vector'
+    output_formats = [constants.OUTPUT_FORMAT_NUMPY]
 
     def close(self, obj):
         pass

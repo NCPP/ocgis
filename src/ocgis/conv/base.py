@@ -52,56 +52,60 @@ class AbstractConverter(object):
             self.path = os.path.join(self.outdir, prefix + '.' + self._ext)
             if os.path.exists(self.path):
                 if not self.overwrite:
-                    msg = 'Output path exists "{0}" and must be removed before proceeding. Set "overwrite" argument or env.OVERWRITE to True to overwrite.'.format(self.path)
+                    msg = 'Output path exists "{0}" and must be removed before proceeding. Set "overwrite" argument or env.OVERWRITE to True to overwrite.'.format(
+                        self.path)
                     raise IOError(msg)
 
         ocgis_lh('converter initialized', level=logging.DEBUG, logger=self._log)
-        
-    def _build_(self,*args,**kwds): raise(NotImplementedError)
-    
+
+    def _build_(self, *args, **kwargs):
+        raise NotImplementedError
+
     def _clean_outdir_(self):
-        '''
+        """
         Remove previous output file from outdir.
-        '''
-        pass
-        
+        """
+
     def _get_return_(self):
-        return(self.path)
-    
-    def _write_coll_(self,f,coll): raise(NotImplementedError)
-    
-    def _finalize_(self,*args,**kwds): raise(NotImplementedError)
-    
+        return self.path
+
+    def _write_coll_(self, f, coll):
+        raise NotImplementedError
+
+    def _finalize_(self, *args, **kwargs):
+        raise NotImplementedError
+
     def _get_or_create_shp_folder_(self):
-        path = os.path.join(self.outdir,'shp')
+        path = os.path.join(self.outdir, 'shp')
         if not os.path.exists(path):
             os.mkdir(path)
-        return(path)
-    
-    def _get_should_append_to_unique_geometry_store_(self,store,geom,ugid):
-        '''
+        return path
+
+    def _get_should_append_to_unique_geometry_store_(self, store, geom, ugid):
+        """
         :param sequence store:
         :param :class:`shapely.Geometry` geom:
         :param int ugid:
-        '''
+        """
+
         ret = True
         test_all = []
         for row in store:
             test_geom = row['geom'].almost_equals(geom)
             test_ugid = row['ugid'] == ugid
-            test_all.append(all([test_geom,test_ugid]))
+            test_all.append(all([test_geom, test_ugid]))
         if any(test_all):
             ret = False
-        return(ret)
-    
+        return ret
+
     def write(self):
-        ocgis_lh('starting write method',self._log,logging.DEBUG)
-        
+        ocgis_lh('starting write method', self._log, logging.DEBUG)
+
         unique_geometry_store = []
 
         # indicates if user geometries should be written to file
         write_ugeom = False
-        
+
         try:
             build = True
 
@@ -116,104 +120,84 @@ class AbstractConverter(object):
                     if write_ugeom:
                         ugid_shp_name = self.prefix + '_ugid.shp'
                         ugid_csv_name = self.prefix + '_ugid.csv'
-                        
+
                         if self._add_ugeom_nest:
-                            fiona_path = os.path.join(self._get_or_create_shp_folder_(),ugid_shp_name)
-                            # csv_path = os.path.join(self._get_or_create_shp_folder_(),ugid_csv_name)
+                            fiona_path = os.path.join(self._get_or_create_shp_folder_(), ugid_shp_name)
                         else:
-                            fiona_path = os.path.join(self.outdir,ugid_shp_name)
-                            # csv_path = os.path.join(self.outdir,ugid_csv_name)
+                            fiona_path = os.path.join(self.outdir, ugid_shp_name)
 
                         if coll.meta is None:
                             # convert the collection properties to fiona properties
                             from fiona_ import FionaConverter
+
                             fiona_properties = {}
                             archetype_properties = coll.properties.values()[0]
                             for name in archetype_properties.dtype.names:
-                                fiona_properties[name] = FionaConverter.get_field_type(type(archetype_properties[name][0]))
+                                fiona_properties[name] = FionaConverter.get_field_type(
+                                    type(archetype_properties[name][0]))
 
-                            fiona_schema = {'geometry':'MultiPolygon',
-                                            'properties':fiona_properties}
-                            fiona_meta = {'schema':fiona_schema,'driver':'ESRI Shapefile'}
+                            fiona_schema = {'geometry': 'MultiPolygon', 'properties': fiona_properties}
+                            fiona_meta = {'schema': fiona_schema, 'driver': 'ESRI Shapefile'}
                         else:
                             fiona_meta = coll.meta
-                            
-                        ## always use the CRS from the collection. shapefile metadata
-                        ## will always be WGS84, but it may be overloaded in the
-                        ## operations.
+
+                        # always use the CRS from the collection. shapefile metadata will always be WGS84, but it may be
+                        # overloaded in the operations.
                         fiona_meta['crs'] = coll.crs.value
 
-                        ## selection geometries will always come out as MultiPolygon
-                        ## regardless if they began as points. points are buffered
-                        ## during the subsetting process.
+                        # selection geometries will always come out as MultiPolygon regardless if they began as points.
+                        # points are buffered during the subsetting process.
                         fiona_meta['schema']['geometry'] = 'MultiPolygon'
 
-                        fiona_object = fiona.open(fiona_path,'w',**fiona_meta)
-                        # csv_file = open(csv_path,'w')
-                        
-                        # from ocgis.conv.csv_ import OcgDialect
-                        # csv_object = DictWriter(csv_file,fiona_meta['schema']['properties'].keys(),dialect=OcgDialect)
-                        # csv_object.writeheader()
-                        
-                    build = False
-                self._write_coll_(f,coll)
-                if write_ugeom:
-                    ## write the overview geometries to disk
-                    r_geom = coll.geoms.values()[0]
-                    if isinstance(r_geom,Polygon):
-                        r_geom = MultiPolygon([r_geom])
-                    ## see if this geometry is in the unique geometry store
-                    should_append = self._get_should_append_to_unique_geometry_store_(
-                     unique_geometry_store,
-                     r_geom,
-                     coll.properties.values()[0]['UGID'])
-                    if should_append:
-                        unique_geometry_store.append({'geom':r_geom,
-                                                      'ugid':coll.properties.values()[0]['UGID']})
-                    
-                        ## if it is unique write the geometry to the output files
-                        coll.write_ugeom(fobject=fiona_object)
-                        
-                        # ## write the geometry attributes to the corresponding shapefile
-                        # csv_object.writerow(properties_to_append)
+                        fiona_object = fiona.open(fiona_path, 'w', **fiona_meta)
 
+                    build = False
+                self._write_coll_(f, coll)
+                if write_ugeom:
+                    # write the overview geometries to disk
+                    r_geom = coll.geoms.values()[0]
+                    if isinstance(r_geom, Polygon):
+                        r_geom = MultiPolygon([r_geom])
+                    #see if this geometry is in the unique geometry store
+                    should_append = self._get_should_append_to_unique_geometry_store_(
+                        unique_geometry_store,
+                        r_geom,
+                        coll.properties.values()[0]['UGID'])
+                    if should_append:
+                        unique_geometry_store.append({'geom': r_geom, 'ugid': coll.properties.values()[0]['UGID']})
+
+                        # if it is unique write the geometry to the output files
+                        coll.write_ugeom(fobject=fiona_object)
         finally:
-            
-            ## errors are masked if the processing failed and file objects, etc.
-            ## were not properly created. if there are UnboundLocalErrors pass
-            ## them through to capture the error that lead to the objects not
-            ## being created.
-            
+
+            # errors are masked if the processing failed and file objects, etc. were not properly created. if there are
+            # UnboundLocalErrors pass them through to capture the error that lead to the objects not being created.
+
             try:
                 try:
                     self._finalize_(f)
                 except UnboundLocalError:
                     pass
             except Exception as e:
-                ## this the exception we want to log
-                ocgis_lh(exc=e,logger=self._log)
+                # this the exception we want to log
+                ocgis_lh(exc=e, logger=self._log)
             finally:
                 if write_ugeom:
                     try:
                         fiona_object.close()
                     except UnboundLocalError:
                         pass
-                    # try:
-                    #     csv_file.close()
-                    # except UnboundLocalError:
-                    #     pass
-        
-        ## the metadata and dataset descriptor files may only be written if
-        ## OCGIS operations are present.
+
+        # the metadata and dataset descriptor files may only be written if OCGIS operations are present.
         if self.ops is not None and self.add_auxiliary_files == True:
-            ## added OCGIS metadata output if requested.
+            # added OCGIS metadata output if requested.
             if self.add_meta:
-                ocgis_lh('adding OCGIS metadata file','conv',logging.DEBUG)
+                ocgis_lh('adding OCGIS metadata file', 'conv', logging.DEBUG)
                 lines = MetaConverter(self.ops).write()
-                out_path = os.path.join(self.outdir,self.prefix+'_'+MetaConverter._meta_filename)
-                with open(out_path,'w') as f:
+                out_path = os.path.join(self.outdir, self.prefix + '_' + MetaConverter._meta_filename)
+                with open(out_path, 'w') as f:
                     f.write(lines)
-            
+
             # add the dataset descriptor file if requested
             if self._add_did_file:
                 ocgis_lh('writing dataset description (DID) file', 'conv', logging.DEBUG)
@@ -236,7 +220,9 @@ class AbstractConverter(object):
                         except NotImplementedError:
                             if isinstance(rd, Field):
                                 for variable in rd.variables.itervalues():
-                                    row = [rd.uid, variable.name, variable.alias, None, variable.attrs.get('standard_name'), variable.units, variable.attrs.get('long_name')]
+                                    row = [rd.uid, variable.name, variable.alias, None,
+                                           variable.attrs.get('standard_name'), variable.units,
+                                           variable.attrs.get('long_name')]
                                     writer.writerow(row)
                             else:
                                 raise
@@ -259,11 +245,11 @@ class AbstractConverter(object):
                 with open(out_path, 'w') as f:
                     f.writelines('\n'.join(to_write))
 
-        ## return the internal path unless overloaded by subclasses.
+        # return the internal path unless overloaded by subclasses.
         ret = self._get_return_()
-        
+
         return ret
-    
+
     @classmethod
     def get_converter_map(cls):
         """
@@ -288,18 +274,20 @@ class AbstractConverter(object):
                 constants.OUTPUT_FORMAT_METADATA: MetaConverter}
 
         return mmap
-        
+
     @classmethod
-    def get_converter(cls,output_format):
-        '''Return the converter based on output extensions or key.
-        
+    def get_converter(cls, output_format):
+        """
+        Return the converter based on output extensions or key.
+
         output_format :: str
-        
+
         returns
-        
-        AbstractConverter'''
-        
-        return(cls.get_converter_map()[output_format])
+
+        AbstractConverter
+        """
+
+        return cls.get_converter_map()[output_format]
 
     @classmethod
     def validate_ops(cls, ops):

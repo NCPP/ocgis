@@ -1,4 +1,5 @@
 import abc
+from ocgis.exc import DefinitionValidationError
 
 
 class AbstractDriver(object):
@@ -26,6 +27,14 @@ class AbstractDriver(object):
     def key(self):
         str
 
+    @abc.abstractproperty
+    def output_formats(self):
+        """
+        :returns: A list of acceptable output formats for the driver. If this is `'all'`, then the driver's data may be
+         converted to all output formats.
+        :rtype: [str, ...]
+        """
+
     @abc.abstractmethod
     def close(self, obj):
         pass
@@ -49,17 +58,30 @@ class AbstractDriver(object):
         return field
 
     @abc.abstractmethod
-    def _get_field_(self, **kwargs):
-        """Return :class:`ocgis.interface.base.field.Field`"""
-
-    @abc.abstractmethod
     def get_source_metadata(self):
         return dict
+
+    @abc.abstractmethod
+    def inspect(self):
+        pass
 
     @abc.abstractmethod
     def open(self):
         return object
 
+    @classmethod
+    def validate_ops(cls, ops):
+        """
+        :param ops: An operation object to validate.
+        :type ops: :class:`~ocgis.OcgOperations`
+        :raises: DefinitionValidationError
+        """
+
+        if cls.output_formats != 'all':
+            if ops.output_format not in cls.output_formats:
+                msg = 'Output format not supported for driver "{0}". Supported output formats are: {1}'.format(cls.key, cls.output_formats)
+                raise DefinitionValidationError('output_format', msg)
+
     @abc.abstractmethod
-    def inspect(self):
-        pass
+    def _get_field_(self, **kwargs):
+        """Return :class:`ocgis.interface.base.field.Field`"""

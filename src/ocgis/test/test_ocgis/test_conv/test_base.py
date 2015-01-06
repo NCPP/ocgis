@@ -5,12 +5,14 @@ from copy import deepcopy
 import tempfile
 import numpy as np
 
+from ocgis import constants
+from ocgis.conv.esmpy import AbstractConverter
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
 import ocgis
 from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
-from ocgis.conv.nc import NcConverter
+from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
 
 
 class AbstractTestConverter(TestBase):
@@ -70,6 +72,10 @@ class TestAbstractConverter(AbstractTestConverter):
         mtimes2 = [os.path.getmtime(os.path.join(outdir,f)) for f in os.listdir(outdir)]
         ## if the file is overwritten the modification time will be more recent!
         self.assertTrue(all([m2 > m for m2,m in zip(mtimes2,mtimes)]))
+
+    def test_get_converter_map(self):
+        self.assertEqual(AbstractConverter.get_converter_map()[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],
+                         NcUgrid2DFlexibleMeshConverter)
 
     def test_multiple_variables(self):
         conv_klasses = [CsvConverter, NcConverter]
@@ -131,4 +137,3 @@ class TestAbstractConverter(AbstractTestConverter):
     
     def test_add_auxiliary_files_shp(self):        
         self.run_auxiliary_file_tst(ShpConverter,['ocgis_output.dbf', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output.cpg', 'ocgis_output.prj'])
-    

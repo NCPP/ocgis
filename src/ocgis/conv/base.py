@@ -7,6 +7,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
 
+from ocgis.api.request.driver.vector import DriverVector
 from ocgis import constants
 from ocgis.interface.base.field import Field
 from ocgis.conv.meta import MetaConverter
@@ -212,7 +213,14 @@ class AbstractConverter(object):
                         try:
                             for d in rd:
                                 row = [rd.did, d['variable'], d['alias'], rd.uri]
-                                ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
+                                try:
+                                    ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
+                                except KeyError:
+                                    if isinstance(rd.driver, DriverVector):
+                                        # not be present in metadata
+                                        ref_variable = {}
+                                    else:
+                                        raise
                                 row.append(ref_variable.get('standard_name', None))
                                 row.append(ref_variable.get('units', None))
                                 row.append(ref_variable.get('long_name', None))
@@ -233,15 +241,17 @@ class AbstractConverter(object):
                 out_path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
                 to_write = []
 
-                for rd in self.ops.dataset.itervalues():
+                for rd in self.ops.dataset.iter_request_datasets():
                     try:
                         metadata = rd.source_metadata
-                    except AttributeError:
-                        # assume field object and do not write anything
-                        continue
-                    else:
                         ip = Inspect(meta=metadata, uri=rd.uri)
                         to_write += ip.get_report_no_variable()
+                    except AttributeError:
+                        if isinstance(rd.driver, DriverVector):
+                            to_write += rd.driver._inspect_get_lines_()
+                        else:
+                            raise
+
                 with open(out_path, 'w') as f:
                     f.writelines('\n'.join(to_write))
 
@@ -261,7 +271,7 @@ class AbstractConverter(object):
         from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
         from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
         from ocgis.conv.numpy_ import NumpyConverter
-        from ocgis.conv.nc import NcConverter
+        from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
 
         mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
                 constants.OUTPUT_FORMAT_CSV: CsvConverter,
@@ -271,7 +281,8 @@ class AbstractConverter(object):
                 # 'shpidx':ShpIdxConverter,
                 # 'keyed':KeyedConverter,
                 constants.OUTPUT_FORMAT_NETCDF: NcConverter,
-                constants.OUTPUT_FORMAT_METADATA: MetaConverter}
+                constants.OUTPUT_FORMAT_METADATA: MetaConverter,
+                constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter}
 
         return mmap
 

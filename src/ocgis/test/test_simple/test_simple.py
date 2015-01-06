@@ -1297,7 +1297,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o == 'nc':
+            if o in [constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, constants.OUTPUT_FORMAT_NETCDF]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:

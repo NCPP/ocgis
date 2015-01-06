@@ -633,7 +633,7 @@ class TestOutputFormat(TestBase):
         self.assertEqual(oo.value, constants.OUTPUT_FORMAT_ESMPY_GRID)
 
     def test_valid(self):
-        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp'])
+        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp', constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH])
 
 
 class TestRegridDestination(TestBase):

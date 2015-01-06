@@ -90,7 +90,10 @@ class TestSubsetOperation(TestBase):
             ops = OcgOperations(dataset=field, output_format=k.output_format, prefix=str(ii))
             try:
                 ret = ops.execute()
-            except ValueError as ve:
+            except ValueError:
+                if k.output_format == constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH:
+                    self.assertIsNone(field.spatial.geom.polygon)
+                    continue
                 self.assertIsNone(k.crs)
                 self.assertIn(k.output_format, [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
                                                 constants.OUTPUT_FORMAT_GEOJSON, constants.OUTPUT_FORMAT_SHAPEFILE])

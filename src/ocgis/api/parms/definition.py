@@ -774,7 +774,7 @@ class OutputFormat(base.StringOptionParameter):
     default = constants.OUTPUT_FORMAT_NUMPY
     valid = [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_GEOJSON,
              constants.OUTPUT_FORMAT_METADATA, constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_NUMPY,
-             constants.OUTPUT_FORMAT_SHAPEFILE]
+             constants.OUTPUT_FORMAT_SHAPEFILE, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH]
 
     def __init__(self, init_value=None):
         if init_value == constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD:

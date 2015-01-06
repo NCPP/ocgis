@@ -15,9 +15,9 @@ from shapely.geometry.geo import mapping, shape
 
 import base
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem, WGS84
-from ocgis.util.helpers import iter_array, get_none_or_slice, \
-    get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
-    get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners
+from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
+    get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners, \
+    get_none_or_2d
 from ocgis import constants, env
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.util.ugrid.helpers import get_update_feature, write_to_netcdf_dataset
@@ -396,10 +396,16 @@ class SpatialDimension(base.AbstractUidDimension):
         elif type(polygon) in (Polygon, MultiPolygon):
             # for a polygon subset, first the grid is subsetted by the bounds of the polygon object. the intersects
             # operations is then performed on the polygon/point representation as appropriate.
-            minx, miny, maxx, maxy = polygon.bounds
             if self.grid is None:
-                raise NotImplementedError
+                if self.geom.polygon is not None:
+                    target_geom = self.geom.polygon
+                else:
+                    target_geom = self.geom.point
+                masked_geom = target_geom.get_intersects_masked(polygon, use_spatial_index=use_spatial_index)
+                ret_slc = np.where(masked_geom.value.mask == False)
+                ret = ret[ret_slc[0], ret_slc[1]]
             else:
+                minx, miny, maxx, maxy = polygon.bounds
                 # subset the grid by its bounding box
                 ret.grid, slc = self.grid.get_subset_bbox(minx, miny, maxx, maxy, return_indices=True,
                                                           use_bounds=use_bounds)
@@ -432,14 +438,23 @@ class SpatialDimension(base.AbstractUidDimension):
                     ref = ret.grid.corners.mask
                     for (ii, jj), mask_value in iter_array(grid_mask, return_value=True):
                         ref[:, ii, jj, :] = mask_value
+
+                # barbed and circular geometries may result in rows and or columns being entirely masked. these rows and
+                # columns should be trimmed.
+                _, adjust = get_trimmed_array_by_mask(ret.get_mask(), return_adjustments=True)
+                # use the adjustments to trim the returned data object
+                ret = ret[adjust['row'], adjust['col']]
+
+                # adjust the returned slices
+                if return_indices and not select_nearest:
+                    ret_slc = [None, None]
+                    ret_slc[0] = get_added_slice(slc[0], adjust['row'])
+                    ret_slc[1] = get_added_slice(slc[1], adjust['col'])
+
         else:
             raise NotImplementedError
+
         assert not self.uid.mask.any()
-        # barbed and circular geometries may result in rows and or columns being entirely masked. these rows and columns
-        # should be trimmed.
-        _, adjust = get_trimmed_array_by_mask(ret.get_mask(), return_adjustments=True)
-        # use the adjustments to trim the returned data object
-        ret = ret[adjust['row'], adjust['col']]
 
         if select_nearest:
             if self.geom.polygon is not None and self.abstraction in ['polygon', None]:
@@ -452,15 +467,9 @@ class SpatialDimension(base.AbstractUidDimension):
                 distances[centroid.distance(geom)] = select_nearest_index
             select_nearest_index = distances[min(distances.keys())]
             ret = ret[select_nearest_index[0], select_nearest_index[1]]
+            ret_slc = np.where(self.uid.data == ret.uid.data)
 
         if return_indices:
-            # adjust the returned slices if necessary
-            if select_nearest:
-                ret_slc = select_nearest_index
-            else:
-                ret_slc = [None, None]
-                ret_slc[0] = get_added_slice(slc[0], adjust['row'])
-                ret_slc[1] = get_added_slice(slc[1], adjust['col'])
             ret = (ret, tuple(ret_slc))
 
         return ret
@@ -1052,11 +1061,6 @@ class SpatialGeometryDimension(base.AbstractUidDimension):
     def get_iter(self):
         raise NotImplementedError
 
-    def _get_slice_(self, state, slc):
-        state._point = get_none_or_slice(state._point, slc)
-        state._polygon = get_none_or_slice(state._polygon, slc)
-        return state
-
     def _get_uid_(self):
         if self._point is not None:
             ret = self._point.uid
@@ -1220,6 +1224,10 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         ret = self._get_none_or_array_(ret, masked=True)
         return ret
 
+    def _format_slice_state_(self, state, slc):
+        state._value = get_none_or_2d(state._value)
+        return state
+
     def _get_geometry_fill_(self, shape=None):
         if shape is None:
             shape = (self.grid.shape[0], self.grid.shape[1])
@@ -1274,15 +1282,15 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
     @property
     def area(self):
         r_value = self.value
-        fill = np.ones(r_value.shape,dtype=constants.NP_FLOAT)
-        fill = np.ma.array(fill,mask=r_value.mask)
-        for (ii,jj),geom in iter_array(r_value,return_value=True):
-            fill[ii,jj] = geom.area
-        return(fill)
+        fill = np.ones(r_value.shape, dtype=constants.NP_FLOAT)
+        fill = np.ma.array(fill, mask=r_value.mask)
+        for (ii, jj), geom in iter_array(r_value, return_value=True):
+            fill[ii, jj] = geom.area
+        return fill
 
     @property
     def weights(self):
-        return(self.area/self.area.max())
+        return self.area/self.area.max()
 
     def write_to_netcdf_dataset_ugrid(self, dataset):
         """
@@ -1293,7 +1301,7 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
         """
 
         def _iter_features_():
-            for ctr, geom in enumerate(self.value.data.flat):
+            for ctr, geom in enumerate(self.value.compressed()):
                 yld = {'geometry': {'type': geom.geom_type, 'coordinates': [np.array(geom.exterior.coords).tolist()]}}
                 yld = get_update_feature(ctr, yld)
                 yield yld

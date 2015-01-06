@@ -4,10 +4,8 @@ from ocgis.api.interpreter import OcgInterpreter
 from ocgis import env
 from ocgis.api.parms.base import OcgParameter
 from ocgis.conv.meta import MetaConverter
-from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
 from ocgis.api.subset import SubsetOperation
-from ocgis.calc.engine import OcgCalculationEngine
 
 
 class OcgOperations(object):
@@ -352,59 +350,15 @@ class OcgOperations(object):
         for rd in self.dataset.iter_request_datasets():
             rd.driver.validate_ops(self)
 
+        # validate the converter
+        converter_klass = AbstractConverter.get_converter(self.output_format)
+        converter_klass.validate_ops(self)
+
         # no regridding with a spatial operation of clip
         if self.regrid_destination is not None:
             if self.spatial_operation == 'clip':
                 msg = 'Regridding not allowed with spatial "clip" operation.'
                 raise DefinitionValidationError(SpatialOperation, msg)
-
-        # there are a bunch of constraints on the netCDF format
-        if self.output_format == 'nc':
-            # we can only write one requestdataset to netCDF
-            if len(self.dataset) > 1 and self.calc is None:
-                msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
-                       'There are currently {dcount} RequestDatasets. Note, this is different than a '
-                       'multifile dataset.'.format(dcount=len(self.dataset)))
-                _raise_(msg, OutputFormat)
-            # we can write multivariate functions to netCDF however
-            else:
-                if self.calc is not None and len(self.dataset) > 1:
-                    # count the occurrences of these classes in the calculation list.
-                    klasses_to_check = [AbstractMultivariateFunction, MultivariateEvalFunction]
-                    multivariate_checks = []
-                    for klass in klasses_to_check:
-                        for calc in self.calc:
-                            multivariate_checks.append(issubclass(calc['ref'], klass))
-                    if sum(multivariate_checks) != 1:
-                        msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
-                               'There are currently {dcount} RequestDatasets. Note, this is different than a '
-                               'multifile dataset.'.format(dcount=len(self.dataset)))
-                        _raise_(msg, OutputFormat)
-                    else:
-                        # there is a multivariate calculation and this requires multiple request dataset
-                        pass
-
-            # clipped data which creates an arbitrary geometry may not be written to netCDF
-            if self.spatial_operation != 'intersects':
-                msg = 'Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not currently be written.'
-                _raise_(msg, OutputFormat)
-            # data may not be aggregated either
-            if self.aggregate:
-                msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
-                _raise_(msg, OutputFormat)
-            # either the input data CRS or WGS84 is required for data output
-            if self.output_crs is not None and not isinstance(self.output_crs, CFWGS84):
-                msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
-                _raise_(msg, OutputFormat)
-            # calculations on raw values are not relevant as not aggregation can occur anyway.
-            if self.calc is not None:
-                if self.calc_raw:
-                    msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
-                    _raise_(msg)
-                # no keyed output functions to netCDF
-                if OcgCalculationEngine._check_calculation_members_(self.calc, AbstractKeyedOutputFunction):
-                    msg = 'Keyed function output may not be written to netCDF.'
-                    _raise_(msg)
 
         # collect projections for the dataset sets. None is returned if one is not parsable. the WGS84 default is
         # actually done in the RequestDataset object.
@@ -457,7 +411,7 @@ class OcgOperations(object):
         # file only operations only valid for netCDF and calculations.
         if self.file_only:
             if self.output_format != 'nc':
-                _raise_('Only netCDF may be written with file_only as True.', obj=FileOnly)
+                _raise_('Only netCDF-CF may be written with file_only as "True".', obj=FileOnly)
             if self.calc is None:
                 _raise_('File only outputs are only relevant for computations.', obj=FileOnly)
 
@@ -471,7 +425,3 @@ class OcgOperations(object):
             else:
                 for c in self.calc:
                     c['ref'].validate(self)
-
-        # validate the converter
-        converter_klass = AbstractConverter.get_converter(self.output_format)
-        converter_klass.validate_ops(self)

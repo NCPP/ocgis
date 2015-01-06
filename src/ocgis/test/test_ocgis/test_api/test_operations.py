@@ -372,13 +372,20 @@ class TestOcgOperations(TestBase):
 
     def test_keyword_output_format_nc_package_validation_raised_first(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        rd2 = self.test_data.get_rd('rotated_pole_ichec',kwds={'alias':'tas2'})
+        rd2 = self.test_data.get_rd('rotated_pole_ichec', kwds={'alias': 'tas2'})
         try:
-            ocgis.OcgOperations(dataset=[rd,rd2],output_format='nc')
+            ocgis.OcgOperations(dataset=[rd, rd2], output_format=constants.OUTPUT_FORMAT_NETCDF)
         except DefinitionValidationError as e:
             self.assertIn('Data packages (i.e. more than one RequestDataset) may not be written to netCDF.',
                           e.message)
-            pass
+
+    def test_keyword_output_format_nc_2d_flexible_mesh_ugrid(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        output = constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH
+        ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[25], output_format=output)
+        ret = ops.execute()
+        with self.nc_scope(ret) as ds:
+            self.assertEqual(len(ds.dimensions['nMesh2_face']), 13)
 
     def test_keyword_regrid_destination(self):
         """Test regridding not allowed with clip operation."""

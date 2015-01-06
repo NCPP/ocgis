@@ -253,16 +253,17 @@ Value                  Description
 output_format
 ~~~~~~~~~~~~~
 
-====================== ===============================================================================================
-Value                  Description
-====================== ===============================================================================================
-``'numpy'`` (default)  Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
-``'shp'``              A shapefile representation of the data.
-``'csv'``              A CSV file representation of the data.
-``'csv-shp'``          In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
-``'nc'``               A NetCDF4 file.
-``'geojson'``          A GeoJSON representation of the data.
-====================== ===============================================================================================
+=============================== ============================================================================================================================================
+Value                           Description
+=============================== ============================================================================================================================================
+``'numpy'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
+``'shp'``                       A shapefile representation of the data.
+``'csv'``                       A CSV file representation of the data.
+``'csv-shp'``                   In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
+``'nc'``                        A NetCDF4-CF file.
+``'geojson'``                   A GeoJSON representation of the data.
+``'nc-ugrid-2d-flexible-mesh'`` A flexible mesh representation. See :ref:`2d-flexible-mesh-label` for more details and :ref:`2d-flexible-mesh-example-label` for an example.
+=============================== ============================================================================================================================================
 
 .. _agg_selection:
 

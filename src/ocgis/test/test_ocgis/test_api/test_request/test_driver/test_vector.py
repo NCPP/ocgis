@@ -64,12 +64,17 @@ class TestDriverVector(TestBase):
         self.assertIsInstance(meta, dict)
         self.assertTrue(len(meta) > 2)
 
+    def test_inspect(self):
+        driver = self.get_driver()
+        driver.inspect()
+
+    def test_inspect_get_lines(self):
+        driver = self.get_driver()
+        lines = driver._inspect_get_lines_()
+        self.assertTrue(len(lines) > 5)
+
     def test_open(self):
         driver = self.get_driver()
         sci = driver.open()
         self.assertIsInstance(sci, ShpCabinetIterator)
         self.assertFalse(sci.as_spatial_dimension)
-
-    def test_inspect(self):
-        driver = self.get_driver()
-        driver.inspect()

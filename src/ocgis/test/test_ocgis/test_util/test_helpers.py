@@ -430,19 +430,23 @@ class Test2(TestBase):
         self.assertEqual(adjust,{'col': slice(4, -5), 'row': slice(4, -5)})
     
     def test_get_is_date_between(self):
-        lower = dt(1971,1,1)
-        upper = dt(2000,2,1)
-        self.assertFalse(get_is_date_between(lower,upper,month=6))
-        self.assertFalse(get_is_date_between(lower,upper,month=2))
-        self.assertTrue(get_is_date_between(lower,upper,month=1))
-        
-        self.assertFalse(get_is_date_between(lower,upper,year=1968))
-        self.assertTrue(get_is_date_between(lower,upper,year=1995))
-        
+        lower = dt(1971, 1, 1)
+        upper = dt(2000, 2, 1)
+        self.assertFalse(get_is_date_between(lower, upper, month=6))
+        self.assertFalse(get_is_date_between(lower, upper, month=2))
+        self.assertTrue(get_is_date_between(lower, upper, month=1))
+
+        self.assertFalse(get_is_date_between(lower, upper, year=1968))
+        self.assertTrue(get_is_date_between(lower, upper, year=1995))
+
         lower = dt(2013, 1, 1, 0, 0)
         upper = dt(2013, 1, 2, 0, 0)
-        self.assertTrue(get_is_date_between(lower,upper,year=2013))
-            
+        self.assertTrue(get_is_date_between(lower, upper, year=2013))
+
+        lower = dt(2001, 12, 1)
+        upper = dt(2002, 1, 1)
+        self.assertTrue(get_is_date_between(lower, upper, month=12))
+
     def test_get_formatted_slice(self):
 
         ret = get_formatted_slice(slice(None,None,None),10)

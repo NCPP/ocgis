@@ -324,7 +324,18 @@ def get_formatted_slice(slc, n_dims):
     return ret
 
 
-def get_is_date_between(lower,upper,month=None,year=None):
+def get_is_date_between(lower, upper, month=None, year=None):
+    """
+    :param lower: The lower boundary time coordinate.
+    :type lower: :class:`datetime.datetime`
+    :param upper: The upper boundary time coordinate.
+    :type upper: :class:`datetime.datetime`
+    :param int month: The month to check.
+    :param int year: The year to check.
+    :returns: ``True`` if the check value occurs in the interval.
+    :rtype: bool
+    """
+
     if month is not None:
         attr = 'month'
         to_test = month
@@ -332,12 +343,16 @@ def get_is_date_between(lower,upper,month=None,year=None):
         attr = 'year'
         to_test = year
 
-    part_lower,part_upper = getattr(lower,attr),getattr(upper,attr)
+    part_lower, part_upper = getattr(lower, attr), getattr(upper, attr)
     if part_lower != part_upper:
-        ret = np.logical_and(to_test >= part_lower,to_test < part_upper)
+        if part_lower > part_upper:
+            # in the case of a year overlap, increment the upper into another year by adding 12 months
+            part_upper += 12
+        ret = np.logical_and(to_test >= part_lower, to_test < part_upper)
     else:
-        ret = np.logical_and(to_test >= part_lower,to_test <= part_upper)
-    return(ret)
+        ret = np.logical_and(to_test >= part_lower, to_test <= part_upper)
+
+    return ret
 
 
 def get_is_increasing(vec):

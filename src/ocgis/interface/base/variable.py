@@ -1,4 +1,5 @@
 import abc
+from collections import OrderedDict
 from copy import copy, deepcopy
 import numpy as np
 
@@ -319,6 +320,22 @@ class VariableCollection(AbstractCollection):
         variables = [v.__getitem__(slc) for v in self.itervalues()]
         ret = VariableCollection(variables=variables)
         return ret
+
+    def iter_columns(self):
+        """
+        :returns: An iterator over each variable index.
+        :rtype: :class:`collections.OrderedDict`
+        """
+
+        self_itervalues = self.itervalues
+        dmap = {v.alias: v.value.data for v in self_itervalues()}
+        for idx in iter_array(self.first().value.data):
+            yld = OrderedDict()
+            for v in self_itervalues():
+                alias = v.alias
+                yld[alias] = dmap[alias][idx]
+            yld['slice'] = idx
+            yield yld
 
     def iter_melted(self, **kwargs):
         """

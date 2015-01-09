@@ -320,6 +320,20 @@ class TestVariableCollection(TestBase):
         for k, v in ret.iteritems():
             self.assertTrue(np.may_share_memory(v.value, ret[k].value))
 
+    def test_iter_columns(self):
+        variables = [self.get_variable(), self.get_variable('tas_foo2')]
+        variables[1].value *= 2
+        variables[1].value.mask[2] = True
+        vc = VariableCollection(variables=variables)
+        rows = list(vc.iter_columns())
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rows[1].keys(), ['tas_foo', 'tas_foo2', 'slice'])
+        self.assertIsInstance(rows[2], OrderedDict)
+        for row in rows:
+            for k, v in row.iteritems():
+                if k != 'slice':
+                    self.assertTrue(v < 20)
+
     def test_iter_melted(self):
         variables = [self.get_variable(), self.get_variable('tas_foo2')]
         vc = VariableCollection(variables=variables)

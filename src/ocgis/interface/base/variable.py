@@ -334,7 +334,7 @@ class VariableCollection(AbstractCollection):
             for v in self_itervalues():
                 alias = v.alias
                 yld[alias] = dmap[alias][idx]
-            yld['slice'] = idx
+            yld = (idx, yld)
             yield yld
 
     def iter_melted(self, **kwargs):

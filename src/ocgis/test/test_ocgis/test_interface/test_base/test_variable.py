@@ -327,12 +327,10 @@ class TestVariableCollection(TestBase):
         vc = VariableCollection(variables=variables)
         rows = list(vc.iter_columns())
         self.assertEqual(len(rows), 3)
-        self.assertEqual(rows[1].keys(), ['tas_foo', 'tas_foo2', 'slice'])
-        self.assertIsInstance(rows[2], OrderedDict)
+        self.assertEqual(rows[1][1].keys(), ['tas_foo', 'tas_foo2'])
+        self.assertIsInstance(rows[2][1], OrderedDict)
         for row in rows:
-            for k, v in row.iteritems():
-                if k != 'slice':
-                    self.assertTrue(v < 20)
+            self.assertTrue(row[0], 20)
 
     def test_iter_melted(self):
         variables = [self.get_variable(), self.get_variable('tas_foo2')]

@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 from collections import deque, OrderedDict
 import itertools
-import logging
 import numpy as np
 
 from shapely.ops import cascaded_union
@@ -12,10 +11,9 @@ from shapely.geometry.point import Point
 
 from ocgis.interface.base.attributes import Attributes
 from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice, \
-    set_name_attributes, iter_array
+    set_name_attributes
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis import SpatialCollection
-from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class Field(Attributes):
@@ -183,12 +181,13 @@ class Field(Attributes):
         return(self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
                                             select_nearest=select_nearest))
 
-    def get_iter(self, add_masked_value=True, value_keys=None):
+    def get_iter(self, add_masked_value=True, value_keys=None, melted=True):
         """
         :param bool add_masked_value: If ``False``, do not yield masked variable values.
         :param value_keys: A sequence of keys if the variable is a structure array.
         :type value_keys: [str, ...]
-        :returns: A dictionary for each value for each variable.
+        :param bool melted: If ``True``, do not use a melted format but place variable values as columns.
+        :returns: A dictionary containing variable values.
         :rtype: dict
         """
 
@@ -209,48 +208,66 @@ class Field(Attributes):
         r_gid_name = self.spatial.name_uid
         r_name = self.name
 
-        for variable in self.variables.itervalues():
-            yld = self._get_variable_iter_yield_(variable)
-            yld['name'] = r_name
-            ref_value = variable.value
-            masked_value = ref_value.fill_value
+        if melted:
+            for variable in self.variables.itervalues():
+                yld = self._get_variable_iter_yield_(variable)
+                yld['name'] = r_name
+                ref_value = variable.value
+                masked_value = ref_value.fill_value
+                iters = map(_get_dimension_iterator_1d_, ['realization', 'temporal', 'level'])
+                iters.append(self.spatial.get_geom_iter())
+                for [(ridx, rlz), (tidx, t), (lidx, l), (sridx, scidx, geom, gid)] in itertools.product(*iters):
+                    to_yld = deepcopy(yld)
+                    ref_idx = ref_value[ridx, tidx, lidx, sridx, scidx]
+
+                    # determine if the data is masked
+                    if is_masked(ref_idx):
+                        if add_masked_value:
+                            ref_idx = masked_value
+                        else:
+                            continue
+
+                    # realization, time, and level values.
+                    to_yld.update(rlz)
+                    to_yld.update(t)
+                    to_yld.update(l)
+
+                    # add geometries to the output
+                    to_yld['geom'] = geom
+                    to_yld[r_gid_name] = gid
+
+                    # the target value is a structure array, multiple value elements need to be added. these outputs do
+                    # not a specific value, so it is not added. there may also be multiple elements in the structure
+                    # which changes how the loop progresses.
+                    if has_value_keys:
+                        for ii in range(ref_idx.shape[0]):
+                            for vk in value_keys:
+                                try:
+                                    to_yld[vk] = ref_idx.data[vk][ii]
+                                # attempt to access the data directly. masked determination is done above.
+                                except ValueError:
+                                    to_yld[vk] = ref_idx.data[vk][ii]
+                            yield (to_yld)
+                    else:
+                        to_yld['value'] = ref_idx
+                        yield to_yld
+        else:
             iters = map(_get_dimension_iterator_1d_, ['realization', 'temporal', 'level'])
             iters.append(self.spatial.get_geom_iter())
+
             for [(ridx, rlz), (tidx, t), (lidx, l), (sridx, scidx, geom, gid)] in itertools.product(*iters):
-                to_yld = deepcopy(yld)
-                ref_idx = ref_value[ridx, tidx, lidx, sridx, scidx]
-
-                # determine if the data is masked
-                if is_masked(ref_idx):
-                    if add_masked_value:
-                        ref_idx = masked_value
-                    else:
-                        continue
-
-                # realization, time, and level values.
-                to_yld.update(rlz)
-                to_yld.update(t)
-                to_yld.update(l)
-
-                # add geometries to the output
-                to_yld['geom'] = geom
-                to_yld[r_gid_name] = gid
-
-                # the target value is a structure array, multiple value elements need to be added. these outputs do not
-                # a specific value, so it is not added. there may also be multiple elements in the structure which
-                # changes how the loop progresses.
-                if has_value_keys:
-                    for ii in range(ref_idx.shape[0]):
-                        for vk in value_keys:
-                            try:
-                                to_yld[vk] = ref_idx.data[vk][ii]
-                            # attempt to access the data directly. masked determination is done above.
-                            except ValueError:
-                                to_yld[vk] = ref_idx.data[vk][ii]
-                        yield (to_yld)
-                else:
-                    to_yld['value'] = ref_idx
-                    yield to_yld
+                yld = {}
+                for element in [rlz, t, l]:
+                    yld.update(element)
+                yld['geom'] = geom
+                yld[r_gid_name] = gid
+                for variable_alias, variable in self.variables.iteritems():
+                    ref_idx = variable.value[ridx, tidx, lidx, sridx, scidx]
+                    # determine if the data is masked
+                    if is_masked(ref_idx):
+                        ref_idx = variable.value.fill_value
+                    yld[variable_alias] = ref_idx
+                yield yld
                 
     def get_shallow_copy(self):
         return copy(self)

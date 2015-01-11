@@ -5,7 +5,6 @@ from collections import OrderedDict
 import numpy as np
 
 from shapely import wkt
-from shapely.geometry import Point
 from shapely.ops import cascaded_union
 
 from datetime import datetime as dt
@@ -270,6 +269,18 @@ class TestField(AbstractTestField):
         field = self.get_field(with_value=True, with_dimension_names=False)
         rows = list(field.get_iter())
         self.assertAsSetEqual(rows[10].keys(), ['vid', 'gid', 'month', 'year', 'alias', 'geom', 'realization', 'realization_uid', 'time_bounds_lower', 'level_bounds_upper', 'variable', 'day', 'realization_bounds_lower', 'name', 'level', 'did', 'level_bounds_lower', 'value', 'realization_bounds_upper', 'level_uid', 'time', 'tid', 'time_bounds_upper'])
+
+        # test not melted
+        field = self.get_field(with_value=True)
+        other_variable = deepcopy(field.variables.first())
+        other_variable.alias = 'two'
+        other_variable.value *= 2
+        field.variables.add_variable(other_variable, assign_new_uid=True)
+        rows = list(field.get_iter(melted=False))
+        self.assertEqual(len(rows), 1488)
+        for row in rows:
+            for variable in field.variables.itervalues():
+                self.assertIn(variable.alias, row)
 
     def test_get_iter_spatial_only(self):
         """Test with only a spatial dimension."""

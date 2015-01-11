@@ -153,6 +153,7 @@ class TestVectorDimension(TestBase):
         vdim = VectorDimension(value=[10, 20, 30, 40, 50], name='foo')
         tt = list(vdim.get_iter())
         self.assertEqual(tt[3], (3, {'foo_uid': 4, 'foo': 40, 'foo_bounds_lower': None, 'foo_bounds_upper': None}))
+        self.assertIsInstance(tt[0][1], OrderedDict)
 
         vdim = VectorDimension(value=[10, 20, 30, 40, 50], bounds=[(ii - 5, ii + 5) for ii in [10, 20, 30, 40, 50]],
                                name='foo', name_uid='hi')

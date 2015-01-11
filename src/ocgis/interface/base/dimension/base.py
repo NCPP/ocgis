@@ -1,4 +1,5 @@
 import abc
+from collections import OrderedDict
 from copy import copy, deepcopy
 from operator import mul
 import numpy as np
@@ -344,13 +345,17 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
         ref_name_bounds_upper = '{0}_upper'.format(self.name_bounds)
 
         for ii in range(self.value.shape[0]):
-            yld = {ref_name_value: ref_value[ii], ref_name_uid: ref_uid[ii]}
+            # yld = {ref_name_value: ref_value[ii], ref_name_uid: ref_uid[ii]}
+            yld = OrderedDict([(ref_name_value, ref_value[ii]), (ref_name_uid, ref_uid[ii])])
             if has_bounds:
-                yld.update({ref_name_bounds_lower: ref_bounds[ii, 0],
-                            ref_name_bounds_upper: ref_bounds[ii, 1]})
+                ref_name_bounds_lower_value = ref_bounds[ii, 0]
+                ref_name_bounds_upper_value = ref_bounds[ii, 1]
+
             else:
-                yld.update({ref_name_bounds_lower: None,
-                            ref_name_bounds_upper: None})
+                ref_name_bounds_lower_value = None
+                ref_name_bounds_upper_value = None
+            yld[ref_name_bounds_lower] = ref_name_bounds_lower_value
+            yld[ref_name_bounds_upper] = ref_name_bounds_upper_value
             yield ii, yld
 
     def set_extrapolated_bounds(self):

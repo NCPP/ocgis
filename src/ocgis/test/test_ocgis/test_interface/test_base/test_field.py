@@ -607,6 +607,21 @@ class TestField(AbstractTestField):
                 level_shape = 1
             self.assertEqual(new_field.shape, (1, 31, level_shape, 3, 4))
 
+    def test_write_to_netcdf_dataset_scale_offset(self):
+        """Test with a scale and offset in the attributes."""
+
+        var = Variable(value=np.random.rand(1, 1, 1, 3, 4), attrs={'scale_value': 2, 'add_offset': 10}, name='tas')
+        grid = SpatialGridDimension(value=np.ma.array(np.random.rand(2, 3, 4)))
+        sdim = SpatialDimension(grid=grid)
+        field = Field(variables=var, spatial=sdim)
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            field.write_to_netcdf_dataset(ds)
+        with self.nc_scope(path, 'r') as out:
+            var_out = out.variables['tas'][:]
+        target = var_out.reshape(*var.shape)
+        self.assertNumpyAllClose(var.value.data, target)
+
     def test_write_to_netcdf_dataset_with_metadata(self):
         """Test writing to netCDF with a source metadata dictionary attached and data loaded from file."""
 

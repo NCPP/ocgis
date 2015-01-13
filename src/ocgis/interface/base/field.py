@@ -446,9 +446,10 @@ class Field(Attributes):
         for variable in self.variables.itervalues():
             kwargs['fill_value'] = variable.fill_value
             nc_variable = dataset.createVariable(variable.alias, variable.dtype, **kwargs)
+            # be sure and write attributes before filling to account for offset and scale factor
+            variable.write_attributes_to_netcdf_object(nc_variable)
             if not file_only:
                 nc_variable[:] = variable.value
-            variable.write_attributes_to_netcdf_object(nc_variable)
 
             try:
                 nc_variable.grid_mapping = variable_crs._name

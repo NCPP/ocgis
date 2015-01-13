@@ -6,6 +6,7 @@ import netCDF4 as nc
 from collections import OrderedDict
 import numpy as np
 
+from cfunits import Units
 import fiona
 from shapely.geometry.geo import shape
 
@@ -195,6 +196,11 @@ class TestDriverNetcdf(TestBase):
         slced = field[:,239,:,:,:]
         self.assertEqual(slced.temporal.value_datetime,np.array([dt(2001,8,28,12)]))
         self.assertNumpyAll(slced.temporal.bounds_datetime,np.array([dt(2001,8,28),dt(2001,8,29)]).reshape(1, 2))
+
+    def test_get_field_units_read_from_file(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        self.assertEqual(field.variables['tas'].cfunits, Units('K'))
 
     def test_get_field_value_datetime_after_slicing(self):
         ref_test = self.test_data['cancm4_tas']

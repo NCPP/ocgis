@@ -5,7 +5,6 @@ import numpy as np
 
 from cfunits.cfunits import Units
 
-from ocgis.interface.base.attributes import Attributes
 from ocgis.interface.base.variable import AbstractSourcedVariable, AbstractValueVariable
 from ocgis import constants
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
@@ -50,7 +49,6 @@ class FakeAbstractUidDimension(AbstractUidDimension):
 
 
 class TestAbstractUidDimension(TestBase):
-
     def test_init(self):
         au = FakeAbstractUidDimension(uid=[1, 2, 3])
         self.assertEqual(au.name_uid, 'None_uid')
@@ -62,7 +60,6 @@ class TestAbstractUidDimension(TestBase):
 
 
 class FakeAbstractValueDimension(AbstractValueDimension):
-
     def _get_value_(self):
         pass
 
@@ -86,9 +83,8 @@ class TestAbstractValueDimension(TestBase):
 
 
 class TestVectorDimension(TestBase):
-
     def test_init(self):
-        self.assertEqual(VectorDimension.__bases__, (AbstractSourcedVariable, AbstractUidValueDimension, Attributes))
+        self.assertEqual(VectorDimension.__bases__, (AbstractSourcedVariable, AbstractUidValueDimension))
 
         vd = VectorDimension(value=[4, 5])
         self.assertIsInstance(vd.attrs, OrderedDict)
@@ -109,16 +105,16 @@ class TestVectorDimension(TestBase):
             VectorDimension()
 
     def test_bad_dtypes(self):
-        vd = VectorDimension(value=181.5,bounds=[181,182])
-        self.assertEqual(vd.value.dtype,vd.bounds.dtype)
+        vd = VectorDimension(value=181.5, bounds=[181, 182])
+        self.assertEqual(vd.value.dtype, vd.bounds.dtype)
 
         with self.assertRaises(ValueError):
-            VectorDimension(value=181.5,bounds=['a','b'])
+            VectorDimension(value=181.5, bounds=['a', 'b'])
 
     def test_bad_keywords(self):
-        ## there should be keyword checks on the bad keywords names
+        # # there should be keyword checks on the bad keywords names
         with self.assertRaises(ValueError):
-            VectorDimension(value=40,bounds=[38,42],ddtype=float)
+            VectorDimension(value=40, bounds=[38, 42], ddtype=float)
 
     def test_boolean_slice(self):
         """Test slicing with boolean values."""
@@ -130,20 +126,20 @@ class TestVectorDimension(TestBase):
         self.assertNumpyAll(vdim_slc.bounds, np.array([[3, 5], [5, 7]]))
 
     def test_bounds_only_two_dimensional(self):
-        value = [10,20,30,40,50]
+        value = [10, 20, 30, 40, 50]
         bounds = [
-                  [[b-5,b+5,b+10] for b in value],
-                  value,
-                  5
-                  ]
+            [[b - 5, b + 5, b + 10] for b in value],
+            value,
+            5
+        ]
         for b in bounds:
             with self.assertRaises(ValueError):
-                VectorDimension(value=value,bounds=b)
+                VectorDimension(value=value, bounds=b)
 
     def test_dtype(self):
-        value = [10,20,30,40,50]
+        value = [10, 20, 30, 40, 50]
         vdim = VectorDimension(value=value)
-        self.assertEqual(vdim.dtype,np.array(value).dtype)
+        self.assertEqual(vdim.dtype, np.array(value).dtype)
 
     def test_get_iter(self):
         vdim = VectorDimension(value=[10, 20, 30, 40, 50])
@@ -161,14 +157,15 @@ class TestVectorDimension(TestBase):
         self.assertEqual(tt[3], (3, {'hi': 4, 'foo': 40, 'foo_bounds_lower': 35, 'foo_bounds_upper': 45}))
 
     def test_interpolate_bounds(self):
-        value = [10,20,30,40,50]
+        value = [10, 20, 30, 40, 50]
 
         vdim = VectorDimension(value=value)
-        self.assertEqual(vdim.bounds,None)
+        self.assertEqual(vdim.bounds, None)
 
         vdim = VectorDimension(value=value)
         vdim.set_extrapolated_bounds()
-        self.assertEqual(vdim.bounds.tostring(),'\x05\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x007\x00\x00\x00\x00\x00\x00\x00')
+        self.assertEqual(vdim.bounds.tostring(),
+                         '\x05\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00\x19\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00#\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x00-\x00\x00\x00\x00\x00\x00\x007\x00\x00\x00\x00\x00\x00\x00')
 
     def test_load_from_source(self):
         """Test loading from a fake data source."""
@@ -212,8 +209,8 @@ class TestVectorDimension(TestBase):
                 vdim.resolution
 
     def test_resolution_with_units(self):
-        vdim = VectorDimension(value=[5,10,15],units='large')
-        self.assertEqual(vdim.resolution,5.0)
+        vdim = VectorDimension(value=[5, 10, 15], units='large')
+        self.assertEqual(vdim.resolution, 5.0)
 
     def test_set_extrapolated_bounds(self):
         value = np.array([1, 2, 3, 4], dtype=float)
@@ -250,16 +247,16 @@ class TestVectorDimension(TestBase):
         self.assertNumpyAll(vdim.value, vdim_slc2.value)
 
     def test_slice_source_idx_only(self):
-        vdim = VectorDimension(src_idx=[4,5,6],data='foo')
+        vdim = VectorDimension(src_idx=[4, 5, 6], data='foo')
         vdim_slice = vdim[0]
-        self.assertEqual(vdim_slice._src_idx[0],4)
+        self.assertEqual(vdim_slice._src_idx[0], 4)
 
     def test_units_with_bounds(self):
-        value = [5.,10.,15.]
-        vdim = VectorDimension(value=value,units='celsius',
+        value = [5., 10., 15.]
+        vdim = VectorDimension(value=value, units='celsius',
                                bounds=get_bounds_from_1d(np.array(value)))
         vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
+        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
 
     def test_with_bounds(self):
         """Test passing bounds to the constructor."""
@@ -270,22 +267,22 @@ class TestVectorDimension(TestBase):
         self.assertEqual(vdim.resolution, 2.0)
 
     def test_with_units(self):
-        vdim = VectorDimension(value=[5,10,15],units='celsius')
-        self.assertEqual(vdim.cfunits,Units('celsius'))
+        vdim = VectorDimension(value=[5, 10, 15], units='celsius')
+        self.assertEqual(vdim.cfunits, Units('celsius'))
         vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.value,np.array([278.15,283.15,288.15]))
+        self.assertNumpyAll(vdim.value, np.array([278.15, 283.15, 288.15]))
 
     def test_with_units_and_bounds_convert_after_load(self):
-        vdim = VectorDimension(value=[5.,10.,15.],units='celsius')
+        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
         vdim.set_extrapolated_bounds()
         vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
+        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
 
     def test_with_units_and_bounds_interpolation(self):
-        vdim = VectorDimension(value=[5.,10.,15.],units='celsius')
+        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
         vdim.set_extrapolated_bounds()
         vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.bounds,np.array([[275.65,280.65],[280.65,285.65],[285.65,290.65]]))
+        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
 
     def test_write_to_netcdf_dataset(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
@@ -376,17 +373,17 @@ class TestVectorDimension(TestBase):
     def test_get_between(self):
         vdim = VectorDimension(value=[0])
         with self.assertRaises(EmptySubsetError):
-            vdim.get_between(100,200)
+            vdim.get_between(100, 200)
 
-        vdim = VectorDimension(value=[100,200,300,400])
-        vdim_between = vdim.get_between(100,200)
-        self.assertEqual(len(vdim_between),2)
+        vdim = VectorDimension(value=[100, 200, 300, 400])
+        vdim_between = vdim.get_between(100, 200)
+        self.assertEqual(len(vdim_between), 2)
 
     def test_get_between_bounds(self):
-        value = [0.,5.,10.]
-        bounds = [[-2.5,2.5],[2.5,7.5],[7.5,12.5]]
+        value = [0., 5., 10.]
+        bounds = [[-2.5, 2.5], [2.5, 7.5], [7.5, 12.5]]
 
-        ## a reversed copy of these bounds are created here
+        # # a reversed copy of these bounds are created here
         value_reverse = deepcopy(value)
         value_reverse.reverse()
         bounds_reverse = deepcopy(bounds)
@@ -394,44 +391,48 @@ class TestVectorDimension(TestBase):
         for ii in range(len(bounds)):
             bounds_reverse[ii].reverse()
 
-        data = {'original':{'value':value,'bounds':bounds},
-                'reversed':{'value':value_reverse,'bounds':bounds_reverse}}
-        for key in ['original','reversed']:
+        data = {'original': {'value': value, 'bounds': bounds},
+                'reversed': {'value': value_reverse, 'bounds': bounds_reverse}}
+        for key in ['original', 'reversed']:
             vdim = VectorDimension(value=data[key]['value'],
                                    bounds=data[key]['bounds'])
 
-            vdim_between = vdim.get_between(1,3)
-            self.assertEqual(len(vdim_between),2)
+            vdim_between = vdim.get_between(1, 3)
+            self.assertEqual(len(vdim_between), 2)
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
             else:
-                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
-            self.assertEqual(vdim.resolution,5.0)
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
+            self.assertEqual(vdim.resolution, 5.0)
 
             ## preference is given to the lower bound in the case of "ties" where
             ## the value could be assumed part of the lower or upper cell
-            vdim_between = vdim.get_between(2.5,2.5)
-            self.assertEqual(len(vdim_between),1)
+            vdim_between = vdim.get_between(2.5, 2.5)
+            self.assertEqual(len(vdim_between), 1)
             if key == 'original':
-                self.assertNumpyAll(vdim_between.bounds,np.array([[2.5,7.5]]))
+                self.assertNumpyAll(vdim_between.bounds, np.array([[2.5, 7.5]]))
             else:
-                self.assertNumpyAll(vdim_between.bounds,np.array([[7.5,2.5]]))
+                self.assertNumpyAll(vdim_between.bounds, np.array([[7.5, 2.5]]))
 
             ## if the interval is closed and the subset range falls only on bounds
             ## value then the subset will be empty
             with self.assertRaises(EmptySubsetError):
-                vdim.get_between(2.5,2.5,closed=True)
+                vdim.get_between(2.5, 2.5, closed=True)
 
-            vdim_between = vdim.get_between(2.5,7.5)
+            vdim_between = vdim.get_between(2.5, 7.5)
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
             else:
-                self.assertEqual(vdim_between.bounds.tostring(),'\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
 
     def test_get_between_use_bounds(self):
-        value = [3.,5.]
-        bounds = [[2.,4.],[4.,6.]]
-        vdim = VectorDimension(value=value,bounds=bounds)
-        ret = vdim.get_between(3,4.5,use_bounds=False)
-        self.assertNumpyAll(ret.value,np.array([3.]))
-        self.assertNumpyAll(ret.bounds,np.array([[2.,4.]]))
+        value = [3., 5.]
+        bounds = [[2., 4.], [4., 6.]]
+        vdim = VectorDimension(value=value, bounds=bounds)
+        ret = vdim.get_between(3, 4.5, use_bounds=False)
+        self.assertNumpyAll(ret.value, np.array([3.]))
+        self.assertNumpyAll(ret.bounds, np.array([[2., 4.]]))

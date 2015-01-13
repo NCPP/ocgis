@@ -121,3 +121,7 @@ MERIDIAN_180TH = 180.
 
 # The standard key used to identify geometries in a dictionary.
 DEFAULT_GEOMETRY_KEY = 'geom'
+
+# Attributes to remove when a value is changed if they are present in the attributes dictionary. These attributes are
+# tuned to specific value ranges and will not apply when a value is changed.
+NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE = ('scale_value', 'add_offset')

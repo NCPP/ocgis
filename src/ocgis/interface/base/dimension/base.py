@@ -5,7 +5,6 @@ from operator import mul
 import numpy as np
 
 from ocgis import constants
-from ocgis.interface.base.attributes import Attributes
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
     get_formatted_slice, get_bounds_from_1d
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
@@ -135,27 +134,26 @@ class AbstractUidDimension(AbstractDimension):
         return ret
 
 
-class AbstractUidValueDimension(AbstractValueDimension,AbstractUidDimension):
-    
-    def __init__(self,*args,**kwds):
-        kwds_value = ['value','name_value','units','name','dtype','fill_value']
-        kwds_uid = ['uid','name_uid','meta','properties','name']
-        
+class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
+    def __init__(self, *args, **kwds):
+        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'fill_value', 'attrs']
+        kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name']
+
         kwds_all = kwds_value + kwds_uid
         for key in kwds.keys():
             try:
-                assert(key in kwds_all)
+                assert (key in kwds_all)
             except AssertionError:
-                raise(ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key,self.__class__.__name__)))
-               
-        kwds_value = {key:kwds.get(key,None) for key in kwds_value}
-        kwds_uid = {key:kwds.get(key,None) for key in kwds_uid}
+                raise ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key, self.__class__.__name__))
 
-        AbstractValueDimension.__init__(self,*args,**kwds_value)
-        AbstractUidDimension.__init__(self,*args,**kwds_uid)
+        kwds_value = {key: kwds.get(key, None) for key in kwds_value}
+        kwds_uid = {key: kwds.get(key, None) for key in kwds_uid}
+
+        AbstractValueDimension.__init__(self, *args, **kwds_value)
+        AbstractUidDimension.__init__(self, *args, **kwds_uid)
 
 
-class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attributes):
+class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     _attrs_slice = ('uid', '_value', '_src_idx')
     _ndims = 1
     
@@ -173,7 +171,6 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension, Attrib
         self._has_interpolated_bounds = False
 
         AbstractSourcedVariable.__init__(self, kwargs.pop('data', None), kwargs.pop('src_idx', None))
-        Attributes.__init__(self, attrs=kwargs.pop('attrs', None))
         AbstractUidValueDimension.__init__(self, *args, **kwargs)
 
         # setting bounds requires checking the data type of value set in a superclass.

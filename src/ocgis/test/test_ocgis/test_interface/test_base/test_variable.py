@@ -4,6 +4,8 @@ import numpy as np
 
 from cfunits import Units
 
+from ocgis.constants import NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE
+
 from ocgis.exc import VariableInCollectionError, NoUnitsError
 from ocgis.interface.base.attributes import Attributes
 from ocgis.test.base import TestBase
@@ -60,12 +62,140 @@ class FakeAbstractValueVariable(AbstractValueVariable):
 class TestAbstractValueVariable(TestBase):
     create_dir = False
 
+    @property
+    def value(self):
+        return np.array([5, 5, 5])
+
     def test_init(self):
+        self.assertEqual(AbstractValueVariable.__bases__, (Attributes,))
+
         kwds = dict(value=[[4, 5, 6]])
 
         for k in self.iter_product_keywords(kwds):
             av = FakeAbstractValueVariable(value=k.value)
             self.assertEqual(av.value, k.value)
+            self.assertIsNone(av.alias)
+
+        fav = FakeAbstractValueVariable(name='foo')
+        self.assertEqual(fav.alias, 'foo')
+
+    def test_init_conform_units_to(self):
+        """Test using the conform_units_to keyword argument."""
+
+        def _get_units_(v):
+            try:
+                v = Units(v)
+            except AttributeError:
+                pass
+            return v
+
+        value = np.array([1, 2, 3, 4, 5])
+        value_masked = np.ma.array(value, mask=[False, True, False, True, False])
+
+        kwds = dict(units=['celsius', None, 'mm/day'],
+                    conform_units_to=['kelvin', Units('kelvin'), None],
+                    value=[value, value_masked])
+
+        for k in itr_products_keywords(kwds, as_namedtuple=True):
+            try:
+                var = Variable(**k._asdict())
+            except NoUnitsError:
+                # without units defined on the input array, the values may not be conformed
+                if k.units is None:
+                    continue
+                else:
+                    raise
+            except ValueError:
+                # units are not convertible
+                if _get_units_(k.units) == _get_units_('mm/day') and _get_units_(k.conform_units_to) == _get_units_('kelvin'):
+                    continue
+                else:
+                    raise
+
+            if k.conform_units_to is not None:
+                try:
+                    self.assertEqual(var.conform_units_to, Units(k.conform_units_to))
+                # may already be a Units object
+                except AttributeError:
+                    self.assertEqual(var.conform_units_to, k.conform_units_to)
+            else:
+                self.assertIsNone(var.conform_units_to)
+
+            if k.conform_units_to is not None:
+                actual = [274.15, 275.15, 276.15, 277.15, 278.15]
+                if isinstance(k.value, MaskedArray):
+                    mask = value_masked.mask
+                else:
+                    mask = False
+                actual = np.ma.array(actual, mask=mask, fill_value=var.value.fill_value)
+                self.assertNumpyAll(actual, var.value)
+
+    def test_init_units(self):
+        # string-based units
+        var = Variable(name='tas', units='celsius', value=self.value)
+        self.assertEqual(var.units, 'celsius')
+        self.assertEqual(var.cfunits, Units('celsius'))
+        self.assertNotEqual(var.cfunits, Units('kelvin'))
+        self.assertTrue(var.cfunits.equivalent(Units('kelvin')))
+
+        # constructor with units objects v. string
+        var = Variable(name='tas', units=Units('celsius'), value=self.value)
+        self.assertEqual(var.units, 'celsius')
+        self.assertEqual(var.cfunits, Units('celsius'))
+
+        # test no units
+        var = Variable(name='tas', units=None, value=self.value)
+        self.assertEqual(var.units, None)
+        self.assertEqual(var.cfunits, Units(None))
+
+    def test_cfunits_conform(self):
+        # conversion of celsius units to kelvin
+        attrs = {k: 1 for k in NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE}
+        var = Variable(name='tas', units='celsius', value=self.value, attrs=attrs)
+        self.assertEqual(len(var.attrs), 2)
+        var.cfunits_conform(Units('kelvin'))
+        self.assertNumpyAll(var.value, np.ma.array([278.15] * 3))
+        self.assertEqual(var.cfunits, Units('kelvin'))
+        self.assertEqual(var.units, 'kelvin')
+        self.assertEqual(len(var.attrs), 0)
+
+        # if there are no units associated with a variable, conforming the units should fail
+        var = Variable(name='tas', units=None, value=self.value)
+        with self.assertRaises(NoUnitsError):
+            var.cfunits_conform(Units('kelvin'))
+
+        # conversion should fail for nonequivalent units
+        var = Variable(name='tas', units='kelvin', value=self.value)
+        with self.assertRaises(ValueError):
+            var.cfunits_conform(Units('grams'))
+
+        # the data type should always be updated to match the output from cfunits
+        av = FakeAbstractValueVariable(value=np.array([4, 5, 6]), dtype=int)
+        self.assertEqual(av.dtype, np.dtype(int))
+        with self.assertRaises(NoUnitsError):
+            av.cfunits_conform('K')
+        av.units = 'celsius'
+        av.cfunits_conform('K')
+        self.assertIsNone(av._dtype)
+        self.assertEqual(av.dtype, av.value.dtype)
+
+    def test_cfunits_conform_from_file(self):
+        """Test conforming units on data read from file."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        sub = field.get_time_region({'month': [5], 'year': [2005]})
+        sub.variables['tas'].cfunits_conform(Units('celsius'))
+        self.assertAlmostEqual(sub.variables['tas'].value[:, 6, :, 30, 64],
+                               np.ma.array([[28.2539310455]], mask=[[False]]))
+        self.assertEqual(sub.variables['tas'].units, 'celsius')
+
+    def test_cfunits_conform_masked_array(self):
+        # assert mask is respected by inplace unit conversion
+        value = np.ma.array(data=[5, 5, 5], mask=[False, True, False])
+        var = Variable(name='tas', units=Units('celsius'), value=value)
+        var.cfunits_conform(Units('kelvin'))
+        self.assertNumpyAll(np.ma.array([278.15, 278.15, 278.15], mask=[False, True, False]), var.value)
 
 
 class TestDerivedVariable(TestBase):
@@ -99,11 +229,16 @@ class TestDerivedVariable(TestBase):
 class TestVariable(TestBase):
 
     def test_init(self):
-        self.assertEqual(Variable.__bases__, (AbstractSourcedVariable, AbstractValueVariable, Attributes))
+        self.assertEqual(Variable.__bases__, (AbstractSourcedVariable, AbstractValueVariable))
 
         # test passing attributes
         var = Variable(attrs={'a': 6}, value=np.array([5]))
         self.assertEqual(var.attrs['a'], 6)
+
+        # test the alias transmits to superclass
+        var = Variable(value=np.array([4, 5]), name='tas', alias='foo')
+        self.assertEqual(var.name, 'tas')
+        self.assertEqual(var.alias, 'foo')
 
     def test_init_with_value_with_dtype_fill_value(self):
         var = Variable(data='foo',dtype=np.float,fill_value=9,value=np.array([1,2,3,4]))
@@ -132,58 +267,6 @@ class TestVariable(TestBase):
     def test_str(self):
         var = Variable(name='toon')
         self.assertEqual(str(var), 'Variable(name="toon", alias="toon", units=None)')
-
-    def test_conform_units_to(self):
-        """Test using the conform_units_to keyword argument."""
-
-        def _get_units_(v):
-            try:
-                v = Units(v)
-            except AttributeError:
-                pass
-            return v
-
-        value = np.array([1, 2, 3, 4, 5])
-        value_masked = np.ma.array(value, mask=[False, True, False, True, False])
-
-        kwds = dict(units=['celsius', None, 'mm/day'],
-                    conform_units_to=['kelvin', Units('kelvin'), None],
-                    value=[value, value_masked])
-
-        for k in itr_products_keywords(kwds, as_namedtuple=True):
-
-            try:
-                var = Variable(**k._asdict())
-            except NoUnitsError:
-                # without units defined on the input array, the values may not be conformed
-                if k.units is None:
-                    continue
-                else:
-                    raise
-            except ValueError:
-                # units are not convertible
-                if _get_units_(k.units) == _get_units_('mm/day') and _get_units_(k.conform_units_to) == _get_units_('kelvin'):
-                    continue
-                else:
-                    raise
-
-            if k.conform_units_to is not None:
-                try:
-                    self.assertEqual(var.conform_units_to, Units(k.conform_units_to))
-                # may already be a Units object
-                except AttributeError:
-                    self.assertEqual(var.conform_units_to, k.conform_units_to)
-            else:
-                self.assertIsNone(var.conform_units_to)
-
-            if k.conform_units_to is not None:
-                actual = [274.15, 275.15, 276.15, 277.15, 278.15]
-                if isinstance(k.value, MaskedArray):
-                    mask = value_masked.mask
-                else:
-                    mask = False
-                actual = np.ma.array(actual, mask=mask, fill_value=var.value.fill_value)
-                self.assertNumpyAll(actual, var.value)
 
     def test_get_empty_like(self):
         kwargs = dict(name='tas', alias='tas2', units='celsius', meta={'foo': 5}, uid=5, data='foo', did=5)

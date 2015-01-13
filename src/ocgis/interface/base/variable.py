@@ -4,12 +4,13 @@ from copy import copy, deepcopy
 import numpy as np
 
 from ocgis.api.collection import AbstractCollection
+from ocgis.constants import NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE
 from ocgis.interface.base.attributes import Attributes
 from ocgis.util.helpers import get_iter, iter_array
 from ocgis.exc import NoUnitsError, VariableInCollectionError
 
 
-class AbstractValueVariable(object):
+class AbstractValueVariable(Attributes):
     """
     :param array-like value:
     :param units:
@@ -20,12 +21,21 @@ class AbstractValueVariable(object):
     :param str name:
     :param conform_units_to:
     :type units: str or :class:`cfunits.Units`
+    :param str alias: An alternate name for the variable used to maintain uniqueness.
+    :param dict attrs: A dictionary of arbitrary key-value attributes.
     """
+
     __metaclass__ = abc.ABCMeta
     _value = None
     _conform_units_to = None
     
-    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None):
+    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None,
+                 alias=None, attrs=None):
+        self.name = name
+        self.alias = alias or self.name
+
+        Attributes.__init__(self, attrs=attrs)
+
         # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
         # checking for the module presence.
         self.units = str(units) if units is not None else None
@@ -33,7 +43,6 @@ class AbstractValueVariable(object):
         self.value = value
         self._dtype = dtype
         self._fill_value = fill_value
-        self.name = name
         # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
         # checking for the module presence.
         self.units = str(units) if units is not None else None
@@ -104,9 +113,10 @@ class AbstractValueVariable(object):
     def _get_value_(self):
         """Return the value field."""
 
-    def cfunits_conform(self,to_units,value=None,from_units=None):
-        '''
-        Conform units of value variable in-place using :mod:`cfunits`.
+    def cfunits_conform(self, to_units, value=None, from_units=None):
+        """
+        Conform units of value variable in-place using :mod:`cfunits`. If there are an scale or offset parameters in the
+        attribute dictionary, they will be removed.
 
         :param to_units: Target conform units.
         :type t_units: str or :class:`cfunits.Units`
@@ -115,14 +125,16 @@ class AbstractValueVariable(object):
         :param from_units: Source units to use in place of the object's value.
         :type from_units: str or :class:`cfunits.Units`
         :rtype: np.ndarray
-        '''
+        :raises: NoUnitsError
+        """
 
         from cfunits import Units
+
         # units are required for conversion
         if self.cfunits == Units(None):
-            raise(NoUnitsError(self.alias))
+            raise (NoUnitsError(self.alias))
         # allow string unit representations to be passed
-        if not isinstance(to_units,Units):
+        if not isinstance(to_units, Units):
             to_units = Units(to_units)
         # pick the value to convert. this is added to keep the import of the units library in the
         # AbstractValueVariable.cfunits property
@@ -133,7 +145,12 @@ class AbstractValueVariable(object):
         self.cfunits.conform(convert_value, from_units, to_units, inplace=True)
         # update the units attribute with the destination units
         self.units = str(to_units)
-        
+        # let the data type load natively from the value array
+        self._dtype = None
+        # remove any compression attributes if present
+        for remove in NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE:
+            self.attrs.pop(remove, None)
+
         return convert_value
 
 
@@ -165,7 +182,7 @@ class AbstractSourcedVariable(object):
         """Should set ``_value`` using the data source and index."""
 
 
-class Variable(AbstractSourcedVariable, AbstractValueVariable, Attributes):
+class Variable(AbstractSourcedVariable, AbstractValueVariable):
     """
     :param name: Representative name for the variable.
     :type name: str
@@ -195,15 +212,13 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable, Attributes):
 
     def __init__(self, name=None, alias=None, units=None, meta=None, uid=None, value=None, did=None, data=None,
                  conform_units_to=None, dtype=None, fill_value=None, attrs=None):
-        self.alias = alias or name
         self.meta = meta or {}
         self.uid = uid
         self.did = did
 
         AbstractSourcedVariable.__init__(self, data, None)
-        Attributes.__init__(self, attrs=attrs)
         AbstractValueVariable.__init__(self, value=value, units=units, dtype=dtype, fill_value=fill_value, name=name,
-                                       conform_units_to=conform_units_to)
+                                       conform_units_to=conform_units_to, alias=alias, attrs=attrs)
 
     def __getitem__(self, slc):
         ret = copy(self)

@@ -5,6 +5,7 @@ from collections import deque
 import itertools
 import numpy as np
 
+from cfunits import Units
 import netcdftime
 
 from datetime import datetime as dt
@@ -146,14 +147,6 @@ class TestTemporalDimension(TestBase):
         self.assertTrue(td._has_months_units)
         self.assertEqual(td.axis, 'foo')
 
-    def test_getitem(self):
-        td = self.get_temporal_dimension()
-        self.assertIsNotNone(td.value_datetime)
-        self.assertIsNotNone(td.value_numtime)
-        sub = td[3]
-        self.assertEqual(sub.value_datetime.shape, (1,))
-        self.assertEqual(sub.value_numtime.shape, (1,))
-
     def test_360_day_calendar(self):
         months = range(1, 13)
         days = range(1, 31)
@@ -190,6 +183,36 @@ class TestTemporalDimension(TestBase):
                     except CannotFormatTimeError:
                         self.assertFalse(format_time)
 
+    def test_cfunits(self):
+        temporal = TemporalDimension(value=[4, 5, 6])
+        self.assertEqual(temporal.cfunits.calendar, temporal.calendar)
+
+    def test_cfunits_conform(self):
+
+        def _get_temporal_(kwds=None):
+            rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
+            field = rd.get()
+            temporal = field.temporal
+            return temporal
+
+        target = Units('days since 1949-1-1')
+        target.calendar = '365_day'
+        kwds = {'t_conform_units_to': target}
+        temporal = _get_temporal_(kwds)
+        temporal_orig = _get_temporal_()
+        self.assertNumpyNotAll(temporal.value, temporal_orig.value)
+        self.assertNumpyAll(temporal.value_datetime, temporal_orig.value_datetime)
+
+    def test_conform_units_to(self):
+        d = 'days since 1949-1-1'
+        td = TemporalDimension(value=[4, 5, 6], conform_units_to=d)
+        actual = Units(d)
+        actual.calendar = constants.DEFAULT_TEMPORAL_CALENDAR
+        self.assertTrue(td.cfunits.equals(actual))
+
+        td = TemporalDimension(value=[4, 5, 6])
+        self.assertIsNone(td.conform_units_to)
+
     def test_extent_datetime_and_extent_numtime(self):
         value_numtime = np.array([6000., 6001., 6002])
         value_datetime = TemporalDimension(value=value_numtime).value_datetime
@@ -212,6 +235,14 @@ class TestTemporalDimension(TestBase):
         elements = [sub.bounds_datetime, sub.bounds_numtime]
         for element in elements:
             self.assertEqual(element.shape, (1, 2))
+
+    def test_getitem(self):
+        td = self.get_temporal_dimension()
+        self.assertIsNotNone(td.value_datetime)
+        self.assertIsNotNone(td.value_numtime)
+        sub = td[3]
+        self.assertEqual(sub.value_datetime.shape, (1,))
+        self.assertEqual(sub.value_numtime.shape, (1,))
 
     def test_get_between(self):
         keywords = dict(as_datetime=[False, True])

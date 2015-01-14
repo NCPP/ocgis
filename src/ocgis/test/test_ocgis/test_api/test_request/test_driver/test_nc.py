@@ -132,6 +132,18 @@ class TestDriverNetcdf(TestBase):
 
         ds.close()
 
+    def test_get_field_t_conform_units_to(self):
+        """
+        Test conforming time units is appropriately passed to field object.
+        """
+
+        uri = self.test_data.get_uri('cancm4_tas')
+        target = Units('days since 1949-1-1')
+        target.calendar = '365_day'
+        rd = RequestDataset(uri=uri, t_conform_units_to=target)
+        field = rd.get()
+        self.assertEqual(field.temporal.conform_units_to, target)
+
     def test_get_field_different_dimension_names_and_values(self):
         """Test dimension names and dimension values are correctly read from netCDF."""
 

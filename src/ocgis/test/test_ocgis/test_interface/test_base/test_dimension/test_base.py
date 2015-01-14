@@ -59,6 +59,22 @@ class TestAbstractUidDimension(TestBase):
         self.assertEqual(au.name_uid, 'hello')
 
 
+class FakeAbstractUidValueDimension(AbstractUidValueDimension):
+    _ndims = 1
+    _attrs_slice = None
+
+    def _get_value_(self):
+        pass
+
+
+class TestAbstractUidValueDimension(TestBase):
+
+    def test_init(self):
+        c = 'celsius'
+        ff = FakeAbstractUidValueDimension(conform_units_to=c)
+        self.assertEqual(ff.conform_units_to, Units(c))
+
+
 class FakeAbstractValueDimension(AbstractValueDimension):
     def _get_value_(self):
         pass
@@ -104,6 +120,20 @@ class TestVectorDimension(TestBase):
         with self.assertRaises(ValueError):
             VectorDimension()
 
+    def test_init_conform_units_to(self):
+        target = np.array([4, 5, 6])
+        target_copy = target.copy()
+        vd = VectorDimension(value=target, units='celsius', conform_units_to='kelvin')
+        self.assertNumpyNotAll(vd.value, target_copy)
+        self.assertNumpyAll(vd.value, np.array([277.15, 278.15, 279.15]))
+        self.assertEqual(vd.units, 'kelvin')
+        self.assertEqual(vd.cfunits, Units('kelvin'))
+
+        target = np.array([4., 5., 6.])
+        target_bounds = np.array([[3.5, 4.5], [4.5, 5.5], [5.5, 6.5]])
+        vd = VectorDimension(value=target, bounds=target_bounds, units='celsius', conform_units_to='kelvin')
+        self.assertNumpyAll(vd.bounds, np.array([[276.65, 277.65], [277.65, 278.65], [278.65, 279.65]]))
+
     def test_bad_dtypes(self):
         vd = VectorDimension(value=181.5, bounds=[181, 182])
         self.assertEqual(vd.value.dtype, vd.bounds.dtype)
@@ -112,7 +142,7 @@ class TestVectorDimension(TestBase):
             VectorDimension(value=181.5, bounds=['a', 'b'])
 
     def test_bad_keywords(self):
-        # # there should be keyword checks on the bad keywords names
+        # there should be keyword checks on the bad keywords names
         with self.assertRaises(ValueError):
             VectorDimension(value=40, bounds=[38, 42], ddtype=float)
 

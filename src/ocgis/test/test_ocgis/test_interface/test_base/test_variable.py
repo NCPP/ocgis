@@ -5,7 +5,6 @@ import numpy as np
 from cfunits import Units
 
 from ocgis.constants import NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE
-
 from ocgis.exc import VariableInCollectionError, NoUnitsError
 from ocgis.interface.base.attributes import Attributes
 from ocgis.test.base import TestBase
@@ -178,6 +177,15 @@ class TestAbstractValueVariable(TestBase):
         av.cfunits_conform('K')
         self.assertIsNone(av._dtype)
         self.assertEqual(av.dtype, av.value.dtype)
+
+        # calendar can be finicky - those need to be stripped from the string conversion
+        conform_units_to = Units('days since 1949-1-1')
+        conform_units_to.calendar = 'standard'
+        units = Units('days since 1900-1-1')
+        units.calendar = 'standard'
+        av = FakeAbstractValueVariable(value=np.array([4000, 5000, 6000]), units=units,
+                                       conform_units_to=conform_units_to)
+        self.assertEqual(av.units, 'days since 1949-1-1')
 
     def test_cfunits_conform_from_file(self):
         """Test conforming units on data read from file."""

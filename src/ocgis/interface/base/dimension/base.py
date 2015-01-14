@@ -58,7 +58,7 @@ class AbstractDimension(object):
         elif self._ndims == 2:
             ret = get_none_or_2d(arr)
         else:
-            raise (NotImplementedError)
+            raise NotImplementedError
         if ret is not None and masked and not isinstance(ret, np.ma.MaskedArray):
             ret = np.ma.array(ret, mask=False)
         return ret
@@ -136,7 +136,7 @@ class AbstractUidDimension(AbstractDimension):
 
 class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
     def __init__(self, *args, **kwds):
-        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'fill_value', 'attrs']
+        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'fill_value', 'attrs', 'conform_units_to']
         kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name']
 
         kwds_all = kwds_value + kwds_uid
@@ -175,6 +175,11 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
 
         # setting bounds requires checking the data type of value set in a superclass.
         self.bounds = bounds
+
+        # conform any units if they provided. check they are not equivalent first
+        if self.conform_units_to is not None:
+            if not self.conform_units_to.equals(self.cfunits):
+                self.cfunits_conform(self.conform_units_to)
             
     def __len__(self):
         return self.shape[0]
@@ -233,30 +238,33 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     def shape(self):
         return(self.uid.shape)
     
-    def cfunits_conform(self,to_units):
-        ## get the original units for bounds conversion. the "cfunits_conform"
-        ## method updates the object's internal "units" attribute.
+    def cfunits_conform(self, to_units):
+        """
+        Convert and set value and bounds for the dimension object to new units.
+
+        :param to_units: The destination units.
+        :type to_units: :class:`cfunits.cfunits.Units`
+        """
+
+        # get the original units for bounds conversion. the "cfunits_conform" method updates the object's internal
+        # "units" attribute.
         original_units = deepcopy(self.cfunits)
-        ## call the superclass unit conversion
-        AbstractValueVariable.cfunits_conform(self,to_units)
-        ## if the bounds are already loaded, convert
+        # call the superclass unit conversion
+        AbstractValueVariable.cfunits_conform(self, to_units)
+        # if the bounds are already loaded, convert
         if self._bounds is not None:
-            AbstractValueVariable.cfunits_conform(self,to_units,value=self._bounds,from_units=original_units)
-        ## if the bound are not set, they may be interpolated
+            AbstractValueVariable.cfunits_conform(self, to_units, value=self._bounds, from_units=original_units)
+        # if the bound are not set, they may be interpolated
         elif self.bounds is not None:
-            ## if the bounds were interpolated, then this should be set to 
-            ## "None" so the units conforming will use the source value units 
-            ## spec.
+            # if the bounds were interpolated, then this should be set to "None" so the units conforming will use the
+            # source value units spec.
             if self._has_interpolated_bounds:
                 from_units = None
             else:
                 from_units = original_units
-            ## conform the bounds value
-            AbstractValueVariable.cfunits_conform(self,
-                                                  to_units,
-                                                  value=self.bounds,
-                                                  from_units=from_units)
-    
+            # conform the bounds value
+            AbstractValueVariable.cfunits_conform(self, to_units, value=self.bounds, from_units=from_units)
+
     def get_between(self,lower,upper,return_indices=False,closed=False,use_bounds=True):
         assert(lower <= upper)
         
@@ -406,8 +414,9 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         # data mode issues require that this be last...?
         self.write_attributes_to_netcdf_object(variable)
 
-    def _format_private_value_(self,value):
-        return(self._get_none_or_array_(value,masked=False))
+    def _format_private_value_(self, value):
+        value = self._get_none_or_array_(value, masked=False)
+        return value
     
     def _format_slice_state_(self,state,slc):
         state.bounds = get_none_or_slice(state._bounds,(slc,slice(None)))

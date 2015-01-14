@@ -1510,7 +1510,7 @@ class TestSimpleProjected(TestSimpleBase):
         ret = self.get_ret(kwds={'output_format': 'nc'})
         self.assertNcEqual(dataset['uri'], ret,
                            ignore_attributes={'global': ['history'], 'time_bnds': ['calendar', 'units'],
-                                              'crs': ['proj4', 'units']})
+                                              'crs': ['units']})
 
     def test_nc_projection_to_shp(self):
         ret = self.get_ret(kwds={'output_format': constants.OUTPUT_FORMAT_SHAPEFILE})

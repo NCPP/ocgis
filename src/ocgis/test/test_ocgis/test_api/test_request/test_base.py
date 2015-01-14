@@ -65,6 +65,9 @@ class TestRequestDataset(TestBase):
         rd = RequestDataset(uri=self.uri, crs=CFWGS84())
         self.assertTrue(rd._has_assigned_coordinate_system)
 
+        rd = RequestDataset(uri=self.uri, t_conform_units_to='days since 1949-1-1')
+        self.assertEqual(rd.t_conform_units_to, 'days since 1949-1-1')
+
     def test_init_driver(self):
         uri = ShpCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=uri, driver='vector')
@@ -77,6 +80,31 @@ class TestRequestDataset(TestBase):
 
         with self.assertRaises(ValueError):
             RequestDataset(uri_nc, driver='vector')
+
+    def test_conform_units_to(self):
+        rd = RequestDataset(uri=self.uri)
+        self.assertIsNone(rd.conform_units_to)
+        rd = RequestDataset(uri=self.uri, conform_units_to=None)
+        self.assertIsNone(rd.conform_units_to)
+
+        # these are exceptions
+        problems = ['K', 'not_real']
+        for prob in problems:
+            with self.assertRaises(RequestValidationError):
+                RequestDataset(uri=self.uri, variable=['one', 'two'], conform_units_to=prob)
+
+        # test for univariate
+        poss = ['K', ['K']]
+        for p in poss:
+            rd = RequestDataset(uri=self.uri, conform_units_to=p)
+            self.assertEqual(rd.conform_units_to, 'K')
+
+        # test for multivariate
+        target = ['K', 'celsius']
+        poss = [target]
+        for p in poss:
+            rd = RequestDataset(uri=self.uri, variable=['one', 'two'], conform_units_to=p)
+            self.assertEqual(rd.conform_units_to, tuple(target))
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')

@@ -95,7 +95,6 @@ class CoordinateReferenceSystem(object):
         """
 
         variable = rootgrp.createVariable(self.name, 'c')
-        variable.proj4 = self.proj4
         return variable
 
 

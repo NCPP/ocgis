@@ -37,10 +37,10 @@ class TemporalDimension(base.VectorDimension):
         kwargs['axis'] = kwargs.get('axis') or 'T'
         kwargs['name'] = kwargs.get('name') or 'time'
         kwargs['name_uid'] = kwargs.get('name_uid') or 'tid'
+        kwargs['units'] = kwargs.get('units') or constants.DEFAULT_TEMPORAL_UNITS
 
         super(TemporalDimension, self).__init__(*args, **kwargs)
 
-        self.units = self.units or constants.DEFAULT_TEMPORAL_UNITS
         # test if the units are the special case with months in the time units
         if self.units.startswith('months'):
             self._has_months_units = True
@@ -73,6 +73,18 @@ class TemporalDimension(base.VectorDimension):
                 else:
                     self._bounds_numtime = self.bounds
         return self._bounds_numtime
+
+    @base.VectorDimension.conform_units_to.setter
+    def conform_units_to(self, value):
+        base.VectorDimension._conform_units_to_setter_(self, value)
+        if self._conform_units_to is not None:
+            self._conform_units_to.calendar = self.calendar
+
+    @property
+    def cfunits(self):
+        ret = super(TemporalDimension, self).cfunits
+        ret.calendar = self.calendar
+        return ret
 
     @property
     def extent_datetime(self):

@@ -68,7 +68,8 @@ class TestCoordinateReferenceSystem(TestBase):
         with nc_scope(path, 'w') as ds:
             variable = crs.write_to_rootgrp(ds)
             self.assertIsInstance(variable, nc.Variable)
-            self.assertEqual(variable.proj4, crs.proj4)
+            with self.assertRaises(AttributeError):
+                variable.proj4
 
 
 class TestWrappableCoordinateSystem(TestBase):

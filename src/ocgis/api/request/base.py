@@ -78,6 +78,11 @@ class RequestDataset(object):
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
     :type t_calendar: str
+    :param str t_conform_units_to: Conform the time dimension to the provided units. The calendar may not be changed.
+     The option dependency ``cfunits-python`` is required.
+
+    >>> t_conform_units_to = 'days since 1949-1-1'
+
     :param s_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is not
      possible due to missing bounds, ``'point'`` will be used instead.
     :type s_abstraction: str
@@ -123,9 +128,9 @@ class RequestDataset(object):
     _Drivers[DriverVector.key] = DriverVector
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
-                 level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None, did=None,
-                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver=None, regrid_source=True,
-                 regrid_destination=False):
+                 level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None,
+                 t_conform_units_to=None, did=None, meta=None, s_abstraction=None, dimension_map=None, name=None,
+                 driver=None, regrid_source=True, regrid_destination=False):
 
         self._is_init = True
 
@@ -159,6 +164,8 @@ class RequestDataset(object):
 
         self.t_units = t_units
         self.t_calendar = t_calendar
+        self.t_conform_units_to = t_conform_units_to
+
         self.dimension_map = deepcopy(dimension_map)
         self.did = did
         self.meta = meta or {}

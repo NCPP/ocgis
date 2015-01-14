@@ -43,9 +43,6 @@ class AbstractValueVariable(Attributes):
         self.value = value
         self._dtype = dtype
         self._fill_value = fill_value
-        # if the units value is not None, then convert to string. cfunits.Units may be easily handled this way without
-        # checking for the module presence.
-        self.units = str(units) if units is not None else None
 
     @property
     def cfunits(self):
@@ -53,17 +50,17 @@ class AbstractValueVariable(Attributes):
         from cfunits import Units
         return Units(self.units)
 
-    @property
-    def conform_units_to(self):
+    def _conform_units_to_getter_(self):
         return self._conform_units_to
 
-    @conform_units_to.setter
-    def conform_units_to(self, value):
+    def _conform_units_to_setter_(self, value):
         if value is not None:
             from cfunits import Units
             if not isinstance(value, Units):
                 value = Units(value)
         self._conform_units_to = value
+
+    conform_units_to = property(_conform_units_to_getter_, _conform_units_to_setter_)
 
     @property
     def dtype(self):
@@ -144,7 +141,12 @@ class AbstractValueVariable(Attributes):
         # units are always converted in place. users need to execute their own deep copies
         self.cfunits.conform(convert_value, from_units, to_units, inplace=True)
         # update the units attribute with the destination units
-        self.units = str(to_units)
+        if hasattr(to_units, 'calendar'):
+            str_to_units = deepcopy(to_units)
+            delattr(str_to_units, 'calendar')
+        else:
+            str_to_units = to_units
+        self.units = str(str_to_units)
         # let the data type load natively from the value array
         self._dtype = None
         # remove any compression attributes if present

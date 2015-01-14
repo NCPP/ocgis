@@ -212,11 +212,11 @@ class DriverNetcdf(AbstractDriver):
         source_metadata = self.rd.source_metadata
 
         def _get_temporal_adds_(ref_attrs):
-            ## calendar should default to standard if it is not present and the
-            ## t_calendar overload is not used.
+            # calendar should default to standard if it is not present and the t_calendar overload is not used.
             calendar = self.rd.t_calendar or ref_attrs.get('calendar', None) or 'standard'
 
-            return {'units': self.rd.t_units or ref_attrs['units'], 'calendar': calendar, 'format_time': format_time}
+            return {'units': self.rd.t_units or ref_attrs['units'], 'calendar': calendar, 'format_time': format_time,
+                    'conform_units_to': self.rd.t_conform_units_to}
 
         # parameters for the loading loop
         to_load = {'temporal': {'cls': NcTemporalDimension, 'adds': _get_temporal_adds_, 'axis': 'T', 'name_uid': 'tid',

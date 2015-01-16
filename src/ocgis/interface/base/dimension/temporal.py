@@ -844,6 +844,18 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
         for year, season in itertools.product(years, seasons):
             time_regions.append([{'year': [year], 'month': season}])
 
+    # ensure each time region is valid. if it is not, remove it from the returned list
+    td = TemporalDimension(value=dates)
+    remove = []
+    for idx, time_region in enumerate(time_regions):
+        try:
+            for sub_time_region in time_region:
+                td.get_time_region(sub_time_region)
+        except EmptySubsetError:
+            remove.append(idx)
+    for xx in remove:
+        time_regions.pop(xx)
+
     return time_regions
 
 

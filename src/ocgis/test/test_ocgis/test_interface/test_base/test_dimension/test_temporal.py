@@ -565,42 +565,64 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=value, units=units, calendar='standard')
         self.assertFalse(td._has_months_units)
 
-    def test_seasonal_get_time_regions(self):
-        dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
+    def test_get_time_regions(self):
+        dates = get_date_list(dt(2012, 1, 1), dt(2013, 12, 31), 1)
 
-        ## two simple seasons
-        calc_grouping = [[6,7,8],[9,10,11]]
-        time_regions = get_time_regions(calc_grouping,dates)
-        correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
-        self.assertEqual(time_regions,correct)
+        # two simple seasons
+        calc_grouping = [[6, 7, 8], [9, 10, 11]]
+        time_regions = get_time_regions(calc_grouping, dates)
+        correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}],
+                   [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
+        self.assertEqual(time_regions, correct)
 
-        ## add an interannual season at the back
-        calc_grouping = [[6,7,8],[9,10,11],[12,1,2]]
+        # add an interannual season at the back
+        calc_grouping = [[6, 7, 8], [9, 10, 11], [12, 1, 2]]
         with self.assertRaises(IncompleteSeasonError):
-            get_time_regions(calc_grouping,dates)
-        time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
-        correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
-        self.assertEqual(time_regions,correct)
+            get_time_regions(calc_grouping, dates)
+        time_regions = get_time_regions(calc_grouping, dates, raise_if_incomplete=False)
+        correct = [[{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}],
+                   [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}],
+                   [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
+        self.assertEqual(time_regions, correct)
 
-        ## put the interannual season in the middle
-        calc_grouping = [[9,10,11],[12,1,2],[6,7,8]]
+        # put the interannual season in the middle
+        calc_grouping = [[9, 10, 11], [12, 1, 2], [6, 7, 8]]
         with self.assertRaises(IncompleteSeasonError):
-            get_time_regions(calc_grouping,dates)
-        time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
-        correct = [[{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}]]
-        self.assertEqual(time_regions,correct)
+            get_time_regions(calc_grouping, dates)
+        time_regions = get_time_regions(calc_grouping, dates, raise_if_incomplete=False)
+        correct = [[{'month': [9, 10, 11], 'year': [2012]}],
+                   [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}],
+                   [{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2013]}],
+                   [{'month': [6, 7, 8], 'year': [2013]}]]
+        self.assertEqual(time_regions, correct)
 
-        ## odd seasons, but covering the whole year
-        calc_grouping = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]]
-        time_regions = get_time_regions(calc_grouping,dates)
-        correct = [[{'month': [1, 2, 3], 'year': [2012]}], [{'month': [4, 5, 6], 'year': [2012]}], [{'month': [7, 8, 9], 'year': [2012]}], [{'month': [10, 11, 12], 'year': [2012]}], [{'month': [1, 2, 3], 'year': [2013]}], [{'month': [4, 5, 6], 'year': [2013]}], [{'month': [7, 8, 9], 'year': [2013]}], [{'month': [10, 11, 12], 'year': [2013]}]]
-        self.assertEqual(time_regions,correct)
+        # odd seasons, but covering the whole year
+        calc_grouping = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
+        time_regions = get_time_regions(calc_grouping, dates)
+        correct = [[{'month': [1, 2, 3], 'year': [2012]}], [{'month': [4, 5, 6], 'year': [2012]}],
+                   [{'month': [7, 8, 9], 'year': [2012]}], [{'month': [10, 11, 12], 'year': [2012]}],
+                   [{'month': [1, 2, 3], 'year': [2013]}], [{'month': [4, 5, 6], 'year': [2013]}],
+                   [{'month': [7, 8, 9], 'year': [2013]}], [{'month': [10, 11, 12], 'year': [2013]}]]
+        self.assertEqual(time_regions, correct)
 
-        ## standard seasons
-        calc_grouping = [[3,4,5],[6,7,8],[9,10,11],[12,1,2]]
-        time_regions = get_time_regions(calc_grouping,dates,raise_if_incomplete=False)
-        correct = [[{'month': [3, 4, 5], 'year': [2012]}], [{'month': [6, 7, 8], 'year': [2012]}], [{'month': [9, 10, 11], 'year': [2012]}], [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}], [{'month': [3, 4, 5], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}], [{'month': [9, 10, 11], 'year': [2013]}]]
-        self.assertEqual(time_regions,correct)
+        # standard seasons
+        calc_grouping = [[3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 1, 2]]
+        time_regions = get_time_regions(calc_grouping, dates, raise_if_incomplete=False)
+        correct = [[{'month': [3, 4, 5], 'year': [2012]}], [{'month': [6, 7, 8], 'year': [2012]}],
+                   [{'month': [9, 10, 11], 'year': [2012]}],
+                   [{'month': [12], 'year': [2012]}, {'month': [2, 1], 'year': [2013]}],
+                   [{'month': [3, 4, 5], 'year': [2013]}], [{'month': [6, 7, 8], 'year': [2013]}],
+                   [{'month': [9, 10, 11], 'year': [2013]}]]
+        self.assertEqual(time_regions, correct)
+
+        # in this case, the time series starts in december. the first season/year combination will not actually be
+        # present in the time series and should be removed by the code.
+        actual = [[{'month': [3, 4, 5], 'year': [1950]}], [{'month': [3, 4, 5], 'year': [1951]}]]
+        raise_if_incomplete = False
+        seasons = [[3, 4, 5]]
+        dates = get_date_list(dt(1949, 12, 16), dt(1951, 12, 16), 1)
+        target = get_time_regions(seasons, dates, raise_if_incomplete=raise_if_incomplete)
+        self.assertEqual(actual, target)
 
     def test_time_range_subset(self):
         dt1 = datetime.datetime(1950,01,01,12)

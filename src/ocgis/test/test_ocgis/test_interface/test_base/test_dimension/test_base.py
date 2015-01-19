@@ -5,6 +5,7 @@ import numpy as np
 
 from cfunits.cfunits import Units
 
+from ocgis.constants import OCGIS_BOUNDS
 from ocgis.interface.base.variable import AbstractSourcedVariable, AbstractValueVariable
 from ocgis import constants
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
@@ -100,25 +101,30 @@ class TestAbstractValueDimension(TestBase):
 
 class TestVectorDimension(TestBase):
     def test_init(self):
-        self.assertEqual(VectorDimension.__bases__, (AbstractSourcedVariable, AbstractUidValueDimension))
-
         vd = VectorDimension(value=[4, 5])
+        self.assertIsInstances(vd, (AbstractSourcedVariable, AbstractUidValueDimension))
         self.assertIsInstance(vd.attrs, OrderedDict)
         self.assertIsNone(vd.name)
         self.assertIsNone(vd.name_value)
         self.assertEqual(vd.name_uid, 'None_uid')
-        self.assertEqual(vd.name_bounds, 'None_bounds')
-        self.assertEqual(vd.name_bounds_suffix, constants.OCGIS_BOUNDS)
+        self.assertEqual(vd.name_bounds, 'None_{0}'.format(OCGIS_BOUNDS))
         self.assertIsNone(vd.axis)
+        self.assertEqual(vd.name_bounds_dimension, OCGIS_BOUNDS)
 
         # test passing attributes to the constructor
         attrs = {'something': 'underground'}
-        vd = VectorDimension(value=[4, 5], attrs=attrs, axis='D')
+        vd = VectorDimension(value=[4, 5], attrs=attrs, axis='D', name_bounds_dimension='vds')
         self.assertEqual(vd.attrs, attrs)
         self.assertEqual(vd.axis, 'D')
+        self.assertEqual(vd.name_bounds_dimension, 'vds')
 
+        # empty dimensions are not allowed
         with self.assertRaises(ValueError):
             VectorDimension()
+
+        # test passing the name bounds
+        vd = VectorDimension(value=[5, 6], name_bounds='lat_bnds')
+        self.assertEqual(vd.name_bounds, 'lat_bnds')
 
     def test_init_conform_units_to(self):
         target = np.array([4, 5, 6])
@@ -178,13 +184,18 @@ class TestVectorDimension(TestBase):
 
         vdim = VectorDimension(value=[10, 20, 30, 40, 50], name='foo')
         tt = list(vdim.get_iter())
-        self.assertEqual(tt[3], (3, {'foo_uid': 4, 'foo': 40, 'foo_bounds_lower': None, 'foo_bounds_upper': None}))
+        self.assertEqual(tt[3], (3, {'foo_uid': 4, 'foo': 40, 'lb_foo': None, 'ub_foo': None}))
         self.assertIsInstance(tt[0][1], OrderedDict)
 
         vdim = VectorDimension(value=[10, 20, 30, 40, 50], bounds=[(ii - 5, ii + 5) for ii in [10, 20, 30, 40, 50]],
                                name='foo', name_uid='hi')
         tt = list(vdim.get_iter())
-        self.assertEqual(tt[3], (3, {'hi': 4, 'foo': 40, 'foo_bounds_lower': 35, 'foo_bounds_upper': 45}))
+        self.assertEqual(tt[3], (3, {'hi': 4, 'foo': 40, 'lb_foo': 35, 'ub_foo': 45}))
+
+        vdim = VectorDimension(value=[4, 5, 6, 7, 8, 9, 10], name='new')
+        for slc, row in vdim.get_iter(with_bounds=False):
+            for k in row.iterkeys():
+                self.assertFalse(OCGIS_BOUNDS in k)
 
     def test_interpolate_bounds(self):
         value = [10, 20, 30, 40, 50]
@@ -212,13 +223,29 @@ class TestVectorDimension(TestBase):
         self.assertEqual(vd.name_bounds, 'hello_bounds')
         self.assertIsNone(vd._name_bounds)
 
-        vd = VectorDimension(value=[5, 6], name='hello', name_bounds_suffix='suffit')
-        self.assertEqual(vd.name_bounds, 'hello_suffit')
-
         vd = VectorDimension(value=[5, 6], name_bounds='hello')
         self.assertEqual(vd.name_bounds, 'hello')
         self.assertEqual(vd._name_bounds, 'hello')
         self.assertIsNone(vd.name)
+
+        vd = VectorDimension(value=[5, 6], name_bounds='hello', name='hi')
+        self.assertEqual(vd.name_bounds, 'hello')
+        self.assertEqual(vd._name_bounds, 'hello')
+        self.assertEqual(vd.name, 'hi')
+
+        vd = VectorDimension(value=[5, 6], name='hello', name_bounds_dimension='whatever')
+        self.assertEqual(vd.name_bounds, 'hello_whatever')
+
+    def test_name_bounds_tuple(self):
+        vd = VectorDimension(value=[4, 5])
+        self.assertEqual(vd.name_bounds_tuple, ('lb_None', 'ub_None'))
+        self.assertIsNone(vd._name_bounds_tuple)
+
+        vd = VectorDimension(value=[4, 5], name='never')
+        self.assertEqual(vd.name_bounds_tuple, ('lb_never', 'ub_never'))
+
+        vd = VectorDimension(value=[4, 5], name_bounds_tuple=('a', 'b'))
+        self.assertEqual(vd.name_bounds_tuple, ('a', 'b'))
 
     def test_one_value(self):
         """Test passing a single value."""
@@ -323,7 +350,6 @@ class TestVectorDimension(TestBase):
                         unlimited=[False, True],
                         kwargs=[{}, {'zlib': True}],
                         bounds_dimension_name=[None, other_bounds_name],
-                        name_bounds_suffix=[None, 'asuffix'],
                         axis=[None, 'GG'],
                         name=[None, 'temporal'],
                         name_bounds=[None, 'time_bounds'],
@@ -336,7 +362,7 @@ class TestVectorDimension(TestBase):
             else:
                 attrs = None
             vd = VectorDimension(value=[2., 4.], attrs=attrs, name=k.name, name_bounds=k.name_bounds,
-                                 name_value=k.name_value, name_bounds_suffix=k.name_bounds_suffix, axis=k.axis)
+                                 name_value=k.name_value, axis=k.axis)
             if k.with_bounds:
                 vd.set_extrapolated_bounds()
             with nc_scope(path, 'w') as ds:

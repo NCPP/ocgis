@@ -4,14 +4,17 @@ from collections import deque, OrderedDict
 import itertools
 import numpy as np
 
+import fiona
+from shapely.geometry import mapping
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 
+from ocgis.constants import NAME_DIMENSION_REALIZATION, NAME_DIMENSION_LEVEL, NAME_DIMENSION_TEMPORAL, \
+    NAME_UID_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_LEVEL, NAME_UID_DIMENSION_REALIZATION, NAME_UID_FIELD
 from ocgis.interface.base.attributes import Attributes
-from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice, \
-    set_name_attributes
+from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis import SpatialCollection
 
@@ -41,7 +44,7 @@ class Field(Attributes):
     _variables = None
 
     def __init__(self, variables=None, realization=None, temporal=None, level=None, spatial=None, meta=None, uid=None,
-                 name=None, regrid_destination=False, attrs=None):
+                 name=None, regrid_destination=False, attrs=None, name_uid=NAME_UID_FIELD):
 
         if spatial is None:
             msg = 'At least "spatial" is required.'
@@ -49,6 +52,7 @@ class Field(Attributes):
 
         Attributes.__init__(self, attrs=attrs)
 
+        self.name_uid = name_uid
         self.realization = realization
         self.temporal = temporal
         self.uid = uid
@@ -68,8 +72,7 @@ class Field(Attributes):
         self._has_assigned_coordinate_system = False
 
         # set default names for the dimensions
-        name_mapping = {self.realization: 'realization', self.level: 'level'}
-        set_name_attributes(name_mapping)
+        self._set_default_names_uids_()
 
     def __iter__(self):
         raise NotImplementedError
@@ -196,7 +199,11 @@ class Field(Attributes):
             if attr is None:
                 ret = [(0, {})]
             else:
-                ret = attr.get_iter()
+                if target == 'realization':
+                    with_bounds = False
+                else:
+                    with_bounds = True
+                ret = attr.get_iter(with_bounds=with_bounds)
             return ret
 
         is_masked = np.ma.is_masked
@@ -256,11 +263,10 @@ class Field(Attributes):
             iters.append(self.spatial.get_geom_iter())
 
             for [(ridx, rlz), (tidx, t), (lidx, l), (sridx, scidx, geom, gid)] in itertools.product(*iters):
-                yld = {}
+                yld = OrderedDict()
                 for element in [rlz, t, l]:
                     yld.update(element)
                 yld['geom'] = geom
-                yld[r_gid_name] = gid
                 for variable_alias, variable in self.variables.iteritems():
                     ref_idx = variable.value[ridx, tidx, lidx, sridx, scidx]
                     # determine if the data is masked
@@ -371,6 +377,49 @@ class Field(Attributes):
                 value = variable.value.data[0, 0, 0, sridx, scidx]
                 yld[variable.alias] = value
             yield yld
+
+    def write_fiona(self, path=None, driver='ESRI Shapefile', melted=False, fobject=None):
+        """
+        Write a ``fiona``-enabled format. This may go to a newly created location specified by ``path`` or an open
+        collection object set by ``fobject``.
+
+        :param str path: Path to the location to write.
+        :param str driver: The ``fiona`` driver to use for writing.
+        :param bool melted: If ``True``, use a melted iterator.
+        :param fobject: The collection object to write to. This will overload ``path``.
+        :type fobject: :class:`fiona.collection.Collection`
+        """
+
+        build = True
+        geom_type = self.spatial.abstraction_geometry.geom_type
+        try:
+            for row in self.get_iter(melted=melted):
+                geom = row.pop('geom')
+                for k, v in row.iteritems():
+                    try:
+                        row[k] = v.tolist()
+                    except AttributeError:
+                        continue
+                if build:
+                    from ocgis.conv.fiona_ import FionaConverter
+                    fproperties = OrderedDict()
+                    fconvert = {}
+                    for k, v in row.iteritems():
+                        ftype = FionaConverter.get_field_type(type(v))
+                        fproperties[k] = 'int' if ftype is None else ftype
+                        if ftype == 'str':
+                            fconvert[k] = str
+                    if fobject is None:
+                        schema = {'geometry': geom_type, 'properties': fproperties}
+                        fobject = fiona.open(path, driver=driver, schema=schema, crs=self.spatial.crs.value, mode='w')
+                    build = False
+                for k, v in fconvert.iteritems():
+                    row[k] = v(row[k])
+                frow = {'properties': row, 'geometry': mapping(geom)}
+                fobject.write(frow)
+        finally:
+            if fobject is not None:
+                fobject.close()
 
     def write_to_netcdf_dataset(self, dataset, file_only=False, **kwargs):
         """
@@ -511,6 +560,20 @@ class Field(Attributes):
                 for idx_r,idx_t,idx_l in itertools.product(rng_realization,rng_temporal,rng_level):
                     ref = v[idx_r,idx_t,idx_l]
                     ref.mask = ref_logical_or(ref.mask,mask)
+
+    def _set_default_names_uids_(self):
+
+        def _set_(dim, name, name_uid):
+            dim = getattr(self, dim)
+            if dim is not None:
+                if dim._name_uid is None:
+                    dim.name_uid = name_uid
+                if dim.name is None:
+                    dim.name = name
+
+        _set_('realization', NAME_DIMENSION_REALIZATION, NAME_UID_DIMENSION_REALIZATION)
+        _set_('temporal', NAME_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_TEMPORAL)
+        _set_('level', NAME_DIMENSION_LEVEL, NAME_UID_DIMENSION_LEVEL)
 
 
 class DerivedField(Field):

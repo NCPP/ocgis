@@ -135,8 +135,9 @@ class TestTemporalDimension(TestBase):
     def test_init(self):
         td = TemporalDimension(value=[datetime.datetime(2000, 1, 1)])
         self.assertEqual(td.axis, 'T')
-        self.assertEqual(td.name, 'time')
-        self.assertEqual(td.name_uid, 'tid')
+        self.assertIsNone(td.name)
+        self.assertEqual(td.name_uid, 'None_uid')
+        self.assertIsNone(td._name_uid)
         self.assertEqual(td.calendar, constants.DEFAULT_TEMPORAL_CALENDAR)
         self.assertEqual(td.units, constants.DEFAULT_TEMPORAL_UNITS)
         self.assertIsInstance(td, VectorDimension)

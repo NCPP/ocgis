@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import unittest
 import abc
 import tempfile
-import datetime
 import subprocess
 import itertools
 import shutil
@@ -10,9 +9,9 @@ from copy import deepcopy, copy
 import os
 from collections import OrderedDict
 import netCDF4 as nc
-
 import numpy as np
 
+import datetime
 from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.field import Field
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
@@ -94,6 +93,10 @@ class TestBase(unittest.TestCase):
                     raise KeyError(msg)
                 self.assertEqual(v, d2[k], msg=msg)
             self.assertEqual(set(d1.keys()), set(d2.keys()))
+
+    def assertIsInstances(self, obj, klasses):
+        for klass in klasses:
+            self.assertIsInstance(obj, klass)
 
     def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True):
         """
@@ -376,6 +379,15 @@ class TestBase(unittest.TestCase):
         with self.nc_scope(path, 'w') as ds:
             field.write_to_netcdf_dataset(ds)
         return path
+
+    def get_temporary_file_path(self, name):
+        """
+        :param str name: The name to append to the current temporary output directory.
+        :returns: Temporary path in the current output directory.
+        :rtype: str
+        """
+
+        return os.path.join(self.current_dir_output, name)
 
     def get_temporary_output_directory(self):
         """

@@ -483,21 +483,10 @@ class TestDriverNetcdf(TestBase):
         self.assertNcEqual(path, path2, ignore_attributes={'foo': ['grid_mapping']},
                            ignore_variables=['latitude_longitude'])
 
-    def test_get_vector_dimension(self):
-        # test exception raised with no row and column
-        path = self.get_netcdf_path_no_row_column()
-        rd = RequestDataset(path)
-        driver = DriverNetcdf(rd)
-        k = 'row'
-        v = {'name_uid': 'yc_id', 'axis': 'Y', 'adds': {'interpolate_bounds': False}, 'name': 'yc', 'cls': VectorDimension}
-        source_metadata = rd.source_metadata
-        res = driver._get_vector_dimension_(k, v, source_metadata)
-        self.assertEqual(res['name'], 'yc')
-
-    def test_get_name_bounds_suffix(self):
+    def test_get_name_bounds_dimension(self):
         rd = self.test_data.get_rd('cancm4_tas')
         source_metadata = rd.source_metadata
-        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        res = DriverNetcdf._get_name_bounds_dimension_(source_metadata)
         self.assertEqual(res, 'bnds')
 
         # remove any mention of bounds from the dimension map and try again
@@ -508,7 +497,7 @@ class TestDriverNetcdf(TestBase):
                 # likely a nonetype
                 if value is not None:
                     raise
-        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        res = DriverNetcdf._get_name_bounds_dimension_(source_metadata)
         self.assertIsNone(res)
 
         # now remove the bounds key completely
@@ -518,8 +507,19 @@ class TestDriverNetcdf(TestBase):
             except AttributeError:
                 if value is not None:
                     raise
-        res = DriverNetcdf._get_name_bounds_suffix_(source_metadata)
+        res = DriverNetcdf._get_name_bounds_dimension_(source_metadata)
         self.assertIsNone(res)
+
+    def test_get_vector_dimension(self):
+        # test exception raised with no row and column
+        path = self.get_netcdf_path_no_row_column()
+        rd = RequestDataset(path)
+        driver = DriverNetcdf(rd)
+        k = 'row'
+        v = {'name_uid': 'yc_id', 'axis': 'Y', 'adds': {'interpolate_bounds': False}, 'name': 'yc', 'cls': VectorDimension}
+        source_metadata = rd.source_metadata
+        res = driver._get_vector_dimension_(k, v, source_metadata)
+        self.assertEqual(res['name'], 'yc')
 
     def test_open(self):
         # test a multifile dataset where the variable does not appear in all datasets

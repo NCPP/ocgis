@@ -35,8 +35,6 @@ class TemporalDimension(base.VectorDimension):
         self.format_time = kwargs.pop('format_time', True)
 
         kwargs['axis'] = kwargs.get('axis') or 'T'
-        kwargs['name'] = kwargs.get('name') or 'time'
-        kwargs['name_uid'] = kwargs.get('name_uid') or 'tid'
         kwargs['units'] = kwargs.get('units') or constants.DEFAULT_TEMPORAL_UNITS
 
         super(TemporalDimension, self).__init__(*args, **kwargs)

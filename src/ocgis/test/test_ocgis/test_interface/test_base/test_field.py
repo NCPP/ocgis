@@ -4,13 +4,16 @@ from copy import deepcopy
 from collections import OrderedDict
 import numpy as np
 
+import fiona
 from shapely import wkt
+from shapely.geometry import shape
 from shapely.ops import cascaded_union
 
 from datetime import datetime as dt
 import datetime
-from ocgis import constants, SpatialCollection
+from ocgis import constants, SpatialCollection, ShpCabinet
 from ocgis import RequestDataset
+from ocgis.constants import NAME_UID_FIELD, NAME_UID_DIMENSION_LEVEL
 from ocgis.interface.base.attributes import Attributes
 from ocgis.interface.base.crs import WGS84, Spherical
 from ocgis.util.helpers import get_date_list, make_poly
@@ -123,8 +126,9 @@ class TestField(AbstractTestField):
     def test_init(self):
         for b, wv in itertools.product([True, False], [True, False]):
             field = self.get_field(with_bounds=b, with_value=wv, with_dimension_names=False)
+            self.assertEqual(field.name_uid, NAME_UID_FIELD)
             self.assertEqual(field.level.name, 'level')
-            self.assertEqual(field.level.name_uid, 'level_uid')
+            self.assertEqual(field.level.name_uid, NAME_UID_DIMENSION_LEVEL)
             self.assertEqual(field.spatial.grid.row.name, 'yc')
             with self.assertRaises(NotImplementedError):
                 list(field)
@@ -254,12 +258,13 @@ class TestField(AbstractTestField):
         rows = list(field.get_iter())
         self.assertEqual(len(rows), 2 * 31 * 2 * 3 * 4)
         rows[100]['geom'] = rows[100]['geom'].bounds
-        real = {'realization_bounds_lower': None, 'vid': 1, 'time_bounds_upper': datetime.datetime(2000, 1, 6, 0, 0),
-                'realization_bounds_upper': None, 'year': 2000, 'gid': 5, 'level_bounds_upper': 100,
-                'realization_uid': 1, 'realization': 1, 'geom': (-100.5, 38.5, -99.5, 39.5), 'level_bounds_lower': 0,
-                'variable': 'tmax', 'month': 1, 'time_bounds_lower': datetime.datetime(2000, 1, 5, 0, 0), 'day': 5,
-                'level': 50, 'did': None, 'value': 0.32664490177209615, 'alias': 'tmax', 'level_uid': 1,
+        real = {'vid': 1, 'ub_time': datetime.datetime(2000, 1, 6, 0, 0),
+                'year': 2000, 'gid': 5, 'ub_level': 100,
+                'rid': 1, 'realization': 1, 'geom': (-100.5, 38.5, -99.5, 39.5), 'lb_level': 0,
+                'variable': 'tmax', 'month': 1, 'lb_time': datetime.datetime(2000, 1, 5, 0, 0), 'day': 5,
+                'level': 50, 'did': None, 'value': 0.32664490177209615, 'alias': 'tmax', 'lid': 1,
                 'time': datetime.datetime(2000, 1, 5, 12, 0), 'tid': 5, 'name': 'tmax'}
+        self.assertAsSetEqual(rows[100].keys(), real.keys())
         for k, v in rows[100].iteritems():
             self.assertEqual(real[k], v)
         self.assertEqual(set(real.keys()), set(rows[100].keys()))
@@ -268,7 +273,7 @@ class TestField(AbstractTestField):
         # test without names
         field = self.get_field(with_value=True, with_dimension_names=False)
         rows = list(field.get_iter())
-        self.assertAsSetEqual(rows[10].keys(), ['vid', 'gid', 'month', 'year', 'alias', 'geom', 'realization', 'realization_uid', 'time_bounds_lower', 'level_bounds_upper', 'variable', 'day', 'realization_bounds_lower', 'name', 'level', 'did', 'level_bounds_lower', 'value', 'realization_bounds_upper', 'level_uid', 'time', 'tid', 'time_bounds_upper'])
+        self.assertAsSetEqual(rows[10].keys(), ['lid', 'name', 'vid', 'ub_time', 'did', 'lb_level', 'time', 'year', 'value', 'month', 'alias', 'tid', 'geom', 'ub_level', 'rlz', 'variable', 'gid', 'rid', 'level', 'lb_time', 'day'])
 
         # test not melted
         field = self.get_field(with_value=True)
@@ -515,6 +520,88 @@ class TestField(AbstractTestField):
         self.assertEqual(field.shape, (1, 1, 1, 2, 2))
         with self.assertRaises(ValueError):
             field.variables = 'foo'
+
+    def test_write_fiona(self):
+
+        keywords = dict(with_realization=[True, False],
+                        with_level=[True, False],
+                        with_temporal=[True, False],
+                        driver=['ESRI Shapefile', 'GeoJSON'],
+                        melted=[False, True])
+
+        for ii, k in enumerate(self.iter_product_keywords(keywords)):
+            path = os.path.join(self.current_dir_output, '{0}'.format(ii))
+            field = self.get_field(with_value=True, crs=WGS84(), with_dimension_names=False,
+                                   with_realization=k.with_realization, with_level=k.with_level,
+                                   with_temporal=k.with_temporal)
+            newvar = deepcopy(field.variables.first())
+            newvar.alias = 'newvar'
+            newvar.value += 10
+            field.variables.add_variable(newvar, assign_new_uid=True)
+            field = field[:, 0:2, :, 0:2, 0:2]
+
+            field.write_fiona(path, driver=k.driver, melted=k.melted)
+
+            with fiona.open(path) as source:
+                records = list(source)
+
+            if k.melted:
+                dd = {a: [] for a in field.variables.keys()}
+                for r in records:
+                    dd[r['properties']['alias']].append(r['properties']['value'])
+                for kk, v in dd.iteritems():
+                    self.assertAlmostEqual(np.mean(v), field.variables[kk].value.mean(), places=6)
+            else:
+                for alias in field.variables.keys():
+                    values = [r['properties'][alias] for r in records]
+                    self.assertAlmostEqual(np.mean(values), field.variables[alias].value.mean(), places=6)
+
+            n = reduce(lambda x, y: x*y, field.shape)
+            if k.melted:
+                n *= len(field.variables)
+            self.assertEqual(n, len(records))
+
+        # test with a point abstraction
+        field = self.get_field(with_value=True, crs=WGS84())
+        field = field[0, 0, 0, 0, 0]
+        field.spatial.abstraction = 'point'
+        path = self.get_temporary_file_path('foo.shp')
+        field.write_fiona(path)
+        with fiona.open(path) as source:
+            gtype = source.meta['schema']['geometry']
+            self.assertEqual(gtype, 'Point')
+
+        # test with a fake object passed in as a fiona object. this should raise an exception as the method will attempt
+        # to use the object instead of creating a new collection.
+
+        class DontHateMe(Exception):
+            pass
+
+        class Nothing(object):
+            def close(self):
+                raise DontHateMe()
+
+        with self.assertRaises(DontHateMe):
+            field.write_fiona(path, fobject=Nothing())
+
+        # test all geometries are accounted for as well as properties
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        rd = RequestDataset(path)
+        field = rd.get()
+        out = self.get_temporary_file_path('foo.shp')
+        field.write_fiona(out)
+
+        with fiona.open(out, 'r') as source:
+            for record in source:
+                target = shape(record['geometry'])
+                self.assertEqual(record['properties'].keys(),
+                                 [u'UGID', u'STATE_FIPS', u'ID', u'STATE_NAME', u'STATE_ABBR'])
+                found = False
+                for geom in field.spatial.abstraction_geometry.value.flat:
+                    if target.almost_equals(geom):
+                        found = True
+                        break
+                self.assertTrue(found)
 
     def test_write_to_netcdf_dataset(self):
         keywords = dict(file_only=[False, True],

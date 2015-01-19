@@ -194,8 +194,8 @@ class DriverNetcdf(AbstractDriver):
 
             # check for the name of the bounds dimension in the source metadata. loop through the dimension map,
             # look for a bounds variable, and choose the bounds dimension if possible
-            name_bounds_suffix = self._get_name_bounds_suffix_(source_metadata)
-            kwds['name_bounds_suffix'] = name_bounds_suffix
+            name_bounds_dimension = self._get_name_bounds_dimension_(source_metadata)
+            kwds['name_bounds_dimension'] = name_bounds_dimension
 
             # create instance of the dimension
             fill = v['cls'](**kwds)
@@ -294,7 +294,7 @@ class DriverNetcdf(AbstractDriver):
         return ret
 
     @staticmethod
-    def _get_name_bounds_suffix_(source_metadata):
+    def _get_name_bounds_dimension_(source_metadata):
         """
         :param dict source_metadata: Metadata dictionary as returned from :attr:`~ocgis.RequestDataset.source_metadata`.
         :returns: The name of the bounds suffix to use when creating dimensions. If no bounds are found in the source

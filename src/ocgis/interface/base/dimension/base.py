@@ -5,11 +5,11 @@ from operator import mul
 import numpy as np
 
 from ocgis import constants
+from ocgis.constants import NAME_BOUNDS_DIMENSION_LOWER, NAME_BOUNDS_DIMENSION_UPPER, OCGIS_BOUNDS
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
     get_formatted_slice, get_bounds_from_1d
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
-from ocgis.interface.base.variable import AbstractValueVariable,\
-    AbstractSourcedVariable
+from ocgis.interface.base.variable import AbstractValueVariable, AbstractSourcedVariable
 
 
 class AbstractDimension(object):
@@ -162,10 +162,15 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             msg = 'Without a "data" object, "value" is required.'
             raise ValueError(msg)
 
+        self._bounds = None
+        self._name_bounds = None
+        self._name_bounds_tuple = None
+
+        self.name_bounds_dimension = kwargs.pop('name_bounds_dimension', OCGIS_BOUNDS)
         bounds = kwargs.pop('bounds', None)
         # used for creating name_bounds as well as the name of the bounds dimension in netCDF
-        self.name_bounds_suffix = kwargs.pop('name_bounds_suffix', None) or constants.OCGIS_BOUNDS
-        self._name_bounds = kwargs.pop('name_bounds', None)
+        self.name_bounds = kwargs.pop('name_bounds', None)
+        self.name_bounds_tuple = kwargs.pop('name_bounds_tuple', None)
         self.axis = kwargs.pop('axis', None)
         # if True, bounds were interpolated. if False, they were loaded from source data. used in conforming units.
         self._has_interpolated_bounds = False
@@ -213,7 +218,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     @property
     def name_bounds(self):
         if self._name_bounds is None:
-            ret = '{0}_{1}'.format(self.name, self.name_bounds_suffix)
+            ret = '{0}_{1}'.format(self.name, self.name_bounds_dimension)
         else:
             ret = self._name_bounds
         return ret
@@ -221,22 +226,39 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     @name_bounds.setter
     def name_bounds(self, value):
         self._name_bounds = value
+
+    @property
+    def name_bounds_tuple(self):
+        if self._name_bounds_tuple is None:
+            ret = tuple(['{0}_{1}'.format(prefix, self.name) for prefix in [NAME_BOUNDS_DIMENSION_LOWER,
+                                                                            NAME_BOUNDS_DIMENSION_UPPER]])
+        else:
+            ret = self._name_bounds_tuple
+        return ret
+
+    @name_bounds_tuple.setter
+    def name_bounds_tuple(self, value):
+        if value is not None:
+            value = tuple(value)
+            assert len(value) == 2
+        self._name_bounds_tuple = value
     
     @property
     def resolution(self):
         if self.bounds is None and self.value.shape[0] < 2:
-            raise(ResolutionError('With no bounds and a single coordinate, approximate resolution may not be determined.'))
+            msg = 'With no bounds and a single coordinate, approximate resolution may not be determined.'
+            raise ResolutionError(msg)
         elif self.bounds is None:
             res_array = np.diff(self.value[0:constants.RESOLUTION_LIMIT])
         else:
             res_bounds = self.bounds[0:constants.RESOLUTION_LIMIT]
-            res_array = res_bounds[:,1] - res_bounds[:,0]
+            res_array = res_bounds[:, 1] - res_bounds[:, 0]
         ret = np.abs(res_array).mean()
-        return(ret)
+        return ret
     
     @property
     def shape(self):
-        return(self.uid.shape)
+        return self.uid.shape
     
     def cfunits_conform(self, to_units):
         """
@@ -330,7 +352,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         
         return(ret)
 
-    def get_iter(self):
+    def get_iter(self, with_bounds=True):
         ref_value, ref_bounds = self._get_iter_value_bounds_()
 
         if ref_bounds is None:
@@ -346,21 +368,19 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             raise ValueError(msg)
 
         ref_name_uid = self.name_uid
-        ref_name_bounds_lower = '{0}_lower'.format(self.name_bounds)
-        ref_name_bounds_upper = '{0}_upper'.format(self.name_bounds)
+        ref_name_bounds_lower, ref_name_bounds_upper = self.name_bounds_tuple
 
         for ii in range(self.value.shape[0]):
-            # yld = {ref_name_value: ref_value[ii], ref_name_uid: ref_uid[ii]}
-            yld = OrderedDict([(ref_name_value, ref_value[ii]), (ref_name_uid, ref_uid[ii])])
-            if has_bounds:
-                ref_name_bounds_lower_value = ref_bounds[ii, 0]
-                ref_name_bounds_upper_value = ref_bounds[ii, 1]
-
-            else:
-                ref_name_bounds_lower_value = None
-                ref_name_bounds_upper_value = None
-            yld[ref_name_bounds_lower] = ref_name_bounds_lower_value
-            yld[ref_name_bounds_upper] = ref_name_bounds_upper_value
+            yld = OrderedDict([(ref_name_uid, ref_uid[ii]), (ref_name_value, ref_value[ii])])
+            if with_bounds:
+                if has_bounds:
+                    ref_name_bounds_lower_value = ref_bounds[ii, 0]
+                    ref_name_bounds_upper_value = ref_bounds[ii, 1]
+                else:
+                    ref_name_bounds_lower_value = None
+                    ref_name_bounds_upper_value = None
+                yld[ref_name_bounds_lower] = ref_name_bounds_lower_value
+                yld[ref_name_bounds_upper] = ref_name_bounds_upper_value
             yield ii, yld
 
     def set_extrapolated_bounds(self):
@@ -379,7 +399,8 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         :type dataset: :class:`netCDF4.Dataset`
         :param bool unlimited: If ``True``, create the dimension on the netCDF object with ``size=None``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createDimension.
-        :param str bounds_dimension_name: If ``None``, default to :attrs:`ocgis.constants.OCGIS_BOUNDS`.
+        :param str bounds_dimension_name: If ``None``, default to
+         :attr:`ocgis.interface.base.dimension.base.VectorDimension.name_bounds_dimension`.
         :param kwargs: Extra keyword arguments in addition to ``dimensions`` to pass to ``createVariable``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         """
@@ -387,7 +408,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         if self.name is None:
             raise ValueError('Writing to netCDF requires a "name" be set to a string value. It is currently None.')
 
-        bounds_dimension_name = bounds_dimension_name or self.name_bounds_suffix
+        bounds_dimension_name = bounds_dimension_name or self.name_bounds_dimension
 
         if unlimited:
             size = None

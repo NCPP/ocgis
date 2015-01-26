@@ -11,6 +11,7 @@ from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 
+from ocgis import constants
 from ocgis.constants import NAME_DIMENSION_REALIZATION, NAME_DIMENSION_LEVEL, NAME_DIMENSION_TEMPORAL, \
     NAME_UID_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_LEVEL, NAME_UID_DIMENSION_REALIZATION, NAME_UID_FIELD
 from ocgis.interface.base.attributes import Attributes
@@ -155,13 +156,14 @@ class Field(Attributes):
             if v._value is not None:
                 assert v._value.shape == self.shape
 
-    def as_spatial_collection(self):
+    def as_spatial_collection(self, **kwargs):
         """
+        :param kwargs: Keyword arguments for creating the :class:`~ocgis.SpatialCollection`.
         :returns: A spatial collection containing the field.
         :rtype: :class:`~ocgis.SpatialCollection`
         """
 
-        coll = SpatialCollection()
+        coll = SpatialCollection(**kwargs)
         # if there are no vector dimensions, there is no need for a melted representation
         coll.add_field(1, None, self, properties=self.spatial.properties, name=self.name)
         return coll
@@ -184,15 +186,23 @@ class Field(Attributes):
         return(self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
                                             select_nearest=select_nearest))
 
-    def get_iter(self, add_masked_value=True, value_keys=None, melted=True):
+    def get_iter(self, add_masked_value=True, value_keys=None, melted=True, use_upper_keys=False, headers=None,
+                 ugid=None):
         """
         :param bool add_masked_value: If ``False``, do not yield masked variable values.
         :param value_keys: A sequence of keys if the variable is a structure array.
         :type value_keys: [str, ...]
         :param bool melted: If ``True``, do not use a melted format but place variable values as columns.
-        :returns: A dictionary containing variable values.
-        :rtype: dict
+        :param bool use_upper_keys: If ``True``, capitalize the keys of the yielded dictionary.
+        :param headers: A sequence of strings to limit the output data dictionary.
+        :type headers: [str, ...]
+        :param int ugid: If provided, insert a unique key for the selection geometry.
+        :returns: A tuple with the first element being a shapely geometry object and the second element a
+         dictionary.
+        :rtype: tuple(:class:`shapely.geometry.base.BaseGeometry`, dict)
         """
+
+        id_selection_geometry = constants.HEADERS.ID_SELECTION_GEOMETRY
 
         def _get_dimension_iterator_1d_(target):
             attr = getattr(self, target)
@@ -205,6 +215,15 @@ class Field(Attributes):
                     with_bounds = True
                 ret = attr.get_iter(with_bounds=with_bounds)
             return ret
+
+        def _process_yield_(g, dict_to_yld):
+            if ugid is not None:
+                dict_to_yld[id_selection_geometry] = ugid
+            if headers is not None:
+                dict_to_yld = OrderedDict([(k, dict_to_yld.get(k)) for k in headers])
+            if use_upper_keys:
+                dict_to_yld = OrderedDict([(k.upper(), v) for k, v in dict_to_yld.iteritems()])
+            return g, dict_to_yld
 
         is_masked = np.ma.is_masked
 
@@ -240,7 +259,6 @@ class Field(Attributes):
                     to_yld.update(l)
 
                     # add geometries to the output
-                    to_yld['geom'] = geom
                     to_yld[r_gid_name] = gid
 
                     # the target value is a structure array, multiple value elements need to be added. these outputs do
@@ -254,10 +272,10 @@ class Field(Attributes):
                                 # attempt to access the data directly. masked determination is done above.
                                 except ValueError:
                                     to_yld[vk] = ref_idx.data[vk][ii]
-                            yield (to_yld)
+                            yield _process_yield_(geom, to_yld)
                     else:
                         to_yld['value'] = ref_idx
-                        yield to_yld
+                        yield _process_yield_(geom, to_yld)
         else:
             iters = map(_get_dimension_iterator_1d_, ['realization', 'temporal', 'level'])
             iters.append(self.spatial.get_geom_iter())
@@ -266,14 +284,13 @@ class Field(Attributes):
                 yld = OrderedDict()
                 for element in [rlz, t, l]:
                     yld.update(element)
-                yld['geom'] = geom
                 for variable_alias, variable in self.variables.iteritems():
                     ref_idx = variable.value[ridx, tidx, lidx, sridx, scidx]
                     # determine if the data is masked
                     if is_masked(ref_idx):
                         ref_idx = variable.value.fill_value
                     yld[variable_alias] = ref_idx
-                yield yld
+                yield _process_yield_(geom, yld)
                 
     def get_shallow_copy(self):
         return copy(self)
@@ -378,7 +395,8 @@ class Field(Attributes):
                 yld[variable.alias] = value
             yield yld
 
-    def write_fiona(self, path=None, driver='ESRI Shapefile', melted=False, fobject=None):
+    def write_fiona(self, path=None, driver='ESRI Shapefile', melted=False, fobject=None, use_upper_keys=False,
+                    headers=None, ugid=None):
         """
         Write a ``fiona``-enabled format. This may go to a newly created location specified by ``path`` or an open
         collection object set by ``fobject``.
@@ -388,38 +406,75 @@ class Field(Attributes):
         :param bool melted: If ``True``, use a melted iterator.
         :param fobject: The collection object to write to. This will overload ``path``.
         :type fobject: :class:`fiona.collection.Collection`
+        :param use_upper_keys: See :meth:`ocgis.interface.base.field.Field.get_iter`.
+        :param headers: See :meth:`ocgis.interface.base.field.Field.get_iter`.
+        :param ugid: See :meth:`ocgis.interface.base.field.Field.get_iter`.
         """
 
+        # if a collection is passed in, do not close it when done writing
+        should_close = True if fobject is None else False
+
         build = True
-        geom_type = self.spatial.abstraction_geometry.geom_type
         try:
-            for row in self.get_iter(melted=melted):
-                geom = row.pop('geom')
+            for geom, row in self.get_iter(melted=melted, use_upper_keys=use_upper_keys, headers=headers, ugid=ugid):
                 for k, v in row.iteritems():
                     try:
                         row[k] = v.tolist()
                     except AttributeError:
                         continue
                 if build:
-                    from ocgis.conv.fiona_ import FionaConverter
-                    fproperties = OrderedDict()
-                    fconvert = {}
-                    for k, v in row.iteritems():
-                        ftype = FionaConverter.get_field_type(type(v))
-                        fproperties[k] = 'int' if ftype is None else ftype
-                        if ftype == 'str':
-                            fconvert[k] = str
+                    fdict = self.get_fiona_dict(self, row)
+                    fconvert = fdict['fconvert']
                     if fobject is None:
-                        schema = {'geometry': geom_type, 'properties': fproperties}
-                        fobject = fiona.open(path, driver=driver, schema=schema, crs=self.spatial.crs.value, mode='w')
+                        fobject = fiona.open(path, driver=driver, schema=fdict['schema'], crs=fdict['crs'], mode='w')
                     build = False
                 for k, v in fconvert.iteritems():
                     row[k] = v(row[k])
                 frow = {'properties': row, 'geometry': mapping(geom)}
                 fobject.write(frow)
         finally:
-            if fobject is not None:
+            if should_close and fobject is not None:
                 fobject.close()
+
+    @staticmethod
+    def get_fiona_dict(field, arch):
+        """
+        :param field: The field object.
+        :type field: :class:`ocgis.Field`
+        :param dict arch: An archetype data dictionary.
+        :returns: A dictionary with fiona types and conversion mappings.
+        :rtype: dict
+        """
+
+        arch = arch.copy()
+        for k, v in arch.iteritems():
+            try:
+                arch[k] = v.tolist()
+            except AttributeError:
+                continue
+
+        from ocgis.conv.fiona_ import AbstractFionaConverter
+
+        ret = {}
+        fproperties = OrderedDict()
+        fconvert = {}
+        for k, v in arch.iteritems():
+            ftype = AbstractFionaConverter.get_field_type(type(v))
+            fproperties[k] = 'int' if ftype is None else ftype
+            if ftype == 'str':
+                fconvert[k] = str
+        schema = {'geometry': field.spatial.abstraction_geometry.geom_type, 'properties': fproperties}
+
+        try:
+            ret['crs'] = field.spatial.crs.value
+        except AttributeError:
+            if field.spatial.crs is None:
+                msg = 'A coordinate system is required when writing to fiona formats.'
+                raise ValueError(msg)
+
+        ret['schema'] = schema
+        ret['fconvert'] = fconvert
+        return ret
 
     def write_to_netcdf_dataset(self, dataset, file_only=False, **kwargs):
         """

@@ -70,7 +70,7 @@ class AbstractFunction(object):
     def key(self):
         str
 
-    #: The calculation's long name.
+    # : The calculation's long name.
     @abc.abstractproperty
     def long_name(self):
         str
@@ -225,7 +225,7 @@ class AbstractFunction(object):
         pass
 
     @classmethod
-    def validate(self, ops):
+    def validate(cls, ops):
         """
         Optional method to overload that validates the input :class:`ocgis.OcgOperations`.
 
@@ -233,12 +233,8 @@ class AbstractFunction(object):
         :raises: :class:`ocgis.exc.DefinitionValidationError`
         """
 
-        pass
-
     def validate_units(self, *args, **kwargs):
         """Optional method to overload for units validation at the calculation level."""
-
-        pass
 
     def _add_to_collection_(self, units=None, value=None, parent_variables=None, alias=None, dtype=None,
                             fill_value=None):
@@ -441,7 +437,7 @@ class AbstractUnivariateFunction(AbstractFunction):
     """
 
     __metaclass__ = abc.ABCMeta
-    #: Optional sequence of acceptable string units defintions for input variables. If this is set to ``None``, no unit
+    # : Optional sequence of acceptable string units defintions for input variables. If this is set to ``None``, no unit
     #: validation will occur.
     required_units = None
 
@@ -501,7 +497,7 @@ class AbstractParameterizedFunction(AbstractFunction):
         >>> {'threshold':float,'operation':str,'basis':None}
         """
         dict
-    
+
     def _format_parms_(self, values):
         """
         :param values: A dictionary containing the parameter values to check.
@@ -582,7 +578,7 @@ class AbstractMultivariateFunction(AbstractFunction):
     """
 
     __metaclass__ = abc.ABCMeta
-    #: Optional dictionary mapping unit definitions for required variables.
+    # : Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
     required_units = None
     #: If True, time aggregation is external to the calculation and will require running the standard time aggregation

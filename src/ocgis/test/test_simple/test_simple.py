@@ -737,7 +737,7 @@ class TestSimple(TestSimpleBase):
 
     def test_limiting_headers(self):
         headers = ['value']
-        ops = OcgOperations(dataset=self.get_dataset(), headers=headers, output_format='csv')
+        ops = OcgOperations(dataset=self.get_dataset(), headers=headers, output_format='csv', melted=True)
         ret = ops.execute()
         with open(ret) as f:
             reader = DictReader(f)
@@ -754,29 +754,49 @@ class TestSimple(TestSimpleBase):
         ocgis.env.OVERWRITE = True
         calc = [None, [{'func': 'mean', 'name': 'my_mean'}]]
         group = ['month', 'year']
-        for c in calc:
+
+        keywords = dict(calc=calc, melted=[False, True])
+
+        for k in self.iter_product_keywords(keywords):
             ops = OcgOperations(dataset=self.get_dataset(),
                                 output_format='shp',
                                 calc_grouping=group,
-                                calc=c)
+                                calc=k.calc,
+                                melted=k.melted)
             ret = self.get_ret(ops)
 
-            if c is None:
+            if k.calc is None:
                 with fiona.open(ret) as f:
-                    schema_properties = OrderedDict(
-                        [(u'DID', 'int:10'), (u'VID', 'int:10'), (u'UGID', 'int:10'), (u'TID', 'int:10'),
-                         (u'LID', 'int:10'), (u'GID', 'int:10'), (u'VARIABLE', 'str:80'), (u'ALIAS', 'str:80'),
-                         (u'TIME', 'str:80'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                         (u'LEVEL', 'int:10'), (u'VALUE', 'float:24.15')])
-                    self.assertDictEqual(f.meta['schema']['properties'], schema_properties)
+                    target = f.meta['schema']['properties']
+                    if k.melted:
+                        schema_properties = OrderedDict(
+                            [(u'DID', 'int:10'), (u'VID', 'int:10'), (u'UGID', 'int:10'), (u'TID', 'int:10'),
+                             (u'LID', 'int:10'), (u'GID', 'int:10'), (u'VARIABLE', 'str:80'), (u'ALIAS', 'str:80'),
+                             (u'TIME', 'str:80'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
+                             (u'LEVEL', 'int:10'), (u'VALUE', 'float:24.15')])
+                    else:
+                        schema_properties = OrderedDict(
+                            [(u'TID', 'int:10'), (u'TIME', 'str:80'), (u'LB_TIME', 'str:80'), (u'UB_TIME', 'str:80'),
+                             (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LID', 'int:10'),
+                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
+                             (u'FOO', 'float:24.15')])
+                    self.assertAsSetEqual(target.keys(), schema_properties.keys())
+                    self.assertDictEqual(target, schema_properties)
                     self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'},
                                                   'driver': u'ESRI Shapefile',
                                                   'schema': {'geometry': 'Polygon', 'properties': schema_properties}})
                     self.assertEqual(len(f), 1952)
-                    record_properties = OrderedDict(
-                        [(u'DID', 1), (u'VID', 1), (u'UGID', 1), (u'TID', 11), (u'LID', 2), (u'GID', 5.0),
-                         (u'VARIABLE', u'foo'), (u'ALIAS', u'foo'), (u'TIME', '2000-03-11 12:00:00'), (u'YEAR', 2000),
-                         (u'MONTH', 3), (u'DAY', 11), (u'LEVEL', 150), (u'VALUE', 1.0)])
+                    if k.melted:
+                        record_properties = OrderedDict(
+                            [(u'DID', 1), (u'VID', 1), (u'UGID', 1), (u'TID', 11), (u'LID', 2), (u'GID', 5.0),
+                             (u'VARIABLE', u'foo'), (u'ALIAS', u'foo'), (u'TIME', '2000-03-11 12:00:00'),
+                             (u'YEAR', 2000),
+                             (u'MONTH', 3), (u'DAY', 11), (u'LEVEL', 150), (u'VALUE', 1.0)])
+                    else:
+                        record_properties = OrderedDict(
+                            [(u'TID', 11), (u'TIME', u'2000-03-11 12:00:00'), (u'LB_TIME', u'2000-03-11 00:00:00'),
+                             (u'UB_TIME', u'2000-03-12 00:00:00'), (u'YEAR', 2000), (u'MONTH', 3), (u'DAY', 11),
+                             (u'LID', 2), (u'LEVEL', 150), (u'LB_LEVEL', 100), (u'UB_LEVEL', 200), (u'FOO', 1.0)])
                     record = list(f)[340]
                     self.assertDictEqual(record['properties'], record_properties)
                     record_coordinates = [
@@ -788,15 +808,22 @@ class TestSimple(TestSimpleBase):
                                                   'properties': record_properties})
             else:
                 with fiona.open(ret) as f:
+                    if k.melted:
+                        actual = OrderedDict(
+                            [(u'DID', 'int:10'), (u'VID', 'int:10'), (u'CID', 'int:10'), (u'UGID', 'int:10'),
+                             (u'TID', 'int:10'), (u'LID', 'int:10'), (u'GID', 'int:10'), (u'VARIABLE', 'str:80'),
+                             (u'ALIAS', 'str:80'), (u'CALC_KEY', 'str:80'), (u'CALC_ALIAS', 'str:80'),
+                             (u'TIME', 'str:80'),
+                             (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LEVEL', 'int:10'),
+                             (u'VALUE', 'float:24.15')])
+                    else:
+                        actual = OrderedDict(
+                            [(u'TID', 'int:10'), (u'TIME', 'str:80'), (u'LB_TIME', 'str:80'), (u'UB_TIME', 'str:80'),
+                             (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LID', 'int:10'),
+                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
+                             (u'MY_MEAN', 'float:24.15')])
                     self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'}, 'driver': u'ESRI Shapefile',
-                                                  'schema': {'geometry': 'Polygon', 'properties': OrderedDict(
-                                                      [(u'DID', 'int:10'), (u'VID', 'int:10'), (u'CID', 'int:10'),
-                                                       (u'UGID', 'int:10'), (u'TID', 'int:10'), (u'LID', 'int:10'),
-                                                       (u'GID', 'int:10'), (u'VARIABLE', 'str:80'),
-                                                       (u'ALIAS', 'str:80'), (u'CALC_KEY', 'str:80'),
-                                                       (u'CALC_ALIAS', 'str:80'), (u'TIME', 'str:80'),
-                                                       (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                                                       (u'LEVEL', 'int:10'), (u'VALUE', 'float:24.15')])}})
+                                                  'schema': {'geometry': 'Polygon', 'properties': actual}})
                     self.assertEqual(len(f), 64)
 
     def test_shp_conversion_with_external_geometries(self):
@@ -823,16 +850,17 @@ class TestSimple(TestSimpleBase):
         ocgis.env.DIR_SHPCABINET = self.current_dir_output
         ops = OcgOperations(dataset=self.get_dataset(),
                             geom='states',
-                            output_format='shp')
+                            output_format='shp',
+                            melted=True)
         ret = ops.execute()
 
         output_folder = os.path.join(self.current_dir_output, ops.prefix)
         contents = os.listdir(output_folder)
         self.assertEqual(set(contents),
-                         set(['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp',
-                              'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log',
-                              'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg',
-                              'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv']))
+                         {'ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_ugid.shp',
+                          'ocgis_output_ugid.dbf', 'ocgis_output_ugid.cpg', 'ocgis_output.dbf', 'ocgis_output.log',
+                          'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output_ugid.shx', 'ocgis_output.cpg',
+                          'ocgis_output.prj', 'ocgis_output_ugid.prj', 'ocgis_output_did.csv'})
 
         with fiona.open(ret) as f:
             rows = list(f)
@@ -983,7 +1011,8 @@ class TestSimple(TestSimpleBase):
                             output_format='shp',
                             aggregate=True,
                             prefix='aggregation_clip',
-                            spatial_operation='clip')
+                            spatial_operation='clip',
+                            melted=True)
         ret = ops.execute()
 
         with fiona.open(ret) as f:
@@ -993,47 +1022,56 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(row['properties']['UGID'], row['properties']['GID'])
         self.assertEqual(set([row['properties']['GID'] for row in rows]), set([1, 2]))
         self.assertEqual(len(rows), 244)
-        self.assertEqual(set(os.listdir(os.path.join(self.current_dir_output, ops.prefix))), set(
-            ['aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_metadata.txt',
-             'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf', 'aggregation_clip.shx',
-             'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg', 'aggregation_clip_ugid.shx',
-             'aggregation_clip.shp', 'aggregation_clip_ugid.dbf', 'aggregation_clip.prj',
-             'aggregation_clip_source_metadata.txt']))
+        self.assertEqual(set(os.listdir(os.path.join(self.current_dir_output, ops.prefix))),
+                         {'aggregation_clip_ugid.shp', 'aggregation_clip.cpg', 'aggregation_clip_metadata.txt',
+                          'aggregation_clip_did.csv', 'aggregation_clip.log', 'aggregation_clip.dbf',
+                          'aggregation_clip.shx', 'aggregation_clip_ugid.prj', 'aggregation_clip_ugid.cpg',
+                          'aggregation_clip_ugid.shx', 'aggregation_clip.shp', 'aggregation_clip_ugid.dbf',
+                          'aggregation_clip.prj', 'aggregation_clip_source_metadata.txt'})
 
     def test_csv_conversion(self):
         ocgis.env.OVERWRITE = True
-        ops = OcgOperations(dataset=self.get_dataset(), output_format='csv')
-        ret = self.get_ret(ops)
+        # ops = OcgOperations(dataset=self.get_dataset(), output_format='csv')
+        # self.get_ret(ops)
 
-        # # test with a geometry to check writing of user-geometry overview shapefile
+        # test with a geometry to check writing of user-geometry overview shapefile
         geom = make_poly((38, 39), (-104, -103))
-        ops = OcgOperations(dataset=self.get_dataset(), output_format='csv', geom=geom)
-        ret = ops.execute()
 
-        output_dir = os.path.join(self.current_dir_output, ops.prefix)
-        contents = set(os.listdir(output_dir))
-        self.assertEqual(contents, set(
-            ['ocgis_output_source_metadata.txt', 'ocgis_output_metadata.txt', 'ocgis_output.log',
-             'ocgis_output_did.csv', 'ocgis_output.csv']))
-        with open(ret, 'r') as f:
-            reader = csv.DictReader(f)
-            row = reader.next()
-            self.assertDictEqual(row, {'LID': '1', 'UGID': '1', 'VID': '1', 'ALIAS': 'foo', 'DID': '1', 'YEAR': '2000',
-                                       'VALUE': '1.0', 'MONTH': '3', 'VARIABLE': 'foo', 'GID': '6',
-                                       'TIME': '2000-03-01 12:00:00', 'TID': '1', 'LEVEL': '50', 'DAY': '1'})
+        for melted in [True, False]:
+            ops = OcgOperations(dataset=self.get_dataset(), output_format='csv', geom=geom, melted=melted)
+            ret = ops.execute()
 
-        did_file = os.path.join(output_dir, ops.prefix + '_did.csv')
-        uri = os.path.join(self.current_dir_output, self.fn)
-        with open(did_file, 'r') as f:
-            reader = csv.DictReader(f)
-            row = reader.next()
-            self.assertDictEqual(row, {'ALIAS': 'foo', 'DID': '1', 'URI': uri, 'UNITS': 'K',
-                                       'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo',
-                                       'LONG_NAME': 'foo_foo'})
+            output_dir = os.path.join(self.current_dir_output, ops.prefix)
+            contents = set(os.listdir(output_dir))
+            self.assertEqual(contents,
+                             {'ocgis_output_source_metadata.txt', 'ocgis_output_metadata.txt', 'ocgis_output.log',
+                              'ocgis_output_did.csv', 'ocgis_output.csv'})
+            with open(ret, 'r') as f:
+                reader = csv.DictReader(f)
+                row = reader.next()
+                if melted:
+                    actual = {'LID': '1', 'UGID': '1', 'VID': '1', 'ALIAS': 'foo', 'DID': '1', 'YEAR': '2000',
+                              'VALUE': '1.0',
+                              'MONTH': '3', 'VARIABLE': 'foo', 'GID': '6', 'TIME': '2000-03-01 12:00:00', 'TID': '1',
+                              'LEVEL': '50', 'DAY': '1'}
+                else:
+                    actual = {'LID': '1', 'LB_LEVEL': '0', 'LEVEL': '50', 'TIME': '2000-03-01 12:00:00', 'MONTH': '3',
+                              'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000', 'TID': '1',
+                              'FOO': '1.0', 'UB_TIME': '2000-03-02 00:00:00', 'DAY': '1'}
+                self.assertDictEqual(row, actual)
 
-        with open(ret, 'r') as f:
-            reader = csv.DictReader(f)
-            rows = list(reader)
+            did_file = os.path.join(output_dir, ops.prefix + '_did.csv')
+            uri = os.path.join(self.current_dir_output, self.fn)
+            with open(did_file, 'r') as f:
+                reader = csv.DictReader(f)
+                row = reader.next()
+                self.assertDictEqual(row, {'ALIAS': 'foo', 'DID': '1', 'URI': uri, 'UNITS': 'K',
+                                           'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo',
+                                           'LONG_NAME': 'foo_foo'})
+
+            with open(ret, 'r') as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
 
         ops = OcgOperations(dataset=self.get_dataset(), output_format='numpy', geom=geom)
         npy = ops.execute()
@@ -1042,16 +1080,25 @@ class TestSimple(TestSimpleBase):
     def test_csv_calc_conversion(self):
         calc = [{'func': 'mean', 'name': 'my_mean'}]
         calc_grouping = ['month', 'year']
-        ops = OcgOperations(dataset=self.get_dataset(), output_format='csv', calc=calc, calc_grouping=calc_grouping)
-        ret = ops.execute()
 
-        with open(ret, 'r') as f:
-            reader = csv.DictReader(f)
-            row = reader.next()
-            self.assertDictEqual(row, {'LID': '1', 'UGID': '1', 'VID': '1', 'CID': '1', 'DID': '1', 'YEAR': '2000',
-                                       'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'my_mean', 'VALUE': '1.0',
-                                       'MONTH': '3', 'VARIABLE': 'foo', 'ALIAS': 'foo', 'GID': '1', 'CALC_KEY': 'mean',
-                                       'TID': '1', 'LEVEL': '50', 'DAY': '16'})
+        for melted in [True, False]:
+            ops = OcgOperations(dataset=self.get_dataset(), output_format='csv', calc=calc, calc_grouping=calc_grouping,
+                                melted=melted, prefix=str(melted))
+            ret = ops.execute()
+
+            with open(ret, 'r') as f:
+                reader = csv.DictReader(f)
+                row = reader.next()
+                if melted:
+                    actual = {'LID': '1', 'UGID': '1', 'VID': '1', 'CID': '1', 'DID': '1', 'YEAR': '2000',
+                              'TIME': '2000-03-16 00:00:00', 'CALC_ALIAS': 'my_mean', 'VALUE': '1.0',
+                              'MONTH': '3', 'VARIABLE': 'foo', 'ALIAS': 'foo', 'GID': '1', 'CALC_KEY': 'mean',
+                              'TID': '1', 'LEVEL': '50', 'DAY': '16'}
+                else:
+                    actual = {'LID': '1', 'LB_LEVEL': '0', 'LEVEL': '50', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
+                              'MY_MEAN': '1.0', 'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
+                              'TID': '1', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16'}
+                self.assertDictEqual(row, actual)
 
     def test_csv_calc_conversion_two_calculations(self):
         calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'min', 'name': 'my_min'}]
@@ -1453,7 +1500,6 @@ class TestSimpleProjected(TestSimpleBase):
                 if o != constants.OUTPUT_FORMAT_NUMPY:
                     pass
 
-
     def test_differing_projection_with_output_crs(self):
         nc_normal = SimpleNc()
         nc_normal.write()
@@ -1469,8 +1515,8 @@ class TestSimpleProjected(TestSimpleBase):
 
         for o in output_format:
             try:
-                ops = OcgOperations(dataset=dataset, output_format=o, output_crs=CFWGS84(),
-                                    prefix=o)
+                ops = OcgOperations(dataset=dataset, output_format=o, output_crs=CFWGS84(), prefix=o, melted=True)
+                self.assertTrue(ops.melted)
                 ret = ops.execute()
 
                 if o == constants.OUTPUT_FORMAT_NUMPY:

@@ -9,13 +9,15 @@ from ocgis.api.request.driver.base import AbstractDriver
 class DriverVector(AbstractDriver):
     extensions = ('.*\.shp',)
     key = 'vector'
-    output_formats = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH]
+    output_formats = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH,
+                      constants.OUTPUT_FORMAT_SHAPEFILE]
 
     def close(self, obj):
         pass
 
     def get_crs(self):
         from ocgis import CoordinateReferenceSystem
+
         return CoordinateReferenceSystem(self.rd.source_metadata['crs'])
 
     def get_dimensioned_variables(self):
@@ -35,13 +37,15 @@ class DriverVector(AbstractDriver):
 
     def open(self):
         from ocgis import ShpCabinetIterator
+
         return ShpCabinetIterator(path=self.rd.uri)
 
     def _get_field_(self, format_time=None):
-        #todo: option to pass select_ugid
+        # todo: option to pass select_ugid
         #todo: option for time dimension and time subsetting
         #todo: remove format_time option - there for compatibility with the netCDF driver
         from ocgis import SpatialDimension
+
         ds = self.open()
         try:
             records = list(ds)

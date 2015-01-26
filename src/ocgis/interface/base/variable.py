@@ -28,7 +28,7 @@ class AbstractValueVariable(Attributes):
     __metaclass__ = abc.ABCMeta
     _value = None
     _conform_units_to = None
-    
+
     def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None,
                  alias=None, attrs=None):
         self.name = name
@@ -48,6 +48,7 @@ class AbstractValueVariable(Attributes):
     def cfunits(self):
         # the cfunits-python module is not a dependency of ocgis and should be imported on demand
         from cfunits import Units
+
         return Units(self.units)
 
     def _conform_units_to_getter_(self):
@@ -56,6 +57,7 @@ class AbstractValueVariable(Attributes):
     def _conform_units_to_setter_(self, value):
         if value is not None:
             from cfunits import Units
+
             if not isinstance(value, Units):
                 value = Units(value)
         self._conform_units_to = value
@@ -72,22 +74,22 @@ class AbstractValueVariable(Attributes):
         else:
             ret = self._dtype
         return ret
-    
+
     @property
     def fill_value(self):
         if self._fill_value is None:
             if self._value is None:
-                raise(ValueError('fill_value not specified at object initialization and value has not been loaded.'))
+                raise (ValueError('fill_value not specified at object initialization and value has not been loaded.'))
             else:
                 ret = self.value.fill_value
         else:
             ret = self._fill_value
         return ret
-    
+
     @property
     def shape(self):
         return self.value.shape
-    
+
     @property
     def value(self):
         if self._value is None:
@@ -158,7 +160,7 @@ class AbstractValueVariable(Attributes):
 
 class AbstractSourcedVariable(object):
     __metaclass__ = abc.ABCMeta
-    
+
     def __init__(self, data, src_idx):
         self._data = data
         self._src_idx = src_idx
@@ -170,7 +172,7 @@ class AbstractSourcedVariable(object):
     @_src_idx.setter
     def _src_idx(self, value):
         self.__src_idx = self._format_src_idx_(value)
-    
+
     def _format_src_idx_(self, value):
         return np.array(value)
 
@@ -178,7 +180,7 @@ class AbstractSourcedVariable(object):
         if self._value is None:
             self._set_value_from_source_()
         return self._value
-            
+
     @abc.abstractmethod
     def _set_value_from_source_(self):
         """Should set ``_value`` using the data source and index."""
@@ -225,8 +227,17 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
     def __getitem__(self, slc):
         ret = copy(self)
         if ret._value is not None:
+            # store the previous number of dimension to ensure this does not change following a slice
+            prev_ndim = ret._value.ndim
             ret._value = self._value[slc]
-        return (ret)
+            if prev_ndim != ret._value.ndim:
+                # if the number of dimensions has changed but they are all singleton, add one back in.
+                if all([xx == 1 for xx in ret._value.shape]):
+                    ret._value = ret._value.reshape(*[1] * prev_ndim)
+                else:
+                    msg = 'Array has changed shaped following slicing.'
+                    raise IndexError(msg)
+        return ret
 
     def __str__(self):
         units = '{0}' if self.units is None else '"{0}"'
@@ -300,26 +311,25 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
         self._value = self._field._get_value_from_source_(self._data, self.name)
         # ensure the new value has the geometry masked applied
         self._field._set_new_value_mask_(self._field, self._field.spatial.get_mask())
-    
-    
+
+
 class VariableCollection(AbstractCollection):
-    
     def __init__(self, variables=None):
         super(VariableCollection, self).__init__()
 
         if variables is not None:
             for variable in get_iter(variables, dtype=Variable):
                 self.add_variable(variable)
-                
+
     def add_variable(self, variable, assign_new_uid=False):
         """
         :param :class:`ocgis.interface.base.variable.Variable` :
         :param bool assign_new_uid: If ``True``, assign a new unique identifier to the incoming variable. This will
          modify the variable inplace.
         """
-        assert(isinstance(variable, Variable))
+        assert (isinstance(variable, Variable))
         try:
-            assert(variable.alias not in self)
+            assert (variable.alias not in self)
         except AssertionError:
             raise VariableInCollectionError(variable)
 
@@ -329,10 +339,10 @@ class VariableCollection(AbstractCollection):
         if variable.uid is None:
             variable.uid = self._storage_id_next
         else:
-            assert(variable.uid not in self._storage_id)
+            assert (variable.uid not in self._storage_id)
         self._storage_id.append(variable.uid)
         self.update({variable.alias: variable})
-        
+
     def get_sliced_variables(self, slc):
         variables = [v.__getitem__(slc) for v in self.itervalues()]
         ret = VariableCollection(variables=variables)

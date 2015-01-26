@@ -15,7 +15,7 @@ from shapely.geometry.geo import mapping, shape
 
 import base
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem, WGS84
-from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask,\
+from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask, \
     get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners, \
     get_none_or_2d
 from ocgis import constants, env
@@ -45,7 +45,7 @@ class SingleElementRetriever(object):
 
     def __init__(self, sdim):
         try:
-            assert(sdim.shape == (1, 1))
+            assert (sdim.shape == (1, 1))
         except AssertionError:
             raise MultipleElementsFound(sdim)
         self.sdim = sdim
@@ -96,7 +96,7 @@ class SpatialDimension(base.AbstractUidDimension):
         kwargs['name'] = kwargs.get('name') or 'spatial'
         kwargs['name_uid'] = kwargs.get('name_uid') or 'gid'
 
-        ## attempt to build the geometry dimension
+        # # attempt to build the geometry dimension
         point = kwargs.pop('point', None)
         polygon = kwargs.pop('polygon', None)
         geom_kwds = dict(point=point, polygon=polygon)
@@ -142,7 +142,7 @@ class SpatialDimension(base.AbstractUidDimension):
     @grid.setter
     def grid(self, value):
         if value is not None:
-            assert(isinstance(value, SpatialGridDimension))
+            assert (isinstance(value, SpatialGridDimension))
         self._grid = value
 
     @property
@@ -304,11 +304,12 @@ class SpatialDimension(base.AbstractUidDimension):
         return sdim
 
     def get_clip(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
-        assert(type(polygon) in (Polygon, MultiPolygon))
+        assert (type(polygon) in (Polygon, MultiPolygon))
 
-        ret, slc = self.get_intersects(polygon, return_indices=True, use_spatial_index=use_spatial_index, select_nearest=select_nearest)
+        ret, slc = self.get_intersects(polygon, return_indices=True, use_spatial_index=use_spatial_index,
+                                       select_nearest=select_nearest)
 
-        ## clipping with points is okay...
+        # # clipping with points is okay...
         if ret.geom.polygon is not None:
             ref_value = ret.geom.polygon.value
         else:
@@ -319,7 +320,7 @@ class SpatialDimension(base.AbstractUidDimension):
         if return_indices:
             ret = (ret, slc)
 
-        return(ret)
+        return (ret)
 
     def get_fiona_schema(self):
         """
@@ -329,11 +330,11 @@ class SpatialDimension(base.AbstractUidDimension):
 
         fproperties = OrderedDict()
         if self.properties is not None:
-            from ocgis.conv.fiona_ import FionaConverter
+            from ocgis.conv.fiona_ import AbstractFionaConverter
 
             dtype = self.properties.dtype
             for idx, name in enumerate(dtype.names):
-                fproperties[name] = FionaConverter.get_field_type(dtype[idx])
+                fproperties[name] = AbstractFionaConverter.get_field_type(dtype[idx])
         schema = {'geometry': self.abstraction_geometry.geom_type,
                   'properties': fproperties}
         return schema
@@ -423,7 +424,8 @@ class SpatialDimension(base.AbstractUidDimension):
                                                                                 use_spatial_index=use_spatial_index)
                     grid_mask = ret.geom.polygon.value.mask
                 else:
-                    ret._geom._point = ret.geom.point.get_intersects_masked(polygon, use_spatial_index=use_spatial_index)
+                    ret._geom._point = ret.geom.point.get_intersects_masked(polygon,
+                                                                            use_spatial_index=use_spatial_index)
                     grid_mask = ret.geom.point.value.mask
                 assert not self.uid.mask.any()
                 ret.grid.value.unshare_mask()
@@ -520,7 +522,7 @@ class SpatialDimension(base.AbstractUidDimension):
         except AttributeError:
             if self.crs is None or self.crs != WGS84():
                 msg = 'Only WGS84 coordinate systems may be unwrapped.'
-                raise(SpatialWrappingError(msg))
+                raise (SpatialWrappingError(msg))
 
     def update_crs(self, to_crs):
         """
@@ -584,23 +586,23 @@ class SpatialDimension(base.AbstractUidDimension):
         except AttributeError:
             if self.crs is None or self.crs != WGS84():
                 msg = 'Only WGS84 coordinate systems may be wrapped.'
-                raise(SpatialWrappingError(msg))
+                raise (SpatialWrappingError(msg))
 
-    def write_fiona(self,path,target='polygon',driver='ESRI Shapefile'):
-        attr = getattr(self.geom,target)
-        attr.write_fiona(path,self.crs.value,driver=driver)
-        return(path)
+    def write_fiona(self, path, target='polygon', driver='ESRI Shapefile'):
+        attr = getattr(self.geom, target)
+        attr.write_fiona(path, self.crs.value, driver=driver)
+        return (path)
 
-    def _format_uid_(self,value):
-        return(np.atleast_2d(value))
+    def _format_uid_(self, value):
+        return (np.atleast_2d(value))
 
-    def _get_sliced_properties_(self,slc):
+    def _get_sliced_properties_(self, slc):
         if self.properties is not None:
-            ## determine major axis
+            # # determine major axis
             major = self.shape.index(max(self.shape))
-            return(self.properties[slc[major]])
+            return (self.properties[slc[major]])
         else:
-            return(None)
+            return (None)
 
     def _get_uid_(self):
         if self._geom is not None:
@@ -661,13 +663,13 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         name_mapping = {self.row: 'yc', self.col: 'xc'}
         set_name_attributes(name_mapping)
 
-    def __getitem__(self,slc):
-        slc = get_formatted_slice(slc,2)
+    def __getitem__(self, slc):
+        slc = get_formatted_slice(slc, 2)
 
         uid = self.uid[slc]
 
         if self._value is not None:
-            value = self._value[:,slc[0],slc[1]]
+            value = self._value[:, slc[0], slc[1]]
         else:
             value = None
 
@@ -688,7 +690,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         ret.row = row
         ret.col = col
 
-        return(ret)
+        return (ret)
 
     @property
     def corners(self):
@@ -707,7 +709,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             elif self.row.bounds is None or self.col.bounds is None:
                 pass
             else:
-                fill = np.zeros([2]+list(self.shape)+[4], dtype=self.row.value.dtype)
+                fill = np.zeros([2] + list(self.shape) + [4], dtype=self.row.value.dtype)
                 col_bounds = self.col.bounds
                 row_bounds = self.row.bounds
                 for ii, jj in itertools.product(range(self.shape[0]), range(self.shape[1])):
@@ -743,7 +745,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         range_col = range(self.shape[1])
         _corners = self.corners
         for ii, jj in itertools.product(range_row, range_col):
-            ref = fill[:, ii:ii+2, jj:jj+2]
+            ref = fill[:, ii:ii + 2, jj:jj + 2]
             ref[:, 0, 0] = _corners[:, ii, jj, 0]
             ref[:, 0, 1] = _corners[:, ii, jj, 1]
             ref[:, 1, 1] = _corners[:, ii, jj, 2]
@@ -759,10 +761,10 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 maxx = self.corners[1].max()
                 maxy = self.corners[0].max()
             else:
-                minx = self.value[1,:,:].min()
-                miny = self.value[0,:,:].min()
-                maxx = self.value[1,:,:].max()
-                maxy = self.value[0,:,:].max()
+                minx = self.value[1, :, :].min()
+                miny = self.value[0, :, :].min()
+                maxx = self.value[1, :, :].max()
+                maxy = self.value[0, :, :].max()
         else:
             if self.row.bounds is None:
                 minx = self.col.value.min()
@@ -784,14 +786,14 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
     @property
     def resolution(self):
         try:
-            ret = np.mean([self.row.resolution,self.col.resolution])
+            ret = np.mean([self.row.resolution, self.col.resolution])
         except AttributeError:
-            resolution_limit = int(constants.RESOLUTION_LIMIT)/2
-            r_value = self.value[:,0:resolution_limit,0:resolution_limit]
-            rows = np.mean(np.diff(r_value[0,:,:],axis=0))
-            cols = np.mean(np.diff(r_value[1,:,:],axis=1))
-            ret = np.mean([rows,cols])
-        return(ret)
+            resolution_limit = int(constants.RESOLUTION_LIMIT) / 2
+            r_value = self.value[:, 0:resolution_limit, 0:resolution_limit]
+            rows = np.mean(np.diff(r_value[0, :, :], axis=0))
+            cols = np.mean(np.diff(r_value[1, :, :], axis=1))
+            ret = np.mean([rows, cols])
+        return (ret)
 
     @property
     def shape(self):
@@ -802,16 +804,16 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             ret = (self.uid.shape[0], self.uid.shape[1])
         return ret
 
-    def get_subset_bbox(self,min_col,min_row,max_col,max_row,return_indices=False,closed=True,
+    def get_subset_bbox(self, min_col, min_row, max_col, max_row, return_indices=False, closed=True,
                         use_bounds=True):
-        assert(min_row <= max_row)
-        assert(min_col <= max_col)
+        assert (min_row <= max_row)
+        assert (min_col <= max_col)
 
         if self.row is None:
-            r_row = self.value[0,:,:]
-            real_idx_row = np.arange(0,r_row.shape[0])
-            r_col = self.value[1,:,:]
-            real_idx_col = np.arange(0,r_col.shape[1])
+            r_row = self.value[0, :, :]
+            real_idx_row = np.arange(0, r_row.shape[0])
+            r_col = self.value[1, :, :]
+            real_idx_col = np.arange(0, r_col.shape[1])
 
             if closed:
                 lower_row = r_row > min_row
@@ -824,44 +826,46 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 lower_col = r_col >= min_col
                 upper_col = r_col <= max_col
 
-            idx_row = np.logical_and(lower_row,upper_row)
-            idx_col = np.logical_and(lower_col,upper_col)
+            idx_row = np.logical_and(lower_row, upper_row)
+            idx_col = np.logical_and(lower_col, upper_col)
 
-            keep_row = np.any(idx_row,axis=1)
-            keep_col = np.any(idx_col,axis=0)
+            keep_row = np.any(idx_row, axis=1)
+            keep_col = np.any(idx_col, axis=0)
 
-            ## slice reduction may fail due to empty bounding box returns. catch
-            ## these value errors and repurpose as subset errors.
+            # # slice reduction may fail due to empty bounding box returns. catch
+            # # these value errors and repurpose as subset errors.
             try:
                 row_slc = get_reduced_slice(real_idx_row[keep_row])
             except ValueError:
                 if real_idx_row[keep_row].shape[0] == 0:
-                    raise(EmptySubsetError(origin='Y'))
+                    raise (EmptySubsetError(origin='Y'))
                 else:
                     raise
             try:
                 col_slc = get_reduced_slice(real_idx_col[keep_col])
             except ValueError:
                 if real_idx_col[keep_col].shape[0] == 0:
-                    raise(EmptySubsetError(origin='X'))
+                    raise (EmptySubsetError(origin='X'))
                 else:
                     raise
 
-            new_mask = np.invert(np.logical_or(idx_row,idx_col)[row_slc,col_slc])
+            new_mask = np.invert(np.logical_or(idx_row, idx_col)[row_slc, col_slc])
 
         else:
-            new_row,row_indices = self.row.get_between(min_row,max_row,return_indices=True,closed=closed,use_bounds=use_bounds)
-            new_col,col_indices = self.col.get_between(min_col,max_col,return_indices=True,closed=closed,use_bounds=use_bounds)
+            new_row, row_indices = self.row.get_between(min_row, max_row, return_indices=True, closed=closed,
+                                                        use_bounds=use_bounds)
+            new_col, col_indices = self.col.get_between(min_col, max_col, return_indices=True, closed=closed,
+                                                        use_bounds=use_bounds)
             row_slc = get_reduced_slice(row_indices)
             col_slc = get_reduced_slice(col_indices)
 
-        ret = self[row_slc,col_slc]
+        ret = self[row_slc, col_slc]
 
         try:
-            grid_mask = np.zeros((2,new_mask.shape[0],new_mask.shape[1]),dtype=bool)
-            grid_mask[:,:,:] = new_mask
-            ret._value = np.ma.array(ret._value,mask=grid_mask)
-            ret.uid = np.ma.array(ret.uid,mask=new_mask)
+            grid_mask = np.zeros((2, new_mask.shape[0], new_mask.shape[1]), dtype=bool)
+            grid_mask[:, :, :] = new_mask
+            ret._value = np.ma.array(ret._value, mask=grid_mask)
+            ret.uid = np.ma.array(ret.uid, mask=new_mask)
         except UnboundLocalError:
             if self.row is not None:
                 pass
@@ -869,9 +873,9 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 raise
 
         if return_indices:
-            ret = (ret,(row_slc,col_slc))
+            ret = (ret, (row_slc, col_slc))
 
-        return(ret)
+        return (ret)
 
     def set_extrapolated_corners(self):
         """
@@ -885,7 +889,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         else:
             data = self.value.data
             corners_esmf = get_extrapolated_corners_esmf(data[0])
-            corners_esmf.resize(*list([2]+list(corners_esmf.shape)))
+            corners_esmf.resize(*list([2] + list(corners_esmf.shape)))
             corners_esmf[1, :, :] = get_extrapolated_corners_esmf(data[1])
             corners = get_ocgis_corners_from_esmf_corners(corners_esmf)
 
@@ -1032,7 +1036,7 @@ class SpatialGeometryDimension(base.AbstractUidDimension):
             ret = self.polygon.shape
         else:
             ret = self.point.shape
-        return(ret)
+        return (ret)
 
     def get_highest_order_abstraction(self):
         """
@@ -1192,20 +1196,20 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
             ogr_geom.TransformTo(to_sr)
             r_value[idx_row, idx_col] = r_loads(ogr_geom.ExportToWkb())
 
-    def write_fiona(self,path,crs,driver='ESRI Shapefile'):
-        schema = {'geometry':self.geom_type,
-                  'properties':{'UGID':'int'}}
+    def write_fiona(self, path, crs, driver='ESRI Shapefile'):
+        schema = {'geometry': self.geom_type,
+                  'properties': {'UGID': 'int'}}
         ref_prep = self._write_fiona_prep_geom_
         ref_uid = self.uid
 
-        with fiona.open(path,'w',driver=driver,crs=crs,schema=schema) as f:
-            for (ii,jj),geom in iter_array(self.value,return_value=True):
+        with fiona.open(path, 'w', driver=driver, crs=crs, schema=schema) as f:
+            for (ii, jj), geom in iter_array(self.value, return_value=True):
                 geom = ref_prep(geom)
-                uid = int(ref_uid[ii,jj])
-                feature = {'properties':{'UGID':uid},'geometry':mapping(geom)}
+                uid = int(ref_uid[ii, jj])
+                feature = {'properties': {'UGID': uid}, 'geometry': mapping(geom)}
                 f.write(feature)
 
-        return(path)
+        return (path)
 
     @staticmethod
     def _write_fiona_prep_geom_(geom):
@@ -1290,7 +1294,7 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
 
     @property
     def weights(self):
-        return self.area/self.area.max()
+        return self.area / self.area.max()
 
     def write_to_netcdf_dataset_ugrid(self, dataset):
         """

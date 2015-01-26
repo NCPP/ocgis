@@ -15,13 +15,11 @@ from ocgis.util.itester import itr_products_keywords
 
 
 class FakeAbstractSourcedVariable(AbstractSourcedVariable):
-
     def _set_value_from_source_(self):
-        self._value = self._src_idx*2
+        self._value = self._src_idx * 2
 
 
 class TestAbstractSourcedVariable(TestBase):
-
     def iter(self):
         src_idx = [1, 2]
         data = 'foo'
@@ -44,16 +42,14 @@ class TestAbstractSourcedVariable(TestBase):
     def test_get_value(self):
         aa = FakeAbstractSourcedVariable('foo', src_idx=[1, 2])
         aa._value = None
-        self.assertNumpyAll(aa._get_value_(), np.array([1, 2])*2)
+        self.assertNumpyAll(aa._get_value_(), np.array([1, 2]) * 2)
 
     def test_src_idx(self):
         aa = FakeAbstractSourcedVariable('foo', src_idx=[1, 2])
         self.assertNumpyAll(aa._src_idx, np.array([1, 2]))
 
 
-
 class FakeAbstractValueVariable(AbstractValueVariable):
-
     def _get_value_(self):
         return np.array(self._value)
 
@@ -106,7 +102,8 @@ class TestAbstractValueVariable(TestBase):
                     raise
             except ValueError:
                 # units are not convertible
-                if _get_units_(k.units) == _get_units_('mm/day') and _get_units_(k.conform_units_to) == _get_units_('kelvin'):
+                if _get_units_(k.units) == _get_units_('mm/day') and _get_units_(k.conform_units_to) == _get_units_(
+                        'kelvin'):
                     continue
                 else:
                     raise
@@ -207,7 +204,6 @@ class TestAbstractValueVariable(TestBase):
 
 
 class TestDerivedVariable(TestBase):
-
     def test_init(self):
         self.assertEqual(DerivedVariable.__bases__, (Variable,))
 
@@ -235,7 +231,6 @@ class TestDerivedVariable(TestBase):
 
 
 class TestVariable(TestBase):
-
     def test_init(self):
         self.assertEqual(Variable.__bases__, (AbstractSourcedVariable, AbstractValueVariable))
 
@@ -249,16 +244,16 @@ class TestVariable(TestBase):
         self.assertEqual(var.alias, 'foo')
 
     def test_init_with_value_with_dtype_fill_value(self):
-        var = Variable(data='foo',dtype=np.float,fill_value=9,value=np.array([1,2,3,4]))
-        self.assertEqual(var.dtype,np.float)
-        self.assertEqual(var.fill_value,9)
+        var = Variable(data='foo', dtype=np.float, fill_value=9, value=np.array([1, 2, 3, 4]))
+        self.assertEqual(var.dtype, np.float)
+        self.assertEqual(var.fill_value, 9)
 
     def test_init_with_value_without_dtype_fill_value(self):
-        value = np.array([1,2,3,4])
+        value = np.array([1, 2, 3, 4])
         value = np.ma.array(value)
-        var = Variable(data='foo',value=value)
-        self.assertEqual(var.dtype,value.dtype)
-        self.assertEqual(var.fill_value,value.fill_value)
+        var = Variable(data='foo', value=value)
+        self.assertEqual(var.dtype, value.dtype)
+        self.assertEqual(var.fill_value, value.fill_value)
 
     def test_init_without_value_dtype_fill_value(self):
         var = Variable(data='foo')
@@ -268,9 +263,9 @@ class TestVariable(TestBase):
             var.fill_value
 
     def test_init_without_value_with_dtype_fill_value(self):
-        var = Variable(data='foo',dtype=np.float,fill_value=9)
-        self.assertEqual(var.dtype,np.float)
-        self.assertEqual(var.fill_value,9)
+        var = Variable(data='foo', dtype=np.float, fill_value=9)
+        self.assertEqual(var.dtype, np.float)
+        self.assertEqual(var.fill_value, 9)
 
     def test_str(self):
         var = Variable(name='toon')
@@ -298,6 +293,12 @@ class TestVariable(TestBase):
             # the meta dictionary should be deepcopied
             new_var.meta['hi'] = 'there'
             self.assertDictEqual(var.meta, {'foo': 5})
+
+    def test_getitem(self):
+        var = Variable(value=np.random.rand(1, 1, 1, 1, 51), name='foo')
+        slc = [slice(None, None, None), slice(None, None, None), slice(None, None, None), np.array([0]), np.array([14])]
+        ret = var.__getitem__(slc)
+        self.assertEqual(ret.shape, tuple([1] * 5))
 
     def test_iter_melted(self):
 

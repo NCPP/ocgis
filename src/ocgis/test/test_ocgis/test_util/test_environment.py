@@ -1,10 +1,10 @@
-import unittest
-from ocgis import env, OcgOperations
 import os
 import tempfile
+from importlib import import_module
+
+from ocgis import env, OcgOperations
 from ocgis.test.base import TestBase
 from ocgis.util.environment import EnvParmImport
-from importlib import import_module
 
 
 class TestEnvImportParm(TestBase):
@@ -38,7 +38,10 @@ class TestEnvironment(TestBase):
             av = True
         except ImportError:
             av = False
-        return(av)
+        return av
+
+    def test_init(self):
+        self.assertIsNone(env.MELTED)
 
     def test_conf_path(self):
         env.CONF_PATH
@@ -116,8 +119,3 @@ class TestEnvironment(TestBase):
     def test_str(self):
         ret = str(env)
         self.assertTrue(len(ret) > 300)
-
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

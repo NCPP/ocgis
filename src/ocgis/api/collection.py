@@ -6,7 +6,6 @@ from shapely.geometry import mapping, MultiPoint, MultiPolygon
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis.interface.base.crs import CFWGS84
-from ocgis import constants
 from ocgis.util.helpers import get_ordered_dicts_from_records_array
 
 
@@ -92,7 +91,6 @@ class AbstractCollection(object):
 
 
 class SpatialCollection(AbstractCollection):
-    _default_headers = constants.HEADERS_RAW
     _multi_cast = {'Point': MultiPoint, 'Polygon': MultiPolygon}
 
     def __init__(self, meta=None, key=None, crs=None, headers=None, value_keys=None):
@@ -101,7 +99,7 @@ class SpatialCollection(AbstractCollection):
         self.meta = meta
         self.key = key
         self.crs = crs or CFWGS84()
-        self.headers = headers or self._default_headers
+        self.headers = headers
         self.value_keys = value_keys
 
         self.geoms = OrderedDict()
@@ -143,22 +141,30 @@ class SpatialCollection(AbstractCollection):
         assert (name not in self[ugid])
         self[ugid].update({name: field})
 
-    def get_iter_dict(self, use_upper_keys=False, conversion_map=None):
-        r_headers = self.headers
-        id_selection_geometry = constants.HEADERS.ID_SELECTION_GEOMETRY
-        default_geometry_key = constants.DEFAULT_GEOMETRY_KEY
-        use_conversion = False if conversion_map is None else True
+    def get_iter_dict(self, use_upper_keys=False, conversion_map=None, melted=False):
+        """
+        :param bool use_upper_keys: If ``True``, capitalize all keys in the yielded data dictionary.
+        :param dict conversion_map: If present, keys correspond to headers with values being the type to convert to.
+        :param bool melted: If ``True``, yield in melted form with variables collected under the value header.
+        :returns: A generator yielding tuples. If headers on the collection are not ``None``, these headers will be used
+         to limit keys in the yielded data dictionary.
+        :rtype: tuple(:class:`shapely.geometry.base.BaseGeometry`, dict)
+        """
+
+        if conversion_map is None or melted is False:
+            use_conversion = False
+        else:
+            use_conversion = True
         for ugid, field_dict in self.iteritems():
+            ugid = ugid if melted else None
             for field in field_dict.itervalues():
-                for row in field.get_iter(value_keys=self.value_keys):
-                    row[id_selection_geometry] = ugid
-                    yld_row = {k: row.get(k) for k in r_headers}
-                    if use_conversion:
-                        for k, v in conversion_map.iteritems():
-                            yld_row[k] = v(yld_row[k])
-                    if use_upper_keys:
-                        yld_row = {k.upper(): v for k, v in yld_row.iteritems()}
-                    yield row[default_geometry_key], yld_row
+                for yld_geom, row in field.get_iter(value_keys=self.value_keys, melted=melted,
+                                                    use_upper_keys=use_upper_keys, headers=self.headers, ugid=ugid):
+                    if melted:
+                        if use_conversion:
+                            for k, v in conversion_map.iteritems():
+                                row[k] = v(row[k])
+                    yield yld_geom, row
 
     def get_iter_elements(self):
         for ugid, fields in self.iteritems():
@@ -192,7 +198,7 @@ class SpatialCollection(AbstractCollection):
         :type fobject: :class:`fiona.collection.Collection`
         """
 
-        from ocgis.conv.fiona_ import FionaConverter
+        from ocgis.conv.fiona_ import AbstractFionaConverter
 
         build = True if fobject is None else False
         is_open = False
@@ -217,7 +223,8 @@ class SpatialCollection(AbstractCollection):
                     fiona_properties = OrderedDict()
                     archetype_properties = self.properties[ugid]
                     for name in archetype_properties.dtype.names:
-                        fiona_properties[name] = FionaConverter.get_field_type(type(archetype_properties[name][0]))
+                        fiona_properties[name] = AbstractFionaConverter.get_field_type(
+                            type(archetype_properties[name][0]))
                     fiona_schema = {'geometry': geometry, 'properties': fiona_properties}
                     fiona_kwds = {'schema': fiona_schema, 'driver': driver, 'mode': 'w'}
                     if self.crs is not None:

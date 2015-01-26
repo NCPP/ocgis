@@ -1,3 +1,4 @@
+from ocgis import constants
 from ocgis import RequestDataset, ShpCabinet, ShpCabinetIterator
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.api.request.driver.vector import DriverVector
@@ -6,7 +7,6 @@ from ocgis.test.base import TestBase
 
 
 class TestDriverVector(TestBase):
-
     def get_driver(self, **kwargs):
         rd = self.get_rd(**kwargs)
         driver = DriverVector(rd)
@@ -18,8 +18,11 @@ class TestDriverVector(TestBase):
         return rd
 
     def test_init(self):
-        self.assertEqual(DriverVector.__bases__, (AbstractDriver,))
-        self.assertIsInstance(self.get_driver(), DriverVector)
+        self.assertIsInstances(self.get_driver(), (DriverVector, AbstractDriver))
+
+        actual = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH,
+                  constants.OUTPUT_FORMAT_SHAPEFILE]
+        self.assertAsSetEqual(actual, DriverVector.output_formats)
 
     def test_close(self):
         driver = self.get_driver()

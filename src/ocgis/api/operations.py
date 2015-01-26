@@ -1,4 +1,3 @@
-from ocgis.conv.base import AbstractConverter
 from ocgis.api.parms.definition import *
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis import env
@@ -114,19 +113,23 @@ class OcgOperations(object):
     :param dict regrid_options: Overload the default keywords for regridding. Dictionary elements must map to the names
      of keyword arguments for :meth:`~ocgis.regrid.base.iter_regridded_fields`. If this is left as ``None``, then the
      default keyword values are used. Please see :ref:`esmpy-regridding` for an overview.
+    :param bool melted: If ``None``, default to :attr:`ocgis.env.MELTED`. If ``False`` (the default), variable names are
+     individual columns in tabular output formats (i.e. ``'csv'``). If ``True``, all variable values will be collected
+     under a single value column.
     """
-    
+
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, aggregate=False, calc=None,
                  calc_grouping=None, calc_raw=False, abstraction=None, snippet=False, backend='ocg', prefix=None,
                  output_format='numpy', agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False,
                  dir_output=None, slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
                  search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
                  optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
-                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None):
-        
+                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None,
+                 melted=False):
+
         # tells "__setattr__" to not perform global validation until all values are set initially
         self._is_init = True
-        
+
         self.dataset = Dataset(dataset)
         self.spatial_operation = SpatialOperation(spatial_operation)
         self.aggregate = Aggregate(aggregate)
@@ -162,15 +165,17 @@ class OcgOperations(object):
         self.select_nearest = SelectNearest(select_nearest)
         self.regrid_destination = RegridDestination(init_value=regrid_destination, dataset=self._get_object_('dataset'))
         self.regrid_options = RegridOptions(regrid_options)
-        
+        self.melted = Melted(init_value=env.MELTED or melted, dataset=self._get_object_('dataset'),
+                             output_format=self._get_object_('output_format'))
+
         # these values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
-        
+
         # Initial values have been set and global validation should now occur when any parameters are updated.
         self._is_init = False
         self._update_dependents_()
         self._validate_()
-        
+
     def __str__(self):
         msg = ['{0}('.format(self.__class__.__name__)]
         for key, value in self.as_dict().iteritems():
@@ -179,16 +184,16 @@ class OcgOperations(object):
             msg.append('{0}, '.format(self._get_object_(key)))
         msg.append(')')
         msg = ''.join(msg)
-        return(msg)
-            
+        return msg
+
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
         if isinstance(attr, OcgParameter):
             ret = attr.value
         else:
             ret = attr
-        return(ret)
-    
+        return ret
+
     def __setattr__(self, name, value):
         if isinstance(value, OcgParameter):
             object.__setattr__(self, name, value)
@@ -201,17 +206,17 @@ class OcgOperations(object):
         if self._is_init is False:
             self._update_dependents_()
             self._validate_()
-            
+
     def get_base_request_size(self):
-        '''
+        """
         Return the estimated request size in kilobytes. This is the estimated size
         of the requested data not the returned data product.
-        
+
         :returns: Dictionary with keys ``'total'`` and ``'variables'``. The ``'variables'``
          key maps a variable's alias to its estimated value and dimension sizes, shapes, and
          data types.
         :return type: dict
-        
+
         >>> ret = ops.get_base_request_size()
         {'total':555.,
          'variables':{
@@ -225,7 +230,7 @@ class OcgOperations(object):
                              }
                       }
         }
-        '''
+        """
 
         if self.regrid_destination is not None:
             msg = 'Base request size not supported with a regrid destination.'
@@ -272,72 +277,72 @@ class OcgOperations(object):
                     total += float(v3['kb'])
         ret['total'] = total
         return ret
-    
+
     def get_meta(self):
         meta_converter = MetaConverter(self)
         rows = meta_converter.get_rows()
-        return('\n'.join(rows))
-    
+        return '\n'.join(rows)
+
     @classmethod
     def parse_query(cls, query):
         parms = [SpatialOperation, Geom, Aggregate, Calc, CalcGrouping, CalcRaw,
                  Abstraction, Snippet, Backend, Prefix, OutputFormat,
                  AggregateSelection, SelectUgid, VectorWrap, AllowEmpty]
-        
+
         kwds = {}
         ds = Dataset.parse_query(query)
-        kwds.update({ds.name:ds.value})
-        
+        kwds.update({ds.name: ds.value})
+
         for parm in parms:
             obj = parm()
             obj.parse_query(query)
-            kwds.update({obj.name:obj.value})
-            
+            kwds.update({obj.name: obj.value})
+
         ops = OcgOperations(**kwds)
-        return(ops)
-        
+        return ops
+
     def as_dict(self):
-        """:rtype: dictionary"""
+        """:rtype: dict"""
+
         ret = {}
         for value in self.__dict__.itervalues():
             try:
-                ret.update({value.name:value.value})
+                ret.update({value.name: value.value})
             except AttributeError:
                 pass
-        return(ret)
-    
+        return ret
+
     def execute(self):
         """Execute the request using the selected backend.
         
         :rtype: Path to an output file/folder or dictionary composed of :class:`ocgis.api.collection.AbstractCollection` objects.
         """
         interp = OcgInterpreter(self)
-        return(interp.execute())
-    
+        return interp.execute()
+
     def _get_object_(self, name):
-        return(object.__getattribute__(self, name))
-    
+        return object.__getattribute__(self, name)
+
     def _update_dependents_(self):
-        ## the select_ugid parameter must always connect to the geometry selection
+        # the select_ugid parameter must always connect to the geometry selection
         geom = self._get_object_('geom')
         svalue = self._get_object_('select_ugid')._value
         geom.select_ugid = svalue
 
-        ## time and/or level subsets must be applied to the request datasets
-        ## individually. if they are not none.
+        # time and/or level subsets must be applied to the request datasets individually. if they are not none.
         for attr in ['time_range', 'time_region', 'level_range']:
             if getattr(self, attr) is not None:
                 for rd in self.dataset.itervalues():
                     setattr(rd, attr, getattr(self, attr))
 
-        ## unit conforms are tied to request dataset objects
+        # unit conforms are tied to request dataset objects
         if self.conform_units_to is not None:
             for rd in self.dataset.itervalues():
                 try:
                     rd.conform_units_to = self.conform_units_to
                 except ValueError as e:
                     msg = '"{0}: {1}"'.format(e.__class__.__name__, e.message)
-                    raise(DefinitionValidationError(Dataset, msg))
+                    raise (DefinitionValidationError(Dataset, msg))
 
     def _validate_(self):
         ocgis_lh(logger='operations', msg='validating operations')
@@ -383,7 +388,7 @@ class OcgOperations(object):
                 _raise_(msg, obj=OutputCRS)
             if self.aggregate or self.spatial_operation == 'clip':
                 msg = (
-                '{0} data if clipped or spatially averaged must be written to ' '{1}. The "output_crs" is being updated to {2}.').format(
+                    '{0} data if clipped or spatially averaged must be written to ' '{1}. The "output_crs" is being updated to {2}.').format(
                     CFRotatedPole.__name__, CFWGS84.__name__, CFWGS84.__name__)
                 ocgis_lh(level=logging.WARN, msg=msg, logger='operations')
                 self._get_object_('output_crs')._value = CFWGS84()
@@ -399,7 +404,9 @@ class OcgOperations(object):
         # snippet only relevant for subsetting not operations with a calculation or time region
         if self.snippet:
             if self.calc is not None:
-                _raise_('Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',obj=Snippet)
+                _raise_(
+                    'Snippets are not implemented for calculations. Apply a limiting time range for faster responses.',
+                    obj=Snippet)
             for rd in self.dataset.iter_request_datasets():
                 if rd.time_region is not None:
                     _raise_('Snippets are not implemented for time regions.', obj=Snippet)

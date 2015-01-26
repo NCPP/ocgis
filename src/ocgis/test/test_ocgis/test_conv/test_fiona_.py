@@ -1,27 +1,35 @@
 from collections import OrderedDict
 import os
-import datetime
+import numpy as np
 
 import fiona
-from ocgis.api.request.base import RequestDataset
-from ocgis.util.shp_cabinet import ShpCabinet
 
+import datetime
+from ocgis.interface.base.crs import WGS84
 import ocgis
 from ocgis.api.subset import SubsetOperation
-from ocgis.conv.fiona_ import ShpConverter
+from ocgis.conv.fiona_ import ShpConverter, AbstractFionaConverter
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
-import numpy as np
 
 
 class TestShpConverter(TestBase):
-
     def get_subset_operation(self):
         geom = TestGeom.get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True, snippet=True)
         subset = SubsetOperation(ops)
         return subset
+
+    def test_init(self):
+        field = self.get_field()
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo')
+        self.assertIsInstance(conv, AbstractFionaConverter)
+        self.assertFalse(conv.melted)
+
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo', melted=True)
+        self.assertTrue(conv.melted)
 
     def test_attributes_copied(self):
         """Test attributes in geometry dictionaries are properly accounted for in the converter."""
@@ -30,10 +38,34 @@ class TestShpConverter(TestBase):
         conv = ShpConverter(subset, self.current_dir_output, prefix='shpconv')
         ret = conv.write()
 
-        path_ugid = os.path.join(self.current_dir_output, conv.prefix+'_ugid.shp')
+        path_ugid = os.path.join(self.current_dir_output, conv.prefix + '_ugid.shp')
 
         with fiona.open(path_ugid) as source:
             self.assertEqual(source.schema['properties'], OrderedDict([(u'COUNTRY', 'str:80'), (u'UGID', 'int:10')]))
+
+    def test_build(self):
+        field = self.get_field()
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo')
+        # no coordinate system...
+        with self.assertRaises(ValueError):
+            conv._build_(coll)
+
+        field = self.get_field(crs=WGS84())
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo')
+        self.assertTrue(conv._use_upper_keys)
+        ret = conv._build_(coll)
+        schema_keys = ret['fobject'].meta['schema']['properties'].keys()
+        for key in schema_keys:
+            self.assertFalse(key.islower())
+        self.assertNotIn('VALUE', ret['schema']['properties'])
+
+        field = self.get_field(crs=WGS84())
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo2', melted=True)
+        ret = conv._build_(coll)
+        self.assertIn('VALUE', ret['schema']['properties'])
 
     def test_get_field_type(self):
         target = ShpConverter.get_field_type(np.int32)
@@ -65,6 +97,34 @@ class TestShpConverter(TestBase):
         ops = ocgis.OcgOperations(dataset=rd, slice=slc)
         subset = SubsetOperation(ops)
         conv = ShpConverter(subset, self.current_dir_output, prefix='shpconv')
-        ret = conv.write()
+        conv.write()
         contents = os.listdir(self.current_dir_output)
         self.assertEqual(len(contents), 5)
+
+    def test_write_coll(self):
+
+        def _test_key_case_(path, upper=True):
+            with fiona.open(path, 'r') as source:
+                for row in source:
+                    keys = row['properties'].keys()
+                    for key in keys:
+                        if upper:
+                            self.assertTrue(key.isupper(), key)
+                        else:
+                            self.assertFalse(key.isupper(), key)
+
+        field = self.get_field(crs=WGS84())
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo')
+        f = conv._build_(coll)
+        conv._write_coll_(f, coll)
+        conv._finalize_(f)
+        _test_key_case_(conv.path, upper=True)
+
+        field = self.get_field(crs=WGS84())
+        coll = field.as_spatial_collection()
+        conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo2', melted=True)
+        f = conv._build_(coll)
+        conv._write_coll_(f, coll)
+        conv._finalize_(f)
+        _test_key_case_(conv.path, upper=True)

@@ -23,7 +23,8 @@ class AbstractConverter(object):
     :type colls: sequence of :class:`~ocgis.SpatialCollection`
     :param str outdir: Path to the output directory.
     :param str prefix: The string prepended to the output file or directory.
-    :param :class:~`ocgis.OcgOperations ops: Optional operations definition. This is required for some converters.
+    :param ops: Optional operations definition. This is required for some converters.
+    :type ops: :class:`~ocgis.OcgOperations`
     :param bool add_meta: If False, do not add a source and OCGIS metadata file.
     :param bool add_auxiliary_files: If False, do not create an output folder. Write only the target ouput file.
     :param bool overwrite: If True, attempt to overwrite any existing output files.
@@ -35,6 +36,7 @@ class AbstractConverter(object):
     _add_ugeom = False  # added user geometry in the output folder
     _add_ugeom_nest = True  # nest the user geometry in a shp folder
     _add_source_meta = True  # add a source metadata file
+    _use_upper_keys = True  # if headers should be capitalized
 
     def __init__(self, colls, outdir=None, prefix=None, ops=None, add_meta=True, add_auxiliary_files=True,
                  overwrite=False):
@@ -58,6 +60,28 @@ class AbstractConverter(object):
                     raise IOError(msg)
 
         ocgis_lh('converter initialized', level=logging.DEBUG, logger=self._log)
+
+    def get_headers(self, coll):
+        """
+        :type coll: :class:`ocgis.SpatialCollection`
+        :returns: A list of headers from the first element return from the collection iterator.
+        :rtype: [str, ...]
+        """
+
+        ret = self.get_iter_from_spatial_collection(coll)
+        ret = ret.next()
+        ret = ret[1].keys()
+        return ret
+
+    def get_iter_from_spatial_collection(self, coll):
+        """
+        :type coll: :class:`ocgis.SpatialCollection`
+        :returns: A generator from the input collection.
+        :rtype: generator
+        """
+
+        itr = coll.get_iter_dict(use_upper_keys=self._use_upper_keys)
+        return itr
 
     def _build_(self, *args, **kwargs):
         raise NotImplementedError
@@ -129,12 +153,12 @@ class AbstractConverter(object):
 
                         if coll.meta is None:
                             # convert the collection properties to fiona properties
-                            from fiona_ import FionaConverter
+                            from fiona_ import AbstractFionaConverter
 
                             fiona_properties = {}
                             archetype_properties = coll.properties.values()[0]
                             for name in archetype_properties.dtype.names:
-                                fiona_properties[name] = FionaConverter.get_field_type(
+                                fiona_properties[name] = AbstractFionaConverter.get_field_type(
                                     type(archetype_properties[name][0]))
 
                             fiona_schema = {'geometry': 'MultiPolygon', 'properties': fiona_properties}
@@ -159,7 +183,7 @@ class AbstractConverter(object):
                     r_geom = coll.geoms.values()[0]
                     if isinstance(r_geom, Polygon):
                         r_geom = MultiPolygon([r_geom])
-                    #see if this geometry is in the unique geometry store
+                    # see if this geometry is in the unique geometry store
                     should_append = self._get_should_append_to_unique_geometry_store_(
                         unique_geometry_store,
                         r_geom,
@@ -309,3 +333,26 @@ class AbstractConverter(object):
         :type ops: :class:`ocgis.OcgOperations`
         :raises: DefinitionValidationError
         """
+
+
+class AbstractTabularConverter(AbstractConverter):
+    """
+    .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractConverter`.
+
+    :keyword bool melted: (``=False``) If ``True``, use a melted tabular output format with variable values collected in
+     a single column.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.melted = kwargs.pop('melted', None) or False
+        super(AbstractTabularConverter, self).__init__(*args, **kwargs)
+
+    def get_iter_from_spatial_collection(self, coll):
+        """
+        :type coll: :class:`ocgis.SpatialCollection`
+        :returns: A generator from the input collection.
+        :rtype: generator
+        """
+
+        itr = coll.get_iter_dict(use_upper_keys=self._use_upper_keys, melted=self.melted)
+        return itr

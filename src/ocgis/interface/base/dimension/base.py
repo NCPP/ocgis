@@ -6,7 +6,7 @@ import numpy as np
 
 from ocgis import constants
 from ocgis.constants import NAME_BOUNDS_DIMENSION_LOWER, NAME_BOUNDS_DIMENSION_UPPER, OCGIS_BOUNDS
-from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice,\
+from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice, \
     get_formatted_slice, get_bounds_from_1d
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
 from ocgis.interface.base.variable import AbstractValueVariable, AbstractSourcedVariable
@@ -95,7 +95,6 @@ class AbstractValueDimension(AbstractValueVariable):
 
 
 class AbstractUidDimension(AbstractDimension):
-
     def __init__(self, *args, **kwargs):
         self.uid = kwargs.pop('uid', None)
         self.name_uid = kwargs.pop('name_uid', None)
@@ -144,7 +143,8 @@ class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
             try:
                 assert (key in kwds_all)
             except AssertionError:
-                raise ValueError('"{0}" is not a valid keyword argument for "{1}".'.format(key, self.__class__.__name__))
+                raise ValueError(
+                    '"{0}" is not a valid keyword argument for "{1}".'.format(key, self.__class__.__name__))
 
         kwds_value = {key: kwds.get(key, None) for key in kwds_value}
         kwds_uid = {key: kwds.get(key, None) for key in kwds_uid}
@@ -156,7 +156,7 @@ class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
 class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     _attrs_slice = ('uid', '_value', '_src_idx')
     _ndims = 1
-    
+
     def __init__(self, *args, **kwargs):
         if kwargs.get('value') is None and kwargs.get('data') is None:
             msg = 'Without a "data" object, "value" is required.'
@@ -185,16 +185,16 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         if self.conform_units_to is not None:
             if not self.conform_units_to.equals(self.cfunits):
                 self.cfunits_conform(self.conform_units_to)
-            
+
     def __len__(self):
         return self.shape[0]
-    
+
     @property
     def bounds(self):
         # always load the value first. any bounds read from source are set during this process. bounds without values
         # are meaningless!
         self.value
-        
+
         # if no error is encountered, then the bounds should have been set during loading from source. simply return the
         # value. it will be none, if no bounds were present in the source data.
         return self._bounds
@@ -206,7 +206,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         # validate the value
         if value is not None:
             self._validate_bounds_()
-            
+
     @property
     def extent(self):
         if self.bounds is None:
@@ -242,7 +242,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             value = tuple(value)
             assert len(value) == 2
         self._name_bounds_tuple = value
-    
+
     @property
     def resolution(self):
         if self.bounds is None and self.value.shape[0] < 2:
@@ -255,11 +255,11 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             res_array = res_bounds[:, 1] - res_bounds[:, 0]
         ret = np.abs(res_array).mean()
         return ret
-    
+
     @property
     def shape(self):
         return self.uid.shape
-    
+
     def cfunits_conform(self, to_units):
         """
         Convert and set value and bounds for the dimension object to new units.
@@ -287,15 +287,15 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             # conform the bounds value
             AbstractValueVariable.cfunits_conform(self, to_units, value=self.bounds, from_units=from_units)
 
-    def get_between(self,lower,upper,return_indices=False,closed=False,use_bounds=True):
-        assert(lower <= upper)
-        
-        ## determine if data bounds are contiguous (if bounds exists for the
-        ## data). bounds must also have more than one row
+    def get_between(self, lower, upper, return_indices=False, closed=False, use_bounds=True):
+        assert (lower <= upper)
+
+        # # determine if data bounds are contiguous (if bounds exists for the
+        # # data). bounds must also have more than one row
         is_contiguous = False
         if self.bounds is not None:
             try:
-                if len(set(self.bounds[0,:]).intersection(set(self.bounds[1,:]))) > 0:
+                if len(set(self.bounds[0, :]).intersection(set(self.bounds[1, :]))) > 0:
                     is_contiguous = True
             except IndexError:
                 ## there is likely not a second row
@@ -303,54 +303,54 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
                     pass
                 else:
                     raise
-        
+
         ## subset operation when bounds are not present
         if self.bounds is None or use_bounds == False:
             if closed:
-                select = np.logical_and(self.value > lower,self.value < upper)
+                select = np.logical_and(self.value > lower, self.value < upper)
             else:
-                select = np.logical_and(self.value >= lower,self.value <= upper)
+                select = np.logical_and(self.value >= lower, self.value <= upper)
         ## subset operation in the presence of bounds
         else:
             ## determine which bound column contains the minimum
-            if self.bounds[0,0] <= self.bounds[0,1]:
+            if self.bounds[0, 0] <= self.bounds[0, 1]:
                 lower_index = 0
                 upper_index = 1
             else:
                 lower_index = 1
                 upper_index = 0
             ## reference the minimum and maximum bounds
-            bounds_min = self.bounds[:,lower_index]
-            bounds_max = self.bounds[:,upper_index]
-            
+            bounds_min = self.bounds[:, lower_index]
+            bounds_max = self.bounds[:, upper_index]
+
             ## if closed is True, then we are working on a closed interval and
             ## are not concerned if the values at the bounds are equivalent. it
             ## does not matter if the bounds are contiguous.
             if closed:
-                select_lower = np.logical_or(bounds_min > lower,bounds_max > lower)
-                select_upper = np.logical_or(bounds_min < upper,bounds_max < upper)
+                select_lower = np.logical_or(bounds_min > lower, bounds_max > lower)
+                select_upper = np.logical_or(bounds_min < upper, bounds_max < upper)
             else:
                 ## if the bounds are contiguous, then preference is given to the
                 ## lower bound to avoid duplicate containers (contiguous bounds
                 ## share a coordinate)
                 if is_contiguous:
-                    select_lower = np.logical_or(bounds_min >= lower,bounds_max > lower)
-                    select_upper = np.logical_or(bounds_min <= upper,bounds_max < upper)
+                    select_lower = np.logical_or(bounds_min >= lower, bounds_max > lower)
+                    select_upper = np.logical_or(bounds_min <= upper, bounds_max < upper)
                 else:
-                    select_lower = np.logical_or(bounds_min >= lower,bounds_max >= lower)
-                    select_upper = np.logical_or(bounds_min <= upper,bounds_max <= upper)
-            select = np.logical_and(select_lower,select_upper)
-        
+                    select_lower = np.logical_or(bounds_min >= lower, bounds_max >= lower)
+                    select_upper = np.logical_or(bounds_min <= upper, bounds_max <= upper)
+            select = np.logical_and(select_lower, select_upper)
+
         if select.any() == False:
-            raise(EmptySubsetError(origin=self.name))
-            
+            raise (EmptySubsetError(origin=self.name))
+
         ret = self[select]
-        
+
         if return_indices:
             indices = np.arange(select.shape[0])
-            ret = (ret,indices[select])
-        
-        return(ret)
+            ret = (ret, indices[select])
+
+        return ret
 
     def get_iter(self, with_bounds=True):
         ref_value, ref_bounds = self._get_iter_value_bounds_()
@@ -438,42 +438,42 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     def _format_private_value_(self, value):
         value = self._get_none_or_array_(value, masked=False)
         return value
-    
-    def _format_slice_state_(self,state,slc):
-        state.bounds = get_none_or_slice(state._bounds,(slc,slice(None)))
-        return(state)
-    
-    def _format_src_idx_(self,value):
-        return(self._get_none_or_array_(value))
-    
+
+    def _format_slice_state_(self, state, slc):
+        state.bounds = get_none_or_slice(state._bounds, (slc, slice(None)))
+        return (state)
+
+    def _format_src_idx_(self, value):
+        return (self._get_none_or_array_(value))
+
     def _get_iter_value_bounds_(self):
-        return(self.value,self.bounds)
-    
+        return (self.value, self.bounds)
+
     def _get_uid_(self):
         if self._value is not None:
             shp = self._value.shape[0]
         else:
             shp = self._src_idx.shape[0]
-        ret = np.arange(1,shp+1,dtype=constants.NP_INT)
+        ret = np.arange(1, shp + 1, dtype=constants.NP_INT)
         ret = np.atleast_1d(ret)
-        return(ret)
-    
+        return (ret)
+
     def _set_value_from_source_(self):
         if self._value is None:
-            raise(NotImplementedError)
+            raise (NotImplementedError)
         else:
             self._value = self._value
-    
+
     def _validate_bounds_(self):
-        ## bounds must be two-dimensional
+        # # bounds must be two-dimensional
         if self._bounds.shape[1] != 2:
-            raise(ValueError('Bounds array must be two-dimensional.'))
-        ## bounds and value arrays must have matching data types. if they do
+            raise (ValueError('Bounds array must be two-dimensional.'))
+        # # bounds and value arrays must have matching data types. if they do
         ## not match, attempt to cast the bounds.
         try:
-            assert(self._bounds.dtype == self._value.dtype)
+            assert (self._bounds.dtype == self._value.dtype)
         except AssertionError:
             try:
-                self._bounds = np.array(self._bounds,dtype=self._value.dtype)
+                self._bounds = np.array(self._bounds, dtype=self._value.dtype)
             except:
-                raise(ValueError('Value and bounds data types do not match and types could not be casted.'))
+                raise (ValueError('Value and bounds data types do not match and types could not be casted.'))

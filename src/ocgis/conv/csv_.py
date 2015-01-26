@@ -7,7 +7,7 @@ import logging
 import fiona
 from shapely.geometry.geo import mapping
 
-from ocgis.conv.base import AbstractConverter
+from ocgis.conv.base import AbstractTabularConverter
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -15,11 +15,11 @@ class OcgDialect(excel):
     lineterminator = '\n'
 
 
-class CsvConverter(AbstractConverter):
+class CsvConverter(AbstractTabularConverter):
     _ext = 'csv'
 
     def _build_(self, coll):
-        headers = [h.upper() for h in coll.headers]
+        headers = self.get_headers(coll)
         f = open(self.path, 'w')
         writer = csv.DictWriter(f, headers, dialect=OcgDialect)
         writer.writeheader()
@@ -29,7 +29,7 @@ class CsvConverter(AbstractConverter):
     def _write_coll_(self, f, coll):
         writer = f['csv_writer']
 
-        for geom, row in coll.get_iter_dict(use_upper_keys=True):
+        for geom, row in self.get_iter_from_spatial_collection(coll):
             writer.writerow(row)
 
     def _finalize_(self, f):
@@ -84,37 +84,43 @@ class CsvShapefileConverter(CsvConverter):
         rstore = self._ugid_gid_store
         is_aggregated = self.ops.aggregate
 
-        for geom, row in coll.get_iter_dict(use_upper_keys=True):
+        for geom, row in self.get_iter_from_spatial_collection(coll):
             writer.writerow(row)
-            if not is_aggregated:
-                did, gid, ugid = row['DID'], row['GID'], row['UGID']
-                try:
-                    if gid in rstore[did][ugid]:
-                        continue
-                    else:
-                        raise KeyError
-                except KeyError:
-                    if did not in rstore:
-                        rstore[did] = {}
-                    if ugid not in rstore[did]:
-                        rstore[did][ugid] = []
-                    if gid not in rstore[did][ugid]:
-                        rstore[did][ugid].append(gid)
 
-                    # for multivariate calculation outputs the dataset identifier is None.
-                    try:
-                        converted_did = int(did)
-                    except TypeError:
-                        converted_did = None
+        if not is_aggregated:
+            for ugid, field_dict in coll.iteritems():
+                for field in field_dict.itervalues():
+                    did = field.uid
+                    for _, _, geom, gid in field.spatial.get_geom_iter():
+                        # did, gid, ugid = row['DID'], row['GID'], row['UGID']
+                        try:
+                            if gid in rstore[did][ugid]:
+                                continue
+                            else:
+                                raise KeyError
+                        except KeyError:
+                            if did not in rstore:
+                                rstore[did] = {}
+                            if ugid not in rstore[did]:
+                                rstore[did][ugid] = []
+                            if gid not in rstore[did][ugid]:
+                                rstore[did][ugid].append(gid)
 
-                    feature = {'properties': {'GID': int(gid), 'UGID': int(ugid), 'DID': converted_did},
-                               'geometry': mapping(geom)}
-                    try:
-                        file_fiona.write(feature)
-                    except ValueError as e:
-                        if feature['geometry']['type'] != file_fiona.meta['schema']['geometry']:
-                            msg = 'Spatial abstractions do not match. You may need to override "abstraction" and/or "s_abstraction"'
-                            msg = '{0}. Original error message from Fiona is "ValueError({1})".'.format(msg, e.message)
-                            raise ValueError(msg)
-                        else:
-                            raise
+                            # for multivariate calculation outputs the dataset identifier is None.
+                            try:
+                                converted_did = int(did)
+                            except TypeError:
+                                converted_did = None
+
+                            feature = {'properties': {'GID': int(gid), 'UGID': int(ugid), 'DID': converted_did},
+                                       'geometry': mapping(geom)}
+                            try:
+                                file_fiona.write(feature)
+                            except ValueError as e:
+                                if feature['geometry']['type'] != file_fiona.meta['schema']['geometry']:
+                                    msg = 'Spatial abstractions do not match. You may need to override "abstraction" and/or "s_abstraction"'
+                                    msg = '{0}. Original error message from Fiona is "ValueError({1})".'.format(msg,
+                                                                                                                e.message)
+                                    raise ValueError(msg)
+                                else:
+                                    raise

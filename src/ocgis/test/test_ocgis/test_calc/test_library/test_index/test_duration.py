@@ -10,88 +10,87 @@ from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
 
 
 class TestDuration(AbstractCalcBase):
-
     def test_duration(self):
         duration = Duration()
-        
-        ## three consecutive days over 3
-        values = np.array([1,2,3,3,3,1,1],dtype=float)
+
+        # # three consecutive days over 3
+        values = np.array([1, 2, 3, 3, 3, 1, 1], dtype=float)
         values = self.get_reshaped(values)
-        ret = duration.calculate(values,2,operation='gt',summary='max')
-        self.assertEqual(3.0,ret.flatten()[0])
-        
+        ret = duration.calculate(values, 2, operation='gt', summary='max')
+        self.assertEqual(3.0, ret.flatten()[0])
+
+        # # no duration over the threshold
+        values = np.array([1, 2, 1, 2, 1, 2, 1], dtype=float)
+        values = self.get_reshaped(values)
+        ret = duration.calculate(values, 2, operation='gt', summary='max')
+        self.assertEqual(0., ret.flatten()[0])
+
         ## no duration over the threshold
-        values = np.array([1,2,1,2,1,2,1],dtype=float)
+        values = np.array([1, 2, 1, 2, 1, 2, 1], dtype=float)
         values = self.get_reshaped(values)
-        ret = duration.calculate(values,2,operation='gt',summary='max')
-        self.assertEqual(0.,ret.flatten()[0])
-        
-        ## no duration over the threshold
-        values = np.array([1,2,1,2,1,2,1],dtype=float)
-        values = self.get_reshaped(values)
-        ret = duration.calculate(values,2,operation='gte',summary='max')
-        self.assertEqual(1.,ret.flatten()[0])
-        
+        ret = duration.calculate(values, 2, operation='gte', summary='max')
+        self.assertEqual(1., ret.flatten()[0])
+
         ## average duration
-        values = np.array([1,5,5,2,5,5,5],dtype=float)
+        values = np.array([1, 5, 5, 2, 5, 5, 5], dtype=float)
         values = self.get_reshaped(values)
-        ret = duration.calculate(values,4,operation='gte',summary='mean')
-        self.assertEqual(2.5,ret.flatten()[0])
-        
+        ret = duration.calculate(values, 4, operation='gte', summary='mean')
+        self.assertEqual(2.5, ret.flatten()[0])
+
         ## add some masked values
-        values = np.array([1,5,5,2,5,5,5],dtype=float)
-        mask = [0,0,0,0,0,1,0]
-        values = np.ma.array(values,mask=mask)
+        values = np.array([1, 5, 5, 2, 5, 5, 5], dtype=float)
+        mask = [0, 0, 0, 0, 0, 1, 0]
+        values = np.ma.array(values, mask=mask)
         values = self.get_reshaped(values)
-        ret = duration.calculate(values,4,operation='gte',summary='max')
-        self.assertEqual(2.,ret.flatten()[0])
-        
+        ret = duration.calculate(values, 4, operation='gte', summary='max')
+        self.assertEqual(2., ret.flatten()[0])
+
         ## test with an actual matrix
-        values = np.array([1,5,5,2,5,5,5,4,4,0,2,4,4,4,3,3,5,5,6,9],dtype=float)
-        values = values.reshape(5,2,2)
-        values = np.ma.array(values,mask=False)
-        ret = duration.calculate(values,4,operation='gte',summary='mean')
-        self.assertNumpyAll(np.ma.array([ 4. ,  2. ,  1.5,  1.5],dtype=ret.dtype),ret.flatten())
-    
+        values = np.array([1, 5, 5, 2, 5, 5, 5, 4, 4, 0, 2, 4, 4, 4, 3, 3, 5, 5, 6, 9], dtype=float)
+        values = values.reshape(5, 2, 2)
+        values = np.ma.array(values, mask=False)
+        ret = duration.calculate(values, 4, operation='gte', summary='mean')
+        self.assertNumpyAll(np.ma.array([4., 2., 1.5, 1.5], dtype=ret.dtype), ret.flatten())
+
     def test_standard_operations(self):
         ret = self.run_standard_operations(
-         [{'func':'duration','name':'max_duration','kwds':{'operation':'gt','threshold':2,'summary':'max'}}],
-         capture=True)
+            [{'func': 'duration', 'name': 'max_duration',
+              'kwds': {'operation': 'gt', 'threshold': 2, 'summary': 'max'}}],
+            capture=True)
         for cap in ret:
             reraise = True
-            if isinstance(cap['exception'],DefinitionValidationError):
-                if cap['parms']['calc_grouping'] in [['month'],'all']:
+            if isinstance(cap['exception'], DefinitionValidationError):
+                if cap['parms']['calc_grouping'] in [['month'], 'all']:
                     reraise = False
             if reraise:
-                raise(cap['exception'])
-            
-            
+                raise (cap['exception'])
+
+
 class TestFrequencyDuration(AbstractCalcBase):
-    
     def test_constructor(self):
         FrequencyDuration()
-    
-    def test_calculate(self):        
+
+    def test_calculate(self):
         fduration = FrequencyDuration()
-        
-        values = np.array([1,2,3,3,3,1,1,3,3,3,4,4,1,4,4,1,10,10],dtype=float)
+
+        values = np.array([1, 2, 3, 3, 3, 1, 1, 3, 3, 3, 4, 4, 1, 4, 4, 1, 10, 10], dtype=float)
         values = self.get_reshaped(values)
-        ret = fduration.calculate(values,threshold=2,operation='gt')
-        self.assertEqual(ret.flatten()[0].dtype.names,('duration','count'))
-        self.assertNumpyAll(np.ma.array([2,3,5],dtype=np.int32),ret.flatten()[0]['duration'])
-        self.assertNumpyAll(np.ma.array([2,1,1],dtype=np.int32),ret.flatten()[0]['count'])
-        
-        calc = [{'func':'freq_duration','name':'freq_duration','kwds':{'operation':'gt','threshold':280}}]
-        ret = self.run_standard_operations(calc,capture=True,output_format=None)
+        ret = fduration.calculate(values, threshold=2, operation='gt')
+        self.assertEqual(ret.flatten()[0].dtype.names, ('duration', 'count'))
+        self.assertNumpyAll(np.ma.array([2, 3, 5], dtype=np.int32), ret.flatten()[0]['duration'])
+        self.assertNumpyAll(np.ma.array([2, 1, 1], dtype=np.int32), ret.flatten()[0]['count'])
+
+        calc = [{'func': 'freq_duration', 'name': 'freq_duration', 'kwds': {'operation': 'gt', 'threshold': 280}}]
+        ret = self.run_standard_operations(calc, capture=True, output_format=None)
         for dct in ret:
-            if isinstance(dct['exception'],NotImplementedError) and dct['parms']['aggregate']:
+            if isinstance(dct['exception'], NotImplementedError) and dct['parms']['aggregate']:
                 pass
-            elif isinstance(dct['exception'],DefinitionValidationError):
+            elif isinstance(dct['exception'], DefinitionValidationError):
                 if dct['parms']['output_format'] == 'nc' or dct['parms']['calc_grouping'] == ['month']:
                     pass
             else:
-                raise(dct['exception'])
-    
+                raise (dct['exception'])
+
     @attr('slow')
     def test_real_data_multiple_datasets(self):
         kwds = {'time_region': {'year': [1991], 'month': [7]}}
@@ -112,7 +111,7 @@ class TestFrequencyDuration(AbstractCalcBase):
             reader = csv.DictReader(f)
             variables = [row['VARIABLE'] for row in reader]
         self.assertEqual(set(variables), set(['tasmax', 'tasmin']))
-    
+
     def test_real_data(self):
         """Test calculations on real data."""
 
@@ -129,7 +128,8 @@ class TestFrequencyDuration(AbstractCalcBase):
                                 geom='us_counties', select_ugid=[2778], aggregate=True,
                                 calc_raw=False, spatial_operation='clip',
                                 headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key',
-                                         'value'], )
+                                         'value'],
+                                melted=True)
             ret = ops.execute()
 
             if output_format == 'numpy':

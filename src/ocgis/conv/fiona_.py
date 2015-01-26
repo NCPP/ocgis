@@ -1,19 +1,16 @@
 import numpy as np
 from types import NoneType
-from collections import OrderedDict
 import abc
 
 import fiona
-from shapely.geometry.geo import mapping
 
-from ocgis.conv.base import AbstractConverter
+from ocgis.conv.base import AbstractTabularConverter
 import datetime
-from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class FionaConverter(AbstractConverter):
+class AbstractFionaConverter(AbstractTabularConverter):
     __metaclass__ = abc.ABCMeta
-    
+
     _add_ugeom = True
     _add_ugeom_nest = False
     _fiona_conversion = {np.int32: int,
@@ -93,8 +90,8 @@ class FionaConverter(AbstractConverter):
         :param dict f: A dictionary containing file-level metadata and potentially the file object itself.
         """
 
-        f['fiona_object'].close()
-    
+        f['fobject'].close()
+
     def _build_(self, coll):
         """
         :param coll: An archetypical spatial collection that will be written to file.
@@ -103,66 +100,15 @@ class FionaConverter(AbstractConverter):
         :rtype: dict
         """
 
-        fiona_conversion = {}
+        field = coll.first().values()[0]
+        ugid = 1 if self.melted is True else None
+        arch = field.get_iter(melted=self.melted, use_upper_keys=self._use_upper_keys, headers=coll.headers,
+                              ugid=ugid).next()
+        fdict = field.get_fiona_dict(field, arch[1])
+        fdict['fobject'] = fiona.open(self.path, driver=self._driver, schema=fdict['schema'], crs=fdict['crs'],
+                                      mode='w')
+        return fdict
 
-        # pull the fiona schema properties together by mapping fiona types to the data types of the first row of the
-        # output data file
-        archetype_field = coll._archetype_field
-
-        try:
-            crs = archetype_field.spatial.crs
-            fiona_crs = crs.value
-        except AttributeError:
-            if crs is None:
-                raise ValueError('"crs" is None. A coordinate system is required for writing to Fiona output.')
-            else:
-                raise
-
-        geom, arch_row = coll.get_iter_dict().next()
-        fiona_properties = OrderedDict()
-        for header in coll.headers:
-            fiona_field_type = self.get_field_type(type(arch_row[header]), key=header,
-                                                   fiona_conversion=fiona_conversion)
-            fiona_properties.update({header.upper(): fiona_field_type})
-
-        # we always want to convert the value. if the data is masked, it comes through as a float when unmasked data is
-        # in fact a numpy data type. however, this should only occur if 'value' is in the output headers!
-        if 'value' in coll.headers and 'value' not in fiona_conversion:
-            value_dtype = archetype_field.variables.values()[0].value.dtype
-            try:
-                to_update = self._fiona_conversion[value_dtype]
-            # may have to do type comparisons
-            except KeyError as e:
-                to_update = None
-                for k, v in self._fiona_conversion.iteritems():
-                    if value_dtype == k:
-                        to_update = v
-                        break
-                if to_update is None:
-                    ocgis_lh(exc=e, logger='fiona_')
-            fiona_conversion.update({'value': to_update})
-
-        # polygon geometry types are always converted to multipolygons to avoid later collections having multipolygon
-        # geometries.
-        geometry_type = archetype_field.spatial.abstraction_geometry.geom_type
-        if geometry_type == 'Polygon':
-            geometry_type = 'MultiPolygon'
-
-        fiona_schema = {'geometry': geometry_type,
-                        'properties': fiona_properties}
-
-        # if there is no data for a header, it may be empty. in this case, the value comes through as none and it should
-        # be replaced with bool.
-        for k, v in fiona_schema['properties'].iteritems():
-            if v is None:
-                fiona_schema['properties'][k] = 'str:1'
-
-        fiona_object = fiona.open(self.path, 'w', driver=self._driver, crs=fiona_crs, schema=fiona_schema)
-
-        ret = {'fiona_object': fiona_object, 'fiona_conversion': fiona_conversion}
-        
-        return ret
-    
     def _write_coll_(self, f, coll):
         """
         Write a spatial collection using file information from ``f``.
@@ -173,17 +119,19 @@ class FionaConverter(AbstractConverter):
         :type coll: :class:`~ocgis.SpatialCollection`
         """
 
-        fiona_object = f['fiona_object']
-        for geom, properties in coll.get_iter_dict(use_upper_keys=True, conversion_map=f['fiona_conversion']):
-            to_write = {'geometry': mapping(geom), 'properties': properties}
-            fiona_object.write(to_write)
+        for ugid, field_dict in coll.iteritems():
+            ugid = ugid if self.melted is True else None
+            for field in field_dict.itervalues():
+                fobject = f['fobject']
+                field.write_fiona(melted=self.melted, fobject=fobject, use_upper_keys=self._use_upper_keys,
+                                  headers=coll.headers, ugid=ugid)
 
 
-class ShpConverter(FionaConverter):
+class ShpConverter(AbstractFionaConverter):
     _ext = 'shp'
     _driver = 'ESRI Shapefile'
 
 
-class GeoJsonConverter(FionaConverter):
+class GeoJsonConverter(AbstractFionaConverter):
     _ext = 'json'
     _driver = 'GeoJSON'

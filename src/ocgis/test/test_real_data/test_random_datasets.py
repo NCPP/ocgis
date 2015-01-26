@@ -97,7 +97,7 @@ class Test(TestBase):
         rd = self.test_data.get_rd('rotated_pole_cccma')
         geom = (5.87161922454834, 47.26985931396479, 15.03811264038086, 55.05652618408209)
         ops = ocgis.OcgOperations(dataset=rd, output_format='shp', geom=geom,
-                                  select_ugid=[1], snippet=True)
+                                  select_ugid=[1], snippet=True, melted=True)
         ret = ops.execute()
 
         with fiona.open(ret) as source:
@@ -448,12 +448,12 @@ class Test(TestBase):
             ret = ops.execute()
 
     def test_clip_aggregate(self):
-        # # this geometry was hanging
+        # this geometry was hanging
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2003]}})
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[14, 16],
                             aggregate=False, spatial_operation='clip',
                             output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
-        ret = ops.execute()
+        ops.execute()
 
     @attr('slow')
     def test_narccap_point_subset_small(self):

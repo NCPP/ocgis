@@ -4,6 +4,8 @@ import tempfile
 
 from cfunits import Units
 
+from ocgis.conv.numpy_ import NumpyConverter
+from ocgis.api.parms.base import BooleanParameter
 from ocgis import env
 from ocgis.api.parms.definition import *
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
@@ -16,78 +18,77 @@ from ocgis.calc.eval_function import MultivariateEvalFunction
 
 
 class Test(TestBase):
-
     def test_callback(self):
         c = Callback()
-        self.assertEqual(c.value,None)
+        self.assertEqual(c.value, None)
 
         with self.assertRaises(DefinitionValidationError):
             Callback('foo')
 
-        def callback(percent,message):
+        def callback(percent, message):
             pass
 
         c = Callback(callback)
-        self.assertEqual(callback,c.value)
+        self.assertEqual(callback, c.value)
 
     def test_optimizations(self):
         o = Optimizations()
-        self.assertEqual(o.value,None)
+        self.assertEqual(o.value, None)
         with self.assertRaises(DefinitionValidationError):
             Optimizations({})
         with self.assertRaises(DefinitionValidationError):
-            Optimizations({'foo':'foo'})
-        o = Optimizations({'tgds':{'tas':'TemporalGroupDimension'}})
-        self.assertEqual(o.value,{'tgds':{'tas':'TemporalGroupDimension'}})
+            Optimizations({'foo': 'foo'})
+        o = Optimizations({'tgds': {'tas': 'TemporalGroupDimension'}})
+        self.assertEqual(o.value, {'tgds': {'tas': 'TemporalGroupDimension'}})
 
     def test_optimizations_deepcopy(self):
-        ## we should not deepcopy optimizations
-        arr = np.array([1,2,3,4])
-        value = {'tgds':{'tas':arr}}
+        # # we should not deepcopy optimizations
+        arr = np.array([1, 2, 3, 4])
+        value = {'tgds': {'tas': arr}}
         o = Optimizations(value)
-        self.assertTrue(np.may_share_memory(o.value['tgds']['tas'],arr))
+        self.assertTrue(np.may_share_memory(o.value['tgds']['tas'], arr))
 
     def test_add_auxiliary_files(self):
-        for val in [True,False]:
+        for val in [True, False]:
             p = AddAuxiliaryFiles(val)
-            self.assertEqual(p.value,val)
+            self.assertEqual(p.value, val)
         p = AddAuxiliaryFiles()
-        self.assertEqual(p.value,True)
+        self.assertEqual(p.value, True)
 
     def test_dir_output(self):
-        ## raise an exception if the directory does not exist
+        # # raise an exception if the directory does not exist
         do = '/does/not/exist'
         with self.assertRaises(DefinitionValidationError):
             DirOutput(do)
 
         ## make sure directory name does not change case
         do = 'Some'
-        new_dir = os.path.join(tempfile.gettempdir(),do)
+        new_dir = os.path.join(tempfile.gettempdir(), do)
         os.mkdir(new_dir)
         try:
             dd = DirOutput(new_dir)
-            self.assertEqual(new_dir,dd.value)
+            self.assertEqual(new_dir, dd.value)
         finally:
             os.rmdir(new_dir)
 
     def test_slice(self):
         slc = Slice(None)
-        self.assertEqual(slc.value,None)
+        self.assertEqual(slc.value, None)
 
-        slc = Slice([None,0,0,0,0])
-        self.assertEqual(slc.value,(slice(None),slice(0,1),slice(0, 1),slice(0, 1),slice(0, 1)))
+        slc = Slice([None, 0, 0, 0, 0])
+        self.assertEqual(slc.value, (slice(None), slice(0, 1), slice(0, 1), slice(0, 1), slice(0, 1)))
 
-        slc = Slice([None,0,None,[0,1],[0,100]])
-        self.assertEqual(slc.value,(slice(None),slice(0,1),slice(None),slice(0,1),slice(0,100)))
+        slc = Slice([None, 0, None, [0, 1], [0, 100]])
+        self.assertEqual(slc.value, (slice(None), slice(0, 1), slice(None), slice(0, 1), slice(0, 100)))
 
         with self.assertRaises(DefinitionValidationError):
             slc.value = 4
         with self.assertRaises(DefinitionValidationError):
-            slc.value = [None,None]
+            slc.value = [None, None]
 
     def test_snippet(self):
         self.assertFalse(Snippet().value)
-        for ii in ['t','TRUE','tRue',1,'1',' 1 ']:
+        for ii in ['t', 'TRUE', 'tRue', 1, '1', ' 1 ']:
             self.assertTrue(Snippet(ii).value)
         s = Snippet()
         s.value = False
@@ -101,42 +102,42 @@ class Test(TestBase):
 
     def test_spatial_operation(self):
         so = SpatialOperation()
-        self.assertEqual(so.value,'intersects')
+        self.assertEqual(so.value, 'intersects')
         with self.assertRaises(DefinitionValidationError):
             so.value = 'clips'
         so.value = 'clip'
 
     def test_output_format(self):
         so = OutputFormat('csv')
-        self.assertEqual(so.value,'csv')
+        self.assertEqual(so.value, 'csv')
         so.value = 'NUMPY'
-        self.assertEqual(so.value,'numpy')
+        self.assertEqual(so.value, 'numpy')
 
     def test_select_ugid(self):
         so = SelectUgid()
-        self.assertEqual(so.value,None)
+        self.assertEqual(so.value, None)
         with self.assertRaises(DefinitionValidationError):
             so.value = 98.5
         so.value = 'none'
-        self.assertEqual(so.value,None)
+        self.assertEqual(so.value, None)
         with self.assertRaises(DefinitionValidationError):
             so.value = 1
         so = SelectUgid('10')
-        self.assertEqual(so.value,(10,))
+        self.assertEqual(so.value, (10,))
         with self.assertRaises(DefinitionValidationError):
             so.value = ('1|1|2')
         with self.assertRaises(DefinitionValidationError):
             so.value = '22.5'
         so = SelectUgid('22|23|24')
-        self.assertEqual(so.value,(22,23,24))
+        self.assertEqual(so.value, (22, 23, 24))
         with self.assertRaises(DefinitionValidationError):
             so.value = '22|23.5|24'
 
     def test_prefix(self):
         pp = Prefix()
-        self.assertEqual(pp.value,'ocgis_output')
+        self.assertEqual(pp.value, 'ocgis_output')
         pp.value = ' Old__man '
-        self.assertEqual(pp.value,'Old__man')
+        self.assertEqual(pp.value, 'Old__man')
 
 
 class TestAbstraction(TestBase):
@@ -146,11 +147,11 @@ class TestAbstraction(TestBase):
         K = Abstraction
 
         k = K()
-        self.assertEqual(k.value,None)
-        self.assertEqual(str(k),'abstraction="None"')
+        self.assertEqual(k.value, None)
+        self.assertEqual(str(k), 'abstraction="None"')
 
         k = K('point')
-        self.assertEqual(k.value,'point')
+        self.assertEqual(k.value, 'point')
 
         with self.assertRaises(DefinitionValidationError):
             K('pt')
@@ -163,13 +164,13 @@ class TestAggregate(TestBase):
         A = Aggregate
 
         a = A(True)
-        self.assertEqual(a.value,True)
+        self.assertEqual(a.value, True)
 
         a = A(False)
-        self.assertEqual(a.value,False)
+        self.assertEqual(a.value, False)
 
         a = A('True')
-        self.assertEqual(a.value,True)
+        self.assertEqual(a.value, True)
 
 
 class TestCalc(TestBase):
@@ -180,7 +181,8 @@ class TestCalc(TestBase):
 
         kwds = dict(
             meta_attr=[None, {}, {'something_else': 'is_here with us'}],
-            calc=[{'func': 'mean', 'name': 'my_mean'}, 'foo=tas+4', {'func': 'foo=tas+4', 'meta_attrs': {'something': 'special'}}],
+            calc=[{'func': 'mean', 'name': 'my_mean'}, 'foo=tas+4',
+                  {'func': 'foo=tas+4', 'meta_attrs': {'something': 'special'}}],
             add_meta_attrs_if_none=[True, False]
         )
         for k in itr_products_keywords(kwds, as_namedtuple=True):
@@ -200,33 +202,35 @@ class TestCalc(TestBase):
             self.assertEqual(set(calc.value[0].keys()), set(['ref', 'meta_attrs', 'name', 'func', 'kwds']))
 
     def test_init(self):
-        calc = [{'func':'mean','name':'my_mean'}]
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
         cc = Calc(calc)
-        eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{}, 'meta_attrs': None}]
+        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
 
-        self.assertEqual(cc.value,eq)
+        self.assertEqual(cc.value, eq)
         cc.value = 'mean~my_mean'
-        self.assertEqual(cc.value,eq)
+        self.assertEqual(cc.value, eq)
         cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
         with self.assertRaises(NotImplementedError):
-            self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+            self.assertEqual(cc.get_url_string(), 'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
 
     def test_bad_key(self):
-        calc = [{'func':'bad_mean','name':'my_mean'}]
+        calc = [{'func': 'bad_mean', 'name': 'my_mean'}]
         with self.assertRaises(DefinitionValidationError):
             Calc(calc)
 
     def test_str(self):
         calc = [{'func': 'mean', 'name': 'my_mean'}]
         cc = Calc(calc)
-        self.assertEqual(str(cc), "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict()}]")
+        self.assertEqual(str(cc),
+                         "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict()}]")
 
         cc = Calc(None)
         self.assertEqual(str(cc), 'calc=None')
 
         calc = [{'func': 'mean', 'name': 'my_mean', 'kwds': {'a': np.zeros(1000)}}]
         cc = Calc(calc)
-        self.assertEqual(str(cc), "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict([('a', <type 'numpy.ndarray'>)])}]")
+        self.assertEqual(str(cc),
+                         "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict([('a', <type 'numpy.ndarray'>)])}]")
 
     def test_get_meta(self):
         for poss in Calc._possible:
@@ -235,27 +239,30 @@ class TestCalc(TestBase):
 
     def test_eval_underscores_in_variable_names(self):
         value = 'tas_4=tasmin_2+tasmin'
-        self.assertEqual(Calc(value).value,[{'func':value,'ref':MultivariateEvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}])
+        self.assertEqual(Calc(value).value, [
+            {'func': value, 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}])
 
     def test_eval_string(self):
         value = [
-                 'es=tas+4',
-                 ['es=tas+4']
-                 ]
-        actual = [{'func':'es=tas+4','ref':EvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}]
+            'es=tas+4',
+            ['es=tas+4']
+        ]
+        actual = [{'func': 'es=tas+4', 'ref': EvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}]
         for v in value:
             cc = Calc(v)
-            self.assertEqual(cc.value,actual)
+            self.assertEqual(cc.value, actual)
 
     def test_eval_string_multivariate(self):
         value = [
-                 'es=exp(tas)+tasmax+log(4)',
-                 ['es=exp(tas)+tasmax+log(4)']
-                 ]
-        actual = [{'func':'es=exp(tas)+tasmax+log(4)','ref':MultivariateEvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}]
+            'es=exp(tas)+tasmax+log(4)',
+            ['es=exp(tas)+tasmax+log(4)']
+        ]
+        actual = [
+            {'func': 'es=exp(tas)+tasmax+log(4)', 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None,
+             'kwds': OrderedDict()}]
         for v in value:
             cc = Calc(v)
-            self.assertEqual(cc.value,actual)
+            self.assertEqual(cc.value, actual)
 
     def test_eval_string_number_after_variable_alias(self):
         value = 'tas2=tas1+tas2'
@@ -269,19 +276,19 @@ class TestCalc(TestBase):
             Calc('estas+4')
 
     def test(self):
-        calc = [{'func':'mean','name':'my_mean'}]
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
         cc = Calc(calc)
-        eq = [{'ref':Mean,'name':'my_mean','func':'mean','kwds':{},'meta_attrs': None}]
+        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
 
-        self.assertEqual(cc.value,eq)
+        self.assertEqual(cc.value, eq)
         cc.value = 'mean~my_mean'
-        self.assertEqual(cc.value,eq)
+        self.assertEqual(cc.value, eq)
         cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
         with self.assertRaises(NotImplementedError):
-            self.assertEqual(cc.get_url_string(),'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+            self.assertEqual(cc.get_url_string(), 'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
 
     def test_bad_key(self):
-        calc = [{'func':'bad_mean','name':'my_mean'}]
+        calc = [{'func': 'bad_mean', 'name': 'my_mean'}]
         with self.assertRaises(DefinitionValidationError):
             Calc(calc)
 
@@ -307,7 +314,7 @@ class TestCalcGrouping(TestBase):
         with self.assertRaises(DefinitionValidationError):
             CalcGrouping([[1, 2, 3], [4, 4, 6]])
 
-        ## element groups must have an empty intersection
+        # # element groups must have an empty intersection
         with self.assertRaises(DefinitionValidationError):
             CalcGrouping([[1, 2, 3], [1, 4, 6]])
 
@@ -364,6 +371,27 @@ class TestHeaders(TestBase):
         headers = []
         hh = Headers(headers)
         self.assertEqual(hh.value, tuple(constants.HEADERS_REQUIRED))
+
+
+class TestMelted(TestBase):
+    create_dir = False
+
+    def test_init(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        dataset = Dataset(rd)
+        mm = Melted(dataset=dataset, output_format=constants.OUTPUT_FORMAT_NUMPY)
+        self.assertIsInstance(mm, BooleanParameter)
+        self.assertFalse(mm.value)
+
+        # test with multiple request dataset
+        ocgis_lh.configure(to_stream=True)
+        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
+        dataset = Dataset([rd, rd2])
+        of = OutputFormat(constants.OUTPUT_FORMAT_SHAPEFILE)
+        mm = Melted(dataset=dataset, output_format=of)
+        self.assertTrue(mm.value)
+        self.assertTrue(len(ocgis_lh.duplicates) > 0)
+        ocgis_lh.shutdown()
 
 
 class TestDataset(TestBase):
@@ -446,7 +474,7 @@ class TestDataset(TestBase):
 
     @attr('esmpy7')
     def test_init_esmf(self):
-        #todo: what to do about time values, units, etc.
+        # todo: what to do about time values, units, etc.
         efield = self.get_esmf_field()
         dd = Dataset(efield)
         self.assertIsInstance(dd.value, RequestDatasetCollection)
@@ -470,15 +498,15 @@ class TestDataset(TestBase):
     def test_unfiled(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         reference_rd = self.test_data.get_rd('cancm4_tas')
-        rd = RequestDataset(reference_rd.uri,reference_rd.variable)
+        rd = RequestDataset(reference_rd.uri, reference_rd.variable)
         ds = Dataset(rd)
-        self.assertEqual(ds.value,RequestDatasetCollection([rd]))
+        self.assertEqual(ds.value, RequestDatasetCollection([rd]))
 
-        dsa = {'uri':reference_rd.uri,'variable':reference_rd.variable}
+        dsa = {'uri': reference_rd.uri, 'variable': reference_rd.variable}
         Dataset(dsa)
 
         reference_rd2 = self.test_data.get_rd('narccap_crcm')
-        dsb = [dsa,{'uri':reference_rd2.uri,'variable':reference_rd2.variable,'alias':'knight'}]
+        dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
 
 
@@ -486,28 +514,28 @@ class TestGeom(TestBase):
     create_dir = False
 
     def test_init(self):
-        geom = make_poly((37.762,38.222),(-102.281,-101.754))
+        geom = make_poly((37.762, 38.222), (-102.281, -101.754))
 
         g = Geom(geom)
         self.assertEqual(type(g.value), tuple)
         self.assertIsInstance(g.value[0], SpatialDimension)
         g.value = None
-        self.assertEqual(None,g.value)
+        self.assertEqual(None, g.value)
 
         g = Geom(None)
-        self.assertEqual(g.value,None)
-        self.assertEqual(str(g),'geom=None')
+        self.assertEqual(g.value, None)
+        self.assertEqual(str(g), 'geom=None')
 
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds,(-120.0, 40.0, -110.0, 50.0))
-        self.assertEqual(str(g),'geom=-120.0|40.0|-110.0|50.0')
+        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds, (-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(str(g), 'geom=-120.0|40.0|-110.0|50.0')
 
         g = Geom('state_boundaries')
-        self.assertEqual(str(g),'geom="state_boundaries"')
+        self.assertEqual(str(g), 'geom="state_boundaries"')
 
         geoms = list(ShpCabinetIterator('state_boundaries'))
         g = Geom('state_boundaries')
-        self.assertEqual(len(list(g.value)),len(geoms))
+        self.assertEqual(len(list(g.value)), len(geoms))
 
         sci = ShpCabinetIterator(key='state_boundaries')
         self.assertFalse(sci.as_spatial_dimension)
@@ -517,16 +545,16 @@ class TestGeom(TestBase):
                 self.assertIsInstance(element, SpatialDimension)
             self.assertGreater(ii, 10)
 
-        su = SelectUgid([1,2,3])
-        g = Geom('state_boundaries',select_ugid=su)
-        self.assertEqual(len(list(g.value)),3)
+        su = SelectUgid([1, 2, 3])
+        g = Geom('state_boundaries', select_ugid=su)
+        self.assertEqual(len(list(g.value)), 3)
 
-        geoms = [{'geom':geom,'properties':{'UGID':1}},{'geom':geom,'properties':{'UGID':2}}]
+        geoms = [{'geom': geom, 'properties': {'UGID': 1}}, {'geom': geom, 'properties': {'UGID': 2}}]
         g = Geom(geoms)
 
-        bbox = [-120,40,-110,50]
+        bbox = [-120, 40, -110, 50]
         g = Geom(bbox)
-        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds,tuple(map(float,bbox)))
+        self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds, tuple(map(float, bbox)))
 
     def test_spatial_dimension(self):
         """Test using a SpatialDimension as input value."""
@@ -540,27 +568,27 @@ class TestGeom(TestBase):
             self.assertEqual(sdim.shape, (1, 1))
 
     def test_using_shp_path(self):
-        ## pass a path to a shapefile as opposed to a key
+        # # pass a path to a shapefile as opposed to a key
         path = ShpCabinet().get_shp_path('state_boundaries')
         ocgis.env.DIR_SHPCABINET = None
         ## make sure there is path associated with the ShpCabinet
         with self.assertRaises(ValueError):
             ShpCabinet().keys()
         g = Geom(path)
-        self.assertEqual(g._shp_key,path)
-        self.assertEqual(len(list(g.value)),51)
+        self.assertEqual(g._shp_key, path)
+        self.assertEqual(len(list(g.value)), 51)
 
     def test_with_changing_select_ugid(self):
-        select_ugid = [16,17]
-        g = Geom('state_boundaries',select_ugid=select_ugid)
-        self.assertEqual(len(list(g.value)),2)
+        select_ugid = [16, 17]
+        g = Geom('state_boundaries', select_ugid=select_ugid)
+        self.assertEqual(len(list(g.value)), 2)
         select_ugid.append(22)
-        self.assertEqual(len(list(g.value)),3)
+        self.assertEqual(len(list(g.value)), 3)
 
         g = Geom('state_boundaries')
-        self.assertEqual(len(list(g.value)),51)
-        g.select_ugid = [16,17]
-        self.assertEqual(len(list(g.value)),2)
+        self.assertEqual(len(list(g.value)), 51)
+        g.select_ugid = [16, 17]
+        self.assertEqual(len(list(g.value)), 2)
 
     @staticmethod
     def get_geometry_dictionaries():
@@ -603,21 +631,21 @@ class TestLevelRange(TestBase):
         LevelRange()
 
     def test_normal_int(self):
-        lr = LevelRange([5,10])
-        self.assertEqual(lr.value,(5,10))
+        lr = LevelRange([5, 10])
+        self.assertEqual(lr.value, (5, 10))
 
     def test_normal_float(self):
-        value = [4.5,6.5]
+        value = [4.5, 6.5]
         lr = LevelRange(value)
-        self.assertEqual(tuple(value),lr.value)
+        self.assertEqual(tuple(value), lr.value)
 
     def test_bad_length(self):
         with self.assertRaises(DefinitionValidationError):
-            LevelRange([5,6,7,8])
+            LevelRange([5, 6, 7, 8])
 
     def test_bad_ordination(self):
         with self.assertRaises(DefinitionValidationError):
-            LevelRange([11,10])
+            LevelRange([11, 10])
 
 
 class TestOutputFormat(TestBase):
@@ -632,12 +660,16 @@ class TestOutputFormat(TestBase):
         oo = OutputFormat(constants.OUTPUT_FORMAT_ESMPY_GRID)
         self.assertEqual(oo.value, constants.OUTPUT_FORMAT_ESMPY_GRID)
 
+    def test_get_converter_class(self):
+        of = OutputFormat(constants.OUTPUT_FORMAT_NUMPY)
+        self.assertEqual(of.get_converter_class(), NumpyConverter)
+
     def test_valid(self):
-        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp', constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH])
+        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp',
+                                                   constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH])
 
 
 class TestRegridDestination(TestBase):
-
     @property
     def possible_datasets(self):
         # one dataset to be regridded
@@ -714,7 +746,6 @@ class TestRegridDestination(TestBase):
 
 
 class TestRegridOptions(TestBase):
-
     def test_init(self):
         ro = RegridOptions()
         self.assertDictEqual(ro.value, RegridOptions.default)
@@ -747,7 +778,6 @@ class TestRegridOptions(TestBase):
 
 
 class TestSpatialOperation(TestBase):
-
     def test_init(self):
         values = (None, 'clip', 'intersects')
         ast = ('intersects', 'clip', 'intersects')
@@ -765,17 +795,17 @@ class TestTimeRange(TestBase):
         TimeRange()
 
     def test_range(self):
-        dt = [datetime.datetime(2000,1,1),datetime.datetime(2001,1,1)]
+        dt = [datetime.datetime(2000, 1, 1), datetime.datetime(2001, 1, 1)]
         tr = TimeRange(dt)
-        self.assertEqual(tr.value,tuple(dt))
+        self.assertEqual(tr.value, tuple(dt))
 
     def test_bad_ordination(self):
-        dt = [datetime.datetime(2000,1,1),datetime.datetime(1999,1,1)]
+        dt = [datetime.datetime(2000, 1, 1), datetime.datetime(1999, 1, 1)]
         with self.assertRaises(DefinitionValidationError):
             TimeRange(dt)
 
     def test_incorrect_number_of_values(self):
-        dt = [datetime.datetime(2000,1,1),datetime.datetime(1999,1,1),datetime.datetime(1999,1,1)]
+        dt = [datetime.datetime(2000, 1, 1), datetime.datetime(1999, 1, 1), datetime.datetime(1999, 1, 1)]
         with self.assertRaises(DefinitionValidationError):
             TimeRange(dt)
 
@@ -787,31 +817,31 @@ class TestTimeRegion(TestBase):
         TimeRegion()
 
     def test_normal(self):
-        value = {'month':[6,7,8],'year':[4,5,6]}
+        value = {'month': [6, 7, 8], 'year': [4, 5, 6]}
         tr = TimeRegion(value)
-        self.assertEqual(value,tr.value)
+        self.assertEqual(value, tr.value)
 
     def test_month_only(self):
-        value = {'month':[6]}
+        value = {'month': [6]}
         tr = TimeRegion(value)
-        self.assertEqual(tr.value,{'month':[6],'year':None})
+        self.assertEqual(tr.value, {'month': [6], 'year': None})
 
     def test_year_only(self):
-        value = {'year':[6]}
+        value = {'year': [6]}
         tr = TimeRegion(value)
-        self.assertEqual(tr.value,{'month':None,'year':[6]})
+        self.assertEqual(tr.value, {'month': None, 'year': [6]})
 
     def test_both_none(self):
-        value = {'year':None,'month':None}
+        value = {'year': None, 'month': None}
         tr = TimeRegion(value)
-        self.assertEqual(tr.value,None)
+        self.assertEqual(tr.value, None)
 
     def test_bad_keys(self):
-        value = {'mnth':[4]}
+        value = {'mnth': [4]}
         with self.assertRaises(DefinitionValidationError):
             TimeRegion(value)
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
+    # import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

@@ -527,7 +527,7 @@ class IcclimCD(AbstractIcclimMultivariateFunction, AbstractParameterizedFunction
                 self._storage_percentile_dict['pr'] = pr_percentile_dict
 
         ret = _icclim_function_map[self.key]['func'](tas, tas_percentile_dict, pr, pr_percentile_dict, dt_arr,
-                                                     fill_val=tas.fill_value)
+                                                     fill_val1=tas.fill_value, fill_val2=pr.fill_value)
         # convert output to a masked array
         ret_mask = ret == tas.fill_value
         ret = np.ma.array(ret, mask=ret_mask, fill_value=tas.fill_value)

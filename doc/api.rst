@@ -46,7 +46,7 @@ Operations API (:class:`ocgis.OcgOperations`)
 =============================================
 
 .. autoclass:: ocgis.OcgOperations
-:members: execute, get_base_request_size
+   :members: execute, get_base_request_size
 
 Detailed Argument Information
 -----------------------------
@@ -62,10 +62,10 @@ A ``dataset`` is the target file(s) or object(s) containing data to process. A `
  3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
 
 .. autoclass:: ocgis.RequestDataset
-:members: inspect, inspect_as_dct
+   :members: inspect, inspect_as_dct
 
 .. autoclass:: ocgis.RequestDatasetCollection
-:members: update
+   :members: update
 
 dir_output
 ~~~~~~~~~~
@@ -394,10 +394,10 @@ A dictionary with regridding options. Please see the documentation for :meth:`~o
 =========================
 
 .. autoclass:: ocgis.ShpCabinet
-:members: keys, iter_geoms
+   :members: keys, iter_geoms
 
 .. autoclass:: ocgis.ShpCabinetIterator
-:members: __iter__
+   :members: __iter__
 
 Adding Additional Shapefile Data
 --------------------------------
@@ -412,7 +412,7 @@ The shapefile's "`geom key`_" is the name of the shapefile. It must have an alph
 =========================
 
 .. autoclass:: ocgis.Inspect
-:members:
+   :members:
 
 Data Collections
 ================

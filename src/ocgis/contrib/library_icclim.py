@@ -11,65 +11,63 @@ from icclim import set_globattr
 
 from ocgis.calc.base import AbstractUnivariateSetFunction, AbstractMultivariateFunction, AbstractParameterizedFunction
 from ocgis import constants
-from ocgis.exc import DefinitionValidationError
-from ocgis.api.parms.definition import CalcGrouping
+from ocgis.calc.temporal_groups import SeasonalTemporalGroup
 
 
 _icclim_function_map = {
-                        'icclim_TG':{'func':calc_indice.TG_calculation,'meta':slu.TG_setvarattr},
-                        'icclim_TN':{'func':calc_indice.TN_calculation,'meta':slu.TN_setvarattr},
-                        'icclim_TX':{'func':calc_indice.TX_calculation,'meta':slu.TX_setvarattr},
-                        'icclim_SU':{'func':calc_indice.SU_calculation,'meta':slu.SU_setvarattr},
-                        'icclim_DTR':{'func':calc_indice.DTR_calculation,'meta':slu.DTR_setvarattr},
-                        'icclim_ETR':{'func':calc_indice.ETR_calculation,'meta':slu.ETR_setvarattr},
-                        'icclim_TXx':{'func':calc_indice.TXx_calculation,'meta':slu.TXx_setvarattr},
-                        'icclim_TXn':{'func':calc_indice.TXn_calculation,'meta':slu.TXn_setvarattr},
-                        'icclim_TNx':{'func':calc_indice.TNx_calculation,'meta':slu.TNx_setvarattr},
-                        'icclim_TNn':{'func':calc_indice.TNn_calculation,'meta':slu.TNn_setvarattr},
-                        'icclim_CSU':{'func':calc_indice.CSU_calculation,'meta':slu.CSU_setvarattr},
-                        'icclim_TR':{'func':calc_indice.TR_calculation,'meta':slu.TR_setvarattr},
-                        'icclim_FD':{'func':calc_indice.FD_calculation,'meta':slu.FD_setvarattr},
-                        'icclim_CFD':{'func':calc_indice.CFD_calculation,'meta':slu.CFD_setvarattr},
-                        'icclim_ID':{'func':calc_indice.ID_calculation,'meta':slu.ID_setvarattr},
-                        'icclim_HD17':{'func':calc_indice.HD17_calculation,'meta':slu.HD17_setvarattr},
-                        'icclim_GD4':{'func':calc_indice.GD4_calculation,'meta':slu.GD4_setvarattr},
-                        'icclim_vDTR':{'func':calc_indice.vDTR_calculation,'meta':slu.vDTR_setvarattr},
-                        'icclim_RR':{'func':calc_indice.RR_calculation,'meta':slu.RR_setvarattr},
-                        'icclim_RR1':{'func':calc_indice.RR1_calculation,'meta':slu.RR1_setvarattr},
-                        'icclim_CWD':{'func':calc_indice.CWD_calculation,'meta':slu.CWD_setvarattr},
-                        'icclim_SDII':{'func':calc_indice.SDII_calculation,'meta':slu.SDII_setvarattr},
-                        'icclim_R10mm':{'func':calc_indice.R10mm_calculation,'meta':slu.R10mm_setvarattr},
-                        'icclim_R20mm':{'func':calc_indice.R20mm_calculation,'meta':slu.R20mm_setvarattr},
-                        'icclim_RX1day':{'func':calc_indice.RX1day_calculation,'meta':slu.RX1day_setvarattr},
-                        'icclim_RX5day':{'func':calc_indice.RX5day_calculation,'meta':slu.RX5day_setvarattr},
-                        'icclim_SD':{'func':calc_indice.SD_calculation,'meta':slu.SD_setvarattr},
-                        'icclim_SD1':{'func':calc_indice.SD1_calculation,'meta':slu.SD1_setvarattr},
-                        'icclim_SD5cm':{'func':calc_indice.SD5cm_calculation,'meta':slu.SD5cm_setvarattr},
-                        'icclim_SD50cm':{'func':calc_indice.SD50cm_calculation,'meta':slu.SD50cm_setvarattr},
-                        'icclim_CDD':{'func':calc_indice.CDD_calculation,'meta':slu.CDD_setvarattr},
-                        'icclim_TG10p':{'func':calc_indice_perc.TG10p_calculation,'meta':slu.TG10p_setvarattr},
-                        'icclim_TX10p':{'func':calc_indice_perc.TX10p_calculation,'meta':slu.TX10p_setvarattr},
-                        'icclim_TN10p':{'func':calc_indice_perc.TN10p_calculation,'meta':slu.TN10p_setvarattr},
-                        'icclim_TG90p':{'func':calc_indice_perc.TG90p_calculation,'meta':slu.TG90p_setvarattr},
-                        'icclim_TX90p':{'func':calc_indice_perc.TX90p_calculation,'meta':slu.TX90p_setvarattr},
-                        'icclim_TN90p':{'func':calc_indice_perc.TN90p_calculation,'meta':slu.TN90p_setvarattr},
-                        'icclim_WSDI':{'func':calc_indice_perc.WSDI_calculation,'meta':slu.WSDI_setvarattr},
-                        'icclim_CSDI':{'func':calc_indice_perc.CSDI_calculation,'meta':slu.CSDI_setvarattr},
-                        'icclim_R75p':{'func':calc_indice_perc.R75p_calculation,'meta':slu.R75p_setvarattr},
-                        'icclim_R75TOT':{'func':calc_indice_perc.R75TOT_calculation,'meta':slu.R75TOT_setvarattr},
-                        'icclim_R95p':{'func':calc_indice_perc.R95p_calculation,'meta':slu.R95p_setvarattr},
-                        'icclim_R95TOT':{'func':calc_indice_perc.R95TOT_calculation,'meta':slu.R95TOT_setvarattr},
-                        'icclim_R99p':{'func':calc_indice_perc.R99p_calculation,'meta':slu.R99p_setvarattr},
-                        'icclim_R99TOT':{'func':calc_indice_perc.R99TOT_calculation,'meta':slu.R99TOT_setvarattr},
-                        'icclim_CD': {'func': calc_indice_perc.CD_calculation, 'meta': slu.CD_setvarattr},
-                        'icclim_CW': {'func': calc_indice_perc.CW_calculation, 'meta': slu.CW_setvarattr},
-                        'icclim_WD': {'func': calc_indice_perc.WD_calculation, 'meta': slu.WD_setvarattr},
-                        'icclim_WW': {'func': calc_indice_perc.WW_calculation, 'meta': slu.WW_setvarattr},
-                        }
+    'icclim_TG': {'func': calc_indice.TG_calculation, 'meta': slu.TG_setvarattr},
+    'icclim_TN': {'func': calc_indice.TN_calculation, 'meta': slu.TN_setvarattr},
+    'icclim_TX': {'func': calc_indice.TX_calculation, 'meta': slu.TX_setvarattr},
+    'icclim_SU': {'func': calc_indice.SU_calculation, 'meta': slu.SU_setvarattr},
+    'icclim_DTR': {'func': calc_indice.DTR_calculation, 'meta': slu.DTR_setvarattr},
+    'icclim_ETR': {'func': calc_indice.ETR_calculation, 'meta': slu.ETR_setvarattr},
+    'icclim_TXx': {'func': calc_indice.TXx_calculation, 'meta': slu.TXx_setvarattr},
+    'icclim_TXn': {'func': calc_indice.TXn_calculation, 'meta': slu.TXn_setvarattr},
+    'icclim_TNx': {'func': calc_indice.TNx_calculation, 'meta': slu.TNx_setvarattr},
+    'icclim_TNn': {'func': calc_indice.TNn_calculation, 'meta': slu.TNn_setvarattr},
+    'icclim_CSU': {'func': calc_indice.CSU_calculation, 'meta': slu.CSU_setvarattr},
+    'icclim_TR': {'func': calc_indice.TR_calculation, 'meta': slu.TR_setvarattr},
+    'icclim_FD': {'func': calc_indice.FD_calculation, 'meta': slu.FD_setvarattr},
+    'icclim_CFD': {'func': calc_indice.CFD_calculation, 'meta': slu.CFD_setvarattr},
+    'icclim_ID': {'func': calc_indice.ID_calculation, 'meta': slu.ID_setvarattr},
+    'icclim_HD17': {'func': calc_indice.HD17_calculation, 'meta': slu.HD17_setvarattr},
+    'icclim_GD4': {'func': calc_indice.GD4_calculation, 'meta': slu.GD4_setvarattr},
+    'icclim_vDTR': {'func': calc_indice.vDTR_calculation, 'meta': slu.vDTR_setvarattr},
+    'icclim_RR': {'func': calc_indice.RR_calculation, 'meta': slu.RR_setvarattr},
+    'icclim_RR1': {'func': calc_indice.RR1_calculation, 'meta': slu.RR1_setvarattr},
+    'icclim_CWD': {'func': calc_indice.CWD_calculation, 'meta': slu.CWD_setvarattr},
+    'icclim_SDII': {'func': calc_indice.SDII_calculation, 'meta': slu.SDII_setvarattr},
+    'icclim_R10mm': {'func': calc_indice.R10mm_calculation, 'meta': slu.R10mm_setvarattr},
+    'icclim_R20mm': {'func': calc_indice.R20mm_calculation, 'meta': slu.R20mm_setvarattr},
+    'icclim_RX1day': {'func': calc_indice.RX1day_calculation, 'meta': slu.RX1day_setvarattr},
+    'icclim_RX5day': {'func': calc_indice.RX5day_calculation, 'meta': slu.RX5day_setvarattr},
+    'icclim_SD': {'func': calc_indice.SD_calculation, 'meta': slu.SD_setvarattr},
+    'icclim_SD1': {'func': calc_indice.SD1_calculation, 'meta': slu.SD1_setvarattr},
+    'icclim_SD5cm': {'func': calc_indice.SD5cm_calculation, 'meta': slu.SD5cm_setvarattr},
+    'icclim_SD50cm': {'func': calc_indice.SD50cm_calculation, 'meta': slu.SD50cm_setvarattr},
+    'icclim_CDD': {'func': calc_indice.CDD_calculation, 'meta': slu.CDD_setvarattr},
+    'icclim_TG10p': {'func': calc_indice_perc.TG10p_calculation, 'meta': slu.TG10p_setvarattr},
+    'icclim_TX10p': {'func': calc_indice_perc.TX10p_calculation, 'meta': slu.TX10p_setvarattr},
+    'icclim_TN10p': {'func': calc_indice_perc.TN10p_calculation, 'meta': slu.TN10p_setvarattr},
+    'icclim_TG90p': {'func': calc_indice_perc.TG90p_calculation, 'meta': slu.TG90p_setvarattr},
+    'icclim_TX90p': {'func': calc_indice_perc.TX90p_calculation, 'meta': slu.TX90p_setvarattr},
+    'icclim_TN90p': {'func': calc_indice_perc.TN90p_calculation, 'meta': slu.TN90p_setvarattr},
+    'icclim_WSDI': {'func': calc_indice_perc.WSDI_calculation, 'meta': slu.WSDI_setvarattr},
+    'icclim_CSDI': {'func': calc_indice_perc.CSDI_calculation, 'meta': slu.CSDI_setvarattr},
+    'icclim_R75p': {'func': calc_indice_perc.R75p_calculation, 'meta': slu.R75p_setvarattr},
+    'icclim_R75TOT': {'func': calc_indice_perc.R75TOT_calculation, 'meta': slu.R75TOT_setvarattr},
+    'icclim_R95p': {'func': calc_indice_perc.R95p_calculation, 'meta': slu.R95p_setvarattr},
+    'icclim_R95TOT': {'func': calc_indice_perc.R95TOT_calculation, 'meta': slu.R95TOT_setvarattr},
+    'icclim_R99p': {'func': calc_indice_perc.R99p_calculation, 'meta': slu.R99p_setvarattr},
+    'icclim_R99TOT': {'func': calc_indice_perc.R99TOT_calculation, 'meta': slu.R99TOT_setvarattr},
+    'icclim_CD': {'func': calc_indice_perc.CD_calculation, 'meta': slu.CD_setvarattr},
+    'icclim_CW': {'func': calc_indice_perc.CW_calculation, 'meta': slu.CW_setvarattr},
+    'icclim_WD': {'func': calc_indice_perc.WD_calculation, 'meta': slu.WD_setvarattr},
+    'icclim_WW': {'func': calc_indice_perc.WW_calculation, 'meta': slu.WW_setvarattr},
+}
 
 
 class NcAttributesSimulator(object):
-
     def __init__(self, attrs):
         self.attrs = attrs
 
@@ -78,8 +76,8 @@ class NcAttributesSimulator(object):
 
     def setncattr(self, key, value):
         self.attrs[key] = value
-        
-        
+
+
 class AbstractIcclimFunction(object):
     __metaclass__ = abc.ABCMeta
     description = None
@@ -87,25 +85,24 @@ class AbstractIcclimFunction(object):
     long_name = ''
     _global_attributes_maintain = ['history']
     _global_attribute_source_name = 'source_data_global_attributes'
-    _allowed_temporal_groupings = [('month',),('month','year'),('year',)]
-    
+
     def set_field_metadata(self):
         # we are going to strip the metadata elements and store in a dictionary JSON representation
-        
-        def _get_value_(key,target):
+
+        def _get_value_(key, target):
             try:
                 ret = target[key]
                 ret_key = key
-                return(ret,ret_key)
+                return ret, ret_key
             except KeyError:
-                for method in ['lower','upper','title']:
+                for method in ['lower', 'upper', 'title']:
                     try:
-                        ret_key = getattr(str,method)(key)
+                        ret_key = getattr(str, method)(key)
                         ret = target[ret_key]
-                        return(ret,ret_key)
+                        return ret, ret_key
                     except KeyError:
                         pass
-            return('',key)
+            return '', key
 
         # reorganize the output metadata pushing source global attributes to a new attribute. the old attributes are
         # serialized to a JSON string
@@ -115,79 +112,78 @@ class AbstractIcclimFunction(object):
         sim.attrs[self._global_attribute_source_name] = original
         # copy attributes from the original dataset
         for key in self._global_attributes_maintain:
-            value,value_key = _get_value_(key,sim.attrs[self._global_attribute_source_name])
+            value, value_key = _get_value_(key, sim.attrs[self._global_attribute_source_name])
             sim.attrs[value_key] = value
         ref = sim.attrs[self._global_attribute_source_name]
         sim.attrs[self._global_attribute_source_name] = self._get_json_string_(ref)
-        
+
         # update global attributes using ICCLIM functions
         indice_name = self.key.split('_')[1]
-        set_globattr.history(sim,self.tgd.grouping,indice_name,[self.field.temporal.value_datetime.min(),self.field.temporal.value_datetime.max()])
-        set_globattr.title(sim,indice_name)
+        time_range = [self.field.temporal.value_datetime.min(), self.field.temporal.value_datetime.max()]
+        args = [sim, self.tgd.grouping, indice_name, time_range]
+        try:
+            set_globattr.history(*args)
+        except TypeError:
+            # temporal grouping is likely a season. convert to a season object and try again
+            args[1] = SeasonalTemporalGroup(self.tgd.grouping)
+            set_globattr.history(*args)
+        set_globattr.title(sim, indice_name)
         set_globattr.references(sim)
-        set_globattr.institution(sim,'Climate impact portal (http://climate4impact.eu)')
-        set_globattr.comment(sim,indice_name)
+        set_globattr.institution(sim, 'Climate impact portal (http://climate4impact.eu)')
+        set_globattr.comment(sim, indice_name)
 
     def set_variable_metadata(self, variable):
         sim = NcAttributesSimulator(variable.attrs)
         _icclim_function_map[self.key]['meta'](sim)
         # update the variable's units from the metadata as this is modified inside ICCLIM
         variable.units = variable.attrs['units']
-    
+
+    @classmethod
+    def validate_icclim(cls, ops):
+        """
+        :type ops: :class:`ocgis.OcgOperations`
+        """
+        pass
+
     @staticmethod
     def _get_json_string_(dct):
-        '''
-        Prepare a dictionary for conversion to JSON. The serializer does not
-        understand NumPy types so those must be converted to native Python types
-        first.
-        '''
+        """
+        Prepare a dictionary for conversion to JSON. The serializer does not understand NumPy types so those must be
+        converted to native Python types first.
+        """
+
         dct = deepcopy(dct)
-        for k,v in dct.iteritems():
+        for k, v in dct.iteritems():
             try:
                 v = v.tolist()
             except AttributeError:
                 pass
             dct[k] = v
-        return(json.dumps(dct))
-    
-    @staticmethod
-    def validate_icclim(klass,ops):
-        should_raise = False
-        allowed = [set(_) for _ in klass._allowed_temporal_groupings]
-        try:
-            if set(ops.calc_grouping) not in allowed:
-                should_raise = True
-        except TypeError:
-            ## this is a seasonal grouping
-            should_raise = True
-        if should_raise:
-            msg = 'The following temporal groupings are supported for ICCLIM: {0}. '.format(klass._allowed_temporal_groupings)
-            msg += 'The requested temporal group is: {0}.'.format(ops.calc_grouping)
-            raise(DefinitionValidationError(CalcGrouping,msg))
-        
+        return json.dumps(dct)
 
-class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction,AbstractUnivariateSetFunction):
+
+class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction, AbstractUnivariateSetFunction):
     __metaclass__ = abc.ABCMeta
-    
-    def calculate(self,values):
+
+    def calculate(self, values):
         return self._get_icclim_func_()(values, values.fill_value)
-    
+
     @classmethod
-    def validate(cls,ops):
-        cls.validate_icclim(cls, ops)
+    def validate(cls, ops):
+        cls.validate_icclim(ops)
         super(AbstractIcclimUnivariateSetFunction, cls).validate(ops)
 
     def _get_icclim_func_(self):
         return _icclim_function_map[self.key]['func']
-    
-    
-class AbstractIcclimMultivariateFunction(AbstractIcclimFunction,AbstractMultivariateFunction):
+
+
+class AbstractIcclimMultivariateFunction(AbstractIcclimFunction, AbstractMultivariateFunction):
     __metaclass__ = abc.ABCMeta
-    
+
     @classmethod
-    def validate(cls,ops):
-        cls.validate_icclim(cls,ops)
-        super(AbstractIcclimMultivariateFunction,cls).validate(ops)
+    def validate(cls, ops):
+        cls.validate_icclim(ops)
+        super(AbstractIcclimMultivariateFunction, cls).validate(ops)
 
 
 class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, AbstractParameterizedFunction):
@@ -201,8 +197,8 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
         AbstractIcclimUnivariateSetFunction.__init__(self, *args, **kwargs)
 
         if self.field is not None:
-            assert(self.field.shape[0] == 1)
-            assert(self.field.shape[2] == 1)
+            assert (self.field.shape[0] == 1)
+            assert (self.field.shape[2] == 1)
 
     @abc.abstractproperty
     def percentile(self):
@@ -211,7 +207,6 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
 
         :type: int
         """
-        pass
 
     def calculate(self, values, percentile_dict=None):
 
@@ -222,7 +217,7 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
             except KeyError:
                 variable = self.field.variables[self._curr_variable.alias]
                 value = variable.value[0, :, 0, :, :]
-                assert(value.ndim == 3)
+                assert (value.ndim == 3)
                 percentile_dict = get_percentile_dict(value, self.field.temporal.value_datetime, self.percentile,
                                                       self.window_width, only_leap_years=self.only_leap_years)
                 self._storage_percentile_dict[self._curr_variable.alias] = percentile_dict
@@ -249,12 +244,12 @@ class IcclimTN(IcclimTG):
 
 class IcclimTX(IcclimTG):
     key = 'icclim_TX'
-    
-    
+
+
 class IcclimTXx(IcclimTG):
     key = 'icclim_TXx'
-    
-    
+
+
 class IcclimTXn(IcclimTG):
     key = 'icclim_TXn'
 
@@ -291,39 +286,39 @@ class IcclimID(IcclimCSU):
 class IcclimHD17(IcclimTG):
     dtype = constants.NP_FLOAT
     key = 'icclim_HD17'
-    required_units = ['K','kelvin']
+    required_units = ['K', 'kelvin']
 
 
 class IcclimGD4(IcclimTG):
     dtype = constants.NP_FLOAT
     key = 'icclim_GD4'
-    required_units = ['K','kelvin']
+    required_units = ['K', 'kelvin']
 
 
 class IcclimSU(IcclimCSU):
     dtype = constants.NP_INT
     key = 'icclim_SU'
-    required_units = ['K','kelvin']
-    
-    
+    required_units = ['K', 'kelvin']
+
+
 class IcclimDTR(AbstractIcclimMultivariateFunction):
     key = 'icclim_DTR'
     dtype = constants.NP_FLOAT
-    required_variables = ['tasmin','tasmax']
+    required_variables = ['tasmin', 'tasmax']
     time_aggregation_external = False
-    
-    def calculate(self,tasmax=None,tasmin=None):
-        ret = _icclim_function_map[self.key]['func'](tasmax,tasmin,tasmax.fill_value,tasmin.fill_value)
-        ## convert output to a masked array
+
+    def calculate(self, tasmax=None, tasmin=None):
+        ret = _icclim_function_map[self.key]['func'](tasmax, tasmin, tasmax.fill_value, tasmin.fill_value)
+        # convert output to a masked array
         ret_mask = ret == tasmax.fill_value
-        ret = np.ma.array(ret,mask=ret_mask,fill_value=tasmax.fill_value)
-        return(ret)
-    
+        ret = np.ma.array(ret, mask=ret_mask, fill_value=tasmax.fill_value)
+        return ret
+
 
 class IcclimETR(IcclimDTR):
     key = 'icclim_ETR'
-    
-    
+
+
 class IcclimvDTR(IcclimDTR):
     key = 'icclim_vDTR'
 
@@ -504,8 +499,8 @@ class IcclimCD(AbstractIcclimMultivariateFunction, AbstractParameterizedFunction
         Allows subclasses to overload parameter definitions for `calculate`.
         """
 
-        assert(tas.ndim == 3)
-        assert(pr.ndim == 3)
+        assert (tas.ndim == 3)
+        assert (pr.ndim == 3)
 
         try:
             dt_arr = self.field.temporal.value_datetime[self._curr_group]
@@ -525,7 +520,8 @@ class IcclimCD(AbstractIcclimMultivariateFunction, AbstractParameterizedFunction
                 alias_pr = self.parms['pr']
                 t_arr_perc = self.field.variables[alias_tas].value.squeeze()
                 p_arr_perc = self.field.variables[alias_pr].value.squeeze()
-                tas_percentile_dict = get_percentile_dict(t_arr_perc, dt_arr_perc, self.percentile_tas, self.window_width)
+                tas_percentile_dict = get_percentile_dict(t_arr_perc, dt_arr_perc, self.percentile_tas,
+                                                          self.window_width)
                 pr_percentile_dict = get_percentile_dict(p_arr_perc, dt_arr_perc, self.percentile_pr, self.window_width)
                 self._storage_percentile_dict['tas'] = tas_percentile_dict
                 self._storage_percentile_dict['pr'] = pr_percentile_dict

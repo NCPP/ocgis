@@ -591,18 +591,18 @@ class SpatialDimension(base.AbstractUidDimension):
     def write_fiona(self, path, target='polygon', driver='ESRI Shapefile'):
         attr = getattr(self.geom, target)
         attr.write_fiona(path, self.crs.value, driver=driver)
-        return (path)
+        return path
 
     def _format_uid_(self, value):
-        return (np.atleast_2d(value))
+        return np.atleast_2d(value)
 
     def _get_sliced_properties_(self, slc):
         if self.properties is not None:
             # # determine major axis
             major = self.shape.index(max(self.shape))
-            return (self.properties[slc[major]])
+            return self.properties[slc[major]]
         else:
-            return (None)
+            return None
 
     def _get_uid_(self):
         if self._geom is not None:
@@ -690,7 +690,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         ret.row = row
         ret.col = col
 
-        return (ret)
+        return ret
 
     @property
     def corners(self):
@@ -793,7 +793,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             rows = np.mean(np.diff(r_value[0, :, :], axis=0))
             cols = np.mean(np.diff(r_value[1, :, :], axis=1))
             ret = np.mean([rows, cols])
-        return (ret)
+        return ret
 
     @property
     def shape(self):
@@ -875,7 +875,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         if return_indices:
             ret = (ret, (row_slc, col_slc))
 
-        return (ret)
+        return ret
 
     def set_extrapolated_corners(self):
         """
@@ -1036,7 +1036,7 @@ class SpatialGeometryDimension(base.AbstractUidDimension):
             ret = self.polygon.shape
         else:
             ret = self.point.shape
-        return (ret)
+        return ret
 
     def get_highest_order_abstraction(self):
         """
@@ -1209,7 +1209,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
                 feature = {'properties': {'UGID': uid}, 'geometry': mapping(geom)}
                 f.write(feature)
 
-        return (path)
+        return path
 
     @staticmethod
     def _write_fiona_prep_geom_(geom):

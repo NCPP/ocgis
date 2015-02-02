@@ -292,6 +292,9 @@ class TestProjectionCombinations(TestSimpleBase):
                     continue
                 else:
                     raise
+            except ValueError:
+                if unbounded and ab == 'polygon':
+                    continue
 
             if o == constants.OUTPUT_FORMAT_SHAPEFILE:
                 ugid_path = os.path.join(self.current_dir_output, ops.prefix, ops.prefix + '_ugid.shp')

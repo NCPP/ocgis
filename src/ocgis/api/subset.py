@@ -590,9 +590,7 @@ class SubsetOperation(object):
 
     def _process_geometries_(self, itr, field, headers, value_keys, alias):
         """
-        :param sequence itr: Contains geometry dictionaries to process. If there
-         are no geometries to process, this will be a sequence of one element with
-         an empty dictionary.
+        :param sequence itr: An iterator yielding :class:`~ocgis.SpatialDimension` objects.
         :param :class:`ocgis.interface.Field` field: The field object to use for
          operations.
         :param sequence headers: Sequence of strings to use as headers for the
@@ -667,7 +665,7 @@ class SubsetOperation(object):
 
                 # if empty returns are allowed, there be an empty field
                 if sfield is not None:
-                    # # aggregate if requested
+                    # aggregate if requested
                     if self.ops.aggregate:
                         ocgis_lh('executing spatial average', self._subset_log, alias=alias, ugid=subset_ugid)
                         sfield = sfield.get_spatially_aggregated(new_spatial_uid=subset_ugid)
@@ -699,6 +697,7 @@ class SubsetOperation(object):
                         if subset_sdim is not None and subset_sdim.crs != self.ops.output_crs:
                             subset_sdim.update_crs(self.ops.output_crs)
                         # update the subset field CRS
+                        sfield.spatial = deepcopy(sfield.spatial)
                         sfield.spatial.update_crs(self.ops.output_crs)
 
             # use the field's alias if it is provided. otherwise, let it be automatically assigned

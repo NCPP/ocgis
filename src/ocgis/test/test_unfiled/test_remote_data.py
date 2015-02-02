@@ -13,4 +13,4 @@ class Test(TestBase):
                                       snippet=True, output_format='numpy', aggregate=False,
                                       prefix=variable)
             ret = ops.execute()
-            self.assertEqual(ret[25].variables[variable].value.shape, (1, 1, 227, 246))
+            self.assertEqual(ret[25][variable].variables[variable].value.shape, (1, 1, 1, 227, 246))

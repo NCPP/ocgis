@@ -6,14 +6,15 @@ import itertools
 import numpy as np
 
 import ESMF
+from shapely import wkt
 
 from ocgis.calc.library.index.duration import FrequencyDuration
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import Field
 from ocgis.api.operations import OcgOperations
 from ocgis.conv.numpy_ import NumpyConverter
-from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84
-from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84, CoordinateReferenceSystem
+from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGridDimension
 from ocgis.test.base import TestBase
 import ocgis
 from ocgis.api.subset import SubsetOperation
@@ -213,6 +214,34 @@ class TestSubsetOperation(TestBase):
         actual = "ccollections\nOrderedDict\np0\n((lp1\n(lp2\ncnumpy.core.multiarray\nscalar\np3\n(cnumpy\ndtype\np4\n(S'i8'\np5\nI0\nI1\ntp6\nRp7\n(I3\nS'<'\np8\nNNNI-1\nI-1\nI0\ntp9\nbS'\\x01\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np10\ntp11\nRp12\nacnumpy.core.multiarray\n_reconstruct\np13\n(cnumpy\nndarray\np14\n(I0\ntp15\nS'b'\np16\ntp17\nRp18\n(I1\n(I1\ntp19\ng4\n(S'V16'\np20\nI0\nI1\ntp21\nRp22\n(I3\nS'|'\np23\nN(S'COUNTRY'\np24\nS'UGID'\np25\ntp26\n(dp27\ng24\n(g4\n(S'O8'\np28\nI0\nI1\ntp29\nRp30\n(I3\nS'|'\np31\nNNNI-1\nI-1\nI63\ntp32\nbI0\ntp33\nsg25\n(g7\nI8\ntp34\nsI16\nI1\nI27\ntp35\nbI00\n(lp36\n(S'France'\np37\nI1\ntp38\natp39\nbaa(lp40\ng3\n(g7\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np41\ntp42\nRp43\nag13\n(g14\n(I0\ntp44\ng16\ntp45\nRp46\n(I1\n(I1\ntp47\ng22\nI00\n(lp48\n(S'Germany'\np49\nI2\ntp50\natp51\nbaa(lp52\ng3\n(g7\nS'\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np53\ntp54\nRp55\nag13\n(g14\n(I0\ntp56\ng16\ntp57\nRp58\n(I1\n(I1\ntp59\ng22\nI00\n(lp60\n(S'Italy'\np61\nI3\ntp62\natp63\nbaatp64\nRp65\n."
         actual = pickle.loads(actual)
         self.assertEqual(coll.properties, actual)
+
+    def test_process_geometries(self):
+        # test multiple geometries with coordinate system update works as expected
+
+        a = 'POLYGON((-105.21347987288135073 40.21514830508475313,-104.39928495762711691 40.21514830508475313,-104.3192002118643984 39.5677966101694949,-102.37047139830508513 39.61451271186440692,-102.12354343220337682 37.51896186440677639,-105.16009004237288593 37.51896186440677639,-105.21347987288135073 40.21514830508475313))'
+        b = 'POLYGON((-104.15235699152542281 39.02722457627118757,-103.71189088983049942 39.44099576271186436,-102.71750529661017026 39.28082627118644155,-102.35712394067796538 37.63908898305084705,-104.13900953389830306 37.63241525423728717,-104.15235699152542281 39.02722457627118757))'
+        geom = [{'geom': wkt.loads(xx), 'properties': {'UGID': ugid}} for ugid, xx in enumerate([a, b])]
+
+        grid_value = [
+            [[37.0, 37.0, 37.0, 37.0], [38.0, 38.0, 38.0, 38.0], [39.0, 39.0, 39.0, 39.0], [40.0, 40.0, 40.0, 40.0]],
+            [[-105.0, -104.0, -103.0, -102.0], [-105.0, -104.0, -103.0, -102.0], [-105.0, -104.0, -103.0, -102.0],
+             [-105.0, -104.0, -103.0, -102.0]]]
+        grid_value = np.ma.array(grid_value, mask=False)
+        output_crs = CoordinateReferenceSystem(
+            value={'a': 6370997, 'lon_0': -100, 'y_0': 0, 'no_defs': True, 'proj': 'laea', 'x_0': 0, 'units': 'm',
+                   'b': 6370997, 'lat_0': 45})
+        grid = SpatialGridDimension(value=grid_value)
+        sdim = SpatialDimension(grid=grid, crs=WGS84())
+        field = Field(spatial=sdim)
+
+        ops = OcgOperations(dataset=field, geom=geom, output_crs=output_crs)
+        ret = ops.execute()
+
+        expected = {0: -502052.79407259845,
+                    1: -510391.37909706926}
+        for ugid, field_dict in ret.iteritems():
+            for field in field_dict.itervalues():
+                self.assertAlmostEqual(field.spatial.grid.value.data.mean(), expected[ugid])
 
     def test_regridding_bounding_box_wrapped(self):
         """Test subsetting with a wrapped bounding box with the target as a 0-360 global grid."""

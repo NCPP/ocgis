@@ -4,8 +4,9 @@ from collections import OrderedDict
 from copy import deepcopy
 from numpy.ma import MaskedArray
 import numpy as np
-
 from datetime import datetime
+from unittest import SkipTest
+
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.calc.base import AbstractParameterizedFunction
@@ -47,10 +48,10 @@ class TestAbstractIcclimFunction(TestBase):
         FakeAbstractIcclimFunction.key = 'icclim_fillme'
         super(TestAbstractIcclimFunction, self).tearDown()
 
-    def get(self):
+    def get(self, grouping=None):
         field = self.get_field()
         temporal = TemporalDimension(value=self.get_time_series(datetime(2000, 1, 1), datetime(2001, 12, 31)))
-        grouping = [[12, 1, 2]]
+        grouping = grouping or [[12, 1, 2]]
         tgd = temporal.get_grouping(grouping)
         aa = FakeAbstractIcclimFunction(field, tgd)
         return aa
@@ -60,12 +61,29 @@ class TestAbstractIcclimFunction(TestBase):
         self.assertIsInstance(f, AbstractIcclimFunction)
 
     def test_set_field_metadata(self):
+        # test with a seasonal grouping
         aa = self.get()
         aa.set_field_metadata()
         self.assertIn(SeasonalTemporalGroup(aa.tgd.grouping).icclim_mode, aa.field.attrs['history'])
 
+        # test with a day calculation grouping
+        aa = self.get(grouping=['day'])
+        aa.set_field_metadata()
+        self.assertIn(str(['day']), aa.field.attrs['history'])
+
 
 class TestLibraryIcclim(TestBase):
+    def test_bad_icclim_key_to_operations(self):
+        value = [{'func': 'icclim_TG_bad', 'name': 'TG'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(value)
+
+    def test_calc_argument_to_operations(self):
+        value = [{'func': 'icclim_TG', 'name': 'TG'}]
+        calc = Calc(value)
+        self.assertEqual(len(calc.value), 1)
+        self.assertEqual(calc.value[0]['ref'], IcclimTG)
+
     @attr('slow')
     def test_icclim_combinatorial(self):
         shapes = ([('month',), 12], [('month', 'year'), 24], [('year',), 2])
@@ -79,7 +97,7 @@ class TestLibraryIcclim(TestBase):
                     continue
 
                 keys.remove(subclass.key)
-                self.assertEqual([('month',), ('month', 'year'), ('year',)], subclass._allowed_temporal_groupings)
+
                 for cg in CalcGrouping.iter_possible():
                     calc = [{'func': subclass.key, 'name': subclass.key.split('_')[1]}]
                     if klass == AbstractIcclimUnivariateSetFunction:
@@ -99,7 +117,7 @@ class TestLibraryIcclim(TestBase):
                         calc[0].update({'kwds': kwds})
                     try:
                         ops = ocgis.OcgOperations(dataset=rd, output_format='nc', calc=calc, calc_grouping=cg,
-                                                  geom=[3.39, 40.62, 10.54, 52.30])
+                                                  geom=[35.39, 45.62, 42.54, 52.30])
                         ret = ops.execute()
                         to_test = None
                         for shape in shapes:
@@ -109,7 +127,7 @@ class TestLibraryIcclim(TestBase):
                             var = ds.variables[calc[0]['name']]
                             self.assertEqual(var.dtype, subclass.dtype)
                             if to_test is not None:
-                                self.assertEqual(var.shape, (to_test, 5, 4))
+                                self.assertEqual(var.shape, (to_test, 3, 3))
                     except DefinitionValidationError as e:
                         msg = '''OcgOperations validation raised an exception on the argument/operation "calc_grouping" with the message: The following temporal groupings are supported for ICCLIM: [('month',), ('month', 'year'), ('year',)]. The requested temporal group is:'''
                         if e.message.startswith(msg):
@@ -125,16 +143,19 @@ class TestLibraryIcclim(TestBase):
         self.assertIn('icclim_TG', fr)
         self.assertIn('icclim_vDTR', fr)
 
-    def test_calc_argument_to_operations(self):
-        value = [{'func': 'icclim_TG', 'name': 'TG'}]
-        calc = Calc(value)
-        self.assertEqual(len(calc.value), 1)
-        self.assertEqual(calc.value[0]['ref'], IcclimTG)
+    def test_seasonal_calc_grouping(self):
+        """Test seasonal calculation grouping with an ICCLIM function."""
 
-    def test_bad_icclim_key_to_operations(self):
-        value = [{'func': 'icclim_TG_bad', 'name': 'TG'}]
-        with self.assertRaises(DefinitionValidationError):
-            Calc(value)
+        rd = self.test_data.get_rd('cancm4_tas')
+        slc = [None, [0, 600], None, [0, 10], [0, 10]]
+        calc_icclim = [{'func': 'icclim_TG', 'name': 'TG'}]
+        calc_ocgis = [{'func': 'mean', 'name': 'mean'}]
+        cg = [[12, 1, 2], 'unique']
+        ops_ocgis = OcgOperations(calc=calc_ocgis, calc_grouping=cg, slice=slc, dataset=rd)
+        ret_ocgis = ops_ocgis.execute()
+        ops_icclim = OcgOperations(calc=calc_icclim, calc_grouping=cg, slice=slc, dataset=rd)
+        ret_icclim = ops_icclim.execute()
+        self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value, ret_icclim[1]['tas'].variables['TG'].value)
 
 
 class TestCD(TestBase):
@@ -453,6 +474,9 @@ class TestSU(TestBase):
 
     @attr('remote')
     def test_calculate_opendap(self):
+        msg = 'opendap url no longer works'
+        raise SkipTest(msg)
+
         # test against an opendap target ensuring icclim and ocgis operations are equivalent in the netcdf output
         url = 'http://opendap.nmdc.eu/knmi/thredds/dodsC/IS-ENES/TESTSETS/tasmax_day_EC-EARTH_rcp26_r8i1p1_20760101-21001231.nc'
         calc_grouping = ['month']

@@ -652,8 +652,8 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 
         kwargs['name'] = kwargs.get('name') or 'grid'
 
-        self.name_row = kwargs.pop('name_row', None)
-        self.name_col = kwargs.pop('name_col', None)
+        self.name_row = kwargs.pop('name_row', constants.DEFAULT_NAME_ROW_COORDINATES)
+        self.name_col = kwargs.pop('name_col', constants.DEFAULT_NAME_COL_COORDINATES)
 
         super(SpatialGridDimension, self).__init__(*args, **kwargs)
 
@@ -911,8 +911,8 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             self.col.write_to_netcdf_dataset(dataset, **kwargs)
         except AttributeError:
             # likely no row and column. write the grid value.
-            name_yc = constants.DEFAULT_NAME_ROW_COORDINATES
-            name_xc = constants.DEFAULT_NAME_COL_COORDINATES
+            name_yc = self.name_row
+            name_xc = self.name_col
             dataset.createDimension(name_yc, size=self.shape[0])
             dataset.createDimension(name_xc, size=self.shape[1])
             value = self.value

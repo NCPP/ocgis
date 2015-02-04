@@ -3,6 +3,8 @@ import itertools
 from copy import deepcopy
 from collections import OrderedDict
 import numpy as np
+from datetime import datetime as dt
+import datetime
 
 from shapely import wkb
 import fiona
@@ -10,8 +12,6 @@ from shapely import wkt
 from shapely.geometry import shape
 from shapely.ops import cascaded_union
 
-from datetime import datetime as dt
-import datetime
 from ocgis import constants, SpatialCollection, ShpCabinet
 from ocgis import RequestDataset
 from ocgis.constants import NAME_UID_FIELD, NAME_UID_DIMENSION_LEVEL
@@ -837,6 +837,23 @@ class TestField(AbstractTestField):
             self.assertAsSetEqual(ds.dimensions.keys(),
                                   ['time', 'bounds', 'level', constants.DEFAULT_NAME_ROW_COORDINATES,
                                    constants.DEFAULT_NAME_COL_COORDINATES, constants.DEFAULT_NAME_CORNERS_DIMENSION])
+
+        # test with name on the grid
+        field = self.get_field(with_value=True, with_realization=False)
+        field.spatial.grid.value
+        field.spatial.grid.corners
+        field.spatial.grid.name_row = 'nr'
+        field.spatial.grid.name_col = 'nc'
+        field.spatial.grid.row = None
+        field.spatial.grid.col = None
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            field.write_to_netcdf_dataset(ds)
+            self.assertAsSetEqual(ds.variables.keys(),
+                                  ['time', 'time_bounds', 'level', 'level_bounds', 'nr', 'nc', 'nr_corners',
+                                   'nc_corners', 'tmax'])
+            self.assertAsSetEqual(ds.dimensions.keys(),
+                                  ['time', 'bounds', 'level', 'nr', 'nc', constants.DEFAULT_NAME_CORNERS_DIMENSION])
 
     def test_write_to_netcdf_dataset_without_temporal(self):
         """Test without a temporal dimensions."""

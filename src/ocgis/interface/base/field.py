@@ -535,8 +535,8 @@ class Field(Attributes):
             # write the grid.value directly
             if self.spatial.grid.row is None or self.spatial.grid.col is None:
                 self.spatial.grid.write_to_netcdf_dataset(dataset, **kwargs)
-                value_dimensions.append('yc')
-                value_dimensions.append('xc')
+                value_dimensions.append(self.spatial.grid.name_row)
+                value_dimensions.append(self.spatial.grid.name_col)
             else:
                 raise
 

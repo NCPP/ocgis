@@ -511,6 +511,16 @@ class TestDriverNetcdf(TestBase):
         res = DriverNetcdf._get_name_bounds_dimension_(source_metadata)
         self.assertIsNone(res)
 
+    def test_get_source_metadata(self):
+        dimension_map = {'X': {'variable': 'lon', 'dimension': 'x', 'pos': 2, 'bounds': 'lon_bnds'},
+                         'Y': {'variable': 'lat', 'dimension': 'y', 'pos': 1, 'bounds': 'lat_bounds'},
+                         'T': {'variable': 'time', 'dimension': 'time', 'pos': 0, 'bounds': 'time_bounds'}}
+        uri = self.test_data.get_uri('cancm4_tas')
+        rd = RequestDataset(uri=uri, dimension_map=dimension_map)
+        driver = DriverNetcdf(rd)
+        meta = driver.get_source_metadata()
+        self.assertEqual(meta['dim_map'], dimension_map)
+
     def test_get_vector_dimension(self):
         # test exception raised with no row and column
         path = self.get_netcdf_path_no_row_column()

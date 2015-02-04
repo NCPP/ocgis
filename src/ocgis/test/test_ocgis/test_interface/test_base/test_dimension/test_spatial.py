@@ -1392,6 +1392,8 @@ class TestSpatialGridDimension(AbstractTestSpatialDimension):
         self.assertEqual(grid.name, 'grid')
         self.assertEqual(grid.row.name, 'yc')
         self.assertEqual(grid.col.name, 'xc')
+        self.assertEqual(grid.name_row, constants.DEFAULT_NAME_ROW_COORDINATES)
+        self.assertEqual(grid.name_col, constants.DEFAULT_NAME_COL_COORDINATES)
 
         grid = SpatialGridDimension(row=row, col=col, name_row='foo', name_col='whatever')
         self.assertEqual(grid.name_row, 'foo')
@@ -1575,3 +1577,16 @@ class TestSpatialGridDimension(AbstractTestSpatialDimension):
                         self.assertNumpyAll(var[:], grid.corners[idx].data)
                     self.assertEqual(ds.variables[constants.DEFAULT_NAME_ROW_COORDINATES].corners, name_yc_corners)
                     self.assertEqual(ds.variables[constants.DEFAULT_NAME_COL_COORDINATES].corners, name_xc_corners)
+
+        # test with names for the rows and columns and no row/col objects
+        row = VectorDimension(value=[4., 5.])
+        col = VectorDimension(value=[6., 7.])
+        grid = SpatialGridDimension(row=row, col=col, name_row='imrow', name_col='im_col')
+        grid.value
+        grid.row = None
+        grid.col = None
+        path = self.get_temporary_file_path('foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            grid.write_to_netcdf_dataset(ds)
+        with self.nc_scope(path) as ds:
+            self.assertEqual(ds.variables.keys(), ['imrow', 'im_col'])

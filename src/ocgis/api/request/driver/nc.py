@@ -114,13 +114,14 @@ class DriverNetcdf(AbstractDriver):
             metadata['dim_map'] = get_dimension_map(var['name'], metadata)
         else:
             for k, v in self.rd.dimension_map.iteritems():
-                try:
-                    variable_name = metadata['variables'][v]['name']
-                except KeyError:
-                    variable_name = None
-                self.rd.dimension_map[k] = {'variable': variable_name,
-                                            'dimension': v,
-                                            'pos': var['dimensions'].index(v)}
+                if not isinstance(v, dict):
+                    try:
+                        variable_name = metadata['variables'][v]['name']
+                    except KeyError:
+                        variable_name = None
+                    self.rd.dimension_map[k] = {'variable': variable_name,
+                                                'dimension': v,
+                                                'pos': var['dimensions'].index(v)}
                 metadata['dim_map'] = self.rd.dimension_map
 
         return metadata

@@ -1,8 +1,14 @@
 import abc
+
 from ocgis.exc import DefinitionValidationError
 
 
 class AbstractDriver(object):
+    """
+    :param rd: The input request dataset object.
+    :type rd: :class:`~ocgis.RequestDataset`
+    """
+
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, rd):

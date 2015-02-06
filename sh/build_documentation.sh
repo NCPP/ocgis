@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # 1. commit any changes
 # 2. git checkout desired doc branch
 # 3. cd to doc directory
@@ -16,5 +18,6 @@ cp -r $TDIR/* .
 
 git commit -a -m 'doc changes'
 git checkout -
-git push
+git push origin gh-pages
+
 

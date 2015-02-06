@@ -7,6 +7,8 @@ import numpy as np
 from datetime import datetime
 from unittest import SkipTest
 
+from icclim.percentile_dict import get_percentile_dict
+
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.calc.base import AbstractParameterizedFunction
@@ -83,6 +85,20 @@ class TestLibraryIcclim(TestBase):
         calc = Calc(value)
         self.assertEqual(len(calc.value), 1)
         self.assertEqual(calc.value[0]['ref'], IcclimTG)
+
+    def test_get_percentile_dict(self):
+        start = 25567.5
+        dts = np.arange(start, start + 1000, step=1.0)
+        value = np.random.rand(dts.shape[0], 1, 5)
+        value = np.ma.array(value, mask=False)
+        calendar = 'gregorian'
+        units = 'days since 2006-1-1'
+        dts = TemporalDimension(value=dts, calendar=calendar, units=units).value_datetime
+        percentile = 10
+        window_width = 5
+        only_leap_years = False
+        prd = get_percentile_dict(value, dts, percentile, window_width, only_leap_years=only_leap_years)
+        self.assertEqual(len(prd), 366)
 
     @attr('slow')
     def test_icclim_combinatorial(self):

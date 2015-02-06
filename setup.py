@@ -5,7 +5,7 @@ import os
 import tempfile
 
 
-VERSION = '1.0.1-next'
+VERSION = '1.1.0'
 
 
 ########################################################################################################################
@@ -134,8 +134,7 @@ class InstallDependenciesUbuntu(Command):
 
 python_version = float(sys.version_info[0]) + float(sys.version_info[1]) / 10
 if python_version != 2.7:
-    raise (ImportError(
-        'This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
+    raise (ImportError('This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
 
 
 ########################################################################################################################

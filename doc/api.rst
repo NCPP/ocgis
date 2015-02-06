@@ -53,98 +53,22 @@ Detailed Argument Information
 
 Additional information on arguments are found in their respective sections.
 
-dataset
-~~~~~~~
+abstraction
+~~~~~~~~~~~
 
-A ``dataset`` is the target file(s) or object(s) containing data to process. A ``dataset`` may be:
- 1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
- 2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
- 3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
+.. note:: OpenClimateGIS uses the `bounds` attribute of NetCDF file to construct polygon representations of datasets. If no `bounds` attribute is found, the software defaults to the `point` geometry abstraction.
 
-.. autoclass:: ocgis.RequestDataset
-   :members: inspect, inspect_as_dct
+====================== =============================================================
+Value                  Description
+====================== =============================================================
+`polygon` (default)    Represent cells as :class:`shapely.geometry.Polygon` objects.
+`point`                Represent cells as :class:`shapely.geometry.Point` objects.
+====================== =============================================================
 
-.. autoclass:: ocgis.RequestDatasetCollection
-   :members: update
+add_auxiliary_files
+~~~~~~~~~~~~~~~~~~~
 
-dir_output
-~~~~~~~~~~
-
-This sets the output folder for any disk formats. If this is ``None`` and ``env.DIR_OUTPUT`` is ``None``, then output will be written to the current working directory.
-
-spatial_operation
-~~~~~~~~~~~~~~~~~
-
-======================== =============================================================================================================================================
-Value                    Description
-======================== =============================================================================================================================================
-``intersects`` (default) Source geometries touching or overlapping selection geometries are returned (see :ref:`appendix-intersects`).
-``clip``                 A full geometric intersection is performed between source and selection geometries. New geometries may be created. (see :ref:`appendix-clip`)
-======================== =============================================================================================================================================
-
-.. _geom:
-
-geom
-~~~~
-
-.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
-
-If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute matching the value of :attr:`ocgis.constants.ocgis_unique_geometry_identifier` and have a WGS84 latitude/longitude geographic coordinate system. If an ESRI Shapefile is being accessed and the file does not contain the unique identifier, the function :func:`~ocgis.util.helpers.add_shapefile_unique_identifier` may be used to add the appropriate unique identifier attribute.
-
-There are a number of ways to parameterize the ``geom`` keyword argument:
-
-1. Bounding Box
-
-This is a list of floats corresponding to: `[min x, min y, max x, max y]`. The coordinates should be WGS84 geographic.
-
->>> geom = [-120.4, 30.0, -110.3, 41.4]
-
-2. Point
-
-This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic. For point geometries, the geometry is actually buffered by `search_radius_mult` * (data resolution). Hence, output geometries are in fact polygons.
-
->>> geom = [-120.4,36.5]
-
-3. Using :class:`ocgis.ShpCabinetIterator`
-
->>> from ocgis import ShpCabinetIterator
->>> geom = ShpCabinetIterator('state_boundaries',select_ugid=[16])
-
-.. _geom key:
-
-4. Using a :class:`ocgis.ShpCabinet` Key
-
->>> geom = 'state_boundaries'
-
-5. Custom Sequence of Shapely Geometry Dictionaries
-
-The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional. If not 'UGID' property is provided, defaults will be inserted.
-
->>> geom = [{'geom':Point(x,y),'properties':{'UGID':23,'NAME':'geometry23'},'crs':CoordinateReferenceSystem(epsg=4326)},...]
-
-6. Path to a Shapefile
-
->>> geom = '/path/to/shapefile.shp'
-
-.. _search_radius_mult key:
-
-search_radius_mult
-~~~~~~~~~~~~~~~~~~
-
-This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``2.0``.
-
-select_nearest
-~~~~~~~~~~~~~~
-
-If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
-
-output_crs
-~~~~~~~~~~
-
-By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
-
->>> import ocgis
->>> output_crs = ocgis.crs.CFWGS84()
+If ``True``, create a new directory and add metadata and other informational files in addition to the converted file. If ``False``, write the target file only to :attr:`dir_output` and do not create a new directory.
 
 aggregate
 ~~~~~~~~~
@@ -155,6 +79,30 @@ Value               Description
 ``True``            Selected geometries are combined into a single geometry (see :ref:`appendix-aggregate`).
 ``False`` (default) Selected geometries are not combined.
 =================== ========================================================================================
+
+.. _agg_selection:
+
+agg_selection
+~~~~~~~~~~~~~
+
+=================== ===============================================
+Value               Description
+=================== ===============================================
+``True``            Aggregate (union) `geom`_ to a single geometry.
+``False`` (default) Leave `geom`_ as is.
+=================== ===============================================
+
+The purpose of this data manipulation is to ease the method required to aggregate (union) geometries into arbitrary regions. A simple example would be unioning the U.S. state boundaries of Utah, Nevada, Arizona, and New Mexico into a single polygon representing a "Southwestern Region".
+
+allow_empty
+~~~~~~~~~~~
+
+================= ====================================================================================================
+Value             Description
+================= ====================================================================================================
+`True`            Allow the empty set for geometries not geographically coincident with a source geometry.
+`False` (default) Raise :class:`~ocgis.exc.EmptyDataNotAllowed` if the empty set is encountered.
+================= ====================================================================================================
 
 .. _calc_headline:
 
@@ -223,33 +171,129 @@ Value                  Description
 `False` (default)      Use aggregated values during computation.
 ====================== =====================================================================================================
 
-abstraction
-~~~~~~~~~~~
+callback
+~~~~~~~~
 
-.. note:: OpenClimateGIS uses the `bounds` attribute of NetCDF file to construct polygon representations of datasets. If no `bounds` attribute is found, the software defaults to the `point` geometry abstraction.
+A callback function that may be used for custom messaging. This function integrates with the log handler and will receive messages at or above the :attr:`logging.INFO` level.
 
-====================== =============================================================
-Value                  Description
-====================== =============================================================
-`polygon` (default)    Represent cells as :class:`shapely.geometry.Polygon` objects.
-`point`                Represent cells as :class:`shapely.geometry.Point` objects.
-====================== =============================================================
+>>> def callback(percent,message):
+>>>     print(percent,message)
 
-.. _snippet_headline:
+conform_units_to
+~~~~~~~~~~~~~~~~
 
-snippet
+Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
+
+dataset
 ~~~~~~~
 
-.. note:: The entire spatial domain is returned unless `geom` is specified.
+A ``dataset`` is the target file(s) or object(s) containing data to process. A ``dataset`` may be:
+ 1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
+ 2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
+ 3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
 
-.. note:: Only applies for pure subsetting for limiting computations use `time_range` and/or `time_region`.
+.. autoclass:: ocgis.RequestDataset
+   :members: inspect, inspect_as_dct
 
-====================== ===========================================================================
-Value                  Description
-====================== ===========================================================================
-``True``               Return only the first time point and the first level slice (if applicable).
-``False`` (default)    Return all data.
-====================== ===========================================================================
+.. autoclass:: ocgis.RequestDatasetCollection
+   :members: update
+
+dir_output
+~~~~~~~~~~
+
+This sets the output folder for any disk formats. If this is ``None`` and ``env.DIR_OUTPUT`` is ``None``, then output will be written to the current working directory.
+
+.. _geom:
+
+geom
+~~~~
+
+.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
+
+If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute matching the value of :attr:`ocgis.constants.ocgis_unique_geometry_identifier` and have a WGS84 latitude/longitude geographic coordinate system. If an ESRI Shapefile is being accessed and the file does not contain the unique identifier, the function :func:`~ocgis.util.helpers.add_shapefile_unique_identifier` may be used to add the appropriate unique identifier attribute.
+
+There are a number of ways to parameterize the ``geom`` keyword argument:
+
+1. Bounding Box
+
+This is a list of floats corresponding to: `[min x, min y, max x, max y]`. The coordinates should be WGS84 geographic.
+
+>>> geom = [-120.4, 30.0, -110.3, 41.4]
+
+2. Point
+
+This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic. For point geometries, the geometry is actually buffered by `search_radius_mult` * (data resolution). Hence, output geometries are in fact polygons.
+
+>>> geom = [-120.4,36.5]
+
+3. Using :class:`ocgis.ShpCabinetIterator`
+
+>>> from ocgis import ShpCabinetIterator
+>>> geom = ShpCabinetIterator('state_boundaries',select_ugid=[16])
+
+.. _geom key:
+
+4. Using a :class:`ocgis.ShpCabinet` Key
+
+>>> geom = 'state_boundaries'
+
+5. Custom Sequence of Shapely Geometry Dictionaries
+
+The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional. If not 'UGID' property is provided, defaults will be inserted.
+
+>>> geom = [{'geom': Point(x,y), 'properties': {'UGID': 23, 'NAME': 'geometry23'}, 'crs': CoordinateReferenceSystem(epsg=4326)} ,...]
+
+6. Path to a Shapefile
+
+>>> geom = '/path/to/shapefile.shp'
+
+headers
+~~~~~~~
+
+Useful to limit the number of attributes included in an output file.
+
+>>> headers = ['did','time','value']
+
+interpolate_spatial_bounds
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If ``True``, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
+
+melted
+~~~~~~
+
+If ``False``, variable names will be individual column headers (non-melted). If ``True``, variable names will be placed into a single column.
+
+A non-melted format:
+
+==== ==== ======
+TIME TAS  TASMAX
+==== ==== ======
+1    30.3 40.3
+2    32.2 41.7
+3    31.7 40.9
+==== ==== ======
+
+A melted format:
+
+==== ====== =====
+TIME NAME   VALUE
+==== ====== =====
+1    TAS    30.3
+2    TAS    32.2
+3    TAS    31.7
+1    TASMAX 40.3
+2    TASMAX 41.7
+3    TASMAX 40.9
+==== ====== =====
+
+output_crs
+~~~~~~~~~~
+
+By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
+
+>>> import ocgis
+>>> output_crs = ocgis.crs.CFWGS84()
 
 .. _output_format_headline:
 
@@ -268,19 +312,33 @@ Value                           Description
 ``'nc-ugrid-2d-flexible-mesh'`` A flexible mesh representation. See :ref:`2d-flexible-mesh-label` for more details and :ref:`2d-flexible-mesh-example-label` for an example.
 =============================== ============================================================================================================================================
 
-.. _agg_selection:
+regrid_destination
+~~~~~~~~~~~~~~~~~~
 
-agg_selection
-~~~~~~~~~~~~~
+Please see :ref:`esmpy-regridding` for an overview and limitations.
 
-=================== ===============================================
-Value               Description
-=================== ===============================================
-``True``            Aggregate (union) `geom`_ to a single geometry.
-``False`` (default) Leave `geom`_ as is.
-=================== ===============================================
+If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be regridded to match the grid provided in the argument’s object. This argument may be one of three types: :class:`~ocgis.RequestDataset`, :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`, or :class:`~ocgis.interface.base.field.Field`.
 
-The purpose of this data manipulation is to ease the method required to aggregate (union) geometries into arbitrary regions. A simple example would be unioning the U.S. state boundaries of Utah, Nevada, Arizona, and New Mexico into a single polygon representing a "Southwestern Region".
+>>> regrid_destination = ocgis.RequestDataset(uri='/path/to/destination.nc')
+
+regrid_options
+~~~~~~~~~~~~~~
+
+A dictionary with regridding options. Please see the documentation for :meth:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
+
+>>> regrid_options = {'with_value': True}
+
+.. _search_radius_mult key:
+
+search_radius_mult
+~~~~~~~~~~~~~~~~~~
+
+This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``2.0``.
+
+select_nearest
+~~~~~~~~~~~~~~
+
+If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
 
 .. _select_ugid:
 
@@ -309,57 +367,31 @@ If the goal is to subset the data by the boundary of "Basin A" and write the res
 >>> rd = ocgis.RequestDataset(uri='/path/to/data.nc',variable='tas')
 >>> path = ocgis.OcgOperations(dataset=rd,geom='basins',select_ugid=[1],output_format='nc').execute()
 
-vector_wrap
-~~~~~~~~~~~
+.. _snippet_headline:
 
-.. note:: Only applicable for WGS84 spatial references.
-
-================= ====================================================================================================
-Value             Description
-================= ====================================================================================================
-`True` (default)  For vector geometry outputs (e.g. `shp`,`keyed`) , ensure output longitudinal domain is -180 to 180.
-`False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
-================= ====================================================================================================
-
-add_auxiliary_files
-~~~~~~~~~~~~~~~~~~~
-
-If ``True``, create a new directory and add metadata and other informational files in addition to the converted file. If ``False``, write the target file only to :attr:`dir_output` and do not create a new directory.
-
-allow_empty
-~~~~~~~~~~~
-
-================= ====================================================================================================
-Value             Description
-================= ====================================================================================================
-`True`            Allow the empty set for geometries not geographically coincident with a source geometry.
-`False` (default) Raise :class:`~ocgis.exc.EmptyDataNotAllowed` if the empty set is encountered.
-================= ====================================================================================================
-
-headers
+snippet
 ~~~~~~~
 
-Useful to limit the number of attributes included in an output file.
+.. note:: The entire spatial domain is returned unless `geom` is specified.
 
->>> headers = ['did','time','value']
+.. note:: Only applies for pure subsetting for limiting computations use `time_range` and/or `time_region`.
 
-interpolate_spatial_bounds
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+====================== ===========================================================================
+Value                  Description
+====================== ===========================================================================
+``True``               Return only the first time point and the first level slice (if applicable).
+``False`` (default)    Return all data.
+====================== ===========================================================================
 
-If ``True``, attempt to interpolate bounds coordinates if they are absent. This will also extrapolate exterior bounds to avoid losing spatial coverage.
+spatial_operation
+~~~~~~~~~~~~~~~~~
 
-callback
-~~~~~~~~
-
-A callback function that may be used for custom messaging. This function integrates with the log handler and will receive messages at or above the :attr:`logging.INFO` level.
-
->>> def callback(percent,message):
->>>     print(percent,message)
-
-conform_units_to
-~~~~~~~~~~~~~~~~
-
-Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
+======================== =============================================================================================================================================
+Value                    Description
+======================== =============================================================================================================================================
+``intersects`` (default) Source geometries touching or overlapping selection geometries are returned (see :ref:`appendix-intersects`).
+``clip``                 A full geometric intersection is performed between source and selection geometries. New geometries may be created. (see :ref:`appendix-clip`)
+======================== =============================================================================================================================================
 
 time_range
 ~~~~~~~~~~
@@ -374,21 +406,17 @@ A dictionary with keys of 'month' and/or 'year' and values as sequences correspo
 >>> time_region = {'month':[6,7],'year':[2010,2011]}
 >>> time_region = {'year':[2010]}
 
-regrid_destination
-~~~~~~~~~~~~~~~~~~
+vector_wrap
+~~~~~~~~~~~
 
-Please see :ref:`esmpy-regridding` for an overview and limitations.
+.. note:: Only applicable for WGS84 spatial references.
 
-If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be regridded to match the grid provided in the argument’s object. This argument may be one of three types: :class:`~ocgis.RequestDataset`, :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`, or :class:`~ocgis.interface.base.field.Field`.
-
->>> regrid_destination = ocgis.RequestDataset(uri='/path/to/destination.nc')
-
-regrid_options
-~~~~~~~~~~~~~~
-
-A dictionary with regridding options. Please see the documentation for :meth:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
-
->>> regrid_options = {'with_value': True}
+================= ====================================================================================================
+Value             Description
+================= ====================================================================================================
+`True` (default)  For vector geometry outputs (e.g. `shp`,`keyed`) , ensure output longitudinal domain is -180 to 180.
+`False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
+================= ====================================================================================================
 
 :class:`ocgis.ShpCabinet`
 =========================

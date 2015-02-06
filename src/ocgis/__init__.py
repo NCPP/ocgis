@@ -1,7 +1,6 @@
 from osgeo import ogr, osr
 
 from ocgis.util.environment import env
-
 from ocgis.api.collection import SpatialCollection
 from ocgis.api.operations import OcgOperations
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
@@ -19,8 +18,8 @@ from ocgis.interface.base.variable import Variable
 from ocgis.interface.base.dimension.base import VectorDimension
 
 
-__version__ = '1.0.1'
-__release__ = '1.0.1-next'
+__version__ = '1.1.0'
+__release__ = '1.1.0'
 
 
 # tell ogr/osr to raise exceptions

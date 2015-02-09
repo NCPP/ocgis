@@ -1,17 +1,18 @@
 import numpy as np
+from collections import OrderedDict, defaultdict
+import calendar
+
 from ocgis.calc.base import AbstractParameterizedFunction, AbstractUnivariateSetFunction
 from ocgis import constants
-from collections import OrderedDict, defaultdict
 from datetime import datetime
-import calendar
 
 
 class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, AbstractParameterizedFunction):
     key = 'dynamic_kernel_percentile_threshold'
     parms_definition = {'operation': str, 'percentile': float, 'daily_percentile': None, 'width': int}
-    dtype = constants.np_int
+    dtype = constants.NP_INT
     description = 'Implementation of moving window percentile threshold calculations similar to ECA indices: http://eca.knmi.nl/documents/atbd.pdf'
-    standard_name = 'dynamice_kernel_percentile'
+    standard_name = 'dynamic_kernel_percentile'
     long_name = 'Dynamic Kernel Percentile'
 
     def __init__(self, *args, **kwargs):
@@ -75,7 +76,7 @@ class DynamicDailyKernelPercentileThreshold(AbstractUnivariateSetFunction, Abstr
     def get_daily_percentile(arr, dt_arr, percentile, window_width, only_leap_years=False):
         """
         Creates a dictionary with keys=calendar day (month,day) and values=numpy.ndarray (2D)
-        Example - to get the 2D percentile array corresponding to the 15th Mai: percentile_dict[5,15]
+        Example - to get the 2D percentile array corresponding to the 15th May: percentile_dict[5,15]
 
         :param arr: array of values
         :type arr: :class:`numpy.ndarray` (3D) of float

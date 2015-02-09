@@ -89,21 +89,21 @@ Now, the directory structure for `/tmp/foo` will look like:
    /tmp/foo/nc_output/nc_output_did.csv
    /tmp/foo/nc_output/nc_output.nc
    /tmp/foo/nc_output/nc_output_meta.txt
-   /tmp/foo/csv+_output
-   /tmp/foo/csv+_output/csv+_output_meta.txt
-   /tmp/foo/csv+_output/csv+_output_did.csv
-   /tmp/foo/csv+_output/csv+_output.csv
-   /tmp/foo/csv+_output/shp
-   /tmp/foo/csv+_output/shp/csv+_output_gid.csv
-   /tmp/foo/csv+_output/shp/csv+_output_gid.shp
-   /tmp/foo/csv+_output/shp/csv+_output_ugid.prj
-   /tmp/foo/csv+_output/shp/csv+_output_gid.dbf
-   /tmp/foo/csv+_output/shp/csv+_output_ugid.shp
-   /tmp/foo/csv+_output/shp/csv+_output_gid.prj
-   /tmp/foo/csv+_output/shp/csv+_output_ugid.shx
-   /tmp/foo/csv+_output/shp/csv+_output_gid.shx
-   /tmp/foo/csv+_output/shp/csv+_output_ugid.csv
-   /tmp/foo/csv+_output/shp/csv+_output_ugid.dbf
+   /tmp/foo/csv-shp_output
+   /tmp/foo/csv-shp_output/csv-shp_output_meta.txt
+   /tmp/foo/csv-shp_output/csv-shp_output_did.csv
+   /tmp/foo/csv-shp_output/csv-shp_output.csv
+   /tmp/foo/csv-shp_output/shp
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_gid.csv
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_gid.shp
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_ugid.prj
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_gid.dbf
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_ugid.shp
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_gid.prj
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_ugid.shx
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_gid.shx
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_ugid.csv
+   /tmp/foo/csv-shp_output/shp/csv-shp_output_ugid.dbf
    /tmp/foo/shp_output
    /tmp/foo/shp_output/shp_output_ugid.shx
    /tmp/foo/shp_output/shp_output_ugid.prj
@@ -154,3 +154,10 @@ Regridding
 ----------
 
 .. literalinclude:: sphinx_examples/regridding.py
+
+.. _2d-flexible-mesh-example-label:
+
+Converting an ESRI Shapefile to UGRID
+-------------------------------------
+
+.. literalinclude:: sphinx_examples/to_ugrid_2d_flexible_mesh.py

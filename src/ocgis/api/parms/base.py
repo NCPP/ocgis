@@ -88,14 +88,18 @@ class OcgParameter(object):
         pass
         
     def get_meta(self):
-        ''':rtype: list of strings'''
+        """
+        :returns: A list of strings without a new line return.
+        :rtype: list of str
+        """
+
         subrows = self._get_meta_()
-        if isinstance(subrows,basestring):
+        if isinstance(subrows, basestring):
             subrows = [subrows]
         rows = ['* '+str(self)]
         rows.extend(subrows)
         rows.append('')
-        return(rows)
+        return rows
 
     @classmethod
     def iter_possible(cls):

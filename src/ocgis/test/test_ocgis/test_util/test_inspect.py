@@ -5,8 +5,9 @@ import unittest
 import ocgis
 from ocgis.exc import RequestValidationError
 from ocgis.interface.metadata import NcMetadata
+from ocgis.test.base import nc_scope
 from ocgis.test.test_simple.make_test_data import SimpleNc
-from ocgis.test.test_simple.test_simple import nc_scope, TestSimpleBase
+from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis import Inspect, RequestDataset
 import numpy as np
 from ocgis.util.itester import itr_products_keywords
@@ -52,7 +53,7 @@ class TestInspect(TestSimpleBase):
         """Test that the empty string is correctly interpreted as None."""
 
         # path to the test data file
-        out_nc = os.path.join(self._test_dir, self.fn)
+        out_nc = os.path.join(self.current_dir_output, self.fn)
 
         ## case of calendar being set to an empty string
         with nc_scope(out_nc, 'a') as ds:
@@ -66,7 +67,7 @@ class TestInspect(TestSimpleBase):
         """Test a calendar attribute with an unknown calendar attribute."""
 
         # path to the test data file
-        out_nc = os.path.join(self._test_dir, self.fn)
+        out_nc = os.path.join(self.current_dir_output, self.fn)
 
         ## case of a calendar being set a bad value but read anyway
         with nc_scope(out_nc, 'a') as ds:

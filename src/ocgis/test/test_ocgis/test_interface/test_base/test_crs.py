@@ -1,18 +1,20 @@
-import unittest
-import itertools
+import os
+from copy import deepcopy
+import netCDF4 as nc
+import numpy as np
+
 from shapely.geometry import Point, MultiPoint
+from shapely.geometry.multipolygon import MultiPolygon
+
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
-    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem
+    CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem, \
+    CFCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
-from ocgis.exc import SpatialWrappingError, CornersUnavailable
-from ocgis.test.base import TestBase
-import numpy as np
-from copy import deepcopy
-from shapely.geometry.multipolygon import MultiPolygon
-from ocgis.util.helpers import get_temp_path, write_geom_dict, make_poly
-import netCDF4 as nc
+from ocgis.exc import SpatialWrappingError
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.util.helpers import make_poly
 from ocgis.interface.metadata import NcMetadata
 import ocgis
 from ocgis.util.itester import itr_products_keywords
@@ -41,6 +43,12 @@ class TestCoordinateReferenceSystem(TestBase):
                 self.assertEqual(crs, prev_crs)
             prev_crs = deepcopy(crs)
 
+        # test with a name parameter
+        crs = CoordinateReferenceSystem(epsg=4326)
+        self.assertEqual(crs.name, constants.DEFAULT_COORDINATE_SYSTEM_NAME)
+        crs = CoordinateReferenceSystem(epsg=4326, name='foo')
+        self.assertEqual(crs.name, 'foo')
+
     def test_ne(self):
         crs1 = CoordinateReferenceSystem(epsg=4326)
         crs2 = CoordinateReferenceSystem(epsg=2136)
@@ -54,6 +62,149 @@ class TestCoordinateReferenceSystem(TestBase):
         self.assertNotEqual(None, crs1)
         self.assertNotEqual('input', crs1)
 
+    def test_write_to_rootgrp(self):
+        crs = CoordinateReferenceSystem(epsg=4326, name='hello_world')
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            variable = crs.write_to_rootgrp(ds)
+            self.assertIsInstance(variable, nc.Variable)
+            with self.assertRaises(AttributeError):
+                variable.proj4
+
+
+class TestWrappableCoordinateSystem(TestBase):
+    create_dir = False
+
+    def test_get_wrap_action(self):
+        _w = WrappableCoordinateReferenceSystem
+        possible = [_w._flag_wrapped, _w._flag_unwrapped, _w._flag_unknown, 'foo']
+        keywords = dict(state_src=possible,
+                        state_dst=possible)
+        for k in itr_products_keywords(keywords, as_namedtuple=True):
+            try:
+                ret = _w.get_wrap_action(k.state_src, k.state_dst)
+            except ValueError:
+                self.assertTrue(k.state_src == 'foo' or k.state_dst == 'foo')
+                continue
+            if k.state_dst == _w._flag_unknown:
+                self.assertIsNone(ret)
+            elif k.state_src == _w._flag_unwrapped and k.state_dst == _w._flag_wrapped:
+                self.assertEqual(ret, _w._flag_action_wrap)
+            elif k.state_src == _w._flag_wrapped and k.state_dst == _w._flag_unwrapped:
+                self.assertEqual(ret, _w._flag_action_unwrap)
+            else:
+                self.assertIsNone(ret)
+
+    def test_get_wrapped_state(self):
+        refv = WrappableCoordinateReferenceSystem
+        refm = refv.get_wrapped_state
+
+        ## test grid ##
+
+        row = VectorDimension(value=[50, 60])
+
+        col = VectorDimension(value=[0, 90, 180])
+        grid = SpatialGridDimension(row=row, col=col)
+        sdim = SpatialDimension(grid=grid)
+        self.assertEqual(refm(sdim), refv._flag_unknown)
+
+        col = VectorDimension(value=[-170, 0, 30])
+        grid = SpatialGridDimension(row=row, col=col)
+        sdim = SpatialDimension(grid=grid)
+        self.assertEqual(refm(sdim), refv._flag_wrapped)
+
+        col = VectorDimension(value=[0, 90, 180, 270])
+        grid = SpatialGridDimension(row=row, col=col)
+        sdim = SpatialDimension(grid=grid)
+        self.assertEqual(refm(sdim), refv._flag_unwrapped)
+
+        ## test geom ##
+
+        for with_polygon in [True, False]:
+            row = VectorDimension(value=[50, 60])
+            col = VectorDimension(value=[155, 165, 175])
+            if with_polygon:
+                row.set_extrapolated_bounds()
+                col.set_extrapolated_bounds()
+            grid = SpatialGridDimension(row=row, col=col)
+            sdim = SpatialDimension(grid=grid)
+            sdim.grid = None
+            self.assertEqual(refm(sdim), refv._flag_unknown)
+
+            row = VectorDimension(value=[50, 60])
+            col = VectorDimension(value=[160, 170, 180])
+            if with_polygon:
+                row.set_extrapolated_bounds()
+                col.set_extrapolated_bounds()
+            grid = SpatialGridDimension(row=row, col=col)
+            sdim = SpatialDimension(grid=grid)
+            sdim.grid = None
+            if with_polygon:
+                actual = refv._flag_unwrapped
+            else:
+                actual = refv._flag_unknown
+            self.assertEqual(refm(sdim), actual)
+
+            row = VectorDimension(value=[50, 60])
+            col = VectorDimension(value=[-160, -150, -140])
+            if with_polygon:
+                row.set_extrapolated_bounds()
+                col.set_extrapolated_bounds()
+            grid = SpatialGridDimension(row=row, col=col)
+            sdim = SpatialDimension(grid=grid)
+            sdim.grid = None
+            self.assertEqual(refm(sdim), refv._flag_wrapped)
+
+    def test_get_wrapped_state_from_array(self):
+
+        def _run_(arr, actual_wrapped_state):
+            ret = WrappableCoordinateReferenceSystem._get_wrapped_state_from_array_(arr)
+            self.assertEqual(ret, actual_wrapped_state)
+
+        arr = np.array([-170])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+
+        arr = np.array([270])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unwrapped)
+
+        arr = np.array([30])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+
+        arr = np.array([-180, 0, 30])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+
+        arr = np.array([0])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+
+        arr = np.array([0, 30, 50])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+
+        arr = np.array([0, 30, 50, 181])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unwrapped)
+
+        arr = np.array([0, 30, 50, 180])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+
+        arr = np.array([-180])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+
+        arr = np.array([-180, 0, 50])
+        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+
+    def test_get_wrapped_state_from_geometry(self):
+        geoms = [Point(-130, 40),
+                 MultiPoint([Point(-130, 40), Point(30, 50)]),
+                 make_poly((30, 40), (-130, -120)),
+                 MultiPolygon([make_poly((30, 40), (-130, -120)), make_poly((30, 40), (130, 160))])]
+
+        for geom in geoms:
+            ret = WrappableCoordinateReferenceSystem._get_wrapped_state_from_geometry_(geom)
+            self.assertEqual(ret, WrappableCoordinateReferenceSystem._flag_wrapped)
+
+        pt = Point(270, 50)
+        ret = WrappableCoordinateReferenceSystem._get_wrapped_state_from_geometry_(pt)
+        self.assertEqual(ret, WrappableCoordinateReferenceSystem._flag_unwrapped)
+
 
 class TestSpherical(TestBase):
 
@@ -65,34 +216,13 @@ class TestSpherical(TestBase):
         crs = Spherical(semi_major_axis=6370998.1)
         self.assertDictEqual(crs.value, {'a': 6370998.1, 'no_defs': True, 'b': 6370998.1, 'proj': 'longlat',
                                          'towgs84': '0,0,0,0,0,0,0'})
-
-    def test_get_is_360_geometries(self):
-        bounds = (5.869442939758301, 47.28110122680663, 15.038049697875975, 54.91740036010742)
-        poly = make_poly((bounds[1], bounds[3]), (bounds[0], bounds[2]))
-        record_poly = {'geom': poly, 'properties': {'UGID': 1}}
-        record_point = {'geom': poly.centroid, 'properties': {'UGID': 1}}
-        for record in [record_poly, record_point]:
-            sdim = SpatialDimension.from_records([record])
-            self.assertFalse(Spherical.get_is_360(sdim))
-
-    def test_get_is_360_grid(self):
-        # perform test with small grid falling between 0 and 180.
-        row = VectorDimension(value=[0, 40])
-        col = VectorDimension(value=[0, 170])
-        grid = SpatialGridDimension(row=row, col=col)
-        sdim = SpatialDimension(grid=grid)
-        # no crs for the spatial dimension, hence wrapping will fail.
-        with self.assertRaises(SpatialWrappingError):
-            self.assertIsNone(sdim.crs)
-            Spherical.get_is_360(sdim)
-        sdim.crs = Spherical()
-        self.assertFalse(Spherical.get_is_360(sdim))
+        self.assertEqual(crs.name, 'latitude_longitude')
 
     def test_place_prime_meridian_array(self):
         arr = np.array([123, 180, 200, 180], dtype=float)
         ret = Spherical._place_prime_meridian_array_(arr)
         self.assertNumpyAll(ret, np.array([False, True, False, True]))
-        self.assertNumpyAll(arr, np.array([123., constants.prime_meridian, 200., constants.prime_meridian]))
+        self.assertNumpyAll(arr, np.array([123., constants.MERIDIAN_180TH, 200., constants.MERIDIAN_180TH]))
 
     def test_wrap_unwrap_with_mask(self):
         """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""
@@ -116,11 +246,9 @@ class TestSpherical(TestBase):
         grid = SpatialGridDimension(row=row, col=col)
         self.assertEqual(grid.resolution, 3.0)
         sdim = SpatialDimension(grid=grid, crs=Spherical())
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
         with self.assertRaises(SpatialWrappingError):
             sdim.crs.wrap(sdim)
-        sdim.crs.unwrap(sdim)
-        self.assertNotEqual(sdim.grid, None)
-        self.assertNumpyAll(sdim.grid.value, np.ma.array(data=[[[40.0]], [[0.0]]], mask=[[[False]], [[False]]], ))
     
     def test_wrap_360(self):
         """Test wrapping."""
@@ -161,30 +289,22 @@ class TestSpherical(TestBase):
 
         # bounds values at the prime meridian of 180.
         orig, sdim = _get_sdim_(178, [176, 180.])
-        # data does not have a verified 360 coordinate system
-        with self.assertRaises(SpatialWrappingError):
-            sdim.wrap()
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
 
         # bounds values on the other side of the prime meridian
         orig, sdim = _get_sdim_(182, [180, 184])
         sdim.wrap()
         self.assertIsNone(sdim.grid.col.bounds)
         self.assertIsNone(sdim.grid.row.bounds)
-        with self.assertRaises(CornersUnavailable):
-            sdim.grid.corners
+        self.assertIsNone(sdim.grid.corners)
         self.assertEqual(sdim.geom.polygon.value[0, 0][0].bounds, (-180.0, 38.0, -176.0, 42.0))
         self.assertNumpyAll(np.array(sdim.geom.point.value[0, 0]), np.array([-178., 40.]))
 
         # centroid directly on prime meridian
         orig, sdim = _get_sdim_(180, [178, 182])
-        sdim.wrap()
-        self.assertIsNone(sdim.grid.col.bounds)
-        self.assertIsNone(sdim.grid.row.bounds)
-        with self.assertRaises(CornersUnavailable):
-            sdim.grid.corners
-        self.assertEqual(sdim.geom.polygon.value[0, 0][0].bounds, (178.0, 38.0, 180.0, 42.0))
-        self.assertEqual(sdim.geom.polygon.value[0, 0][1].bounds, (-180.0, 38.0, -178.0, 42.0))
-        self.assertNumpyAll(np.array(sdim.geom.point.value[0, 0]), np.array([180., 40.]))
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
+        with self.assertRaises(SpatialWrappingError):
+            sdim.wrap()
 
         # no row/column bounds but with corners
         orig, sdim = _get_sdim_([182, 186], [[180, 184], [184, 188]])
@@ -194,24 +314,20 @@ class TestSpherical(TestBase):
         sdim.grid.col.bounds
         sdim.grid.col.bounds = None
         sdim.wrap()
-        with self.assertRaises(CornersUnavailable):
-            sdim.grid.corners
+        self.assertIsNone(sdim.grid.corners)
 
         # unwrap a wrapped spatial dimension making sure the unwrapped multipolygon bounds are the same as the wrapped
         # polygon bounds.
         row = VectorDimension(value=40, bounds=[38, 42])
-        col = VectorDimension(value=180, bounds=[179, 181])
+        col = VectorDimension(value=185, bounds=[184, 186])
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid, crs=Spherical())
         orig_sdim = deepcopy(sdim)
+        self.assertEqual(orig_sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
         sdim.crs.wrap(sdim)
-        self.assertIsInstance(sdim.geom.polygon.value[0, 0], MultiPolygon)
+        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
         sdim.crs.unwrap(sdim)
         self.assertEqual(orig_sdim.geom.polygon.value[0, 0].bounds, sdim.geom.polygon.value[0, 0].bounds)
-
-        # for target in ['point', 'polygon']:
-        #     path = get_temp_path(name=target, suffix='.shp', wd=self._test_dir)
-        #     sdim.write_fiona(path, target)
             
 
 class TestWGS84(TestBase):
@@ -220,6 +336,16 @@ class TestWGS84(TestBase):
         self.assertEqual(WGS84(), CoordinateReferenceSystem(epsg=4326))
         self.assertIsInstance(WGS84(), WrappableCoordinateReferenceSystem)
         self.assertNotIsInstance(WGS84(), Spherical)
+        self.assertEqual(WGS84().name, 'latitude_longitude')
+
+
+class TestCFWGS84(TestBase):
+
+    def test_init(self):
+        crs = CFWGS84()
+        self.assertEqual(crs.map_parameters_values, {})
+        self.assertIsInstance(crs, WGS84)
+        self.assertIsInstance(crs, CFCoordinateReferenceSystem)
 
 
 class TestCFAlbersEqualArea(TestBase):
@@ -248,33 +374,48 @@ class TestCFLambertConformalConic(TestBase):
         ds = nc.Dataset(uri,'r')
         meta = NcMetadata(ds)
         crs = CFLambertConformal.load_from_metadata('pr',meta)
+        self.assertEqual(crs.name, 'Lambert_Conformal')
         self.assertEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
         self.assertIsInstance(crs,CFLambertConformal)
         self.assertEqual(['xc','yc'],[crs.projection_x_coordinate,crs.projection_y_coordinate])
         self.assertNumpyAll(np.array([ 30.,  60.]),crs.map_parameters_values.pop('standard_parallel'))
         self.assertEqual(crs.map_parameters_values,{u'latitude_of_projection_origin': 47.5, u'longitude_of_central_meridian': -97.0, u'false_easting': 3325000.0, u'false_northing': 2700000.0, 'units': u'm'})
         ds.close()
-        
+
+    def test_write_to_rootgrp(self):
+        uri = self.test_data.get_uri('narccap_wrfg')
+        ds = nc.Dataset(uri,'r')
+        meta = NcMetadata(ds)
+        ds.close()
+        crs = CFLambertConformal.load_from_metadata('pr',meta)
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with nc_scope(path, 'w') as ds:
+            variable = crs.write_to_rootgrp(ds)
+            self.assertEqual(variable.grid_mapping_name, crs.grid_mapping_name)
+            for k, v in crs.map_parameters_values.iteritems():
+                variable_v = variable.__dict__[k]
+                try:
+                    self.assertEqual(variable_v, v)
+                except ValueError:
+                    self.assertNumpyAll(variable_v, v)
+
+        with nc_scope(path) as ds:
+            meta2 = NcMetadata(ds)
+        meta['variables']['Lambert_Conformal'] = meta2['variables']['Lambert_Conformal']
+        crs2 = CFLambertConformal.load_from_metadata('pr', meta)
+        self.assertEqual(crs, crs2)
+
+        path2 = os.path.join(self.current_dir_output, 'foo2.nc')
+        with nc_scope(path2, 'w') as ds:
+            crs2.write_to_rootgrp(ds)
+
         
 class TestCFRotatedPole(TestBase):
-
-    def test_load_from_metadata(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
 
     def test_equal(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         self.assertEqual(rd.get().spatial.crs, rd2.get().spatial.crs)
-
-    def test_in_operations(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        rd2 = deepcopy(rd)
-        rd2.alias = 'tas2'
-        # # these projections are equivalent so it is okay to write them to a
-        ## common output file
-        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
-        ops.execute()
 
     def test_get_rotated_pole_transformation(self):
         """Test SpatialDimension objects are appropriately transformed."""
@@ -290,9 +431,10 @@ class TestCFRotatedPole(TestBase):
         spatial.grid.uid.mask[5, 6] = True
         spatial.assert_uniform_mask()
 
-        self.assertIsNone(spatial._geom)
+        self.assertIsNone(spatial._geom._polygon)
+        self.assertIsNone(spatial._geom._point)
         spatial.geom
-        self.assertIsNotNone(spatial._geom)
+        self.assertIsNotNone(spatial._geom.point)
         new_spatial = field.spatial.crs.get_rotated_pole_transformation(spatial)
         original_crs = deepcopy(field.spatial.crs)
         self.assertIsInstance(new_spatial.crs, CFWGS84)
@@ -312,6 +454,10 @@ class TestCFRotatedPole(TestBase):
         self.assertNumpyAll(field.variables['tas'].value, field_copy.variables['tas'].value)
 
         inverse_spatial = original_crs.get_rotated_pole_transformation(new_spatial, inverse=True)
+        for attr in ['row', 'col']:
+            target = getattr(inverse_spatial.grid, attr)
+            target_actual = getattr(spatial.grid, attr)
+            self.assertDictEqual(target.attrs, target_actual.attrs)
         inverse_spatial.assert_uniform_mask()
 
         self.assertNumpyAll(inverse_spatial.uid, spatial.uid)
@@ -321,8 +467,25 @@ class TestCFRotatedPole(TestBase):
         self.assertEqual(spatial.grid.row.name, inverse_spatial.grid.row.name)
         self.assertDictEqual(spatial.grid.col.meta, inverse_spatial.grid.col.meta)
         self.assertEqual(spatial.grid.col.name, inverse_spatial.grid.col.name)
-        
 
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+    def test_in_operations(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd2 = deepcopy(rd)
+        rd2.alias = 'tas2'
+        # these projections are equivalent so it is okay to write them to a common output file
+        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
+        ops.execute()
+
+    def test_load_from_metadata(self):
+        rd = self.test_data.get_rd('rotated_pole_ichec')
+        self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
+
+    def test_write_to_rootgrp(self):
+        rd = self.test_data.get_rd('narccap_rotated_pole')
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+
+        with nc_scope(path, 'w') as ds:
+            variable = rd.crs.write_to_rootgrp(ds)
+            self.assertIsInstance(variable, nc.Variable)
+            self.assertEqual(variable.proj4, '')
+            self.assertEqual(variable.proj4_transform, rd.crs._trans_proj)

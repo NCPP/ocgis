@@ -8,6 +8,30 @@ class OcgException(Exception):
         return self.message
 
 
+########################################################################################################################
+
+
+class BoundsAlreadyAvailableError(OcgException):
+    """Raised when an attempt is made to extrapolate bounds and they are already present."""
+
+    def __str__(self):
+        msg = 'Bounds/corners already available.'
+        return msg
+
+
+class CannotFormatTimeError(OcgException):
+    """
+    Raised when datetime objects from numeric are blocked by "format_time".
+    """
+
+    def __init__(self, property_name):
+        self.property_name = property_name
+
+    def __str__(self):
+        msg = 'Attempted to retrieve datetime values from "{0}" with "format_time" as "False". Set "format_time" to "True".'.format(self.property_name)
+        return msg
+
+
 class MultipleElementsFound(OcgException):
     """
     Raised when multiple elements are encountered in a :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
@@ -23,6 +47,18 @@ class MultipleElementsFound(OcgException):
     def __str__(self):
         msg = 'Shape of the spatial dimension object is: {0}'.format(self.sdim.shape)
         return msg
+
+
+class ShapeError(OcgException):
+    """
+    Raised when an array has an incompatible shape with an operation.
+    """
+
+
+class SingleElementError(ShapeError):
+    """
+    Raised when an operation requires more than a single element.
+    """
 
 
 class CalculationException(OcgException):
@@ -86,7 +122,6 @@ class DimensionNotFound(CFException):
         return msg
 
 
-
 class DefinitionValidationError(OcgException):
     """Raised when validation fails on :class:`~ocgis.OcgOperations`.
     
@@ -147,10 +182,6 @@ class OcgisEnvironmentError(OcgException):
 
 class SpatialWrappingError(OcgException):
     """Raised for errors related to wrapping or unwrapping a geographic coordinate system."""
-    pass
-
-
-class ImproperPolygonBoundsError(OcgException):
     pass
 
 
@@ -270,9 +301,3 @@ class RequestValidationError(OcgException):
         message = 'Validation failed on the keyword parameter "{0}" with the message: {1}'.format(self.keyword,
                                                                                                   self.message)
         return message
-
-
-class CornersUnavailable(OcgException):
-    """Raised when grid corners may not be constructed."""
-
-    pass

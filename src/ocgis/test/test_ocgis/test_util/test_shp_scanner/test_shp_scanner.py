@@ -53,7 +53,7 @@ class Test(TestBase):
         from ocgis.util.shp_scanner.labels import StateBoundaries
         keys = {'state_boundaries':['US State Boundaries',StateBoundaries]}
         build_database(keys=keys,filter_request_dataset=self.get_subset_rd())
-        handle,path = tempfile.mkstemp(suffix='.json',dir=self._test_dir)
+        handle,path = tempfile.mkstemp(suffix='.json',dir=self.current_dir_output)
         write_json(path)
         with open(path,'r') as fp:
             data = json.load(fp)

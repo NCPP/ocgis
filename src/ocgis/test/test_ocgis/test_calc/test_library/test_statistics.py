@@ -4,12 +4,60 @@ import itertools
 import numpy as np
 from cfunits.cfunits import Units
 from ocgis.api.parms.definition import Calc
-from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow
+from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
 from ocgis.interface.base.variable import DerivedVariable, Variable
+from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-from ocgis.test.test_simple.test_simple import nc_scope
 import ocgis
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.large_array import compute
+
+
+class TestDailyPercentile(AbstractTestField):
+
+    def test_calculate(self):
+        field = self.get_field(with_value=True, month_count=2)
+        field = field[0, :, 0, :, :]
+        # field = self.test_data.get_rd('cancm4_tas').get()
+        tgd = field.temporal.get_grouping(['month', 'day'])
+        parms = {'percentile': 90, 'window_width': 5}
+        dp = DailyPercentile(field=field, tgd=tgd, parms=parms)
+        vc = dp.execute()
+        self.assertAlmostEqual(vc['daily_perc'].value.mean(), 0.76756388346354165)
+
+    def test_operations(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        kwds = {'percentile': 90, 'window_width': 5}
+        calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
+        for output_format in ['numpy', 'nc']:
+            ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
+                                      output_format=output_format, time_region={'year': [2002, 2003]})
+            ret = ops.execute()
+            if output_format == 'numpy':
+                self.assertEqual(ret[23]['tas'].variables['dp'].value.mask.sum(), 730)
+
+    def test_compute(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        kwds = {'percentile': 90, 'window_width': 5}
+        calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
+        ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
+                                  output_format='nc', time_region={'year': [2002, 2003]})
+        ret = compute(ops, 2, verbose=False)
+        rd = ocgis.RequestDataset(uri=ret)
+        self.assertEqual(rd.get().shape, (1, 365, 1, 4, 3))
+
+    def test_get_daily_percentile_from_request_dataset(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        kwds = {'percentile': 90, 'window_width': 5}
+        calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
+        ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
+                                  output_format='nc', time_region={'year': [2002, 2003]})
+        ret = ops.execute()
+        new_rd = ocgis.RequestDataset(ret)
+        for alias in [None, 'dp']:
+            dp = DailyPercentile.get_daily_percentile_from_request_dataset(new_rd, alias=alias)
+            self.assertEqual(len(dp.keys()), 365)
+            self.assertAlmostEqual(dp[(4, 15)].mean(), 280.73696289062502)
 
 
 class TestMovingWindow(AbstractTestField):
@@ -28,7 +76,6 @@ class TestMovingWindow(AbstractTestField):
         self.assertEqual(ret[4], np.mean(values[2:7]))
 
     def test_execute(self):
-        #todo: add to docs
         field = self.get_field(month_count=1, with_value=True)
         field = field[:, 0:4, :, :, :]
         field.variables['tmax'].value[:] = 1

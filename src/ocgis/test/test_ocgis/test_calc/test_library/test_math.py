@@ -131,7 +131,7 @@ class Test(AbstractTestField):
         ret = dv.execute()
         self.assertEqual(ret['threshold'].value.shape,(2,2,2,3,4))
         self.assertNumpyAllClose(ret['threshold'].value[1,1,1,0,:],
-         np.ma.array([13,16,15,12],mask=False,fill_value=1e20))
+        np.ma.array([13,16,15,12],mask=False))
 
 
 class TestSum(AbstractTestField):
@@ -186,7 +186,6 @@ class TestConvolve1D(AbstractTestField):
     def test_execute_valid(self):
         """Test convolution with the 'valid' mode."""
 
-        #todo: add to docs
         field = self.get_convolve1d_field(slice_stop=4)
         parms = {'v': np.array([1, 1, 1]), 'mode': 'valid'}
         cd = Convolve1D(field=field, parms=parms)

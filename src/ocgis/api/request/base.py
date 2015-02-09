@@ -1,8 +1,13 @@
+from collections import OrderedDict
 from copy import deepcopy
 import inspect
 import logging
 import os
 import itertools
+import re
+
+from ocgis.api.request.driver.vector import DriverVector
+from ocgis.interface.base.field import Field
 from ocgis.api.collection import AbstractCollection
 from ocgis.api.request.driver.nc import DriverNetcdf
 from ocgis.exc import RequestValidationError, NoUnitsError
@@ -13,6 +18,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class RequestDataset(object):
+    #todo: document vector format
     """
     A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.
@@ -72,6 +78,11 @@ class RequestDataset(object):
     :type t_units: str
     :param t_calendar: Overload the autodiscover `time calendar`_.
     :type t_calendar: str
+    :param str t_conform_units_to: Conform the time dimension to the provided units. The calendar may not be changed.
+     The option dependency ``cfunits-python`` is required.
+
+    >>> t_conform_units_to = 'days since 1949-1-1'
+
     :param s_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is not
      possible due to missing bounds, ``'point'`` will be used instead.
     :type s_abstraction: str
@@ -89,7 +100,15 @@ class RequestDataset(object):
     :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module
      must be installed.
     :type conform_units_to: str or :class:`cfunits.Units` or sequence
-    :param str driver: Only valid for ``'netCDF'``. Additional drivers may be added in the future.
+    :param str driver: If ``None``, autodiscover the appropriate driver. Other accepted values are listed below.
+
+    ============ ================= =============================================
+    Value        File Extension(s) Description
+    ============ ================= =============================================
+    ``'netCDF'`` ``'nc'``          A netCDF file using a CF metadata convention.
+    ``'vector'`` ``'shp'``         An ESRI Shapefile.
+    ============ ================= =============================================
+
     :param str name: Name of the requested data in the output collection. If ``None``, defaults to ``alias``. If this is
      a multivariate request (i.e. more than one variable) and this is ``None``, then the aliases will be joined by
      ``'_'`` to create the name.
@@ -102,12 +121,16 @@ class RequestDataset(object):
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     """
-    _Drivers = {d.key: d for d in [DriverNetcdf]}
+
+    # contains key-value links to drivers. as new drivers are added, this dictionary must be updated.
+    _Drivers = OrderedDict()
+    _Drivers[DriverNetcdf.key] = DriverNetcdf
+    _Drivers[DriverVector.key] = DriverVector
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
-                 level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None, did=None,
-                 meta=None, s_abstraction=None, dimension_map=None, name=None, driver='netCDF', regrid_source=True,
-                 regrid_destination=False):
+                 level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None,
+                 t_conform_units_to=None, did=None, meta=None, s_abstraction=None, dimension_map=None, name=None,
+                 driver=None, regrid_source=True, regrid_destination=False):
 
         self._is_init = True
 
@@ -120,10 +143,14 @@ class RequestDataset(object):
         else:
             self._uri = self._get_uri_(uri)
 
-        try:
-            self.driver = self._Drivers[driver](self)
-        except KeyError:
-            raise RequestValidationError('driver', 'Driver not found: {0}'.format(driver))
+        if driver is None:
+            klass = self._get_autodiscovered_driver_(self.uri)
+        else:
+            try:
+                klass = self._Drivers[driver]
+            except KeyError:
+                raise RequestValidationError('driver', 'Driver not found: {0}'.format(driver))
+        self.driver = klass(self)
 
         self.variable = variable
 
@@ -137,6 +164,8 @@ class RequestDataset(object):
 
         self.t_units = t_units
         self.t_calendar = t_calendar
+        self.t_conform_units_to = t_conform_units_to
+
         self.dimension_map = deepcopy(dimension_map)
         self.did = did
         self.meta = meta or {}
@@ -246,7 +275,7 @@ class RequestDataset(object):
 
     @property
     def name(self):
-        if self._name is None:
+        if self._name is None and self.alias is not None:
             ret = '_'.join(self._alias)
         else:
             ret = self._name
@@ -339,11 +368,11 @@ class RequestDataset(object):
         return self.driver.get_field(**kwargs)
 
     def inspect(self):
-        '''Print inspection output using :class:`~ocgis.Inspect`. This is a
-        convenience method.'''
-        from ocgis import Inspect
-        ip = Inspect(request_dataset=self)
-        return ip
+        """
+        Print a string containing important information about the source driver.
+        """
+
+        return self.driver.inspect()
 
     def inspect_as_dct(self):
         '''
@@ -365,6 +394,24 @@ class RequestDataset(object):
         ip = Inspect(request_dataset=self)
         ret = ip._as_dct_()
         return ret
+
+    @classmethod
+    def _get_autodiscovered_driver_(cls, uri):
+        """
+        :param str uri: The target URI containing data for which to choose a driver.
+        :returns: The correct driver for opening the ``uri``.
+        :rtype: :class:`ocgis.api.request.driver.base.AbstractDriver`
+        :raises: RequestValidationError
+        """
+
+        for element in get_iter(uri):
+            for driver in cls._Drivers.itervalues():
+                for pattern in driver.extensions:
+                    if re.match(pattern, element) is not None:
+                        return driver
+
+        msg = 'Driver not found for URI: {0}'.format(uri)
+        raise RequestValidationError('driver/uri', msg)
 
     def _get_meta_rows_(self):
         if self.time_range is None:
@@ -434,8 +481,9 @@ class RequestDataset(object):
 
 
 class RequestDatasetCollection(AbstractCollection):
-    '''A set of :class:`ocgis.RequestDataset` objects.
-    
+    """
+    A set of :class:`ocgis.RequestDataset` and/or :class:`~ocgis.Field` objects.
+
     >>> from ocgis import RequestDatasetCollection, RequestDataset
     >>> uris = ['http://some.opendap.dataset1', 'http://some.opendap.dataset2']
     >>> variables = ['tasmax', 'tasmin']
@@ -446,67 +494,115 @@ class RequestDatasetCollection(AbstractCollection):
     >>> rdc = RequestDatasetCollection()
     >>> for rd in request_datasets:
     ...     rdc.update(rd)
-    
-    :param request_datasets: A sequence of :class:`ocgis.RequestDataset` objects.
-    :type request_datasets: sequence of :class:`ocgis.RequestDataset` objects
-    '''
-    
-    def __init__(self, request_datasets=None):
+
+    :param target: A sequence of request dataset or field objects.
+    :type target: sequence[:class:`~ocgis.RequestDataset` and/or :class:`~ocgis.Field` objects, ...]
+    """
+
+    def __init__(self, target=None):
         super(RequestDatasetCollection, self).__init__()
 
-        self._did = []
+        self._unique_id_store = []
 
-        if request_datasets is not None:
-            for rd in get_iter(request_datasets, dtype=(dict, RequestDataset)):
-                self.update(rd)
+        if target is not None:
+            for element in get_iter(target, dtype=(dict, RequestDataset, Field)):
+                self.update(element)
 
     def __str__(self):
         ret = '{klass}(request_datasets=[{request_datasets}])'
         request_datasets = ', '.join([str(rd) for rd in self.itervalues()])
         return ret.format(klass=self.__class__.__name__, request_datasets=request_datasets)
-    
-    def update(self,request_dataset):
-        """Add a :class:`ocgis.RequestDataset` to the collection.
-        
-        :param request_dataset: The :class:`ocgis.RequestDataset` to add.
-        :type request_dataset: :class:`ocgis.RequestDataset`
+
+    def iter_request_datasets(self):
         """
-        try:
-            new_key = request_dataset.name
-        except AttributeError:
-            request_dataset = RequestDataset(**request_dataset)
-            new_key = request_dataset.name
-            
-        if request_dataset.did is None:
-            if len(self._did) == 0:
-                did = 1
+        :returns: An iterator over only the request dataset objects contained in the collection. Field objects are
+         excluded.
+        :rtype: `~ocgis.RequestDataset`
+        """
+
+        for value in self.itervalues():
+            if isinstance(value, Field):
+                continue
             else:
-                did = max(self._did) + 1
-            self._did.append(did)
-            request_dataset.did = did
+                yield value
+
+    def update(self, target):
+        """
+        Add an object to the collection.
+        
+        :param target: The object to add.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        """
+
+        try:
+            new_key = target.name
+        except AttributeError:
+            target = RequestDataset(**target)
+            new_key = target.name
+
+        unique_id = self._get_unique_id_(target)
+
+        if unique_id is None:
+            if len(self._unique_id_store) == 0:
+                unique_id = 1
+            else:
+                unique_id = max(self._unique_id_store) + 1
+            self._unique_id_store.append(unique_id)
+            self._set_unique_id_(target, unique_id)
         else:
-            self._did.append(request_dataset.did)
-            
+            self._unique_id_store.append(unique_id)
+
         if new_key in self._storage:
-            raise(KeyError('Name "{0}" already in collection. Attempted to add dataset with URI "{1}".'\
-                           .format(request_dataset.name,request_dataset.uri)))
+            raise KeyError('Name "{0}" already in collection. Names must be unique'.format(target.name))
         else:
-            self._storage.update({request_dataset.name:request_dataset})
-            
+            self._storage.update({target.name: target})
+
     def _get_meta_rows_(self):
+        """
+        :returns: A list of strings containing metadata on the collection objects.
+        :rtype: list[str, ...]
+        """
+
         rows = ['* dataset=']
         for value in self.itervalues():
-            rows += value._get_meta_rows_()
+            try:
+                rows += value._get_meta_rows_()
+            except AttributeError:
+                # likely a field object
+                msg = '{klass}(name={name}, ...)'.format(klass=value.__class__.__name__, name=value.name)
+                rows.append(msg)
             rows.append('')
-        return(rows)
 
+        return rows
 
-def get_tuple(value):
-    if isinstance(value, basestring) or value is None:
-        ret = (value,)
-    else:
-        ret = tuple(value)
-    return ret
+    @staticmethod
+    def _get_unique_id_(target):
+        """
+        :param target: The object to retrieve the unique identifier from.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        :returns: The unique identifier of the object if available. ``None`` will be returned if no unique can be found.
+        :rtype: int or ``None``
+        """
+
+        try:
+            ret = target.did
+        except AttributeError:
+            ret = target.uid
+
+        return ret
+
+    @staticmethod
+    def _set_unique_id_(target, uid):
+        """
+        :param target: The target object for setting the unique identifier.
+        :type target: :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`
+        :param int target: The unique identifier.
+        """
+
+        if isinstance(target, RequestDataset):
+            target.did = uid
+        elif isinstance(target, Field):
+            target.uid = uid
 
 
 def get_first_or_sequence(value):
@@ -519,6 +615,14 @@ def get_first_or_sequence(value):
 
 def get_is_none(value):
     return all([v is None for v in get_iter(value)])
+
+
+def get_tuple(value):
+    if isinstance(value, basestring) or value is None:
+        ret = (value,)
+    else:
+        ret = tuple(value)
+    return ret
 
 
 def validate_units(keyword, sequence):

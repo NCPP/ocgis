@@ -1,13 +1,13 @@
 import unittest
-from ocgis.test.base import TestBase
 import os
+
+import numpy as np
+
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.request.base import RequestDataset
 import ocgis
 from ocgis.api.operations import OcgOperations
-import numpy as np
 from ocgis.exc import DefinitionValidationError, ExtentError
-from ocgis.test.test_simple.test_simple import nc_scope
-from ocgis.test.test_base import longrunning
 from ocgis.interface.base.crs import CFRotatedPole, CFWGS84
 
 
@@ -78,21 +78,21 @@ class TestRotatedPole(TestBase):
         
     def test_to_netcdf_with_geometry(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
-        ## this bounding box covers the entire spatial domain. the software will
-        ## move between rotated pole and CFWGS84 using this operation. it can then
-        ## be compared against the "null" result which just does a snippet.
-        geom = [-173.3,8.8,-20.6,79.0]
-        ops = OcgOperations(dataset=rd,output_format='nc',snippet=True,geom=geom)
+        # this bounding box covers the entire spatial domain. the software will move between rotated pole and CFWGS84
+        # using this operation. it can then be compared against the "null" result which just does a snippet.
+        geom = [-173.3, 8.8, -20.6, 79.0]
+        ops = OcgOperations(dataset=rd, output_format='nc', snippet=True, geom=geom)
         ret = ops.execute()
-        ops2 = OcgOperations(dataset=rd,output_format='nc',snippet=True,prefix='hi')
+        ops2 = OcgOperations(dataset=rd, output_format='nc', snippet=True, prefix='hi')
         ret2 = ops2.execute()
-        self.assertNcEqual(ret,ret2,metadata_only=True,ignore_attributes={'global': ['history']})
+        self.assertNcEqual(ret, ret2, metadata_only=True, ignore_attributes={'global': ['history']})
+
         with nc_scope(ret) as ds:
             with nc_scope(ret2) as ds2:
-                for var_name in ['yc','xc','tas']:
+                for var_name in ['yc', 'xc', 'tas']:
                     var = ds.variables[var_name][:]
                     var2 = ds2.variables[var_name][:]
-                    diff = np.abs(var-var2)
+                    diff = np.abs(var - var2)
                     self.assertTrue(diff.max() <= 1.02734374963e-06)
         
     def test_to_netcdf_with_slice(self):
@@ -114,11 +114,11 @@ class Test(TestBase):
         crs = field.spatial.crs
         self.assertDictEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
 
-    @longrunning
+    @attr('slow')
     def test_read_write_projections(self):
         """Test NARCCAP coordinate systems may be appropriately read and written to NetCDF."""
 
-        data_dir = os.path.join(ocgis.env.DIR_TEST_DATA, 'narccap')
+        data_dir = os.path.join(ocgis.env.DIR_TEST_DATA, 'nc', 'narccap')
         ocgis.env.DIR_DATA = data_dir
         ocgis.env.OVERWRITE = True
         

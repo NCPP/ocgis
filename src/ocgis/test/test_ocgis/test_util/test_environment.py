@@ -1,14 +1,14 @@
-import unittest
-from ocgis import env, OcgOperations
 import os
 import tempfile
+from importlib import import_module
+
+from ocgis import env, OcgOperations
 from ocgis.test.base import TestBase
 from ocgis.util.environment import EnvParmImport
-from importlib import import_module
 
 
 class TestEnvImportParm(TestBase):
-    _reset_env = False
+    reset_env = False
     
     def test_constructor(self):
         pm = EnvParmImport('USE_NUMPY',None,'numpy')
@@ -29,8 +29,8 @@ class TestEnvImportParm(TestBase):
         self.assertEqual(pm.value,True)
         
 
-class Test(TestBase):
-    _reset_env = False
+class TestEnvironment(TestBase):
+    reset_env = False
     
     def get_is_available(self,module_name):
         try:
@@ -38,8 +38,17 @@ class Test(TestBase):
             av = True
         except ImportError:
             av = False
-        return(av)
-    
+        return av
+
+    def test_init(self):
+        self.assertIsNone(env.MELTED)
+
+    def test_conf_path(self):
+        env.CONF_PATH
+
+    def test_default_coordsys(self):
+        env.DEFAULT_COORDSYS
+
     def test_import_attributes(self):
         ## with both modules installed, these are expected to be true
         self.assertEqual(env.USE_CFUNITS,self.get_is_available('cfunits'))
@@ -110,8 +119,3 @@ class Test(TestBase):
     def test_str(self):
         ret = str(env)
         self.assertTrue(len(ret) > 300)
-
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

@@ -11,9 +11,10 @@ Required Dependencies
 Package Name   Version URL
 ============== ======= =======================================================================
 Python         2.7.6   http://www.python.org/download/releases/2.7.6/
-``osgeo``      1.9.1   http://pypi.python.org/pypi/GDAL/
-``shapely``    1.2     http://pypi.python.org/pypi/Shapely
-``fiona``      1.0.2   https://pypi.python.org/pypi/Fiona
+``osgeo``      1.11.1  https://pypi.python.org/pypi/GDAL/
+``setuptools`` 12.0.5  https://pypi.python.org/pypi/setuptools
+``shapely``    1.4.3   https://pypi.python.org/pypi/Shapely
+``fiona``      1.4.5   https://pypi.python.org/pypi/Fiona
 ``numpy``      1.8.2   http://sourceforge.net/projects/numpy/files/NumPy/1.8.2/
 ``netCDF4``    1.1.1   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================
@@ -21,14 +22,15 @@ Python         2.7.6   http://www.python.org/download/releases/2.7.6/
 Optional Dependencies
 ---------------------
 
-There are two optional dependencies. OpenClimateGIS will still operate without these libraries installed but functionality and performance may change.
+Optional dependencies are listed below. OpenClimateGIS will still operate without these libraries installed but functionality and performance may change.
 
 ============= ======== ====================================================== =================================================================================================================================
 Package Name  Version  URL                                                    Usage
 ============= ======== ====================================================== =================================================================================================================================
-``rtree``     2.7.2    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
+``rtree``     0.8.0    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cfunits``   0.9.6    https://code.google.com/p/cfunits-python/              Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
 ``ESMPy``     6.3.0rp1 https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``icclim``    3.0      http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ============= ======== ====================================================== =================================================================================================================================
 
 Ubuntu Linux
@@ -98,6 +100,17 @@ or
 .. code-block:: sh
 
    python -c 'import ocgis'
+
+Testing the Installation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: There are tests for the optional dependencies. These will fail if the optional dependencies are not installed!
+
+It is recommended that a simple suite of tests are run to verify the new installation:
+
+>>> python setup.py test
+
+Please report any errors to the support email address.
 
 Configuring the :class:`~ocgis.ShpCabinet`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

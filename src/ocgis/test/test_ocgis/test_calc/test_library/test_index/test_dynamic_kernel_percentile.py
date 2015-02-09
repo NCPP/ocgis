@@ -1,13 +1,13 @@
-from ocgis.api.operations import OcgOperations
-from ocgis.api.request.base import RequestDataset
 import netCDF4 as nc
-from ocgis.test.base import TestBase
 import itertools
 import datetime
+
 import numpy as np
+
+from ocgis.api.operations import OcgOperations
+from ocgis.api.request.base import RequestDataset
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
-from ocgis.test.test_simple.test_simple import nc_scope
-from ocgis.test.test_base import longrunning
 
 
 class TestDynamicDailyKernelPercentileThreshold(TestBase):
@@ -83,7 +83,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
         self.assertEqual(ret['tg10p'].value.shape,(1,36,1,64,128))
         self.assertAlmostEqual(ret['tg10p'].value.mean(),3.6267225477430554)
     
-    @longrunning
+    @attr('slow')
     def test_operations(self):
         uri = self.test_data.get_uri('cancm4_tas')
         rd = RequestDataset(uri=uri,
@@ -100,7 +100,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
             ref = ds.variables['tg10p'][:]
             self.assertAlmostEqual(ref.mean(),2.9778004964192708)
     
-    @longrunning
+    @attr('slow')
     def test_operations_two_steps(self):
         ## get the request dataset to use as the basis for the percentiles
         uri = self.test_data.get_uri('cancm4_tas')

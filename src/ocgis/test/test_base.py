@@ -1,77 +1,68 @@
-import unittest
-from ocgis.test.base import TestBase
-import ocgis
-from unittest.case import SkipTest
-from ocgis import constants
+import datetime
+from netCDF4 import Dataset
+import os
+
 import numpy as np
 
-
-def longrunning(f):
-    if constants.test_run_long_tests:
-        ret = f
-    else:
-        def skip(*args):
-            raise SkipTest("long-running test")
-        skip.__name__ = f.__name__
-        ret = skip
-    return(ret)
-        
-    
-def dev(f):
-    if constants.test_run_dev_tests:
-        ret = f
-    else:
-        def skip(*args):
-            raise SkipTest("development-only test")
-        skip.__name__ = f.__name__
-        ret = skip
-    return(ret)
+from ocgis.interface.base.field import Field
+from ocgis.test.base import TestBase
 
 
-class Test(TestBase):
-    
+class TestTestBase(TestBase):
+
+    def test_assertNcEqual(self):
+
+        def _write_(fn):
+            path = os.path.join(self.current_dir_output, fn)
+            with self.nc_scope(path, 'w') as ds:
+                var = ds.createVariable('crs', 'c')
+                var.name = 'something'
+            return path
+
+        path1 = _write_('foo1.nc')
+        path2 = _write_('foo2.nc')
+        self.assertNcEqual(path1, path2)
+
     def test_assertNumpyAll_bad_mask(self):
         arr = np.ma.array([1,2,3],mask=[True,False,True])
         arr2 = np.ma.array([1,2,3],mask=[False,True,False])
         with self.assertRaises(AssertionError):
             self.assertNumpyAll(arr,arr2)
-            
+
     def test_assertNumpyAll_type_differs(self):
         arr = np.ma.array([1,2,3],mask=[True,False,True])
         arr2 = np.array([1,2,3])
         with self.assertRaises(AssertionError):
             self.assertNumpyAll(arr,arr2)
 
-    @dev
-    def test_data_download(self):
-        ocgis.env.DIR_TEST_DATA = self._test_dir
-        rd1 = self.test_data.get_rd('cancm4_tas')
-        ocgis.env.reset()
-        rd2 = self.test_data.get_rd('cancm4_tas')
-        self.assertEqual(rd1,rd2)
-    
-    @dev
-    def test_multifile_data_download(self):
-        ocgis.env.DIR_TEST_DATA = self._test_dir
-        ocgis.env.DEBUG = True
-        constants.test_data_download_url_prefix = 'https://dl.dropboxusercontent.com/u/867854/test_data_download/'
-        rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
-    
-    @dev
-    def test_entirely_bad_location(self):
-        ocgis.env.DIR_TEST_DATA = self._test_dir
-        with self.assertRaises(ValueError):
-            self.test_data.get_rd('cancm4_tasmax_2011')
-    
-    @dev
-    def test_copy_files(self):
-        self.test_data.copy_files('/home/local/WX/ben.koziol/htmp/transfer')
+    def test_get_field(self):
+        field = self.get_field()
+        self.assertIsInstance(field, Field)
+
+    def test_get_time_series(self):
+        start = datetime.datetime(1900, 1, 1)
+        end = datetime.datetime(1902, 12, 31)
+        ret = self.get_time_series(start, end)
+        self.assertEqual(ret[0], start)
+        self.assertEqual(ret[-1], end)
+        self.assertEqual(ret[1]-ret[0], datetime.timedelta(days=1))
         
     def test_multifile(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         self.assertEqual(len(rd.uri),2)
 
+    def test_ncscope(self):
+        path = os.path.join(self.current_dir_output, 'foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            self.assertIsInstance(ds, Dataset)
 
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+
+class TestTestData(TestBase):
+
+    def test_get_relative_path(self):
+        ret = self.test_data.get_relative_dir('clt_month_units')
+        self.assertEqual(ret, 'nc/misc/month_in_time_units')
+
+    def test_size(self):
+        size = self.test_data.size
+        self.assertGreater(size, 1138333)

@@ -1,19 +1,23 @@
 from copy import deepcopy
 import ESMF
 import numpy as np
-from ocgis.exc import CornersUnavailable, RegriddingError, CornersInconsistentError
+from ocgis import TemporalDimension, Field
+from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.interface.base.crs import Spherical
+from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis.interface.base.variable import VariableCollection
+from ocgis.interface.base.variable import VariableCollection, Variable
 from ocgis.util.helpers import iter_array, make_poly
 
 
-def get_sdim_from_esmf_grid(egrid):
+def get_sdim_from_esmf_grid(egrid, crs=None):
     """
     Create an OCGIS :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension` object from an ESMF
     :class:`~ESMF.api.grid.Grid`.
 
     :type egrid: :class:`ESMF.api.grid.Grid`
+    :param crs: The coordinate system to attach to the output spatial dimension.
+    :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
     :rtype: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
     """
 
@@ -67,9 +71,59 @@ def get_sdim_from_esmf_grid(egrid):
 
     # make the spatial dimension object
     ogrid = SpatialGridDimension(value=grid_value, corners=grid_corners)
-    sdim = SpatialDimension(grid=ogrid)
+    sdim = SpatialDimension(grid=ogrid, crs=crs)
 
     return sdim
+
+
+def get_ocgis_field_from_esmpy_field(efield, crs=None, dimensions=None):
+    #todo: doc dimensions
+    #todo: doc behavior for singleton dimension
+    """
+    :param efield: The ESMPy field object to convert to an OCGIS field.
+    :type efield: :class:`ESMF.api.field.Field`
+    :param crs: The coordinate system of the ESMPy field. If ``None``, this will default to
+     :class:`ocgis.crs.Spherical`.
+    :returns: An OCGIS field object.
+    :rtype: :class:`~ocgis.Field`
+    """
+
+    assert len(efield.shape) == 5
+
+    dimensions = dimensions or {}
+
+    try:
+        realization = dimensions['realization']
+    except KeyError:
+        if efield.shape[0] > 1:
+            realization_values = np.arange(1, efield.shape[0]+1)
+            realization = VectorDimension(value=realization_values)
+        else:
+            realization = None
+
+    try:
+        temporal = dimensions['temporal']
+    except KeyError:
+        if efield.shape[1] > 1:
+            temporal_values = np.array([1]*efield.shape[1])
+            temporal = TemporalDimension(value=temporal_values, format_time=False)
+        else:
+            temporal = None
+
+    try:
+        level = dimensions['level']
+    except KeyError:
+        if efield.shape[2] > 1:
+            level_values = np.arange(1, efield.shape[2]+1)
+            level = VectorDimension(value=level_values)
+        else:
+            level = None
+
+    variable = Variable(name=efield.name, value=efield)
+    sdim = get_sdim_from_esmf_grid(efield.grid, crs=crs)
+    field = Field(variables=variable, realization=realization, temporal=temporal, level=level, spatial=sdim)
+
+    return field
 
 
 def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
@@ -103,13 +157,13 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
     else:
         value_mask = ogrid.value.mask[0]
     # follows SCRIP convention where 1 is unmasked and 0 is masked
-    esmf_mask = np.invert(value_mask).astype(np.int8)
+    esmf_mask = np.invert(value_mask).astype(np.int32)
     egrid.add_item(ESMF.GridItem.MASK, staggerloc=ESMF.StaggerLoc.CENTER, from_file=False)
     egrid.mask[0][:] = esmf_mask
 
     # attempt to access corners if possible
     if with_corners:
-        try:
+        if sdim.grid.corners is not None:
             corners_esmf = sdim.grid.corners_esmf
             # adding corners. first tell the grid object to allocate corners
             egrid.add_coords(staggerloc=[ESMF.StaggerLoc.CORNER])
@@ -117,8 +171,6 @@ def get_esmf_grid_from_sdim(sdim, with_corners=True, value_mask=None):
             grid_corner = egrid.coords[ESMF.StaggerLoc.CORNER]
             grid_corner[1][:] = corners_esmf[0]
             grid_corner[0][:] = corners_esmf[1]
-        except CornersUnavailable:
-            pass
 
     return egrid
 
@@ -150,6 +202,7 @@ def iter_esmf_fields(ofield, with_corners=True, value_mask=None):
 
     :raises: AssertionError
     """
+
     #todo: provide other options for calculating value_mask
     # only one level and realization allowed
     assert ofield.shape[0] == 1
@@ -206,15 +259,13 @@ def check_fields_for_regridding(sources, destination, with_corners=True):
     if with_corners:
         has_corners_sources = []
         for source in sources:
-            try:
-                source.spatial.grid.corners
+            if source.spatial.grid.corners is not None:
                 has_corners_sources.append(True)
-            except CornersUnavailable:
+            else:
                 has_corners_sources.append(False)
-        try:
-            sdim.grid.corners
+        if sdim.grid.corners is not None:
             has_corners_destination = True
-        except CornersUnavailable:
+        else:
             has_corners_destination = False
         if not all(has_corners_sources) or not has_corners_destination:
             msg = 'Corners are not available on all sources and destination. Consider setting "with_corners" to False.'
@@ -339,8 +390,8 @@ def iter_regridded_fields(sources, destination, with_corners='choose', value_mas
                         out_sdim.grid.col.bounds = None
                         out_sdim.grid._corners = None
                     # remove any polygons if they exist
-                    if out_sdim._geom is not None:
-                        out_sdim.geom._polygon = None
+                    out_sdim.geom._polygon = None
+                    out_sdim.geom.grid = out_sdim.grid
                 build = False
 
             # perform the regrid operation and fill the new variabales

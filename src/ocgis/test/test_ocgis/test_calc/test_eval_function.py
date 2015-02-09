@@ -1,6 +1,7 @@
+import numpy as np
+
 from ocgis.test.base import TestBase
 from ocgis.calc.eval_function import EvalFunction
-import numpy as np
 
 
 class TestEvalFunction(TestBase):
@@ -78,41 +79,41 @@ class TestEvalFunction(TestBase):
         expr = 'es=6.1078*exp(foo(17.08085)*(tas-273.16)/(234.175+(tas-273.16)))'
         with self.assertRaises(ValueError):
             EvalFunction._get_eval_string_(expr,{'tas':'var.value'})
-            
+
     def test_calculation_one_variable_exp_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        field = field[:,0:10,:,:,:]
+        field = field[:, 0:10, :, :, :]
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
-        ef = EvalFunction(expr=expr,field=field)
+        ef = EvalFunction(expr=expr, field=field, add_parents=True)
         ret = ef.execute()
-        self.assertEqual(ret.keys(),['es'])
-        self.assertEqual(ret['es'].units,None)
-        self.assertEqual(ret['es'].alias,'es')
-        self.assertEqual(ret['es'].name,'es')
-        self.assertEqual(ret['es'].parents.keys(),['tas'])
-        
+        self.assertEqual(ret.keys(), ['es'])
+        self.assertEqual(ret['es'].units, None)
+        self.assertEqual(ret['es'].alias, 'es')
+        self.assertEqual(ret['es'].name, 'es')
+        self.assertEqual(ret['es'].parents.keys(), ['tas'])
+
         var = field.variables['tas']
-        actual_value = 6.1078*np.exp(17.08085*(var.value-273.16)/(234.175+(var.value-273.16)))
-        self.assertNumpyAll(ret['es'].value,actual_value)
-        
+        actual_value = 6.1078 * np.exp(17.08085 * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
+        self.assertNumpyAll(ret['es'].value, actual_value)
+
     def test_calculation_two_variables_exp_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
         field = rd.get()
         field2 = rd2.get()
-        field.variables.add_variable(field2.variables['tasmax'],assign_new_uid=True)
-        field = field[:,0:10,:,:,:]
+        field.variables.add_variable(field2.variables['tasmax'], assign_new_uid=True)
+        field = field[:, 0:10, :, :, :]
         expr = 'foo=log(1000*(tasmax-tas))/3'
-        ef = EvalFunction(expr=expr,field=field)
+        ef = EvalFunction(expr=expr, field=field, add_parents=True)
         ret = ef.execute()
-        self.assertEqual(ret.keys(),['foo'])
-        self.assertEqual(set(ret['foo'].parents.keys()),set(['tas','tasmax']))
-        
+        self.assertEqual(ret.keys(), ['foo'])
+        self.assertEqual(set(ret['foo'].parents.keys()), set(['tas', 'tasmax']))
+
         tas = field.variables['tas']
         tasmax = field.variables['tasmax']
-        actual_value = np.log(1000*(tasmax.value-tas.value))/3
-        self.assertNumpyAll(ret['foo'].value,actual_value)
+        actual_value = np.log(1000 * (tasmax.value - tas.value)) / 3
+        self.assertNumpyAll(ret['foo'].value, actual_value)
         
     def test_calculation_one_variable_exp_and_log(self):
         rd = self.test_data.get_rd('cancm4_tas')

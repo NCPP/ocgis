@@ -16,7 +16,7 @@ class Test(TestBase):
     def test_climatology(self):
         ## http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#idp5996336
         
-        path = os.path.join(self._test_dir,'climatology.nc')
+        path = os.path.join(self.current_dir_output,'climatology.nc')
         ds = nc.Dataset(path,'w')
         try:
             dim_time = ds.createDimension('time',size=None)

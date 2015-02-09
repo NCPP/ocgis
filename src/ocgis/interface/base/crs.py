@@ -1,23 +1,27 @@
 from copy import copy, deepcopy
 import tempfile
 import itertools
-from osgeo.osr import SpatialReference
-from fiona.crs import from_string, to_string
-import numpy as np
-from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound,\
-    ProjectionDoesNotMatch, ImproperPolygonBoundsError, CornersUnavailable
-from ocgis.util.spatial.wrap import Wrapper
-from ocgis.util.helpers import iter_array
-from shapely.geometry.multipolygon import MultiPolygon
 import abc
 import logging
-from shapely.geometry.multipoint import MultiPoint
+import numpy as np
+
+from osgeo.osr import SpatialReference
+from fiona.crs import from_string, to_string
+from shapely.geometry import Point, Polygon
+from shapely.geometry.base import BaseMultipartGeometry
+
+from ocgis import constants
+from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
+from ocgis.util.spatial.wrap import Wrapper
+from ocgis.util.helpers import iter_array
 
 
 class CoordinateReferenceSystem(object):
     
-    def __init__(self, value=None, proj4=None, epsg=None):
+    def __init__(self, value=None, proj4=None, epsg=None, name=None):
+        self.name = name or constants.DEFAULT_COORDINATE_SYSTEM_NAME
+
         if value is None:
             if proj4 is not None:
                 value = from_string(proj4)
@@ -80,67 +84,90 @@ class CoordinateReferenceSystem(object):
         sr.ImportFromProj4(to_string(self.value))
         return sr
 
+    def write_to_rootgrp(self, rootgrp):
+        """
+        Write the coordinate system to an open netCDF file.
+
+        :param rootgrp: An open netCDF dataset object for writing.
+        :type rootgrp: :class:`netCDF4.Dataset`
+        :returns: The netCDF variable object created to hold the coordinate system metadata.
+        :rtype: :class:`netCDF4.Variable`
+        """
+
+        variable = rootgrp.createVariable(self.name, 'c')
+        return variable
+
 
 class WrappableCoordinateReferenceSystem(object):
-    """Mean to be used in mixin class that can be wrapped."""
+    """Meant to be used in mixin classes for coordinate systems that can be wrapped."""
+
+    _flag_wrapped = 'wrapped'
+    _flag_unwrapped = 'unwrapped'
+    _flag_unknown = 'unknown'
+
+    _flag_action_wrap = 'wrap'
+    _flag_action_unwrap = 'unwrap'
 
     @classmethod
-    def get_is_360(cls, spatial):
+    def get_wrap_action(cls, state_src, state_dst):
         """
-        :param spatial:
-        :type spatial: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :param str state_src: The wrapped state of the source dataset.
+        :param str state_dst: The wrapped state of the destination dataset.
+        :returns: The wrapping action to perform on ``state_src``.
+        :rtype: str
+        :raises: NotImplementedError, ValueError
         """
 
-        if not isinstance(spatial.crs, WrappableCoordinateReferenceSystem):
-            msg = 'Wrapped state may only be determined for geographic (i.e. spherical) coordinate systems.'
-            raise SpatialWrappingError(msg)
+        possible = [cls._flag_wrapped, cls._flag_unwrapped, cls._flag_unknown]
+        has_issue = None
+        if state_src not in possible:
+            has_issue = 'source'
+        if state_dst not in possible:
+            has_issue = 'destination'
+        if has_issue is not None:
+            msg = 'The wrapped state on "{0}" is not recognized.'.format(has_issue)
+            raise ValueError(msg)
 
-        try:
-            if spatial.grid.col.bounds is None:
-                check = spatial.grid.col.value
-            else:
-                check = spatial.grid.col.bounds
-        except AttributeError as e:
-            # column dimension is likely missing
-            try:
-                if spatial.grid.col is None:
-                    try:
-                        check = spatial.grid.corners[1]
-                    except CornersUnavailable:
-                        check = spatial.grid.value[1, :, :]
-                else:
-                    ocgis_lh(exc=e)
-            except AttributeError:
-                # there may be no grid, access the geometries directly
-                try:
-                    geoms_to_check = spatial.geom.polygon.value
-                except ImproperPolygonBoundsError:
-                    geoms_to_check = spatial.geom.point.value
-                geoms_to_check = geoms_to_check.compressed()
-
-                # if this is switched to true, there are geometries with coordinate values less than 0
-                for geom in geoms_to_check:
-                    if type(geom) in [MultiPolygon, MultiPoint]:
-                        it = geom
-                    else:
-                        it = [geom]
-                    for sub_geom in it:
-                        try:
-                            coords = np.array(sub_geom.exterior.coords)
-                            if np.any(coords > 180.):
-                                return True
-                        ## might be checking a point
-                        except AttributeError:
-                            coords = np.array(sub_geom)
-                            if np.any(coords > 180.):
-                                return True
-                return False
-
-        if np.any(check > 180.):
-            ret = True
+        # the default action is to do nothing.
+        ret = None
+        # if the wrapped state of the destination is unknown, then there is no appropriate wrapping action suitable for
+        # the source.
+        if state_dst == cls._flag_unknown:
+            ret = None
+        # if the destination is wrapped and src is unwrapped, then wrap the src.
+        elif state_dst == cls._flag_wrapped:
+            if state_src == cls._flag_unwrapped:
+                ret = cls._flag_action_wrap
+        # if the destination is unwrapped and the src is wrapped, the source needs to be unwrapped.
+        elif state_dst == cls._flag_unwrapped:
+            if state_src == cls._flag_wrapped:
+                ret = cls._flag_action_unwrap
         else:
-            ret = False
+            raise NotImplementedError(state_dst)
+        return ret
 
+    @classmethod
+    def get_wrapped_state(cls, sdim):
+        """
+        :param sdim: The spatial dimension used to determine the wrapped state. This function only checks grid centroids
+         and geometry exteriors. Bounds/corners on the grid are excluded.
+        :type sdim: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        """
+
+        if sdim.grid is not None:
+            ret = cls._get_wrapped_state_from_array_(sdim.grid.value[1].data)
+        else:
+            stops = (cls._flag_wrapped, cls._flag_unwrapped)
+            ret = cls._flag_unknown
+            if sdim.geom.polygon is not None:
+                geoms = sdim.geom.polygon.value.data.flat
+            else:
+                geoms = sdim.geom.point.value.data.flat
+            for geom in geoms:
+                flag = cls._get_wrapped_state_from_geometry_(geom)
+                if flag in stops:
+                    ret = flag
+                    break
         return ret
 
     def unwrap(self, spatial):
@@ -148,7 +175,7 @@ class WrappableCoordinateReferenceSystem(object):
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if not self.get_is_360(spatial):
+        if self.get_wrapped_state(spatial) == self._flag_wrapped:
             # unwrap the geometries
             unwrap = Wrapper().unwrap
             to_wrap = self._get_to_wrap_(spatial)
@@ -171,14 +198,12 @@ class WrappableCoordinateReferenceSystem(object):
                         ref[select] += 360
 
                 # attempt to to unwrap the grid corners if they exist
-                try:
+                if spatial.grid.corners is not None:
                     select = spatial.grid.corners[1] < 0
                     spatial.grid.corners[1][select] += 360
-                except CornersUnavailable:
-                    pass
 
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data already has a 0 to 360 coordinate system.'))
+            ocgis_lh(exc=SpatialWrappingError('Data does not need to be unwrapped.'))
 
     def wrap(self,spatial):
         """
@@ -189,7 +214,7 @@ class WrappableCoordinateReferenceSystem(object):
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if self.get_is_360(spatial):
+        if self.get_wrapped_state(spatial) == self._flag_unwrapped:
             # wrap the geometries if they are available
             wrap = Wrapper().wrap
             to_wrap = self._get_to_wrap_(spatial)
@@ -229,7 +254,7 @@ class WrappableCoordinateReferenceSystem(object):
                             ref[select] -= 360
 
                 # attempt to wrap the grid corners if they exist
-                try:
+                if spatial.grid.corners is not None:
                     ref = spatial.grid.corners.data
                     if bounds_cross_meridian:
                         spatial.grid._corners = None
@@ -244,24 +269,70 @@ class WrappableCoordinateReferenceSystem(object):
                         else:
                             select = ref[1] > 180
                             ref[1][select] -= 360
-                except CornersUnavailable:
-                    pass
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data does not have a 0 to 360 coordinate system.'))
+            ocgis_lh(exc=SpatialWrappingError('Data does not need to be wrapped.'))
 
-    def _get_to_wrap_(self,spatial):
+    @staticmethod
+    def _get_to_wrap_(spatial):
         ret = []
         ret.append(spatial.geom.point)
-        try:
+        if spatial.geom.polygon is not None:
             ret.append(spatial.geom.polygon)
-        except ImproperPolygonBoundsError:
-            pass
-        return(ret)
+        return ret
+
+    @classmethod
+    def _get_wrapped_state_from_array_(cls, arr):
+        """
+        :param arr: Input n-dimensional array.
+        :type arr: :class:`numpy.ndarray`
+        :returns: A string flag. See class level ``_flag_*`` attributes for values.
+        :rtype: str
+        """
+
+        gt_m180 = arr > constants.MERIDIAN_180TH
+        lt_pm = arr < 0
+
+        if np.any(lt_pm):
+            ret = cls._flag_wrapped
+        elif np.any(gt_m180):
+            ret = cls._flag_unwrapped
+        else:
+            ret = cls._flag_unknown
+
+        return ret
+
+    @classmethod
+    def _get_wrapped_state_from_geometry_(cls, geom):
+        """
+        :param geom: The input geometry.
+        :type geom: :class:`~shapely.geometry.point.Point`, :class:`~shapely.geometry.point.Polygon`,
+         :class:`~shapely.geometry.multipoint.MultiPoint`, :class:`~shapely.geometry.multipolygon.MultiPolygon`
+        :returns: A string flag. See class level ``_flag_*`` attributes for values.
+        :rtype: str
+        :raises: NotImplementedError
+        """
+
+        if isinstance(geom, BaseMultipartGeometry):
+            itr = geom
+        else:
+            itr = [geom]
+
+        app = np.array([])
+        for element in itr:
+            if isinstance(element, Point):
+                element_arr = [np.array(element)[0]]
+            elif isinstance(element, Polygon):
+                element_arr = np.array(element.exterior.coords)[:, 0]
+            else:
+                raise NotImplementedError(type(element))
+            app = np.append(app, element_arr)
+
+        return cls._get_wrapped_state_from_array_(app)
 
     @staticmethod
     def _place_prime_meridian_array_(arr):
         """
-        Replace any 180 degree values with the value of :attribute:`ocgis.constants.prime_meridian`.
+        Replace any 180 degree values with the value of :attribute:`ocgis.constants.MERIDIAN_180TH`.
 
         :param arr: The target array to modify inplace.
         :type arr: :class:`numpy.array`
@@ -272,7 +343,7 @@ class WrappableCoordinateReferenceSystem(object):
         # find the values that are 180
         select = arr == 180
         # replace the values that are 180 with the constant value
-        np.place(arr, select, constants.prime_meridian)
+        np.place(arr, select, constants.MERIDIAN_180TH)
         # return the mask used for the replacement
         return select
 
@@ -288,7 +359,7 @@ class Spherical(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
     
     def __init__(self, semi_major_axis=6370997.0):
         value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis, 'b': semi_major_axis}
-        CoordinateReferenceSystem.__init__(self, value=value)
+        CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
         self.major_axis = semi_major_axis
 
 
@@ -298,7 +369,7 @@ class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
     """
 
     def __init__(self):
-        CoordinateReferenceSystem.__init__(self, epsg=4326)
+        CoordinateReferenceSystem.__init__(self, epsg=4326, name='latitude_longitude')
 
 
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
@@ -307,29 +378,30 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     ## if False, no attempt to read projection coordinates will be made. they
     ## will be set to a None default.
     _find_projection_coordinates = True
-    
-    def __init__(self,**kwds):
-        self.projection_x_coordinate = kwds.pop('projection_x_coordinate',None)
-        self.projection_y_coordinate = kwds.pop('projection_y_coordinate',None)
-        
+
+    def __init__(self, **kwds):
+        self.projection_x_coordinate = kwds.pop('projection_x_coordinate', None)
+        self.projection_y_coordinate = kwds.pop('projection_y_coordinate', None)
+
+        name = kwds.pop('name', None)
+
         check_keys = kwds.keys()
         for key in kwds.keys():
             check_keys.remove(key)
         if len(check_keys) > 0:
-            exc = ValueError('The keyword parameter(s) "{0}" was/were not provided.'.format(check_keys))
-            ocgis_lh(exc=exc,logger='crs')
-        
+            raise ValueError('The keyword parameter(s) "{0}" was/were not provided.')
+
         self.map_parameters_values = kwds
-        crs = {'proj':self.proj_name}
+        crs = {'proj': self.proj_name}
         for k in self.map_parameters.keys():
             if k in self.iterable_parameters:
-                v = getattr(self,self.iterable_parameters[k])(kwds[k])
+                v = getattr(self, self.iterable_parameters[k])(kwds[k])
                 crs.update(v)
             else:
-                crs.update({self.map_parameters[k]:kwds[k]})
-                
-        super(CFCoordinateReferenceSystem,self).__init__(value=crs)
-            
+                crs.update({self.map_parameters[k]: kwds[k]})
+
+        super(CFCoordinateReferenceSystem, self).__init__(value=crs, name=name)
+
     @abc.abstractproperty
     def grid_mapping_name(self): str
     
@@ -393,20 +465,26 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         kwds.pop('grid_mapping_name',None)
         kwds['projection_x_coordinate'] = pc_x
         kwds['projection_y_coordinate'] = pc_y
+
+        # add the correct name to the coordinate system
+        kwds['name'] = r_grid_mapping['name']
         
         cls._load_from_metadata_finalize_(kwds,var,meta)
-        
-        return(cls(**kwds))
-    
-    def write_to_rootgrp(self,rootgrp,meta):
-        name = meta['grid_mapping_variable_name']
-        crs = rootgrp.createVariable(name,meta['variables'][name]['dtype'])
-        attrs = meta['variables'][name]['attrs']
-        crs.setncatts(attrs)
+
+        return cls(**kwds)
     
     @classmethod
     def _load_from_metadata_finalize_(cls,kwds,var,meta):
         pass
+
+    def write_to_rootgrp(self, rootgrp):
+        variable = super(CFCoordinateReferenceSystem, self).write_to_rootgrp(rootgrp)
+        variable.grid_mapping_name = self.grid_mapping_name
+        for k, v in self.map_parameters_values.iteritems():
+            if v is None:
+                v = ''
+            setattr(variable, k, v)
+        return variable
 
 
 class CFWGS84(WGS84,CFCoordinateReferenceSystem,):
@@ -415,8 +493,9 @@ class CFWGS84(WGS84,CFCoordinateReferenceSystem,):
     map_parameters = None
     proj_name = None
     
-    def __init__(self):
-        WGS84.__init__(self)
+    def __init__(self, *args, **kwargs):
+        self.map_parameters_values = {}
+        WGS84.__init__(self, *args, **kwargs)
     
     @classmethod
     def load_from_metadata(cls,var,meta):
@@ -455,7 +534,7 @@ class CFLambertConformal(CFCoordinateReferenceSystem):
     @classmethod
     def _load_from_metadata_finalize_(cls,kwds,var,meta):
         kwds['units'] = meta['variables'][kwds['projection_x_coordinate']]['attrs'].get('units')
-        
+
         
 class CFPolarStereographic(CFCoordinateReferenceSystem):
     grid_mapping_name = 'polar_stereographic'
@@ -522,9 +601,11 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
 
         try:
             rc_original = {'row': {'name': spatial.grid.row.name,
-                                   'meta': spatial.grid.row.meta},
+                                   'meta': spatial.grid.row.meta,
+                                   'attrs': spatial.grid.row.attrs},
                            'col': {'name': spatial.grid.col.name,
-                                   'meta': spatial.grid.col.meta}}
+                                   'meta': spatial.grid.col.meta,
+                                   'attrs': spatial.grid.col.attrs}}
         # a previously transformed rotated pole spatial dimension will not have row and columns. these should be
         # available in the state dictionary
         except AttributeError:
@@ -548,6 +629,16 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             new_spatial.crs = CFWGS84()
 
         return new_spatial
+
+    def write_to_rootgrp(self, rootgrp):
+        """
+        .. note:: See :meth:`~ocgis.interface.base.crs.CoordinateReferenceSystem.write_to_rootgrp`.
+        """
+
+        variable = super(CFRotatedPole, self).write_to_rootgrp(rootgrp)
+        variable.proj4 = ''
+        variable.proj4_transform = self._trans_proj
+        return variable
 
     def _get_rotated_pole_transformation_for_grid_(self, grid, inverse=False, rc_original=None):
         """
@@ -634,13 +725,16 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             new_row = new_row[:, 0]
             new_col = new_col[0, :]
             new_grid.row = VectorDimension(value=new_row, name=dict_row['name'],
-                                           meta=dict_row['meta'])
+                                           meta=dict_row['meta'],
+                                           attrs=dict_row['attrs'])
             new_grid.col = VectorDimension(value=new_col, name=dict_col['name'],
-                                           meta=dict_col['meta'])
+                                           meta=dict_col['meta'],
+                                           attrs=dict_col['attrs'])
             new_col, new_row = np.meshgrid(new_col, new_row)
         else:
-            new_grid._row_src_idx = new_grid.row._src_idx
-            new_grid._col_src_idx = new_grid.col._src_idx
+            from ocgis.interface.nc.spatial import NcSpatialGridDimension
+            assert isinstance(new_grid, NcSpatialGridDimension)
+            new_grid._src_idx = {'row': new_grid.row._src_idx, 'col': new_grid.col._src_idx}
             new_grid.row = None
             new_grid.col = None
 
@@ -657,10 +751,12 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         try:
             meta = rc_original[key]['meta']
             name = rc_original[key]['name']
+            attrs = rc_original[key]['attrs']
         except TypeError:
             if rc_original is None:
                 meta = None
                 name = None
+                attrs = None
             else:
                 raise
-        return {'meta': meta, 'name': name}
+        return {'meta': meta, 'name': name, 'attrs': attrs}

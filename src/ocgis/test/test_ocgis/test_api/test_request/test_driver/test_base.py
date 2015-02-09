@@ -1,8 +1,39 @@
 from copy import deepcopy
+from ocgis import OcgOperations
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.api.request.driver.nc import DriverNetcdf
+from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase
+
+
+class FakeAbstractDriver(AbstractDriver):
+    output_formats = ['shp']
+    key = 'fake_driver'
+
+    def _get_field_(self, **kwargs):
+        pass
+
+    def inspect(self):
+        pass
+
+    def get_crs(self):
+        pass
+
+    def get_source_metadata(self):
+        pass
+
+    def extensions(self):
+        pass
+
+    def open(self):
+        pass
+
+    def get_dimensioned_variables(self):
+        pass
+
+    def close(self, obj):
+        pass
 
 
 class TestAbstractDriver(TestBase):
@@ -36,3 +67,17 @@ class TestAbstractDriver(TestBase):
 
         d2.key = 'bad'
         self.assertNotEqual(d, d2)
+
+    def test_validate_ops(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd)
+
+        with self.assertRaises(DefinitionValidationError):
+            FakeAbstractDriver.validate_ops(ops)
+
+        prev = FakeAbstractDriver.output_formats
+        FakeAbstractDriver.output_formats = 'all'
+        try:
+            FakeAbstractDriver.validate_ops(ops)
+        finally:
+            FakeAbstractDriver.output_formats = prev

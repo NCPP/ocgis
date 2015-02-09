@@ -72,7 +72,7 @@ class TestOcgisLogging(TestBase):
         TestBase.tearDown(self)
     
     def test_with_callback(self):
-        fp = get_temp_path(wd=self._test_dir)
+        fp = get_temp_path(wd=self.current_dir_output)
                 
         def callback(message,path=fp):
             with open(fp,'a') as sink:

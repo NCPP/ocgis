@@ -1,15 +1,15 @@
 import unittest
 import numpy as np
+import itertools
+
 from ocgis.api.operations import OcgOperations
 from datetime import datetime as dt
 import ocgis
 import datetime
 from ocgis.test.base import TestBase
-import netCDF4 as nc
-import itertools
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.test.test_simple.test_simple import ToTest
+from ocgis import constants
 
 
 class AbstractCalcBase(TestBase):
@@ -19,54 +19,55 @@ class AbstractCalcBase(TestBase):
         ret = np.ma.array(ret,mask=False)
         assert(len(ret.shape) == 3)
         return(ret)
-    
-    def run_standard_operations(self,calc,capture=False,output_format=None):
-        _aggregate = [False,True]
-        _calc_grouping = [['month'],['month','year'],'all']
-        _output_format = output_format or ['numpy','csv+','nc']
+
+    def run_standard_operations(self, calc, capture=False, output_format=None):
+        _aggregate = [False, True]
+        _calc_grouping = [['month'], ['month', 'year'], 'all']
+        _output_format = output_format or [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
+                                           constants.OUTPUT_FORMAT_NETCDF]
         captured = []
-        for ii,tup in enumerate(itertools.product(_aggregate,_calc_grouping,_output_format)):
-            aggregate,calc_grouping,output_format = tup
-            if aggregate is True and output_format == 'nc':
+        for ii, tup in enumerate(itertools.product(_aggregate, _calc_grouping, _output_format)):
+            aggregate, calc_grouping, output_format = tup
+            if aggregate is True and output_format == constants.OUTPUT_FORMAT_NETCDF:
                 continue
-            rd = self.test_data.get_rd('cancm4_tas',kwds={'time_region':{'year':[2001,2002]}})
+            rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2001, 2002]}})
             try:
-                ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
-                       calc=calc,calc_grouping=calc_grouping,output_format=output_format,
-                       aggregate=aggregate,prefix=('standard_ops_'+str(ii)))
+                ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[25], calc=calc,
+                                    calc_grouping=calc_grouping, output_format=output_format, aggregate=aggregate,
+                                    prefix=('standard_ops_' + str(ii)))
                 ret = ops.execute()
-                if output_format == 'numpy':
+                if output_format == constants.OUTPUT_FORMAT_NUMPY:
                     ref = ret[25]['tas'].variables[calc[0]['name']].value
                     if aggregate:
-                        space_shape = [1,1]
+                        space_shape = [1, 1]
                     else:
-                        space_shape = [5,4]
+                        space_shape = [5, 4]
                     if calc_grouping == ['month']:
                         shp1 = [12]
                     elif calc_grouping == 'all':
-                        raise(NotImplementedError('calc_grouping all'))
+                        raise NotImplementedError('calc_grouping all')
                     else:
                         shp1 = [24]
                     test_shape = [1] + shp1 + [1] + space_shape
-                    self.assertEqual(ref.shape,tuple(test_shape))
+                    self.assertEqual(ref.shape, tuple(test_shape))
                     if not aggregate:
-                        ## ensure the geometry mask is appropriately update by the function
+                        # ensure the geometry mask is appropriately update by the function
                         try:
-                            self.assertTrue(np.ma.is_masked(ref[0,0,0,0,0]))
-                        ## likely a structure array with multiple masked elements per index
+                            self.assertTrue(np.ma.is_masked(ref[0, 0, 0, 0, 0]))
+                        # likely a structure array with multiple masked elements per index
                         except TypeError:
-                            self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0,0,0,0,0]]))
+                            self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0, 0, 0, 0, 0]]))
             except ValueError:
                 raise
             except AssertionError:
                 raise
             except Exception as e:
                 if capture:
-                    parms = dict(aggregate=aggregate,calc_grouping=calc_grouping,output_format=output_format)
-                    captured.append({'exception':e,'parms':parms})
+                    parms = dict(aggregate=aggregate, calc_grouping=calc_grouping, output_format=output_format)
+                    captured.append({'exception': e, 'parms': parms})
                 else:
                     raise
-        return(captured)
+        return captured
 
 
 class Test(AbstractCalcBase):
@@ -119,34 +120,36 @@ class Test(AbstractCalcBase):
         ret = ops.execute()
         threshold = ret[2762]['tasmax'].variables['threshold'].value
         self.assertEqual(threshold.flatten()[0],62)
-        
-    def test_computational_nc_output(self):
-        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds={'time_range':[datetime.datetime(2011,1,1),datetime.datetime(2011,12,31)]})
-        calc = [{'func':'mean','name':'tasmax_mean'}]
-        calc_grouping = ['month','year']
 
-        ops = ocgis.OcgOperations(rd,calc=calc,calc_grouping=calc_grouping,
+    def test_computational_nc_output(self):
+        """Test writing a computation to netCDF."""
+
+        rd = self.test_data.get_rd('cancm4_tasmax_2011', kwds={
+        'time_range': [datetime.datetime(2011, 1, 1), datetime.datetime(2011, 12, 31)]})
+        calc = [{'func': 'mean', 'name': 'tasmax_mean'}]
+        calc_grouping = ['month', 'year']
+
+        ops = ocgis.OcgOperations(rd, calc=calc, calc_grouping=calc_grouping,
                                   output_format='nc')
         ret = ops.execute()
-        ds = nc.Dataset(ret,'r')
-        ref = ds.variables['time']
-        self.assertEqual(ref.climatology,'climatology_bounds')
-        self.assertEqual(len(ref[:]),12)
-        ref = ds.variables['climatology_bounds']
-        self.assertEqual(ref[:].shape[0],12)
-        ds.close()
 
-        ops = ocgis.OcgOperations(dataset={'uri':ret,'variable':calc[0]['name']},
-                                  output_format='nc',prefix='subset_climatology')
+        with self.nc_scope(ret) as ds:
+            ref = ds.variables['time']
+            self.assertEqual(ref.climatology, 'climatology_bounds')
+            self.assertEqual(len(ref[:]), 12)
+            ref = ds.variables['climatology_bounds']
+            self.assertEqual(ref[:].shape[0], 12)
+
+        ops = ocgis.OcgOperations(dataset={'uri': ret, 'variable': calc[0]['name']},
+                                  output_format='nc', prefix='subset_climatology')
         ret = ops.execute()
-        
-        ds = nc.Dataset(ret,'r')
-        ref = ds.variables['time'][:]
-        self.assertEqual(len(ref),12)
-        self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
-                         set([u'_FillValue', u'units', u'long_name', u'standard_name']))
-        ds.close()
-        
+
+        with self.nc_scope(ret) as ds:
+            ref = ds.variables['time'][:]
+            self.assertEqual(len(ref), 12)
+            self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
+                             set([u'_FillValue', u'units', u'long_name', u'standard_name', 'grid_mapping']))
+
     def test_frequency_percentiles(self):
         ## data comes in as 4-dimensional array. (time,level,row,column)
         

@@ -1,12 +1,14 @@
+from collections import OrderedDict
 from copy import deepcopy
-import numpy as np
 import abc
 import itertools
+import logging
+import numpy as np
+
 from ocgis.interface.base.variable import DerivedVariable, VariableCollection
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis import constants
-import logging
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 
@@ -49,6 +51,7 @@ class AbstractFunction(object):
     >>> meta_attrs = {'standard_name': 'the_real', 'long_name': 'The Real Long Name', 'note_count': 55}
 
     :type meta_attrs: dict
+    :param bool add_parents: If ``True``, maintain parent variables following a calculation.
     """
 
     __metaclass__ = abc.ABCMeta
@@ -67,7 +70,7 @@ class AbstractFunction(object):
     def key(self):
         str
 
-    #: The calculation's long name.
+    # : The calculation's long name.
     @abc.abstractproperty
     def long_name(self):
         str
@@ -86,7 +89,7 @@ class AbstractFunction(object):
     _empty_fill = {'fill': None, 'sample_size': None}
 
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
-                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None):
+                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None, add_parents=False):
         self.alias = alias or self.key
         self.dtype = dtype or self.dtype
         self.fill_value = fill_value
@@ -98,6 +101,7 @@ class AbstractFunction(object):
         self.use_raw_values = use_raw_values
         self.calc_sample_size = calc_sample_size
         self.meta_attrs = deepcopy(meta_attrs)
+        self.add_parents = add_parents
 
     def aggregate_spatial(self, values, weights):
         """
@@ -221,7 +225,7 @@ class AbstractFunction(object):
         pass
 
     @classmethod
-    def validate(self, ops):
+    def validate(cls, ops):
         """
         Optional method to overload that validates the input :class:`ocgis.OcgOperations`.
 
@@ -229,15 +233,35 @@ class AbstractFunction(object):
         :raises: :class:`ocgis.exc.DefinitionValidationError`
         """
 
-        pass
-
     def validate_units(self, *args, **kwargs):
         """Optional method to overload for units validation at the calculation level."""
 
-        pass
-
     def _add_to_collection_(self, units=None, value=None, parent_variables=None, alias=None, dtype=None,
                             fill_value=None):
+        """
+        :param str units: The units for the derived variable.
+
+        >>> units = 'kelvin'
+
+        :param value: The value for the derived variable.
+        :type value: :class:`numpy.ma.core.MaskedArray` or dict
+
+        >>> import numpy as np
+        >>> value = np.zeros((2, 3, 4, 5, 6))
+        >>> value = np.ma.array(value)
+
+        *or*
+
+        >>> sample_size = value.copy()
+        >>> sample_size[:] = 5
+        >>> value = {'fill': value, 'sample_size': sample_size}
+
+        :param parent_variables: A variable collection containing variable data used to derive the current output.
+        :type parent_variables: :class:`ocgis.interface.base.variable.VariableCollection`
+        :param str alias: The alias of the derived variable.
+        :param type dtype: The type of the derived variable.
+        :param fill_value: The mask fill value of the derived variable.
+        """
 
         # dtype should come in with each new variable
         assert (dtype is not None)
@@ -246,24 +270,25 @@ class AbstractFunction(object):
             fill_value = np.ma.array([], dtype=dtype).fill_value
 
         # the value parameters should come in as a dictionary with two keys
-        try:
+        if isinstance(value, dict):
             fill = value['fill']
             sample_size = value['sample_size']
         # some computations will just pass the array without the sample size if _get_temporal_agg_fill_ is bypassed.
-        except ValueError:
+        else:
             fill = value
             sample_size = None
 
         alias = alias or self.alias
         fdef = self.get_function_definition()
-        meta = {'attrs': {'standard_name': self.standard_name, 'long_name': self.long_name}}
-        parents = VariableCollection(variables=parent_variables)
 
-        # attempt to copy the grid_mapping attribute for the derived variable
-        try:
-            meta['attrs']['grid_mapping'] = parents.first().meta['attrs']['grid_mapping']
-        except KeyError:
-            pass
+        attrs = OrderedDict()
+        attrs['standard_name'] = self.standard_name
+        attrs['long_name'] = self.long_name
+
+        if self.add_parents:
+            parents = VariableCollection(variables=parent_variables)
+        else:
+            parents = None
 
         # if the operation is file only, creating a variable with an empty value will raise an exception. pass a dummy
         # data source because even if the value is trying to be loaded it should not be accessible!
@@ -272,23 +297,27 @@ class AbstractFunction(object):
         else:
             data = None
 
-        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents, meta=meta,
-                             data=data, dtype=dtype, fill_value=fill_value)
+        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents, data=data,
+                             dtype=dtype, fill_value=fill_value, attrs=attrs)
 
         # allow more complex manipulations of metadata
         self.set_variable_metadata(dv)
         # overload the metadata attributes with any provided
         if self.meta_attrs is not None:
-            dv.meta['attrs'].update(self.meta_attrs)
+            # dv.meta['attrs'].update(self.meta_attrs)
+            dv.attrs.update(self.meta_attrs)
         # add the variable to the variable collection
         self._set_derived_variable_alias_(dv, parent_variables)
         self.vc.add_variable(dv)
 
         # add the sample size if it is present in the fill dictionary
         if sample_size is not None:
-            meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
+            # meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
+            attrs = OrderedDict()
+            attrs['standard_name'] = constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME
+            attrs['long_name'] = constants.DEFAULT_SAMPLE_SIZE_LONG_NAME
             dv = DerivedVariable(name=None, alias='n_' + dv.alias, units=None, value=sample_size, fdef=None,
-                                 parents=parents, meta=meta, dtype=constants.np_int, fill_value=fill_value)
+                                 parents=parents, dtype=constants.NP_INT, fill_value=fill_value, attrs=attrs)
             self.vc.add_variable(dv)
 
     @abc.abstractmethod
@@ -323,7 +352,7 @@ class AbstractFunction(object):
 
         ## this array holds output from the sample size computations
         if self.calc_sample_size:
-            fill_sample_size = np.ma.zeros(fill.shape, dtype=constants.np_int)
+            fill_sample_size = np.ma.zeros(fill.shape, dtype=constants.NP_INT)
         else:
             fill_sample_size = None
 
@@ -408,7 +437,7 @@ class AbstractUnivariateFunction(AbstractFunction):
     """
 
     __metaclass__ = abc.ABCMeta
-    #: Optional sequence of acceptable string units defintions for input variables. If this is set to ``None``, no unit
+    # : Optional sequence of acceptable string units defintions for input variables. If this is set to ``None``, no unit
     #: validation will occur.
     required_units = None
 
@@ -468,7 +497,7 @@ class AbstractParameterizedFunction(AbstractFunction):
         >>> {'threshold':float,'operation':str,'basis':None}
         """
         dict
-    
+
     def _format_parms_(self, values):
         """
         :param values: A dictionary containing the parameter values to check.
@@ -549,7 +578,7 @@ class AbstractMultivariateFunction(AbstractFunction):
     """
 
     __metaclass__ = abc.ABCMeta
-    #: Optional dictionary mapping unit definitions for required variables.
+    # : Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
     required_units = None
     #: If True, time aggregation is external to the calculation and will require running the standard time aggregation
@@ -638,15 +667,23 @@ class AbstractMultivariateFunction(AbstractFunction):
                                             'Multivariate functions do not calculate sample size at this time.')
             ocgis_lh(exc=exc, logger='calc.base')
 
-        # ensure the required variables are presents
-        aliases = [d.alias for d in ops.dataset.itervalues()]
+        # ensure the required variables are present
         should_raise = False
         for c in ops.calc:
             if c['func'] == cls.key:
-                if not len(set(c['kwds'].keys()).intersection(set(cls.required_variables))) >= 2:
+                kwds = c['kwds']
+
+                # check the required variables are keyword arguments
+                if not len(set(kwds.keys()).intersection(set(cls.required_variables))) >= 2:
                     should_raise = True
-                if not len(set(c['kwds'].values()).intersection(set(aliases))) >= 2:
-                    should_raise = True
+                    break
+
+                # ensure the mapped aliases exist
+                for xx in cls.required_variables:
+                    to_check = kwds[xx]
+                    if to_check not in ops.dataset:
+                        should_raise = True
+
                 break
         if should_raise:
             from ocgis.api.parms.definition import Calc

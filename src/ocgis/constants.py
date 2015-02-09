@@ -1,58 +1,139 @@
 import numpy as np
 
-#: Standard bounds name used when none is available from the input data.
-from ocgis.interface.base.crs import CFWGS84
 
-ocgis_bounds = 'bounds'
+# : Standard bounds name used when none is available from the input data.
+OCGIS_BOUNDS = 'bounds'
 
 #: Default netCDF4 output file type
-netCDF_default_data_model = 'NETCDF4_CLASSIC'
+NETCDF_DEFAULT_DATA_MODEL = 'NETCDF4'
+
+#: Default temporal calendar.
+DEFAULT_TEMPORAL_CALENDAR = 'standard'
+
+#: Default temporal units.
+DEFAULT_TEMPORAL_UNITS = 'days since 0001-01-01 00:00:00'
+
+#: Default name for coordinate systems in netCDF file if none is provided.
+DEFAULT_COORDINATE_SYSTEM_NAME = 'coordinate_system'
+
+#: Default sample size variable standard name.
+DEFAULT_SAMPLE_SIZE_STANDARD_NAME = 'sample_size'
+
+#: Default sample size variable long name.
+DEFAULT_SAMPLE_SIZE_LONG_NAME = 'Statistical Sample Size'
+
+#: Default row coordinate name.
+DEFAULT_NAME_ROW_COORDINATES = 'yc'
+
+#: Default column coordinate name.
+DEFAULT_NAME_COL_COORDINATES = 'xc'
+
+#: Default corners dimension name.
+DEFAULT_NAME_CORNERS_DIMENSION = 'ncorners'
+
+
+class HEADERS(object):
+    ID_DATASET = 'did'
+    ID_VARIABLE = 'vid'
+    ID_SELECTION_GEOMETRY = 'ugid'
+    ID_TEMPORAL = 'tid'
+    ID_LEVEL = 'lid'
+    ID_GEOMETRY = 'gid'
+    ID_CALCULATION = 'cid'
+
+    VARIABLE = 'variable'
+    VARIABLE_ALIAS = 'alias'
+
+    TEMPORAL = 'time'
+    TEMPORAL_YEAR = 'year'
+    TEMPORAL_MONTH = 'month'
+    TEMPORAL_DAY = 'day'
+
+    LEVEL = 'level'
+
+    VALUE = 'value'
+
+    CALCULATION_KEY = 'calc_key'
+    CALCULATION_ALIAS = 'calc_alias'
+
 
 #: Standard headers for subset operations.
-raw_headers = ['did','vid','ugid','tid','lid','gid','variable','alias','time','year','month','day','level','value']
-#: Standard headers for computation.
-calc_headers = ['did','vid','cid','ugid','tid','lid','gid','variable','alias','calc_key','calc_alias','time','year','month','day','level','value']
-#: Standard headers for multivariate calculations.
-multi_headers = ['did','cid','ugid','tid','lid','gid','calc_key','calc_alias','time','year','month','day','level','value']
+HEADERS_RAW = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_TEMPORAL,
+               HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS, HEADERS.TEMPORAL,
+               HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
 
-level_headers = ['lid','level']
+#: Standard headers for computation.
+HEADERS_CALC = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
+                HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS,
+                HEADERS.CALCULATION_KEY, HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR,
+                HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
+
+#: Standard headers for multivariate calculation.
+HEADERS_MULTI = [HEADERS.ID_DATASET, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
+                 HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.CALCULATION_KEY,
+                 HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH,
+                 HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
 
 #: Required headers for every request.
-required_headers = ['did','ugid','gid']
+HEADERS_REQUIRED = [HEADERS.ID_DATASET, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_GEOMETRY]
 
-#: Key identifiers for output formats.
-output_formats = ['numpy','nc','csv','csv+','shp','geojson','meta']
+#: Standard name for the unique identifier in GIS files.
+OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HEADERS.ID_SELECTION_GEOMETRY.upper()
+
+OUTPUT_FORMAT_CSV = 'csv'
+OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
+OUTPUT_FORMAT_CSV_SHAPEFILE_OLD = 'csv+'
+OUTPUT_FORMAT_ESMPY_GRID = 'esmpy'
+OUTPUT_FORMAT_GEOJSON = 'geojson'
+OUTPUT_FORMAT_METADATA = 'meta'
+OUTPUT_FORMAT_NETCDF = 'nc'
+OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH = 'nc-ugrid-2d-flexible-mesh'
+OUTPUT_FORMAT_NUMPY = 'numpy'
+OUTPUT_FORMAT_SHAPEFILE = 'shp'
 
 # Download URL for test datasets.
-test_data_download_url_prefix = None
+TEST_DATA_DOWNLOAD_PREFIX = None
 
 #: The day value to use for month centroids.
-calc_month_centroid = 16
+CALC_MONTH_CENTROID = 16
 #: The month value to use for year centroids.
-calc_year_centroid_month = 7
+CALC_YEAR_CENTROID_MONTH = 7
 #: The default day value for year centroids.
-calc_year_centroid_day = 1
+CALC_YEAR_CENTROID_DAY = 1
 
 #: The number of values to use when calculating data resolution.
-resolution_limit = 100
+RESOLUTION_LIMIT = 100
 
 #: The data type to use for NumPy integers.
-np_int = np.int32
+NP_INT = np.int32
 #: The data type to use for NumPy floats.
-np_float = np.float32
+NP_FLOAT = np.float32
 
 #: Function key prefix for the `icclim` indices library.
-prefix_icclim_function_key = 'icclim'
+ICCLIM_PREFIX_FUNCTION_KEY = 'icclim'
 
 #: NumPy functions enabled for functions evaluated from string representations.
-enabled_numpy_ufuncs = ['exp','log','abs']
+ENABLED_NUMPY_UFUNCS = ['exp', 'log', 'abs']
 
-#: The default coordinate system to use if none is provided.
-default_coordinate_system = CFWGS84()
+#: The value for the 180th meridian to use when wrapping.
+MERIDIAN_180TH = 180.
+# MERIDIAN_180TH = 179.9999999999999
 
-#: The value for the prime meridian to use when wrapping.
-prime_meridian = 179.9999999999999
+# The standard key used to identify geometries in a dictionary.
+DEFAULT_GEOMETRY_KEY = 'geom'
 
+# Attributes to remove when a value is changed if they are present in the attributes dictionary. These attributes are
+# tuned to specific value ranges and will not apply when a value is changed.
+NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE = ('scale_value', 'add_offset')
 
-test_run_long_tests = True
-test_run_dev_tests = False
+NAME_DIMENSION_REALIZATION = 'rlz'
+NAME_DIMENSION_TEMPORAL = 'time'
+NAME_DIMENSION_LEVEL = 'level'
+
+NAME_BOUNDS_DIMENSION_LOWER = 'lb'
+NAME_BOUNDS_DIMENSION_UPPER = 'ub'
+
+NAME_UID_DIMENSION_REALIZATION = 'rid'
+NAME_UID_DIMENSION_TEMPORAL = 'tid'
+NAME_UID_DIMENSION_LEVEL = 'lid'
+NAME_UID_FIELD = 'fid'

@@ -1,48 +1,44 @@
 from collections import OrderedDict
 import os
-from ocgis import env
+import csv
+from copy import deepcopy
+
 import ogr
 from shapely.geometry.multipolygon import MultiPolygon
-import csv
 from osgeo.ogr import CreateGeometryFromWkb
 from shapely.geometry.polygon import Polygon
 from shapely import wkb
 import fiona
-from ocgis.interface.base.crs import CoordinateReferenceSystem
-from copy import deepcopy
-from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension, SpatialGeometryDimension, \
-    SpatialDimension, SpatialGeometryPointDimension
-import numpy as np
+
+from ocgis import env
+from ocgis.interface.base.dimension.spatial import SpatialDimension
 
 
 class ShpCabinetIterator(object):
     """
     Iterate over a geometry selected by ``key`` or ``path``.
 
-    :param key: Unique key identifier for a shapefile contained in the ShpCabinet
-     directory.
+    :param key: Unique key identifier for a shapefile contained in the ShpCabinet directory.
     :type key: str
 
     >>> key = 'state_boundaries'
 
-    :param select_ugid: Sequence of unique identifiers matching values from the
-     shapefile's UGID attribute.
+    :param select_ugid: Sequence of unique identifiers matching values from the shapefile's UGID attribute.
     :type select_ugid: sequence
 
     >>> select_ugid = [23,24]
 
-    :param path: Path to the target shapefile to iterate over. If ``key`` is
-     provided it will override ``path``.
+    :param path: Path to the target shapefile to iterate over. If ``key`` is provided it will override ``path``.
     :type path: str
 
     >>> path = '/path/to/shapefile.shp'
 
-    :param bool load_geoms: If ``False``, do not load geometries, excluding
-     the ``'geom'`` key from the output dictionary.
+    :param bool load_geoms: If ``False``, do not load geometries, excluding the ``'geom'`` key from the output
+     dictionary.
+    :param bool as_spatial_dimension: If ``True``, yield as spatial dimension objects.
     """
 
     def __init__(self, key=None, select_ugid=None, path=None, load_geoms=True, as_spatial_dimension=False):
-        #todo: doc spatial dimension
         self.key = key
         self.path = path
         self.select_ugid = select_ugid
@@ -143,7 +139,6 @@ class ShpCabinet(object):
             ValueError('a shapefile with key "{0}" was not found under the directory: {1}'.format(key, self.path)))
 
     def iter_geoms(self, key=None, select_ugid=None, path=None, load_geoms=True, as_spatial_dimension=False):
-        #todo: doc spatial dimension
         """
         Iterate over geometries from a shapefile specified by ``key`` or ``path``.
 
@@ -152,29 +147,27 @@ class ShpCabinet(object):
         >>> len(list(geoms))
         2
         
-        :param key: Unique key identifier for a shapefile contained in the ShpCabinet
-         directory.
+        :param key: Unique key identifier for a shapefile contained in the ShpCabinet directory.
         :type key: str
         
         >>> key = 'state_boundaries'
         
-        :param select_ugid: Sequence of unique identifiers matching values from the 
-         shapefile's UGID attribute. Ascending order only.
+        :param select_ugid: Sequence of unique identifiers matching values from the  shapefile's UGID attribute.
+         Ascending order only.
         :type select_ugid: sequence
         
         >>> select_ugid = [23,24]
         
-        :param path: Path to the target shapefile to iterate over. If ``key`` is
-         provided it will override ``path``.
+        :param path: Path to the target shapefile to iterate over. If ``key`` is provided it will override ``path``.
         :type path: str
         
         >>> path = '/path/to/shapefile.shp'
         
-        :param bool load_geoms: If ``False``, do not load geometries, excluding
-         the ``'geom'`` key from the output dictionary.
-        
+        :param bool load_geoms: If ``False``, do not load geometries, excluding the ``'geom'`` key from the output
+         dictionary.
+        :param bool as_spatial_dimension: If ``True``, yield spatial dimension objects.
         :raises: ValueError, RuntimeError
-        :yields: dict
+        :rtype: dict
         """
 
         # ensure select ugid is in ascending order
@@ -189,7 +182,6 @@ class ShpCabinet(object):
 
         ## get the source CRS
         meta = self.get_meta(path=shp_path)
-        crs = CoordinateReferenceSystem(value=meta['crs'])
 
         ## open the target shapefile
         ds = ogr.Open(shp_path)

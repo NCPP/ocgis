@@ -1,5 +1,8 @@
+from csv import DictReader
 import os
 import tempfile
+
+from ocgis import constants
 
 from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
 from ocgis import OcgOperations, RequestDataset
@@ -9,7 +12,37 @@ from ocgis.util.addict import Dict
 
 
 class TestCsvConverter(AbstractTestConverter):
-    pass
+    def get(self, kwargs_conv=None, kwargs_ops=None):
+        rd = self.test_data.get_rd('cancm4_tas')
+
+        kwds_ops = Dict(dataset=rd, geom='state_boundaries', select_ugid=[15, 18], snippet=True)
+        if kwargs_ops is not None:
+            kwds_ops.update(kwargs_ops)
+
+        ops = OcgOperations(**kwds_ops)
+        so = SubsetOperation(ops)
+
+        kwds_conv = Dict()
+        kwds_conv.outdir = self.current_dir_output
+        kwds_conv.prefix = 'foo'
+        kwds_conv.ops = ops
+        if kwargs_conv is not None:
+            kwds_conv.update(kwargs_conv)
+
+        conv = CsvConverter(so, **kwds_conv)
+
+        return conv
+
+    def test_write(self):
+        conv = self.get()
+        self.assertFalse(conv.melted)
+        ret = conv.write()
+        ugids = []
+        with open(ret) as f:
+            reader = DictReader(f)
+            for row in reader:
+                ugids.append(row[constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER])
+        self.assertAsSetEqual(['15', '18'], ugids)
 
 
 class TestCsvShpConverter(AbstractTestConverter):

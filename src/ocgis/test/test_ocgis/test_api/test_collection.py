@@ -2,13 +2,13 @@ from collections import OrderedDict
 import os
 from copy import copy, deepcopy
 import numpy as np
+import datetime
 
 import fiona
 from shapely.geometry import Point, shape, MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.multipolygon import MultiPolygon
 
-import datetime
 from ocgis.api.collection import SpatialCollection, AbstractCollection
 from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical
 from ocgis.test.base import TestBase
@@ -252,6 +252,11 @@ class TestSpatialCollection(AbstractTestField):
                 self.assertIsInstance(row[0], BaseGeometry)
                 self.assertIsInstance(row[1], OrderedDict)
                 self.assertEqual(row[1].keys(), headers)
+
+        # test ugid always in dictionary
+        coll = field.as_spatial_collection()
+        row = coll.get_iter_dict(melted=False).next()[1]
+        self.assertEqual(row[constants.HEADERS.ID_SELECTION_GEOMETRY], 1)
 
     def test_get_iter_melted(self):
         sp = self.get_collection()

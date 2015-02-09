@@ -9,6 +9,7 @@ from copy import deepcopy
 from csv import DictReader
 import tempfile
 import numpy as np
+import datetime
 
 from fiona.crs import from_string
 from osgeo.osr import SpatialReference
@@ -18,7 +19,6 @@ import fiona
 from shapely.geometry.geo import mapping
 from shapely import wkt
 
-import datetime
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.definition import SpatialOperation
@@ -1057,7 +1057,7 @@ class TestSimple(TestSimpleBase):
                 else:
                     actual = {'LID': '1', 'LB_LEVEL': '0', 'LEVEL': '50', 'TIME': '2000-03-01 12:00:00', 'MONTH': '3',
                               'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000', 'TID': '1',
-                              'FOO': '1.0', 'UB_TIME': '2000-03-02 00:00:00', 'DAY': '1'}
+                              'FOO': '1.0', 'UB_TIME': '2000-03-02 00:00:00', 'DAY': '1', 'UGID': '1'}
                 self.assertDictEqual(row, actual)
 
             did_file = os.path.join(output_dir, ops.prefix + '_did.csv')
@@ -1097,7 +1097,7 @@ class TestSimple(TestSimpleBase):
                 else:
                     actual = {'LID': '1', 'LB_LEVEL': '0', 'LEVEL': '50', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
                               'MY_MEAN': '1.0', 'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
-                              'TID': '1', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16'}
+                              'TID': '1', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'UGID': '1'}
                 self.assertDictEqual(row, actual)
 
     def test_csv_calc_conversion_two_calculations(self):

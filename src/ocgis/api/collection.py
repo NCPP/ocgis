@@ -156,7 +156,6 @@ class SpatialCollection(AbstractCollection):
         else:
             use_conversion = True
         for ugid, field_dict in self.iteritems():
-            ugid = ugid if melted else None
             for field in field_dict.itervalues():
                 for yld_geom, row in field.get_iter(value_keys=self.value_keys, melted=melted,
                                                     use_upper_keys=use_upper_keys, headers=self.headers, ugid=ugid):

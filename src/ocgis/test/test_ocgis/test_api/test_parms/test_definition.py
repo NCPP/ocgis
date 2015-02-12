@@ -4,6 +4,7 @@ import tempfile
 
 from cfunits import Units
 
+from ocgis.exc import OcgWarning
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.api.parms.base import BooleanParameter
 from ocgis import env
@@ -384,14 +385,15 @@ class TestMelted(TestBase):
         self.assertFalse(mm.value)
 
         # test with multiple request dataset
-        ocgis_lh.configure(to_stream=True)
-        rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
-        dataset = Dataset([rd, rd2])
-        of = OutputFormat(constants.OUTPUT_FORMAT_SHAPEFILE)
-        mm = Melted(dataset=dataset, output_format=of)
-        self.assertTrue(mm.value)
-        self.assertTrue(len(ocgis_lh.duplicates) > 0)
-        ocgis_lh.shutdown()
+        def _run_():
+            env.SUPPRESS_WARNINGS = False
+            rd2 = self.test_data.get_rd('cancm4_tasmax_2011')
+            dataset = Dataset([rd, rd2])
+            of = OutputFormat(constants.OUTPUT_FORMAT_SHAPEFILE)
+            mm = Melted(dataset=dataset, output_format=of)
+            self.assertTrue(mm.value)
+
+        self.assertWarns(OcgWarning, _run_)
 
 
 class TestDataset(TestBase):

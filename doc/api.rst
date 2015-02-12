@@ -33,6 +33,9 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.PREFIX` = ``'ocgis_output'``
  The default prefix to apply to output files. This is also the output folder name.
 
+:attr:`env.SUPPRESS_WARNINGS` = ``True``
+ If ``True``, suppress all OpenClimateGIS warning messages to standard out. Warning messages will still be logged.
+
 :attr:`env.USE_CFUNITS` = ``True``
  If ``True``, use :mod:`cfunits` for any unit transformations. This will be automatically set to ``False`` if :mod:`cfunits` is not available for import.
 

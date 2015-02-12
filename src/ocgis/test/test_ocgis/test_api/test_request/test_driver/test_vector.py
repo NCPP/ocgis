@@ -69,7 +69,9 @@ class TestDriverVector(TestBase):
 
     def test_inspect(self):
         driver = self.get_driver()
-        driver.inspect()
+        with self.print_scope() as ps:
+            driver.inspect()
+        self.assertTrue(len(ps.storage) >= 1)
 
     def test_inspect_get_lines(self):
         driver = self.get_driver()

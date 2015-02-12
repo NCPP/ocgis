@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 
+from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis import exc, env
 from ocgis.conv.meta import MetaConverter
@@ -80,39 +81,16 @@ class OcgInterpreter(Interpreter):
                 outdir = self.ops.dir_output
 
         try:
-            # # configure logging ###################################################
+            # configure logging ########################################################################################
 
-            # if file logging is enable, perform some logic based on the operational parameters.
-            if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files is True:
-                if self.ops.output_format in ['numpy', 'esmpy', 'meta']:
-                    to_file = None
-                else:
-                    to_file = os.path.join(outdir, prefix + '.log')
-            else:
-                to_file = None
-
-            # flags to determine streaming to console
-            if env.VERBOSE:
-                to_stream = True
-            else:
-                to_stream = False
-
-            # configure the logger
-            if env.DEBUG:
-                level = logging.DEBUG
-            else:
-                level = logging.INFO
-            # this wraps the callback function with methods to capture the completion of major operations.
-            progress = ProgressOcgOperations(callback=self.ops.callback)
-            ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level, callback=progress,
-                               callback_level=level)
+            progress = self._get_progress_and_configure_logging_(outdir, prefix)
 
             # create local logger
             interpreter_log = ocgis_lh.get_logger('interpreter')
 
             ocgis_lh('Initializing...', interpreter_log)
 
-            # # set up environment ##############################################
+            # set up environment #######################################################################################
 
             # run validation - doesn't do much now
             self.check()
@@ -172,3 +150,39 @@ class OcgInterpreter(Interpreter):
             kwargs['melted'] = self.ops.melted
         conv = conv_klass(so, **kwargs)
         return conv
+
+    def _get_progress_and_configure_logging_(self, outdir, prefix):
+        """
+        :param str outdir: The output directory for the operations.
+        :param str prefix: The file prefix to use when creating the output files.
+        :returns: A progress object to use when executing the operations.
+        :rtype: :class:`ocgis.util.logging_ocgis.ProgressOcgOperations`
+        """
+
+        # if file logging is enable, perform some logic based on the operational parameters.
+        if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files is True:
+            if self.ops.output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_ESMPY_GRID,
+                                          constants.OUTPUT_FORMAT_METADATA]:
+                to_file = None
+            else:
+                to_file = os.path.join(outdir, prefix + '.log')
+        else:
+            to_file = None
+
+        # flags to determine streaming to console
+        if env.VERBOSE:
+            to_stream = True
+        else:
+            to_stream = False
+
+        # configure the logger
+        if env.DEBUG:
+            level = logging.DEBUG
+        else:
+            level = logging.INFO
+        # this wraps the callback function with methods to capture the completion of major operations.
+        progress = ProgressOcgOperations(callback=self.ops.callback)
+        ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level, callback=progress,
+                           callback_level=level)
+
+        return progress

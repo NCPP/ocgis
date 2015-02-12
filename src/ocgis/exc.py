@@ -8,6 +8,10 @@ class OcgException(Exception):
         return self.message
 
 
+class OcgWarning(Warning):
+    """Base class for all OCGIS warnings."""
+
+
 ########################################################################################################################
 
 

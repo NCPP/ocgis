@@ -21,6 +21,7 @@ class Environment(object):
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX', None, 'rtree')
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, 'cfunits')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
+        self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
 
         from ocgis.interface.base.crs import CFWGS84
 
@@ -96,7 +97,7 @@ class EnvParm(object):
             if ret is None:
                 ret = self.default
             else:
-                # # attempt to use the parameter's format method.
+                # attempt to use the parameter's format method.
                 try:
                     ret = self.format(ret)
                 except NotImplementedError:

@@ -81,22 +81,22 @@ class DriverNetcdf(AbstractDriver):
         variables = metadata['variables'].keys()
         ret = []
 
-        ## check each variable for appropriate dimensions.
+        # check each variable for appropriate dimensions.
         for variable in variables:
             try:
                 dim_map = get_dimension_map(variable, metadata)
             except DimensionNotFound:
-                ## if a dimension is not located, then it is not an appropriate variable for subsetting.
+                # if a dimension is not located, then it is not an appropriate variable for subsetting.
                 continue
             missing_dimensions = []
 
-            ## these dimensions are required for subsetting.
+            # these dimensions are required for subsetting.
             for required_dimension in ['X', 'Y', 'T']:
                 if dim_map[required_dimension] is None:
                     missing_dimensions.append(required_dimension)
 
             if len(missing_dimensions) > 0:
-                ## if any of the required dimensions are missing, the variable is not appropriate for subsetting.
+                # if any of the required dimensions are missing, the variable is not appropriate for subsetting.
                 continue
             else:
                 ret.append(variable)
@@ -275,7 +275,7 @@ class DriverNetcdf(AbstractDriver):
                       realization=loaded['realization'], meta=source_metadata.copy(), uid=self.rd.did,
                       name=self.rd.name, attrs=source_metadata['dataset'].copy())
 
-        ## apply any subset parameters after the field is loaded
+        # apply any subset parameters after the field is loaded
         if self.rd.time_range is not None:
             ret = ret.get_between('temporal', min(self.rd.time_range), max(self.rd.time_range))
         if self.rd.time_region is not None:
@@ -284,7 +284,7 @@ class DriverNetcdf(AbstractDriver):
             try:
                 ret = ret.get_between('level', min(self.rd.level_range), max(self.rd.level_range))
             except AttributeError:
-                ## there may be no level dimension
+                # there may be no level dimension
                 if ret.level == None:
                     msg = ("A level subset was requested but the target dataset does not have a level dimension. The "
                            "dataset's alias is: {0}".format(self.rd.alias))
@@ -323,8 +323,7 @@ def get_axis(dimvar, dims, dim):
     except KeyError:
         ocgis_lh('Guessing dimension location with "axis" attribute missing for variable "{0}".'.format(dimvar['name']),
                  logger='nc.dataset',
-                 level=logging.WARN,
-                 check_duplicate=True)
+                 level=logging.WARN)
         axis = guess_by_location(dims, dim)
     return axis
 
@@ -337,30 +336,30 @@ def get_dimension_map(variable, metadata):
     dims = metadata['variables'][variable]['dimensions']
     mp = dict.fromkeys(['T', 'Z', 'X', 'Y'])
 
-    ## try to pull dimensions
+    # try to pull dimensions
     for dim in dims:
         dimvar = None
         try:
             dimvar = metadata['variables'][dim]
         except KeyError:
-            ## search for variable with the matching dimension
+            # search for variable with the matching dimension
             for key, value in metadata['variables'].iteritems():
                 if len(value['dimensions']) == 1 and value['dimensions'][0] == dim:
                     dimvar = metadata['variables'][key]
                     break
-        ## the dimension variable may not exist
+        # the dimension variable may not exist
         if dimvar is None:
             ocgis_lh(logger='request.nc', exc=DimensionNotFound(dim))
         axis = get_axis(dimvar, dims, dim)
-        ## pull metadata information the variable and dimension names
+        # pull metadata information the variable and dimension names
         mp[axis] = {'variable': dimvar['name'], 'dimension': dim}
         try:
             mp[axis].update({'pos': dims.index(dimvar['name'])})
         except ValueError:
-            ## variable name may differ from the dimension name
+            # variable name may differ from the dimension name
             mp[axis].update({'pos': dims.index(dim)})
 
-    ## look for bounds variables
+    # look for bounds variables
     # bounds_names = set(constants.name_bounds)
     for key, value in mp.iteritems():
 
@@ -379,13 +378,13 @@ def get_dimension_map(variable, metadata):
         if bounds_var is None:
             # if no attribute is found, try some other options...
 
-            ## if no bounds variable is found for time, it may be a climatological.
+            # if no bounds variable is found for time, it may be a climatological.
             if key == 'T':
                 try:
                     bounds_var = metadata['variables'][value['variable']]['attrs']['climatology']
                     ocgis_lh('Climatological bounds found for variable: {0}'.format(var['name']), logger='request.nc',
                              level=logging.INFO)
-                ## climatology is not found on time axis
+                # climatology is not found on time axis
                 except KeyError:
                     pass
 
@@ -393,7 +392,7 @@ def get_dimension_map(variable, metadata):
         if bounds_var not in metadata['variables']:
             msg = 'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.\
                 format(var['name'], bounds_var)
-            ocgis_lh(msg, logger='nc.driver', level=logging.WARNING, check_duplicate=True)
+            ocgis_lh(msg, logger='nc.driver', level=logging.WARNING)
             bounds_var = None
 
         # bounds variables sometime appear oddly, if it is not none and not a string, display what the value is, raise a

@@ -4,11 +4,11 @@ from csv import DictReader
 from copy import deepcopy
 import os
 import numpy as np
+from datetime import datetime as dt
 
 import fiona
 from shapely.geometry.point import Point
 
-from datetime import datetime as dt
 import ocgis
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
 from ocgis.test.base import TestBase, nc_scope, attr
@@ -340,7 +340,7 @@ class Test(TestBase):
         for output_format in _output_format:
             rd = self.test_data.get_rd('cancm4_tas')
             ops = OcgOperations(dataset=rd, geom='qed_city_centroids', output_format=output_format,
-                                prefix=output_format)
+                                prefix=output_format, snippet=True)
             ret = ops.execute()
             if output_format == 'numpy':
                 self.assertEqual(len(ret), 4)

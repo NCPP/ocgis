@@ -2,7 +2,6 @@ from copy import copy, deepcopy
 import tempfile
 import itertools
 import abc
-import logging
 import numpy as np
 
 from osgeo.osr import SpatialReference
@@ -11,14 +10,12 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis import constants
-from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
 
 
 class CoordinateReferenceSystem(object):
-    
     def __init__(self, value=None, proj4=None, epsg=None, name=None):
         self.name = name or constants.DEFAULT_COORDINATE_SYSTEM_NAME
 
@@ -43,17 +40,17 @@ class CoordinateReferenceSystem(object):
                     # this may be a numpy arr that needs conversion
                     except AttributeError:
                         continue
-            
+
         sr = SpatialReference()
         sr.ImportFromProj4(to_string(value))
         self.value = from_string(sr.ExportToProj4())
-    
+
         try:
             assert self.value != {}
         except AssertionError:
             msg = 'Empty CRS: The conversion to PROJ.4 may have failed. The CRS value is: {0}'.format(value)
-            ocgis_lh(logger='crs', exc=ValueError(msg))
-    
+            raise ValueError(msg)
+
     def __eq__(self, other):
         try:
             if self.sr.IsSame(other.sr) == 1:
@@ -67,7 +64,7 @@ class CoordinateReferenceSystem(object):
             else:
                 raise
         return ret
-    
+
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -77,7 +74,7 @@ class CoordinateReferenceSystem(object):
     @property
     def proj4(self):
         return self.sr.ExportToProj4()
-    
+
     @property
     def sr(self):
         sr = SpatialReference()
@@ -182,10 +179,10 @@ class WrappableCoordinateReferenceSystem(object):
             for tw in to_wrap:
                 if tw is not None:
                     geom = tw.value.data
-                    for (ii,jj),to_wrap in iter_array(geom,return_value=True,use_mask=False):
-                        geom[ii,jj] = unwrap(to_wrap)
+                    for (ii, jj), to_wrap in iter_array(geom, return_value=True, use_mask=False):
+                        geom[ii, jj] = unwrap(to_wrap)
             if spatial._grid is not None:
-                ref = spatial.grid.value.data[1,:,:]
+                ref = spatial.grid.value.data[1, :, :]
                 select = ref < 0
                 ref[select] += 360
                 if spatial.grid.col is not None:
@@ -203,9 +200,9 @@ class WrappableCoordinateReferenceSystem(object):
                     spatial.grid.corners[1][select] += 360
 
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data does not need to be unwrapped.'))
+            raise SpatialWrappingError('Data does not need to be unwrapped.')
 
-    def wrap(self,spatial):
+    def wrap(self, spatial):
         """
         Wrap ``spatial`` properties using a 180 degree prime meridian. If bounds _contain_ the prime meridian, the
         object may not be appropriately wrapped and bounds are removed.
@@ -221,8 +218,8 @@ class WrappableCoordinateReferenceSystem(object):
             for tw in to_wrap:
                 if tw is not None:
                     geom = tw.value.data
-                    for (ii,jj),to_wrap in iter_array(geom,return_value=True,use_mask=False):
-                        geom[ii,jj] = wrap(to_wrap)
+                    for (ii, jj), to_wrap in iter_array(geom, return_value=True, use_mask=False):
+                        geom[ii, jj] = wrap(to_wrap)
 
             # if there is a grid present, wrap its associated elements
             if spatial.grid is not None:
@@ -270,7 +267,7 @@ class WrappableCoordinateReferenceSystem(object):
                             select = ref[1] > 180
                             ref[1][select] -= 360
         else:
-            ocgis_lh(exc=SpatialWrappingError('Data does not need to be wrapped.'))
+            raise SpatialWrappingError('Data does not need to be wrapped.')
 
     @staticmethod
     def _get_to_wrap_(spatial):
@@ -347,7 +344,7 @@ class WrappableCoordinateReferenceSystem(object):
         # return the mask used for the replacement
         return select
 
-    
+
 class Spherical(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
     """
     A spherical model of the Earth's surface with equivalent semi-major and semi-minor axes.
@@ -356,9 +353,10 @@ class Spherical(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
      source code (src/pj_ellps.c).
     :type semi_major_axis: float
     """
-    
+
     def __init__(self, semi_major_axis=6370997.0):
-        value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis, 'b': semi_major_axis}
+        value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis,
+                 'b': semi_major_axis}
         CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
         self.major_axis = semi_major_axis
 
@@ -374,7 +372,7 @@ class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
 
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     __metaclass__ = abc.ABCMeta
-    
+
     ## if False, no attempt to read projection coordinates will be made. they
     ## will be set to a None default.
     _find_projection_coordinates = True
@@ -403,78 +401,81 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         super(CFCoordinateReferenceSystem, self).__init__(value=crs, name=name)
 
     @abc.abstractproperty
-    def grid_mapping_name(self): str
-    
+    def grid_mapping_name(self):
+        str
+
     @abc.abstractproperty
-    def iterable_parameters(self): dict
-    
+    def iterable_parameters(self):
+        dict
+
     @abc.abstractproperty
-    def map_parameters(self): dict
-    
+    def map_parameters(self):
+        dict
+
     @abc.abstractproperty
-    def proj_name(self): str
-    
-    def format_standard_parallel(self,value):
-        if isinstance(value,np.ndarray):
+    def proj_name(self):
+        str
+
+    def format_standard_parallel(self, value):
+        if isinstance(value, np.ndarray):
             value = value.tolist()
-            
+
         ret = {}
         try:
             it = iter(value)
         except TypeError:
             it = [value]
-        for ii,v in enumerate(it,start=1):
-            ret.update({self.map_parameters['standard_parallel'].format(ii):v})
-        return(ret)
-    
-    @classmethod
-    def load_from_metadata(cls,var,meta):
+        for ii, v in enumerate(it, start=1):
+            ret.update({self.map_parameters['standard_parallel'].format(ii): v})
+        return (ret)
 
-        def _get_projection_coordinate_(target,meta):
+    @classmethod
+    def load_from_metadata(cls, var, meta):
+
+        def _get_projection_coordinate_(target, meta):
             key = 'projection_{0}_coordinate'.format(target)
-            for k,v in meta['variables'].iteritems():
+            for k, v in meta['variables'].iteritems():
                 if 'standard_name' in v['attrs']:
                     if v['attrs']['standard_name'] == key:
-                        return(k)
-            ocgis_lh(logger='crs',exc=ProjectionCoordinateNotFound(key))
-            
+                        return (k)
+            raise ProjectionCoordinateNotFound(key)
+
         r_var = meta['variables'][var]
         try:
-            ## look for the grid_mapping attribute on the target variable
+            # look for the grid_mapping attribute on the target variable
             r_grid_mapping = meta['variables'][r_var['attrs']['grid_mapping']]
         except KeyError:
-            raise(ProjectionDoesNotMatch)
+            raise ProjectionDoesNotMatch
         try:
             grid_mapping_name = r_grid_mapping['attrs']['grid_mapping_name']
         except KeyError:
-            ocgis_lh(logger='crs',level=logging.WARN,msg='"grid_mapping" variable "{0}" does not have a "grid_mapping_name" attribute'.format(r_grid_mapping['name']))
-            raise(ProjectionDoesNotMatch)
+            raise ProjectionDoesNotMatch
         if grid_mapping_name != cls.grid_mapping_name:
-            raise(ProjectionDoesNotMatch)
-        
-        ## get the projection coordinates if not turned off by class attribute.
+            raise ProjectionDoesNotMatch
+
+        # get the projection coordinates if not turned off by class attribute.
         if cls._find_projection_coordinates:
-            pc_x,pc_y = [_get_projection_coordinate_(target,meta) for target in ['x','y']]
+            pc_x, pc_y = [_get_projection_coordinate_(target, meta) for target in ['x', 'y']]
         else:
-            pc_x,pc_y = None,None
-        
-        ## this variable name is used by the netCDF converter
+            pc_x, pc_y = None, None
+
+        # this variable name is used by the netCDF converter
         meta['grid_mapping_variable_name'] = r_grid_mapping['name']
-        
+
         kwds = r_grid_mapping['attrs'].copy()
-        kwds.pop('grid_mapping_name',None)
+        kwds.pop('grid_mapping_name', None)
         kwds['projection_x_coordinate'] = pc_x
         kwds['projection_y_coordinate'] = pc_y
 
         # add the correct name to the coordinate system
         kwds['name'] = r_grid_mapping['name']
-        
-        cls._load_from_metadata_finalize_(kwds,var,meta)
+
+        cls._load_from_metadata_finalize_(kwds, var, meta)
 
         return cls(**kwds)
-    
+
     @classmethod
-    def _load_from_metadata_finalize_(cls,kwds,var,meta):
+    def _load_from_metadata_finalize_(cls, kwds, var, meta):
         pass
 
     def write_to_rootgrp(self, rootgrp):
@@ -487,87 +488,87 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         return variable
 
 
-class CFWGS84(WGS84,CFCoordinateReferenceSystem,):
+class CFWGS84(WGS84, CFCoordinateReferenceSystem, ):
     grid_mapping_name = 'latitude_longitude'
     iterable_parameters = None
     map_parameters = None
     proj_name = None
-    
+
     def __init__(self, *args, **kwargs):
         self.map_parameters_values = {}
         WGS84.__init__(self, *args, **kwargs)
-    
+
     @classmethod
-    def load_from_metadata(cls,var,meta):
+    def load_from_metadata(cls, var, meta):
         try:
             r_grid_mapping = meta['variables'][var]['attrs']['grid_mapping']
             if r_grid_mapping == cls.grid_mapping_name:
-                return(cls())
+                return (cls())
             else:
-                raise(ProjectionDoesNotMatch)
+                raise (ProjectionDoesNotMatch)
         except KeyError:
-            raise(ProjectionDoesNotMatch)
-    
-    
+            raise (ProjectionDoesNotMatch)
+
+
 class CFAlbersEqualArea(CFCoordinateReferenceSystem):
     grid_mapping_name = 'albers_conical_equal_area'
-    iterable_parameters = {'standard_parallel':'format_standard_parallel'}
-    map_parameters = {'standard_parallel':'lat_{0}',
-                      'longitude_of_central_meridian':'lon_0',
-                      'latitude_of_projection_origin':'lat_0',
-                      'false_easting':'x_0',
-                      'false_northing':'y_0'}
+    iterable_parameters = {'standard_parallel': 'format_standard_parallel'}
+    map_parameters = {'standard_parallel': 'lat_{0}',
+                      'longitude_of_central_meridian': 'lon_0',
+                      'latitude_of_projection_origin': 'lat_0',
+                      'false_easting': 'x_0',
+                      'false_northing': 'y_0'}
     proj_name = 'aea'
 
 
 class CFLambertConformal(CFCoordinateReferenceSystem):
     grid_mapping_name = 'lambert_conformal_conic'
-    iterable_parameters = {'standard_parallel':'format_standard_parallel'}
-    map_parameters = {'standard_parallel':'lat_{0}',
-                      'longitude_of_central_meridian':'lon_0',
-                      'latitude_of_projection_origin':'lat_0',
-                      'false_easting':'x_0',
-                      'false_northing':'y_0',
-                      'units':'units'}
+    iterable_parameters = {'standard_parallel': 'format_standard_parallel'}
+    map_parameters = {'standard_parallel': 'lat_{0}',
+                      'longitude_of_central_meridian': 'lon_0',
+                      'latitude_of_projection_origin': 'lat_0',
+                      'false_easting': 'x_0',
+                      'false_northing': 'y_0',
+                      'units': 'units'}
     proj_name = 'lcc'
-    
+
     @classmethod
-    def _load_from_metadata_finalize_(cls,kwds,var,meta):
+    def _load_from_metadata_finalize_(cls, kwds, var, meta):
         kwds['units'] = meta['variables'][kwds['projection_x_coordinate']]['attrs'].get('units')
 
-        
+
 class CFPolarStereographic(CFCoordinateReferenceSystem):
     grid_mapping_name = 'polar_stereographic'
-    map_parameters = {'standard_parallel':'lat_ts',
-                      'latitude_of_projection_origin':'lat_0',
-                      'straight_vertical_longitude_from_pole':'lon_0',
-                      'false_easting':'x_0',
-                      'false_northing':'y_0',
-                      'scale_factor':'k_0'}
+    map_parameters = {'standard_parallel': 'lat_ts',
+                      'latitude_of_projection_origin': 'lat_0',
+                      'straight_vertical_longitude_from_pole': 'lon_0',
+                      'false_easting': 'x_0',
+                      'false_northing': 'y_0',
+                      'scale_factor': 'k_0'}
     proj_name = 'stere'
     iterable_parameters = {}
-    
-    def __init__(self,*args,**kwds):
+
+    def __init__(self, *args, **kwds):
         if 'scale_factor' not in kwds:
             kwds['scale_factor'] = 1.0
-        super(CFPolarStereographic,self).__init__(*args,**kwds)
-    
-    
+        super(CFPolarStereographic, self).__init__(*args, **kwds)
+
+
 class CFNarccapObliqueMercator(CFCoordinateReferenceSystem):
     grid_mapping_name = 'transverse_mercator'
-    map_parameters = {'latitude_of_projection_origin':'lat_0',
-                      'longitude_of_central_meridian':'lonc',
-                      'scale_factor_at_central_meridian':'k_0',
-                      'false_easting':'x_0',
-                      'false_northing':'y_0',
-                      'alpha':'alpha'}
+    map_parameters = {'latitude_of_projection_origin': 'lat_0',
+                      'longitude_of_central_meridian': 'lonc',
+                      'scale_factor_at_central_meridian': 'k_0',
+                      'false_easting': 'x_0',
+                      'false_northing': 'y_0',
+                      'alpha': 'alpha'}
     proj_name = 'omerc'
     iterable_parameters = {}
-    
-    def __init__(self,*args,**kwds):
+
+    def __init__(self, *args, **kwds):
         if 'alpha' not in kwds:
             kwds['alpha'] = 360
-        super(CFNarccapObliqueMercator,self).__init__(*args,**kwds)
+        super(CFNarccapObliqueMercator, self).__init__(*args, **kwds)
 
 
 class CFRotatedPole(CFCoordinateReferenceSystem):
@@ -701,7 +702,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             coord = coord.split('\t')
             try:
                 coord = map(float, coord)
-            # # likely empty string
+            # likely empty string
             except ValueError:
                 if coord[0] == '':
                     continue
@@ -714,7 +715,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         new_col = new_coords[:, 0].reshape(*shp)
 
         new_grid = copy(grid)
-        # # reset geometries
+        # reset geometries
         new_grid._geom = None
         if inverse:
             from ocgis.interface.base.dimension.base import VectorDimension
@@ -733,6 +734,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             new_col, new_row = np.meshgrid(new_col, new_row)
         else:
             from ocgis.interface.nc.spatial import NcSpatialGridDimension
+
             assert isinstance(new_grid, NcSpatialGridDimension)
             new_grid._src_idx = {'row': new_grid.row._src_idx, 'col': new_grid.col._src_idx}
             new_grid.row = None

@@ -1,16 +1,19 @@
 import logging
 import os
+from warnings import warn
 
 
 # try to turn off fiona logging except for errors
+from ocgis import env
+from ocgis.exc import OcgWarning
+
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)
 
 
 class ProgressOcgOperations(object):
     """
-    :param function callback: A function taking two parameters: ``percent_complete``
-     and ``message``.
+    :param function callback: A function taking two parameters: ``percent_complete`` ``message``.
     :param int n_subsettables: The number of data objects to subset and/or manipulate.
     :param int n_geometries: The number of geometries to use for subsetting.
     :param int n_calculations: The number of calculations to apply.
@@ -51,12 +54,20 @@ class OcgisLogging(object):
         self.level = None
         self.null = True  # pass through if not configured
         self.parent = None
-        self.duplicates = set()
         self.callback = None
         self.callback_level = None
+        self.loggers = None
 
-    def __call__(self, msg=None, logger=None, level=logging.INFO, alias=None, ugid=None, exc=None,
-                 check_duplicate=False):
+        logging.captureWarnings(None)
+
+    def __call__(self, msg=None, logger=None, level=logging.INFO, alias=None, ugid=None, exc=None):
+
+        # attach a default exception to messages to handle warnings if an exception is not provided
+        if level == logging.WARN:
+            if exc is None:
+                exc = OcgWarning(msg)
+            if not env.SUPPRESS_WARNINGS:
+                warn(exc)
 
         if self.callback is not None and self.callback_level <= level:
             if msg is not None:
@@ -66,18 +77,13 @@ class OcgisLogging(object):
                 self.callback(callback_msg)
 
         if self.null:
-            if exc is None:
+            if exc is None or level == logging.WARN:
                 pass
             else:
                 raise exc
         else:
-            if check_duplicate:
-                if msg in self.duplicates:
-                    return ()
-                else:
-                    self.duplicates.add(msg)
             dest_level = level or self.level
-            # # get the logger by string name
+            # get the logger by string name
             if isinstance(logger, basestring):
                 dest_logger = self.get_logger(logger)
             else:
@@ -87,42 +93,50 @@ class OcgisLogging(object):
             if exc is None:
                 dest_logger.log(dest_level, msg)
             else:
-                dest_logger.exception(msg)
-                raise exc
+                if level == logging.WARN:
+                    wmsg = '{0}: {1}'.format(exc.__class__.__name__, exc.message)
+                    dest_logger.warn(wmsg)
+                else:
+                    dest_logger.exception(msg)
+                    raise exc
 
     def configure(self, to_file=None, to_stream=False, level=logging.INFO, callback=None, callback_level=logging.INFO):
-        # # set the callback arguments
+        # set the callback arguments
         self.callback = callback
         self.callback_level = callback_level
-        ## no need to configure loggers
+
+        # no need to configure loggers
         if to_file is None and not to_stream:
             self.null = True
         else:
             self.level = level
             self.null = False
-            ## add the filehandler if request
+            # add the filehandler if request
             if to_file is None:
                 filename = os.devnull
             else:
                 filename = to_file
-            ## create the root logger
+            # create the root logger
             self.loggers = {}
             self.parent = logging.getLogger('ocgis')
             self.parent.parent = None
             self.parent.setLevel(level)
             self.parent.handlers = []
-            ## add the file handler
+            # add the file handler
             fh = logging.FileHandler(filename, 'w')
             fh.setLevel(level)
-            fh.setFormatter(logging.Formatter(fmt='%(name)12s: %(levelname)s: %(asctime)s: %(message)s',
+            fh.setFormatter(logging.Formatter(fmt='%(name)s: %(levelname)s: %(asctime)s: %(message)s',
                                               datefmt='%Y-%m-%d %H:%M'))
             self.parent.addHandler(fh)
-            ## add the stream handler if requested
+            # add the stream handler if requested
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
-                console.setFormatter(logging.Formatter('%(name)12s: %(levelname)s: %(message)s'))
+                console.setFormatter(logging.Formatter('%(name)s: %(levelname)s: %(message)s'))
                 self.parent.addHandler(console)
+
+            # tell logging to capture warnings
+            logging.captureWarnings(env.SUPPRESS_WARNINGS)
 
     @staticmethod
     def get_formatted_msg(msg, alias, ugid=None):
@@ -143,6 +157,7 @@ class OcgisLogging(object):
         self.__init__()
         try:
             logging.shutdown()
+            logging.captureWarnings(None)
         except:
             pass
 

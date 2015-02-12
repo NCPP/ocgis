@@ -7,6 +7,7 @@ from copy import deepcopy
 from types import FunctionType
 import itertools
 import numpy as np
+import datetime
 
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
@@ -15,7 +16,6 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 
 from ocgis.conv.base import AbstractConverter, AbstractTabularConverter
-import datetime
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
@@ -444,7 +444,7 @@ class Dataset(base.OcgParameter):
                         import ESMF
                     except ImportError:
                         # ESMF is not a required library
-                        ocgis_lh('Could not import ESMF library.', level=logging.WARN, check_duplicate=True)
+                        ocgis_lh('Could not import ESMF library.', level=logging.WARN)
                     else:
                         if isinstance(init_value, ESMF.Field):
                             from ocgis.regrid.base import get_ocgis_field_from_esmpy_field
@@ -566,8 +566,7 @@ class Geom(base.OcgParameter):
                         element['properties'] = {self._ugid_key: ii}
                     crs = element.get('crs', CFWGS84())
                     if 'crs' not in element:
-                        ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.', level=logging.WARN,
-                                 check_duplicate=True)
+                        ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.', level=logging.WARN)
                 ret = SpatialDimension.from_records(value, crs=crs)
             else:
                 if len(value) == 2:
@@ -762,7 +761,7 @@ class Melted(base.BooleanParameter):
             if issubclass(converter_class, AbstractTabularConverter):
                 kwargs['init_value'] = True
                 msg = 'Tabular output formats require "melted" is "False". Setting "melted" to "False".'
-                ocgis_lh(msg=msg, logger='operations', level=logging.WARNING, check_duplicate=True)
+                ocgis_lh(msg=msg, logger='operations', level=logging.WARNING)
         super(Melted, self).__init__(**kwargs)
 
 

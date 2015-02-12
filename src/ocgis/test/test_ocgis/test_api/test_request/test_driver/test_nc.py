@@ -1,7 +1,6 @@
 from copy import deepcopy
 import os
 import shutil
-import tempfile
 import netCDF4 as nc
 from collections import OrderedDict
 import numpy as np
@@ -12,6 +11,7 @@ from cfunits import Units
 import fiona
 from shapely.geometry.geo import shape
 
+from ocgis import env
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis import constants
@@ -22,9 +22,8 @@ from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.interface.base.crs import WGS84, CFWGS84, CFLambertConformal
 from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension, SpatialGeometryDimension, \
     SpatialDimension
-from ocgis.exc import EmptySubsetError, DimensionNotFound
+from ocgis.exc import EmptySubsetError, DimensionNotFound, OcgWarning
 import ocgis
-from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis import ShpCabinet
 
 
@@ -548,7 +547,9 @@ class TestDriverNetcdf(TestBase):
     def test_inspect(self):
         rd = self.test_data.get_rd('cancm4_tas')
         driver = DriverNetcdf(rd)
-        driver.inspect()
+        with self.print_scope() as ps:
+            driver.inspect()
+        self.assertTrue(len(ps.storage) >= 1)
 
 
 class Test(TestBase):
@@ -694,16 +695,13 @@ class Test(TestBase):
     def test_get_dimension_map_3(self):
         """Test when bounds are found but the bounds variable is actually missing."""
 
-        _, to_file = tempfile.mkstemp(dir=self.current_dir_output)
-        ocgis_lh.configure(to_file=to_file)
-
-        try:
-            # remove the bounds variable from a standard metadata dictionary
+        # remove the bounds variable from a standard metadata dictionary
+        def _run_():
+            env.SUPPRESS_WARNINGS = False
             rd = self.test_data.get_rd('cancm4_tas')
             metadata = deepcopy(rd.source_metadata)
             metadata['variables'].pop('lat_bnds')
             dim_map = get_dimension_map('tas', metadata)
             self.assertEqual(dim_map['Y']['bounds'], None)
-            self.assertTrue('lat_bnds' in list(ocgis_lh.duplicates)[0])
-        finally:
-            ocgis_lh.shutdown()
+
+        self.assertWarns(OcgWarning, _run_)

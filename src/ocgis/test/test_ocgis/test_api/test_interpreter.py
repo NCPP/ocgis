@@ -1,6 +1,7 @@
+import logging
 import os
 
-from ocgis import constants
+from ocgis import constants, env
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis import OcgOperations
 from ocgis.api.subset import SubsetOperation
@@ -9,6 +10,7 @@ from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.exc import ExtentError
 from ocgis.test.base import TestBase
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 
 
 class TestOcgInterpreter(TestBase):
@@ -44,3 +46,20 @@ class TestOcgInterpreter(TestBase):
         ret = interp._get_converter_(outdir, prefix, so)
         self.assertIsInstance(ret, ShpConverter)
         self.assertTrue(ret.melted)
+
+    def test_get_progress_and_configure_logging(self):
+        env.VERBOSE = True
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd)
+        outdir = self.current_dir_output
+        prefix = 'foo'
+        interp = OcgInterpreter(ops)
+        self.assertIsNone(logging._warnings_showwarning)
+        self.assertTrue(ocgis_lh.null)
+        env.SUPPRESS_WARNINGS = False
+        progress = interp._get_progress_and_configure_logging_(outdir, prefix)
+        self.assertIsInstance(progress, ProgressOcgOperations)
+        self.assertFalse(ocgis_lh.null)
+        self.assertFalse(logging._warnings_showwarning)
+
+

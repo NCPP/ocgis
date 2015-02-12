@@ -427,7 +427,7 @@ class AbstractFunction(object):
         if len(self.field.variables) > 1:
             original_alias = dv.alias
             dv.alias = '{0}_{1}'.format(dv.alias, parent_variables[0].alias)
-            msg = 'Alias updated to maintain uniquencess Changing "{0}" to "{1}".'.format(original_alias, dv.alias)
+            msg = 'Alias updated to maintain uniqueness. Changing "{0}" to "{1}".'.format(original_alias, dv.alias)
             ocgis_lh(logger='calc.base', level=logging.WARNING, msg=msg)
 
 
@@ -437,7 +437,7 @@ class AbstractUnivariateFunction(AbstractFunction):
     """
 
     __metaclass__ = abc.ABCMeta
-    # : Optional sequence of acceptable string units defintions for input variables. If this is set to ``None``, no unit
+    #: Optional sequence of acceptable string units definitions for input variables. If this is set to ``None``, no unit
     #: validation will occur.
     required_units = None
 

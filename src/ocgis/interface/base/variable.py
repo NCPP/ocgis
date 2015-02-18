@@ -137,7 +137,7 @@ class AbstractValueVariable(Attributes):
             to_units = Units(to_units)
         # pick the value to convert. this is added to keep the import of the units library in the
         # AbstractValueVariable.cfunits property
-        convert_value = self.value if value is None else value
+        convert_value = self._get_to_conform_value_() if value is None else value
         # use the overloaded "from_units" if passed, otherwise use the object-level attribute
         from_units = self.cfunits if from_units is None else from_units
         # units are always converted in place. users need to execute their own deep copies
@@ -156,6 +156,10 @@ class AbstractValueVariable(Attributes):
             self.attrs.pop(remove, None)
 
         return convert_value
+
+    def _get_to_conform_value_(self):
+        """Intended for subclasses to be able to provide a different value array for unit conforming."""
+        return self.value
 
 
 class AbstractSourcedVariable(object):

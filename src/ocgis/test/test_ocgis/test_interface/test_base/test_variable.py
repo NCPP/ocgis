@@ -202,6 +202,10 @@ class TestAbstractValueVariable(TestBase):
         var.cfunits_conform(Units('kelvin'))
         self.assertNumpyAll(np.ma.array([278.15, 278.15, 278.15], mask=[False, True, False]), var.value)
 
+    def test_get_to_conform_value(self):
+        value = [4, 5]
+        f = FakeAbstractValueVariable(value=value)
+        self.assertEqual(f.value, f._get_to_conform_value_())
 
 class TestDerivedVariable(TestBase):
     def test_init(self):

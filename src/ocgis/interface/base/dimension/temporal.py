@@ -3,10 +3,11 @@ import itertools
 from copy import deepcopy
 import netCDF4 as nc
 import numpy as np
+import datetime
+from decimal import Decimal
 
 import netcdftime
 
-import datetime
 import base
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -31,24 +32,24 @@ class TemporalDimension(base.VectorDimension):
     _date_parts = ('year', 'month', 'day', 'hour', 'minute', 'second')
 
     def __init__(self, *args, **kwargs):
+        self._value_datetime = None
+        self._bounds_datetime = None
+        self._value_numtime = None
+        self._bounds_numtime = None
+
         self.calendar = kwargs.pop('calendar', constants.DEFAULT_TEMPORAL_CALENDAR)
         self.format_time = kwargs.pop('format_time', True)
 
         kwargs['axis'] = kwargs.get('axis') or 'T'
         kwargs['units'] = kwargs.get('units') or constants.DEFAULT_TEMPORAL_UNITS
 
+        if kwargs['units'] == 'day as %Y%m%d.%f':
+            td = TemporalDimension(value=kwargs.get('value'))
+            td.units = kwargs['units']
+            kwargs['value'] = td.value_datetime
+            kwargs['units'] = constants.DEFAULT_TEMPORAL_UNITS
+
         super(TemporalDimension, self).__init__(*args, **kwargs)
-
-        # test if the units are the special case with months in the time units
-        if self.units.startswith('months'):
-            self._has_months_units = True
-        else:
-            self._has_months_units = False
-
-        self._value_datetime = None
-        self._bounds_datetime = None
-        self._value_numtime = None
-        self._bounds_numtime = None
 
     @property
     def bounds_datetime(self):
@@ -120,6 +121,23 @@ class TemporalDimension(base.VectorDimension):
                 self._value_numtime = self.value
         return self._value_numtime
 
+    @property
+    def _has_months_units(self):
+        # test if the units are the special case with months in the time units
+        if self.units.startswith('months'):
+            ret = True
+        else:
+            ret = False
+        return ret
+
+    @property
+    def _has_template_units(self):
+        if self.units == 'day as %Y%m%d.%f':
+            ret = True
+        else:
+            ret = False
+        return ret
+
     def get_between(self, lower, upper, return_indices=False):
         if get_datetime_conversion_state(self.value[0]):
             lower, upper = tuple(self.get_numtime([lower, upper]))
@@ -135,16 +153,24 @@ class TemporalDimension(base.VectorDimension):
 
         # if there are month units, call the special procedure to convert those to datetime objects
         if not self._has_months_units:
-            arr = np.atleast_1d(nc.num2date(arr, self.units, calendar=self.calendar))
-            dt = datetime.datetime
-            for idx, t in iter_array(arr, return_value=True):
-                # attempt to convert times to datetime objects
-                try:
-                    arr[idx] = dt(t.year, t.month, t.day, t.hour, t.minute, t.second)
-                # this may fail for some calendars, in that case maintain the instance object returned from
-                # netcdftime see: http://netcdf4-python.googlecode.com/svn/trunk/docs/netcdftime.netcdftime.datetime-class.html
-                except ValueError:
-                    arr[idx] = arr[idx]
+            try:
+                arr = np.atleast_1d(nc.num2date(arr, self.units, calendar=self.calendar))
+            except ValueError:
+                # this may be cause by template units
+                if self._has_template_units:
+                    arr = get_datetime_from_template_time_units(arr)
+                else:
+                    raise
+            else:
+                dt = datetime.datetime
+                for idx, t in iter_array(arr, return_value=True):
+                    # attempt to convert times to datetime objects
+                    try:
+                        arr[idx] = dt(t.year, t.month, t.day, t.hour, t.minute, t.second)
+                    # this may fail for some calendars, in that case maintain the instance object returned from
+                    # netcdftime see: http://netcdf4-python.googlecode.com/svn/trunk/docs/netcdftime.netcdftime.datetime-class.html
+                    except ValueError:
+                        arr[idx] = arr[idx]
         else:
             arr = get_datetime_from_months_time_units(arr, self.units, month_centroid=constants.CALC_MONTH_CENTROID)
         return arr
@@ -554,6 +580,9 @@ class TemporalDimension(base.VectorDimension):
     def _get_temporal_group_dimension_(self, *args, **kwargs):
         return TemporalGroupDimension(*args, **kwargs)
 
+    def _get_to_conform_value_(self):
+        return self.value_numtime
+
     def _set_date_parts_(self, yld, value):
         if self.format_time:
             fill = (value.year, value.month, value.day)
@@ -640,6 +669,29 @@ def get_datetime_from_months_time_units(vec, units, month_centroid=16):
     return ret
 
 
+def get_datetime_from_template_time_units(vec):
+    """
+    :param vec: A one-dimensional array of floats.
+    :type vec: :class:`numpy.core.multiarray.ndarray`
+    :returns: An object array with same shape as ``vec`` containing datetime objects.
+    :rtype: :class:`numpy.core.multiarray.ndarray`
+    """
+
+    dt = datetime.datetime
+    fill = np.empty_like(vec, dtype=object)
+    for idx, element in enumerate(vec.flat):
+        s = str(element)
+        year = int(s[0:4])
+        month = int(s[4:6])
+        day = int(s[6:8])
+        f = float(s[-5:])
+        hour = 24 * f
+        minute = int((Decimal(hour) % 1) * 60)
+        hour = int(hour)
+        fill[idx] = dt(year, month, day, hour=hour, minute=minute)
+    return fill
+
+
 def get_difference_in_months(origin, target):
     """
     Get the integer difference in months between an origin and target datetime.
@@ -647,9 +699,9 @@ def get_difference_in_months(origin, target):
     :param :class:``datetime.datetime`` origin: The origin datetime object.
     :param :class:``datetime.datetime`` target: The target datetime object.
 
-    >>> get_difference_in_months(datetime.datetime(1978,12,1),datetime.datetime(1979,3,1))
+    >>> get_difference_in_months(datetime.datetime(1978, 12, 1), datetime.datetime(1979, 3, 1))
     3
-    >>> get_difference_in_months(datetime.datetime(1978,12,1),datetime.datetime(1978,7,1))
+    >>> get_difference_in_months(datetime.datetime(1978, 12, 1), datetime.datetime(1978, 7, 1))
     -5
     """
 

@@ -4,25 +4,31 @@ import os
 from collections import deque
 import itertools
 import numpy as np
+from datetime import datetime as dt
+import datetime
 
 from cfunits import Units
 import netcdftime
 
-from datetime import datetime as dt
-import datetime
 from ocgis.util.itester import itr_products_keywords
 from ocgis import constants
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.interface.base.dimension.temporal import TemporalDimension, get_is_interannual, get_sorted_seasons, \
     get_time_regions, iter_boolean_groups_from_time_regions, get_datetime_conversion_state, \
     get_datetime_from_months_time_units, get_difference_in_months, get_num_from_months_time_units, \
-    get_origin_datetime_from_months_units
+    get_origin_datetime_from_months_units, get_datetime_from_template_time_units
 from ocgis.util.helpers import get_date_list
 from ocgis.exc import IncompleteSeasonError, CannotFormatTimeError
 from ocgis.interface.base.dimension.base import VectorDimension
 
 
-class TestFunctions(TestBase):
+class AbstractTestTemporal(TestBase):
+    @property
+    def value_template_units(self):
+        return np.array([19710101.9375, 19710102.9375, 19710103.9375, 19710104.9375, 19710105.9375])
+
+
+class TestFunctions(AbstractTestTemporal):
 
     def test_get_datetime_conversion_state(self):
         archetypes = [45.5, datetime.datetime(2000, 1, 1), netcdftime.datetime(2000, 4, 5)]
@@ -56,6 +62,11 @@ class TestFunctions(TestBase):
                           datetime.datetime(1981, 8, 16, 0, 0), datetime.datetime(1981, 9, 16, 0, 0),
                           datetime.datetime(1981, 10, 16, 0, 0), datetime.datetime(1981, 11, 16, 0, 0)]
         self.assertNumpyAll(datetimes, np.array(test_datetimes))
+
+    def test_get_datetime_from_template_time_units(self):
+        ret = get_datetime_from_template_time_units(self.value_template_units)
+        self.assertEqual(ret.shape, self.value_template_units.shape)
+        self.assertEqual(ret[2], datetime.datetime(1971, 1, 3, 22, 30))
 
     def test_get_difference_in_months(self):
         distance = get_difference_in_months(datetime.datetime(1978, 12, 1), datetime.datetime(1979, 3, 1))
@@ -114,7 +125,7 @@ class TestFunctions(TestBase):
             self.assertEqual(sub.value[0].month, 12)
 
 
-class TestTemporalDimension(TestBase):
+class TestTemporalDimension(AbstractTestTemporal):
 
     def get_temporal_dimension(self, add_bounds=True, start=None, stop=None, days=1, name=None, format_time=True):
         start = start or datetime.datetime(1899, 1, 1, 12)
@@ -132,6 +143,12 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=dates, bounds=bounds, name=name, format_time=format_time)
         return td
 
+    def get_template_units(self, conform_units_to=None):
+        units = 'day as %Y%m%d.%f'
+        td = TemporalDimension(value=self.value_template_units, units=units, conform_units_to=conform_units_to,
+                               calendar='proleptic_gregorian')
+        return td
+
     def test_init(self):
         td = TemporalDimension(value=[datetime.datetime(2000, 1, 1)])
         self.assertEqual(td.axis, 'T')
@@ -147,6 +164,11 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=[datetime.datetime(2000, 1, 1)], units="months since 1978-12", axis='foo')
         self.assertTrue(td._has_months_units)
         self.assertEqual(td.axis, 'foo')
+
+        # test with template units
+        td = self.get_template_units()
+        self.assertEqual(td.units, constants.DEFAULT_TEMPORAL_UNITS)
+        self.assertEqual(td.calendar, 'proleptic_gregorian')
 
     def test_360_day_calendar(self):
         months = range(1, 13)
@@ -214,6 +236,12 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=[4, 5, 6])
         self.assertIsNone(td.conform_units_to)
 
+        # test with template units
+        units = 'days since 1960-1-1'
+        td = self.get_template_units(conform_units_to=units)
+        self.assertAlmostEqual(td.value_numtime.mean(), 4020.9375)
+        self.assertEqual(td.units, units)
+
     def test_extent_datetime_and_extent_numtime(self):
         value_numtime = np.array([6000., 6001., 6002])
         value_datetime = TemporalDimension(value=value_numtime).value_datetime
@@ -261,6 +289,13 @@ class TestTemporalDimension(TestBase):
             self.assertIsNone(td._value_datetime)
             self.assertIsNone(td._bounds_datetime)
 
+        # test with template units
+        td = self.get_template_units()
+        lower = datetime.datetime(1971, 1, 2)
+        upper = datetime.datetime(1971, 1, 5)
+        sub = td.get_between(lower, upper)
+        self.assertEqual(sub.shape, (3,))
+
     def test_get_boolean_groups_from_time_regions(self):
         dates = get_date_list(dt(2012,1,1),dt(2013,12,31),1)
         seasons = [[3,4,5],[6,7,8],[9,10,11],[12,1,2]]
@@ -298,6 +333,13 @@ class TestTemporalDimension(TestBase):
         td = TemporalDimension(value=narr, units=units, calendar=calendar)
         res = td.get_datetime(td.value)
         self.assertTrue(all([isinstance(element, ndt) for element in res.flat]))
+
+        # test with template units
+        td = self.get_template_units()
+        self.assertIsNotNone(td.value_datetime)
+        self.assertEqual(td.value_datetime[2], datetime.datetime(1971, 1, 3, 22, 30))
+        td2 = TemporalDimension(value=td.value_numtime, units=td.units, calendar='proleptic_gregorian')
+        self.assertNumpyAll(td.value_datetime, td2.value_datetime)
 
     def test_getiter(self):
         for format_time in [True, False]:
@@ -536,6 +578,23 @@ class TestTemporalDimension(TestBase):
         self.assertEqual(ret.shape,indices.shape)
 
         self.assertEqual(ret.extent,(datetime.datetime(2003,9,20),datetime.datetime(2003,10,31)))
+
+    def test_get_to_conform_value(self):
+        td = TemporalDimension(value=[datetime.datetime(2000, 1, 1)])
+        self.assertNumpyAll(td._get_to_conform_value_(), np.array([730121.]))
+
+    def test_has_months_units(self):
+        td = TemporalDimension(value=[5, 6], units='months since 1978-12')
+        self.assertTrue(td._has_months_units)
+        td = TemporalDimension(value=[5, 6])
+        self.assertFalse(td._has_months_units)
+
+    def test_has_template_units(self):
+        td = self.get_template_units()
+        self.assertFalse(td._has_template_units)
+        td = TemporalDimension(value=[4, 5])
+        td.units = 'day as %Y%m%d.%f'
+        self.assertTrue(td._has_template_units)
 
     def test_months_in_time_units(self):
         units = "months since 1978-12"

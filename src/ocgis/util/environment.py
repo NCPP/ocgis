@@ -1,6 +1,8 @@
 import os
 from importlib import import_module
 
+from ocgis import constants
+
 
 class Environment(object):
     def __init__(self):
@@ -22,6 +24,7 @@ class Environment(object):
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, 'cfunits')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
+        self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)
 
         from ocgis.interface.base.crs import CFWGS84
 

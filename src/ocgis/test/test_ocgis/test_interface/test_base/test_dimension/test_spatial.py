@@ -461,6 +461,17 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         sdim = SpatialDimension.from_records(record_dict['records'], crs=record_dict['meta']['crs'])
         self.assertNumpyAll(sdim.uid, np.ma.array(range(1, 52)).reshape(1, 51))
 
+    def test_from_records_using_nondefault_identifier(self):
+        """Test passing the non-default unique identifier."""
+
+        record_dict = self.get_records()
+        for record in record_dict['records']:
+            record['properties'].pop('UGID')
+            record['properties']['ID'] += 5.0
+        sdim = SpatialDimension.from_records(record_dict['records'], crs=record_dict['meta']['crs'], uid='ID')
+        self.assertEqual(sdim.uid[0, 3], 9)
+        self.assertEqual(sdim.name_uid, 'ID')
+
     def test_get_intersects_select_nearest(self):
         pt = Point(-99, 39)
         return_indices = [True, False]

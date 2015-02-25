@@ -6,7 +6,7 @@ from fiona.crs import from_epsg
 from shapely.geometry import shape, Polygon, mapping
 from shapely.geometry.point import Point
 
-from constants import CONVENTIONS_VERSION
+from constants_ugrid import CONVENTIONS_VERSION
 
 
 def get_update_feature(fid, feature):

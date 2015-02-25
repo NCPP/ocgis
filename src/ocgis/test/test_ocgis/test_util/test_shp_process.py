@@ -24,7 +24,7 @@ class TestShpProcess(TestBase):
 
         sc = ShpCabinet(path=out_folder)
         select_ugid = [33, 126, 199]
-        geoms = list(sc.iter_geoms('world_countries', select_ugid=select_ugid))
+        geoms = list(sc.iter_geoms('world_countries', select_uid=select_ugid))
         self.assertEqual(len(geoms), 3)
         names = [item['properties']['NAME'] for item in geoms]
         self.assertEqual(set(names), set(['Canada', 'Mexico', 'United States']))

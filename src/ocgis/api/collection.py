@@ -5,7 +5,6 @@ import fiona
 from shapely.geometry import mapping, MultiPoint, MultiPolygon
 from shapely.geometry.base import BaseMultipartGeometry
 
-from ocgis.interface.base.crs import CFWGS84
 from ocgis.util.helpers import get_ordered_dicts_from_records_array
 
 
@@ -96,14 +95,50 @@ class SpatialCollection(AbstractCollection):
     def __init__(self, meta=None, key=None, crs=None, headers=None, value_keys=None):
         super(SpatialCollection, self).__init__()
 
+        self._crs = None
+
         self.meta = meta
         self.key = key
-        self.crs = crs or CFWGS84()
+        self.crs = crs
         self.headers = headers
         self.value_keys = value_keys
 
-        self.geoms = OrderedDict()
-        self.properties = OrderedDict()
+        self.ugeom = OrderedDict()
+
+    @property
+    def crs(self):
+        if self._crs is None:
+            try:
+                ret = self._archetype_field.spatial.crs
+            # likely no field loaded into collection
+            except IndexError:
+                ret = None
+            # likely no spatial dimension on the field
+            except AttributeError:
+                ret = None
+        else:
+            ret = self._crs
+        return ret
+
+    @crs.setter
+    def crs(self, value):
+        self._crs = value
+
+    @property
+    def geoms(self):
+
+        def getter(v):
+            return v.abstraction_geometry.value[0, 0]
+
+        return get_ugeom_attribute(self.ugeom, getter)
+
+    @property
+    def properties(self):
+
+        def getter(v):
+            return v.properties
+
+        return get_ugeom_attribute(self.ugeom, getter)
 
     @property
     def _archetype_field(self):
@@ -111,35 +146,57 @@ class SpatialCollection(AbstractCollection):
         fkey = self[ukey].keys()[0]
         return self[ukey][fkey]
 
-    def add_field(self, ugid, geom, field, properties=None, name=None):
+    def add_field(self, field, ugeom=None, name=None):
         """
-        :param int ugid:
-        :param :class:`shapely.Geometry`:
-        :param :class:`ocgis.Field`:
-        :param dict properties:
-        :param str name:
+        Add a field to the collection.
+
+        :param field: The field object to add. There are no checks if the field data is unique.
+        :type field: :class:`~ocgis.Field`
+        :param ugeom: The selection/user geometry associated with the field.
+        :type ugeom: :class:`~ocgis.SpatialDimension`
+        :param str name: The name associated with the field. If this is ``None``, use the field's name attribute.
+        :raises: ValueError
         """
 
-        name = name or field.name
+        # allow nonetype fields
+        if field is not None:
+            # all data must have the same coordinate system
+            try:
+                if field.spatial.crs != self.crs and len(self) > 0:
+                    msg = 'Field and collection coordinate systems differ.'
+                    raise ValueError(msg)
+            except AttributeError:
+                # likely no spatial dimension
+                if field.spatial is not None:
+                    raise
 
-        # add field unique identifier if it does not exist
-        try:
+            # add a unique identifier to the field if it is not already present
             if field.uid is None:
                 field.uid = self._storage_id_next
-                self._storage_id.append(field.uid)
-        # likely a nonetype from an empty subset
-        except AttributeError:
-            if field is None:
-                pass
-            else:
-                raise
+            self._storage_id.append(field.uid)
 
-        self.geoms.update({ugid: geom})
-        self.properties.update({ugid: properties})
+        # use the provided name or the name attached to the field
+        name = name or field.name
+
+        # pull out the geometry unique identifier
+        if ugeom is not None:
+            assert ugeom.shape == (1, 1)
+            ugid = ugeom.uid[0, 0]
+        else:
+            ugid = 1
+
+        # if there is no dictionary associated with the unique identifier, create one.
         if ugid not in self:
-            self.update({ugid: {}})
-        assert (name not in self[ugid])
-        self[ugid].update({name: field})
+            self[ugid] = OrderedDict()
+        # the name of the field associated with the geometry unique identifier must be unique.
+        if name in self[ugid]:
+            msg = 'A field with name "{0}" is already present for geometry with unique identifier "{1}".'.format(name,
+                                                                                                                 ugid)
+            raise ValueError(msg)
+
+        # store the field and geometry data
+        self[ugid][name] = field
+        self.ugeom[ugid] = ugeom
 
     def get_iter_dict(self, use_upper_keys=False, conversion_map=None, melted=False):
         """
@@ -156,9 +213,10 @@ class SpatialCollection(AbstractCollection):
         else:
             use_conversion = True
         for ugid, field_dict in self.iteritems():
+            ugeom = self.ugeom.get(ugid)
             for field in field_dict.itervalues():
                 for yld_geom, row in field.get_iter(value_keys=self.value_keys, melted=melted,
-                                                    use_upper_keys=use_upper_keys, headers=self.headers, ugid=ugid):
+                                                    use_upper_keys=use_upper_keys, headers=self.headers, ugeom=ugeom):
                     if melted:
                         if use_conversion:
                             for k, v in conversion_map.iteritems():
@@ -196,6 +254,10 @@ class SpatialCollection(AbstractCollection):
          then ``path`` will be ignored.
         :type fobject: :class:`fiona.collection.Collection`
         """
+
+        if fobject is None and self.crs is None:
+            msg = 'A coordinate system is required when writing to Fiona formats.'
+            raise ValueError(msg)
 
         from ocgis.conv.fiona_ import AbstractFionaConverter
 
@@ -241,3 +303,27 @@ class SpatialCollection(AbstractCollection):
         finally:
             if is_open:
                 fobject.close()
+
+
+def get_ugeom_attribute(ugeom, getter):
+    """
+    :param dict ugeom: A dictionary with keys are unique identifiers (int) and values as spatial dimension objects.
+    :param getter: A function taking a value that will be the target of attribute extraction.
+    :type getter: function
+    :returns: A dictionary with keys matching the unique identifiers from ``ugeom``. The values are the attributes
+     extracted by ``getter``.
+    :rtype: dict
+    """
+
+    ret = OrderedDict()
+    for k, v in ugeom.iteritems():
+        try:
+            attr = getter(v)
+        # likely a nonetype for the overview geometry
+        except AttributeError:
+            if v is None:
+                attr = None
+            else:
+                raise
+        ret[k] = attr
+    return ret

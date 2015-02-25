@@ -14,6 +14,9 @@ import datetime
 import sys
 import warnings
 
+import fiona
+
+from ocgis.util.shp_cabinet import ShpCabinet
 from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.field import Field
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
@@ -390,6 +393,26 @@ class TestBase(unittest.TestCase):
         with self.nc_scope(path, 'w') as ds:
             field.write_to_netcdf_dataset(ds)
         return path
+
+    def get_shapefile_path_with_no_ugid(self):
+        """
+        :returns: A path to a shapefile without the attribute "UGID". There are 11 records in the shapefile.
+        :rtype: str
+        """
+
+        path = ShpCabinet().get_shp_path('state_boundaries')
+        new = self.get_temporary_file_path('state_boundaries_without_ugid.shp')
+        with fiona.open(path) as source:
+            meta = source.meta.copy()
+            meta['schema']['properties'].pop('UGID')
+            with fiona.open(new, mode='w', **meta) as sink:
+                for ctr, record in enumerate(source):
+                    record['properties'].pop('UGID')
+                    record['properties']['ID'] += 5.0
+                    sink.write(record)
+                    if ctr == 10:
+                        break
+        return new
 
     def get_temporary_file_path(self, name):
         """

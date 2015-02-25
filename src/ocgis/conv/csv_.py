@@ -7,6 +7,8 @@ import logging
 import fiona
 from shapely.geometry.geo import mapping
 
+from ocgis import constants
+from ocgis import env
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -48,6 +50,11 @@ class CsvShapefileConverter(CsvConverter):
         if self.ops is None:
             raise ValueError('The argument "ops" may not be "None".')
 
+    @property
+    def geom_uid(self):
+        geom_uid = self.ops.geom_uid or env.DEFAULT_GEOM_UID
+        return geom_uid
+
     def _build_(self, coll):
         ret = CsvConverter._build_(self, coll)
 
@@ -66,7 +73,9 @@ class CsvShapefileConverter(CsvConverter):
                     raise
 
             fiona_schema = {'geometry': archetype_field.spatial.abstraction_geometry.geom_type,
-                            'properties': OrderedDict([['DID', 'int'], ['UGID', 'int'], ['GID', 'int']])}
+                            'properties': OrderedDict([[constants.HEADERS.ID_DATASET.upper(), 'int'],
+                                                       [self.geom_uid, 'int'],
+                                                       [constants.HEADERS.ID_GEOMETRY.upper(), 'int']])}
             fiona_object = fiona.open(fiona_path, 'w', driver='ESRI Shapefile', crs=fiona_crs, schema=fiona_schema)
         else:
             ocgis_lh('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.',
@@ -92,7 +101,6 @@ class CsvShapefileConverter(CsvConverter):
                 for field in field_dict.itervalues():
                     did = field.uid
                     for _, _, geom, gid in field.spatial.get_geom_iter():
-                        # did, gid, ugid = row['DID'], row['GID'], row['UGID']
                         try:
                             if gid in rstore[did][ugid]:
                                 continue
@@ -112,7 +120,9 @@ class CsvShapefileConverter(CsvConverter):
                             except TypeError:
                                 converted_did = None
 
-                            feature = {'properties': {'GID': int(gid), 'UGID': int(ugid), 'DID': converted_did},
+                            feature = {'properties': {constants.HEADERS.ID_GEOMETRY.upper(): int(gid),
+                                                      self.geom_uid: int(ugid),
+                                                      constants.HEADERS.ID_DATASET.upper(): converted_did},
                                        'geometry': mapping(geom)}
                             try:
                                 file_fiona.write(feature)

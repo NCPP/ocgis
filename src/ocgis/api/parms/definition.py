@@ -526,16 +526,19 @@ class Geom(base.OcgParameter):
     return_type = [ShpCabinetIterator, tuple]
     _shp_key = None
     _bounds = None
-    _ugid_key = 'UGID'
+    _ugid_key = constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 
-    def __init__(self, *args, **kwds):
-        self.select_ugid = kwds.pop('select_ugid', None)
+    def __init__(self, *args, **kwargs):
+        self.select_ugid = kwargs.pop('select_ugid', None)
+        self.geom_uid = kwargs.pop(GeomUid.name, None)
         # just store the value if it is a parameter object
-        if isinstance(self.select_ugid, SelectUgid):
-            self.select_ugid = self.select_ugid._value
+        if isinstance(self.select_ugid, GeomSelectUid):
+            self.select_ugid = self.select_ugid.value
+        if isinstance(self.geom_uid, GeomUid):
+            self.geom_uid = self.geom_uid.value
 
         args = [self] + list(args)
-        base.OcgParameter.__init__(*args, **kwds)
+        base.OcgParameter.__init__(*args, **kwargs)
 
     def __str__(self):
         if self.value is None:
@@ -551,7 +554,7 @@ class Geom(base.OcgParameter):
 
     def _get_value_(self):
         if isinstance(self._value, ShpCabinetIterator):
-            self._value.select_ugid = self.select_ugid
+            self._value.select_uid = self.select_ugid
         return base.OcgParameter._get_value_(self)
 
     value = property(_get_value_, base.OcgParameter._set_value_)
@@ -567,7 +570,7 @@ class Geom(base.OcgParameter):
                     crs = element.get('crs', CFWGS84())
                     if 'crs' not in element:
                         ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.', level=logging.WARN)
-                ret = SpatialDimension.from_records(value, crs=crs)
+                ret = SpatialDimension.from_records(value, crs=crs, uid=self.geom_uid)
             else:
                 if len(value) == 2:
                     geom = Point(value[0], value[1])
@@ -577,7 +580,7 @@ class Geom(base.OcgParameter):
                 if not geom.is_valid:
                     raise (DefinitionValidationError(self, 'Parsed geometry is not valid.'))
                 ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
-                ret = SpatialDimension.from_records(ret, crs=CFWGS84())
+                ret = SpatialDimension.from_records(ret, crs=CFWGS84(), uid=self.geom_uid)
                 self._bounds = geom.bounds
         elif isinstance(value, ShpCabinetIterator):
             self._shp_key = value.key or value.path
@@ -586,7 +589,7 @@ class Geom(base.OcgParameter):
             ret = value
         elif isinstance(value, BaseGeometry):
             ret = [{'geom': value, 'properties': {self._ugid_key: 1}}]
-            ret = SpatialDimension.from_records(ret, crs=CFWGS84())
+            ret = SpatialDimension.from_records(ret, crs=CFWGS84(), uid=self.geom_uid)
         elif value is None:
             ret = value
         elif isinstance(value, SpatialDimension):
@@ -596,7 +599,7 @@ class Geom(base.OcgParameter):
 
         # convert to a tuple if this is a SpatialDimension object
         if isinstance(ret, SpatialDimension):
-            ret = tuple(self._iter_spatial_dimension_tuple(ret))
+            ret = tuple(self._iter_spatial_dimension_tuple_(ret))
 
         return ret
 
@@ -638,7 +641,9 @@ class Geom(base.OcgParameter):
                 select_ugid = None
             else:
                 select_ugid = test_value
-            kwds['select_ugid'] = select_ugid
+            kwds['select_uid'] = select_ugid
+
+            kwds['uid'] = self.geom_uid
             ret = ShpCabinetIterator(**kwds)
         return ret
 
@@ -654,7 +659,7 @@ class Geom(base.OcgParameter):
         return ret
 
     @staticmethod
-    def _iter_spatial_dimension_tuple(spatial_dimension):
+    def _iter_spatial_dimension_tuple_(spatial_dimension):
         """
         :param spatial_dimension:
         :type spatial_dimension: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
@@ -665,6 +670,39 @@ class Geom(base.OcgParameter):
         col_range = range(spatial_dimension.shape[1])
         for row, col in itertools.product(row_range, col_range):
             yield spatial_dimension[row, col]
+
+
+class GeomSelectUid(base.IterableParameter, base.OcgParameter):
+    name = 'geom_select_uid'
+    return_type = tuple
+    nullable = True
+    default = None
+    input_types = [list, tuple]
+    element_type = int
+    unique = True
+
+    def _get_meta_(self):
+        if self.value is None:
+            ret = 'No geometry selection by unique identifier.'
+        else:
+            ret = 'The following UGID values were used to select from the input geometries: {0}.'.format(self.value)
+        return ret
+
+
+class GeomUid(base.OcgParameter):
+    name = 'geom_uid'
+    nullable = True
+    default = None
+    input_types = []
+    return_type = str
+    _lower_string = False
+
+    def _get_meta_(self):
+        if self.value is None:
+            msg = 'No geometry unique identifier provided.'
+        else:
+            msg = 'The unique geometry identifier used: "{0}".'.format(self.value)
+        return msg
 
 
 class Headers(base.IterableParameter, base.OcgParameter):
@@ -956,23 +994,6 @@ class SelectNearest(base.BooleanParameter):
     default = False
     meta_true = 'The nearest geometry to the centroid of the selection geometry was returned.'
     meta_false = 'All geometries returned regardless of distance.'
-
-
-class SelectUgid(base.IterableParameter, base.OcgParameter):
-    name = 'select_ugid'
-    return_type = tuple
-    nullable = True
-    default = None
-    input_types = [list, tuple]
-    element_type = int
-    unique = True
-
-    def _get_meta_(self):
-        if self.value is None:
-            ret = 'No geometry selection by unique identifier.'
-        else:
-            ret = 'The following UGID values were used to select from the input geometries: {0}.'.format(self.value)
-        return (ret)
 
 
 class Slice(base.IterableParameter, base.OcgParameter):

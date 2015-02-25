@@ -24,7 +24,7 @@ class Test(TestBase):
         return(self.get_geometry(17))
     
     def get_geometry(self,select_ugid):
-        geoms = list(ShpCabinetIterator(key='state_boundaries',select_ugid=[select_ugid]))
+        geoms = list(ShpCabinetIterator(key='state_boundaries', select_uid=[select_ugid]))
         return(geoms[0]['geom'])
     
     def get_subset_rd(self):

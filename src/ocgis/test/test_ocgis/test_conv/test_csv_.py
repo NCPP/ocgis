@@ -1,9 +1,11 @@
+import numpy as np
 from csv import DictReader
 import os
 import tempfile
 
-from ocgis import constants
+import fiona
 
+from ocgis import constants, env
 from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
 from ocgis import OcgOperations, RequestDataset
 from ocgis.api.subset import SubsetOperation
@@ -45,7 +47,7 @@ class TestCsvConverter(AbstractTestConverter):
         self.assertAsSetEqual(['15', '18'], ugids)
 
 
-class TestCsvShpConverter(AbstractTestConverter):
+class TestCsvShapefileConverter(AbstractTestConverter):
     def get(self, kwargs_conv=None, kwargs_ops=None):
         rd = self.test_data.get_rd('cancm4_tas')
 
@@ -71,7 +73,39 @@ class TestCsvShpConverter(AbstractTestConverter):
         conv = self.get()
         self.assertIsInstance(conv, CsvConverter)
 
-    def test(self):
+    def test_build(self):
+        path = self.get_shapefile_path_with_no_ugid()
+        keywords = dict(geom_uid=['ID', None])
+        rd = self.test_data.get_rd('cancm4_tas')
+        for k in self.iter_product_keywords(keywords):
+            if k.geom_uid is None:
+                geom_select_uid = None
+            else:
+                geom_select_uid = [8]
+            ops = OcgOperations(dataset=rd, geom=path, geom_uid=k.geom_uid, geom_select_uid=geom_select_uid,
+                                snippet=True)
+            coll = ops.execute()
+            conv = CsvShapefileConverter([coll], outdir=self.current_dir_output, prefix='foo', overwrite=True, ops=ops)
+            ret = conv._build_(coll)
+
+            if k.geom_uid is None:
+                actual = env.DEFAULT_GEOM_UID
+            else:
+                actual = k.geom_uid
+            actual = [constants.HEADERS.ID_DATASET.upper(), actual, constants.HEADERS.ID_GEOMETRY.upper()]
+            self.assertEqual(actual, ret['fiona_object'].meta['schema']['properties'].keys())
+
+    def test_geom_uid(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        for geom_uid in ['IDD', None]:
+            ops = OcgOperations(dataset=rd, geom_uid=geom_uid)
+            conv = CsvShapefileConverter(None, ops=ops, outdir=self.current_dir_output, prefix='foo')
+            if geom_uid is None:
+                geom_uid = env.DEFAULT_GEOM_UID
+            self.assertEqual(conv.geom_uid, geom_uid)
+
+    def test_write(self):
+        # test melted format
         for melted in [False, True]:
             kwargs_ops = dict(melted=melted)
             kwargs_conv = dict(outdir=tempfile.mkdtemp(dir=self.current_dir_output))
@@ -90,3 +124,38 @@ class TestCsvShpConverter(AbstractTestConverter):
             shp_path_ugid = os.path.join(shp_path, 'foo_ugid.shp')
             target = RequestDataset(shp_path_ugid).get()
             self.assertEqual(target.shape[-1], 2)
+
+        # test aggregating the selection geometry
+        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
+        rd2 = self.test_data.get_rd('maurer_bccr_1950')
+
+        keywords = dict(agg_selection=[True, False])
+        for k in self.iter_product_keywords(keywords):
+            ops = OcgOperations(dataset=[rd1, rd2], snippet=True, output_format='csv-shp', geom='state_boundaries',
+                                agg_selection=k.agg_selection, select_ugid=[32, 47], prefix=str(k.agg_selection))
+            ret = ops.execute()
+            directory = os.path.split(ret)[0]
+
+            path_ugid = os.path.join(directory, 'shp', '{0}_ugid.shp'.format(ops.prefix))
+            with fiona.open(path_ugid) as source:
+                records = list(source)
+            if k.agg_selection:
+                uids = [1]
+            else:
+                uids = [32, 47]
+            self.assertEqual([r['properties'][env.DEFAULT_GEOM_UID] for r in records], uids)
+
+            path_gid = os.path.join(directory, 'shp', '{0}_gid.shp'.format(ops.prefix))
+            with fiona.open(path_gid) as source:
+                uid = [r['properties'][env.DEFAULT_GEOM_UID] for r in source]
+            if k.agg_selection:
+                self.assertAsSetEqual(uid, [1])
+            else:
+                uid = np.array(uid)
+                self.assertEqual(np.sum(uid == 32), 1915)
+                self.assertEqual(np.sum(uid == 47), 923)
+
+            meta = os.path.join(os.path.split(ret)[0], '{0}_source_metadata.txt'.format(ops.prefix))
+            with open(meta, 'r') as f:
+                lines = f.readlines()
+            self.assertTrue(len(lines) > 50)

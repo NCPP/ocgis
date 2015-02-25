@@ -11,6 +11,9 @@ Environment/Global Parameters
 
 These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
+:attr:`env.DEFAULT_GEOM_UID` = ``'UGID'``
+ The default unique geometry identifier to search for in geometry datasets. This is also the name of the created unique identifier if none exists in the target.
+
 :attr:`env.DIR_DATA` = ``None``
  Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
 
@@ -213,7 +216,7 @@ geom
 
 .. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
 
-If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must include a unique integer attribute matching the value of :attr:`ocgis.constants.ocgis_unique_geometry_identifier` and have a WGS84 latitude/longitude geographic coordinate system. If an ESRI Shapefile is being accessed and the file does not contain the unique identifier, the function :func:`~ocgis.util.helpers.add_shapefile_unique_identifier` may be used to add the appropriate unique identifier attribute.
+If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must have a WGS84 latitude/longitude geographic coordinate system.
 
 There are a number of ways to parameterize the ``geom`` keyword argument:
 
@@ -232,7 +235,7 @@ This is a list of floats corresponding to: `[longitude,latitude]`. The coordinat
 3. Using :class:`ocgis.ShpCabinetIterator`
 
 >>> from ocgis import ShpCabinetIterator
->>> geom = ShpCabinetIterator('state_boundaries',select_ugid=[16])
+>>> geom = ShpCabinetIterator('state_boundaries',geom_select_uid=[16])
 
 .. _geom key:
 
@@ -242,7 +245,7 @@ This is a list of floats corresponding to: `[longitude,latitude]`. The coordinat
 
 5. Custom Sequence of Shapely Geometry Dictionaries
 
-The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional. If not 'UGID' property is provided, defaults will be inserted.
+The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional.
 
 >>> geom = [{'geom': Point(x,y), 'properties': {'UGID': 23, 'NAME': 'geometry23'}, 'crs': CoordinateReferenceSystem(epsg=4326)} ,...]
 
@@ -250,12 +253,44 @@ The `crs` key is optional. If it is not included, WGS84 is assumed. The `propert
 
 >>> geom = '/path/to/shapefile.shp'
 
+.. _geom_select_uid:
+
+geom_select_uid
+~~~~~~~~~~~~~~~
+
+Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Adding Additional Shapefile Data`_.
+
+>>> geom_select_uid = [1, 2, 3]
+>>> geom_select_uid = [4, 55]
+>>> geom_select_uid = [1]
+
+As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_SHPCABINET`_) with the following attribute table:
+
+==== =======
+UGID Name
+==== =======
+1    Basin A
+2    Basin B
+3    Basin C
+==== =======
+
+If the goal is to subset the data by the boundary of "Basin A" and write the resulting data to netCDF, a call to OCGIS looks like:
+
+>>> import ocgis
+>>> rd = ocgis.RequestDataset(uri='/path/to/data.nc', variable='tas')
+>>> path = ocgis.OcgOperations(dataset=rd, geom='basins', geom_select_uid=[1], output_format='nc').execute()
+
+geom_uid
+~~~~~~~~
+
+All subset geometries must have a unique identifier. The unique identifier allows subsetted data to be linked to the selection geometry. Passing a string value to ``geom_uid`` will overload the default unique identifier :attr:`~env.DEFAULT_GEOM_UID`. If no unique identifier is available, a one-based unique identifier will be generated having a name with value :attr:`~env.DEFAULT_GEOM_UID`.
+
 headers
 ~~~~~~~
 
 Useful to limit the number of attributes included in an output file.
 
->>> headers = ['did','time','value']
+>>> headers = ['did', 'time', 'value']
 
 interpolate_spatial_bounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -343,33 +378,6 @@ select_nearest
 
 If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
 
-.. _select_ugid:
-
-select_ugid
-~~~~~~~~~~~
-
-Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Adding Additional Shapefile Data`_.
-
->>> select_ugid = [1, 2, 3]
->>> select_ugid = [4, 55]
->>> select_ugid = [1]
-
-As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_SHPCABINET`_) with the following attribute table:
-
-==== =======
-UGID Name
-==== =======
-1    Basin A
-2    Basin B
-3    Basin C
-==== =======
-
-If the goal is to subset the data by the boundary of "Basin A" and write the resulting data to netCDF, a call to OCGIS looks like:
-
->>> import ocgis
->>> rd = ocgis.RequestDataset(uri='/path/to/data.nc',variable='tas')
->>> path = ocgis.OcgOperations(dataset=rd,geom='basins',select_ugid=[1],output_format='nc').execute()
-
 .. _snippet_headline:
 
 snippet
@@ -435,7 +443,7 @@ Adding Additional Shapefile Data
 
 .. warning:: Only add data WGS84 geographic data, ESPS=4326.
 
-Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`select_ugid`_" argument to find specific geometries inside the shapefile.
+Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`geom_select_uid`_" argument to find specific geometries inside the shapefile.
 
 The shapefile's "`geom key`_" is the name of the shapefile. It must have an alphanumeric name with no spaces with the only allowable special character being underscores "_".
 
@@ -448,13 +456,13 @@ The shapefile's "`geom key`_" is the name of the shapefile. It must have an alph
 Data Collections
 ================
 
-When the default output format (i.e. ``numpy``) is returned by OpenClimateGIS, the data comes back as a dictionary with keys mapping to the ``ugids`` of the selection geometries from `geom`_. If ``None`` is used for `geom`_, then the ``ugid`` defaults to ``1``.
+When the default output format (i.e. ``numpy``) is returned by OpenClimateGIS, the data comes back as a dictionary with keys mapping to the integer unique identifiers of the selection geometries from `geom`_. If ``None`` is used for `geom`_, then the unique identifier defaults to ``1``.
 
 >>> from ocgis import OcgOperations, RequestDataset
 ...
->>> rd = RequestDataset('/path/to/data','tasmax')
+>>> rd = RequestDataset('/path/to/data', 'tasmax')
 >>> ## default return type is NumPy
->>> ops = OcgOperations(rd,snippet=True)
+>>> ops = OcgOperations(rd, snippet=True)
 >>> ret = ops.execute()
 >>> ## this the dictionary object mapping a Field to its alias
 >>> ret[1]

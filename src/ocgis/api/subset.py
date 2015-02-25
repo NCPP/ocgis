@@ -257,9 +257,10 @@ class SubsetOperation(object):
                 ocgis_lh(msg='time or level subset empty but empty returns allowed', logger=self._subset_log,
                          level=logging.WARN)
                 coll = SpatialCollection(headers=headers)
-                coll.add_field(1, None, None, name='_'.join([rd.name for rd in rds]))
+                name = '_'.join([rd.name for rd in rds])
+                coll.add_field(None, name=name)
                 try:
-                    yield (coll)
+                    yield coll
                 finally:
                     return
             else:
@@ -703,14 +704,7 @@ class SubsetOperation(object):
             # use the field's alias if it is provided. otherwise, let it be automatically assigned
             name = alias if sfield is None else None
 
-            # pass selection geometry and properties for the field added to the collection. add the created field to the
-            # output collection.
-            if subset_sdim is None:
-                subset_geom, subset_properties = [None, None]
-            else:
-                subset_geom = subset_sdim.single.geom
-                subset_properties = subset_sdim.properties
-                subset_ugid = subset_sdim.single.uid
-            coll.add_field(subset_ugid, subset_geom, sfield, properties=subset_properties, name=name)
+            # add the created field to the output collection with the selection geometry.
+            coll.add_field(sfield, ugeom=subset_sdim, name=name)
 
             yield coll

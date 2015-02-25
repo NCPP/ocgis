@@ -779,7 +779,7 @@ class TestSimple(TestSimpleBase):
                             [(u'TID', 'int:10'), (u'TIME', 'str:80'), (u'LB_TIME', 'str:80'), (u'UB_TIME', 'str:80'),
                              (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LID', 'int:10'),
                              (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'FOO', 'float:24.15')])
+                             (u'FOO', 'float:24.15'), (u'UGID', 'int:10')])
                     self.assertAsSetEqual(target.keys(), schema_properties.keys())
                     self.assertDictEqual(target, schema_properties)
                     self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'},
@@ -796,7 +796,8 @@ class TestSimple(TestSimpleBase):
                         record_properties = OrderedDict(
                             [(u'TID', 11), (u'TIME', u'2000-03-11 12:00:00'), (u'LB_TIME', u'2000-03-11 00:00:00'),
                              (u'UB_TIME', u'2000-03-12 00:00:00'), (u'YEAR', 2000), (u'MONTH', 3), (u'DAY', 11),
-                             (u'LID', 2), (u'LEVEL', 150), (u'LB_LEVEL', 100), (u'UB_LEVEL', 200), (u'FOO', 1.0)])
+                             (u'LID', 2), (u'LEVEL', 150), (u'LB_LEVEL', 100), (u'UB_LEVEL', 200), (u'FOO', 1.0),
+                             (u'UGID', 1)])
                     record = list(f)[340]
                     self.assertDictEqual(record['properties'], record_properties)
                     record_coordinates = [
@@ -821,7 +822,7 @@ class TestSimple(TestSimpleBase):
                             [(u'TID', 'int:10'), (u'TIME', 'str:80'), (u'LB_TIME', 'str:80'), (u'UB_TIME', 'str:80'),
                              (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LID', 'int:10'),
                              (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'MY_MEAN', 'float:24.15')])
+                             (u'MY_MEAN', 'float:24.15'), (u'UGID', 'int:10')])
                     self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'}, 'driver': u'ESRI Shapefile',
                                                   'schema': {'geometry': 'Polygon', 'properties': actual}})
                     self.assertEqual(len(f), 64)

@@ -2,6 +2,7 @@ import os
 import tempfile
 from importlib import import_module
 
+from ocgis import constants
 from ocgis import env, OcgOperations
 from ocgis.test.base import TestBase
 from ocgis.util.environment import EnvParmImport
@@ -9,30 +10,30 @@ from ocgis.util.environment import EnvParmImport
 
 class TestEnvImportParm(TestBase):
     reset_env = False
-    
+
     def test_constructor(self):
-        pm = EnvParmImport('USE_NUMPY',None,'numpy')
-        self.assertEqual(pm.value,True)
-        self.assertEqual(pm.module_name,'numpy')
-        
+        pm = EnvParmImport('USE_NUMPY', None, 'numpy')
+        self.assertEqual(pm.value, True)
+        self.assertEqual(pm.module_name, 'numpy')
+
     def test_bad_import(self):
-        pm = EnvParmImport('USE_FOO',None,'foo')
-        self.assertEqual(pm.value,False)
-        
+        pm = EnvParmImport('USE_FOO', None, 'foo')
+        self.assertEqual(pm.value, False)
+
     def test_import_available_overloaded(self):
-        pm = EnvParmImport('USE_NUMPY',False,'numpy')
-        self.assertEqual(pm.value,False)
-        
+        pm = EnvParmImport('USE_NUMPY', False, 'numpy')
+        self.assertEqual(pm.value, False)
+
     def test_environment_variable(self):
         os.environ['OCGIS_USE_FOOL_GOLD'] = 'True'
-        pm = EnvParmImport('USE_FOOL_GOLD',None,'foo')
-        self.assertEqual(pm.value,True)
-        
+        pm = EnvParmImport('USE_FOOL_GOLD', None, 'foo')
+        self.assertEqual(pm.value, True)
+
 
 class TestEnvironment(TestBase):
     reset_env = False
-    
-    def get_is_available(self,module_name):
+
+    def get_is_available(self, module_name):
         try:
             import_module(module_name)
             av = True
@@ -42,6 +43,7 @@ class TestEnvironment(TestBase):
 
     def test_init(self):
         self.assertIsNone(env.MELTED)
+        self.assertEqual(env.DEFAULT_GEOM_UID, constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER)
 
     def test_conf_path(self):
         env.CONF_PATH
@@ -65,22 +67,23 @@ class TestEnvironment(TestBase):
 
     def test_import_attributes(self):
         # with both modules installed, these are expected to be true
-        self.assertEqual(env.USE_CFUNITS,self.get_is_available('cfunits'))
-        self.assertEqual(env.USE_SPATIAL_INDEX,self.get_is_available('rtree'))
+        self.assertEqual(env.USE_CFUNITS, self.get_is_available('cfunits'))
+        self.assertEqual(env.USE_SPATIAL_INDEX, self.get_is_available('rtree'))
 
         # turn off the spatial index
         env.USE_SPATIAL_INDEX = False
-        self.assertEqual(env.USE_SPATIAL_INDEX,False)
+        self.assertEqual(env.USE_SPATIAL_INDEX, False)
         env.reset()
-        self.assertEqual(env.USE_SPATIAL_INDEX,self.get_is_available('rtree'))
+        self.assertEqual(env.USE_SPATIAL_INDEX, self.get_is_available('rtree'))
 
     def test_import_attributes_overloaded(self):
         try:
             import rtree
+
             av = True
         except ImportError:
             av = False
-        self.assertEqual(env.USE_SPATIAL_INDEX,av)
+        self.assertEqual(env.USE_SPATIAL_INDEX, av)
 
         os.environ['OCGIS_USE_SPATIAL_INDEX'] = 'False'
         env.reset()
@@ -101,20 +104,20 @@ class TestEnvironment(TestBase):
         self.assertFalse(env.USE_SPATIAL_INDEX)
 
     def test_simple(self):
-        self.assertEqual(env.OVERWRITE,False)
+        self.assertEqual(env.OVERWRITE, False)
         env.reset()
         os.environ['OCGIS_OVERWRITE'] = 't'
-        self.assertEqual(env.OVERWRITE,True)
+        self.assertEqual(env.OVERWRITE, True)
         env.OVERWRITE = False
-        self.assertEqual(env.OVERWRITE,False)
+        self.assertEqual(env.OVERWRITE, False)
         with self.assertRaises(AttributeError):
             env.FOO = 1
 
         env.OVERWRITE = True
-        self.assertEqual(env.OVERWRITE,True)
+        self.assertEqual(env.OVERWRITE, True)
         env.reset()
         os.environ.pop('OCGIS_OVERWRITE')
-        self.assertEqual(env.OVERWRITE,False)
+        self.assertEqual(env.OVERWRITE, False)
 
     def test_str(self):
         ret = str(env)

@@ -9,7 +9,7 @@ import datetime
 from shapely import wkb
 import fiona
 from shapely import wkt
-from shapely.geometry import shape
+from shapely.geometry import shape, Point
 from shapely.ops import cascaded_union
 
 from ocgis import constants, SpatialCollection, ShpCabinet
@@ -157,13 +157,6 @@ class TestField(AbstractTestField):
         self.assertIsInstance(coll, SpatialCollection)
         self.assertIsInstance(coll[1][field.name], Field)
         self.assertIsNone(coll.properties[1])
-
-        # test with some properties
-        properties = np.zeros(1, dtype={'names': ['color', 'desc'], 'formats': [object, int]})
-        properties[0] = ('blue', 4)
-        field.spatial.properties = properties
-        coll = field.as_spatial_collection()
-        self.assertEqual(coll.properties[1], properties[0])
 
     def test_crs(self):
         field = self.get_field(with_value=True)
@@ -350,7 +343,7 @@ class TestField(AbstractTestField):
                 'rid': 1, 'realization': 1, 'lb_level': 0,
                 'variable': 'tmax', 'month': 1, 'lb_time': datetime.datetime(2000, 1, 5, 0, 0), 'day': 5,
                 'level': 50, 'did': None, 'value': 0.32664490177209615, 'alias': 'tmax', 'lid': 1,
-                'time': datetime.datetime(2000, 1, 5, 12, 0), 'tid': 5, 'name': 'tmax'}
+                'time': datetime.datetime(2000, 1, 5, 12, 0), 'tid': 5, 'name': 'tmax', 'ugid': 1}
         self.assertAsSetEqual(rows[100][1].keys(), real.keys())
         for k, v in rows[100][1].iteritems():
             self.assertEqual(real[k], v)
@@ -361,7 +354,8 @@ class TestField(AbstractTestField):
         rows = list(field.get_iter())
         self.assertAsSetEqual(rows[10][1].keys(),
                               ['lid', 'name', 'vid', 'ub_time', 'did', 'lb_level', 'time', 'year', 'value', 'month',
-                               'alias', 'tid', 'ub_level', 'rlz', 'variable', 'gid', 'rid', 'level', 'lb_time', 'day'])
+                               'alias', 'tid', 'ub_level', 'rlz', 'variable', 'gid', 'rid', 'level', 'lb_time', 'day',
+                               'ugid'])
 
         # test not melted
         field = self.get_field(with_value=True)
@@ -389,8 +383,10 @@ class TestField(AbstractTestField):
 
         # test passing a ugid
         field = self.get_field(with_value=True)[0, 0, 0, 0, 0]
-        _, row = field.get_iter(ugid=5).next()
-        self.assertEqual(row[constants.HEADERS.ID_SELECTION_GEOMETRY], 5)
+        record = {'geom': Point(1, 2), 'properties': {'HI': 50, 'goodbye': 'forever'}}
+        ugeom = SpatialDimension.from_records([record], uid='HI')
+        _, row = field.get_iter(ugeom=ugeom).next()
+        self.assertEqual(row['HI'], 50)
 
         # test value_keys
         field = self.get_field(with_value=True)[0, 0, 0, 0, 0]
@@ -654,6 +650,7 @@ class TestField(AbstractTestField):
         with self.assertRaises(WriteMe):
             field.write_fiona(path, fobject=Nothing())
 
+    def test_man(self):
         # test all geometries are accounted for as well as properties
         path = ShpCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
@@ -693,7 +690,9 @@ class TestField(AbstractTestField):
         # test passing a ugid
         field = self.get_field(with_value=True, crs=WGS84())[0, 0, 0, 0, 0]
         path = self.get_temporary_file_path('what3.shp')
-        field.write_fiona(path=path, ugid=10)
+        record = {'geom': Point(1, 2), 'properties': {'ugid': 10}}
+        ugeom = SpatialDimension.from_records([record], uid='ugid')
+        field.write_fiona(path=path, ugeom=ugeom)
         with fiona.open(path) as source:
             for row in source:
                 self.assertEqual(row['properties'][constants.HEADERS.ID_SELECTION_GEOMETRY], 10)

@@ -24,7 +24,7 @@ class Test(TestBase):
 
     def test_geometries_different_ugid(self):
         # equivalent geometries with different ugid values should be included
-        row = list(ShpCabinetIterator(key='state_boundaries', select_ugid=[16]))
+        row = list(ShpCabinetIterator(key='state_boundaries', select_uid=[16]))
         row.append(deepcopy(row[0]))
         row[1]['properties']['UGID'] = 17
         rd = self.test_data.get_rd('cancm4_tas')

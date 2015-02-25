@@ -165,7 +165,7 @@ class Field(Attributes):
 
         coll = SpatialCollection(**kwargs)
         # if there are no vector dimensions, there is no need for a melted representation
-        coll.add_field(1, None, self, properties=self.spatial.properties, name=self.name)
+        coll.add_field(self)
         return coll
 
     def get_between(self, dim, lower, upper):
@@ -187,7 +187,7 @@ class Field(Attributes):
                                             select_nearest=select_nearest))
 
     def get_iter(self, add_masked_value=True, value_keys=None, melted=True, use_upper_keys=False, headers=None,
-                 ugid=None):
+                 ugeom=None):
         """
         :param bool add_masked_value: If ``False``, do not yield masked variable values.
         :param value_keys: A sequence of keys if the variable is a structure array.
@@ -196,13 +196,25 @@ class Field(Attributes):
         :param bool use_upper_keys: If ``True``, capitalize the keys of the yielded dictionary.
         :param headers: A sequence of strings to limit the output data dictionary.
         :type headers: [str, ...]
-        :param int ugid: If provided, insert a unique key for the selection geometry.
-        :returns: A tuple with the first element being a shapely geometry object and the second element a
-         dictionary.
+        :param ugeom: If provided, insert a unique key for the selection geometry.
+        :type ugeom: :class:`ocgis.SpatialDimension`
+        :returns: A tuple with the first element being a shapely geometry object and the second element a dictionary.
         :rtype: tuple(:class:`shapely.geometry.base.BaseGeometry`, dict)
         """
 
-        id_selection_geometry = constants.HEADERS.ID_SELECTION_GEOMETRY
+        # extract from the selection geometry if it is available
+        if ugeom is not None:
+            ugeom_name_uid = ugeom.name_uid
+            ugeom_uid = ugeom.uid[0, 0]
+        else:
+            ugeom_name_uid = constants.HEADERS.ID_SELECTION_GEOMETRY
+            ugeom_uid = 1
+            if ugeom_name_uid.lower() in [k.lower() for k in self.variables.keys()]:
+                ugeom_name_uid = None
+
+        # headers always come through lowercase
+        if headers is not None and ugeom_name_uid is not None:
+            ugeom_name_uid = ugeom_name_uid.lower()
 
         def _get_dimension_iterator_1d_(target):
             attr = getattr(self, target)
@@ -217,8 +229,8 @@ class Field(Attributes):
             return ret
 
         def _process_yield_(g, dict_to_yld):
-            if ugid is not None:
-                dict_to_yld[id_selection_geometry] = ugid
+            if ugeom_name_uid is not None:
+                dict_to_yld[ugeom_name_uid] = ugeom_uid
             if headers is not None:
                 dict_to_yld = OrderedDict([(k, dict_to_yld.get(k)) for k in headers])
             if use_upper_keys:
@@ -396,7 +408,7 @@ class Field(Attributes):
             yield yld
 
     def write_fiona(self, path=None, driver='ESRI Shapefile', melted=False, fobject=None, use_upper_keys=False,
-                    headers=None, ugid=None):
+                    headers=None, ugeom=None):
         """
         Write a ``fiona``-enabled format. This may go to a newly created location specified by ``path`` or an open
         collection object set by ``fobject``.
@@ -408,7 +420,7 @@ class Field(Attributes):
         :type fobject: :class:`fiona.collection.Collection`
         :param use_upper_keys: See :meth:`ocgis.interface.base.field.Field.get_iter`.
         :param headers: See :meth:`ocgis.interface.base.field.Field.get_iter`.
-        :param ugid: See :meth:`ocgis.interface.base.field.Field.get_iter`.
+        :param ugeom: See :meth:`ocgis.interface.base.field.Field.get_iter`.
         """
 
         # if a collection is passed in, do not close it when done writing
@@ -416,7 +428,7 @@ class Field(Attributes):
 
         build = True
         try:
-            for geom, row in self.get_iter(melted=melted, use_upper_keys=use_upper_keys, headers=headers, ugid=ugid):
+            for geom, row in self.get_iter(melted=melted, use_upper_keys=use_upper_keys, headers=headers, ugeom=ugeom):
                 for k, v in row.iteritems():
                     try:
                         row[k] = v.tolist()
@@ -652,4 +664,4 @@ class DerivedMultivariateField(Field):
         yld['calc_key'] = variable.name
         yld['calc_alias'] = variable.alias
         yld['did'] = None
-        return(yld)
+        return yld

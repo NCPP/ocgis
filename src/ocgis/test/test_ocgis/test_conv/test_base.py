@@ -5,6 +5,11 @@ from copy import deepcopy
 import tempfile
 import numpy as np
 
+import fiona
+from shapely.geometry import Point
+
+from ocgis.interface.base.crs import WGS84
+from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis import constants
 from ocgis.conv.esmpy import AbstractConverter
@@ -21,8 +26,21 @@ class AbstractTestConverter(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         field = field or rd.get()[:, 0, :, 0, 0]
         coll = SpatialCollection()
-        coll.add_field(1, None, field)
+        coll.add_field(field)
         return coll
+
+
+class FakeAbstractConverter(AbstractConverter):
+    _add_ugeom = True
+
+    def _build_(self, *args, **kwargs):
+        pass
+
+    def _finalize_(self, *args, **kwargs):
+        pass
+
+    def _write_coll_(self, f, coll):
+        pass
 
 
 class TestAbstractConverter(AbstractTestConverter):
@@ -126,6 +144,26 @@ class TestAbstractConverter(AbstractTestConverter):
 
     def test_overwrite_true_csv_shp(self):
         self.run_overwrite_true_tst(CsvShapefileConverter, include_ops=True)
+
+    def test_write(self):
+        records = [{'geom': Point(1, 2).buffer(1), 'properties': {'ID': 5, 'name': 'heaven'}},
+                   {'geom': Point(7, 8).buffer(1), 'properties': {'ID': 50, 'name': 'hell'}}]
+        sdim1 = SpatialDimension.from_records([records[0]], uid='ID')
+        sdim2 = SpatialDimension.from_records([records[1]], uid='ID')
+        field = self.get_field(crs=WGS84())
+        coll1 = SpatialCollection()
+        coll1.add_field(field, ugeom=sdim1)
+        coll2 = SpatialCollection()
+        coll2.add_field(field, ugeom=sdim2)
+        colls = [coll1, coll2]
+        f = FakeAbstractConverter(colls, outdir=self.current_dir_output, prefix='me')
+        ret = f.write()
+        path = os.path.join(ret, 'shp', 'me_ugid.shp')
+        with fiona.open(path, 'r') as source:
+            records = list(source)
+        self.assertEqual(len(records), 2)
+        self.assertEqual([r['properties']['ID'] for r in records], [5, 50])
+        self.assertEqual([r['properties']['name'] for r in records], ['heaven', 'hell'])
 
     def test_add_auxiliary_files_csv(self):
         self.run_auxiliary_file_tst(CsvConverter, ['ocgis_output.csv'])

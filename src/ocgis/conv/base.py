@@ -106,7 +106,8 @@ class AbstractConverter(object):
             os.mkdir(path)
         return path
 
-    def _get_should_append_to_unique_geometry_store_(self, store, geom, ugid):
+    @staticmethod
+    def _get_should_append_to_unique_geometry_store_(store, geom, ugid):
         """
         :param sequence store:
         :param :class:`shapely.Geometry` geom:
@@ -180,16 +181,16 @@ class AbstractConverter(object):
                 self._write_coll_(f, coll)
                 if write_ugeom:
                     # write the overview geometries to disk
-                    r_geom = coll.geoms.values()[0]
+                    r_geom = coll.geoms.iteritems().next()
+                    uid_value = r_geom[0]
+                    r_geom = r_geom[1]
                     if isinstance(r_geom, Polygon):
                         r_geom = MultiPolygon([r_geom])
                     # see if this geometry is in the unique geometry store
-                    should_append = self._get_should_append_to_unique_geometry_store_(
-                        unique_geometry_store,
-                        r_geom,
-                        coll.properties.values()[0]['UGID'])
+                    should_append = self._get_should_append_to_unique_geometry_store_(unique_geometry_store, r_geom,
+                                                                                      uid_value)
                     if should_append:
-                        unique_geometry_store.append({'geom': r_geom, 'ugid': coll.properties.values()[0]['UGID']})
+                        unique_geometry_store.append({'geom': r_geom, 'ugid': uid_value})
 
                         # if it is unique write the geometry to the output files
                         coll.write_ugeom(fobject=fiona_object)

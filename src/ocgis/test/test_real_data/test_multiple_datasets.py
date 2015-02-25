@@ -23,7 +23,7 @@ class Test(TestBase):
 
     @property
     def california(self):
-        ret = list(ShpCabinetIterator('state_boundaries', select_ugid=[25]))
+        ret = list(ShpCabinetIterator('state_boundaries', select_uid=[25]))
         return ret
 
     @property

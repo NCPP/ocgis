@@ -33,7 +33,7 @@ ret = ops.execute()
 
 print('returning numpy for a state...')
 ops = OcgOperations(dataset=rdc, spatial_operation='clip', aggregate=True, snippet=SNIPPET, geom='state_boundaries',
-                    select_ugid=[23])
+                    geom_select_uid=[23])
 ret = ops.execute()
 
 # Write to Shapefile ###################################################################################################

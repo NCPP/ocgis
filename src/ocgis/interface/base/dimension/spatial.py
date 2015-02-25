@@ -208,7 +208,7 @@ class SpatialDimension(base.AbstractUidDimension):
                     assert not to_check.any()
 
     @classmethod
-    def from_records(cls, records, crs=None):
+    def from_records(cls, records, crs=None, uid=None):
         """
         Create a :class:`ocgis.interface.base.dimension.SpatialDimension` from Fiona-like records.
 
@@ -216,8 +216,14 @@ class SpatialDimension(base.AbstractUidDimension):
         :type records: sequence
         :param crs: If ``None``, default to :attr:`~ocgis.env.DEFAULT_COORDSYS`.
         :type crs: dict or :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+        :param str uid: If provided, use this attribute name as the unique identifier. Otherwise search for
+         :attr:`env.DEFAULT_GEOM_UID` and, if not present, construct a 1-based identifier with this name.
+        :returns: A spatial dimension object constructed from the records.
         :rtype: :class:`ocgis.interface.base.dimension.SpatialDimension`
         """
+
+        if uid is None:
+            uid = env.DEFAULT_GEOM_UID
 
         if not isinstance(crs, CoordinateReferenceSystem):
             # if there is no crs dictionary passed, assume WGS84
@@ -251,10 +257,10 @@ class SpatialDimension(base.AbstractUidDimension):
             if build:
                 build = False
 
-                if 'UGID' in record['properties']:
-                    has_ugid = True
+                if uid in record['properties']:
+                    has_uid = True
                 else:
-                    has_ugid = False
+                    has_uid = False
 
                 for k, v in record['properties'].iteritems():
                     the_type = type(v)
@@ -267,8 +273,8 @@ class SpatialDimension(base.AbstractUidDimension):
                 property_order = record['properties'].keys()
 
             # the UGID may be present as a property. otherwise the enumeration counter is used for the identifier.
-            if has_ugid:
-                to_append = int(record['properties']['UGID'])
+            if has_uid:
+                to_append = int(record['properties'][uid])
             else:
                 to_append = ctr
             deque_uid.append(to_append)
@@ -284,7 +290,7 @@ class SpatialDimension(base.AbstractUidDimension):
             geoms[0, idx] = deque_geoms[idx]
 
         # convert the unique identifiers to an array
-        uid = np.array(deque_uid).reshape(*geoms.shape)
+        uid_values = np.array(deque_uid).reshape(*geoms.shape)
 
         # this will choose the appropriate geometry dimension
         geom_type = geoms[0, 0].geom_type
@@ -299,7 +305,8 @@ class SpatialDimension(base.AbstractUidDimension):
         kwds = {mapping_kwds[klass]: dim_geom_type}
         dim_geom = SpatialGeometryDimension(**kwds)
 
-        sdim = SpatialDimension(geom=dim_geom, uid=uid, properties=properties, crs=crs, abstraction=mapping_kwds[klass])
+        sdim = SpatialDimension(geom=dim_geom, uid=uid_values, properties=properties, crs=crs,
+                                abstraction=mapping_kwds[klass], name_uid=uid)
 
         return sdim
 

@@ -1,11 +1,11 @@
 import numpy as np
 from types import NoneType
 import abc
+import datetime
 
 import fiona
 
 from ocgis.conv.base import AbstractTabularConverter
-import datetime
 
 
 class AbstractFionaConverter(AbstractTabularConverter):
@@ -100,10 +100,10 @@ class AbstractFionaConverter(AbstractTabularConverter):
         :rtype: dict
         """
 
-        field = coll.first().values()[0]
-        ugid = 1 if self.melted is True else None
+        field = coll.first().itervalues().next()
+        ugeom = coll.ugeom.itervalues().next()
         arch = field.get_iter(melted=self.melted, use_upper_keys=self._use_upper_keys, headers=coll.headers,
-                              ugid=ugid).next()
+                              ugeom=ugeom).next()
         fdict = field.get_fiona_dict(field, arch[1])
         fdict['fobject'] = fiona.open(self.path, driver=self._driver, schema=fdict['schema'], crs=fdict['crs'],
                                       mode='w')
@@ -120,11 +120,11 @@ class AbstractFionaConverter(AbstractTabularConverter):
         """
 
         for ugid, field_dict in coll.iteritems():
-            ugid = ugid if self.melted is True else None
+            ugeom = coll.ugeom[ugid]
             for field in field_dict.itervalues():
                 fobject = f['fobject']
                 field.write_fiona(melted=self.melted, fobject=fobject, use_upper_keys=self._use_upper_keys,
-                                  headers=coll.headers, ugid=ugid)
+                                  headers=coll.headers, ugeom=ugeom)
 
 
 class ShpConverter(AbstractFionaConverter):

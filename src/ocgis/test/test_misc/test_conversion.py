@@ -15,18 +15,6 @@ class Test(TestBase):
         ds = nc.Dataset(ret)
         self.assertTrue('lambert_conformal_conic' in ds.variables)
 
-    def test_csv_shp(self):
-        rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
-        rd2 = self.test_data.get_rd('maurer_bccr_1950')
-        ops = ocgis.OcgOperations(dataset=[rd1, rd2], snippet=True, output_format='csv-shp', geom='state_boundaries',
-                                  agg_selection=True, select_ugid=[32])
-        ret = ops.execute()
-        meta = os.path.join(os.path.split(ret)[0], 'ocgis_output_source_metadata.txt')
-
-        with open(meta, 'r') as f:
-            lines = f.readlines()
-        self.assertTrue(len(lines) > 50)
-
     def test_csv_shp_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
         rd2 = self.test_data.get_rd('maurer_bccr_1950')

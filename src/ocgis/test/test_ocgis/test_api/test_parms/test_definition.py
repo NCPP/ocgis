@@ -1,4 +1,3 @@
-import unittest
 import pickle
 import tempfile
 
@@ -115,7 +114,7 @@ class Test(TestBase):
         self.assertEqual(so.value, 'numpy')
 
     def test_select_ugid(self):
-        so = SelectUgid()
+        so = GeomSelectUid()
         self.assertEqual(so.value, None)
         with self.assertRaises(DefinitionValidationError):
             so.value = 98.5
@@ -123,13 +122,13 @@ class Test(TestBase):
         self.assertEqual(so.value, None)
         with self.assertRaises(DefinitionValidationError):
             so.value = 1
-        so = SelectUgid('10')
+        so = GeomSelectUid('10')
         self.assertEqual(so.value, (10,))
         with self.assertRaises(DefinitionValidationError):
             so.value = ('1|1|2')
         with self.assertRaises(DefinitionValidationError):
             so.value = '22.5'
-        so = SelectUgid('22|23|24')
+        so = GeomSelectUid('22|23|24')
         self.assertEqual(so.value, (22, 23, 24))
         with self.assertRaises(DefinitionValidationError):
             so.value = '22|23.5|24'
@@ -515,6 +514,18 @@ class TestDataset(TestBase):
 class TestGeom(TestBase):
     create_dir = False
 
+    @staticmethod
+    def get_geometry_dictionaries(uid='UGID'):
+        coordinates = [('France', [2.8, 47.16]),
+                       ('Germany', [10.5, 51.29]),
+                       ('Italy', [12.2, 43.4])]
+        geom = []
+        for ugid, coordinate in enumerate(coordinates, start=1):
+            point = Point(coordinate[1][0], coordinate[1][1])
+            geom.append({'geom': point,
+                         'properties': {uid: ugid, 'COUNTRY': coordinate[0]}})
+        return geom
+
     def test_init(self):
         geom = make_poly((37.762, 38.222), (-102.281, -101.754))
 
@@ -547,16 +558,71 @@ class TestGeom(TestBase):
                 self.assertIsInstance(element, SpatialDimension)
             self.assertGreater(ii, 10)
 
-        su = SelectUgid([1, 2, 3])
+        su = GeomSelectUid([1, 2, 3])
         g = Geom('state_boundaries', select_ugid=su)
         self.assertEqual(len(list(g.value)), 3)
 
         geoms = [{'geom': geom, 'properties': {'UGID': 1}}, {'geom': geom, 'properties': {'UGID': 2}}]
-        g = Geom(geoms)
+        Geom(geoms)
 
         bbox = [-120, 40, -110, 50]
         g = Geom(bbox)
         self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds, tuple(map(float, bbox)))
+
+        sui = GeomUid('ID')
+        g = Geom(bbox, geom_uid=sui)
+        self.assertEqual(g.geom_uid, 'ID')
+        g = Geom(bbox, geom_uid='ID')
+        self.assertEqual(g.geom_uid, 'ID')
+
+    def test_geometry_dictionaries(self):
+        """Test geometry dictionaries as input."""
+
+        for crs in [None, CFWGS84(), CoordinateReferenceSystem(epsg=2136)]:
+            geom = self.get_geometry_dictionaries()
+            if crs is not None:
+                for g in geom:
+                    g['crs'] = crs
+            g = Geom(geom)
+            self.assertEqual(len(g.value), 3)
+            for gdict, sdim in zip(geom, g.value):
+                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+                if crs is None:
+                    self.assertIsInstance(sdim.crs, CFWGS84)
+                else:
+                    self.assertIsInstance(sdim.crs, crs.__class__)
+                self.assertEqual(set(sdim.properties.dtype.names), set(['UGID', 'COUNTRY']))
+                self.assertEqual(sdim.properties.shape, (1,))
+                self.assertEqual(sdim.properties['UGID'][0], gdict['properties']['UGID'])
+                self.assertEqual(sdim.properties['COUNTRY'][0], gdict['properties']['COUNTRY'])
+
+    def test_parse(self):
+        keywords = dict(geom_uid=[None, 'ID'],
+                        geom=[None, self.get_geometry_dictionaries(), self.get_geometry_dictionaries(uid='ID')])
+        for k in self.iter_product_keywords(keywords):
+            g = Geom(k.geom, geom_uid=k.geom_uid)
+            ret = g.parse(k.geom)
+            if k.geom is None:
+                self.assertIsNone(ret)
+            else:
+                if k.geom_uid is None:
+                    actual = constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
+                else:
+                    actual = k.geom_uid
+                for element in ret:
+                    self.assertEqual(element.name_uid, actual)
+
+    def test_parse_string(self):
+        keywords = dict(geom_uid=[None, 'ID'])
+        for k in self.iter_product_keywords(keywords):
+            g = Geom(geom_uid=k.geom_uid)
+            ret = g.parse_string('state_boundaries')
+            self.assertIsInstance(ret, ShpCabinetIterator)
+            if k.geom_uid is None:
+                actual = None
+            else:
+                actual = k.geom_uid
+            self.assertEqual(ret.uid, actual)
 
     def test_spatial_dimension(self):
         """Test using a SpatialDimension as input value."""
@@ -580,7 +646,7 @@ class TestGeom(TestBase):
         self.assertEqual(g._shp_key, path)
         self.assertEqual(len(list(g.value)), 51)
 
-    def test_with_changing_select_ugid(self):
+    def test_with_changing_select_uid(self):
         select_ugid = [16, 17]
         g = Geom('state_boundaries', select_ugid=select_ugid)
         self.assertEqual(len(list(g.value)), 2)
@@ -592,38 +658,30 @@ class TestGeom(TestBase):
         g.select_ugid = [16, 17]
         self.assertEqual(len(list(g.value)), 2)
 
-    @staticmethod
-    def get_geometry_dictionaries():
-        coordinates = [('France', [2.8, 47.16]),
-                       ('Germany', [10.5, 51.29]),
-                       ('Italy', [12.2, 43.4])]
-        geom = []
-        for ugid, coordinate in enumerate(coordinates, start=1):
-            point = Point(coordinate[1][0], coordinate[1][1])
-            geom.append({'geom': point,
-                         'properties': {'UGID': ugid, 'COUNTRY': coordinate[0]}})
-        return geom
 
-    def test_geometry_dictionaries(self):
-        """Test geometry dictionaries as input."""
+class TestGeomSelectUid(TestBase):
+    def test_init(self):
+        g = GeomSelectUid()
+        self.assertIsNone(g.value)
 
-        for crs in [None, CFWGS84(), CoordinateReferenceSystem(epsg=2136)]:
-            geom = self.get_geometry_dictionaries()
-            if crs is not None:
-                for g in geom:
-                    g['crs'] = crs
-            g = Geom(geom)
-            self.assertEqual(len(g.value), 3)
-            for gdict, sdim in zip(geom, g.value):
-                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
-                if crs is None:
-                    self.assertIsInstance(sdim.crs, CFWGS84)
-                else:
-                    self.assertIsInstance(sdim.crs, crs.__class__)
-                self.assertEqual(set(sdim.properties.dtype.names), set(['UGID', 'COUNTRY']))
-                self.assertEqual(sdim.properties.shape, (1,))
-                self.assertEqual(sdim.properties['UGID'][0], gdict['properties']['UGID'])
-                self.assertEqual(sdim.properties['COUNTRY'][0], gdict['properties']['COUNTRY'])
+        g = GeomSelectUid([3, 4, 5])
+        self.assertEqual(g.value, (3, 4, 5))
+
+
+class TestGeomUid(TestBase):
+    def test_init(self):
+        g = GeomUid()
+        self.assertIsNone(g.value)
+
+        with self.assertRaises(DefinitionValidationError):
+            GeomUid(5)
+
+        g = GeomUid('ID')
+        self.assertEqual(g.value, 'ID')
+
+    def test_get_meta(self):
+        g = GeomUid('ID')
+        self.assertTrue(len(g._get_meta_()) > 5)
 
 
 class TestLevelRange(TestBase):
@@ -842,8 +900,3 @@ class TestTimeRegion(TestBase):
         value = {'mnth': [4]}
         with self.assertRaises(DefinitionValidationError):
             TimeRegion(value)
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

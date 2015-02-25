@@ -3,12 +3,12 @@ import itertools
 import os
 from numpy import dtype
 import numpy as np
+from datetime import datetime as dt
+import datetime
 
 import ESMF
 
 from ocgis import env
-from datetime import datetime as dt
-import datetime
 from ocgis.api.request.base import RequestDataset
 from ocgis.api.parms.definition import RegridOptions, OutputFormat
 from ocgis.interface.base.crs import CFWGS84
@@ -43,12 +43,22 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=self.datasets)
         self.assertEqual(ops.regrid_destination, None)
         self.assertDictEqual(ops.regrid_options, RegridOptions.default)
+        self.assertIsNone(ops.geom_select_uid)
+        self.assertIsNone(ops.geom_uid)
 
         self.assertFalse(ops.melted)
         env.MELTED = True
         ops = OcgOperations(dataset=self.datasets)
         self.assertEqual(ops.melted, env.MELTED)
         self.assertTrue(ops.melted)
+
+        ops = OcgOperations(dataset=self.datasets, geom_select_uid=[4, 5], select_ugid=[5, 6, 7])
+        self.assertEqual(ops.geom_select_uid, (4, 5))
+
+        ops = OcgOperations(dataset=self.datasets, geom_uid='ID')
+        self.assertEqual(ops.geom_uid, 'ID')
+        geom = ops._get_object_('geom')
+        self.assertEqual(geom.geom_uid, 'ID')
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -357,7 +367,7 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
                             geom='state_boundaries')
         self.assertEqual(len(list(ops.geom)), 51)
-        ops.select_ugid = [16, 17]
+        ops.geom_select_uid = [16, 17]
         self.assertEqual(len(list(ops.geom)), 2)
 
     def test_keyword_geom_string(self):

@@ -1,12 +1,14 @@
-import unittest
 from datetime import datetime
 import numpy as np
 import netCDF4 as nc
-from ocgis.api.operations import OcgOperations
+import os
+
 from shapely.geometry.polygon import Polygon
+
+from ocgis.api.operations import OcgOperations
+
 from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
-import os
 from ocgis.test.base import TestBase
 import ocgis
 from ocgis.util.shp_cabinet import ShpCabinetIterator
@@ -88,7 +90,7 @@ class Test360(TestBase):
     @property
     def nebraska(self):
         path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
-        sci = ShpCabinetIterator(path=path, select_ugid=[16])
+        sci = ShpCabinetIterator(path=path, select_uid=[16])
         geom = list(sci)
         return geom
 

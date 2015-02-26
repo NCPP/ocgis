@@ -233,6 +233,16 @@ class AbstractFunction(object):
         :raises: :class:`ocgis.exc.DefinitionValidationError`
         """
 
+    @classmethod
+    def validate_definition(cls, definition):
+        """
+        Method to validate calculation definitions passed to operations.
+
+        :param dict definition: The dictionary definition for the function as returned from
+         :attr:`~ocgis.api.parms.definition.Calc.value`.
+        :raises: :class:`ocgis.exc.DefinitionValidationError`
+        """
+
     def validate_units(self, *args, **kwargs):
         """Optional method to overload for units validation at the calculation level."""
 
@@ -484,19 +494,53 @@ class AbstractParameterizedFunction(AbstractFunction):
     """
     Base class for functions accepting parameters.
     """
-
     __metaclass__ = abc.ABCMeta
+
+    #: Set to a tuple containing keys of required parameters. The keys correspond to keys in ``parms_definition``.
+    parms_required = None
 
     @abc.abstractproperty
     def parms_definition(self):
         """
-        A dictionary describing the input parameters with keys corresponding to
-        parameter names and values to their types. Set the type to `None` for no
-        type checking.
+        A dictionary describing the input parameters with keys corresponding to parameter names and values to their
+        types. Set the type to `None` for no type checking.
 
-        >>> {'threshold':float,'operation':str,'basis':None}
+        >>> {'threshold': float, 'operation': str, 'basis': None}
         """
         dict
+
+    @classmethod
+    def validate_definition(cls, definition):
+        AbstractFunction.validate_definition(definition)
+
+        assert isinstance(definition, dict)
+        from ocgis.api.parms.definition import Calc
+
+        key = constants.CALC_KEY_KEYWORDS
+        if key not in definition:
+            msg = 'Keyword arguments are required using the "{0}" key: {1}'.format(key, cls.parms_definition)
+            raise DefinitionValidationError(Calc, msg)
+        else:
+            kwds = definition[key]
+            try:
+                required = cls.required_variables
+            except AttributeError:
+                # this function likely does not have required variables and is not a multivariate function
+                assert not issubclass(cls, AbstractMultivariateFunction)
+            else:
+                kwds = kwds.copy()
+                for r in required:
+                    kwds.pop(r, None)
+
+            if not set(kwds.keys()).issubset(cls.parms_definition.keys()):
+                msg = 'Keyword arguments incorrect. Correct keyword arguments are: {0}'.format(cls.parms_definition)
+                raise DefinitionValidationError(Calc, msg)
+
+        if cls.parms_required is not None:
+            for k in cls.parms_required:
+                if k not in kwds:
+                    msg = 'The keyword parameter "{0}" is required.'.format(k)
+                    raise DefinitionValidationError(Calc, msg)
 
     def _format_parms_(self, values):
         """
@@ -596,12 +640,10 @@ class AbstractMultivariateFunction(AbstractFunction):
     @abc.abstractproperty
     def required_variables(self):
         """
-        Required property/attribute containing the list of input variables expected
-        by the function.
+        Required property/attribute containing the list of input variables expected by the function.
         
-        >>> ['tas','rhs']
+        >>> ('tas', 'rhs')
         """
-        [str]
 
     def get_output_units(self, *args, **kwargs):
         return None

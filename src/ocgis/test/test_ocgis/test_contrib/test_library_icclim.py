@@ -215,6 +215,13 @@ class TestCD(TestBase):
         icd.calculate(tas=tas, pr=pr)
         self.assertSetEqual(set(icd._storage_percentile_dict.keys()), set(['tas', 'pr']))
 
+    def test_definition(self):
+        """Test passing through the definition argument to ensure this fails."""
+
+        calc = [{'func': IcclimCD.key, 'name': 'CW', 'kwds': {'tas_75_percentile_dict': {}}}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
+
     def test_execute(self):
         field, tdim = self.get_field_tdim()
         field.meta['dataset'] = {}

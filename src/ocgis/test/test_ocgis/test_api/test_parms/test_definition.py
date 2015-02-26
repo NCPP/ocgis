@@ -4,6 +4,7 @@ import tempfile
 from cfunits import Units
 
 from ocgis.exc import OcgWarning
+
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.api.parms.base import BooleanParameter
 from ocgis import env
@@ -176,6 +177,71 @@ class TestAggregate(TestBase):
 class TestCalc(TestBase):
     create_dir = False
 
+    def test_init(self):
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
+        cc = Calc(calc)
+        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
+
+        self.assertEqual(cc.value, eq)
+        cc.value = 'mean~my_mean'
+        self.assertEqual(cc.value, eq)
+
+        calc = [{'func': 'mean', 'name': 'my_mean'}]
+        cc = Calc(calc)
+        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
+
+        self.assertEqual(cc.value, eq)
+        cc.value = 'mean~my_mean'
+        self.assertEqual(cc.value, eq)
+
+    def test_bad_key(self):
+        calc = [{'func': 'bad_mean', 'name': 'my_mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
+
+    def test_get_meta(self):
+        for poss in Calc._possible:
+            cc = Calc(poss)
+            cc.get_meta()
+
+    def test_eval_string(self):
+        value = [
+            'es=tas+4',
+            ['es=tas+4']
+        ]
+        actual = [{'func': 'es=tas+4', 'ref': EvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}]
+        for v in value:
+            cc = Calc(v)
+            self.assertEqual(cc.value, actual)
+
+    def test_eval_string_malformed(self):
+        with self.assertRaises(DefinitionValidationError):
+            Calc('estas+4')
+
+    def test_eval_string_multivariate(self):
+        value = [
+            'es=exp(tas)+tasmax+log(4)',
+            ['es=exp(tas)+tasmax+log(4)']
+        ]
+        actual = [
+            {'func': 'es=exp(tas)+tasmax+log(4)', 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None,
+             'kwds': OrderedDict()}]
+        for v in value:
+            cc = Calc(v)
+            self.assertEqual(cc.value, actual)
+
+    def test_eval_string_number_after_variable_alias(self):
+        value = 'tas2=tas1+tas2'
+        self.assertTrue(EvalFunction.is_multivariate(value))
+
+        value = 'tas2=tas1+tas1'
+        self.assertFalse(EvalFunction.is_multivariate(value))
+
+    def test_eval_underscores_in_variable_names(self):
+        value = 'tas_4=tasmin_2+tasmin'
+        self.assertEqual(Calc(value).value, [
+            {'func': value, 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}])
+
     def test_meta_attrs(self):
         """Test various forms for meta_attrs in the calculation definition dictionary."""
 
@@ -201,20 +267,16 @@ class TestCalc(TestBase):
             calc = Calc([k.calc])
             self.assertEqual(set(calc.value[0].keys()), set(['ref', 'meta_attrs', 'name', 'func', 'kwds']))
 
-    def test_init(self):
-        calc = [{'func': 'mean', 'name': 'my_mean'}]
-        cc = Calc(calc)
-        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
+    def test_parse(self):
+        calc = [{'name': 'mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
 
-        self.assertEqual(cc.value, eq)
-        cc.value = 'mean~my_mean'
-        self.assertEqual(cc.value, eq)
-        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
-        with self.assertRaises(NotImplementedError):
-            self.assertEqual(cc.get_url_string(), 'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
+        calc = [{'func': 'mean'}]
+        with self.assertRaises(DefinitionValidationError):
+            Calc(calc)
 
-    def test_bad_key(self):
-        calc = [{'func': 'bad_mean', 'name': 'my_mean'}]
+        calc = [{}]
         with self.assertRaises(DefinitionValidationError):
             Calc(calc)
 
@@ -232,63 +294,9 @@ class TestCalc(TestBase):
         self.assertEqual(str(cc),
                          "calc=[{'meta_attrs': None, 'name': 'my_mean', 'func': 'mean', 'kwds': OrderedDict([('a', <type 'numpy.ndarray'>)])}]")
 
-    def test_get_meta(self):
-        for poss in Calc._possible:
-            cc = Calc(poss)
-            cc.get_meta()
-
-    def test_eval_underscores_in_variable_names(self):
-        value = 'tas_4=tasmin_2+tasmin'
-        self.assertEqual(Calc(value).value, [
-            {'func': value, 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}])
-
-    def test_eval_string(self):
-        value = [
-            'es=tas+4',
-            ['es=tas+4']
-        ]
-        actual = [{'func': 'es=tas+4', 'ref': EvalFunction, 'meta_attrs': None, 'name': None, 'kwds': OrderedDict()}]
-        for v in value:
-            cc = Calc(v)
-            self.assertEqual(cc.value, actual)
-
-    def test_eval_string_multivariate(self):
-        value = [
-            'es=exp(tas)+tasmax+log(4)',
-            ['es=exp(tas)+tasmax+log(4)']
-        ]
-        actual = [
-            {'func': 'es=exp(tas)+tasmax+log(4)', 'ref': MultivariateEvalFunction, 'meta_attrs': None, 'name': None,
-             'kwds': OrderedDict()}]
-        for v in value:
-            cc = Calc(v)
-            self.assertEqual(cc.value, actual)
-
-    def test_eval_string_number_after_variable_alias(self):
-        value = 'tas2=tas1+tas2'
-        self.assertTrue(EvalFunction.is_multivariate(value))
-
-        value = 'tas2=tas1+tas1'
-        self.assertFalse(EvalFunction.is_multivariate(value))
-
-    def test_eval_string_malformed(self):
-        with self.assertRaises(DefinitionValidationError):
-            Calc('estas+4')
-
-    def test(self):
-        calc = [{'func': 'mean', 'name': 'my_mean'}]
-        cc = Calc(calc)
-        eq = [{'ref': Mean, 'name': 'my_mean', 'func': 'mean', 'kwds': {}, 'meta_attrs': None}]
-
-        self.assertEqual(cc.value, eq)
-        cc.value = 'mean~my_mean'
-        self.assertEqual(cc.value, eq)
-        cc.value = 'mean~my_mean|max~my_max|between~between5_10!lower~5!upper~10'
-        with self.assertRaises(NotImplementedError):
-            self.assertEqual(cc.get_url_string(), 'mean~my_mean|max~my_max|between~between5_10!lower~5.0!upper~10.0')
-
-    def test_bad_key(self):
-        calc = [{'func': 'bad_mean', 'name': 'my_mean'}]
+    def test_validate(self):
+        calc = [{'func': 'threshold', 'name': 'threshold'}]
+        # this function definition is missing some keyword parameters
         with self.assertRaises(DefinitionValidationError):
             Calc(calc)
 

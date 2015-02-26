@@ -112,12 +112,12 @@ class Calc(base.IterableParameter, base.OcgParameter):
     element_type = [dict, str]
     unique = False
     _possible = ['es=tas+4', ['es=tas+4'], [{'func': 'mean', 'name': 'mean'}]]
-    _required_keys = set(['ref', 'meta_attrs', 'name', 'func', 'kwds'])
+    _required_keys_final = {'ref', 'meta_attrs', 'name', 'func', 'kwds'}
+    _required_keys_initial = ('name', 'func')
 
     def __init__(self, *args, **kwargs):
-        # # this flag is used by the parser to determine if an eval function has
-        # # been passed. very simple test for this...if there is an equals sign
-        ## in the string then it is considered an eval function
+        # this flag is used by the parser to determine if an eval function has been passed. very simple test for this...
+        # if there is an equals sign in the string then it is considered an eval function
         self._is_eval_function = False
         base.OcgParameter.__init__(self, *args, **kwargs)
 
@@ -134,26 +134,6 @@ class Calc(base.IterableParameter, base.OcgParameter):
             ret = '{0}={1}'.format(self.name, cb)
         return ret
 
-    def get_url_string(self):
-        raise (NotImplementedError)
-
-        # if self.value is None:
-
-    # ret = 'none'
-    # else:
-    #            elements = []
-    #            for element in self.value:
-    #                strings = []
-    #                template = '{0}~{1}'
-    #                if element['ref'] != library.SampleSize:
-    #                    strings.append(template.format(element['func'],element['name']))
-    #                    for k,v in element['kwds'].iteritems():
-    #                        strings.append(template.format(k,v))
-    #                if len(strings) > 0:
-    #                    elements.append('!'.join(strings))
-    #            ret = '|'.join(elements)
-    #        return(ret)
-
     def _get_meta_(self):
         if self.value is None:
             ret = 'No computations applied.'
@@ -164,13 +144,13 @@ class Calc(base.IterableParameter, base.OcgParameter):
                 ret = ['The following computations were applied:']
                 for ii in self.value:
                     ret.append('{0}: {1}'.format(ii['name'], ii['ref'].description))
-        return (ret)
+        return ret
 
     def _parse_(self, value):
         # test if the value is an eval function and set internal flag
         if '=' in value:
             self._is_eval_function = True
-        elif '=' in value['func']:
+        elif isinstance(value, dict) and value.get('func') is not None and '=' in value['func']:
             self._is_eval_function = True
         else:
             self._is_eval_function = False
@@ -200,39 +180,44 @@ class Calc(base.IterableParameter, base.OcgParameter):
             # adjust the reference
             value = new_value
 
-        ## if it is not an eval function, then do the standard argument parsing
+        # if it is not an eval function, then do the standard argument parsing
         else:
+
+            # check for required keys
+            if isinstance(value, dict):
+                for key in self._required_keys_initial:
+                    if key not in value:
+                        msg = 'The key "{0}" is required for calculation dictionaries.'.format(key)
+                        raise DefinitionValidationError(self, msg)
+
             fr = register.FunctionRegistry()
 
-            ## get the function key string form the calculation definition dictionary
+            # get the function key string form the calculation definition dictionary
             function_key = value['func']
-            ## this is the message for the DefinitionValidationError if this key
-            ## may not be found.
+            # this is the message for the DefinitionValidationError if this key may not be found.
             dve_msg = 'The function key "{0}" is not available in the function registry.'.format(function_key)
 
-            ## retrieve the calculation class reference from the function registry
+            # retrieve the calculation class reference from the function registry
             try:
                 value['ref'] = fr[function_key]
-            ## if the function cannot be found, it may be part of a contributed
-            ## library of calculations not registered by default as the external
-            ## library is an optional dependency.
+            # if the function cannot be found, it may be part of a contributed library of calculations not registered by
+            # default as the external library is an optional dependency.
             except KeyError:
-                ## this will register the icclim indices.
+                # this will register the icclim indices.
                 if function_key.startswith('{0}_'.format(constants.ICCLIM_PREFIX_FUNCTION_KEY)):
                     register.register_icclim(fr)
                 else:
-                    raise (DefinitionValidationError(self, dve_msg))
-            ## make another attempt to register the function
+                    raise DefinitionValidationError(self, dve_msg)
+            # make another attempt to register the function
             try:
                 value['ref'] = fr[function_key]
             except KeyError:
-                raise (DefinitionValidationError(self, dve_msg))
+                raise DefinitionValidationError(self, dve_msg)
 
-            ## parameters will be set to empty if none are present in the calculation
-            ## dictionary.
+            # parameters will be set to empty if none are present in the calculation dictionary.
             if 'kwds' not in value:
                 value['kwds'] = OrderedDict()
-            ## make the keyword parameter definitions lowercase.
+            # make the keyword parameter definitions lowercase.
             else:
                 value['kwds'] = OrderedDict(value['kwds'])
                 for k, v in value['kwds'].iteritems():
@@ -264,15 +249,15 @@ class Calc(base.IterableParameter, base.OcgParameter):
                 kwds = OrderedDict()
             ret = {'func': key, 'name': uname, 'kwds': kwds}
         except ValueError:
-            ## likely a string to use for an eval function
+            # likely a string to use for an eval function
             if '=' not in value:
                 msg = 'String may not be parsed: "{0}".'.format(value)
-                raise (DefinitionValidationError(self, msg))
+                raise DefinitionValidationError(self, msg)
             else:
                 self._is_eval_function = True
                 ret = value
 
-        return (ret)
+        return ret
 
     def _validate_(self, value):
         if not self._is_eval_function:
@@ -280,13 +265,15 @@ class Calc(base.IterableParameter, base.OcgParameter):
             aliases = [ii['name'] for ii in value]
 
             if len(aliases) != len(set(aliases)):
-                raise (DefinitionValidationError(self, 'User-provided calculation aliases must be unique: {0}'.format(
-                    aliases)))
+                raise DefinitionValidationError(self, 'User-provided calculation aliases must be unique: {0}'.format(
+                    aliases))
 
             for v in value:
-                if set(v.keys()) != self._required_keys:
-                    msg = 'Required keys are: {0}'.format(self._required_keys)
-                    raise (DefinitionValidationError(self, msg))
+                if set(v.keys()) != self._required_keys_final:
+                    msg = 'Required keys are: {0}'.format(self._required_keys_final)
+                    raise DefinitionValidationError(self, msg)
+                # run class-level definition
+                v[constants.CALC_KEY_CLASS_REFERENCE].validate_definition(v)
 
 
 class CalcGrouping(base.IterableParameter, base.OcgParameter):

@@ -31,6 +31,7 @@ class Threshold(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFun
     key = 'threshold'
     standard_name = 'threshold'
     long_name = 'threshold'
+    parms_required = ('threshold', 'operation')
     
     def calculate(self,values,threshold=None,operation=None):
         '''

@@ -137,3 +137,8 @@ NAME_UID_DIMENSION_REALIZATION = 'rid'
 NAME_UID_DIMENSION_TEMPORAL = 'tid'
 NAME_UID_DIMENSION_LEVEL = 'lid'
 NAME_UID_FIELD = 'fid'
+
+# calculation dictionary key defaults
+CALC_KEY_KEYWORDS = 'kwds'
+CALC_KEY_CLASS_REFERENCE = 'ref'
+NAME_UID_FIELD = 'fid'

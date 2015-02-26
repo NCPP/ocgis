@@ -7,7 +7,7 @@ from ocgis.interface.base.variable import VariableCollection, DerivedVariable
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
-    AbstractMultivariateFunction
+    AbstractMultivariateFunction, AbstractParameterizedFunction
 from ocgis import constants, OcgOperations, FunctionRegistry
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
 
@@ -147,6 +147,62 @@ class TestAbstractMultivariateFunction(TestBase):
             OcgOperations(dataset=[rd1, rd2], calc=calc)
 
 
+class FooAbstractParameterizedFunction(AbstractParameterizedFunction):
+    dtype = constants.NP_FLOAT
+    key = 'foo_pf'
+    long_name = 'foo_pee_eff'
+    standard_name = 'fpf'
+    parms_definition = {'argA': int, 'argB': float}
+    description = None
+
+    def calculate(self, values, **kwargs):
+        raise NotImplementedError
+
+    def _execute_(self):
+        raise NotImplementedError
+
+
+class FooAbstractParameterizedFunctionRequiredParameters(FooAbstractParameterizedFunction):
+    parms_required = ('argB',)
+
+
+class FooAbstractParameterizedFunctionRequiredParametersMultivariate(AbstractMultivariateFunction,
+                                                                     FooAbstractParameterizedFunctionRequiredParameters):
+    required_variables = ['tas', 'pr']
+
+
+class TestAbstractParameterizedFunction(AbstractTestField):
+    def test_init(self):
+        ff = FooAbstractParameterizedFunction()
+        self.assertIsInstance(ff, AbstractParameterizedFunction)
+        self.assertIsNone(ff.parms_required)
+
+    def test_validate_definition(self):
+        definition = {'func': 'foo_pf', 'name': 'food'}
+
+        # keywords are required
+        with self.assertRaises(DefinitionValidationError):
+            FooAbstractParameterizedFunction.validate_definition(definition)
+
+        # these are the wrong keyword arguments
+        definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argC': 'never'}}
+        with self.assertRaises(DefinitionValidationError):
+            FooAbstractParameterizedFunction.validate_definition(definition)
+
+        # one parameter passed
+        definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
+        FooAbstractParameterizedFunction.validate_definition(definition)
+
+        # this function class has some required parameters
+        definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
+        with self.assertRaises(DefinitionValidationError):
+            FooAbstractParameterizedFunctionRequiredParameters.validate_definition(definition)
+
+        # test with required variables present
+        definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argB': 5, 'tas': None}}
+        FooAbstractParameterizedFunctionRequiredParametersMultivariate.validate_definition(definition)
+
+
 class TestAbstractUnivariateFunction(AbstractTestField):
     
     def test_validate_units(self):
@@ -159,7 +215,7 @@ class TestAbstractUnivariateFunction(AbstractTestField):
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         field.variables['tmax'].units = 'celsius'
-        self.assertEqual(field.variables['tmax'].cfunits,Units('celsius'))
+        self.assertEqual(field.variables['tmax'].cfunits, Units('celsius'))
         fnu = FooNeedsUnits(field=field)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()

@@ -42,8 +42,8 @@ class DriverVector(AbstractDriver):
 
     def _get_field_(self, format_time=None):
         # todo: option to pass select_ugid
-        #todo: option for time dimension and time subsetting
-        #todo: remove format_time option - there for compatibility with the netCDF driver
+        # todo: option for time dimension and time subsetting
+        # todo: remove format_time option - there for compatibility with the netCDF driver
         from ocgis import SpatialDimension
 
         ds = self.open()

@@ -499,6 +499,34 @@ class SpatialDimension(base.AbstractUidDimension):
             ret = self.grid.value.mask[0, :, :]
         return ret.copy()
 
+    def get_report(self):
+        try:
+            res = self.grid.resolution
+            extent = self.grid.extent
+        except AttributeError:
+            if self.grid is None:
+                res = 'NA (no grid present)'
+                extent = 'NA (no grid present)'
+            else:
+                raise
+
+        itype = self.geom.get_highest_order_abstraction().__class__.__name__
+        if self.crs is None:
+            projection = 'NA (no coordinate system)'
+            sref = projection
+        else:
+            projection = self.crs.sr.ExportToProj4()
+            sref = self.crs.__class__.__name__
+
+        lines = ['Spatial Reference = {0}'.format(sref),
+                 'Proj4 String = {0}'.format(projection),
+                 'Extent = {0}'.format(extent),
+                 'Geometry Interface = {0}'.format(itype),
+                 'Resolution = {0}'.format(res),
+                 'Count = {0}'.format(self.uid.reshape(-1).shape[0])]
+
+        return lines
+
     def set_mask(self, mask):
         """
         :param mask: The spatial mask to apply to available representations.

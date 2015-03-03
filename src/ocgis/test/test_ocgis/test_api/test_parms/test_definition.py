@@ -4,7 +4,6 @@ import tempfile
 from cfunits import Units
 
 from ocgis.exc import OcgWarning
-
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.api.parms.base import BooleanParameter
 from ocgis import env
@@ -404,7 +403,6 @@ class TestMelted(TestBase):
 
 
 class TestDataset(TestBase):
-    create_dir = False
 
     def test_init(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -493,18 +491,7 @@ class TestDataset(TestBase):
         self.assertTrue(np.may_share_memory(ofield_value, efield))
         self.assertNumpyAll(ofield_value, efield)
 
-    def test_get_meta(self):
-        # test with standard request dataset collection
-        rd = self.test_data.get_rd('cancm4_tas')
-        dd = Dataset(rd)
-        self.assertIsInstance(dd.get_meta(), list)
-
-        # test passing a field object
-        dd = Dataset(rd.get())
-        ret = dd.get_meta()
-        self.assertEqual(ret, ['* dataset=', 'NcField(name=tas, ...)', ''])
-
-    def test_unfiled(self):
+    def test(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         reference_rd = self.test_data.get_rd('cancm4_tas')
         rd = RequestDataset(reference_rd.uri, reference_rd.variable)
@@ -517,6 +504,33 @@ class TestDataset(TestBase):
         reference_rd2 = self.test_data.get_rd('narccap_crcm')
         dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
+
+    def test_get_meta(self):
+        # test with standard request dataset collection
+        rd = self.test_data.get_rd('cancm4_tas')
+        dd = Dataset(rd)
+        self.assertIsInstance(dd.get_meta(), list)
+
+        # test passing a field object
+        dd = Dataset(rd.get())
+        ret = dd.get_meta()
+        self.assertEqual(ret, ['* dataset=', 'NcField(name=tas, ...)', ''])
+
+    def test_validate(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        for iv in [rd, rd.get()]:
+            dd = Dataset(iv)
+            self.assertIsInstance(dd.value, RequestDatasetCollection)
+
+        # test with no dimensioned variables
+        path = self.get_netcdf_path_no_dimensioned_variables()
+        keywords = dict(name=['aname', None])
+        for k in self.iter_product_keywords(keywords):
+            rd = RequestDataset(uri=path, name=k.name)
+            if k.name is not None:
+                self.assertEqual(rd.name, k.name)
+            with self.assertRaises(DefinitionValidationError):
+                Dataset(rd)
 
 
 class TestGeom(TestBase):

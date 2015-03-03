@@ -15,9 +15,10 @@ from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 
+from ocgis import messages
 from ocgis.conv.base import AbstractConverter, AbstractTabularConverter
 from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError
+from ocgis.exc import DefinitionValidationError, NoDimensionedVariablesFound
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
 from ocgis import constants
@@ -405,7 +406,7 @@ class ConformUnitsTo(base.OcgParameter):
             ret = 'Units were not conformed.'
         else:
             ret = 'Units of all requested datasets were conformed to: "{0}".'.format(self.value)
-        return (ret)
+        return ret
 
 
 class Dataset(base.OcgParameter):
@@ -445,7 +446,14 @@ class Dataset(base.OcgParameter):
                 for rd in itr:
                     if not isinstance(rd, Field):
                         rd = deepcopy(rd)
-                    rdc.update(rd)
+                    try:
+                        rdc.update(rd)
+                    except NoDimensionedVariablesFound:
+                        if rd._name is None:
+                            msg = messages.M2.format(rd.uri)
+                            raise DefinitionValidationError(self, msg)
+                        else:
+                            raise
                 init_value = rdc
         else:
             init_value = init_value
@@ -472,6 +480,17 @@ class Dataset(base.OcgParameter):
 
     def _parse_string_(self, lowered):
         raise NotImplementedError
+
+    def _validate_(self, value):
+        # at least one dimensioned variable must be available
+        assert isinstance(value, RequestDatasetCollection)
+        for rd in value.iter_request_datasets():
+            try:
+                assert rd.variable
+            except NoDimensionedVariablesFound as e:
+                msg = 'No dimensioned variables for request dataset with uri "{0}". Original exception message: {1}'
+                msg = msg.format(rd.uri, e)
+                raise DefinitionValidationError(self, msg)
 
 
 class DirOutput(base.StringParameter):

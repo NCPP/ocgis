@@ -11,7 +11,7 @@ import netcdftime
 import base
 from ocgis import constants
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError
+from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
 
 
@@ -227,59 +227,89 @@ class TemporalDimension(base.VectorDimension):
                 raise
         return ret
 
-    def get_time_region(self,time_region,return_indices=False):
-        assert(isinstance(time_region,dict))
+    def get_report(self):
+        lines = super(TemporalDimension, self).get_report()
 
-        ## return the values to use for the temporal region subsetting.
+        try:
+            if self.format_time:
+                res = int(self.resolution)
+                try:
+                    start_date, end_date = self.extent_datetime
+                # the times may not be formattable
+                except ValueError as e:
+                    if e.message == 'year is out of range' or e.message == 'month must be in 1..12':
+                        start_date, end_date = self.extent
+                    else:
+                        raise
+            else:
+                res = 'NA (non-formatted times requested)'
+                start_date, end_date = self.extent
+        # raised if the temporal dimension has a single value. possible with snippet or a small dataset...
+        except ResolutionError:
+            res = 'NA (singleton)'
+            start_date, end_date = self.extent
+
+        lines += ['Start Date = {0}'.format(start_date),
+                  'End Date = {0}'.format(end_date),
+                  'Calendar = {0}'.format(self.calendar),
+                  'Units = {0}'.format(self.units),
+                  'Resolution (Days) = {0}'.format(res)]
+
+        return lines
+
+    def get_time_region(self, time_region, return_indices=False):
+        assert isinstance(time_region, dict)
+
+        # return the values to use for the temporal region subsetting.
         value = self.value_datetime
         bounds = self.bounds_datetime
 
-        ## switch to indicate if bounds or centroid datetimes are to be used.
+        # switch to indicate if bounds or centroid datetimes are to be used.
         use_bounds = False if bounds is None else True
 
-        ## remove any none values in the time_region dictionary. this will save
-        ## time in iteration.
+        # remove any none values in the time_region dictionary. this will save
+        # time in iteration.
         time_region = time_region.copy()
-        time_region = {k:v for k,v in time_region.iteritems() if v is not None}
-        assert(len(time_region) > 0)
+        time_region = {k: v for k, v in time_region.iteritems() if v is not None}
+        assert len(time_region) > 0
 
-        ## this is the boolean selection array.
-        select = np.zeros(self.shape[0],dtype=bool)
+        # this is the boolean selection array.
+        select = np.zeros(self.shape[0], dtype=bool)
 
-        ## for each row, determine if the date criterion are met updating the
-        ## select matrix accordingly.
-        row_check = np.zeros(len(time_region),dtype=bool)
+        # for each row, determine if the date criterion are met updating the
+        # select matrix accordingly.
+        row_check = np.zeros(len(time_region), dtype=bool)
 
         for idx_row in range(select.shape[0]):
-            ## do the comparison for each time_region element.
+            # do the comparison for each time_region element.
             if use_bounds:
-                row = bounds[idx_row,:]
+                row = bounds[idx_row, :]
             else:
                 row = value[idx_row]
-            for ii,(k,v) in enumerate(time_region.iteritems()):
+            for ii, (k, v) in enumerate(time_region.iteritems()):
                 if use_bounds:
                     to_include = []
                     for element in v:
-                        kwds = {k:element}
-                        to_include.append(get_is_date_between(row[0],row[1],**kwds))
+                        kwds = {k: element}
+                        to_include.append(get_is_date_between(row[0], row[1], **kwds))
                     fill = any(to_include)
                 else:
-                    part = getattr(row,k)
+                    part = getattr(row, k)
                     fill = True if part in v else False
                 row_check[ii] = fill
             if row_check.all():
                 select[idx_row] = True
 
         if not select.any():
-            ocgis_lh(logger='nc.temporal',exc=EmptySubsetError(origin='temporal'))
+            raise EmptySubsetError(origin='temporal')
 
         ret = self[select]
 
         if return_indices:
-            raw_idx = np.arange(0,self.shape[0])[select]
-            ret = (ret,raw_idx)
+            raw_idx = np.arange(0, self.shape[0])[select]
+            ret = (ret, raw_idx)
 
-        return(ret)
+        return ret
 
     def write_to_netcdf_dataset(self, dataset, **kwargs):
         """
@@ -328,65 +358,65 @@ class TemporalDimension(base.VectorDimension):
         try:
             lower = bounds.min()
             upper = bounds.max()
-        ## bounds may be None
+        # bounds may be None
         except AttributeError:
             lower = value.min()
             upper = value.max()
 
-        ## new bounds are simply the minimum and maximum values chosen either from
-        ## the value or bounds array. bounds are given preference.
-        new_bounds = np.array([lower,upper]).reshape(-1,2)
-        ## date parts are not needed for the all case
+        # new bounds are simply the minimum and maximum values chosen either from
+        # the value or bounds array. bounds are given preference.
+        new_bounds = np.array([lower, upper]).reshape(-1, 2)
+        # date parts are not needed for the all case
         date_parts = None
-        ## the group should be set to select all data.
+        # the group should be set to select all data.
         dgroups = [slice(None)]
-        ## the representative datetime is the center of the value array.
-        repr_dt = np.array([value[int((self.value.shape[0]/2)-1)]])
+        # the representative datetime is the center of the value array.
+        repr_dt = np.array([value[int((self.value.shape[0] / 2) - 1)]])
 
-        return(new_bounds,date_parts,repr_dt,dgroups)
+        return (new_bounds, date_parts, repr_dt, dgroups)
 
-    def _get_grouping_other_(self,grouping):
+    def _get_grouping_other_(self, grouping):
         '''
         Applied to groups other than 'all'.
         '''
 
-        ## map date parts to index positions in date part storage array and flip
-        ## they key-value pairs
-        group_map = dict(zip(range(0,len(self._date_parts)),self._date_parts,))
-        group_map_rev = dict(zip(self._date_parts,range(0,len(self._date_parts)),))
+        # map date parts to index positions in date part storage array and flip
+        # they key-value pairs
+        group_map = dict(zip(range(0, len(self._date_parts)), self._date_parts, ))
+        group_map_rev = dict(zip(self._date_parts, range(0, len(self._date_parts)), ))
 
-        ## this array will hold the value data constructed differently depending
-        ## on if temporal bounds are present
-        value = np.empty((self.value.shape[0],3),dtype=object)
+        # this array will hold the value data constructed differently depending
+        # on if temporal bounds are present
+        value = np.empty((self.value.shape[0], 3), dtype=object)
 
-        ## reference the value and bounds datetime object arrays
+        # reference the value and bounds datetime object arrays
         value_datetime = self.value_datetime
         value_datetime_bounds = self.bounds_datetime
 
-        ## populate the value array depending on the presence of bounds
+        # populate the value array depending on the presence of bounds
         if self.bounds is None:
-            value[:,:] = value_datetime.reshape(-1,1)
-        ## bounds are currently not used for the grouping mechanism
+            value[:, :] = value_datetime.reshape(-1, 1)
+        # bounds are currently not used for the grouping mechanism
         else:
-            value[:,0] = value_datetime_bounds[:,0]
-            value[:,1] = value_datetime
-            value[:,2] = value_datetime_bounds[:,1]
+            value[:, 0] = value_datetime_bounds[:, 0]
+            value[:, 1] = value_datetime
+            value[:, 2] = value_datetime_bounds[:, 1]
 
         def _get_attrs_(dt):
-            return([dt.year,dt.month,dt.day,dt.hour,dt.minute,dt.second])
+            return ([dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second])
 
-        ## extract the date parts
-        parts = np.empty((len(self.value),len(self._date_parts)),dtype=int)
+        # extract the date parts
+        parts = np.empty((len(self.value), len(self._date_parts)), dtype=int)
         for row in range(parts.shape[0]):
-            parts[row,:] = _get_attrs_(value[row,1])
+            parts[row, :] = _get_attrs_(value[row, 1])
 
-        ## grouping is different for date part combinations v. seasonal
-        ## aggregation.
-        if all([isinstance(ii,basestring) for ii in grouping]):
+        # grouping is different for date part combinations v. seasonal
+        # aggregation.
+        if all([isinstance(ii, basestring) for ii in grouping]):
             unique = deque()
             for idx in range(parts.shape[1]):
                 if group_map[idx] in grouping:
-                    fill = np.unique(parts[:,idx])
+                    fill = np.unique(parts[:, idx])
                 else:
                     fill = [None]
                 unique.append(fill)
@@ -402,27 +432,27 @@ class TemporalDimension(base.VectorDimension):
 
             keep_select = []
             for idx in range(select.shape[0]):
-                match = select[idx,idx_cmp] == parts[:,idx_cmp]
+                match = select[idx, idx_cmp] == parts[:, idx_cmp]
                 dgrp = match.all(axis=1)
                 if dgrp.any():
                     keep_select.append(idx)
                     dgroups.append(dgrp)
-            select = select[keep_select,:]
-            assert(len(dgroups) == select.shape[0])
+            select = select[keep_select, :]
+            assert (len(dgroups) == select.shape[0])
 
-            dtype = [(dp,object) for dp in self._date_parts]
-        ## this is for seasonal aggregations
+            dtype = [(dp, object) for dp in self._date_parts]
+        # this is for seasonal aggregations
         else:
-            ## we need to remove the year string from the grouping and do
-            ## not want to modify the original list
+            # we need to remove the year string from the grouping and do
+            # not want to modify the original list
             grouping = deepcopy(grouping)
-            ## search for a year flag, which will break the temporal groups by
-            ## years
+            # search for a year flag, which will break the temporal groups by
+            # years
             if 'year' in grouping:
                 has_year = True
                 grouping = list(grouping)
                 grouping.remove('year')
-                years = np.unique(parts[:,0])
+                years = np.unique(parts[:, 0])
             else:
                 has_year = False
                 years = [None]
@@ -434,109 +464,109 @@ class TemporalDimension(base.VectorDimension):
             years.sort()
             grouping = get_sorted_seasons(grouping, method='min')
 
-            for year,season in itertools.product(years,grouping):
-                subgroup = np.zeros(value.shape[0],dtype=bool)
+            for year, season in itertools.product(years, grouping):
+                subgroup = np.zeros(value.shape[0], dtype=bool)
                 for idx in range(value.shape[0]):
                     if has_year:
-                        if parts[idx,1] in season and year == parts[idx,0]:
+                        if parts[idx, 1] in season and year == parts[idx, 0]:
                             subgroup[idx] = True
                     else:
-                        if parts[idx,1] in season:
+                        if parts[idx, 1] in season:
                             subgroup[idx] = True
                 dgroups.append(subgroup)
-                grouping_season.append([season,year])
-            dtype = [('months',object),('year',int)]
+                grouping_season.append([season, year])
+            dtype = [('months', object), ('year', int)]
             grouping = grouping_season
 
-        ## init arrays to hold values and bounds for the grouped data
-        new_value = np.empty((len(dgroups),),dtype=dtype)
-        new_bounds = np.empty((len(dgroups),2),dtype=object)
+        # init arrays to hold values and bounds for the grouped data
+        new_value = np.empty((len(dgroups),), dtype=dtype)
+        new_bounds = np.empty((len(dgroups), 2), dtype=object)
 
-        for idx,dgrp in enumerate(dgroups):
-            ## tuple conversion is required for structure arrays: http://docs.scipy.org/doc/numpy/user/basics.rec.html#filling-structured-arrays
+        for idx, dgrp in enumerate(dgroups):
+            # tuple conversion is required for structure arrays: http://docs.scipy.org/doc/numpy/user/basics.rec.html#filling-structured-arrays
             try:
                 new_value[idx] = tuple(select[idx])
-            ## likely a seasonal aggregation with a different group representation
+            # likely a seasonal aggregation with a different group representation
             except UnboundLocalError:
                 try:
-                    new_value[idx] = (grouping[idx][0],grouping[idx][1])
-                ## there is likely no year associated with the seasonal aggregation
-                ## and it is a Nonetype
+                    new_value[idx] = (grouping[idx][0], grouping[idx][1])
+                # there is likely no year associated with the seasonal aggregation
+                # and it is a Nonetype
                 except TypeError:
                     new_value[idx]['months'] = grouping[idx][0]
-            sel = value[dgrp][:,(0,2)]
-            new_bounds[idx,:] = [sel.min(),sel.max()]
+            sel = value[dgrp][:, (0, 2)]
+            new_bounds[idx, :] = [sel.min(), sel.max()]
 
-        new_bounds = np.atleast_2d(new_bounds).reshape(-1,2)
+        new_bounds = np.atleast_2d(new_bounds).reshape(-1, 2)
         date_parts = np.atleast_1d(new_value)
-        ## this is the representative center time for the temporal group
-        repr_dt = self._get_grouping_representative_datetime_(grouping,new_bounds,date_parts)
+        # this is the representative center time for the temporal group
+        repr_dt = self._get_grouping_representative_datetime_(grouping, new_bounds, date_parts)
 
-        return(new_bounds,date_parts,repr_dt,dgroups)
+        return (new_bounds, date_parts, repr_dt, dgroups)
 
-    def _get_grouping_representative_datetime_(self,grouping,bounds,value):
+    def _get_grouping_representative_datetime_(self, grouping, bounds, value):
         ref_value = value
         ref_bounds = bounds
-        ret = np.empty((ref_value.shape[0],),dtype=object)
+        ret = np.empty((ref_value.shape[0],), dtype=object)
         try:
             set_grouping = set(grouping)
             if set_grouping == set(['month']):
                 ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
                     month = ref_value[idx]['month']
-                    ## get the start year from the bounds data
+                    # get the start year from the bounds data
                     start_year = ref_bounds[idx][0].year
-                    ## create the datetime object
-                    ret[idx] = datetime.datetime(start_year,month,ref_calc_month_centroid)
+                    # create the datetime object
+                    ret[idx] = datetime.datetime(start_year, month, ref_calc_month_centroid)
             elif set_grouping == set(['year']):
                 ref_calc_year_centroid_month = constants.CALC_YEAR_CENTROID_MONTH
                 ref_calc_year_centroid_day = constants.CALC_YEAR_CENTROID_DAY
                 for idx in range(ret.shape[0]):
                     year = ref_value[idx]['year']
-                    ## create the datetime object
-                    ret[idx] = datetime.datetime(year,ref_calc_year_centroid_month,ref_calc_year_centroid_day)
-            elif set_grouping == set(['month','year']):
+                    # create the datetime object
+                    ret[idx] = datetime.datetime(year, ref_calc_year_centroid_month, ref_calc_year_centroid_day)
+            elif set_grouping == set(['month', 'year']):
                 ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
-                    year,month = ref_value[idx]['year'],ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(year,month,ref_calc_month_centroid)
+                    year, month = ref_value[idx]['year'], ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(year, month, ref_calc_month_centroid)
             elif set_grouping == set(['day']):
                 for idx in range(ret.shape[0]):
-                    start_year,start_month = ref_bounds[idx][0].year,ref_bounds[idx][0].month
-                    ret[idx] = datetime.datetime(start_year,start_month,ref_value[idx]['day'],12)
-            elif set_grouping == set(['day','month']):
+                    start_year, start_month = ref_bounds[idx][0].year, ref_bounds[idx][0].month
+                    ret[idx] = datetime.datetime(start_year, start_month, ref_value[idx]['day'], 12)
+            elif set_grouping == set(['day', 'month']):
                 for idx in range(ret.shape[0]):
                     start_year = ref_bounds[idx][0].year
-                    day,month = ref_value[idx]['day'],ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(start_year,month,day,12)
-            elif set_grouping == set(['day','year']):
+                    day, month = ref_value[idx]['day'], ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(start_year, month, day, 12)
+            elif set_grouping == set(['day', 'year']):
                 for idx in range(ret.shape[0]):
-                    day,year = ref_value[idx]['day'],ref_value[idx]['year']
-                    ret[idx] = datetime.datetime(year,1,day,12)
-            elif set_grouping == set(['day','year','month']):
+                    day, year = ref_value[idx]['day'], ref_value[idx]['year']
+                    ret[idx] = datetime.datetime(year, 1, day, 12)
+            elif set_grouping == set(['day', 'year', 'month']):
                 for idx in range(ret.shape[0]):
-                    day,year,month = ref_value[idx]['day'],ref_value[idx]['year'],ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(year,month,day,12)
+                    day, year, month = ref_value[idx]['day'], ref_value[idx]['year'], ref_value[idx]['month']
+                    ret[idx] = datetime.datetime(year, month, day, 12)
             else:
-                ocgis_lh(logger='interface.temporal',exc=NotImplementedError('grouping: {0}'.format(self.grouping)))
-        ## likely a seasonal aggregation
+                ocgis_lh(logger='interface.temporal', exc=NotImplementedError('grouping: {0}'.format(self.grouping)))
+        # likely a seasonal aggregation
         except TypeError:
-            ## set for testing if seasonal group crosses the end of a year
-            cross_months_set = set([12,1])
+            # set for testing if seasonal group crosses the end of a year
+            cross_months_set = set([12, 1])
             for idx in range(ret.shape[0]):
-                r_bounds = bounds[idx,:]
-                ## if the season crosses into a new year, find the middles differently
+                r_bounds = bounds[idx, :]
+                # if the season crosses into a new year, find the middles differently
                 r_value_months = value[idx]['months']
                 if cross_months_set.issubset(r_value_months):
-                    middle_index = int(np.floor(len(r_value_months)/2))
+                    middle_index = int(np.floor(len(r_value_months) / 2))
                     center_month = r_value_months[middle_index]
                 else:
-                    center_month = int(np.floor(np.mean([r_bounds[0].month,r_bounds[1].month])))
-                center_year = int(np.floor(np.mean([r_bounds[0].year,r_bounds[1].year])))
-                fill = datetime.datetime(center_year,center_month,constants.CALC_MONTH_CENTROID)
+                    center_month = int(np.floor(np.mean([r_bounds[0].month, r_bounds[1].month])))
+                center_year = int(np.floor(np.mean([r_bounds[0].year, r_bounds[1].year])))
+                fill = datetime.datetime(center_year, center_month, constants.CALC_MONTH_CENTROID)
                 ret[idx] = fill
-        return(ret)
-    
+        return (ret)
+
     def _get_grouping_seasonal_unique_(self, grouping):
         """
         :param list grouping: A seasonal list containing the unique flag.
@@ -587,12 +617,11 @@ class TemporalDimension(base.VectorDimension):
         if self.format_time:
             fill = (value.year, value.month, value.day)
         else:
-            fill = [None]*3
+            fill = [None] * 3
         yld['year'], yld['month'], yld['day'] = fill
 
 
 class TemporalGroupDimension(TemporalDimension):
-
     def __init__(self, *args, **kwargs):
         self.grouping = kwargs.pop('grouping')
         self.dgroups = kwargs.pop('dgroups')
@@ -931,7 +960,7 @@ def iter_boolean_groups_from_time_regions(time_regions, temporal_dimension, yiel
         idx_append = np.array([], dtype=int)
         for time_region in sub_time_regions:
             sub, idx = temporal_dimension.get_time_region(time_region, return_indices=True)
-            ## insert a check to ensure there are months present for each time region
+            # insert a check to ensure there are months present for each time region
             months = set([d.month for d in sub.value_datetime])
             try:
                 assert (months == set(time_region['month']))

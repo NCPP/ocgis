@@ -1361,7 +1361,7 @@ class TestSimpleMultivariate(TestSimpleBase):
                 self.assertTrue(os.path.exists(ret))
                 with open(path_source_metadata, 'r') as f:
                     lines = f.readlines()
-                search = re.search('URI = (.*)\n', lines[1]).groups()[0]
+                search = re.search('URI = (.*)\n', lines[0]).groups()[0]
                 self.assertTrue(os.path.exists(search))
 
     def test_calculation_multiple_request_datasets(self):

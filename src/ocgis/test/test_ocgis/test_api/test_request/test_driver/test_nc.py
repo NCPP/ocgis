@@ -65,7 +65,7 @@ class TestDriverNetcdf(TestBase):
         driver = DriverNetcdf(rd)
         ret = driver.get_dimensioned_variables()
         self.assertEqual(ret, ['tas'])
-        self.assertEqual(rd._variable, ('tas',))
+        self.assertEqual(rd.variable, ret[0])
 
     def test_get_dimensioned_variables_two_variables_in_target_dataset(self):
         rd_orig = self.test_data.get_rd('cancm4_tas')
@@ -79,6 +79,11 @@ class TestDriverNetcdf(TestBase):
         rd = RequestDataset(uri=dest_uri)
         self.assertEqual(rd.variable, ('tas', 'tasmax'))
         self.assertEqual(rd.variable, rd.alias)
+
+    def test_get_dump_report(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        self.assertTrue(len(driver.get_dump_report()) > 15)
 
     def test_get_field(self):
         ref_test = self.test_data['cancm4_tas']
@@ -520,6 +525,15 @@ class TestDriverNetcdf(TestBase):
         meta = driver.get_source_metadata()
         self.assertEqual(meta['dim_map'], dimension_map)
 
+        # test with no dimensioned variables
+        uri = self.get_netcdf_path_no_dimensioned_variables()
+        rd = RequestDataset(uri=uri)
+        driver = DriverNetcdf(rd)
+        meta = driver.get_source_metadata()
+        self.assertEqual(meta['dimensions']['dim']['len'], 0)
+        with self.assertRaises(KeyError):
+            meta['dim_map']
+
     def test_get_vector_dimension(self):
         # test exception raised with no row and column
         path = self.get_netcdf_path_no_row_column()
@@ -532,6 +546,25 @@ class TestDriverNetcdf(TestBase):
         res = driver._get_vector_dimension_(k, v, source_metadata)
         self.assertEqual(res['name'], 'yc')
 
+    def test_inspect(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        with self.print_scope() as ps:
+            driver.inspect()
+        self.assertTrue(len(ps.storage) >= 1)
+
+        # test with a request dataset having no dimensioned variables
+        path = self.get_temporary_file_path('bad.nc')
+        with self.nc_scope(path, 'w') as ds:
+            ds.createDimension('foo')
+            var = ds.createVariable('foovar', int, dimensions=('foo',))
+            var.name = 'a name'
+        rd = RequestDataset(uri=path)
+        driver = DriverNetcdf(rd)
+        with self.print_scope() as ps:
+            driver.inspect()
+        self.assertTrue(len(ps.storage) >= 1)
+
     def test_open(self):
         # test a multifile dataset where the variable does not appear in all datasets
         uri1 = self.test_data.get_uri('cancm4_tas')
@@ -543,13 +576,6 @@ class TestDriverNetcdf(TestBase):
             driver.open()
         with self.assertRaises(KeyError):
             rd.source_metadata
-
-    def test_inspect(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        driver = DriverNetcdf(rd)
-        with self.print_scope() as ps:
-            driver.inspect()
-        self.assertTrue(len(ps.storage) >= 1)
 
 
 class Test(TestBase):

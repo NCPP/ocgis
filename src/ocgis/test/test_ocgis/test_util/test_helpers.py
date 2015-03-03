@@ -2,11 +2,11 @@ from collections import OrderedDict
 import os
 import itertools
 import numpy as np
+from datetime import datetime as dt, datetime
 
 import fiona
 from shapely.geometry import Point, mapping
 
-from datetime import datetime as dt, datetime
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
 from ocgis.exc import SingleElementError, ShapeError
@@ -16,7 +16,7 @@ from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
     get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, get_is_increasing, \
     get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
-    add_shapefile_unique_identifier
+    add_shapefile_unique_identifier, get_tuple
 from ocgis.test.base import TestBase
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 
@@ -428,7 +428,15 @@ class Test2(TestBase):
         ret,adjust = get_trimmed_array_by_mask(arr,return_adjustments=True)
         self.assertEqual(ret.shape,(0,0))
         self.assertEqual(adjust,{'col': slice(4, -5), 'row': slice(4, -5)})
-    
+
+    def test_get_tuple(self):
+        value = [4, 5]
+        ret = get_tuple(value)
+        self.assertEqual(ret, (4, 5))
+        value[1] = 10
+        self.assertEqual(value, [4, 10])
+        self.assertEqual(ret, (4, 5))
+
     def test_get_is_date_between(self):
         lower = dt(1971, 1, 1)
         upper = dt(2000, 2, 1)

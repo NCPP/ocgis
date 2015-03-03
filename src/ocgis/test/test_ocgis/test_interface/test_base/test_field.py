@@ -650,7 +650,6 @@ class TestField(AbstractTestField):
         with self.assertRaises(WriteMe):
             field.write_fiona(path, fobject=Nothing())
 
-    def test_man(self):
         # test all geometries are accounted for as well as properties
         path = ShpCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)

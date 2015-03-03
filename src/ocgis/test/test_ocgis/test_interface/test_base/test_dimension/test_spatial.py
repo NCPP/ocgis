@@ -178,6 +178,16 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         sdim = self.get_sdim(bounds=True)
         self.assertIsInstance(sdim.abstraction_geometry, SpatialGeometryPolygonDimension)
 
+    def test_get_report(self):
+        keywords = dict(crs=[WGS84(), None],
+                        with_grid=[True, False])
+        for k in self.iter_product_keywords(keywords):
+            sdim = self.get_sdim(crs=k.crs)
+            if not k.with_grid:
+                sdim.grid = None
+            actual = sdim.get_report()
+            self.assertEqual(len(actual), 6)
+
     def test_init_combinations(self):
         """
         - points only

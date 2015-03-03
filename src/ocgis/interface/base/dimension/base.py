@@ -383,6 +383,21 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
                 yld[ref_name_bounds_upper] = ref_name_bounds_upper_value
             yield ii, yld
 
+    def get_report(self):
+        """
+        :returns: A sequence of strings suitable for printing.
+        :rtype: list[str, ...]
+        """
+        lines = ['Name = {0}'.format(self.name),
+                 'Count = {0}'.format(self.value.shape[0])]
+        if self.bounds is None:
+            has_bounds = False
+        else:
+            has_bounds = True
+        lines.append('Has Bounds = {0}'.format(has_bounds))
+        lines.append('Data Type = {0}'.format(self.dtype))
+        return lines
+
     def set_extrapolated_bounds(self):
         """Set the bounds variable using extrapolation."""
 

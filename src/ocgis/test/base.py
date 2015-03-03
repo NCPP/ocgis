@@ -372,6 +372,19 @@ class TestBase(unittest.TestCase):
 
         return field
 
+    def get_netcdf_path_no_dimensioned_variables(self):
+        """
+        :returns: A path to a small netCDF file containing no dimensioned variables.
+        :rtype: str
+        """
+
+        path = self.get_temporary_file_path('foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            ds.createDimension('dim')
+            var = ds.createVariable('foovar', int, dimensions=('dim',))
+            var.name = 'a name'
+        return path
+
     def get_netcdf_path_no_row_column(self):
         """
         Create a NetCDF with no row and column dimensions.

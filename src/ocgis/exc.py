@@ -1,3 +1,6 @@
+from ocgis import messages
+
+
 class OcgException(Exception):
     """Base class for all OCGIS exceptions."""
 
@@ -302,6 +305,12 @@ class RequestValidationError(OcgException):
         self.message = message
 
     def __str__(self):
-        message = 'Validation failed on the keyword parameter "{0}" with the message: {1}'.format(self.keyword,
-                                                                                                  self.message)
+        message = 'Validation failed on the parameter "{0}" with the message: {1}'.format(self.keyword, self.message)
         return message
+
+
+class NoDimensionedVariablesFound(RequestValidationError):
+    """Raised when no dimensioned variables are found in the target dataset."""
+
+    def __init__(self):
+        super(NoDimensionedVariablesFound, self).__init__('variable', messages.M1)

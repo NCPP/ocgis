@@ -31,27 +31,38 @@ class AbstractDriver(object):
 
     @abc.abstractproperty
     def key(self):
-        str
+        """:rtype: str"""
 
     @abc.abstractproperty
     def output_formats(self):
         """
         :returns: A list of acceptable output formats for the driver. If this is `'all'`, then the driver's data may be
          converted to all output formats.
-        :rtype: [str, ...]
+        :rtype: list[str, ...]
         """
 
     @abc.abstractmethod
     def close(self, obj):
-        pass
+        """
+        Close and finalize the open file object.
+        """
 
     @abc.abstractmethod
     def get_crs(self):
-        return object
+        """
+        :rtype: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+        """
 
     @abc.abstractmethod
     def get_dimensioned_variables(self):
-        return tuple(str, )
+        """:rtype: tuple(str, ...)"""
+
+    @abc.abstractmethod
+    def get_dump_report(self):
+        """
+        :returns: A sequence of strings containing the metadata dump from the source request dataset.
+        :rtype: list[str, ...]
+        """
 
     def get_field(self, **kwargs):
         field = self._get_field_(**kwargs)
@@ -65,15 +76,25 @@ class AbstractDriver(object):
 
     @abc.abstractmethod
     def get_source_metadata(self):
-        return dict
+        """
+        :rtype: dict
+        """
 
-    @abc.abstractmethod
     def inspect(self):
-        pass
+        """
+        Inspect the request dataset printing information to stdout.
+        """
+
+        from ocgis.util.inspect import Inspect
+
+        for line in Inspect(request_dataset=self.rd).get_report_possible():
+            print line
 
     @abc.abstractmethod
     def open(self):
-        return object
+        """
+        :rtype: object
+        """
 
     @classmethod
     def validate_ops(cls, ops):
@@ -90,4 +111,4 @@ class AbstractDriver(object):
 
     @abc.abstractmethod
     def _get_field_(self, **kwargs):
-        """Return :class:`ocgis.interface.base.field.Field`"""
+        """:rtype: :class:`ocgis.interface.base.field.Field`"""

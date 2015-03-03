@@ -23,17 +23,40 @@ class DriverVector(AbstractDriver):
     def get_dimensioned_variables(self):
         return self.rd.source_metadata['schema']['properties'].keys()
 
+    def get_dump_report(self):
+        """
+        :returns: A sequence of strings suitable for printing or writing to file.
+        :rtype: [str, ...]
+        """
+
+        from ocgis import CoordinateReferenceSystem
+
+        meta = self.rd.source_metadata
+        try:
+            ds = self.open()
+            n = len(ds)
+        finally:
+            self.close(ds)
+        lines = []
+        lines.append('')
+        lines.append('URI = {0}'.format(self.rd.uri))
+        lines.append('')
+        lines.append('Geometry Type: {0}'.format(meta['schema']['geometry']))
+        lines.append('Geometry Count: {0}'.format(n))
+        lines.append('CRS: {0}'.format(CoordinateReferenceSystem(value=meta['crs']).value))
+        lines.append('Properties:')
+        for k, v in meta['schema']['properties'].iteritems():
+            lines.append(' {0} {1}'.format(v, k))
+        lines.append('')
+
+        return lines
+
     def get_source_metadata(self):
         try:
             data = self.open()
             return data.sc.get_meta(path=self.rd.uri)
         finally:
             self.close(data)
-
-    def inspect(self):
-        lines = self._inspect_get_lines_()
-        for line in lines:
-            print line
 
     def open(self):
         from ocgis import ShpCabinetIterator
@@ -62,31 +85,3 @@ class DriverVector(AbstractDriver):
             return field
         finally:
             self.close(ds)
-
-    def _inspect_get_lines_(self):
-        """
-        :returns: A sequence of strings suitable for printing or writing to file.
-        :rtype: [str, ...]
-        """
-
-        from ocgis import CoordinateReferenceSystem
-
-        meta = self.rd.source_metadata
-        try:
-            ds = self.open()
-            n = len(ds)
-        finally:
-            self.close(ds)
-        lines = []
-        lines.append('')
-        lines.append('URI = {0}'.format(self.rd.uri))
-        lines.append('')
-        lines.append('Geometry Type: {0}'.format(meta['schema']['geometry']))
-        lines.append('Geometry Count: {0}'.format(n))
-        lines.append('CRS: {0}'.format(CoordinateReferenceSystem(value=meta['crs']).value))
-        lines.append('Properties:')
-        for k, v in meta['schema']['properties'].iteritems():
-            lines.append(' {0} {1}'.format(v, k))
-        lines.append('')
-
-        return lines

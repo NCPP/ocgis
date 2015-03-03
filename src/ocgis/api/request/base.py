@@ -10,9 +10,9 @@ from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
 from ocgis.api.collection import AbstractCollection
 from ocgis.api.request.driver.nc import DriverNetcdf
-from ocgis.exc import RequestValidationError, NoUnitsError
+from ocgis.exc import RequestValidationError, NoUnitsError, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CFWGS84
-from ocgis.util.helpers import get_iter, locate, validate_time_subset
+from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple
 from ocgis import env
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -25,7 +25,7 @@ class RequestDataset(object):
 
     >>> from ocgis import RequestDataset
     >>> uri = 'http://some.opendap.dataset'
-    >>> ## It is also okay to enter the path to a local file.
+    >>> # It is also okay to enter the path to a local file.
     >>> uri = '/path/to/local/file.nc'
     >>> variable = 'tasmax'
     >>> rd = RequestDataset(uri, variable)
@@ -35,7 +35,7 @@ class RequestDataset(object):
 
     >>> uri = 'http://some.opendap.dataset'
     >>> uri = '/path/to/local/file.nc'
-    ## Multifile datasets are supported for local and remote targets.
+    # Multifile datasets are supported for local and remote targets.
     >>> uri = ['/path/to/local/file1.nc', '/path/to/local/file2.nc']
 
     .. warning:: There is no internal checking on the ordering of the files. If the datasets should be concatenated
@@ -132,6 +132,13 @@ class RequestDataset(object):
                  t_conform_units_to=None, did=None, meta=None, s_abstraction=None, dimension_map=None, name=None,
                  driver=None, regrid_source=True, regrid_destination=False):
 
+        self._alias = None
+        self._conform_units_to = None
+        self._name = None
+        self._level_range = None
+        self._time_range = None
+        self._units = None
+
         self._is_init = True
 
         # flag used for regridding to determine if the coordinate system was assigned during initialization
@@ -152,7 +159,9 @@ class RequestDataset(object):
                 raise RequestValidationError('driver', 'Driver not found: {0}'.format(driver))
         self.driver = klass(self)
 
-        self.variable = variable
+        if variable is not None:
+            variable = get_tuple(variable)
+        self._variable = variable
 
         self.alias = alias
         self.name = name
@@ -166,7 +175,7 @@ class RequestDataset(object):
         self.t_calendar = t_calendar
         self.t_conform_units_to = t_conform_units_to
 
-        self.dimension_map = deepcopy(dimension_map)
+        self._dimension_map = deepcopy(dimension_map)
         self.did = did
         self.meta = meta or {}
 
@@ -196,12 +205,16 @@ class RequestDataset(object):
             return False
 
     def __iter__(self):
-        attrs = ['_alias', '_variable', '_units', '_conform_units_to']
+        attrs = ['alias', 'variable', 'units', 'conform_units_to']
         for ii in range(len(self)):
-            yield {a[1:]: getattr(self, a)[ii] for a in attrs}
+            yield {a: get_tuple(getattr(self, a))[ii] for a in attrs}
 
     def __len__(self):
-        return len(self._variable)
+        try:
+            ret = len(get_tuple(self.variable))
+        except NoDimensionedVariablesFound:
+            ret = 0
+        return ret
 
     def __str__(self):
         msg = '{0}({1})'
@@ -224,31 +237,36 @@ class RequestDataset(object):
 
     @property
     def alias(self):
-        return get_first_or_sequence(self._alias)
+        if self._alias is None:
+            ret = get_tuple(self.variable)
+        else:
+            ret = self._alias
+        return get_first_or_sequence(ret)
 
     @alias.setter
     def alias(self, value):
-        if value is None:
-            self._alias = deepcopy(self._variable)
-        else:
+        if value is not None:
             self._alias = get_tuple(value)
-        if len(self._alias) != len(self._variable):
-            raise RequestValidationError('alias', 'Each variable must have an alias. The sequence lengths differ.')
+            if len(self._alias) != len(get_tuple(self.variable)):
+                raise RequestValidationError('alias', 'Each variable must have an alias. The sequence lengths differ.')
 
     @property
     def conform_units_to(self):
-        return get_first_or_sequence(self._conform_units_to)
+        if self._conform_units_to is None:
+            ret = get_tuple([None] * len(get_tuple(self.variable)))
+        else:
+            ret = self._conform_units_to
+        ret = get_first_or_sequence(ret)
+        return ret
 
     @conform_units_to.setter
     def conform_units_to(self, value):
         if value is not None:
             value = get_tuple(value)
-            if len(value) != len(self._variable):
-                raise RequestValidationError('conform_units_to',
-                                             'Must match "variable" element-wise. The sequence lengths differ.')
+            if len(value) != len(get_tuple(self.variable)):
+                msg = 'Must match "variable" element-wise. The sequence lengths differ.'
+                raise RequestValidationError('conform_units_to', msg)
             validate_units('conform_units_to', value)
-        else:
-            value = tuple([None]*len(self._variable))
         self._conform_units_to = value
 
     @property
@@ -275,8 +293,8 @@ class RequestDataset(object):
 
     @property
     def name(self):
-        if self._name is None and self.alias is not None:
-            ret = '_'.join(self._alias)
+        if self._name is None:
+            ret = '_'.join(get_tuple(self.alias))
         else:
             ret = self._name
         return ret
@@ -284,6 +302,10 @@ class RequestDataset(object):
     @name.setter
     def name(self, value):
         self._name = value
+
+    @property
+    def dimension_map(self):
+        return self._dimension_map
 
     @property
     def source_metadata(self):
@@ -300,7 +322,7 @@ class RequestDataset(object):
         from ocgis.api.parms.definition import TimeRange
 
         self._time_range = TimeRange(value)
-        ## ensure the time range and region overlaps
+        # ensure the time range and region overlaps
         if not self._is_init:
             self._validate_time_subset_()
 
@@ -313,23 +335,26 @@ class RequestDataset(object):
         from ocgis.api.parms.definition import TimeRegion
 
         self._time_region = TimeRegion(value)
-        ## ensure the time range and region overlaps
+        # ensure the time range and region overlaps
         if not self._is_init:
             self._validate_time_subset_()
 
     @property
     def units(self):
-        return get_first_or_sequence(self._units)
+        if self._units is None:
+            ret = get_tuple([None] * len(get_tuple(self.variable)))
+        else:
+            ret = self._units
+        ret = get_first_or_sequence(ret)
+        return ret
 
     @units.setter
     def units(self, value):
-        if value is None:
-            value = tuple([None]*len(self._variable))
-        else:
+        if value is not None:
             value = get_tuple(value)
-            if len(value) != len(self._variable):
-                raise RequestValidationError('units',
-                                             'Must match "variable" element-wise. The sequence lengths differ.')
+            if len(value) != len(get_tuple(self.variable)):
+                msg = 'Must match "variable" element-wise. The sequence lengths differ.'
+                raise RequestValidationError('units', msg)
             if env.USE_CFUNITS:
                 validate_units('units', value)
         self._units = value
@@ -342,13 +367,11 @@ class RequestDataset(object):
     def variable(self):
         if self._variable is None:
             self._variable = get_tuple(self.driver.get_dimensioned_variables())
-        return get_first_or_sequence(self._variable)
-
-    @variable.setter
-    def variable(self, value):
-        if value is None:
-            value = self.driver.get_dimensioned_variables()
-        self._variable = get_tuple(value)
+        try:
+            ret = get_first_or_sequence(self._variable)
+        except IndexError:
+            raise NoDimensionedVariablesFound
+        return ret
 
     def get(self, **kwargs):
         """
@@ -448,10 +471,10 @@ class RequestDataset(object):
         assert (len(uri) >= 1)
         for uri in uris:
             ret = None
-            ## check if the path exists locally
+            # check if the path exists locally
             if os.path.exists(uri) or '://' in uri:
                 ret = uri
-            ## if it does not exist, check the directory locations
+            # if it does not exist, check the directory locations
             else:
                 if env.DIR_DATA is not None:
                     if isinstance(env.DIR_DATA, basestring):
@@ -617,14 +640,6 @@ def get_is_none(value):
     return all([v is None for v in get_iter(value)])
 
 
-def get_tuple(value):
-    if isinstance(value, basestring) or value is None:
-        ret = (value,)
-    else:
-        ret = tuple(value)
-    return ret
-
-
 def validate_units(keyword, sequence):
     from cfunits import Units
     try:
@@ -634,8 +649,8 @@ def validate_units(keyword, sequence):
 
 
 def validate_unit_equivalence(src_units, dst_units):
-    ## import the cfunits package and attempt to construct a units object.
-    ## if this is okay, save the units string
+    # import the cfunits package and attempt to construct a units object.
+    # if this is okay, save the units string
     from cfunits import Units
     for s, d in itertools.izip(src_units, dst_units):
         if not Units(s).equivalent(Units(d)):

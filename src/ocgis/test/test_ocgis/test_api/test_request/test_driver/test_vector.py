@@ -38,6 +38,11 @@ class TestDriverVector(TestBase):
         target = driver.get_dimensioned_variables()
         self.assertEqual(target, [u'UGID', u'STATE_FIPS', u'ID', u'STATE_NAME', u'STATE_ABBR'])
 
+    def test_get_dump_report(self):
+        driver = self.get_driver()
+        lines = driver.get_dump_report()
+        self.assertTrue(len(lines) > 5)
+
     def test_get_field(self):
         driver = self.get_driver()
         field = driver.get_field()
@@ -72,11 +77,6 @@ class TestDriverVector(TestBase):
         with self.print_scope() as ps:
             driver.inspect()
         self.assertTrue(len(ps.storage) >= 1)
-
-    def test_inspect_get_lines(self):
-        driver = self.get_driver()
-        lines = driver._inspect_get_lines_()
-        self.assertTrue(len(lines) > 5)
 
     def test_open(self):
         driver = self.get_driver()

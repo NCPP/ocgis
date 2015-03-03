@@ -1,4 +1,5 @@
 import os
+
 from ocgis.test.test_simple.test_simple import nc_scope
 from ocgis.test.base import TestBase
 from ocgis.interface.metadata import NcMetadata
@@ -22,5 +23,5 @@ class TestNcMetadata(TestBase):
             ds.foo = u'a bad \u2013 unicode character'
             md = NcMetadata(rootgrp=ds)
             ds.sync()
-            lines = md._get_lines_()
+            lines = md.get_lines()
         self.assertEqual(lines[4], '// global attributes:')

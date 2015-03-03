@@ -6,6 +6,7 @@ import sys
 from copy import deepcopy
 from tempfile import mkdtemp
 import numpy as np
+import datetime
 
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
@@ -16,7 +17,6 @@ from shapely.geometry.geo import mapping
 from fiona.crs import from_epsg
 
 from ocgis.util.shp_process import ShpProcess
-import datetime
 from ocgis.exc import SingleElementError, ShapeError
 
 
@@ -573,6 +573,20 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
         ret = (ret,{'row':slice(start_row,stop_row),'col':slice(start_col,stop_col)})
 
     return(ret)
+
+
+def get_tuple(value):
+    """
+    :returns: A tuple constructed from ``value``. If ``value`` is a string or ``None``, a one-element tuple containing
+     value will be returned.
+    :rtype: tuple
+    """
+
+    if isinstance(value, basestring) or value is None:
+        ret = (value,)
+    else:
+        ret = tuple(value)
+    return ret
 
 
 def itersubclasses(cls, _seen=None):

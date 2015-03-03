@@ -8,7 +8,7 @@ class AbstractMetadata(OrderedDict):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def _get_lines_(self):
+    def get_lines(self):
         pass
 
     @abstractmethod
@@ -39,10 +39,10 @@ class NcMetadata(AbstractMetadata):
             dataset.update({attr: getattr(rootgrp, attr)})
         self.update({'dataset': dataset})
 
-        ## get file format
+        # get file format
         self.update({'file_format': rootgrp.file_format})
 
-        ## get variables
+        # get variables
         variables = OrderedDict()
         for key, value in rootgrp.variables.iteritems():
             subvar = OrderedDict()
@@ -50,8 +50,7 @@ class NcMetadata(AbstractMetadata):
                 if attr.startswith('_'): continue
                 subvar.update({attr: getattr(value, attr)})
 
-            ## make two attempts at missing value attributes otherwise assume
-            ## the default from a numpy masked array
+            # make two attempts at missing value attributes otherwise assume the default from a numpy masked array
             try:
                 fill_value = value.fill_value
             except AttributeError:
@@ -67,14 +66,14 @@ class NcMetadata(AbstractMetadata):
                                     'fill_value': fill_value}})
         self.update({'variables': variables})
 
-        ## get dimensions
+        # get dimensions
         dimensions = OrderedDict()
         for key, value in rootgrp.dimensions.iteritems():
             subdim = {key: {'len': len(value), 'isunlimited': value.isunlimited()}}
             dimensions.update(subdim)
         self.update({'dimensions': dimensions})
 
-    def _get_lines_(self):
+    def get_lines(self):
         lines = ['dimensions:']
         template = '    {0} = {1} ;{2}'
         for key, value in self['dimensions'].iteritems():

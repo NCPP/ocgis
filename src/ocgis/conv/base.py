@@ -7,8 +7,8 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
 
-from ocgis.api.request.driver.vector import DriverVector
 from ocgis import constants
+from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
 from ocgis.conv.meta import MetaConverter
 from ocgis.util.inspect import Inspect
@@ -267,18 +267,11 @@ class AbstractConverter(object):
                 to_write = []
 
                 for rd in self.ops.dataset.iter_request_datasets():
-                    try:
-                        metadata = rd.source_metadata
-                        ip = Inspect(meta=metadata, uri=rd.uri)
-                        to_write += ip.get_report_no_variable()
-                    except AttributeError:
-                        if isinstance(rd.driver, DriverVector):
-                            to_write += rd.driver._inspect_get_lines_()
-                        else:
-                            raise
+                    ip = Inspect(request_dataset=rd)
+                    to_write += ip.get_report_possible()
 
                 with open(out_path, 'w') as f:
-                    f.writelines('\n'.join(to_write))
+                    f.writelines(Inspect.newline.join(to_write))
 
         # return the internal path unless overloaded by subclasses.
         ret = self._get_return_()

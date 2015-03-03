@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 from ocgis import OcgOperations
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.api.request.driver.nc import DriverNetcdf
@@ -12,9 +13,6 @@ class FakeAbstractDriver(AbstractDriver):
     key = 'fake_driver'
 
     def _get_field_(self, **kwargs):
-        pass
-
-    def inspect(self):
         pass
 
     def get_crs(self):
@@ -67,6 +65,13 @@ class TestAbstractDriver(TestBase):
 
         d2.key = 'bad'
         self.assertNotEqual(d, d2)
+
+    def test_inspect(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        with self.print_scope() as ps:
+            driver.inspect()
+        self.assertTrue(len(ps.storage) > 1)
 
     def test_validate_ops(self):
         rd = self.test_data.get_rd('cancm4_tas')

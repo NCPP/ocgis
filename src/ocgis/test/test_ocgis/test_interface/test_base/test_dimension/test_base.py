@@ -197,6 +197,24 @@ class TestVectorDimension(TestBase):
             for k in row.iterkeys():
                 self.assertFalse(OCGIS_BOUNDS in k)
 
+    def test_get_report(self):
+        keywords = dict(value=[[10, 20, 30, 40, 50]],
+                        name=['vdim_test', None],
+                        use_bounds=[True, False])
+        for k in self.iter_product_keywords(keywords):
+            kwds = k._asdict()
+            use_bounds = kwds.pop('use_bounds')
+            vdim = VectorDimension(**kwds)
+            if use_bounds:
+                vdim.set_extrapolated_bounds()
+            target = vdim.get_report()
+            self.assertEqual(len(target), 4)
+            if use_bounds:
+                actual = 'True'
+            else:
+                actual = 'False'
+            self.assertTrue(target[-2].endswith(actual))
+
     def test_interpolate_bounds(self):
         value = [10, 20, 30, 40, 50]
 

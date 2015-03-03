@@ -1,5 +1,6 @@
 from copy import deepcopy
 import logging
+# noinspection PyPep8Naming
 import netCDF4 as nc
 from warnings import warn
 import numpy as np
@@ -7,7 +8,7 @@ import numpy as np
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis import constants
 from ocgis.api.request.driver.base import AbstractDriver
-from ocgis.exc import ProjectionDoesNotMatch, VariableNotFoundError, DimensionNotFound
+from ocgis.exc import ProjectionDoesNotMatch, VariableNotFoundError, DimensionNotFound, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CFCoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.variable import VariableCollection, Variable
@@ -15,7 +16,7 @@ from ocgis.interface.metadata import NcMetadata
 from ocgis.interface.nc.dimension import NcVectorDimension
 from ocgis.interface.nc.field import NcField
 from ocgis.interface.nc.temporal import NcTemporalDimension
-from ocgis.util.helpers import itersubclasses, get_iter
+from ocgis.util.helpers import itersubclasses, get_iter, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -70,7 +71,7 @@ class DriverNetcdf(AbstractDriver):
         crs = None
         for potential in itersubclasses(CFCoordinateReferenceSystem):
             try:
-                crs = potential.load_from_metadata(self.rd._variable[0], self.rd.source_metadata)
+                crs = potential.load_from_metadata(get_tuple(self.rd.variable)[0], self.rd.source_metadata)
                 break
             except ProjectionDoesNotMatch:
                 continue
@@ -103,32 +104,40 @@ class DriverNetcdf(AbstractDriver):
 
         return ret
 
+    def get_dump_report(self):
+        return self.raw_metadata.get_lines()
+
     def get_source_metadata(self):
         metadata = self.raw_metadata
+        try:
+            variables = get_tuple(self.rd.variable)
+        except NoDimensionedVariablesFound:
+            variables = None
 
         try:
-            var = metadata['variables'][self.rd._variable[0]]
+            var = metadata['variables'][variables[0]]
         except KeyError:
-            raise VariableNotFoundError(self.rd.uri, self.rd._variable[0])
-        if self.rd.dimension_map is None:
-            metadata['dim_map'] = get_dimension_map(var['name'], metadata)
+            raise VariableNotFoundError(self.rd.uri, variables[0])
+        except TypeError:
+            # if there are no dimensioned variables available, the dimension map should not be set
+            if variables is not None:
+                raise
         else:
-            for k, v in self.rd.dimension_map.iteritems():
-                if not isinstance(v, dict):
-                    try:
-                        variable_name = metadata['variables'][v]['name']
-                    except KeyError:
-                        variable_name = None
-                    self.rd.dimension_map[k] = {'variable': variable_name,
-                                                'dimension': v,
-                                                'pos': var['dimensions'].index(v)}
-                metadata['dim_map'] = self.rd.dimension_map
+            if self.rd.dimension_map is None:
+                metadata['dim_map'] = get_dimension_map(var['name'], metadata)
+            else:
+                for k, v in self.rd.dimension_map.iteritems():
+                    if not isinstance(v, dict):
+                        try:
+                            variable_name = metadata['variables'][v]['name']
+                        except KeyError:
+                            variable_name = None
+                        self.rd.dimension_map[k] = {'variable': variable_name,
+                                                    'dimension': v,
+                                                    'pos': var['dimensions'].index(v)}
+                    metadata['dim_map'] = self.rd.dimension_map
 
         return metadata
-
-    def inspect(self):
-        from ocgis import Inspect
-        print Inspect(request_dataset=self.rd)
 
     def _get_vector_dimension_(self, k, v, source_metadata):
         """
@@ -222,12 +231,9 @@ class DriverNetcdf(AbstractDriver):
         # parameters for the loading loop
         to_load = {'temporal': {'cls': NcTemporalDimension, 'adds': _get_temporal_adds_, 'axis': 'T', 'name_uid': 'tid',
                                 'name': 'time'},
-                   'level': {'cls': NcVectorDimension, 'adds': None, 'axis': 'Z', 'name_uid': 'lid',
-                             'name': 'level'},
-                   'row': {'cls': NcVectorDimension, 'adds': None, 'axis': 'Y', 'name_uid': 'yc_id',
-                           'name': 'yc'},
-                   'col': {'cls': NcVectorDimension, 'adds': None, 'axis': 'X', 'name_uid': 'xc_id',
-                           'name': 'xc'},
+                   'level': {'cls': NcVectorDimension, 'adds': None, 'axis': 'Z', 'name_uid': 'lid', 'name': 'level'},
+                   'row': {'cls': NcVectorDimension, 'adds': None, 'axis': 'Y', 'name_uid': 'yc_id', 'name': 'yc'},
+                   'col': {'cls': NcVectorDimension, 'adds': None, 'axis': 'X', 'name_uid': 'xc_id', 'name': 'xc'},
                    'realization': {'cls': NcVectorDimension, 'adds': None, 'axis': 'R', 'name_uid': 'rlz_id',
                                    'name_value': 'rlz'}}
 
@@ -249,9 +255,8 @@ class DriverNetcdf(AbstractDriver):
             kwds_grid = {'row': loaded['row'], 'col': loaded['col']}
         else:
             shape_src_idx = [source_metadata['dimensions'][xx]['len'] for xx in kwds_grid['row']['dimensions']]
-            src_idx = {}
-            src_idx['row'] = np.arange(0, shape_src_idx[0], dtype=constants.NP_INT)
-            src_idx['col'] = np.arange(0, shape_src_idx[1], dtype=constants.NP_INT)
+            src_idx = {'row': np.arange(0, shape_src_idx[0], dtype=constants.NP_INT),
+                       'col': np.arange(0, shape_src_idx[1], dtype=constants.NP_INT)}
             name_row = kwds_grid['row']['name']
             name_col = kwds_grid['col']['name']
             kwds_grid = {'name_row': name_row, 'name_col': name_col, 'data': self.rd, 'src_idx': src_idx}
@@ -285,10 +290,10 @@ class DriverNetcdf(AbstractDriver):
                 ret = ret.get_between('level', min(self.rd.level_range), max(self.rd.level_range))
             except AttributeError:
                 # there may be no level dimension
-                if ret.level == None:
+                if ret.level is None:
                     msg = ("A level subset was requested but the target dataset does not have a level dimension. The "
                            "dataset's alias is: {0}".format(self.rd.alias))
-                    raise (ValueError(msg))
+                    raise ValueError(msg)
                 else:
                     raise
 
@@ -330,9 +335,12 @@ def get_axis(dimvar, dims, dim):
 
 def get_dimension_map(variable, metadata):
     """
-    :param str variable:
-    :param dict metadata:
+    :param str variable: The target variable of the dimension mapping procedure.
+    :param dict metadata: The meta dictionary to add the dimension map to.
+    :returns: The dimension mapping for the target variable.
+    :rtype: dict
     """
+
     dims = metadata['variables'][variable]['dimensions']
     mp = dict.fromkeys(['T', 'Z', 'X', 'Y'])
 
@@ -349,7 +357,7 @@ def get_dimension_map(variable, metadata):
                     break
         # the dimension variable may not exist
         if dimvar is None:
-            ocgis_lh(logger='request.nc', exc=DimensionNotFound(dim))
+            raise DimensionNotFound(dim)
         axis = get_axis(dimvar, dims, dim)
         # pull metadata information the variable and dimension names
         mp[axis] = {'variable': dimvar['name'], 'dimension': dim}
@@ -399,7 +407,8 @@ def get_dimension_map(variable, metadata):
         # warning and continue setting the bounds variable to None.
         if not isinstance(bounds_var, basestring):
             if bounds_var is not None:
-                msg = 'Bounds variable is not a string and is not None. The value is "{0}". Setting bounds to None.'.format(bounds_var)
+                msg = 'Bounds variable is not a string and is not None. The value is "{0}". Setting bounds to None.'. \
+                    format(bounds_var)
                 warn(msg)
                 bounds_var = None
 

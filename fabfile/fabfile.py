@@ -1,13 +1,12 @@
-from ConfigParser import SafeConfigParser
-import datetime
+import os
+import time
+
 from fabric.contrib.project import rsync_project
-from fabric.state import env
 from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
 from fabric.context_managers import cd, shell_env, settings
-import os
-import time
 from fabric.tasks import Task
+
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 import packages
 
@@ -136,17 +135,20 @@ def run_tests(target='all', branch='next', failed='false'):
         fcmd(run, cmd)
 
 
-class RunNesiiAwsTests(Task):
+class RunAwsTests(Task):
     """
     Run tests on remote server and return the path to a local log file of tests results.
     """
-    name = 'run_nesii_aws_tests'
+    name = 'run_aws_tests'
 
-    def run(self, path_local_log, branch='next', sched='true'):
+    def run(self, path_local_log=None, branch='next', sched='false', launch_pause='false'):
         """
-        :param str path_local_log: Path to the local log file copied from the remote server.
+        :param str path_local_log: Path to the local log file copied from the remote server. If ``None``, do not copy
+         remote log file.
         :param str branch: Target git branch to test.
-        :param str sched: If ``'false'``, run tests only once. Otherwise, run tests at 23:00 hours daily.
+        :param str sched: If ``'true'``, run tests only once. Otherwise, run tests at 23:00 hours daily.
+        :param str launch_pause: If ``'true'``, pause at a breakpoint after launching the instance and mounting the data
+         volume. Continuing from the breakpoint will terminate the instance and destroy the volume.
         """
 
         import schedule
@@ -156,16 +158,21 @@ class RunNesiiAwsTests(Task):
 
         self.path_local_log = path_local_log
         self.branch = branch
+        self.launch_pause = launch_pause
 
-        if sched == 'true':
-            self.log.info('begin continous loop')
-            schedule.every().day.at("6:00").do(self._run_tests_, should_email=True)
-            while True:
-                schedule.run_pending()
-                time.sleep(1)
+        if self.launch_pause == 'true':
+            self.log.info('launching instance then pausing')
+            self._run_tests_(should_email=False)
         else:
-            self.log.info('running tests once')
-            self._run_tests_(should_email=True)
+            if sched == 'true':
+                self.log.info('begin continous loop')
+                schedule.every().day.at("6:00").do(self._run_tests_, should_email=True)
+                while True:
+                    schedule.run_pending()
+                    time.sleep(1)
+            else:
+                self.log.info('running tests once')
+                self._run_tests_(should_email=True)
 
     def _run_tests_(self, should_email=False):
         aws_src = os.getenv('OCGIS_SIMPLEAWS_SRC')
@@ -182,10 +189,12 @@ class RunNesiiAwsTests(Task):
         test_image_id = parser.get(aws_testing_section, 'test_image_id')
         dest_email = parser.get(aws_testing_section, 'dest_email')
         dir_clone = parser.get('server', 'dir_clone')
+        key_name = parser.get('simple-aws', 'key_name')
 
         import sys
         sys.path.append(aws_src)
         import aws
+        import ipdb
 
         am = aws.AwsManager(aws_conf)
 
@@ -205,41 +214,49 @@ class RunNesiiAwsTests(Task):
 
                     ebs_mount()
 
-                    path = os.path.join(dir_clone, parser.get('git', 'name'))
-                    test_target = os.path.join(path, 'src', 'ocgis', 'test')
-                    # test_target = os.path.join(path, 'src', 'ocgis', 'test', 'test_simple')
-                    nose_runner = os.path.join(path, 'fabfile', 'nose_runner.py')
-                    path_src = os.path.join(path, 'src')
-                    with cd(path):
-                        fcmd(run, ['git', 'pull'])
-                        fcmd(run, ['git', 'checkout', self.branch])
-                        fcmd(run, ['git', 'pull'])
-                    with cd(path_src):
-                        with shell_env(OCGIS_TEST_TARGET=test_target):
-                            fcmd(run, ['python', nose_runner])
-                            get(test_results_path, local_path=self.path_local_log)
+                    if self.launch_pause == 'true':
+                        self.log.info('pausing. continue to terminate instance...')
+                        msg = 'ssh -i ~/.ssh/{0}.pem ubuntu@{1}'.format(key_name, instance.public_dns_name)
+                        self.log.info(msg)
+                        ipdb.set_trace()
+                    else:
+                        path = os.path.join(dir_clone, parser.get('git', 'name'))
+                        test_target = os.path.join(path, 'src', 'ocgis', 'test')
+                        # test_target = os.path.join(path, 'src', 'ocgis', 'test', 'test_simple')
+                        nose_runner = os.path.join(path, 'fabfile', 'nose_runner.py')
+                        path_src = os.path.join(path, 'src')
+                        with cd(path):
+                            fcmd(run, ['git', 'pull'])
+                            fcmd(run, ['git', 'checkout', self.branch])
+                            fcmd(run, ['git', 'pull'])
+                        with cd(path_src):
+                            with shell_env(OCGIS_TEST_TARGET=test_target):
+                                fcmd(run, ['python', nose_runner])
+                                if self.path_local_log is not None:
+                                    get(test_results_path, local_path=self.path_local_log)
 
                     ebs_umount()
 
                 finally:
                     self.log.info('detaching volume')
-                    volume.detach()
+                    volume.detach(force=True)
                     am.wait_for_status(volume, 'available')
                     self.log.info('deleting volume')
                     volume.delete()
             finally:
                 self.log.info('terminating instance')
                 instance.terminate()
-        with open(self.path_local_log, 'r') as f:
-            content = f.read()
 
-        if should_email:
+        if should_email and self.launch_pause == 'false' and self.path_local_log is not None:
             self.log.info('sending email')
+            with open(self.path_local_log, 'r') as f:
+                content = f.read()
             am.send_email(dest_email, dest_email, 'OCGIS_AWS', content)
 
         self.log.info('success')
 
-r = RunNesiiAwsTests()
+
+r = RunAwsTests()
 
 
 @task

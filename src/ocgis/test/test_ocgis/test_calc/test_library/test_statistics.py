@@ -2,7 +2,9 @@ import pickle
 import unittest
 import itertools
 import numpy as np
+
 from cfunits.cfunits import Units
+
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
 from ocgis.interface.base.variable import DerivedVariable, Variable
@@ -57,7 +59,7 @@ class TestDailyPercentile(AbstractTestField):
         for alias in [None, 'dp']:
             dp = DailyPercentile.get_daily_percentile_from_request_dataset(new_rd, alias=alias)
             self.assertEqual(len(dp.keys()), 365)
-            self.assertAlmostEqual(dp[(4, 15)].mean(), 280.73696289062502)
+            self.assertAlmostEqual(dp[(4, 15)].mean(), 280.7369384765625)
 
 
 class TestMovingWindow(AbstractTestField):
@@ -99,7 +101,7 @@ class TestMovingWindow(AbstractTestField):
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, slice=[None, [0, 365], None, [0, 10], [0, 10]])
         ret = ops.execute()
         self.assertEqual(ret[1]['tas'].shape, (1, 361, 1, 10, 10))
-        self.assertAlmostEqual(ret[1]['tas'].variables['ma'].value.mean(), 240.08204986149585)
+        self.assertAlmostEqual(ret[1]['tas'].variables['ma'].value.mean(), 240.08149584487535)
 
     def test_registry(self):
         Calc([{'func': 'moving_window', 'name': 'ma'}])

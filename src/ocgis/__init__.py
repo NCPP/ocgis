@@ -1,5 +1,3 @@
-from osgeo import ogr, osr
-
 from ocgis.util.environment import env
 from ocgis.api.collection import SpatialCollection
 from ocgis.api.operations import OcgOperations
@@ -20,8 +18,3 @@ from ocgis.interface.base.dimension.base import VectorDimension
 
 __version__ = '1.1.0'
 __release__ = '1.1.0-next'
-
-
-# tell ogr/osr to raise exceptions
-ogr.UseExceptions()
-osr.UseExceptions()

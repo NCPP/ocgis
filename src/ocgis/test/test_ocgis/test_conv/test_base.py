@@ -118,7 +118,7 @@ class TestAbstractConverter(AbstractTestConverter):
                     self.assertEqual(set(['tas', 'tas2']), aliases)
             else:
                 with nc_scope(ret) as ds:
-                    self.assertAlmostEqual(ds.variables['tas'][:].mean(), np.float32(247.08417))
+                    self.assertAlmostEqual(ds.variables['tas'][:].mean(), np.float32(247.08411))
                     self.assertNumpyAll(ds.variables['tas'][:], ds.variables['tas2'][:])
 
     def test_overwrite_false_csv(self):

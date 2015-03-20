@@ -5,20 +5,20 @@ from abc import ABCMeta, abstractproperty
 import netCDF4 as nc
 import csv
 from collections import OrderedDict
+import datetime
 from copy import deepcopy
 from csv import DictReader
 import tempfile
 import numpy as np
-import datetime
 
 from fiona.crs import from_string
-from osgeo.osr import SpatialReference
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 import fiona
 from shapely.geometry.geo import mapping
 from shapely import wkt
 
+from ocgis import osr
 from ocgis.api.operations import OcgOperations
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.definition import SpatialOperation
@@ -162,9 +162,9 @@ class TestSimple(TestSimpleBase):
 
         ugeom = 'POLYGON((-104.000538 39.004301,-102.833871 39.215054,-102.833871 39.215054,-102.833871 39.215054,-102.879032 37.882796,-104.136022 37.867742,-104.000538 39.004301))'
         ugeom = wkt.loads(ugeom)
-        from_sr = SpatialReference()
+        from_sr = osr.SpatialReference()
         from_sr.ImportFromEPSG(4326)
-        to_sr = SpatialReference()
+        to_sr = osr.SpatialReference()
         to_sr.ImportFromProj4(
             '+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs')
         ugeom = project_shapely_geometry(ugeom, from_sr, to_sr)
@@ -1206,7 +1206,9 @@ class TestSimple(TestSimpleBase):
             to_test = list(f)
             fiona_meta = deepcopy(f.meta)
             fiona_crs = fiona_meta.pop('crs')
-            self.assertEqual(CoordinateReferenceSystem(value=fiona_crs), WGS84())
+            a = CoordinateReferenceSystem(value=fiona_crs)
+            b = WGS84()
+            self.assertEqual(a, b)
             self.assertEqual(fiona_meta, {'driver': u'ESRI Shapefile', 'schema': {'geometry': 'Polygon',
                                                                                   'properties': OrderedDict(
                                                                                       [(u'UGID', 'int:10')])}})

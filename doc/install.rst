@@ -13,9 +13,9 @@ Package Name   Version URL
 Python         2.7.6   http://www.python.org/download/releases/2.7.6/
 ``osgeo``      1.11.1  https://pypi.python.org/pypi/GDAL/
 ``setuptools`` 12.0.5  https://pypi.python.org/pypi/setuptools
-``shapely``    1.4.3   https://pypi.python.org/pypi/Shapely
-``fiona``      1.4.5   https://pypi.python.org/pypi/Fiona
-``numpy``      1.8.2   http://sourceforge.net/projects/numpy/files/NumPy/1.8.2/
+``shapely``    1.5.6   https://pypi.python.org/pypi/Shapely
+``fiona``      1.4.8   https://pypi.python.org/pypi/Fiona
+``numpy``      1.9.2   http://sourceforge.net/projects/numpy/files/NumPy/1.9.2/
 ``netCDF4``    1.1.1   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================
 

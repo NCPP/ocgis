@@ -4,20 +4,29 @@ import itertools
 import abc
 import numpy as np
 
-from osgeo.osr import SpatialReference
 from fiona.crs import from_string, to_string
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
+from ocgis.util.environment import osr
 from ocgis import constants
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
 
 
+SpatialReference = osr.SpatialReference
+
+
 class CoordinateReferenceSystem(object):
     def __init__(self, value=None, proj4=None, epsg=None, name=None):
         self.name = name or constants.DEFAULT_COORDINATE_SYSTEM_NAME
+
+        # add a special check for init keys in value dictionary
+        if value is not None:
+            if 'init' in value and value.values()[0].startswith('epsg'):
+                epsg = int(value.values()[0].split(':')[1])
+                value = None
 
         if value is None:
             if proj4 is not None:
@@ -373,8 +382,7 @@ class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     __metaclass__ = abc.ABCMeta
 
-    ## if False, no attempt to read projection coordinates will be made. they
-    ## will be set to a None default.
+    # if False, no attempt to read projection coordinates will be made. they will be set to a None default.
     _find_projection_coordinates = True
 
     def __init__(self, **kwds):
@@ -577,7 +585,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
                       'grid_north_pole_latitude': None}
     proj_name = 'omerc'
     iterable_parameters = {}
-    _template = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180'
+    _template = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180 +ellps={ellps}'
     _find_projection_coordinates = False
 
     def __init__(self, *args, **kwds):
@@ -585,7 +593,8 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
 
         # this is the transformation string used in the proj operation
         self._trans_proj = self._template.format(lon_pole=kwds['grid_north_pole_longitude'],
-                                                 lat_pole=kwds['grid_north_pole_latitude'])
+                                                 lat_pole=kwds['grid_north_pole_latitude'],
+                                                 ellps=constants.PROJ4_ROTATED_POLE_ELLPS)
 
         # holds metadata and previous state information for inverse transformations
         self._inverse_state = {}

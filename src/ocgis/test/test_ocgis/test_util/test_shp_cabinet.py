@@ -2,11 +2,10 @@ import os
 import shutil
 
 import fiona
-from osgeo import ogr
-from osgeo.ogr import Layer
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 
+from ocgis.util.environment import ogr
 from ocgis import env
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPolygonDimension, \
@@ -14,6 +13,9 @@ from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeom
 from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator, get_uid_from_properties
 import ocgis
 from ocgis.test.base import TestBase
+
+
+Layer = ogr.Layer
 
 
 class Test(TestBase):

@@ -1,21 +1,19 @@
 from copy import deepcopy
-
-from shapely import wkt
 import numpy as np
 
+from shapely import wkt
+
 from ocgis import CoordinateReferenceSystem, RequestDataset
-import ocgis
 from ocgis.exc import EmptySubsetError
 from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WrappableCoordinateReferenceSystem
-from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
-from ocgis import constants, env
+from ocgis import env
 
 
 class TestSpatialSubsetOperation(TestBase):
@@ -173,6 +171,7 @@ class TestSpatialSubsetOperation(TestBase):
         ss = SpatialSubsetOperation(field_360, wrap=None)
         self.assertFalse(ss._get_should_wrap_(ss.target))
 
+    @attr('slow')
     def test_get_spatial_subset(self):
         ctr_test = 0
         ctr = 0

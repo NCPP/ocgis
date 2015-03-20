@@ -49,6 +49,10 @@ class TestCoordinateReferenceSystem(TestBase):
         crs = CoordinateReferenceSystem(epsg=4326, name='foo')
         self.assertEqual(crs.name, 'foo')
 
+        # test using the init parameter
+        value = {'init': 'epsg:4326'}
+        self.assertEqual(CoordinateReferenceSystem(value=value), WGS84())
+
     def test_ne(self):
         crs1 = CoordinateReferenceSystem(epsg=4326)
         crs2 = CoordinateReferenceSystem(epsg=2136)

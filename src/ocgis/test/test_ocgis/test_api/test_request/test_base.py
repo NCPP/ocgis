@@ -19,7 +19,7 @@ from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get
 import ocgis
 from ocgis import env, constants
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.operations import OcgOperations
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
@@ -374,7 +374,7 @@ class TestRequestDataset(TestBase):
             # assert the conform attribute makes it though the subset
             self.assertEqual(sub.variables['tas']._conform_units_to, Units('celsius'))
             value = sub.variables['tas'].value
-            self.assertAlmostEqual(np.ma.mean(value), 5.9219375118132564)
+            self.assertAlmostEqual(np.ma.mean(value), 5.921925206338206)
             self.assertAlmostEqual(np.ma.median(value), 10.745431900024414)
             if pre:
                 # assert the manually converted array matches the loaded value
@@ -746,6 +746,7 @@ class TestRequestDatasetCollection(TestBase):
         # the calendar was not overloaded and the value should be read from the metadata
         self.assertEqual(rdc.first().get().temporal.calendar, '365_day')
 
+    @attr('slow')
     def test_with_overloads_real_data(self):
         # copy the test file as the calendar attribute will be modified
         rd = self.test_data.get_rd('cancm4_tas')

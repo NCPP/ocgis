@@ -1,10 +1,11 @@
 import unittest
 import numpy as np
+import itertools
+
 import ocgis
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.math import NaturalLogarithm, Divide, Sum, Convolve1D
 from ocgis.interface.base.variable import Variable
-import itertools
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.library.thresholds import Threshold
 from ocgis.exc import SampleSizeNotImplemented
@@ -206,7 +207,7 @@ class TestConvolve1D(AbstractTestField):
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, slice=[None, [0, 365], None, [0, 10], [0, 10]])
         ret = ops.execute()
         self.assertEqual(ret[1]['tas'].shape, (1, 361, 1, 10, 10))
-        self.assertAlmostEqual(ret[1]['tas'].variables['convolve'].value.mean(), 1200.4059833795013)
+        self.assertAlmostEqual(ret[1]['tas'].variables['convolve'].value.mean(), 1200.4075346260388)
 
     def test_registry(self):
         Calc([{'func': 'convolve_1d', 'name': 'convolve'}])

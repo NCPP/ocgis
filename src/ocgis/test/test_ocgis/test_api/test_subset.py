@@ -258,7 +258,7 @@ class TestSubsetOperation(TestBase):
         self.assertEqual(field.shape, (1, 1, 1, 64, 72))
         self.assertEqual(field.spatial.grid.value.mean(), -29.75)
         self.assertIsNotNone(field.spatial.grid.corners)
-        self.assertAlmostEqual(field.variables.first().value.mean(), 262.08338758680554)
+        self.assertAlmostEqual(field.variables.first().value.mean(), 262.08718532986109)
 
     def test_regridding_same_field(self):
         """Test regridding operations with same field used to regrid the source."""

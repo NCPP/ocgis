@@ -1,9 +1,9 @@
 from itertools import izip
-from ocgis import constants
+import numpy as np
+
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension
 from ocgis.interface.base.variable import AbstractSourcedVariable
-import numpy as np
 
 
 class NcSpatialGridDimension(AbstractSourcedVariable, SpatialGridDimension):

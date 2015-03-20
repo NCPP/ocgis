@@ -31,6 +31,9 @@ DEFAULT_NAME_COL_COORDINATES = 'xc'
 #: Default corners dimension name.
 DEFAULT_NAME_CORNERS_DIMENSION = 'ncorners'
 
+#: Default rotated pole ellipse for transformation.
+PROJ4_ROTATED_POLE_ELLPS = 'sphere'
+
 
 class HEADERS(object):
     ID_DATASET = 'did'

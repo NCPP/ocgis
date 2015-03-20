@@ -1,7 +1,32 @@
 import os
 from importlib import import_module
+import subprocess
+from warnings import warn
 
 from ocgis import constants
+
+
+
+
+# the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
+# variable when installing.
+if 'GDAL_DATA' not in os.environ:
+    try:
+        datadir = subprocess.check_output(['gdal-config', '--datadir']).strip()
+    except:
+        pass
+    else:
+        msg = 'consider setting the system environment variable "GDAL_DATA={0}" to improve load performance'. \
+            format(datadir)
+        warn(msg)
+        from osgeo import gdal
+
+        gdal.SetConfigOption('GDAL_DATA', datadir)
+from osgeo import osr, ogr
+
+# tell ogr/osr to raise exceptions
+ogr.UseExceptions()
+osr.UseExceptions()
 
 
 class Environment(object):

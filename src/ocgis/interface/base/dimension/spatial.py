@@ -8,11 +8,11 @@ from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
-from osgeo.ogr import CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint
 from shapely import wkb
 import fiona
 from shapely.geometry.geo import mapping, shape
 
+from ocgis.util.environment import ogr
 import base
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem, WGS84
 from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask, \
@@ -21,6 +21,10 @@ from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slic
 from ocgis import constants, env
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.util.ugrid.helpers import get_update_feature, write_to_netcdf_dataset
+
+
+CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
+                                                                   ogr.wkbGeometryCollection, ogr.wkbPoint
 
 
 class GeomMapping(object):

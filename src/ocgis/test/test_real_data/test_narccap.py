@@ -1,6 +1,5 @@
 import unittest
 import os
-
 import numpy as np
 
 from ocgis.test.base import TestBase, nc_scope, attr
@@ -42,7 +41,7 @@ class TestRotatedPole(TestBase):
         ret = ops.execute()
         ref = ret.gvu(16,'tas')
         self.assertEqual(ref.shape,(1, 248, 1, 7, 15))
-        self.assertAlmostEqual(np.ma.mean(ref),269.83076809598742)
+        self.assertAlmostEqual(np.ma.mean(ref), 269.8304976396538)
         self.assertNumpyAll(ref.mask.squeeze()[0,:,:],
                             np.array([[True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
                                       [True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
@@ -61,7 +60,7 @@ class TestRotatedPole(TestBase):
         ret = ops.execute()
         ret = ret.gvu(16,'tas')
         self.assertEqual(ret.shape,(1, 248, 1, 1, 1))
-        self.assertAlmostEqual(ret.mean(),269.83058215725805)
+        self.assertAlmostEqual(ret.mean(), 269.83051915322579)
         
     def test_read(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')

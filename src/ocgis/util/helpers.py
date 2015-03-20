@@ -10,14 +10,17 @@ import datetime
 
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
-from osgeo.ogr import CreateGeometryFromWkb
 from shapely.wkb import loads as wkb_loads
 import fiona
 from shapely.geometry.geo import mapping
 from fiona.crs import from_epsg
 
+from ocgis.util.environment import ogr
 from ocgis.util.shp_process import ShpProcess
 from ocgis.exc import SingleElementError, ShapeError
+
+
+CreateGeometryFromWkb = ogr.CreateGeometryFromWkb
 
 
 class ProgressBar(object):

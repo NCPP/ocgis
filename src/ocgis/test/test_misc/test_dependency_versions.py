@@ -5,9 +5,10 @@ import fiona
 import shapely
 
 from ocgis import osgeo
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 
 
+@attr('versions')
 class TestVersions(TestBase):
 
     def test_cfunits(self):

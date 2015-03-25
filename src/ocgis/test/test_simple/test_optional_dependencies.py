@@ -2,11 +2,13 @@ from copy import deepcopy
 
 from shapely.geometry import Point
 
+from ocgis.test.base import attr
 from ocgis import RequestDataset, OcgOperations
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 
 
+@attr('simple')
 class TestOptionalDependencies(TestSimpleBase):
     nc_factory = SimpleNcNoLevel
     fn = 'test_simple_spatial_no_level_01.nc'

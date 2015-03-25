@@ -13,19 +13,6 @@
 *.log
 *.nc
 
-# Eclipse #
-###########
-*.project
-*.pydevproject
-*.settings
-
-# Django #
-##########
-*settings.py
-*.sqlite
-*wsgi.py
-*.json
-
 # Sphinx #
 ##########
 *_build*
@@ -35,3 +22,11 @@
 *_images*
 *_sources*
 *_static*
+
+# PyCharm #
+###########
+*.idea*
+
+# iPython Notebooks #
+#####################
+*.ipynb_checkpoints*

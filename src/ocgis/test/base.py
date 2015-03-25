@@ -36,6 +36,8 @@ Definitions for various "attrs":
  * slow: long-running tests that are typically ran before a release
  * remote: tests relying on remote datasets that are typically run before a release
  * esmpy7: tests requiring a branch version of ESMF
+ * simple: simple tests designed to test core functionality requiring no datasets
+ * versions: test the recommended version of packages against the actual versions
 
 nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis/test
 """

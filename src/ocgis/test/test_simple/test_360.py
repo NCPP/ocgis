@@ -6,10 +6,9 @@ import os
 from shapely.geometry.polygon import Polygon
 
 from ocgis.api.operations import OcgOperations
-
 from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 import ocgis
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 
@@ -51,6 +50,7 @@ class NcSpatial(object):
         return bounds
 
 
+@attr('simple')
 class Test360(TestBase):
 
     def test_high_res(self):

@@ -24,7 +24,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.definition import SpatialOperation
 from ocgis.util.helpers import make_poly, project_shapely_geometry
 from ocgis import exc, env, constants
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import TestBase, nc_scope, attr
 import ocgis
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.interface.base import crs
@@ -103,6 +103,7 @@ class TestSimpleBase(TestBase):
         OcgInterpreter(ops).execute()
 
 
+@attr('simple')
 class TestSimpleNoLevel(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],
@@ -125,6 +126,7 @@ class TestSimpleNoLevel(TestSimpleBase):
             ds.close()
 
 
+@attr('simple')
 class TestSimple(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],
@@ -1217,6 +1219,7 @@ class TestSimple(TestSimpleBase):
                                     'id': '0', 'properties': OrderedDict([(u'UGID', 1)])}])
 
 
+@attr('simple')
 class TestSimpleNoSpatialBounds(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],
@@ -1234,6 +1237,7 @@ class TestSimpleNoSpatialBounds(TestSimpleBase):
         self.assertIsInstance(polygons[0, 0], Polygon)
 
 
+@attr('simple')
 class TestSimpleMask(TestSimpleBase):
     base_value = None
     nc_factory = SimpleMaskNc
@@ -1268,6 +1272,7 @@ class TestSimpleMask(TestSimpleBase):
         self.assertTrue(ret[1]['foo'].variables['foo'].value.mask.all())
 
 
+@attr('simple')
 class TestSimpleMultivariate(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],
@@ -1385,6 +1390,7 @@ class TestSimpleMultivariate(TestSimpleBase):
                     raise
 
 
+@attr('simple')
 class TestSimple360(TestSimpleBase):
     fn = 'test_simple_360_01.nc'
     nc_factory = SimpleNc360
@@ -1476,6 +1482,7 @@ class TestSimple360(TestSimpleBase):
             self.assertEqual(len(ret[1][self.var].spatial.uid.compressed()), n)
 
 
+@attr('simple')
 class TestSimpleProjected(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],

@@ -1,8 +1,10 @@
 import os
+
 from ocgis import CoordinateReferenceSystem
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 
 
+@attr('simple')
 class TestDependencies(TestBase):
 
     def test_netCDF4(self):

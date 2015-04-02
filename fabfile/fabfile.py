@@ -193,10 +193,10 @@ class RunAwsTests(Task):
 
         import sys
         sys.path.append(aws_src)
-        import aws
+        import saws
         import ipdb
 
-        am = aws.AwsManager(aws_conf)
+        am = saws.AwsManager(aws_conf)
 
         self.log.info('launching instance')
         instance = am.launch_new_instance(test_instance_name, image_id=test_image_id, instance_type=test_instance_type,

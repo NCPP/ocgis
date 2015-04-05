@@ -4,11 +4,12 @@ import time
 from fabric.contrib.project import rsync_project
 from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
-from fabric.context_managers import cd, shell_env, settings
+from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
 
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
-import packages
+from saws import AwsManager
+from saws.tasks import ebs_mount
 
 
 @task
@@ -52,22 +53,6 @@ def ebs_mkfs():
 
 
 @task
-def ebs_mount():
-    """Mount an EBS volume."""
-
-    cmd = ['mount', parser.get('aws-testing', 'ebs_mount_name'), parser.get('server', 'dir_data')]
-    fcmd(sudo, cmd)
-
-
-@task
-def ebs_umount():
-    """Unmount an EBS volume."""
-
-    cmd = ['umount', parser.get('server', 'dir_data')]
-    fcmd(sudo, cmd)
-
-
-@task
 def list_storage():
     """List storage size of connected devices."""
 
@@ -95,44 +80,6 @@ def remove_dir(path, use_sudo='false'):
         raise NotImplementedError(use_sudo)
 
     fcmd(fmeth, cmd)
-
-
-@task
-def run_tests(target='all', branch='next', failed='false'):
-    """
-    Run unit tests on remote server.
-
-    :param str target: The test target. Options are:
-        * 'all' = Run all tests.
-        * 'simple' = Run simple test suite.
-    :param str branch: The target GitHub branch.
-    :param str failed: If ``'true'``, run only failed tests.
-    :raises: NotImplementedError
-    """
-
-    path = os.path.join(parser.get('server', 'dir_clone'), parser.get('git', 'name'))
-
-    if target == 'simple':
-        test_target = os.path.join(path, 'src', 'ocgis', 'test', 'test_simple')
-    elif target == 'all':
-        test_target = os.path.join(path, 'src', 'ocgis', 'test')
-    else:
-        raise NotImplementedError(target)
-
-    with cd(path):
-        fcmd(run, ['git', 'pull'])
-        fcmd(run, ['git', 'checkout', branch])
-        fcmd(run, ['git', 'pull'])
-
-        cmd = ['nosetests', '-sv', '--with-id', test_target]
-        if failed == 'true':
-            cmd.insert(-1, '--failed')
-        elif failed == 'false':
-            pass
-        else:
-            raise NotImplementedError(failed)
-
-        fcmd(run, cmd)
 
 
 class RunAwsTests(Task):
@@ -260,66 +207,55 @@ r = RunAwsTests()
 
 
 @task
-def install_dependencies():
-    # packages.NumpyInstaller('1.8.2').execute()
-
-    hdf5 = packages.HDF5Installer('1.8.13')
-    # hdf5.execute()
-
-    netcdf4 = packages.NetCDF4Installer('4.3.2', hdf5)
-    # netcdf4.execute()
-
-    # packages.NetCDF4PythonInstaller('1.1.1', netcdf4).execute()
-
-    geos = packages.GeosInstaller('3.4.2')
-    # geos.execute()
-
-    proj4 = packages.Proj4Installer('4.8.0', '1.5')
-    # proj4.execute()
-
-    gdal = packages.GDALInstaller('1.11.1', geos, proj4)
-    # gdal.execute()
-
-    # packages.CythonInstaller('0.21.1').execute()
-
-    # packages.ShapelyInstaller('1.4.3', geos).execute()
-
-    # packages.FionaInstaller('1.4.5', gdal).execute()
-
-    # packages.RtreeInstaller('0.8.0').execute()
-
-    # packages.CFUnitsInstaller('0.9.6').execute()
-
-    esmf = packages.ESMFInstaller('6.3.0rp1')
-    # esmf.execute()
-
-    # packages.ESMPyInstaller(esmf).execute()
-
-    packages.IcclimInstaller(branch_name='master').execute()
+def test_node_launch(run_tests='false'):
+    am = AwsManager()
+    instance_name = 'ocgis-test-node'
+    image_id = 'ami-878aa5b7'
+    instance_type = 't2.micro'
+    ebs_snapshot_id = 'snap-310873bc'
+    ebs_mount_dir = '~/data'
+    ebs_mount_name = '/dev/xvdg'
+    instance = am.launch_new_instance(instance_name, image_id=image_id, instance_type=instance_type,
+                                      ebs_snapshot_id=ebs_snapshot_id, ebs_mount_name=ebs_mount_name)
+    kwargs = {'mount_name': ebs_mount_name, 'mount_dir': ebs_mount_dir}
+    am.do_task(ebs_mount, instance=instance, kwargs=kwargs)
+    ssh_cmd = am.get_ssh_command(instance=instance)
+    print ssh_cmd
+    if run_tests == 'true':
+        test_node_run_tests()
+    print ssh_cmd
 
 
-# @task
-# def install_virtual_environment():
-#     install_apt_package('python-dev')
-#     install_apt_package('python-pip')
-#     install_pip_package('virtualenv')
-#     install_pip_package('virtualenvwrapper')
-#
-#     ## append environment information to profile file
-#     lines = [
-#     '',
-#     '# Set the location where the virtual environments are stored',
-#     'export WORKON_HOME=~/.virtualenvs',
-#     '# Use the virtual environment wrapper scripts',
-#     'source /usr/local/bin/virtualenvwrapper.sh',
-#     '# Tell pip to only run if there is a virtualenv currently activated',
-#     'export PIP_REQUIRE_VIRTUALENV=false',
-#     '# Tell pip to automatically use the currently active virtualenv',
-#     'export PIP_RESPECT_VIRTUALENV=true',
-#     '# Tell pip to use virtual environment wrapper storage location',
-#     'export PIP_VIRTUALENV_BASE=$WORKON_HOME',
-#             ]
-#     append('~/.profile', lines)
-#     run(tfs(['source', '~/.profile']))
-#
-#     run(tfs(['mkvirtualenv', env.cfg['venv_name']]))
+@task
+def test_node_run_tests():
+    am = AwsManager()
+    instance_name = 'ocgis-test-node'
+    instance = am.get_instance_by_name(instance_name)
+    tbranch = 'next'
+    tcenv = 'test_ocgis'
+    texclude = '!slow,!remote,!esmpy7'
+    tgdal_data = '/home/ubuntu/anaconda/envs/{0}/share/gdal'.format(tcenv)
+    tocgis_dir_shpcabinet = '/home/ubuntu/data/ocgis_test_data/shp'
+    tocgis_dir_test_data = '/home/ubuntu/data/ocgis_test_data/'
+    tsrc = '~/git/ocgis/src'
+
+    def _run_():
+        senv = dict(OCGIS_DIR_SHPCABINET=tocgis_dir_shpcabinet, OCGIS_DIR_TEST_DATA=tocgis_dir_test_data,
+                    GDAL_DATA=tgdal_data)
+        with shell_env(**senv):
+            with prefix('source activate {0}'.format(tcenv)):
+                with cd(tsrc):
+                    run('git pull')
+                    cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests -vs --with-id -a {texclude} ocgis/test'
+                    cmd = cmd.format(tbranch=tbranch, texclude=texclude)
+                    run(cmd)
+
+    am.do_task(_run_, instance=instance)
+
+
+@task
+def test_node_terminate():
+    am = AwsManager()
+    instance_name = 'ocgis-test-node'
+    instance = am.get_instance_by_name(instance_name)
+    instance.terminate()

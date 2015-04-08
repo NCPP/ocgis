@@ -6,10 +6,10 @@ from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
 from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
-
-from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 from saws import AwsManager
 from saws.tasks import ebs_mount
+
+from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 
 
 @task
@@ -211,14 +211,14 @@ def test_node_launch(run_tests='false'):
     am = AwsManager()
     instance_name = 'ocgis-test-node'
     image_id = 'ami-878aa5b7'
-    instance_type = 't2.micro'
+    # instance_type = 't2.micro'
+    instance_type = 'm3.xlarge'
     ebs_snapshot_id = 'snap-310873bc'
     ebs_mount_dir = '~/data'
     ebs_mount_name = '/dev/xvdg'
     instance = am.launch_new_instance(instance_name, image_id=image_id, instance_type=instance_type,
                                       ebs_snapshot_id=ebs_snapshot_id, ebs_mount_name=ebs_mount_name)
-    kwargs = {'mount_name': ebs_mount_name, 'mount_dir': ebs_mount_dir}
-    am.do_task(ebs_mount, instance=instance, kwargs=kwargs)
+    test_node_ebs_mount(instance_name=instance_name, ebs_mount_name=ebs_mount_name, ebs_mount_dir=ebs_mount_dir)
     ssh_cmd = am.get_ssh_command(instance=instance)
     print ssh_cmd
     if run_tests == 'true':
@@ -227,9 +227,16 @@ def test_node_launch(run_tests='false'):
 
 
 @task
-def test_node_run_tests():
+def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xvdg', ebs_mount_dir='~/data'):
     am = AwsManager()
-    instance_name = 'ocgis-test-node'
+    instance = am.get_instance_by_name(instance_name)
+    kwargs = {'mount_name': ebs_mount_name, 'mount_dir': ebs_mount_dir}
+    am.do_task(ebs_mount, instance=instance, kwargs=kwargs)
+
+
+@task
+def test_node_run_tests(instance_name='ocgis-test-node'):
+    am = AwsManager()
     instance = am.get_instance_by_name(instance_name)
     tbranch = 'next'
     tcenv = 'test_ocgis'
@@ -246,7 +253,7 @@ def test_node_run_tests():
             with prefix('source activate {0}'.format(tcenv)):
                 with cd(tsrc):
                     run('git pull')
-                    cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests -vs --with-id -a {texclude} ocgis/test'
+                    cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests --with-id -a {texclude} ocgis/test'
                     cmd = cmd.format(tbranch=tbranch, texclude=texclude)
                     run(cmd)
 

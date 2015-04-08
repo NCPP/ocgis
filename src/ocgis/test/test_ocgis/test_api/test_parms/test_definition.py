@@ -597,6 +597,20 @@ class TestGeom(TestBase):
         g = Geom(bbox, geom_uid='ID')
         self.assertEqual(g.geom_uid, 'ID')
 
+        ################################################################################################################
+        # tests for geom_select_sql_where
+
+        g = Geom('state_boundaries')
+        self.assertIsNone(g.geom_select_sql_where)
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+        ws = [GeomSelectSqlWhere(s), s]
+        for w in ws:
+            g = Geom('state_boundaries', geom_select_sql_where=w)
+            self.assertEqual(g.geom_select_sql_where, s)
+
+            ################################################################################################################
+
     def test_geometry_dictionaries(self):
         """Test geometry dictionaries as input."""
 
@@ -646,6 +660,16 @@ class TestGeom(TestBase):
                 actual = k.geom_uid
             self.assertEqual(ret.uid, actual)
 
+        ################################################################################################################
+        # tests for geom_select_sql_where
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+        g = Geom('state_boundaries', geom_select_sql_where=s)
+        ret = g.parse_string('state_boundaries')
+        self.assertEqual(len(ret), 2)
+
+        ################################################################################################################
+
     def test_spatial_dimension(self):
         """Test using a SpatialDimension as input value."""
 
@@ -679,6 +703,16 @@ class TestGeom(TestBase):
         self.assertEqual(len(list(g.value)), 51)
         g.select_ugid = [16, 17]
         self.assertEqual(len(list(g.value)), 2)
+
+
+class TestGeomSelectSqlWhere(TestBase):
+    def test_init(self):
+        g = GeomSelectSqlWhere()
+        self.assertIsNone(g.value)
+
+        s = 'STATE_NAME = "Vermont"'
+        g = GeomSelectSqlWhere(s)
+        self.assertEqual(s, g.value)
 
 
 class TestGeomSelectUid(TestBase):

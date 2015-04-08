@@ -1,11 +1,11 @@
 import csv
 import itertools
 import os
-from numpy import dtype
-import numpy as np
 from datetime import datetime as dt
 import datetime
 
+from numpy import dtype
+import numpy as np
 import ESMF
 
 from ocgis import env
@@ -59,6 +59,11 @@ class TestOcgOperations(TestBase):
         self.assertEqual(ops.geom_uid, 'ID')
         geom = ops._get_object_('geom')
         self.assertEqual(geom.geom_uid, 'ID')
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+        ops = OcgOperations(dataset=self.datasets, geom_select_sql_where=s, geom='state_boundaries')
+        self.assertEqual(ops.geom_select_sql_where, s)
+        self.assertEqual(len(ops.geom), 2)
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')

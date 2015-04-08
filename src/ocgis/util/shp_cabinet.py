@@ -41,17 +41,24 @@ class ShpCabinetIterator(object):
     :param str uid: The name of the attribute containing the unique identifier. If ``None``,
      :attr:`ocgis.env.DEFAULT_GEOM_UID` will be used if present. If no unique identifier is found, add one with name
      :attr:`ocgis.env.DEFAULT_GEOM_UID`.
+    :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
+     for documentation (section titled "WHERE").
+
+    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+
     :raises: ValueError, RuntimeError
     :rtype: dict
     """
 
-    def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False, uid=None):
+    def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False, uid=None,
+                 select_sql_where=None):
         self.key = key
         self.path = path
         self.select_uid = select_uid
         self.load_geoms = load_geoms
         self.as_spatial_dimension = as_spatial_dimension
         self.uid = uid
+        self.select_sql_where = select_sql_where
         self.sc = ShpCabinet()
 
     def __iter__(self):
@@ -61,7 +68,7 @@ class ShpCabinetIterator(object):
 
         for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
                                       load_geoms=self.load_geoms, as_spatial_dimension=self.as_spatial_dimension,
-                                      uid=self.uid):
+                                      uid=self.uid, select_sql_where=self.select_sql_where):
             yield row
 
     def __len__(self):
@@ -74,7 +81,8 @@ class ShpCabinetIterator(object):
             # get the geometries
             ds = ogr.Open(shp_path)
             try:
-                features = self.sc._get_features_object_(ds, uid=self.uid, select_uid=self.select_uid)
+                features = self.sc._get_features_object_(ds, uid=self.uid, select_uid=self.select_uid,
+                                                         select_sql_where=self.select_sql_where)
                 ret = len(features)
             finally:
                 ds.Destroy()
@@ -148,7 +156,7 @@ class ShpCabinet(object):
             raise ValueError(msg)
 
     def iter_geoms(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False,
-                   uid=None):
+                   uid=None, select_sql_where=None):
         """
         See documentation for :class:`~ocgis.util.shp_cabinet.ShpCabinetIterator`.
         """
@@ -170,7 +178,7 @@ class ShpCabinet(object):
         ds = ogr.Open(shp_path)
         try:
             # return the features iterator
-            features = self._get_features_object_(ds, uid=uid, select_uid=select_uid)
+            features = self._get_features_object_(ds, uid=uid, select_uid=select_uid, select_sql_where=select_sql_where)
             build = True
             for ctr, feature in enumerate(features):
                 if load_geoms:
@@ -228,12 +236,17 @@ class ShpCabinet(object):
         return shp_path
 
     @staticmethod
-    def _get_features_object_(ds, uid=None, select_uid=None):
+    def _get_features_object_(ds, uid=None, select_uid=None, select_sql_where=None):
         """
         :param ds: Path to shapefile.
         :type ds: Open OGR dataset object
         :param str uid: The unique identifier to use during SQL selection.
         :param sequence select_uid: Sequence of integers mapping to unique geometry identifiers.
+        :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
+         for documentation (section titled "WHERE").
+
+        >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+
         :returns: A layer object with selection applied if ``select_uid`` is not ``None``.
         :rtype: :class:`osgeo.ogr.Layer`
         """
@@ -241,19 +254,20 @@ class ShpCabinet(object):
         # get the geometries
         lyr = ds.GetLayerByIndex(0)
         lyr.ResetReading()
-        if select_uid is not None:
-
-            # if no uid is provided, use the default
-            if uid is None:
-                uid = env.DEFAULT_GEOM_UID
-
+        if select_uid is not None or select_sql_where is not None:
             lyr_name = lyr.GetName()
-            # format where statement different for singletons
-            if len(select_uid) == 1:
-                sql_where = '{0} = {1}'.format(uid, select_uid[0])
-            else:
-                sql_where = '{0} IN {1}'.format(uid, tuple(select_uid))
-            sql = 'SELECT * FROM "{0}" WHERE {1}'.format(lyr_name, sql_where)
+            if select_sql_where is not None:
+                sql = 'SELECT * FROM "{0}" WHERE {1}'.format(lyr_name, select_sql_where)
+            elif select_uid is not None:
+                # if no uid is provided, use the default
+                if uid is None:
+                    uid = env.DEFAULT_GEOM_UID
+                # format where statement different for singletons
+                if len(select_uid) == 1:
+                    sql_where = '{0} = {1}'.format(uid, select_uid[0])
+                else:
+                    sql_where = '{0} IN {1}'.format(uid, tuple(select_uid))
+                sql = 'SELECT * FROM "{0}" WHERE {1}'.format(lyr_name, sql_where)
             features = ds.ExecuteSQL(sql)
         else:
             features = lyr

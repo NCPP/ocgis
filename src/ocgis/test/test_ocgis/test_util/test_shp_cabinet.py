@@ -38,10 +38,15 @@ class Test(TestBase):
 class TestShpCabinetIterator(TestBase):
     def test_init(self):
         sci = ShpCabinetIterator(key='state_boundaries', uid='ID', as_spatial_dimension=True)
+        self.assertIsNone(sci.select_sql_where)
         self.assertEqual(sci.uid, 'ID')
         for sdim in sci:
             self.assertEqual(sdim.name_uid, 'ID')
             break
+
+        s = 'STATE_NAME = "Wisconsin"'
+        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where=s)
+        self.assertEqual(sci.select_sql_where, s)
 
     def test_as_spatial_dimension(self):
         """Test iteration returned as SpatialDimension objects."""
@@ -72,6 +77,12 @@ class TestShpCabinetIterator(TestBase):
         for sdim in sci:
             self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
 
+    def test_iter(self):
+        # test with a select statement
+        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME in ("Wisconsin", "Vermont")')
+        for row in sci:
+            self.assertIn(row['properties']['STATE_NAME'], ("Wisconsin", "Vermont"))
+
     def test_select_ugids_absent_raises_exception(self):
         sci = ShpCabinetIterator(key='state_boundaries', select_uid=[999])
         with self.assertRaises(ValueError):
@@ -94,6 +105,9 @@ class TestShpCabinetIterator(TestBase):
         self.assertEqual(len(sci), 51)
         sci = ShpCabinetIterator(path=path, select_uid=[16, 19])
         self.assertEqual(len(sci), 2)
+
+        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME = "Vermont"')
+        self.assertEqual(len(sci), 1)
 
     def test_iteration_by_path(self):
         # test that a shapefile may be retrieved by passing a full path to the file
@@ -122,19 +136,23 @@ class TestShpCabinet(TestBase):
         # test with a shapefile not having the default unique geometry identifier
         path = self.get_shapefile_path_with_no_ugid()
         keywords = dict(uid=[None, 'ID'],
-                        select_uid=[None, [8, 11, 13]])
+                        select_uid=[None, [8, 11, 13]],
+                        select_sql_where=[None, 'STATE_NAME = "Wisconsin"'])
 
         for k in self.iter_product_keywords(keywords):
             ds = ogr.Open(path)
             try:
                 try:
-                    obj = ShpCabinet._get_features_object_(ds, uid=k.uid, select_uid=k.select_uid)
+                    obj = ShpCabinet._get_features_object_(ds, uid=k.uid, select_uid=k.select_uid,
+                                                           select_sql_where=k.select_sql_where)
                 except RuntimeError:
                     self.assertIsNone(k.uid)
                     self.assertIsNotNone(k.select_uid)
                     continue
 
-                if k.select_uid is not None:
+                if k.select_sql_where is not None:
+                    length = 1
+                elif k.select_uid is not None:
                     length = 3
                 else:
                     length = 11
@@ -151,6 +169,53 @@ class TestShpCabinet(TestBase):
             self.assertEqual(len(obj), 3)
         finally:
             ds.Destroy()
+
+    def test_get_features_object_select_sql_where(self):
+        path = ShpCabinet().get_shp_path('state_boundaries')
+
+        def _run_(s, func):
+            try:
+                ds = ogr.Open(path)
+                obj = ShpCabinet._get_features_object_(ds, select_sql_where=s)
+                func(obj)
+            finally:
+                ds.Destroy()
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+
+        def f(obj):
+            self.assertEqual(len(obj), 2)
+            self.assertAsSetEqual([ii.items()['STATE_NAME'] for ii in obj], ("Wisconsin", "Vermont"))
+
+        _run_(s, f)
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont") and STATE_ABBR in ("NV", "OH")'
+
+        def f(obj):
+            self.assertEqual(len(obj), 0)
+
+        _run_(s, f)
+
+        s = 'STATE_NAME in ("Wisconsin", "Vermont") or STATE_ABBR in ("NV", "OH")'
+
+        def f(obj):
+            self.assertEqual(len(obj), 4)
+
+        _run_(s, f)
+
+        s = 'STATE_NAMEE in ("Wisconsin", "Vermont")'
+        with self.assertRaises(RuntimeError):
+            _run_(s, lambda x: None)
+
+        s = 'UGID > 40'
+
+        def f(obj):
+            self.assertEqual(len(obj), 11)
+            for ii in obj:
+                item = ii.items()['UGID']
+                self.assertTrue(item > 40)
+
+        _run_(s, f)
 
     def test_number_in_shapefile_name(self):
         """Test number in shapefile name."""
@@ -215,6 +280,11 @@ class TestShpCabinet(TestBase):
         records = list(sc.iter_geoms(path=path, uid=geom_uid, select_uid=geom_select_uid))
         self.assertEqual(len(records), 2)
         self.assertEqual([r['properties']['ID'] for r in records], geom_select_uid)
+
+    def test_iter_geoms_select_sql_where(self):
+        sc = ShpCabinet()
+        sql = 'STATE_NAME = "New Hampshire"'
+        self.assertEqual(len(list(sc.iter_geoms('state_boundaries', select_sql_where=sql))), 1)
 
     def test_iter_geoms_select_ugid(self):
         sc = ShpCabinet()

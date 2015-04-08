@@ -41,7 +41,7 @@ class Test20150119(TestBase):
         self.assertEqual(field.shape, field2.shape)
 
 
-class Test_20150224(TestBase):
+class Test20150224(TestBase):
     def test_subset_with_shapefile_no_ugid(self):
         """Test a subset operation using a shapefile without a UGID attribute."""
 
@@ -74,3 +74,36 @@ class Test_20150224(TestBase):
                     record = source.next()
                     self.assertIn(geom_uid, record['properties'])
                     self.assertNotIn(env.DEFAULT_GEOM_UID, record['properties'])
+
+
+class Test20150327(TestBase):
+    def test_sql_where_through_operations(self):
+        """Test using a SQL where statement to select some geometries."""
+
+        states = ("Wisconsin", "Vermont")
+        s = 'STATE_NAME in {0}'.format(states)
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd, geom_select_sql_where=s, geom='state_boundaries', snippet=True)
+        ret = ops.execute()
+        self.assertEqual(len(ret), 2)
+        self.assertEqual(ret.keys(), [8, 10])
+        for v in ret.properties.itervalues():
+            self.assertIn(v['STATE_NAME'], states)
+
+        # make sure the sql select has preference over uid
+        ops = OcgOperations(dataset=rd, geom_select_sql_where=s, geom='state_boundaries', snippet=True,
+                            geom_select_uid=[500, 600, 700])
+        ret = ops.execute()
+        self.assertEqual(len(ret), 2)
+        for v in ret.properties.itervalues():
+            self.assertIn(v['STATE_NAME'], states)
+
+        # test possible interaction with geom_uid
+        path = self.get_shapefile_path_with_no_ugid()
+        ops = OcgOperations(dataset=rd, geom=path, geom_select_sql_where=s)
+        ret = ops.execute()
+        self.assertEqual(ret.keys(), [1, 2])
+
+        ops = OcgOperations(dataset=rd, geom=path, geom_select_sql_where=s, geom_uid='ID')
+        ret = ops.execute()
+        self.assertEqual(ret.keys(), [13, 15])

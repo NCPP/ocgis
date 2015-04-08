@@ -6,9 +6,9 @@ import os
 from copy import deepcopy
 from types import FunctionType
 import itertools
-import numpy as np
 import datetime
 
+import numpy as np
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
@@ -525,6 +525,20 @@ class FormatTime(base.BooleanParameter):
 
 
 class Geom(base.OcgParameter):
+    """
+    :keyword list select_ugid: (``=None``) A sequence of sorted (ascending) unique identifiers to use when selecting
+     geometries. These values should be a members of the attribute named ``geom_uid``.
+
+    >>> [1, 45, 66]
+
+    :keyword str geom_select_sql_where: (``=None``) A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
+     for documentation (section titled "WHERE").
+
+    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+
+    :keyword str geom_uid: (``=None``) The unique identifier name in the target geometry object.
+    """
+
     name = 'geom'
     nullable = True
     default = None
@@ -536,12 +550,15 @@ class Geom(base.OcgParameter):
 
     def __init__(self, *args, **kwargs):
         self.select_ugid = kwargs.pop('select_ugid', None)
+        self.geom_select_sql_where = kwargs.pop(GeomSelectSqlWhere.name, None)
         self.geom_uid = kwargs.pop(GeomUid.name, None)
         # just store the value if it is a parameter object
         if isinstance(self.select_ugid, GeomSelectUid):
             self.select_ugid = self.select_ugid.value
         if isinstance(self.geom_uid, GeomUid):
             self.geom_uid = self.geom_uid.value
+        if isinstance(self.geom_select_sql_where, GeomSelectSqlWhere):
+            self.geom_select_sql_where = self.geom_select_sql_where.value
 
         args = [self] + list(args)
         base.OcgParameter.__init__(*args, **kwargs)
@@ -649,6 +666,7 @@ class Geom(base.OcgParameter):
                 select_ugid = test_value
             kwds['select_uid'] = select_ugid
 
+            kwds['select_sql_where'] = self.geom_select_sql_where
             kwds['uid'] = self.geom_uid
             ret = ShpCabinetIterator(**kwds)
         return ret
@@ -676,6 +694,22 @@ class Geom(base.OcgParameter):
         col_range = range(spatial_dimension.shape[1])
         for row, col in itertools.product(row_range, col_range):
             yield spatial_dimension[row, col]
+
+
+class GeomSelectSqlWhere(base.OcgParameter):
+    name = 'geom_select_sql_where'
+    return_type = [basestring]
+    nullable = True
+    default = None
+    input_types = []
+    _lower_string = False
+
+    def _get_meta_(self):
+        if self.value is None:
+            msg = "No SQL where statement provided."
+        else:
+            msg = "A SQL where statement was used to select geometries from input data source: {0}".format(self.value)
+        return msg
 
 
 class GeomSelectUid(base.IterableParameter, base.OcgParameter):

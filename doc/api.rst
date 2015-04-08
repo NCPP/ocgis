@@ -255,6 +255,15 @@ The `crs` key is optional. If it is not included, WGS84 is assumed. The `propert
 
 .. _geom_select_uid:
 
+geom_select_sql_where
+~~~~~~~~~~~~~~~~~~~~~
+
+If provided, this string will be used as part of a SQL WHERE statement to select geometries from the source. See the section titled "WHERE" for documentation on supported statements: http://www.gdal.org/ogr_sql.html. This works only for geometries read from file.
+
+>>> geom_select_sql_where = "STATE_NAME = 'Wisconsin'"
+>>> geom_select_sql_where = "STATE_NAME in ('Wisconsin', 'Nebraska')"
+>>> geom_select_sql_where = "POPULATION > 1500"
+
 geom_select_uid
 ~~~~~~~~~~~~~~~
 

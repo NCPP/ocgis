@@ -30,9 +30,14 @@ class OcgOperations(object):
      sequence of :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field` objects
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
-    :param geom: The selection geometry(s) used for the spatial subset. If ``None``, selection defaults to entire spatial
-     domain.
+    :param geom: The selection geometry(s) used for the spatial subset. If ``None``, selection defaults to entire
+     spatial domain.
     :type geom: list of dict, list of float, str
+    :param str geom_select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
+     for documentation (section titled "WHERE").
+
+    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+
     :param geom_select_uid: The unique identifiers of specific geometries contained in the geometry datasets. Geometries
      having these unique identifiers will be used for subsetting.
     :type geom_select_uid: sequence of integers
@@ -120,14 +125,15 @@ class OcgOperations(object):
      under a single value column.
     """
 
-    def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_uid=None, geom_uid=None,
-                 aggregate=False, calc=None, calc_grouping=None, calc_raw=False, abstraction=None, snippet=False,
-                 backend='ocg', prefix=None, output_format='numpy', agg_selection=False, select_ugid=None,
-                 vector_wrap=True, allow_empty=False, dir_output=None, slice=None, file_only=False, headers=None,
-                 format_time=True, calc_sample_size=False, search_radius_mult=2.0, output_crs=None,
-                 interpolate_spatial_bounds=False, add_auxiliary_files=True, optimizations=None, callback=None,
-                 time_range=None, time_region=None, level_range=None, conform_units_to=None, select_nearest=False,
-                 regrid_destination=None, regrid_options=None, melted=False):
+    def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,
+                 geom_select_uid=None, geom_uid=None, aggregate=False, calc=None, calc_grouping=None,
+                 calc_raw=False, abstraction=None, snippet=False, backend='ocg', prefix=None, output_format='numpy',
+                 agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False, dir_output=None,
+                 slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
+                 search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
+                 optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
+                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None,
+                 melted=False):
 
         # tells "__setattr__" to not perform global validation until all values are set initially
         self._is_init = True
@@ -145,9 +151,11 @@ class OcgOperations(object):
         self.prefix = Prefix(prefix or env.PREFIX)
         self.output_format = OutputFormat(output_format)
         self.agg_selection = AggregateSelection(agg_selection)
+        self.geom_select_sql_where = GeomSelectSqlWhere(geom_select_sql_where)
         self.geom_select_uid = GeomSelectUid(geom_select_uid or select_ugid)
         self.geom_uid = GeomUid(geom_uid)
-        self.geom = Geom(geom, select_ugid=self.geom_select_uid, geom_uid=self.geom_uid)
+        self.geom = Geom(geom, select_ugid=self.geom_select_uid, geom_uid=self.geom_uid,
+                         geom_select_sql_where=self.geom_select_sql_where)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)

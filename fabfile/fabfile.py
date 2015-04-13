@@ -207,12 +207,11 @@ r = RunAwsTests()
 
 
 @task
-def test_node_launch(run_tests='false'):
+def test_node_launch(run_tests='false', instance_type='m3.xlarge'):
     am = AwsManager()
     instance_name = 'ocgis-test-node'
     image_id = 'ami-878aa5b7'
     # instance_type = 't2.micro'
-    instance_type = 'm3.xlarge'
     ebs_snapshot_id = 'snap-310873bc'
     ebs_mount_dir = '~/data'
     ebs_mount_name = '/dev/xvdg'
@@ -239,7 +238,7 @@ def test_node_run_tests(instance_name='ocgis-test-node'):
     am = AwsManager()
     instance = am.get_instance_by_name(instance_name)
     tbranch = 'next'
-    tcenv = 'test_ocgis'
+    tcenv = 'test-ocgis'
     texclude = '!slow,!remote,!esmpy7'
     tgdal_data = '/home/ubuntu/anaconda/envs/{0}/share/gdal'.format(tcenv)
     tocgis_dir_shpcabinet = '/home/ubuntu/data/ocgis_test_data/shp'

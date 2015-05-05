@@ -6,9 +6,16 @@ from warnings import warn
 from ocgis import constants
 
 
+# HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
+# different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
+# import is okay (if it is not installed).
+try:
+    import ESMF
+except ImportError:
+    pass
 
 
-# the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
+# HACK!! the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
 # variable when installing.
 if 'GDAL_DATA' not in os.environ:
     try:

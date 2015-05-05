@@ -1,8 +1,8 @@
 from datetime import datetime
-import numpy as np
 import netCDF4 as nc
 import os
 
+import numpy as np
 from shapely.geometry.polygon import Polygon
 
 from ocgis.api.operations import OcgOperations
@@ -119,7 +119,7 @@ class Test360(TestBase):
         path = os.path.join(env.DIR_OUTPUT, 'test360 {0}.nc'.format(datetime.now()))
 
         calendar = 'standard'
-        units = 'days since 0000-01-01'
+        units = 'days since 0001-01-01'
         time_values = [datetime(2000, m, 15) for m in range(1, 13)]
         time_values = nc.date2num(time_values, units, calendar=calendar)
 

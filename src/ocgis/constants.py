@@ -116,7 +116,7 @@ NP_FLOAT = np.float32
 ICCLIM_PREFIX_FUNCTION_KEY = 'icclim'
 
 #: NumPy functions enabled for functions evaluated from string representations.
-ENABLED_NUMPY_UFUNCS = ['exp', 'log', 'abs']
+ENABLED_NUMPY_UFUNCS = ('exp', 'log', 'abs', 'power')
 
 #: The value for the 180th meridian to use when wrapping.
 MERIDIAN_180TH = 180.

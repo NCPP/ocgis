@@ -1,6 +1,6 @@
 from copy import deepcopy
-import numpy as np
 
+import numpy as np
 from cfunits.cfunits import Units
 
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
@@ -10,6 +10,7 @@ from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFun
     AbstractMultivariateFunction, AbstractParameterizedFunction
 from ocgis import constants, OcgOperations, FunctionRegistry
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
+from ocgis.api.parms.definition_helpers import MetadataAttributes
 
 
 class FooNeedsUnits(AbstractUnivariateFunction):
@@ -88,9 +89,9 @@ class TestAbstractFunction(AbstractTestField):
                 field.meta = {}
             for oload in [True, False]:
                 if oload:
-                    meta_attrs = {'something_new': 'is about to happen', 'standard_name': 'never!'}
+                    meta_attrs = MetadataAttributes({'something_new': 'is about to happen', 'standard_name': 'never!'})
                 else:
-                    meta_attrs = {'something_new': 'is about to happen'}
+                    meta_attrs = MetadataAttributes({'something_new': 'is about to happen'})
                 fb = FooNeedsUnits(field=field, meta_attrs=meta_attrs)
                 ret = fb.execute()
                 if oload:
@@ -101,9 +102,17 @@ class TestAbstractFunction(AbstractTestField):
                               'something_new': 'is about to happen'}
                 self.assertDictEqual(ret['fnu'].attrs, actual)
                 if oload:
-                    self.assertDictEqual(meta_attrs, {'something_new': 'is about to happen', 'standard_name': 'never!'})
+                    self.assertDictEqual(meta_attrs.value['variable'],
+                                         {'something_new': 'is about to happen', 'standard_name': 'never!'})
                 else:
-                    self.assertDictEqual(meta_attrs, {'something_new': 'is about to happen'})
+                    self.assertDictEqual(meta_attrs.value['variable'], {'something_new': 'is about to happen'})
+
+        # test attributes are applied to the field object
+        field = self.get_field(with_value=True)
+        meta_attrs = MetadataAttributes({'field': {'hoover': 'dam'}})
+        fb = FooNeedsUnits(field=field, meta_attrs=meta_attrs)
+        fb.execute()
+        self.assertDictEqual(fb.field.attrs, {'hoover': 'dam'})
 
 
 class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):

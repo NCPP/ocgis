@@ -24,6 +24,7 @@ import ocgis
 from ocgis import constants
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
+from ocgis.api.parms.definition_helpers import MetadataAttributes
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 from ocgis.calc.library import register
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
@@ -230,6 +231,11 @@ class Calc(base.IterableParameter, base.OcgParameter):
         # add placeholder for meta_attrs if it is not present
         if 'meta_attrs' not in value:
             value['meta_attrs'] = None
+        else:
+            # replace with the metadata attributes class if the attributes are not none
+            ma = value['meta_attrs']
+            if ma is not None:
+                value['meta_attrs'] = MetadataAttributes(ma)
 
         return value
 

@@ -1,8 +1,8 @@
 .. _computation_headline:
 
-=============
- Computation
-=============
+===========
+Computation
+===========
 
 .. warning:: The computational API is considered to be in an `alpha` development stage and may change rapidly. Suggestions are welcome! The API is stable but there will be changes to the inheritance structure, functionality, and attribution of the class structure. All changes will be backwards compatible.
 
@@ -74,10 +74,13 @@ If a function takes parameters, those parameters are documented in the :ref:`ava
 
 There are also keyword arguments common to all calculations:
 
- * ``'meta_attrs'``: A dictionary containing metadata attributes to attach to the output calculation variable (e.g. NetCDF attributes)
+ * ``'meta_attrs'``: A dictionary containing metadata attributes (e.g. NetCDF attributes) to attach to the output calculation variable. It is also possible to modify the field attributes (e.g. global dataset NetCDF attributes). Both examples are below.
 
 >>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 'the_value'}}]
 >>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 5, 'hello': 'attribute'}}]
+>>> # modify the field attributes using a fully specified "meta_attrs" dictionary
+>>> meta_attrs = {'variable': {'new_attribute': 5, 'hello': 'attribute'}, 'field': {'global_attr': 50}}
+>>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': meta_attrs}]
 
 .. _defining_custom_functions:
 

@@ -3,6 +3,7 @@ from copy import deepcopy
 import abc
 import itertools
 import logging
+
 import numpy as np
 
 from ocgis.interface.base.variable import DerivedVariable, VariableCollection
@@ -45,12 +46,8 @@ class AbstractFunction(object):
     :type agg: bool
     :param calc_sample_size: If ``True``, also compute sample sizes for the calculation.
     :type calc_sample_size: bool
-    :param meta_attrs: Dictionary with keys as attribute and names with arbitrary values. This will overload default
-     metadata attributes from the calculation.
-
-    >>> meta_attrs = {'standard_name': 'the_real', 'long_name': 'The Real Long Name', 'note_count': 55}
-
-    :type meta_attrs: dict
+    :param meta_attrs: Contains overloads for variable and/or field attribute values.
+    :type meta_attrs: :class:`ocgis.api.parms.definition_helpers.MetadataAttributes`
     :param bool add_parents: If ``True``, maintain parent variables following a calculation.
     """
 
@@ -314,15 +311,14 @@ class AbstractFunction(object):
         self.set_variable_metadata(dv)
         # overload the metadata attributes with any provided
         if self.meta_attrs is not None:
-            # dv.meta['attrs'].update(self.meta_attrs)
-            dv.attrs.update(self.meta_attrs)
+            dv.attrs.update(self.meta_attrs.value['variable'])
+            self.field.attrs.update(self.meta_attrs.value['field'])
         # add the variable to the variable collection
         self._set_derived_variable_alias_(dv, parent_variables)
         self.vc.add_variable(dv)
 
         # add the sample size if it is present in the fill dictionary
         if sample_size is not None:
-            # meta = {'attrs': {'standard_name': 'sample_size', 'long_name': 'Statistical Sample Size'}}
             attrs = OrderedDict()
             attrs['standard_name'] = constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME
             attrs['long_name'] = constants.DEFAULT_SAMPLE_SIZE_LONG_NAME

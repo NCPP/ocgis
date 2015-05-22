@@ -8,7 +8,7 @@ from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 
 
-@attr('simple')
+@attr('simple', 'optional')
 class TestOptionalDependencies(TestSimpleBase):
     nc_factory = SimpleNcNoLevel
     fn = 'test_simple_spatial_no_level_01.nc'

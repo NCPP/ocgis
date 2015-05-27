@@ -2,10 +2,10 @@ import os
 import itertools
 from copy import deepcopy
 from collections import OrderedDict
-import numpy as np
 from datetime import datetime as dt
 import datetime
 
+import numpy as np
 from shapely import wkb
 import fiona
 from shapely import wkt
@@ -321,7 +321,7 @@ class TestField(AbstractTestField):
                 self.assertAlmostEqual(unioned.bounds, single.bounds)
                 self.assertAlmostEqual(unioned.exterior.length, single.exterior.length)
                 self.assertAlmostEqual(ret.spatial.weights[1, 2], 0.064016424)
-                self.assertAlmostEqual(ret.spatial.weights.sum(), 1.776435)
+                self.assertAlmostEqual(ret.spatial.weights.sum(), 1.7764349271673896)
                 if not wv:
                     with self.assertRaises(NotImplementedError):
                         ret.variables['tmax'].value

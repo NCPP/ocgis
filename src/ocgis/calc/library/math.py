@@ -1,7 +1,6 @@
 import numpy as np
 
 from ocgis.calc import base
-from ocgis import constants
 from ocgis.util.helpers import iter_array
 
 
@@ -9,7 +8,7 @@ class Divide(base.AbstractMultivariateFunction):
     key = 'divide'
     description = 'Divide arr1 by arr2.'
     required_variables = ['arr1','arr2']
-    dtype = constants.NP_FLOAT
+
     standard_name = 'divide'
     long_name = 'Divide'
     
@@ -20,7 +19,7 @@ class Divide(base.AbstractMultivariateFunction):
 class NaturalLogarithm(base.AbstractUnivariateFunction):
     key = 'ln'
     description = 'Compute the natural logarithm.'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'natural_logarithm'
     long_name = 'Natural Logarithm'
     
@@ -34,7 +33,7 @@ class NaturalLogarithm(base.AbstractUnivariateFunction):
 class Sum(base.AbstractUnivariateSetFunction):
     key = 'sum'
     description = 'Compute the algebraic sum of a series.'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'sum'
     long_name = 'Sum'
 
@@ -46,7 +45,7 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
     key = 'convolve_1d'
     parms_definition = {'v': np.ndarray, 'mode': str}
     description = 'Perform a one-dimensional convolution for each grid element along the time axis. See: http://docs.scipy.org/doc/numpy/reference/generated/numpy.convolve.html'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'convolve_1d'
     long_name = 'Convolution along the Time Dimension'
 

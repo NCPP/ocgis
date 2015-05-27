@@ -1,7 +1,7 @@
 from collections import OrderedDict
+
 from numpy.ma import MaskedArray
 import numpy as np
-
 from cfunits import Units
 
 from ocgis.constants import NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE
@@ -248,9 +248,10 @@ class TestVariable(TestBase):
         self.assertEqual(var.alias, 'foo')
 
     def test_init_with_value_with_dtype_fill_value(self):
-        var = Variable(data='foo', dtype=np.float, fill_value=9, value=np.array([1, 2, 3, 4]))
-        self.assertEqual(var.dtype, np.float)
-        self.assertEqual(var.fill_value, 9)
+        value = np.array([1, 2, 3, 4])
+        var = Variable(data='foo', dtype=np.float, fill_value=9, value=value)
+        self.assertEqual(var.dtype, value.dtype)
+        self.assertEqual(var.fill_value, var.value.fill_value)
 
     def test_init_with_value_without_dtype_fill_value(self):
         value = np.array([1, 2, 3, 4])

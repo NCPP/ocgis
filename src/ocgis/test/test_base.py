@@ -1,7 +1,7 @@
 import datetime
-from netCDF4 import Dataset
 import os
 
+from netCDF4 import Dataset
 import numpy as np
 
 from ocgis.interface.base.field import Field
@@ -16,7 +16,7 @@ class TestTestBase(TestBase):
             path = os.path.join(self.current_dir_output, fn)
             with self.nc_scope(path, 'w') as ds:
                 var = ds.createVariable('crs', 'c')
-                var.name = 'something'
+                var.name_something = 'something'
             return path
 
         path1 = _write_('foo1.nc')

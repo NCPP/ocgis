@@ -6,7 +6,6 @@ from warnings import warn
 import numpy as np
 
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
-from ocgis import constants
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.exc import ProjectionDoesNotMatch, VariableNotFoundError, DimensionNotFound, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CFCoordinateReferenceSystem
@@ -174,7 +173,7 @@ class DriverNetcdf(AbstractDriver):
 
             # extract the data length to use when creating the source index arrays.
             length = source_metadata['dimensions'][ref_axis['dimension']]['len']
-            src_idx = np.arange(0, length, dtype=constants.NP_INT)
+            src_idx = np.arange(0, length, dtype=np.int32)
 
             # get the target data type for the dimension
             try:
@@ -255,8 +254,8 @@ class DriverNetcdf(AbstractDriver):
             kwds_grid = {'row': loaded['row'], 'col': loaded['col']}
         else:
             shape_src_idx = [source_metadata['dimensions'][xx]['len'] for xx in kwds_grid['row']['dimensions']]
-            src_idx = {'row': np.arange(0, shape_src_idx[0], dtype=constants.NP_INT),
-                       'col': np.arange(0, shape_src_idx[1], dtype=constants.NP_INT)}
+            src_idx = {'row': np.arange(0, shape_src_idx[0], dtype=np.int32),
+                       'col': np.arange(0, shape_src_idx[1], dtype=np.int32)}
             name_row = kwds_grid['row']['name']
             name_col = kwds_grid['col']['name']
             kwds_grid = {'name_row': name_row, 'name_col': name_col, 'data': self.rd, 'src_idx': src_idx}

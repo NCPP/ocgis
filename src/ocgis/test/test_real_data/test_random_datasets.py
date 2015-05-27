@@ -3,14 +3,13 @@ import unittest
 from csv import DictReader
 from copy import deepcopy
 import os
-import numpy as np
 from datetime import datetime as dt
 
+import numpy as np
 import fiona
 from shapely.geometry.point import Point
 
 import ocgis
-from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.operations import OcgOperations
 from ocgis.exc import MaskedDataError, ExtentError, RequestValidationError
@@ -231,15 +230,14 @@ class Test(TestBase):
         calc = [{'func': key, 'name': 'dkp', 'kwds': {'operation': 'lt', 'percentile': 90, 'width': 5}}]
         calc_grouping = [[3, 4, 5]]
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
-                                  calc_sample_size=False, geom='state_boundaries',
-                                  select_ugid=[23])
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, calc_sample_size=False,
+                                  geom='state_boundaries', select_ugid=[23])
         ret = ops.execute()
         to_test = ret[23]['tas'].variables['dkp'].value
         reference = np.ma.array(data=[[[[[0, 0, 838], [831, 829, 834], [831, 830, 834], [831, 835, 830]]]]],
                                 mask=[[[[[True, True, False], [False, False, False], [False, False, False],
                                          [False, False, False]]]]],
-                                dtype=DynamicDailyKernelPercentileThreshold.dtype)
+                                dtype=np.dtype('float32'))
         self.assertNumpyAll(to_test, reference)
 
     def test_selecting_single_value(self):
@@ -480,7 +478,6 @@ class Test(TestBase):
         for output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV,
                               constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_SHAPEFILE,
                               constants.OUTPUT_FORMAT_NETCDF]:
-
             dataset = self.test_data.get_rd('snippet_seasonalbias')
             ops = OcgOperations(dataset=dataset, output_format=output_format, format_time=False, prefix=output_format)
             ret = ops.execute()

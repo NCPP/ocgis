@@ -1,11 +1,12 @@
 import unittest
-import numpy as np
 import itertools
+from datetime import datetime as dt
+import datetime
+
+import numpy as np
 
 from ocgis.api.operations import OcgOperations
-from datetime import datetime as dt
 import ocgis
-import datetime
 from ocgis.test.base import TestBase
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.library.thresholds import Threshold
@@ -71,25 +72,28 @@ class AbstractCalcBase(TestBase):
 
 
 class Test(AbstractCalcBase):
-    '''
+    """
     Test guide:
      * Data is required to be 4-dimensional:
          arr.shape = (t,1,m,n)
-    '''
+    """
     
     def test_date_groups_all(self):
-        calc = [{'func':'mean','name':'mean'}]
+        calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
-        
+
         calc_grouping = 'all'
-        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                            geom='state_boundaries',select_ugid=[25])
+        ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, geom='state_boundaries',
+                            select_ugid=[25])
         ret = ops.execute()
-        self.assertEqual(ret[25]['tasmax'].variables['mean'].parents['tasmax'].value.shape,
-                         (1,3650,1,5,4))
-        self.assertEqual(ret[25]['tasmax'].shape,(1,1,1,5,4))
-        self.assertNumpyAll(np.ma.mean(ret[25]['tasmax'].variables['mean'].parents['tasmax'].value,axis=1).astype('float32').reshape(1,1,1,5,4),
-                            ret[25]['tasmax'].variables['mean'].value)
+        field = ret[25]['tasmax']
+        variable = field.variables['mean']
+        parents = variable.parents['tasmax']
+        self.assertEqual(parents.value.shape, (1, 3650, 1, 5, 4))
+        self.assertEqual(field.shape, (1, 1, 1, 5, 4))
+        lhs = np.ma.mean(parents.value, axis=1).reshape(1, 1, 1, 5, 4).astype(parents.dtype)
+        rhs = variable.value
+        self.assertNumpyAll(lhs, rhs)
     
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}

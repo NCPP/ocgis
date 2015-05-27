@@ -107,10 +107,11 @@ CALC_YEAR_CENTROID_DAY = 1
 #: The number of values to use when calculating data resolution.
 RESOLUTION_LIMIT = 100
 
+# tdk: change name to DEFAULT_NP_*
 #: The data type to use for NumPy integers.
-NP_INT = np.int32
+DEFAULT_NP_INT = np.int
 #: The data type to use for NumPy floats.
-NP_FLOAT = np.float32
+DEFAULT_NP_FLOAT = np.float
 
 #: Function key prefix for the `icclim` indices library.
 ICCLIM_PREFIX_FUNCTION_KEY = 'icclim'

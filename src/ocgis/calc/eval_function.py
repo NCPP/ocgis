@@ -3,13 +3,18 @@ from copy import deepcopy
 
 import numpy as np
 
+from ocgis import env
 from ocgis.calc.base import AbstractUnivariateFunction
 from ocgis import constants
 
 
 class EvalFunction(AbstractUnivariateFunction):
     """
-    A function that parses and evaluates string representations of calculations.
+    A function that parses and evaluates string representations of calculations. If ``file_only`` is ``True``, the
+    output array's data type is :attr:~`env.NP_FLOAT` if ``dtype`` is ``None``. If ``file_only`` is
+    ``False``, the output data type is determined by the NumPy calculation.
+
+    .. note:: Accepts all parameters to :class:`~ocgis.calc.base.AbstractUnivariateFunction`.
 
     :param str expr: The string function to evaluate. The function must have an equals sign. The function may contain
      multiple variables aliases. Mathematical operators include standard arithmetic symbols and NumPy functions. The
@@ -17,7 +22,6 @@ class EvalFunction(AbstractUnivariateFunction):
     """
 
     description = None
-    dtype = None
     key = None
     standard_name = ''
     long_name = ''
@@ -42,29 +46,22 @@ class EvalFunction(AbstractUnivariateFunction):
         for k, v in map_vars.iteritems():
             locals()[v.split('.')[0]] = self.field.variables[k]
 
-        # determine the output data type for the calculation. the output data type has the largest data type measured in
-        # number of bytes. also set the fill value based on the output data type.
-        dtype = {v.dtype: np.array([1], dtype=v.dtype).nbytes for v in self.field.variables.itervalues()}
-        max_nbytes = np.max(dtype.values())
-        for k, v in dtype.iteritems():
-            if v == max_nbytes:
-                dtype = k
-                fill_value = dtype.type(np.ma.array([1], dtype=dtype).fill_value)
-                break
-
         # if the output is file only, do no perform any calculations.
         if self.file_only:
             fill = self._empty_fill
+            dtype = self.dtype or env.NP_FLOAT
+            fill_value = np.ma.array([1], dtype=dtype).fill_value
         # evaluate the expression and update the data type.
 
         # todo: with numpy 1.8.+ you can do the type modification inplace. this
         # will make the type conversion operation less memory intensive.
         else:
             fill = eval(expr)
-            fill = fill.astype(dtype)
+            dtype = fill.dtype
+            fill_value = fill.fill_value
 
-        self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), dtype=dtype,
-                                 fill_value=fill_value, units=None, alias=self.alias)
+        self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), units=None,
+                                 dtype=dtype, alias=self.alias, fill_value=fill_value)
 
     @staticmethod
     def is_multivariate(expr):

@@ -4,10 +4,10 @@ import itertools
 import os
 import pickle
 import shutil
-import numpy as np
 from datetime import datetime as dt
 import datetime
 
+import numpy as np
 from cfunits.cfunits import Units
 
 from ocgis.api.request.driver.nc import DriverNetcdf
@@ -397,7 +397,7 @@ class TestRequestDataset(TestBase):
         with self.nc_scope(path, 'w') as ds:
             ds.createDimension('foo')
             var = ds.createVariable('foovar', int, dimensions=('foo',))
-            var.name = 'a name'
+            var.a_name = 'a name'
         rd = RequestDataset(uri=path)
         with self.print_scope() as ps:
             rd.inspect()
@@ -482,7 +482,7 @@ class TestRequestDataset(TestBase):
     def test_source_index_matches_constant_value(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        self.assertEqual(field.temporal._src_idx.dtype, constants.NP_INT)
+        self.assertEqual(field.temporal._src_idx.dtype, np.int32)
 
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')

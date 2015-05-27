@@ -1,5 +1,6 @@
 import numpy as np
 
+from ocgis import env
 from ocgis.test.base import TestBase
 from ocgis.calc.eval_function import EvalFunction
 
@@ -18,8 +19,8 @@ class TestEvalFunction(TestBase):
         ef = EvalFunction(expr=expr, field=field, file_only=True)
         ret = ef.execute()
         self.assertEqual(ret['es']._value, None)
-        self.assertEqual(ret['es'].dtype, field.variables['tas'].dtype)
-        self.assertEqual(ret['es'].fill_value, field.variables['tas'].fill_value)
+        self.assertEqual(ret['es'].dtype, env.NP_FLOAT)
+        self.assertEqual(ret['es'].fill_value, np.ma.array([1], dtype=env.NP_FLOAT).fill_value)
 
     def test_calculation_file_only_two_variables(self):
         rd = self.test_data.get_rd('cancm4_tas')

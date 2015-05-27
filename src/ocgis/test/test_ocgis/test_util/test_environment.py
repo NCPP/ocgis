@@ -2,6 +2,8 @@ import os
 import tempfile
 from importlib import import_module
 
+import numpy as np
+
 from ocgis import constants
 from ocgis import env, OcgOperations
 from ocgis.test.base import TestBase
@@ -44,6 +46,9 @@ class TestEnvironment(TestBase):
     def test_init(self):
         self.assertIsNone(env.MELTED)
         self.assertEqual(env.DEFAULT_GEOM_UID, constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER)
+        self.assertEqual(env.NETCDF_FILE_FORMAT, constants.NETCDF_DEFAULT_DATA_MODEL)
+        self.assertEqual(env.NP_INT, env.NP_INT)
+        self.assertEqual(env.NP_FLOAT, env.NP_FLOAT)
 
     def test_conf_path(self):
         env.CONF_PATH
@@ -102,6 +107,32 @@ class TestEnvironment(TestBase):
         os.environ['OCGIS_USE_SPATIAL_INDEX'] = 'f'
         env.reset()
         self.assertFalse(env.USE_SPATIAL_INDEX)
+
+    def test_netcdf_file_format(self):
+        try:
+            self.assertEqual(env.NETCDF_FILE_FORMAT, constants.NETCDF_DEFAULT_DATA_MODEL)
+            self.assertEqual(env.NP_INT, env.NP_INT)
+            actual = 'NETCDF3_CLASSIC'
+            env.NETCDF_FILE_FORMAT = actual
+        finally:
+            env.reset()
+
+    def test_np_float(self):
+        try:
+            self.assertEqual(env.NP_FLOAT, env.NP_FLOAT)
+            env.NP_FLOAT = np.int16
+            self.assertEqual(env.NP_FLOAT, np.int16)
+        finally:
+            env.reset()
+            self.assertEqual(env.NP_FLOAT, constants.DEFAULT_NP_FLOAT)
+
+    def test_np_int(self):
+        try:
+            self.assertEqual(env.NP_INT, env.NP_INT)
+            env.NP_INT = np.int16
+            self.assertEqual(env.NP_INT, np.int16)
+        finally:
+            env.reset()
 
     def test_simple(self):
         self.assertEqual(env.OVERWRITE, False)

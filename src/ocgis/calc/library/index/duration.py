@@ -1,17 +1,18 @@
-import numpy as np
 from collections import OrderedDict
 
+import numpy as np
+
+from ocgis import env
 from ocgis.calc import base
 from ocgis.util.helpers import iter_array
 from ocgis.exc import DefinitionValidationError
-from ocgis import constants
 
 
 class Duration(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
     key = 'duration'
     parms_definition = {'threshold': float, 'operation': str, 'summary': str}
     # output data type will vary by the summary operation (e.g. float for mean, int for max)
-    dtype = constants.NP_FLOAT
+
     description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
     standard_name = 'duration'
     long_name = 'Duration'
@@ -98,8 +99,8 @@ class Duration(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFun
 class FrequencyDuration(base.AbstractKeyedOutputFunction, Duration):
     key = 'freq_duration'
     description = 'Count the frequency of spell durations within the temporal aggregation.'
-    dtype = object
-    structure_dtype = OrderedDict([['names', ['duration', 'count']], ['formats', [constants.NP_INT, constants.NP_INT]]])
+    dtype_default = object
+    structure_dtype = OrderedDict([['names', ['duration', 'count']], ['formats', [env.NP_INT, env.NP_INT]]])
     parms_definition = {'threshold': float, 'operation': str}
     standard_name = 'frequency_duration'
     long_name = 'Frequency Duration'
@@ -125,6 +126,14 @@ class FrequencyDuration(base.AbstractKeyedOutputFunction, Duration):
 
         return store
 
+    @classmethod
+    def get_dtype(cls, *args, **kwargs):
+        return cls.dtype_default
+
+    @classmethod
+    def validate(cls, ops):
+        Duration.validate(ops)
+
     def _get_summary_(self, duration):
         """
         :param duration: List of duration elements for frequency target.
@@ -144,7 +153,3 @@ class FrequencyDuration(base.AbstractKeyedOutputFunction, Duration):
             ret[ii]['duration'] = sd
             ret[ii]['count'] = count
         return ret
-
-    @classmethod
-    def validate(cls, ops):
-        Duration.validate(ops)

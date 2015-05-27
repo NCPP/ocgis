@@ -1,11 +1,11 @@
 import calendar
 from collections import OrderedDict, defaultdict
 import itertools
+from datetime import datetime
+
 import numpy as np
 
-from datetime import datetime
 from ocgis.calc import base
-from ocgis import constants
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractParameterizedFunction
 
 
@@ -13,7 +13,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
     key = 'moving_window'
     parms_definition = {'k': int, 'mode': str, 'operation': str}
     description = ()
-    dtype = constants.NP_FLOAT
+
     standard_name = 'moving_window'
     long_name = 'Moving Window Operation'
 
@@ -39,9 +39,9 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
         """
 
         # 'full' is not supported as this would add dates to the temporal dimension
-        assert(mode in ('same', 'valid'))
-        assert(values.ndim == 5)
-        assert(operation in self._potential_operations)
+        assert (mode in ('same', 'valid'))
+        assert (values.ndim == 5)
+        assert (operation in self._potential_operations)
 
         operation = getattr(np, operation)
 
@@ -63,8 +63,8 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
 
         if mode == 'valid':
             # slice the field and fill arrays
-            self.field = self.field[:, idx_start:origin+1, :, :, :]
-            fill = fill[:, idx_start:origin+1, :, :, :]
+            self.field = self.field[:, idx_start:origin + 1, :, :, :]
+            fill = fill[:, idx_start:origin + 1, :, :, :]
         elif mode == 'same':
             pass
         else:
@@ -84,14 +84,14 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
         :raises: AssertionError, NotImplementedError
         """
 
-        assert(k % 2 != 0)
-        assert(k >= 3)
-        assert(values.ndim == 3)
+        assert (k % 2 != 0)
+        assert (k >= 3)
+        assert (values.ndim == 3)
 
         # used to track the current value for the centered window.
         origin = 0
         # size of one side of the window used to determine the slice for the kernel
-        shift = (k - 1)/2
+        shift = (k - 1) / 2
         # reference for the length of the value array
         shape_values = values.shape[0]
 
@@ -129,7 +129,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
     key = 'daily_perc'
     parms_definition = {'percentile': float, 'window_width': int, 'only_leap_years': bool}
     description = ''
-    dtype = constants.NP_FLOAT
+
     standard_name = 'daily_percentile'
     long_name = 'Daily Percentile'
 
@@ -141,12 +141,12 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
             self.field.temporal = self.tgd
 
     def calculate(self, values, percentile=None, window_width=None, only_leap_years=False):
-        assert(values.shape[0] == 1)
-        assert(values.shape[2] == 1)
+        assert (values.shape[0] == 1)
+        assert (values.shape[2] == 1)
         # assert(self.tgd is not None)
         # dtype = [('month', int), ('day', int), ('value', object)]
         arr = values[0, :, 0, :, :]
-        assert(arr.ndim == 3)
+        assert (arr.ndim == 3)
         dt_arr = self.field.temporal.value_datetime
         dp = self.get_daily_percentile(arr, dt_arr, percentile, window_width, only_leap_years=only_leap_years)
         shape_fill = list(values.shape)
@@ -206,16 +206,16 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
 
         percentile_dict = OrderedDict()
 
-        dt_hour = dt_arr[0].hour # (we get hour of a date only one time, because usually the hour is the same for all dates in input dt_arr)
+        dt_hour = dt_arr[
+            0].hour  # (we get hour of a date only one time, because usually the hour is the same for all dates in input dt_arr)
 
         for month in dic_caldays.keys():
             for day in dic_caldays[month]:
-
                 # step2: we do a mask for the datetime vector for current calendar day (day/month)
                 dt_arr_mask = self.get_mask_dt_arr(dt_arr, month, day, dt_hour, window_width, only_leap_years)
 
                 # step3: we are looking for the indices of non-masked dates (i.e. where dt_arr_mask==False)
-                indices_non_masked = np.where(dt_arr_mask==False)[0]
+                indices_non_masked = np.where(dt_arr_mask == False)[0]
 
                 # step4: we subset our arr
                 arr_subset = arr[indices_non_masked, :, :]
@@ -227,9 +227,9 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
                 arr_percentille_current_calday = np.percentile(arr_subset, percentile, axis=0)
 
                 # step6: we add to the dictionnary...
-                percentile_dict[month,day] = arr_percentille_current_calday
+                percentile_dict[month, day] = arr_percentille_current_calday
 
-            # print 'Creating percentile dictionary: month ', month, '---> OK'
+                # print 'Creating percentile dictionary: month ', month, '---> OK'
 
         # print 'Percentile dictionary is created.'
 
@@ -279,33 +279,33 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
 
         yyyy = current_date.year
 
-        if (day==29 and month==02):
+        if day == 29 and month == 02:
             if calendar.isleap(yyyy):
-                dt1 = datetime(yyyy,month,day,hour)
-                diff = abs(current_date-dt1).days
-                toReturn = diff > window_width/2
+                dt1 = datetime(yyyy, month, day, hour)
+                diff = abs(current_date - dt1).days
+                toReturn = diff > window_width / 2
             else:
                 if only_leap_years:
-                    toReturn=True
+                    toReturn = True
                 else:
-                    dt1 = datetime(yyyy,02,28,hour)
-                    diff = (current_date-dt1).days
-                    toReturn = (diff < (-(window_width/2) + 1)) or (diff > window_width/2)
+                    dt1 = datetime(yyyy, 02, 28, hour)
+                    diff = (current_date - dt1).days
+                    toReturn = (diff < (-(window_width / 2) + 1)) or (diff > window_width / 2)
         else:
-            d1 = datetime(yyyy,month,day, hour)
+            d1 = datetime(yyyy, month, day, hour)
 
             # In the case the current date is in December and calendar day (day-month) is at the beginning of year.
             # For example we are looking for dates around January 2nd, and the current date is 31 Dec 1999,
             # we will compare it with 02 Jan 2000 (1999 + 1)
-            d2 = datetime(yyyy+1,month,day, hour)
+            d2 = datetime(yyyy + 1, month, day, hour)
 
             # In the case the current date is in January and calendar day (day-month) is at the end of year.
             # For example we are looking for dates around December 31st, and the current date is 02 Jan 2003,
             # we will compare it with 01 Jan 2002 (2003 - 1)
-            d3 = datetime(yyyy-1,month,day, hour)
+            d3 = datetime(yyyy - 1, month, day, hour)
 
-            diff=min(abs(current_date-d1).days,abs(current_date-d2).days,abs(current_date-d3).days)
-            toReturn = diff > window_width/2
+            diff = min(abs(current_date - d1).days, abs(current_date - d2).days, abs(current_date - d3).days)
+            toReturn = diff > window_width / 2
 
         return toReturn
 
@@ -344,74 +344,73 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         return year_list
 
 
-
-class FrequencyPercentile(base.AbstractUnivariateSetFunction,base.AbstractParameterizedFunction):
+class FrequencyPercentile(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
     key = 'freq_perc'
-    parms_definition = {'percentile':float}
+    parms_definition = {'percentile': float}
     description = 'The percentile value along the time axis. See: http://docs.scipy.org/doc/numpy-dev/reference/generated/numpy.percentile.html.'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'frequency_percentile'
     long_name = 'Frequency Percentile'
-    
-    def calculate(self,values,percentile=None):
-        '''
+
+    def calculate(self, values, percentile=None):
+        """
         :param percentile: Percentile to compute.
         :type percentile: float on the interval [0,100]
-        '''
-        ret = np.percentile(values,percentile,axis=0)
-        return(ret)
+        """
+
+        ret = np.percentile(values, percentile, axis=0)
+        return ret
 
 
 class Max(base.AbstractUnivariateSetFunction):
     description = 'Max value for the series.'
     key = 'max'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'max'
     long_name = 'max'
-    
-    def calculate(self,values):
-        return(np.ma.max(values,axis=0))
+
+    def calculate(self, values):
+        return np.ma.max(values, axis=0)
 
 
 class Min(base.AbstractUnivariateSetFunction):
     description = 'Min value for the series.'
     key = 'min'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'min'
     long_name = 'Min'
-    
-    def calculate(self,values):
-        return(np.ma.min(values,axis=0))
 
-    
+    def calculate(self, values):
+        return np.ma.min(values, axis=0)
+
+
 class Mean(base.AbstractUnivariateSetFunction):
     description = 'Compute mean value of the set.'
     key = 'mean'
-    dtype = constants.NP_FLOAT
     standard_name = 'mean'
     long_name = 'Mean'
-    
-    def calculate(self,values):
-        return(np.ma.mean(values,axis=0))
-    
-    
+
+    def calculate(self, values):
+        return np.ma.mean(values, axis=0)
+
+
 class Median(base.AbstractUnivariateSetFunction):
     description = 'Compute median value of the set.'
     key = 'median'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'median'
     long_name = 'median'
-    
-    def calculate(self,values):
-        return(np.ma.median(values,axis=0))
-    
-    
+
+    def calculate(self, values):
+        return (np.ma.median(values, axis=0))
+
+
 class StandardDeviation(base.AbstractUnivariateSetFunction):
     description = 'Compute standard deviation of the set.'
     key = 'std'
-    dtype = constants.NP_FLOAT
+
     standard_name = 'standard_deviation'
     long_name = 'Standard Deviation'
-    
-    def calculate(self,values):
-        return(np.ma.std(values,axis=0))
+
+    def calculate(self, values):
+        return (np.ma.std(values, axis=0))

@@ -1,6 +1,7 @@
 import abc
 from collections import OrderedDict
 from copy import copy, deepcopy
+
 import numpy as np
 
 from ocgis.api.collection import AbstractCollection
@@ -41,8 +42,15 @@ class AbstractValueVariable(Attributes):
         self.units = str(units) if units is not None else None
         self.conform_units_to = conform_units_to
         self.value = value
-        self._dtype = dtype
-        self._fill_value = fill_value
+
+        # tdk: test value data types always used
+        # Default to the value data types and fill values ignoring the provided values.
+        if value is None:
+            self._dtype = dtype
+            self._fill_value = fill_value
+        else:
+            self._dtype = None
+            self._fill_value = None
 
     @property
     def cfunits(self):

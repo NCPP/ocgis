@@ -1,6 +1,8 @@
+import datetime
+
 import netCDF4 as nc
 
-import datetime
+from ocgis import env
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 import ocgis
@@ -79,7 +81,7 @@ class NcConverter(AbstractConverter):
         file_format = set()
         # if no operations are present, use the default data model
         if self.ops is None:
-            ret = constants.NETCDF_DEFAULT_DATA_MODEL
+            ret = env.NETCDF_FILE_FORMAT
         else:
             for rd in self.ops.dataset.iter_request_datasets():
                 try:
@@ -102,7 +104,7 @@ class NcConverter(AbstractConverter):
                     ret = list(file_format)[0]
                 except IndexError:
                     # likely all field objects in the dataset. use the default netcdf data model
-                    ret = constants.NETCDF_DEFAULT_DATA_MODEL
+                    ret = env.NETCDF_FILE_FORMAT
         return ret
 
     @staticmethod
@@ -147,7 +149,7 @@ class NcConverter(AbstractConverter):
         if self.ops is not None:
             history_str += ': {0}'.format(self.ops)
         original_history_str = ds.__dict__.get('history', '')
-        setattr(ds, 'history', original_history_str+history_str)
+        setattr(ds, 'history', original_history_str + history_str)
 
 
 class NcUgrid2DFlexibleMeshConverter(NcConverter):

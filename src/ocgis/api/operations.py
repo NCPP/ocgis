@@ -49,7 +49,7 @@ class OcgOperations(object):
     :param calc: Calculations to be performed on the dataset subset.
     :type calc: list of dictionaries or string-based function
     :param calc_grouping: Temporal grouping to apply for calculations.
-    :type calc_grouping: list of str or int
+    :type calc_grouping: list(str), int , None
     :param calc_raw: If ``True``, perform calculations on the "raw" data regardless of ``aggregation`` flag.
     :type calc_raw: bool
     :param abstraction: The geometric abstraction to use for the dataset geometries. If `None` (the default), use the

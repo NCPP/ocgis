@@ -30,7 +30,6 @@ from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh
 
-
 """
 Definitions for various "attrs":
  * slow: long-running tests that are typically ran before a release
@@ -385,7 +384,7 @@ class TestBase(unittest.TestCase):
         with self.nc_scope(path, 'w') as ds:
             ds.createDimension('dim')
             var = ds.createVariable('foovar', int, dimensions=('dim',))
-            var.name = 'a name'
+            var.a_name = 'a name'
         return path
 
     def get_netcdf_path_no_row_column(self):

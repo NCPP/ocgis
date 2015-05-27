@@ -1,8 +1,8 @@
 from collections import deque, OrderedDict
 import itertools
 from copy import copy
-import numpy as np
 
+import numpy as np
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
@@ -21,7 +21,6 @@ from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slic
 from ocgis import constants, env
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.util.ugrid.helpers import get_update_feature, write_to_netcdf_dataset
-
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -998,7 +997,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 shp = len(self.row), len(self.col)
             else:
                 shp = self._value.shape[1], self._value.shape[2]
-        ret = np.arange(1, (shp[0] * shp[1]) + 1, dtype=constants.NP_INT).reshape(shp)
+        ret = np.arange(1, (shp[0] * shp[1]) + 1, dtype=np.int32).reshape(shp)
         ret = np.ma.array(ret, mask=False)
         return ret
 
@@ -1150,7 +1149,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
 
     @property
     def weights(self):
-        ret = np.ones(self.value.shape, dtype=constants.NP_FLOAT)
+        ret = np.ones(self.value.shape, dtype=env.NP_FLOAT)
         ret = np.ma.array(ret, mask=self.value.mask)
         return ret
 
@@ -1325,7 +1324,7 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
     @property
     def area(self):
         r_value = self.value
-        fill = np.ones(r_value.shape, dtype=constants.NP_FLOAT)
+        fill = np.ones(r_value.shape, dtype=env.NP_FLOAT)
         fill = np.ma.array(fill, mask=r_value.mask)
         for (ii, jj), geom in iter_array(r_value, return_value=True):
             fill[ii, jj] = geom.area

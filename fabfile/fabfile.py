@@ -6,9 +6,9 @@ from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
 from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
+
 from saws import AwsManager
 from saws.tasks import ebs_mount
-
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 
 
@@ -207,7 +207,7 @@ r = RunAwsTests()
 
 
 @task
-def test_node_launch(run_tests='false', instance_type='m3.xlarge'):
+def test_node_launch(instance_type='m3.xlarge'):
     am = AwsManager()
     instance_name = 'ocgis-test-node'
     image_id = 'ami-878aa5b7'
@@ -218,12 +218,7 @@ def test_node_launch(run_tests='false', instance_type='m3.xlarge'):
     instance = am.launch_new_instance(instance_name, image_id=image_id, instance_type=instance_type,
                                       ebs_snapshot_id=ebs_snapshot_id, ebs_mount_name=ebs_mount_name)
     test_node_ebs_mount(instance_name=instance_name, ebs_mount_name=ebs_mount_name, ebs_mount_dir=ebs_mount_dir)
-    ssh_cmd = am.get_ssh_command(instance=instance)
-    print ssh_cmd
-    if run_tests == 'true':
-        test_node_run_tests()
-    print ssh_cmd
-
+    print am.get_ssh_command(instance=instance)
 
 @task
 def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xvdg', ebs_mount_dir='~/data'):
@@ -234,10 +229,9 @@ def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xv
 
 
 @task
-def test_node_run_tests(instance_name='ocgis-test-node'):
+def test_node_run_tests(instance_name='ocgis-test-node', branch='next'):
     am = AwsManager()
     instance = am.get_instance_by_name(instance_name)
-    tbranch = 'next'
     tcenv = 'test_ocgis'
     texclude = '!slow,!remote,!esmpy7'
     tgdal_data = '/home/ubuntu/anaconda/envs/{0}/share/gdal'.format(tcenv)
@@ -253,7 +247,7 @@ def test_node_run_tests(instance_name='ocgis-test-node'):
                 with cd(tsrc):
                     run('git pull')
                     cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests --with-id -a {texclude} ocgis/test'
-                    cmd = cmd.format(tbranch=tbranch, texclude=texclude)
+                    cmd = cmd.format(tbranch=branch, texclude=texclude)
                     run(cmd)
 
     am.do_task(_run_, instance=instance)

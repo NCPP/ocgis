@@ -1,11 +1,11 @@
 from collections import deque
 import itertools
 from copy import deepcopy
-import netCDF4 as nc
-import numpy as np
 import datetime
 from decimal import Decimal
 
+import netCDF4 as nc
+import numpy as np
 import netcdftime
 
 import base
@@ -219,7 +219,7 @@ class TemporalDimension(base.VectorDimension):
 
         try:
             ret = np.atleast_1d(nc.date2num(arr, self.units, calendar=self.calendar))
-        except ValueError:
+        except (ValueError, TypeError):
             # special behavior for conversion of time units with months
             if self._has_months_units:
                 ret = get_num_from_months_time_units(arr, self.units, dtype=None)
@@ -236,8 +236,9 @@ class TemporalDimension(base.VectorDimension):
                 try:
                     start_date, end_date = self.extent_datetime
                 # the times may not be formattable
-                except ValueError as e:
-                    if e.message == 'year is out of range' or e.message == 'month must be in 1..12':
+                except (ValueError, OverflowError) as e:
+                    messages = ('year is out of range', 'month must be in 1..12', 'date value out of range')
+                    if e.message in messages:
                         start_date, end_date = self.extent
                     else:
                         raise

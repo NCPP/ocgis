@@ -1,4 +1,5 @@
 import csv
+
 import numpy as np
 
 from ocgis import constants
@@ -77,8 +78,8 @@ class TestFrequencyDuration(AbstractCalcBase):
         values = self.get_reshaped(values)
         ret = fduration.calculate(values, threshold=2, operation='gt')
         self.assertEqual(ret.flatten()[0].dtype.names, ('duration', 'count'))
-        self.assertNumpyAll(np.ma.array([2, 3, 5], dtype=np.int32), ret.flatten()[0]['duration'])
-        self.assertNumpyAll(np.ma.array([2, 1, 1], dtype=np.int32), ret.flatten()[0]['count'])
+        self.assertNumpyAll(np.ma.array([2, 3, 5]), ret.flatten()[0]['duration'])
+        self.assertNumpyAll(np.ma.array([2, 1, 1]), ret.flatten()[0]['count'])
 
         calc = [{'func': 'freq_duration', 'name': 'freq_duration', 'kwds': {'operation': 'gt', 'threshold': 280}}]
         ret = self.run_standard_operations(calc, capture=True, output_format=None)

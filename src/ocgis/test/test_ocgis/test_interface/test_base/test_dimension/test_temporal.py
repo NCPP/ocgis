@@ -1,11 +1,12 @@
 from copy import deepcopy
-from netCDF4 import num2date, date2num
 import os
 from collections import deque
 import itertools
-import numpy as np
 from datetime import datetime as dt
 import datetime
+
+from netCDF4 import num2date, date2num
+import numpy as np
 
 from cfunits import Units
 import netcdftime
@@ -665,7 +666,7 @@ class TestTemporalDimension(AbstractTestTemporal):
         units = "months since 1978-12"
         vec = range(0, 36)
         calendar = "standard"
-        with self.assertRaises(ValueError):
+        with self.assertRaises((TypeError, ValueError)):
             num2date(vec, units, calendar=calendar)
 
     def test_months_in_time_units_between(self):
@@ -829,7 +830,7 @@ class TestTemporalGroupDimension(TestBase):
         tgd = td.get_grouping(['month'])
         self.assertEqual(tuple(tgd.date_parts[0]), (None, 1, None, None, None, None))
         self.assertTrue(tgd.dgroups[0].all())
-        self.assertNumpyAll(tgd.uid, np.array([1], dtype=constants.NP_INT))
+        self.assertNumpyAll(tgd.uid, np.array([1], dtype=np.int32))
 
     def test_write_to_netcdf_dataset(self):
         tgd = self.get_tgd()

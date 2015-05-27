@@ -1,8 +1,8 @@
 from collections import OrderedDict
 import os
 from copy import deepcopy
-import numpy as np
 
+import numpy as np
 from cfunits.cfunits import Units
 
 from ocgis.constants import OCGIS_BOUNDS
@@ -230,7 +230,7 @@ class TestVectorDimension(TestBase):
         """Test loading from a fake data source."""
 
         vdim = VectorDimension(src_idx=[0, 1, 2, 3], data='foo')
-        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=constants.NP_INT))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=np.int32))
         with self.assertRaises(NotImplementedError):
             vdim.value
         with self.assertRaises(NotImplementedError):
@@ -338,7 +338,7 @@ class TestVectorDimension(TestBase):
 
         vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
         self.assertNumpyAll(vdim.bounds, np.array([[3, 5], [4, 6], [5, 7]]))
-        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=constants.NP_INT))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=np.int32))
         self.assertEqual(vdim.resolution, 2.0)
 
     def test_with_units(self):

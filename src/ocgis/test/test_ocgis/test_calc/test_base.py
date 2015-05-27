@@ -3,6 +3,7 @@ from copy import deepcopy
 import numpy as np
 from cfunits.cfunits import Units
 
+from ocgis import env
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
@@ -15,7 +16,6 @@ from ocgis.api.parms.definition_helpers import MetadataAttributes
 
 class FooNeedsUnits(AbstractUnivariateFunction):
     description = 'calculation with units'
-    dtype = constants.NP_FLOAT
     key = 'fnu'
     required_units = ['K', 'kelvin']
     standard_name = 'foo_needs_units'
@@ -27,7 +27,7 @@ class FooNeedsUnits(AbstractUnivariateFunction):
             
 class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
     description = 'calculation with units'
-    dtype = constants.NP_FLOAT
+    dtype_default = 'int'
     key = 'fnu'
     required_units = ['K', 'kelvin']
     standard_name = ''
@@ -43,6 +43,13 @@ class FooSampleSize(FooNeedsUnitsSet):
 
 
 class TestAbstractFunction(AbstractTestField):
+    def test_init(self):
+        f = FooNeedsUnits()
+        self.assertEqual(f.dtype, env.NP_FLOAT)
+
+        # Test overloading the datatype.
+        f = FooNeedsUnits(dtype=np.int16)
+        self.assertEqual(f.dtype, np.int16)
 
     def test_add_to_collection(self):
         kwds = dict(calc_sample_size=[False, True])
@@ -117,7 +124,7 @@ class TestAbstractFunction(AbstractTestField):
 
 class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):
     description = ''
-    dtype = int
+    dtype_default = 'int'
     key = 'fmv'
     long_name = 'long'
     standard_name = 'short'
@@ -157,7 +164,6 @@ class TestAbstractMultivariateFunction(TestBase):
 
 
 class FooAbstractParameterizedFunction(AbstractParameterizedFunction):
-    dtype = constants.NP_FLOAT
     key = 'foo_pf'
     long_name = 'foo_pee_eff'
     standard_name = 'fpf'
@@ -218,7 +224,7 @@ class TestAbstractUnivariateFunction(AbstractTestField):
         field = self.get_field(with_value=True)
         fnu = FooNeedsUnits(field=field)
         ret = fnu.execute()
-        self.assertNumpyAll(field.variables['tmax'].value.astype(FooNeedsUnits.dtype),
+        self.assertNumpyAll(field.variables['tmax'].value.astype(FooNeedsUnits.get_dtype()),
                             ret['fnu'].value)
         
     def test_validate_units_bad_units(self):

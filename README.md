@@ -1,4 +1,4 @@
-https://travis-ci.org/NCPP/ocgis.svg?branch=next
+![Travis CI](https://travis-ci.org/NCPP/ocgis.svg?branch=next)
 
 "ocgis" is short for OpenClimateGIS, a set of geoprocessing and calculation tools for CF-compliant climate datasets.
 

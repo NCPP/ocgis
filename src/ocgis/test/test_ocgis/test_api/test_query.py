@@ -1,4 +1,4 @@
-from ocgis import CoordinateReferenceSystem
+from ocgis import CoordinateReferenceSystem, OcgOperations
 from ocgis import ShpCabinetIterator
 from ocgis.api.parms.definition import Dataset
 from ocgis.api.query import QueryInterface
@@ -47,4 +47,4 @@ class TestQueryInterface(TestBase):
         qs = 'uri={0}|{1}'.format(uri1, uri2)
         qi = QueryInterface(qs)
         ops = qi.get_operations()
-        print ops.dataset
+        self.assertIsInstance(ops, OcgOperations)

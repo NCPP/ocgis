@@ -212,7 +212,7 @@ class TestOcgOperations(TestBase):
             # spatial operations on rotated pole require the output crs be wgs84
             self.assertEqual(ops.output_crs, CFWGS84())
             ret = ops.execute()
-            if output_format == 'numpy':
+            if output_format == constants.OUTPUT_FORMAT_NUMPY:
                 field = ret[1]['pr']
                 self.assertEqual(field.shape, (1, 10, 1, 1, 1))
                 value = ret.gvu(1, 'pr')
@@ -266,7 +266,7 @@ class TestOcgOperations(TestBase):
         ret = ops.execute()
         rd2 = ocgis.RequestDataset(uri=ret, variable='mean')
         field = rd2.get()
-        self.assertNotEqual(field.temporal.bounds, None)
+        self.assertIsNotNone(field.temporal.bounds)
         self.assertEqual(field.temporal.bounds_datetime.tolist(),
                          [[datetime.datetime(2001, 12, 1, 12, 0), datetime.datetime(2002, 2, 28, 12, 0)],
                           [datetime.datetime(2002, 12, 1, 12, 0), datetime.datetime(2003, 2, 28, 12, 0)],

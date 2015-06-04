@@ -200,9 +200,11 @@ class SubsetOperation(object):
         try:
             # look for field optimizations
             if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
+                ocgis_lh('applying optimizations', self._subset_log, level=logging.DEBUG)
                 field = [self.ops.optimizations['fields'][rd.alias] for rd in rds]
             # no field optimizations, extract the target data from the dataset collection
             else:
+                ocgis_lh('creating field objects', self._subset_log, level=logging.DEBUG)
                 len_rds = len(rds)
                 field = [None] * len_rds
                 for ii in range(len_rds):
@@ -237,14 +239,14 @@ class SubsetOperation(object):
 
             if len(field) > 1:
                 try:
-                    # # reset the variable uid and let the collection handle its assignment
+                    # reset the variable uid and let the collection handle its assignment
                     variable_to_add = field[1].variables.first()
                     variable_to_add.uid = None
                     field[0].variables.add_variable(variable_to_add)
-                    ## reset the field names and let these be auto-generated
+                    # reset the field names and let these be auto-generated
                     for f in field:
                         f._name = None
-                # # this will fail for optimizations as the fields are already joined
+                # this will fail for optimizations as the fields are already joined
                 except VariableInCollectionError:
                     if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
                         pass
@@ -266,7 +268,7 @@ class SubsetOperation(object):
             else:
                 ocgis_lh(exc=ExtentError(message=str(e)), alias=str([rd.name for rd in rds]), logger=self._subset_log)
 
-        # # set iterator based on presence of slice. slice always overrides geometry.
+        # set iterator based on presence of slice. slice always overrides geometry.
         if self.ops.slice is not None:
             itr = [None]
         else:
@@ -317,7 +319,9 @@ class SubsetOperation(object):
             if subset_sdim is not None or self.ops.aggregate or self.ops.spatial_operation == 'clip':
                 # update the CRS. copy the original CRS for possible later transformation back to rotated pole.
                 original_rotated_pole_crs = copy(field.spatial.crs)
+                ocgis_lh('initial rotated pole transformation...', self._subset_log, level=logging.DEBUG)
                 field.spatial.update_crs(CFWGS84())
+                ocgis_lh('...finished initial rotated pole transformation', self._subset_log, level=logging.DEBUG)
         return original_rotated_pole_crs
 
     def _assert_abstraction_available_(self, field):
@@ -602,6 +606,7 @@ class SubsetOperation(object):
         :rtype: :class:~`ocgis.SpatialCollection`
         """
 
+        ocgis_lh('processing geometries', self._subset_log, level=logging.DEBUG)
         # process each geometry
         for subset_sdim in itr:
             # always work with a copy of the target geometry
@@ -609,7 +614,8 @@ class SubsetOperation(object):
             """:type subset_sdim: ocgis.interface.base.dimension.spatial.SpatialDimension"""
 
             if self.ops.regrid_destination is not None:
-                # if there is regridding, make another copy as this geometry may be manipulated during subsetting of sources
+                # if there is regridding, make another copy as this geometry may be manipulated during subsetting of
+                # sources
                 subset_sdim_for_regridding = deepcopy(subset_sdim)
 
             # operate on the rotated pole coordinate system by first transforming it to CFWGS84

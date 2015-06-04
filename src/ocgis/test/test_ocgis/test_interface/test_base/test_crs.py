@@ -416,6 +416,11 @@ class TestCFLambertConformalConic(TestBase):
         
 class TestCFRotatedPole(TestBase):
 
+    def test_init(self):
+        rp = CFRotatedPole(grid_north_pole_latitude=39.25, grid_north_pole_longitude=-162.0)
+        self.assertDictEqual(rp.value, {'lonc': 0, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'omerc', 'x_0': 0,
+                                        'units': 'm', 'alpha': 0, 'k': 1, 'gamma': 0, 'lat_0': 0})
+
     def test_equal(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)

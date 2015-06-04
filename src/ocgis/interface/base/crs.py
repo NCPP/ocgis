@@ -19,10 +19,23 @@ SpatialReference = osr.SpatialReference
 
 
 class CoordinateReferenceSystem(object):
-    def __init__(self, value=None, proj4=None, epsg=None, name=None):
-        self.name = name or constants.DEFAULT_COORDINATE_SYSTEM_NAME
+    """
+    Defines a coordinate system objects. One of ``value``, ``proj4``, or ``epsg`` is required.
 
-        # add a special check for init keys in value dictionary
+    :param value: (``=None``) A dictionary representation of the coordinate system with PROJ.4 paramters as keys.
+    :type value: dict
+    :param proj4: (``=None``) A PROJ.4 string.
+    :type proj4: str
+    :param epsg: (``=None``) An EPSG code.
+    :type epsg: int
+    :param name: (``=:attr:`ocgis.constants.DEFAULT_COORDINATE_SYSTEM_NAME```) A custom name for the coordinate system.
+    :type name: str
+    """
+
+    def __init__(self, value=None, proj4=None, epsg=None, name=constants.DEFAULT_COORDINATE_SYSTEM_NAME):
+        self.name = name
+
+        # Add a special check for init keys in value dictionary.
         if value is not None:
             if 'init' in value and value.values()[0].startswith('epsg'):
                 epsg = int(value.values()[0].split(':')[1])
@@ -39,7 +52,7 @@ class CoordinateReferenceSystem(object):
                 msg = 'A value dictionary, PROJ.4 string, or EPSG code is required.'
                 raise ValueError(msg)
         else:
-            # remove unicode to avoid strange issues with proj and and fiona.
+            # Remove unicode to avoid strange issues with proj and fiona.
             for k, v in value.iteritems():
                 if type(v) == unicode:
                     value[k] = str(v)
@@ -382,7 +395,7 @@ class WGS84(CoordinateReferenceSystem, WrappableCoordinateReferenceSystem):
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     __metaclass__ = abc.ABCMeta
 
-    # if False, no attempt to read projection coordinates will be made. they will be set to a None default.
+    # If False, no attempt to read projection coordinates will be made. they will be set to a None default.
     _find_projection_coordinates = True
 
     def __init__(self, **kwds):
@@ -581,12 +594,11 @@ class CFNarccapObliqueMercator(CFCoordinateReferenceSystem):
 
 class CFRotatedPole(CFCoordinateReferenceSystem):
     grid_mapping_name = 'rotated_latitude_longitude'
-    map_parameters = {'grid_north_pole_longitude': None,
-                      'grid_north_pole_latitude': None}
-    proj_name = 'omerc'
     iterable_parameters = {}
-    _template = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180 +ellps={ellps}'
+    map_parameters = {'grid_north_pole_longitude': None, 'grid_north_pole_latitude': None}
+    proj_name = 'omerc'
     _find_projection_coordinates = False
+    _template = '+proj=ob_tran +o_proj=latlon +o_lon_p={lon_pole} +o_lat_p={lat_pole} +lon_0=180 +ellps={ellps}'
 
     def __init__(self, *args, **kwds):
         super(CFRotatedPole, self).__init__(*args, **kwds)

@@ -1,8 +1,9 @@
 from ocgis.api.parms.definition import *
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis import env
-from ocgis.api.parms.base import OcgParameter
-from ocgis.conv.meta import MetaConverter
+from ocgis.api.parms.base import AbstractParameter
+from ocgis.conv.base import get_converter
+from ocgis.conv.meta import MetaOCGISConverter
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
 from ocgis.api.subset import SubsetOperation
 
@@ -199,14 +200,14 @@ class OcgOperations(object):
 
     def __getattribute__(self, name):
         attr = object.__getattribute__(self, name)
-        if isinstance(attr, OcgParameter):
+        if isinstance(attr, AbstractParameter):
             ret = attr.value
         else:
             ret = attr
         return ret
 
     def __setattr__(self, name, value):
-        if isinstance(value, OcgParameter):
+        if isinstance(value, AbstractParameter):
             object.__setattr__(self, name, value)
         else:
             try:
@@ -290,7 +291,7 @@ class OcgOperations(object):
         return ret
 
     def get_meta(self):
-        meta_converter = MetaConverter(self)
+        meta_converter = MetaOCGISConverter(self)
         rows = meta_converter.get_rows()
         return '\n'.join(rows)
 
@@ -335,7 +336,7 @@ class OcgOperations(object):
                     rd.conform_units_to = self.conform_units_to
                 except ValueError as e:
                     msg = '"{0}: {1}"'.format(e.__class__.__name__, e.message)
-                    raise (DefinitionValidationError(Dataset, msg))
+                    raise DefinitionValidationError(Dataset, msg)
 
     def _validate_(self):
         ocgis_lh(logger='operations', msg='validating operations')
@@ -349,7 +350,7 @@ class OcgOperations(object):
             rd.driver.validate_ops(self)
 
         # validate the converter
-        converter_klass = AbstractConverter.get_converter(self.output_format)
+        converter_klass = get_converter(self.output_format)
         converter_klass.validate_ops(self)
 
         # no regridding with a spatial operation of clip

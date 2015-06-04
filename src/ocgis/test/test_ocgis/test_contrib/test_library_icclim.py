@@ -461,7 +461,6 @@ class TestSU(TestBase):
         with self.assertRaises(UnitsValidationError):
             ops_icclim.execute()
 
-    # tdk: failure related to netcdf3_classic format not accepting 64-bit data
     def test_calculation_operations_to_nc(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         slc = [None, None, None, [0, 10], [0, 10]]

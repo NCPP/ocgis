@@ -7,12 +7,13 @@ import numpy as np
 
 import fiona
 from shapely.geometry import Point
+from ocgis.conv.meta import MetaJSONConverter
 
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension
-from ocgis.conv.base import AbstractTabularConverter
+from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter
 from ocgis import constants
-from ocgis.conv.esmpy import AbstractConverter
+from ocgis.conv.esmpy import AbstractFileConverter
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
@@ -30,7 +31,16 @@ class AbstractTestConverter(TestBase):
         return coll
 
 
-class FakeAbstractConverter(AbstractConverter):
+class Test(TestBase):
+
+    def test_get_converter_map(self):
+        cmap = get_converter_map()
+        self.assertEqual(cmap[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],
+                         NcUgrid2DFlexibleMeshConverter)
+        self.assertEqual(cmap[constants.OUTPUT_FORMAT_METADATA_JSON], MetaJSONConverter)
+
+
+class FakeAbstractCollectionConverter(AbstractCollectionConverter):
     _add_ugeom = True
 
     def _build_(self, *args, **kwargs):
@@ -43,7 +53,7 @@ class FakeAbstractConverter(AbstractConverter):
         pass
 
 
-class TestAbstractConverter(AbstractTestConverter):
+class TestAbstractCollectionConverter(AbstractTestConverter):
     _auxiliary_file_list = ['ocgis_output_metadata.txt', 'ocgis_output_source_metadata.txt', 'ocgis_output_did.csv']
 
     def run_auxiliary_file_tst(self, Converter, file_list, auxiliary_file_list=None):
@@ -58,13 +68,14 @@ class TestAbstractConverter(AbstractTestConverter):
             # # make a new output directory as to not deal with overwrites
             outdir = tempfile.mkdtemp(dir=self.current_dir_output)
             try:
-                conv = Converter([coll], outdir, 'ocgis_output', add_auxiliary_files=add_auxiliary_files, ops=ops_arg)
+                conv = Converter([coll], outdir=outdir, prefix='ocgis_output', add_auxiliary_files=add_auxiliary_files,
+                                 ops=ops_arg)
             # # CsvShapefileConverter requires an operations argument
             except ValueError as e:
                 if Converter == CsvShapefileConverter and ops_arg is None:
                     continue
                 else:
-                    raise (e)
+                    raise e
             conv.write()
             files = os.listdir(outdir)
             # # auxiliary files require an operations argument
@@ -82,18 +93,14 @@ class TestAbstractConverter(AbstractTestConverter):
 
         ops = _ops if include_ops else None
         outdir = tempfile.mkdtemp(dir=self.current_dir_output)
-        conv = Converter([coll], outdir, 'ocgis_output', ops=ops)
+        conv = Converter([coll], outdir=outdir, prefix='ocgis_output', ops=ops)
         conv.write()
         mtimes = [os.path.getmtime(os.path.join(outdir, f)) for f in os.listdir(outdir)]
 
-        Converter([coll], outdir, 'ocgis_output', overwrite=True, ops=ops).write()
+        Converter([coll], outdir=outdir, prefix='ocgis_output', overwrite=True, ops=ops).write()
         mtimes2 = [os.path.getmtime(os.path.join(outdir, f)) for f in os.listdir(outdir)]
         # # if the file is overwritten the modification time will be more recent!
         self.assertTrue(all([m2 > m for m2, m in zip(mtimes2, mtimes)]))
-
-    def test_get_converter_map(self):
-        self.assertEqual(AbstractConverter.get_converter_map()[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],
-                         NcUgrid2DFlexibleMeshConverter)
 
     def test_multiple_variables(self):
         conv_klasses = [CsvConverter, NcConverter]
@@ -109,7 +116,8 @@ class TestAbstractConverter(AbstractTestConverter):
                 kwds = {'melted': True}
             else:
                 kwds = {}
-            conv = conv_klass([coll], self.current_dir_output, 'ocgis_output_{0}'.format(conv_klass.__name__), **kwds)
+            prefix = 'ocgis_output_{0}'.format(conv_klass.__name__)
+            conv = conv_klass([coll], outdir=self.current_dir_output, prefix=prefix, **kwds)
             ret = conv.write()
             if conv_klass == CsvConverter:
                 with open(ret, 'r') as f:
@@ -127,11 +135,11 @@ class TestAbstractConverter(AbstractTestConverter):
         coll = ops.execute()
 
         outdir = tempfile.mkdtemp(dir=self.current_dir_output)
-        conv = CsvConverter([coll], outdir, 'ocgis_output')
+        conv = CsvConverter([coll], outdir=outdir, prefix='ocgis_output')
         conv.write()
 
         with self.assertRaises(IOError):
-            CsvConverter([coll], outdir, 'ocgis_output')
+            CsvConverter([coll], outdir=outdir, prefix='ocgis_output')
 
     def test_overwrite_true_csv(self):
         self.run_overwrite_true_tst(CsvConverter)
@@ -156,7 +164,7 @@ class TestAbstractConverter(AbstractTestConverter):
         coll2 = SpatialCollection()
         coll2.add_field(field, ugeom=sdim2)
         colls = [coll1, coll2]
-        f = FakeAbstractConverter(colls, outdir=self.current_dir_output, prefix='me')
+        f = FakeAbstractCollectionConverter(colls, outdir=self.current_dir_output, prefix='me')
         ret = f.write()
         path = os.path.join(ret, 'shp', 'me_ugid.shp')
         with fiona.open(path, 'r') as source:
@@ -190,7 +198,7 @@ class FakeAbstractTabularConverter(AbstractTabularConverter):
 class TestAbstractTabularConverter(AbstractTestConverter):
     def test_init(self):
         ff = FakeAbstractTabularConverter(None)
-        self.assertIsInstance(ff, AbstractConverter)
+        self.assertIsInstance(ff, AbstractFileConverter)
         self.assertFalse(ff.melted)
 
         ff = FakeAbstractTabularConverter(None, melted=True)

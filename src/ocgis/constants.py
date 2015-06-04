@@ -88,7 +88,8 @@ OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
 OUTPUT_FORMAT_CSV_SHAPEFILE_OLD = 'csv+'
 OUTPUT_FORMAT_ESMPY_GRID = 'esmpy'
 OUTPUT_FORMAT_GEOJSON = 'geojson'
-OUTPUT_FORMAT_METADATA = 'meta'
+OUTPUT_FORMAT_METADATA_JSON = 'meta-json'
+OUTPUT_FORMAT_METADATA_OCGIS = 'meta-ocgis'
 OUTPUT_FORMAT_NETCDF = 'nc'
 OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH = 'nc-ugrid-2d-flexible-mesh'
 OUTPUT_FORMAT_NUMPY = 'numpy'
@@ -107,7 +108,6 @@ CALC_YEAR_CENTROID_DAY = 1
 #: The number of values to use when calculating data resolution.
 RESOLUTION_LIMIT = 100
 
-# tdk: change name to DEFAULT_NP_*
 #: The data type to use for NumPy integers.
 DEFAULT_NP_INT = np.int
 #: The data type to use for NumPy floats.

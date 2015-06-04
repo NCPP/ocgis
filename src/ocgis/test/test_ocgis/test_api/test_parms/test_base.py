@@ -1,13 +1,36 @@
-from ocgis.api.parms.base import OcgParameter, IterableParameter
+from ocgis.api.parms.base import AbstractParameter, IterableParameter
 from ocgis.exc import DefinitionValidationError
 from ocgis.test.base import TestBase
+
+
+class FooAbstractParameter(AbstractParameter):
+    name = 'foo_abstract'
+    default = 'the_default!'
+    nullable = True
+    input_types = [basestring]
+    return_type = [basestring]
+
+    def _get_meta_(self):
+        raise NotImplementedError
+
+
+class TestAbstractParameter(TestBase):
+
+    def test_init(self):
+        fp = FooAbstractParameter()
+        self.assertEqual(fp.value, FooAbstractParameter.default)
+
+        # test object can be created with an instance of itself
+        fp_initial = FooAbstractParameter('the farm')
+        fp_second = FooAbstractParameter(fp_initial)
+        self.assertEqual(fp_second.value, 'the farm')
 
 
 class TestIterableParameter(TestBase):
 
     def get_klass(self):
 
-        class FooIterable(IterableParameter, OcgParameter):
+        class FooIterable(IterableParameter, AbstractParameter):
             name = 'foo_iterable'
             element_type = str
             unique = True

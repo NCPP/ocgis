@@ -24,7 +24,7 @@ class TestNcConverter(AbstractTestConverter):
         ref._dtype = np.int32
         ref._value = ref.value.astype(np.int32)
         ref._fill_value = None
-        ncconv = NcConverter([coll], self.current_dir_output, 'ocgis_output')
+        ncconv = NcConverter([coll], outdir=self.current_dir_output, prefix='ocgis_output')
         ret = ncconv.write()
         with nc_scope(ret) as ds:
             var = ds.variables['tas']
@@ -45,20 +45,20 @@ class TestNcConverter(AbstractTestConverter):
         # test the file format is pulled from the environment and not from constants
         env.NETCDF_FILE_FORMAT = 'NETCDF3_CLASSIC'
         coll = self.get_spatial_collection(field=self.get_field())
-        conv = NcConverter([coll], self.current_dir_output, 'foo')
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo')
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, 'NETCDF3_CLASSIC')
         env.reset()
 
         # use a field as the input dataset
         coll = self.get_spatial_collection(field=self.get_field())
-        conv = NcConverter([coll], self.current_dir_output, 'foo')
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo')
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
         # add operations with a field as the dataset
         ops = OcgOperations(dataset=coll[1]['foo'], output_format='nc')
-        conv = NcConverter([coll], self.current_dir_output, 'foo', ops=ops)
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', ops=ops)
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
@@ -66,7 +66,7 @@ class TestNcConverter(AbstractTestConverter):
         coll = self.get_spatial_collection()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, output_format='nc')
-        conv = NcConverter([coll], self.current_dir_output, 'foo', ops=ops)
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', ops=ops)
         file_format = conv._get_file_format_()
         with nc_scope(rd.uri) as ds:
             self.assertEqual(file_format, ds.file_format)
@@ -76,7 +76,7 @@ class TestNcConverter(AbstractTestConverter):
         rd = RequestDataset(uri=path)
         of = constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH
         ops = OcgOperations(dataset=rd, output_format=of)
-        conv = NcConverter([coll], self.current_dir_output, 'foo', ops=ops)
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', ops=ops)
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
@@ -97,7 +97,7 @@ class TestNcConverter(AbstractTestConverter):
             else:
                 ops = None
 
-            conv = NcConverter([coll], self.current_dir_output, 'foo', ops=ops, overwrite=True)
+            conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', ops=ops, overwrite=True)
 
             with nc_scope(conv.path, 'w') as ds:
                 conv._write_coll_(ds, coll)

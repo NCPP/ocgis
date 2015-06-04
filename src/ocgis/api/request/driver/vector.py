@@ -58,6 +58,9 @@ class DriverVector(AbstractDriver):
         finally:
             self.close(data)
 
+    def get_source_metadata_as_json(self):
+        raise NotImplementedError
+
     def open(self):
         from ocgis import ShpCabinetIterator
 

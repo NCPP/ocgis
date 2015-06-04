@@ -85,12 +85,6 @@ class AbstractFunction(object):
     # standard empty dictionary to use for calculation outputs when the operation is file only
     _empty_fill = {'fill': None, 'sample_size': None}
 
-    # tdk: remove
-    def __new__(cls, *args, **kwargs):
-        assert cls.dtype_default in ['int', 'float', object]
-        assert type(cls.dtype) == property
-        return object.__new__(cls, *args, **kwargs)
-
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
                  use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None, add_parents=False):
 
@@ -164,7 +158,13 @@ class AbstractFunction(object):
 
     @classmethod
     def get_dtype(cls, overload=None):
-        # tdk: doc
+        """
+        :param overload: The overload is always returned by the function if it is provided.
+        :type overload: type
+        :returns: The data type for the calculation.
+        :rtype: type
+        """
+
         if overload is None:
             cls_dtype = cls.dtype_default
             if cls_dtype == 'int':

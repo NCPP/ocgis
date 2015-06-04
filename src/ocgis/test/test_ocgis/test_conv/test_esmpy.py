@@ -5,7 +5,7 @@ import numpy as np
 
 from ocgis.exc import DefinitionValidationError
 from ocgis import SpatialCollection, OcgOperations
-from ocgis.conv.base import AbstractConverter
+from ocgis.conv.base import AbstractFileConverter
 from ocgis.conv.esmpy import ESMPyConverter
 from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
@@ -21,7 +21,7 @@ class TestESMPyConverter(AbstractTestConverter):
 
     def test_init(self):
         conv = self.get_conv()
-        self.assertIsInstance(conv, AbstractConverter)
+        self.assertIsInstance(conv, AbstractFileConverter)
 
     def test_iter(self):
         conv = self.get_conv()

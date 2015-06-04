@@ -1,8 +1,8 @@
-from ocgis.conv.base import AbstractConverter
+from ocgis.conv.base import AbstractFileConverter, AbstractCollectionConverter
 from ocgis.api.collection import SpatialCollection
 
 
-class NumpyConverter(AbstractConverter):
+class NumpyConverter(AbstractCollectionConverter):
     _create_directory = False
 
     def __iter__(self):
@@ -24,6 +24,3 @@ class NumpyConverter(AbstractConverter):
                 ret.add_field(v.values()[0], ugeom=coll.ugeom[k], name=name)
 
         return ret
-
-    def _write_(self):
-        pass

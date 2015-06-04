@@ -229,7 +229,7 @@ def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xv
 
 
 @task
-def test_node_run_tests(instance_name='ocgis-test-node', branch='next'):
+def test_node_run_tests(instance_name='ocgis-test-node', branch='next', failed='false'):
     am = AwsManager()
     instance = am.get_instance_by_name(instance_name)
     tcenv = 'test_ocgis'
@@ -246,7 +246,10 @@ def test_node_run_tests(instance_name='ocgis-test-node', branch='next'):
             with prefix('source activate {0}'.format(tcenv)):
                 with cd(tsrc):
                     run('git pull')
-                    cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests --with-id -a {texclude} ocgis/test'
+                    if failed == 'true':
+                        cmd = 'cp .noseids /tmp; git checkout {tbranch}; git pull; nosetests -vs --failed --with-id -a {texclude} ocgis/test'
+                    else:
+                        cmd = 'cp .noseids /tmp; rm .noseids; git checkout {tbranch}; git pull; nosetests -vs --with-id -a {texclude} ocgis/test'
                     cmd = cmd.format(tbranch=branch, texclude=texclude)
                     run(cmd)
 

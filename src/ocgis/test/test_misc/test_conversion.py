@@ -1,3 +1,4 @@
+from ocgis import constants
 import netCDF4 as nc
 import os
 
@@ -41,7 +42,8 @@ class Test(TestBase):
 
     def test_meta(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
-        ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='meta', geom='state_boundaries',
+        of = constants.OUTPUT_FORMAT_METADATA_OCGIS
+        ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format=of, geom='state_boundaries',
                                   agg_selection=True)
         ret = ops.execute()
         self.assertTrue(isinstance(ret, basestring))

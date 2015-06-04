@@ -419,7 +419,7 @@ class TestOcgOperations(TestBase):
     def test_keyword_prefix(self):
         # the meta output format should not create an output directory
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd, output_format='meta')
+        ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_METADATA_OCGIS)
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 

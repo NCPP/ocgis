@@ -1,7 +1,11 @@
+from ocgis import constants
+import abc
 import datetime
 
 import ocgis
-from ocgis.api.parms.base import OcgParameter
+from ocgis.api.parms.base import AbstractParameter
+from ocgis.conv.base import AbstractConverter
+from ocgis.exc import DefinitionValidationError
 from ocgis.util.justify import justify_row
 
 
@@ -27,11 +31,44 @@ HEADERS = {
 }
 
 
-class MetaConverter(object):
-    _meta_filename = 'metadata.txt'
+class AbstractMetaConverter(AbstractConverter):
+    """
+    Base class for all metadata converters.
+
+    :param ops: An OpenClimateGIS operations object.
+    :type ops: :class:`ocgis.api.operations.OcgOperations`
+    """
+
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self, ops):
         self.ops = ops
+
+
+class MetaJSONConverter(AbstractMetaConverter):
+
+    @classmethod
+    def validate_ops(cls, ops):
+        from ocgis.api.parms.definition import OutputFormat
+        from ocgis import Field
+
+        if len(ops.dataset) > 1:
+            msg = 'Only one request dataset allowed for "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+            raise DefinitionValidationError(OutputFormat, msg)
+        else:
+            for element in ops.dataset.itervalues():
+                if isinstance(element, Field):
+                    msg = 'Fields may not be converted to "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+                    raise DefinitionValidationError(OutputFormat, msg)
+
+    def write(self):
+        driver = self.ops.dataset.first().driver
+        """:type driver: :class:`ocgis.api.request.driver.base.AbstractDriver`"""
+        return driver.get_source_metadata_as_json()
+
+
+class MetaOCGISConverter(AbstractMetaConverter):
+    _meta_filename = 'metadata.txt'
 
     def get_rows(self):
         lines = ['OpenClimateGIS v{0} Metadata File'.format(ocgis.__release__)]
@@ -52,7 +89,7 @@ class MetaConverter(object):
         lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
         for v in sorted(self.ops.__dict__.itervalues()):
-            if isinstance(v, OcgParameter):
+            if isinstance(v, AbstractParameter):
                 lines.append(v.get_meta())
 
         # collapse lists
@@ -64,16 +101,6 @@ class MetaConverter(object):
             else:
                 ret.append(line)
         return ret
-
-    @classmethod
-    def validate_ops(cls, ops):
-        """
-        Validate an operations object.
-
-        :param ops: The input operations object to validate.
-        :type ops: :class:`ocgis.OcgOperations`
-        :raises: DefinitionValidationError
-        """
 
     def write(self):
         return '\n'.join(self.get_rows())

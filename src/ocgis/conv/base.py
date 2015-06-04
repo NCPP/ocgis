@@ -1,3 +1,4 @@
+from ocgis import messages
 import os.path
 import abc
 import csv
@@ -10,44 +11,55 @@ import fiona
 from ocgis import constants
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
-from ocgis.conv.meta import MetaConverter
 from ocgis.util.inspect import Inspect
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class AbstractConverter(object):
     """
-    Base converter object. Intended for subclassing.
+    Base class for all converter objects.
+    """
 
-    :param colls: A sequence of :class:`~ocgis.SpatialCollection` objects.
-    :type colls: sequence of :class:`~ocgis.SpatialCollection`
-    :param str outdir: Path to the output directory.
-    :param str prefix: The string prepended to the output file or directory.
-    :param ops: Optional operations definition. This is required for some converters.
-    :type ops: :class:`~ocgis.OcgOperations`
-    :param bool add_meta: If False, do not add a source and OCGIS metadata file.
-    :param bool add_auxiliary_files: If False, do not create an output folder. Write only the target ouput file.
-    :param bool overwrite: If True, attempt to overwrite any existing output files.
+    __metaclass__ = abc.ABCMeta
+
+    @classmethod
+    def validate_ops(cls, ops):
+        """
+        Validate an operations object.
+
+        :param ops: The input operations object to validate.
+        :type ops: :class:`ocgis.OcgOperations`
+        :raises: DefinitionValidationError
+        """
+
+    @abc.abstractmethod
+    def write(self):
+        """
+        Write the output. This may be to file, stream, etc.
+        """
+
+
+class AbstractFileConverter(AbstractConverter):
+    """
+    Base class for all converters writing to file.
+
+    .. note:: Accepts all parameters to :class:`ocgis.conv.base.AbstractConverter`.
+
+    :param prefix: The string prepended to the output file or directory.
+    :type prefix: str
+    :param outdir: Path to the output directory.
+    :type outdir: str
+    :param overwrite: (``=False``) If ``True``, attempt to overwrite any existing output files.
+    :type overwrite: bool
     """
 
     __metaclass__ = abc.ABCMeta
     _ext = None
-    _add_did_file = True  # add a descriptor file for the request datasets
-    _add_ugeom = False  # added user geometry in the output folder
-    _add_ugeom_nest = True  # nest the user geometry in a shp folder
-    _add_source_meta = True  # add a source metadata file
-    _use_upper_keys = True  # if headers should be capitalized
 
-    def __init__(self, colls, outdir=None, prefix=None, ops=None, add_meta=True, add_auxiliary_files=True,
-                 overwrite=False):
-        self.colls = colls
-        self.ops = ops
-        self.prefix = prefix
+    def __init__(self, prefix=None, outdir=None, overwrite=False):
         self.outdir = outdir
-        self.add_meta = add_meta
-        self.add_auxiliary_files = add_auxiliary_files
         self.overwrite = overwrite
-        self._log = ocgis_lh.get_logger('conv')
+        self.prefix = prefix
 
         if self._ext is None:
             self.path = self.outdir
@@ -55,11 +67,42 @@ class AbstractConverter(object):
             self.path = os.path.join(self.outdir, prefix + '.' + self._ext)
             if os.path.exists(self.path):
                 if not self.overwrite:
-                    msg = 'Output path exists "{0}" and must be removed before proceeding. Set "overwrite" argument or env.OVERWRITE to True to overwrite.'.format(
-                        self.path)
+                    msg = messages.M3.format(self.path)
                     raise IOError(msg)
 
-        ocgis_lh('converter initialized', level=logging.DEBUG, logger=self._log)
+        self._log = ocgis_lh.get_logger('conv')
+
+
+class AbstractCollectionConverter(AbstractFileConverter):
+    """
+    Base converter object for convert sequences of collections.
+
+    .. note:: Accepts all parameters to :class:`ocgis.conv.base.AbstractFileConverter`.
+
+    :param colls: A sequence of :class:`~ocgis.SpatialCollection` objects.
+    :type colls: sequence of :class:`~ocgis.SpatialCollection`
+    :param ops: (``=None``) Optional operations definition. This is required for some converters.
+    :type ops: :class:`~ocgis.OcgOperations`
+    :param add_meta: (``=True``) If ``False``, do not add a source and OpenClimateGIS metadata file.
+    :type add_meta: bool
+    :param add_auxiliary_files: (``=True``) If ``False``, do not create an output folder. Write only the target ouput file.
+    :type add_auxiliary_files: bool
+    """
+
+    __metaclass__ = abc.ABCMeta
+    _add_did_file = True  # add a descriptor file for the request datasets
+    _add_ugeom = False  # added user geometry in the output folder
+    _add_ugeom_nest = True  # nest the user geometry in a shp folder
+    _add_source_meta = True  # add a source metadata file
+    _use_upper_keys = True  # if headers should be capitalized
+
+    def __init__(self, colls, **kwargs):
+        self.colls = colls
+        self.ops = kwargs.pop('ops', None)
+        self.add_meta = kwargs.pop('add_meta', True)
+        self.add_auxiliary_files = kwargs.pop('add_auxiliary_files', True)
+
+        super(AbstractCollectionConverter, self).__init__(**kwargs)
 
     def get_headers(self, coll):
         """
@@ -88,7 +131,7 @@ class AbstractConverter(object):
 
     def _clean_outdir_(self):
         """
-        Remove previous output file from outdir.
+        Remove previous output file from :attr:`ocgis.conv.base.AbstractFileConverter`.
         """
 
     def _get_return_(self):
@@ -110,8 +153,10 @@ class AbstractConverter(object):
     def _get_should_append_to_unique_geometry_store_(store, geom, ugid):
         """
         :param sequence store:
-        :param :class:`shapely.Geometry` geom:
-        :param int ugid:
+        :param geom:
+        :type geom: :class:`shapely.Geometry`
+        :param ugid:
+        :type ugid: int
         """
 
         ret = True
@@ -219,8 +264,10 @@ class AbstractConverter(object):
             # added OCGIS metadata output if requested.
             if self.add_meta:
                 ocgis_lh('adding OCGIS metadata file', 'conv', logging.DEBUG)
-                lines = MetaConverter(self.ops).write()
-                out_path = os.path.join(self.outdir, self.prefix + '_' + MetaConverter._meta_filename)
+                from ocgis.conv.meta import MetaOCGISConverter
+
+                lines = MetaOCGISConverter(self.ops).write()
+                out_path = os.path.join(self.outdir, self.prefix + '_' + MetaOCGISConverter._meta_filename)
                 with open(out_path, 'w') as f:
                     f.write(lines)
 
@@ -278,60 +325,10 @@ class AbstractConverter(object):
 
         return ret
 
-    @classmethod
-    def get_converter_map(cls):
-        """
-        :returns: A dictionary with keys corresponding to an output format's short name. Values correspond to the
-         converter class.
-        :rtype: dict
-        """
 
-        from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
-        from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
-        from ocgis.conv.numpy_ import NumpyConverter
-        from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
-
-        mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
-                constants.OUTPUT_FORMAT_CSV: CsvConverter,
-                constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvShapefileConverter,
-                constants.OUTPUT_FORMAT_NUMPY: NumpyConverter,
-                constants.OUTPUT_FORMAT_GEOJSON: GeoJsonConverter,
-                # 'shpidx':ShpIdxConverter,
-                # 'keyed':KeyedConverter,
-                constants.OUTPUT_FORMAT_NETCDF: NcConverter,
-                constants.OUTPUT_FORMAT_METADATA: MetaConverter,
-                constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter}
-
-        return mmap
-
-    @classmethod
-    def get_converter(cls, output_format):
-        """
-        Return the converter based on output extensions or key.
-
-        output_format :: str
-
-        returns
-
-        AbstractConverter
-        """
-
-        return cls.get_converter_map()[output_format]
-
-    @classmethod
-    def validate_ops(cls, ops):
-        """
-        Validate an operations object.
-
-        :param ops: The input operations object to validate.
-        :type ops: :class:`ocgis.OcgOperations`
-        :raises: DefinitionValidationError
-        """
-
-
-class AbstractTabularConverter(AbstractConverter):
+class AbstractTabularConverter(AbstractCollectionConverter):
     """
-    .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractConverter`.
+    .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractFileConverter`.
 
     :keyword bool melted: (``=False``) If ``True``, use a melted tabular output format with variable values collected in
      a single column.
@@ -350,3 +347,41 @@ class AbstractTabularConverter(AbstractConverter):
 
         itr = coll.get_iter_dict(use_upper_keys=self._use_upper_keys, melted=self.melted)
         return itr
+
+
+def get_converter(output_format):
+    """
+    Return the converter based on output extensions or key.
+
+    :param output_format: The target output format for conversion.
+    :type output_format: str
+    :rtype: :class:`ocgis.conv.base.AbstractConverter`
+    """
+
+    return get_converter_map()[output_format]
+
+
+def get_converter_map():
+    """
+    :returns: A dictionary with keys corresponding to an output format's short name. Values correspond to the converter
+     class.
+    :rtype: dict
+    """
+
+    from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
+    from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
+    from ocgis.conv.numpy_ import NumpyConverter
+    from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+    from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter
+
+    mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
+            constants.OUTPUT_FORMAT_CSV: CsvConverter,
+            constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvShapefileConverter,
+            constants.OUTPUT_FORMAT_NUMPY: NumpyConverter,
+            constants.OUTPUT_FORMAT_GEOJSON: GeoJsonConverter,
+            constants.OUTPUT_FORMAT_NETCDF: NcConverter,
+            constants.OUTPUT_FORMAT_METADATA_JSON: MetaJSONConverter,
+            constants.OUTPUT_FORMAT_METADATA_OCGIS: MetaOCGISConverter,
+            constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter}
+
+    return mmap

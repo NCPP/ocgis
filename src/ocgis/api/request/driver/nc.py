@@ -1,4 +1,5 @@
 from copy import deepcopy
+import json
 import logging
 # noinspection PyPep8Naming
 import netCDF4 as nc
@@ -137,6 +138,24 @@ class DriverNetcdf(AbstractDriver):
                     metadata['dim_map'] = self.rd.dimension_map
 
         return metadata
+
+    def get_source_metadata_as_json(self):
+
+        def _jsonformat_(d):
+            for k, v in d.iteritems():
+                if isinstance(v, dict):
+                    _jsonformat_(v)
+                else:
+                    try:
+                        v = v.tolist()
+                    except AttributeError:
+                        # NumPy arrays need to be converted to lists.
+                        pass
+                d[k] = v
+
+        meta = deepcopy(self.get_source_metadata())
+        _jsonformat_(meta)
+        return json.dumps(meta)
 
     def _get_vector_dimension_(self, k, v, source_metadata):
         """

@@ -1,10 +1,10 @@
 import ESMF
-from ocgis.conv.base import AbstractConverter
+from ocgis.conv.base import AbstractFileConverter
 from ocgis.exc import DefinitionValidationError
 from ocgis.regrid.base import get_esmf_grid_from_sdim
 
 
-class ESMPyConverter(AbstractConverter):
+class ESMPyConverter(AbstractFileConverter):
     #todo: doc
 
     def __init__(self, *args, **kwargs):

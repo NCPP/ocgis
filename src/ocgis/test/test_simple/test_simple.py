@@ -632,7 +632,8 @@ class TestSimple(TestSimpleBase):
                 ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc, output_format=of,
                                           slice=[None, [0, 10], None, None, None])
             except DefinitionValidationError:
-                self.assertEqual(of, 'esmpy')
+                # Only one dataset allowed for ESMPy and JSON metadata output.
+                self.assertIn(of, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON])
                 continue
             ret = ops.execute()
             if of == 'numpy':
@@ -1134,7 +1135,8 @@ class TestSimple(TestSimpleBase):
                 ops = OcgOperations(dataset=[rd1, rd2], calc=calc, calc_grouping=calc_grouping, output_format=o,
                                     prefix=o + 'yay')
             except DefinitionValidationError:
-                self.assertEqual(o, 'esmpy')
+                # Only one dataset allowed for ESMPy and JSON metadata output.
+                self.assertIn(o, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON])
                 continue
 
             ret = ops.execute()
@@ -1159,7 +1161,7 @@ class TestSimple(TestSimpleBase):
                     self.assertIn('CID', row['properties'])
 
     def test_meta_conversion(self):
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_METADATA)
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_METADATA_OCGIS)
         self.get_ret(ops)
 
     def test_csv_shapefile_conversion(self):
@@ -1358,13 +1360,13 @@ class TestSimpleMultivariate(TestSimpleBase):
             try:
                 ops = OcgOperations(dataset=rds, output_format=o, prefix=o, slice=[None, [0, 2], None, None, None])
             except DefinitionValidationError:
-                # only one dataset for esmpy output
-                self.assertEqual(o, 'esmpy')
+                # Only one dataset allowed for ESMPy and JSON metadata output.
+                self.assertIn(o, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON])
                 continue
             ret = ops.execute()
             path_source_metadata = os.path.join(self.current_dir_output, ops.prefix,
                                                 '{0}_source_metadata.txt'.format(ops.prefix))
-            if o not in ['numpy', 'meta']:
+            if o not in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_METADATA_OCGIS]:
                 self.assertTrue(os.path.exists(ret))
                 with open(path_source_metadata, 'r') as f:
                     lines = f.readlines()

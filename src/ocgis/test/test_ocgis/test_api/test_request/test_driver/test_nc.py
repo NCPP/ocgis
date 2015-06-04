@@ -533,6 +533,13 @@ class TestDriverNetcdf(TestBase):
         with self.assertRaises(KeyError):
             meta['dim_map']
 
+    def test_source_metadata_as_json(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        js = driver.get_source_metadata_as_json()
+        self.assertIsInstance(js, basestring)
+        self.assertTrue(len(js) > 100)
+
     def test_get_vector_dimension(self):
         # test exception raised with no row and column
         path = self.get_netcdf_path_no_row_column()

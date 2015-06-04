@@ -3,11 +3,12 @@ import os
 import shutil
 
 from ocgis import constants
+from ocgis.api.parms.definition import OutputFormat
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis import exc, env
-from ocgis.conv.meta import MetaConverter
+from ocgis.conv.meta import MetaOCGISConverter, AbstractMetaConverter
 from subset import SubsetOperation
-from ocgis.conv.base import AbstractConverter, AbstractTabularConverter
+from ocgis.conv.base import AbstractFileConverter, AbstractTabularConverter, get_converter
 
 
 class Interpreter(object):
@@ -47,6 +48,10 @@ class Interpreter(object):
 class OcgInterpreter(Interpreter):
     """The OCGIS interpreter and execution framework."""
 
+    # todo: creating a directory should be a feature of the output format not something handled by the interpreter
+    _no_directory = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_ESMPY_GRID,
+                     constants.OUTPUT_FORMAT_METADATA_JSON, constants.OUTPUT_FORMAT_METADATA_OCGIS]
+
     def check(self):
         pass
 
@@ -60,7 +65,7 @@ class OcgInterpreter(Interpreter):
         # removed.
         made_output_directory = False
 
-        if self.ops.output_format in ['numpy', 'esmpy', 'meta']:
+        if self.ops.output_format in self._no_directory:
             # no output directory for numpy output
             outdir = None
         else:
@@ -72,7 +77,7 @@ class OcgInterpreter(Interpreter):
                     if env.OVERWRITE:
                         shutil.rmtree(outdir)
                     else:
-                        raise (IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir)))
+                        raise IOError('The output directory exists but env.OVERWRITE is False: {0}'.format(outdir))
                 os.mkdir(outdir)
                 # on an exception, the output directory needs to be removed
                 made_output_directory = True
@@ -103,8 +108,9 @@ class OcgInterpreter(Interpreter):
 
             # if the requested output format is "meta" then no operations are run and only the operations dictionary is
             # required to generate output.
-            if self.ops.output_format == 'meta':
-                ret = MetaConverter(self.ops).write()
+            Converter = self.ops._get_object_(OutputFormat.name).get_converter_class()
+            if issubclass(Converter, AbstractMetaConverter):
+                ret = Converter(self.ops).write()
             # this is the standard request for other output types.
             else:
                 # the operations object performs subsetting and calculations
@@ -113,7 +119,7 @@ class OcgInterpreter(Interpreter):
                 # if there is no grouping on the output files, a singe converter is is needed
                 if self.ops.output_grouping is None:
                     ocgis_lh('initializing converter', interpreter_log, level=logging.DEBUG)
-                    conv = self._get_converter_(outdir, prefix, so)
+                    conv = self._get_converter_(Converter, outdir, prefix, so)
                     ocgis_lh('starting converter write loop: {0}'.format(self.ops.output_format), interpreter_log,
                              level=logging.DEBUG)
                     ret = conv.write()
@@ -133,17 +139,18 @@ class OcgInterpreter(Interpreter):
             # shut down logging
             ocgis_lh.shutdown()
 
-    def _get_converter_(self, outdir, prefix, so):
+    def _get_converter_(self, conv_klass, outdir, prefix, so):
         """
+        :param conv_klass: The target converter class.
+        :type conv_klass: :class:`ocgis.conv.base.AbstractCollectionConverter`
         :param str outdir: The output directory to contain converted files.
         :param str prefix: The file prefix for the file outputs.
         :param so: The subset operation object doing all the work.
         :type so: :class:`ocgis.api.subset.SubsetOperation`
         :returns: A converter object.
-        :rtype: :class:`ocgis.conv.base.AbstractConverter`
+        :rtype: :class:`ocgis.conv.base.AbstractCollectionConverter`
         """
 
-        conv_klass = AbstractConverter.get_converter(self.ops.output_format)
         kwargs = dict(outdir=outdir, prefix=prefix, ops=self.ops, add_auxiliary_files=self.ops.add_auxiliary_files,
                       overwrite=env.OVERWRITE)
         if issubclass(conv_klass, AbstractTabularConverter):
@@ -161,8 +168,8 @@ class OcgInterpreter(Interpreter):
 
         # if file logging is enable, perform some logic based on the operational parameters.
         if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files is True:
-            if self.ops.output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_ESMPY_GRID,
-                                          constants.OUTPUT_FORMAT_METADATA]:
+            # todo: should not have to list the output formats here
+            if self.ops.output_format in self._no_directory:
                 to_file = None
             else:
                 to_file = os.path.join(outdir, prefix + '.log')
@@ -186,3 +193,4 @@ class OcgInterpreter(Interpreter):
                            callback_level=level)
 
         return progress
+

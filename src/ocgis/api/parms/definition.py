@@ -16,7 +16,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 
 from ocgis import messages
-from ocgis.conv.base import AbstractConverter, AbstractTabularConverter
+from ocgis.conv.base import AbstractTabularConverter, get_converter, get_converter_map
 from ocgis.api.parms import base
 from ocgis.exc import DefinitionValidationError, NoDimensionedVariablesFound
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
@@ -90,7 +90,7 @@ class Backend(base.StringOptionParameter):
         return (ret)
 
 
-class Callback(base.OcgParameter):
+class Callback(base.AbstractParameter):
     input_types = [FunctionType]
     name = 'callback'
     nullable = True
@@ -105,7 +105,7 @@ class Callback(base.OcgParameter):
         return (msg)
 
 
-class Calc(base.IterableParameter, base.OcgParameter):
+class Calc(base.IterableParameter, base.AbstractParameter):
     name = 'calc'
     default = None
     nullable = True
@@ -121,11 +121,11 @@ class Calc(base.IterableParameter, base.OcgParameter):
         # this flag is used by the parser to determine if an eval function has been passed. very simple test for this...
         # if there is an equals sign in the string then it is considered an eval function
         self._is_eval_function = False
-        base.OcgParameter.__init__(self, *args, **kwargs)
+        base.AbstractParameter.__init__(self, *args, **kwargs)
 
     def __str__(self):
         if self.value is None:
-            ret = base.OcgParameter.__str__(self)
+            ret = base.AbstractParameter.__str__(self)
         else:
             cb = deepcopy(self.value)
             for ii in cb:
@@ -283,7 +283,7 @@ class Calc(base.IterableParameter, base.OcgParameter):
                 v[constants.CALC_KEY_CLASS_REFERENCE].validate_definition(v)
 
 
-class CalcGrouping(base.IterableParameter, base.OcgParameter):
+class CalcGrouping(base.IterableParameter, base.AbstractParameter):
     name = 'calc_grouping'
     nullable = True
     input_types = [list, tuple]
@@ -389,7 +389,7 @@ class CalcSampleSize(base.BooleanParameter):
     meta_false = 'Statistical sample size not calculated.'
 
 
-class ConformUnitsTo(base.OcgParameter):
+class ConformUnitsTo(base.AbstractParameter):
     name = 'conform_units_to'
     nullable = True
     default = None
@@ -415,7 +415,7 @@ class ConformUnitsTo(base.OcgParameter):
         return ret
 
 
-class Dataset(base.OcgParameter):
+class Dataset(base.AbstractParameter):
     name = 'dataset'
     nullable = False
     default = None
@@ -424,54 +424,74 @@ class Dataset(base.OcgParameter):
     _perform_deepcopy = False
 
     def __init__(self, init_value):
-        if init_value is not None:
-            if isinstance(init_value, RequestDatasetCollection):
-                init_value = deepcopy(init_value)
-            else:
-                if isinstance(init_value, (RequestDataset, dict, Field)):
-                    itr = [init_value]
-                elif type(init_value) in [list, tuple]:
-                    itr = init_value
+        if isinstance(init_value, self.__class__):
+            # Allow the dataset object to be initialized by an instance of itself.
+            self.__dict__ = init_value.__dict__
+        else:
+            if init_value is not None:
+                if isinstance(init_value, RequestDatasetCollection):
+                    init_value = deepcopy(init_value)
                 else:
-                    should_raise = True
-                    try:
-                        import ESMF
-                    except ImportError:
-                        # ESMF is not a required library
-                        ocgis_lh('Could not import ESMF library.', level=logging.WARN)
+                    if isinstance(init_value, (RequestDataset, dict, Field)):
+                        itr = [init_value]
+                    elif type(init_value) in [list, tuple]:
+                        itr = init_value
                     else:
-                        if isinstance(init_value, ESMF.Field):
-                            from ocgis.regrid.base import get_ocgis_field_from_esmpy_field
-
-                            field = get_ocgis_field_from_esmpy_field(init_value)
-                            itr = [field]
-                            should_raise = False
-                    if should_raise:
-                        raise DefinitionValidationError(self, 'Type not accepted: {0}'.format(type(init_value)))
-                rdc = RequestDatasetCollection()
-                for rd in itr:
-                    if not isinstance(rd, Field):
-                        rd = deepcopy(rd)
-                    try:
-                        rdc.update(rd)
-                    except NoDimensionedVariablesFound:
-                        if rd._name is None:
-                            msg = messages.M2.format(rd.uri)
-                            raise DefinitionValidationError(self, msg)
+                        should_raise = True
+                        try:
+                            import ESMF
+                        except ImportError:
+                            # ESMF is not a required library
+                            ocgis_lh('Could not import ESMF library.', level=logging.WARN)
                         else:
-                            raise
-                init_value = rdc
-        else:
-            init_value = init_value
-        super(Dataset, self).__init__(init_value)
+                            if isinstance(init_value, ESMF.Field):
+                                from ocgis.regrid.base import get_ocgis_field_from_esmpy_field
 
-    def parse_string(self, value):
-        lowered = value.strip()
-        if lowered == 'none':
-            ret = None
-        else:
-            ret = self._parse_string_(lowered)
-        return ret
+                                field = get_ocgis_field_from_esmpy_field(init_value)
+                                itr = [field]
+                                should_raise = False
+                        if should_raise:
+                            raise DefinitionValidationError(self, 'Type not accepted: {0}'.format(type(init_value)))
+                    rdc = RequestDatasetCollection()
+                    for rd in itr:
+                        if not isinstance(rd, Field):
+                            rd = deepcopy(rd)
+                        try:
+                            rdc.update(rd)
+                        except NoDimensionedVariablesFound:
+                            if rd._name is None:
+                                msg = messages.M2.format(rd.uri)
+                                raise DefinitionValidationError(self, msg)
+                            else:
+                                raise
+                    init_value = rdc
+            else:
+                init_value = init_value
+            super(Dataset, self).__init__(init_value)
+
+    @classmethod
+    def from_query(cls, qi):
+
+        def _update_from_query_dict_(store, key):
+            value = qi.query_dict.get(key)
+            if value is not None:
+                value = value[0].split('|')
+                store[key] = value
+
+        keys = ['uri', 'variable', 'alias']
+        store = {}
+        for k in keys:
+            _update_from_query_dict_(store, k)
+
+        rds = []
+        for idx in range(len(store['uri'])):
+            kwds = {}
+            for k in keys:
+                if k in store:
+                    kwds[k] = store[k][idx]
+            rd = RequestDataset(**kwds)
+            rds.append(rd)
+        return cls(rds)
 
     def get_meta(self):
         try:
@@ -479,6 +499,14 @@ class Dataset(base.OcgParameter):
         except AttributeError:
             # likely a field object
             ret = ['Field object with name: "{0}"'.format(self.value.name)]
+        return ret
+
+    def parse_string(self, value):
+        lowered = value.strip()
+        if lowered == 'none':
+            ret = None
+        else:
+            ret = self._parse_string_(lowered)
         return ret
 
     def _get_meta_(self):
@@ -530,7 +558,7 @@ class FormatTime(base.BooleanParameter):
     meta_false = 'Time values left in original form.'
 
 
-class Geom(base.OcgParameter):
+class Geom(base.AbstractParameter):
     """
     :keyword list select_ugid: (``=None``) A sequence of sorted (ascending) unique identifiers to use when selecting
      geometries. These values should be a members of the attribute named ``geom_uid``.
@@ -567,7 +595,7 @@ class Geom(base.OcgParameter):
             self.geom_select_sql_where = self.geom_select_sql_where.value
 
         args = [self] + list(args)
-        base.OcgParameter.__init__(*args, **kwargs)
+        base.AbstractParameter.__init__(*args, **kwargs)
 
     def __str__(self):
         if self.value is None:
@@ -584,9 +612,9 @@ class Geom(base.OcgParameter):
     def _get_value_(self):
         if isinstance(self._value, ShpCabinetIterator):
             self._value.select_uid = self.select_ugid
-        return base.OcgParameter._get_value_(self)
+        return base.AbstractParameter._get_value_(self)
 
-    value = property(_get_value_, base.OcgParameter._set_value_)
+    value = property(_get_value_, base.AbstractParameter._set_value_)
 
     def parse(self, value):
         if type(value) in [list, tuple]:
@@ -702,7 +730,7 @@ class Geom(base.OcgParameter):
             yield spatial_dimension[row, col]
 
 
-class GeomSelectSqlWhere(base.OcgParameter):
+class GeomSelectSqlWhere(base.AbstractParameter):
     name = 'geom_select_sql_where'
     return_type = [basestring]
     nullable = True
@@ -718,7 +746,7 @@ class GeomSelectSqlWhere(base.OcgParameter):
         return msg
 
 
-class GeomSelectUid(base.IterableParameter, base.OcgParameter):
+class GeomSelectUid(base.IterableParameter, base.AbstractParameter):
     name = 'geom_select_uid'
     return_type = tuple
     nullable = True
@@ -735,7 +763,7 @@ class GeomSelectUid(base.IterableParameter, base.OcgParameter):
         return ret
 
 
-class GeomUid(base.OcgParameter):
+class GeomUid(base.AbstractParameter):
     name = 'geom_uid'
     nullable = True
     default = None
@@ -751,7 +779,7 @@ class GeomUid(base.OcgParameter):
         return msg
 
 
-class Headers(base.IterableParameter, base.OcgParameter):
+class Headers(base.IterableParameter, base.AbstractParameter):
     name = 'headers'
     default = None
     return_type = tuple
@@ -797,7 +825,7 @@ class InterpolateSpatialBounds(base.BooleanParameter):
     meta_false = 'If no bounds are present on the coordinate variables, no attempt will be made to interpolate boundary polygons.'
 
 
-class LevelRange(base.IterableParameter, base.OcgParameter):
+class LevelRange(base.IterableParameter, base.AbstractParameter):
     name = 'level_range'
     element_type = [int, float]
     nullable = True
@@ -849,7 +877,7 @@ class Melted(base.BooleanParameter):
         super(Melted, self).__init__(**kwargs)
 
 
-class Optimizations(base.OcgParameter):
+class Optimizations(base.AbstractParameter):
     name = 'optimizations'
     default = None
     input_types = [dict]
@@ -875,7 +903,7 @@ class Optimizations(base.OcgParameter):
             raise DefinitionValidationError(self, msg)
 
 
-class OutputCRS(base.OcgParameter):
+class OutputCRS(base.AbstractParameter):
     input_types = [CoordinateReferenceSystem]
     name = 'output_crs'
     nullable = True
@@ -890,17 +918,24 @@ class OutputCRS(base.OcgParameter):
                 self.value.sr.ExportToProj4())
         return ret
 
+    def _parse_string_(self, value):
+        return CoordinateReferenceSystem(epsg=int(value))
+
 
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = constants.OUTPUT_FORMAT_NUMPY
-    valid = [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_GEOJSON,
-             constants.OUTPUT_FORMAT_METADATA, constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_NUMPY,
-             constants.OUTPUT_FORMAT_SHAPEFILE, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH]
+    valid = get_converter_map().keys()
 
     def __init__(self, init_value=None):
-        if init_value == constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD:
-            init_value = constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        try:
+            # Maintain the old CSV-Shapefile output format key.
+            if init_value == constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD:
+                init_value = constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        except AttributeError:
+            # Allow the object to initialized by itself.
+            if not isinstance(init_value, self.__class__):
+                raise
         super(OutputFormat, self).__init__(init_value=init_value)
 
     @classmethod
@@ -909,7 +944,7 @@ class OutputFormat(base.StringOptionParameter):
             yield element
 
     def get_converter_class(self):
-        return AbstractConverter.get_converter(self.value)
+        return get_converter(self.value)
 
     def _get_meta_(self):
         ret = 'The output format is "{0}".'.format(self.value)
@@ -929,7 +964,7 @@ class Prefix(base.StringParameter):
         return msg
 
 
-class RegridDestination(base.OcgParameter):
+class RegridDestination(base.AbstractParameter):
     name = 'regrid_destination'
     nullable = True
     default = None
@@ -975,7 +1010,7 @@ class RegridDestination(base.OcgParameter):
         return value
 
 
-class RegridOptions(base.OcgParameter):
+class RegridOptions(base.AbstractParameter):
     name = 'regrid_options'
     nullable = True
     default = {'with_corners': 'choose', 'value_mask': None}
@@ -1018,7 +1053,7 @@ class RegridOptions(base.OcgParameter):
         return str(ret)
 
 
-class SearchRadiusMultiplier(base.OcgParameter):
+class SearchRadiusMultiplier(base.AbstractParameter):
     input_types = [float]
     name = 'search_radius_mult'
     nullable = False
@@ -1042,7 +1077,7 @@ class SelectNearest(base.BooleanParameter):
     meta_false = 'All geometries returned regardless of distance.'
 
 
-class Slice(base.IterableParameter, base.OcgParameter):
+class Slice(base.IterableParameter, base.AbstractParameter):
     name = 'slice'
     return_type = tuple
     nullable = True
@@ -1099,7 +1134,7 @@ class SpatialOperation(base.StringOptionParameter):
         return (ret)
 
 
-class TimeRange(base.IterableParameter, base.OcgParameter):
+class TimeRange(base.IterableParameter, base.AbstractParameter):
     name = 'time_range'
     element_type = [datetime.datetime]
     nullable = True
@@ -1111,46 +1146,69 @@ class TimeRange(base.IterableParameter, base.OcgParameter):
     def validate_all(self, value):
         if len(value) != 2:
             msg = 'There must be two elements in the sequence.'
-            raise (DefinitionValidationError(self, msg))
+            raise DefinitionValidationError(self, msg)
         if value[0] > value[1]:
             msg = 'The second element must be >= the first element.'
-            raise (DefinitionValidationError(self, msg))
+            raise DefinitionValidationError(self, msg)
 
     def _get_meta_(self):
         if self.value == None:
             msg = 'No time range subset.'
         else:
             msg = 'The following time range subset was applied to all request datasets: {0}'.format(self.value)
-        return (msg)
+        return msg
 
+    def _parse_string_(self, value):
+        formats = ['%Y%m%d', '%Y%m%d-%H%M%S']
+        ret = None
+        for f in formats:
+            try:
+                ret = datetime.datetime.strptime(value, f)
+            except ValueError:
+                # Conversion may fail. Try the next date format.
+                continue
+            else:
+                break
+        assert ret is not None
+        return ret
 
-class TimeRegion(base.OcgParameter):
+class TimeRegion(base.AbstractParameter):
     name = 'time_region'
     nullable = True
     default = None
     return_type = dict
     input_types = [dict, OrderedDict]
 
-    def _parse_(self, value):
-        if value != None:
-            # # add missing keys
-            for add_key in ['month', 'year']:
-                if add_key not in value:
-                    value.update({add_key: None})
-            # # confirm only month and year keys are present
-            for key in value.keys():
-                if key not in ['month', 'year']:
-                    raise (DefinitionValidationError(self, 'Time region keys must be month and/or year.'))
-            if all([i is None for i in value.values()]):
-                value = None
-        return (value)
-
     def _get_meta_(self):
         if self.value == None:
             msg = 'No time region subset.'
         else:
             msg = 'The following time region subset was applied to all request datasets: {0}'.format(self.value)
-        return (msg)
+        return msg
+
+    def _parse_(self, value):
+        if value != None:
+            # add missing keys
+            for add_key in ['month', 'year']:
+                if add_key not in value:
+                    value.update({add_key: None})
+            # confirm only month and year keys are present
+            for key in value.keys():
+                if key not in ['month', 'year']:
+                    raise (DefinitionValidationError(self, 'Time region keys must be month and/or year.'))
+            if all([i is None for i in value.values()]):
+                value = None
+        return value
+
+    def _parse_string_(self, value):
+        ret = {}
+        values = value.split(',')
+        for value in values:
+            key, key_value = value.split('~')
+            key_value = key_value.split('|')
+            key_value = [int(e) for e in key_value]
+            ret[key] = key_value
+        return ret
 
 
 class VectorWrap(base.BooleanParameter):
@@ -1158,3 +1216,4 @@ class VectorWrap(base.BooleanParameter):
     default = True
     meta_true = 'Geographic coordinates wrapped from -180 to 180 degrees longitude.'
     meta_false = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
+

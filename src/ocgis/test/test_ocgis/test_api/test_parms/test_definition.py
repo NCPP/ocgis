@@ -2,6 +2,7 @@ import pickle
 import tempfile
 
 from cfunits import Units
+from ocgis.api.query import QueryInterface
 
 from ocgis.exc import OcgWarning
 from ocgis.conv.numpy_ import NumpyConverter
@@ -415,6 +416,11 @@ class TestDataset(TestBase):
         with self.assertRaises(ValueError):
             RequestDataset(uri, 'foo')
 
+        # test it can be initialized from itself
+        dd = Dataset(rd)
+        dd2 = Dataset(dd)
+        self.assertEqual(dd.value.first().uri, dd2.value.first().uri)
+
         # test with a dictionary
         v = {'uri': rd.uri, 'variable': rd.variable}
         dd = Dataset(v)
@@ -504,6 +510,25 @@ class TestDataset(TestBase):
         reference_rd2 = self.test_data.get_rd('narccap_crcm')
         dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
+
+    def test_from_query(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        qs = 'uri={0}'.format(rd.uri)
+        qi = QueryInterface(qs)
+        d = Dataset.from_query(qi)
+        self.assertEqual(d.value.first().uri, rd.uri)
+        qs += '&variable=tas&alias=foobar'
+        qi = QueryInterface(qs)
+        d = Dataset.from_query(qi)
+        self.assertEqual(d.value.first().alias, 'foobar')
+
+        # Test with multiple URIs.
+        uri1 = self.test_data.get_uri('cancm4_tas')
+        uri2 = self.test_data.get_uri('cancm4_rhsmax')
+        qs = 'uri={0}|{1}'.format(uri1, uri2)
+        qi = QueryInterface(qs)
+        d = Dataset.from_query(qi)
+        self.assertEqual(d.value.keys(), ['tas', 'rhsmax'])
 
     def test_get_meta(self):
         # test with standard request dataset collection
@@ -764,12 +789,23 @@ class TestLevelRange(TestBase):
             LevelRange([11, 10])
 
 
+class TestOutputCRS(TestBase):
+    create_dir = False
+
+    def test_init(self):
+        crs = OutputCRS('4326')
+        self.assertEqual(crs.value, CoordinateReferenceSystem(epsg=4326))
+
+
 class TestOutputFormat(TestBase):
     create_dir = False
 
     def test_init(self):
         of = OutputFormat(constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD)
         self.assertEqual(of.value, constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+
+        of2 = OutputFormat(of)
+        self.assertEqual(of.value, of2.value)
 
     @attr('esmpy7')
     def test_init_esmpy(self):
@@ -781,8 +817,8 @@ class TestOutputFormat(TestBase):
         self.assertEqual(of.get_converter_class(), NumpyConverter)
 
     def test_valid(self):
-        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta', 'nc', 'numpy', 'shp',
-                                                   constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH])
+        self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta-ocgis', 'nc', 'numpy', 'shp',
+                                                   constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, 'meta-json'])
 
 
 class TestRegridDestination(TestBase):
@@ -907,8 +943,16 @@ class TestSpatialOperation(TestBase):
 class TestTimeRange(TestBase):
     create_dir = False
 
-    def test_constructor(self):
+    def test_init(self):
         TimeRange()
+
+        value = '20000101|20000107'
+        tr = TimeRange(value)
+        self.assertEqual(tr.value, (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2000, 1, 7, 0, 0)))
+
+        value = '20000101-233000|20000107-234530'
+        tr = TimeRange(value)
+        self.assertEqual(tr.value, (datetime.datetime(2000, 1, 1, 23, 30), datetime.datetime(2000, 1, 7, 23, 45, 30)))
 
     def test_range(self):
         dt = [datetime.datetime(2000, 1, 1), datetime.datetime(2001, 1, 1)]
@@ -929,8 +973,11 @@ class TestTimeRange(TestBase):
 class TestTimeRegion(TestBase):
     create_dir = False
 
-    def test_constructor(self):
+    def test_init(self):
         TimeRegion()
+
+        tr = TimeRegion('month~2|6,year~2000|2005')
+        self.assertEqual(tr.value, {'year': [2000, 2005], 'month': [2, 6]})
 
     def test_normal(self):
         value = {'month': [6, 7, 8], 'year': [4, 5, 6]}
@@ -941,6 +988,13 @@ class TestTimeRegion(TestBase):
         value = {'month': [6]}
         tr = TimeRegion(value)
         self.assertEqual(tr.value, {'month': [6], 'year': None})
+
+    def test_parse_string(self):
+        values = ['month~2|6,year~2000|2005', 'year~2000']
+        actual = [{'year': [2000, 2005], 'month': [2, 6]}, {'year': [2000]}]
+        for v, a in zip(values, actual):
+            res = TimeRegion()._parse_string_(v)
+            self.assertEqual(res, a)
 
     def test_year_only(self):
         value = {'year': [6]}

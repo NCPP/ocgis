@@ -133,7 +133,7 @@ class DefinitionValidationError(OcgException):
     """Raised when validation fails on :class:`~ocgis.OcgOperations`.
     
     :param ocg_argument: The origin of the exception.
-    :type ocg_argument: :class:`ocgis.api.definition.OcgParameter`, str
+    :type ocg_argument: :class:`ocgis.api.definition.AbstractParameter`, str
     :param msg: The message related to the exception to display in the exception's template.
     :type msg: str
     """

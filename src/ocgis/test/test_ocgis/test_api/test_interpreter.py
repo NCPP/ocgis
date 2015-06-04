@@ -38,12 +38,12 @@ class TestOcgInterpreter(TestBase):
         prefix = 'foo'
         interp = OcgInterpreter(ops)
         so = SubsetOperation(ops)
-        ret = interp._get_converter_(outdir, prefix, so)
+        ret = interp._get_converter_(NumpyConverter, outdir, prefix, so)
         self.assertIsInstance(ret, NumpyConverter)
 
         ops = OcgOperations(dataset=rd, melted=True, output_format=constants.OUTPUT_FORMAT_SHAPEFILE)
         interp = OcgInterpreter(ops)
-        ret = interp._get_converter_(outdir, prefix, so)
+        ret = interp._get_converter_(ShpConverter, outdir, prefix, so)
         self.assertIsInstance(ret, ShpConverter)
         self.assertTrue(ret.melted)
 

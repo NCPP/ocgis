@@ -35,7 +35,7 @@ class TestShpConverter(TestBase):
         """Test attributes in geometry dictionaries are properly accounted for in the converter."""
 
         subset = self.get_subset_operation()
-        conv = ShpConverter(subset, self.current_dir_output, prefix='shpconv')
+        conv = ShpConverter(subset, outdir=self.current_dir_output, prefix='shpconv')
         ret = conv.write()
 
         path_ugid = os.path.join(self.current_dir_output, conv.prefix + '_ugid.shp')
@@ -96,7 +96,7 @@ class TestShpConverter(TestBase):
         slc = [None, 0, None, [10, 20], [10, 20]]
         ops = ocgis.OcgOperations(dataset=rd, slice=slc)
         subset = SubsetOperation(ops)
-        conv = ShpConverter(subset, self.current_dir_output, prefix='shpconv')
+        conv = ShpConverter(subset, outdir=self.current_dir_output, prefix='shpconv')
         conv.write()
         contents = os.listdir(self.current_dir_output)
         self.assertEqual(len(contents), 5)

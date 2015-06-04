@@ -80,6 +80,13 @@ class AbstractDriver(object):
         :rtype: dict
         """
 
+    @abc.abstractmethod
+    def get_source_metadata_as_json(self):
+        """
+        :returns: A JSON representation of the source metadata as returned from :function:`json.dumps`.
+        :rtype: str
+        """
+
     def inspect(self):
         """
         Inspect the request dataset printing information to stdout.

@@ -2,8 +2,8 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 from collections import deque, OrderedDict
 import itertools
-import numpy as np
 
+import numpy as np
 import fiona
 from shapely.geometry import mapping
 from shapely.ops import cascaded_union
@@ -97,7 +97,7 @@ class Field(Attributes):
     @property
     def name(self):
         """
-        :returns: The name of the field derived from its variables if not provided.
+        :returns: The name of the field. Derived from its variables if not provided.
         :rtype str:
         """
 
@@ -306,35 +306,34 @@ class Field(Attributes):
                 
     def get_shallow_copy(self):
         return copy(self)
-    
-    def get_spatially_aggregated(self,new_spatial_uid=None):
+
+    def get_spatially_aggregated(self, new_spatial_uid=None):
 
         def _get_geometry_union_(value):
             to_union = [geom for geom in value.compressed().flat]
             processed_to_union = deque()
             for geom in to_union:
-                if isinstance(geom,MultiPolygon) or isinstance(geom,MultiPoint):
+                if isinstance(geom, MultiPolygon) or isinstance(geom, MultiPoint):
                     for element in geom:
                         processed_to_union.append(element)
                 else:
                     processed_to_union.append(geom)
             unioned = cascaded_union(processed_to_union)
 
-            ## convert any unioned points to MultiPoint
-            if isinstance(unioned,Point):
+            # convert any unioned points to MultiPoint
+            if isinstance(unioned, Point):
                 unioned = MultiPoint([unioned])
 
-            ret = np.ma.array([[None]],mask=False,dtype=object)
-            ret[0,0] = unioned
-            return(ret)
+            ret = np.ma.array([[None]], mask=False, dtype=object)
+            ret[0, 0] = unioned
+            return ret
 
         ret = copy(self)
-        ## the spatial dimension needs to be deep copied so the grid may be
-        ## dereferenced.
+        # the spatial dimension needs to be deep copied so the grid may be dereferenced.
         ret.spatial = deepcopy(self.spatial)
-        ## this is the new spatial identifier for the spatial dimension.
+        # this is the new spatial identifier for the spatial dimension.
         new_spatial_uid = new_spatial_uid or 1
-        ## aggregate the geometry containers if possible.
+        # aggregate the geometry containers if possible.
         if ret.spatial.geom.point is not None:
             unioned = _get_geometry_union_(ret.spatial.geom.point.value)
             ret.spatial.geom.point._value = unioned
@@ -345,12 +344,12 @@ class Field(Attributes):
             ret.spatial.geom.polygon._value = _get_geometry_union_(ret.spatial.geom.polygon.value)
             ret.spatial.geom.polygon.uid = new_spatial_uid
 
-        ## update the spatial uid
+        # update the spatial uid
         ret.spatial.uid = new_spatial_uid
-        ## there are no grid objects for aggregated spatial dimensions.
+        # there are no grid objects for aggregated spatial dimensions.
         ret.spatial.grid = None
         ret.spatial._geom_to_grid = False
-        ## next the values are aggregated.
+        # next the values are aggregated.
         shp = list(ret.shape)
         shp[-2] = 1
         shp[-1] = 1
@@ -358,26 +357,26 @@ class Field(Attributes):
         weights = self.spatial.weights
         ref_average = np.ma.average
 
-        ## old values for the variables will be stored in the _raw container, but
-        ## to avoid reference issues, we need to copy the variables
+        # old values for the variables will be stored in the _raw container, but to avoid reference issues, we need to
+        # copy the variables
         new_variables = []
         for variable in ret.variables.itervalues():
             r_value = variable.value
-            fill = np.ma.array(np.zeros(shp),mask=False,dtype=variable.value.dtype)
-            for idx_r,idx_t,idx_l in itertools.product(*itrs):
-                fill[idx_r,idx_t,idx_l] = ref_average(r_value[idx_r,idx_t,idx_l],weights=weights)
+            fill = np.ma.array(np.zeros(shp), mask=False, dtype=variable.value.dtype)
+            for idx_r, idx_t, idx_l in itertools.product(*itrs):
+                fill[idx_r, idx_t, idx_l] = ref_average(r_value[idx_r, idx_t, idx_l], weights=weights)
             new_variable = copy(variable)
             new_variable._value = fill
             new_variables.append(new_variable)
         ret.variables = VariableCollection(variables=new_variables)
 
-        ## the geometry type of the point dimension is now MultiPoint
+        # the geometry type of the point dimension is now MultiPoint
         ret.spatial.geom.point.geom_type = 'MultiPoint'
 
-        ## we want to keep a copy of the raw data around for later calculations.
+        # we want to keep a copy of the raw data around for later calculations.
         ret._raw = copy(self)
 
-        return(ret)
+        return ret
 
     def get_time_region(self, time_region):
         ret = copy(self)
@@ -592,10 +591,10 @@ class Field(Attributes):
         slc = [slice(None), slice(None), slice(None)] + list(slc)
         ret.variables = self.variables.get_sliced_variables(slc)
 
-        ## we need to update the value mask with the geometry mask
+        # we need to update the value mask with the geometry mask
         self._set_new_value_mask_(ret, ret.spatial.get_mask())
 
-        return(ret)
+        return ret
 
     def _get_value_from_source_(self, *args, **kwargs):
         raise NotImplementedError
@@ -657,8 +656,7 @@ class DerivedField(Field):
 
 
 class DerivedMultivariateField(Field):
-    
-    def _get_variable_iter_yield_(self,variable):
+    def _get_variable_iter_yield_(self, variable):
         yld = {}
         yld['cid'] = variable.uid
         yld['calc_key'] = variable.name

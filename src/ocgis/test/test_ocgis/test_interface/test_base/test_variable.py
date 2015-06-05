@@ -74,6 +74,12 @@ class TestAbstractValueVariable(TestBase):
         fav = FakeAbstractValueVariable(name='foo')
         self.assertEqual(fav.alias, 'foo')
 
+        # Test data types also pulled from value if present.
+        dtype = float
+        fav = FakeAbstractValueVariable(value=self.value, dtype=dtype)
+        self.assertEqual(fav.dtype, self.value.dtype)
+        self.assertIsNone(fav._dtype)
+
     def test_init_conform_units_to(self):
         """Test using the conform_units_to keyword argument."""
 
@@ -246,6 +252,14 @@ class TestVariable(TestBase):
         var = Variable(value=np.array([4, 5]), name='tas', alias='foo')
         self.assertEqual(var.name, 'tas')
         self.assertEqual(var.alias, 'foo')
+
+        # Test fill value handled appropriately.
+        value = [4, 5, 6]
+        var = Variable(value=value, fill_value=100)
+        self.assertEqual(np.ma.array(value).fill_value, var.fill_value)
+        self.assertIsNone(var._fill_value)
+        var = Variable(fill_value=100)
+        self.assertEqual(var.fill_value, 100)
 
     def test_init_with_value_with_dtype_fill_value(self):
         value = np.array([1, 2, 3, 4])

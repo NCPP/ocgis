@@ -136,20 +136,20 @@ class AbstractUidDimension(AbstractDimension):
 
 
 class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
-    def __init__(self, *args, **kwds):
-        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'fill_value', 'attrs', 'conform_units_to']
+    def __init__(self, *args, **kwargs):
+        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'attrs', 'conform_units_to']
         kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name']
 
         kwds_all = kwds_value + kwds_uid
-        for key in kwds.keys():
+        for key in kwargs.keys():
             try:
-                assert (key in kwds_all)
+                assert key in kwds_all
             except AssertionError:
-                raise ValueError(
-                    '"{0}" is not a valid keyword argument for "{1}".'.format(key, self.__class__.__name__))
+                msg = '"{0}" is not a valid keyword argument for "{1}".'
+                raise ValueError(msg.format(key, self.__class__.__name__))
 
-        kwds_value = {key: kwds.get(key, None) for key in kwds_value}
-        kwds_uid = {key: kwds.get(key, None) for key in kwds_uid}
+        kwds_value = {key: kwargs.get(key, None) for key in kwds_value}
+        kwds_uid = {key: kwargs.get(key, None) for key in kwds_uid}
 
         AbstractValueDimension.__init__(self, *args, **kwds_value)
         AbstractUidDimension.__init__(self, *args, **kwds_uid)

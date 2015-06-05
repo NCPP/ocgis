@@ -105,7 +105,7 @@ class AbstractParameter(object):
         :type qi: :class:`~ocgis.api.query.QueryInterface`
         :rtype: :class:`~ocgis.api.parms.base.AbstractParameter`
         """
-        #tdk: remove strings as possible types from parmeter.definition objects where they shouldn't be. from string now uses this
+
         value = qi.query_dict[cls.name][0]
         return cls(init_value=value)
 

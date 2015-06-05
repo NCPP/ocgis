@@ -30,7 +30,7 @@ class AbstractValueVariable(Attributes):
     _value = None
     _conform_units_to = None
 
-    def __init__(self, value=None, units=None, dtype=None, fill_value=None, name=None, conform_units_to=None,
+    def __init__(self, value=None, units=None, dtype=None, name=None, conform_units_to=None,
                  alias=None, attrs=None):
         self.name = name
         self.alias = alias or self.name
@@ -43,14 +43,11 @@ class AbstractValueVariable(Attributes):
         self.conform_units_to = conform_units_to
         self.value = value
 
-        # tdk: test value data types always used
         # Default to the value data types and fill values ignoring the provided values.
         if value is None:
             self._dtype = dtype
-            self._fill_value = fill_value
         else:
             self._dtype = None
-            self._fill_value = None
 
     @property
     def cfunits(self):
@@ -84,17 +81,6 @@ class AbstractValueVariable(Attributes):
         return ret
 
     @property
-    def fill_value(self):
-        if self._fill_value is None:
-            if self._value is None:
-                raise (ValueError('fill_value not specified at object initialization and value has not been loaded.'))
-            else:
-                ret = self.value.fill_value
-        else:
-            ret = self._fill_value
-        return ret
-
-    @property
     def shape(self):
         return self.value.shape
 
@@ -107,18 +93,6 @@ class AbstractValueVariable(Attributes):
     @value.setter
     def value(self, value):
         self._value = self._format_private_value_(value)
-
-    def _format_private_value_(self, value):
-        if value is not None:
-            # conform the units if a value is passed and the units are not equivalent
-            if self.conform_units_to is not None:
-                if not self.conform_units_to.equals(self.cfunits):
-                    value = self.cfunits_conform(to_units=self.conform_units_to, value=value, from_units=self.cfunits)
-        return value
-
-    @abc.abstractmethod
-    def _get_value_(self):
-        """Return the value field."""
 
     def cfunits_conform(self, to_units, value=None, from_units=None):
         """
@@ -139,7 +113,7 @@ class AbstractValueVariable(Attributes):
 
         # units are required for conversion
         if self.cfunits == Units(None):
-            raise (NoUnitsError(self.alias))
+            raise NoUnitsError(self.alias)
         # allow string unit representations to be passed
         if not isinstance(to_units, Units):
             to_units = Units(to_units)
@@ -165,9 +139,21 @@ class AbstractValueVariable(Attributes):
 
         return convert_value
 
+    def _format_private_value_(self, value):
+        if value is not None:
+            # conform the units if a value is passed and the units are not equivalent
+            if self.conform_units_to is not None:
+                if not self.conform_units_to.equals(self.cfunits):
+                    value = self.cfunits_conform(to_units=self.conform_units_to, value=value, from_units=self.cfunits)
+        return value
+
     def _get_to_conform_value_(self):
         """Intended for subclasses to be able to provide a different value array for unit conforming."""
         return self.value
+
+    @abc.abstractmethod
+    def _get_value_(self):
+        """Return the value field."""
 
 
 class AbstractSourcedVariable(object):
@@ -219,7 +205,7 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
     :type did: int
     :param dtype: Optional data type of the object.
     :type dtype: type
-    :param fill_value: Option fill value for masked array elements.
+    :param fill_value: Optional fill value for masked array elements.
     :type fill_value: int or float
     :param conform_units_to: Target units for conversion.
     :type conform_units_to: str convertible to :class:`cfunits.Units`
@@ -232,8 +218,13 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
         self.uid = uid
         self.did = did
 
+        if value is None:
+            self._fill_value = fill_value
+        else:
+            self._fill_value = None
+
         AbstractSourcedVariable.__init__(self, data, None)
-        AbstractValueVariable.__init__(self, value=value, units=units, dtype=dtype, fill_value=fill_value, name=name,
+        AbstractValueVariable.__init__(self, value=value, units=units, dtype=dtype, name=name,
                                        conform_units_to=conform_units_to, alias=alias, attrs=attrs)
 
     def __getitem__(self, slc):
@@ -255,6 +246,17 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
         units = '{0}' if self.units is None else '"{0}"'
         units = units.format(self.units)
         ret = '{0}(name="{1}", alias="{2}", units={3})'.format(self.__class__.__name__, self.alias, self.name, units)
+        return ret
+
+    @property
+    def fill_value(self):
+        if self._fill_value is None:
+            if self._value is None:
+                raise ValueError('"fill_value" not specified at object initialization and value has not been loaded.')
+            else:
+                ret = self.value.fill_value
+        else:
+            ret = self._fill_value
         return ret
 
     def get_empty_like(self, shape=None):
@@ -306,7 +308,6 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
         if value is None:
             ret = None
         else:
-            assert (isinstance(value, np.ndarray))
             if not isinstance(value, np.ma.MaskedArray):
                 ret = np.ma.array(value, mask=False)
             else:

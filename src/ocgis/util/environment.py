@@ -87,7 +87,6 @@ class Environment(object):
         return ret
 
     def __setattr__(self, name, value):
-        #tdk: rename 'ops' to '_ops'
         if isinstance(value, EnvParm) or name in ['ops'] or name.startswith('_'):
             object.__setattr__(self, name, value)
         else:
@@ -203,13 +202,20 @@ env = Environment()
 
 
 def get_dtype(string_name, netcdf_file_format=None):
-    #tdk: doc
-    #tdk: test
+    """
+    :param string_name: The name of the data type: ``'int'`` or ``'float'``.
+    :type string_name: str
+    :param netcdf_file_format: The target NetCDF file format.
+    :type netcdf_file_format: str
+    :return: The appropriate data type for the ``string_name`` and ``netcdf_file_format``.
+    :rtype: type
+    """
+
+    # The classic format does not support 64-bit data.
     if netcdf_file_format == 'NETCDF3_CLASSIC':
         mp = {'int': np.int32,
               'float': np.float32}
     else:
-        #tdk: replace with correct name
         mp = {'int': constants.DEFAULT_NP_INT,
               'float': constants.DEFAULT_NP_FLOAT}
     return mp[string_name]

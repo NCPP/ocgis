@@ -1,7 +1,7 @@
 import logging
 from copy import deepcopy, copy
-import numpy as np
 
+import numpy as np
 from shapely.geometry import Point, MultiPoint
 
 from ocgis.calc.engine import OcgCalculationEngine
@@ -65,35 +65,33 @@ class SubsetOperation(object):
             self.ops.geom = [{'geom': new_geom, 'properties': new_properties, 'crs': new_crs}]
 
     def __iter__(self):
-        ''':rtype: AbstractCollection'''
+        """:rtype: :class:`ocgis.api.collection.AbstractCollection`"""
 
         ocgis_lh('beginning iteration', logger='conv.__iter__', level=logging.DEBUG)
         self._ugid_unique_store = []
         self._geom_unique_store = []
 
-        # # simple iterator for serial operations
+        # simple iterator for serial operations
         for coll in self._iter_collections_():
-            yield (coll)
+            yield coll
 
     def _iter_collections_(self):
-        '''
-        :yields: :class:`~ocgis.SpatialCollection`
-        '''
+        """:rtype: :class:`ocgis.api.collection.AbstractCollection`"""
 
-        # # multivariate calculations require datasets come in as a list with all
-        # # variable inputs part of the same sequence.
+        # multivariate calculations require datasets come in as a list with all
+        # variable inputs part of the same sequence.
         if self._has_multivariate_calculations:
             itr_rd = [[r for r in self.ops.dataset.itervalues()]]
 
-        ## otherwise, process geometries expects a single element sequence
+        # otherwise, process geometries expects a single element sequence
         else:
             itr_rd = [[rd] for rd in self.ops.dataset.itervalues()]
 
-        ## configure the progress object
+        # configure the progress object
         self._progress.n_subsettables = len(itr_rd)
         self._progress.n_geometries = get_default_or_apply(self.ops.geom, len, default=1)
         self._progress.n_calculations = get_default_or_apply(self.ops.calc, len, default=0)
-        ## send some messages
+        # send some messages
         msg = '{0} dataset collection(s) to process.'.format(self._progress.n_subsettables)
         ocgis_lh(msg=msg, logger=self._subset_log)
         if self.ops.geom is None:
@@ -109,7 +107,7 @@ class SubsetOperation(object):
                 format(', '.join([_['func'] for _ in self.ops.calc]))
         ocgis_lh(msg=msg, logger=self._subset_log)
 
-        ## process the data collections
+        # process the data collections
         for rds in itr_rd:
 
             try:
@@ -127,43 +125,42 @@ class SubsetOperation(object):
             ocgis_lh(msg=msg, logger=self._subset_log)
 
             for coll in self._process_subsettables_(rds):
-                ## if there are calculations, do those now and return a new type of collection
+                # if there are calculations, do those now and return a new type of collection
                 if self.cengine is not None:
                     ocgis_lh('Starting calculations.',
                              self._subset_log,
                              alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
 
-                    ## look for any optimizations for temporal grouping.
+                    # look for any optimizations for temporal grouping.
                     if self.ops.optimizations is None:
                         tgds = None
                     else:
                         tgds = self.ops.optimizations.get('tgds')
-                    ## execute the calculations
+                    # execute the calculations
                     coll = self.cengine.execute(coll, file_only=self.ops.file_only,
                                                 tgds=tgds)
                 else:
-                    ## if there are no calculations, mark progress to indicate
-                    ## a geometry has been completed.
+                    # if there are no calculations, mark progress to indicate a geometry has been completed.
                     self._progress.mark()
 
-                ## conversion of groups.
+                # conversion of groups.
                 if self.ops.output_grouping is not None:
-                    raise (NotImplementedError)
+                    raise NotImplementedError
                 else:
                     ocgis_lh('subset yielding', self._subset_log, level=logging.DEBUG)
-                    yield (coll)
+                    yield coll
 
     def _process_subsettables_(self, rds):
         """
         :param rds: Sequence of :class:~`ocgis.RequestDataset` objects.
         :type rds: sequence
-        :rtype: :class:~`ocgis.SpatialCollection`
+        :rtype: :class:`ocgis.api.collection.AbstractCollection`
         """
 
         ocgis_lh(msg='entering _process_geometries_', logger=self._subset_log, level=logging.DEBUG)
 
-        # # select headers and any value keys for keyed output functions
+        # select headers and any value keys for keyed output functions
         value_keys = None
         if self.ops.headers is not None:
             headers = self.ops.headers
@@ -420,8 +417,8 @@ class SubsetOperation(object):
                          level=logging.WARN)
                 sfield = None
             else:
-                msg = str(
-                    e) + ' This typically means the selection geometry falls outside the spatial domain of the target dataset.'
+                msg = ' This typically means the selection geometry falls outside the spatial domain of the target dataset.'
+                msg = str(e) + msg
                 ocgis_lh(exc=ExtentError(message=msg), alias=alias, logger=self._subset_log)
 
         # if the subset geometry is unwrapped and the vector wrap option is true, wrap the subset geometry.

@@ -2,6 +2,7 @@ import logging
 from copy import deepcopy, copy
 
 import numpy as np
+
 from shapely.geometry import Point, MultiPoint
 
 from ocgis.calc.engine import OcgCalculationEngine
@@ -442,7 +443,7 @@ class SubsetOperation(object):
         """
 
         if type(subset_sdim.single.geom) in [Point, MultiPoint]:
-            assert (subset_sdim.abstraction == 'point')
+            assert subset_sdim.abstraction == 'point'
             ocgis_lh(logger=self._subset_log, msg='buffering point geometry', level=logging.DEBUG)
             subset_geom = subset_sdim.single.geom.buffer(self.ops.search_radius_mult * field.spatial.grid.resolution)
             value = np.ma.array([[None]])
@@ -450,7 +451,7 @@ class SubsetOperation(object):
             subset_sdim.geom._polygon = SpatialGeometryPolygonDimension(value=value, uid=subset_ugid)
             # the polygon should be used for subsetting, update the spatial dimension to use this abstraction
             subset_sdim.abstraction = 'polygon'
-        assert (subset_sdim.abstraction == 'polygon')
+        assert subset_sdim.abstraction == 'polygon'
 
     def _check_masking_(self, alias, sfield, subset_ugid):
         """

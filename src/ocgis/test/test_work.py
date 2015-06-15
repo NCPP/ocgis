@@ -2,11 +2,13 @@ from csv import DictReader
 import os
 
 import fiona
+from shapely.geometry import Point
+
+from shapely.geometry.multipoint import MultiPoint
 
 from ocgis import constants
 from ocgis import ShpCabinet, RequestDataset, OcgOperations, env
 from ocgis.test.base import TestBase
-
 
 """
 These tests written to guide bug fixing or issue development. Theses tests are typically high-level and block-specific
@@ -107,3 +109,20 @@ class Test20150327(TestBase):
         ops = OcgOperations(dataset=rd, geom=path, geom_select_sql_where=s, geom_uid='ID')
         ret = ops.execute()
         self.assertEqual(ret.keys(), [13, 15])
+
+
+class Test20150608(TestBase):
+    def test_multipoint_buffering_and_union(self):
+        """Test subset behavior using MultiPoint geometries."""
+
+        pts = [Point(3.8, 28.57), Point(9.37, 33.90), Point(17.04, 27.08)]
+        mp = MultiPoint(pts)
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        coll = OcgOperations(dataset=rd, output_format='numpy', snippet=True, geom=mp).execute()
+        mu1 = coll[1]['tas'].variables['tas'].value.mean()
+        nc_path = OcgOperations(dataset=rd, output_format='nc', snippet=True, geom=mp).execute()
+        with self.nc_scope(nc_path) as ds:
+            var = ds.variables['tas']
+            mu2 = var[:].mean()
+        self.assertEqual(mu1, mu2)

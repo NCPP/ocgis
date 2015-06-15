@@ -44,10 +44,15 @@ class TemporalDimension(base.VectorDimension):
         kwargs['units'] = kwargs.get('units') or constants.DEFAULT_TEMPORAL_UNITS
 
         if kwargs['units'] == 'day as %Y%m%d.%f':
-            td = TemporalDimension(value=kwargs.get('value'))
-            td.units = kwargs['units']
-            kwargs['value'] = td.value_datetime
+            from ocgis.interface.nc.temporal import NcTemporalDimension
+
+            units_original = kwargs['units']
+            units_conform_units_to = kwargs.pop('conform_units_to', None)
             kwargs['units'] = constants.DEFAULT_TEMPORAL_UNITS
+            td = NcTemporalDimension(*args, **kwargs)
+            td.units = units_original
+            kwargs['value'] = td.value_datetime
+            kwargs['conform_units_to'] = units_conform_units_to
 
         super(TemporalDimension, self).__init__(*args, **kwargs)
 
@@ -156,7 +161,7 @@ class TemporalDimension(base.VectorDimension):
             try:
                 arr = np.atleast_1d(nc.num2date(arr, self.units, calendar=self.calendar))
             except ValueError:
-                # this may be cause by template units
+                # this may be caused by template units
                 if self._has_template_units:
                     arr = get_datetime_from_template_time_units(arr)
                 else:
@@ -710,12 +715,11 @@ def get_datetime_from_template_time_units(vec):
     dt = datetime.datetime
     fill = np.empty_like(vec, dtype=object)
     for idx, element in enumerate(vec.flat):
-        s = str(element)
-        year = int(s[0:4])
-        month = int(s[4:6])
-        day = int(s[6:8])
-        f = float(s[-5:])
-        hour = 24 * f
+        ymd, hm = str(int(element)), element - int(element)
+        year = int(ymd[0:4])
+        month = int(ymd[4:6])
+        day = int(ymd[6:8])
+        hour = 24 * hm
         minute = int((Decimal(hour) % 1) * 60)
         hour = int(hour)
         fill[idx] = dt(year, month, day, hour=hour, minute=minute)

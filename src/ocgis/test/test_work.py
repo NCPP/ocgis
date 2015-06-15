@@ -2,6 +2,7 @@ from csv import DictReader
 import os
 
 import fiona
+
 from shapely.geometry import Point
 
 from shapely.geometry.multipoint import MultiPoint

@@ -28,6 +28,10 @@ class AbstractTestTemporal(TestBase):
     def value_template_units(self):
         return np.array([19710101.9375, 19710102.9375, 19710103.9375, 19710104.9375, 19710105.9375])
 
+    @property
+    def value_template_units_no_decimal(self):
+        return np.array([20000101., 20000102., 20000103., 20000104., 20000105., 20000106.])
+
 
 class TestFunctions(AbstractTestTemporal):
     def test_get_datetime_conversion_state(self):
@@ -67,6 +71,10 @@ class TestFunctions(AbstractTestTemporal):
         ret = get_datetime_from_template_time_units(self.value_template_units)
         self.assertEqual(ret.shape, self.value_template_units.shape)
         self.assertEqual(ret[2], datetime.datetime(1971, 1, 3, 22, 30))
+
+        ret = get_datetime_from_template_time_units(self.value_template_units_no_decimal)
+        self.assertEqual(ret.shape, self.value_template_units_no_decimal.shape)
+        self.assertEqual(ret[2], datetime.datetime(2000, 1, 3))
 
     def test_get_difference_in_months(self):
         distance = get_difference_in_months(datetime.datetime(1978, 12, 1), datetime.datetime(1979, 3, 1))

@@ -25,4 +25,4 @@ install:
 
 script:
   - cd
-  - nosetests -a 'simple' ocgis
+  - python -c "from ocgis.test import run_simple; run_simple()"

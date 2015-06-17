@@ -1,12 +1,11 @@
-import os
 import time
 
+import os
 from fabric.contrib.project import rsync_project
 from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
 from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
-
 from saws import AwsManager
 from saws.tasks import ebs_mount
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
@@ -210,7 +209,7 @@ r = RunAwsTests()
 def test_node_launch(instance_type='m3.xlarge'):
     am = AwsManager()
     instance_name = 'ocgis-test-node'
-    image_id = 'ami-878aa5b7'
+    image_id = 'ami-3bb8820b'
     # instance_type = 't2.micro'
     ebs_snapshot_id = 'snap-310873bc'
     ebs_mount_dir = '~/data'

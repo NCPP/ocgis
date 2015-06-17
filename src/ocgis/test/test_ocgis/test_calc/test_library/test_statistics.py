@@ -3,7 +3,8 @@ import unittest
 import itertools
 
 import numpy as np
-from cfunits.cfunits import Units
+
+from cfunits import Units
 
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile

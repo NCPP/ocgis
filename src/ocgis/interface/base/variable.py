@@ -126,8 +126,12 @@ class AbstractValueVariable(Attributes):
         self.cfunits.conform(convert_value, from_units, to_units, inplace=True)
         # update the units attribute with the destination units
         if hasattr(to_units, 'calendar'):
-            str_to_units = deepcopy(to_units)
-            delattr(str_to_units, 'calendar')
+            # The string representation of units contains the calendar in the case of time. It only prints the calendar
+            # if the value is not None.
+            if to_units.calendar is not None:
+                str_to_units = Units(to_units.units)
+            else:
+                str_to_units = to_units
         else:
             str_to_units = to_units
         self.units = str(str_to_units)

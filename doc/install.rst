@@ -28,7 +28,7 @@ Optional dependencies are listed below. OpenClimateGIS will still operate withou
 Package Name  Version  URL                                                    Usage
 ============= ======== ====================================================== =================================================================================================================================
 ``rtree``     0.8.0    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cfunits``   0.9.6    https://code.google.com/p/cfunits-python/              Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
+``cfunits``   1.0      https://bitbucket.org/cfpython/cfunits-python          Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
 ``ESMPy``     6.3.0rp1 https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
 ``icclim``    3.0      http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ============= ======== ====================================================== =================================================================================================================================

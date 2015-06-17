@@ -3,7 +3,8 @@ import os
 from copy import deepcopy
 
 import numpy as np
-from cfunits.cfunits import Units
+
+from cfunits import Units
 
 from ocgis.constants import OCGIS_BOUNDS
 from ocgis.interface.base.variable import AbstractSourcedVariable, AbstractValueVariable

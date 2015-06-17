@@ -8,7 +8,8 @@ from datetime import datetime as dt
 import datetime
 
 import numpy as np
-from cfunits.cfunits import Units
+
+from cfunits import Units
 
 from ocgis.api.request.driver.nc import DriverNetcdf
 from ocgis.api.request.driver.vector import DriverVector

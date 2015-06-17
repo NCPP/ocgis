@@ -1,4 +1,4 @@
-from cfunits.cfunits import Units
+from cfunits import Units
 
 from ocgis.test.base import TestBase
 from ocgis.util.units import get_are_units_equivalent, get_are_units_equal, get_are_units_equal_by_string_or_cfunits

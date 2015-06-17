@@ -226,8 +226,7 @@ class TestTemporalDimension(AbstractTestTemporal):
             temporal = field.temporal
             return temporal
 
-        target = Units('days since 1949-1-1')
-        target.calendar = '365_day'
+        target = Units('days since 1949-1-1', calendar='365_day')
         kwds = {'t_conform_units_to': target}
         temporal = _get_temporal_(kwds)
         temporal_orig = _get_temporal_()
@@ -237,8 +236,7 @@ class TestTemporalDimension(AbstractTestTemporal):
     def test_conform_units_to(self):
         d = 'days since 1949-1-1'
         td = TemporalDimension(value=[4, 5, 6], conform_units_to=d)
-        actual = Units(d)
-        actual.calendar = constants.DEFAULT_TEMPORAL_CALENDAR
+        actual = Units(d, calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
         self.assertTrue(td.cfunits.equals(actual))
 
         td = TemporalDimension(value=[4, 5, 6])

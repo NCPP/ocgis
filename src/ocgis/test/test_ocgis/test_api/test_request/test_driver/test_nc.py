@@ -9,6 +9,7 @@ import netCDF4 as nc
 import numpy as np
 from cfunits import Units
 import fiona
+
 from shapely.geometry.geo import shape
 
 from ocgis import env
@@ -140,8 +141,7 @@ class TestDriverNetcdf(TestBase):
         """
 
         uri = self.test_data.get_uri('cancm4_tas')
-        target = Units('days since 1949-1-1')
-        target.calendar = '365_day'
+        target = Units('days since 1949-1-1', calendar='365_day')
         rd = RequestDataset(uri=uri, t_conform_units_to=target)
         field = rd.get()
         self.assertEqual(field.temporal.conform_units_to, target)

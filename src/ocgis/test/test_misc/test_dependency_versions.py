@@ -1,6 +1,5 @@
 import numpy
 import netCDF4
-
 import fiona
 import shapely
 
@@ -14,7 +13,7 @@ class TestVersions(TestBase):
     def test_cfunits(self):
         import cfunits
 
-        self.assertEqual(cfunits.__version__, '0.9.6')
+        self.assertEqual(cfunits.__version__, '1.0')
 
     def test_esmf(self):
         import ESMF

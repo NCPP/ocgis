@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 import numpy as np
-from cfunits.cfunits import Units
+from cfunits import Units
 
 from ocgis import env
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable

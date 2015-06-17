@@ -182,10 +182,8 @@ class TestAbstractValueVariable(TestBase):
         self.assertEqual(av.dtype, av.value.dtype)
 
         # calendar can be finicky - those need to be stripped from the string conversion
-        conform_units_to = Units('days since 1949-1-1')
-        conform_units_to.calendar = 'standard'
-        units = Units('days since 1900-1-1')
-        units.calendar = 'standard'
+        conform_units_to = Units('days since 1949-1-1', calendar='standard')
+        units = Units('days since 1900-1-1', calendar='standard')
         av = FakeAbstractValueVariable(value=np.array([4000, 5000, 6000]), units=units,
                                        conform_units_to=conform_units_to)
         self.assertEqual(av.units, 'days since 1949-1-1')

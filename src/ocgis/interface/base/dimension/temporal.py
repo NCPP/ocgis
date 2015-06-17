@@ -82,12 +82,13 @@ class TemporalDimension(base.VectorDimension):
     def conform_units_to(self, value):
         base.VectorDimension._conform_units_to_setter_(self, value)
         if self._conform_units_to is not None:
-            self._conform_units_to.calendar = self.calendar
+            self._conform_units_to = self._conform_units_to.__class__(self._conform_units_to.units,
+                                                                      calendar=self.calendar)
 
     @property
     def cfunits(self):
         ret = super(TemporalDimension, self).cfunits
-        ret.calendar = self.calendar
+        ret = ret.__class__(ret.units, calendar=self.calendar)
         return ret
 
     @property

@@ -15,6 +15,7 @@ class TestVersions(TestBase):
 
         self.assertEqual(cfunits.__version__, '1.0')
 
+    @attr('esmf')
     def test_esmf(self):
         import ESMF
 

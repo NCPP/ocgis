@@ -3,9 +3,9 @@ import csv
 import os
 import pickle
 import itertools
+
 import numpy as np
 
-import ESMF
 from shapely import wkt
 
 from ocgis.calc.library.index.duration import FrequencyDuration
@@ -16,7 +16,7 @@ from ocgis.api.operations import OcgOperations
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84, CoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGridDimension
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 import ocgis
 from ocgis.api.subset import SubsetOperation
 from ocgis.api.collection import SpatialCollection
@@ -109,8 +109,11 @@ class TestSubsetOperation(TestBase):
         with self.assertRaises(ValueError):
             ops.execute()
 
+    @attr('esmf')
     def test_dataset_as_field(self):
         """Test with dataset as field not loaded from file - hence, no metadata."""
+
+        import ESMF
 
         kwds = dict(output_format=list(OutputFormat.iter_possible()),
                     crs=[None, WGS84()])
@@ -248,6 +251,7 @@ class TestSubsetOperation(TestBase):
             for field in field_dict.itervalues():
                 self.assertAlmostEqual(field.spatial.grid.value.data.mean(), expected[ugid])
 
+    @attr('esmf')
     def test_regridding_bounding_box_wrapped(self):
         """Test subsetting with a wrapped bounding box with the target as a 0-360 global grid."""
 
@@ -265,11 +269,12 @@ class TestSubsetOperation(TestBase):
         self.assertIsNotNone(field.spatial.grid.corners)
         self.assertAlmostEqual(field.variables.first().value.mean(), 262.08718532986109)
 
+    @attr('esmf')
     def test_regridding_same_field(self):
         """Test regridding operations with same field used to regrid the source."""
 
         # todo: what happens with multivariate calculations
-        #todo: test with all masked values
+        # todo: test with all masked values
 
         rd_dest = self.test_data.get_rd('cancm4_tas')
 
@@ -316,6 +321,7 @@ class TestSubsetOperation(TestBase):
                                      field.spatial.grid.corners, field.spatial.geom.polygon.value]:
                         self.assertIsNotNone(to_check)
 
+    @attr('esmf')
     def test_regridding_same_field_bad_bounds_without_corners(self):
         """Test bad bounds may be regridded with_corners as False."""
 
@@ -331,6 +337,7 @@ class TestSubsetOperation(TestBase):
                 for to_test in [field.spatial.grid.row.bounds, field.spatial.grid.col.bounds]:
                     self.assertIsNone(to_test)
 
+    @attr('esmf')
     def test_regridding_same_field_value_mask(self):
         """Test with a value_mask."""
 
@@ -343,6 +350,7 @@ class TestSubsetOperation(TestBase):
         ret = list(SubsetOperation(ops))
         self.assertEqual(1, ret[0][1]['tas'].variables.first().value.mask.sum())
 
+    @attr('esmf')
     def test_regridding_different_fields_requiring_wrapping(self):
         """Test with fields requiring wrapping."""
 
@@ -361,6 +369,7 @@ class TestSubsetOperation(TestBase):
             for dd in coll.get_iter_melted():
                 self.assertEqual(dd['field'].shape, (1, 28, 1, 5, 4))
 
+    @attr('esmf')
     def test_regridding_different_fields_variable_regrid_targets(self):
         """Test with a request dataset having regrid_source as False."""
 
@@ -388,6 +397,7 @@ class TestSubsetOperation(TestBase):
                 else:
                     raise NotImplementedError
 
+    @attr('esmf')
     def test_regridding_update_crs(self):
         """Test with different CRS values than spherical on input data."""
 
@@ -586,6 +596,7 @@ class TestSubsetOperation(TestBase):
                 self.assertEqual(to_test.shape, (1, 1, 1, 24, 13))
                 self.assertNumpyAll(to_test, actual)
 
+    @attr('esmf')
     def test_regridding_with_output_crs(self):
         """Test with an output coordinate system."""
 
@@ -602,6 +613,7 @@ class TestSubsetOperation(TestBase):
             self.assertEqual(field.spatial.crs, rd1.get().spatial.crs)
             self.assertEqual(field.shape[1], 3650)
 
+    @attr('esmf')
     def test_regridding_two_projected_coordinate_systems(self):
         """Test with two coordinate systems not in spherical coordinates."""
 

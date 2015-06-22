@@ -34,12 +34,13 @@ from ocgis.util.logging_ocgis import ocgis_lh
 Definitions for various "attrs":
  * slow: long-running tests that are typically ran before a release
  * remote: tests relying on remote datasets that are typically run before a release
+ * esmf: tests requiring ESMF
  * esmpy7: tests requiring a branch version of ESMF
  * simple: simple tests designed to test core functionality requiring no datasets
  * versions: test the recommended version of packages against the actual versions
  * optional: tests that use optional dependencies
 
-nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis/test
+nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis
 """
 
 

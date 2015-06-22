@@ -3,17 +3,18 @@ import os
 import itertools
 from copy import deepcopy
 import tempfile
+
 import numpy as np
-
 import fiona
-from shapely.geometry import Point
-from ocgis.conv.meta import MetaJSONConverter
 
+from shapely.geometry import Point
+
+from ocgis.conv.meta import MetaJSONConverter
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension
-from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter
+from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter, \
+    AbstractFileConverter
 from ocgis import constants
-from ocgis.conv.esmpy import AbstractFileConverter
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter

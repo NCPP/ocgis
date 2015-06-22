@@ -6,7 +6,6 @@ import datetime
 
 from numpy import dtype
 import numpy as np
-import ESMF
 
 from ocgis import env
 from ocgis.api.request.base import RequestDataset
@@ -338,7 +337,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
-    @attr('esmpy7')
+    @attr('esmpy7', 'esmf')
     def test_keyword_dataset_esmf(self):
         """Test with operations on an ESMF Field."""
 
@@ -423,12 +422,13 @@ class TestOcgOperations(TestBase):
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 
-    @attr('esmpy7')
+    @attr('esmpy7', 'esmf')
     def test_keyword_output_format_esmpy(self):
         """Test with the ESMPy output format."""
+        import ESMF
 
         # todo: test spatial subsetting
-        #todo: test calculations
+        # todo: test calculations
         slc = [None, None, None, [0, 10], [0, 10]]
         kwds = dict(as_field=[False, True],
                     with_slice=[True, False])
@@ -473,6 +473,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd, spatial_operation='clip')
 
+    @attr('esmf')
     def test_keyword_regrid_destination_to_nc(self):
         """Write regridded data to netCDF."""
 
@@ -487,6 +488,7 @@ class TestOcgOperations(TestBase):
         self.assertIsNotNone(field.spatial.grid.corners)
         self.assertTrue(np.any(field.variables.first().value.mask))
 
+    @attr('esmf')
     def test_keyword_regrid_destination_to_shp_vector_wrap(self):
         """Test writing to shapefile with different vector wrap options."""
 

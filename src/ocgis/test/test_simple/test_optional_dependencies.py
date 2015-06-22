@@ -19,6 +19,7 @@ class TestOptionalDependencies(TestSimpleBase):
         units = Units('K')
         self.assertEqual(str(units), 'K')
 
+    @attr('esmf')
     def test_esmf(self):
         rd1 = RequestDataset(**self.get_dataset())
         rd2 = deepcopy(rd1)

@@ -7,6 +7,7 @@ from unittest import SkipTest
 from netCDF4 import date2num
 from numpy.ma import MaskedArray
 import numpy as np
+
 from icclim.percentile_dict import get_percentile_dict
 
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
@@ -17,6 +18,7 @@ from ocgis.interface.base.field import Field
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.nc.temporal import NcTemporalDimension
+from ocgis.test import strings
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, IcclimTN, \
     IcclimTX, AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction, IcclimTG10p, \
@@ -141,12 +143,10 @@ class TestLibraryIcclim(TestBase):
                                 to_test = shape[1]
                         with nc_scope(ret) as ds:
                             var = ds.variables[calc[0]['name']]
-                            self.assertEqual(var.dtype, subclass.dtype)
                             if to_test is not None:
                                 self.assertEqual(var.shape, (to_test, 3, 3))
                     except DefinitionValidationError as e:
-                        msg = '''OcgOperations validation raised an exception on the argument/operation "calc_grouping" with the message: The following temporal groupings are supported for ICCLIM: [('month',), ('month', 'year'), ('year',)]. The requested temporal group is:'''
-                        if e.message.startswith(msg):
+                        if e.message.startswith(strings.S4):
                             pass
                         else:
                             raise e

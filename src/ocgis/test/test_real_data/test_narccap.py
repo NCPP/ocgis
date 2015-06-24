@@ -1,5 +1,5 @@
-import unittest
 import os
+
 import numpy as np
 
 from ocgis.test.base import TestBase, nc_scope, attr
@@ -11,70 +11,74 @@ from ocgis.interface.base.crs import CFRotatedPole, CFWGS84
 
 
 class TestRotatedPole(TestBase):
-    
     def test_validation(self):
-        ## CFRotatedPole is not an appropriate output crs. it may also not be
-        ## transformed to anything but WGS84
+        # CFRotatedPole is not an appropriate output crs. it may also not be transformed to anything but WGS84
         rd = self.test_data.get_rd('narccap_rotated_pole')
         with self.assertRaises(DefinitionValidationError):
-            OcgOperations(dataset=rd,output_crs=CFRotatedPole(grid_north_pole_latitude=5,
-                                                              grid_north_pole_longitude=5))
-        ## this is an okay output coordinate system for the two input coordinate
-        ## systems
+            OcgOperations(dataset=rd, output_crs=CFRotatedPole(grid_north_pole_latitude=5,
+                                                               grid_north_pole_longitude=5))
+        # this is an okay output coordinate system for the two input coordinate systems
         rd2 = self.test_data.get_rd('narccap_lambert_conformal')
-        OcgOperations(dataset=[rd,rd2],output_crs=CFWGS84())
-        
+        OcgOperations(dataset=[rd, rd2], output_crs=CFWGS84())
+
     def test_calculation(self):
-        rd = self.test_data.get_rd('narccap_rotated_pole',kwds=dict(time_region={'month':[12],'year':[1982]}))
-        calc = [{'func':'mean','name':'mean'}]
+        rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
+        calc = [{'func': 'mean', 'name': 'mean'}]
         calc_grouping = ['month']
-        ops = OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
+        ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
                             output_format='nc')
         ret = ops.execute()
-        field = ocgis.RequestDataset(uri=ret,variable='mean').get()
-        self.assertIsInstance(field.spatial.crs,CFRotatedPole)
-        self.assertEqual(field.shape,(1,1,1,130,155))
-        
+        field = ocgis.RequestDataset(uri=ret, variable='mean').get()
+        self.assertIsInstance(field.spatial.crs, CFRotatedPole)
+        self.assertEqual(field.shape, (1, 1, 1, 130, 155))
+
     def test_intersects(self):
-        rd = self.test_data.get_rd('narccap_rotated_pole',kwds=dict(time_region={'month':[12],'year':[1982]}))
-        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16])
+        rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
+        ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16])
         ret = ops.execute()
-        ref = ret.gvu(16,'tas')
-        self.assertEqual(ref.shape,(1, 248, 1, 7, 15))
+        ref = ret.gvu(16, 'tas')
+        self.assertEqual(ref.shape, (1, 248, 1, 7, 15))
         self.assertAlmostEqual(np.ma.mean(ref), 269.8304976396538)
-        self.assertNumpyAll(ref.mask.squeeze()[0,:,:],
-                            np.array([[True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
-                                      [True,True,True,True,False,False,False,False,False,False,False,False,False,False,False],
-                                      [True,True,True,True,False,False,False,False,False,False,False,False,False,False,True],
-                                      [False,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
-                                      [False,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
-                                      [True,False,False,False,False,False,False,False,False,False,False,False,False,False,True],
-                                      [True,False,False,False,False,False,False,False,False,False,True,True,True,True,True]],dtype=bool))
-        
+        self.assertNumpyAll(ref.mask.squeeze()[0, :, :],
+                            np.array([[True, True, True, True, False, False, False, False, False, False, False, False,
+                                       False, False, False],
+                                      [True, True, True, True, False, False, False, False, False, False, False, False,
+                                       False, False, False],
+                                      [True, True, True, True, False, False, False, False, False, False, False, False,
+                                       False, False, True],
+                                      [False, False, False, False, False, False, False, False, False, False, False,
+                                       False, False, False, True],
+                                      [False, False, False, False, False, False, False, False, False, False, False,
+                                       False, False, False, True],
+                                      [True, False, False, False, False, False, False, False, False, False, False,
+                                       False, False, False, True],
+                                      [True, False, False, False, False, False, False, False, False, False, True, True,
+                                       True, True, True]], dtype=bool))
+
     def test_clip_aggregate(self):
-        rd = self.test_data.get_rd('narccap_rotated_pole',kwds=dict(time_region={'month':[12],'year':[1982]}))
-        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16],
-                            spatial_operation='clip',aggregate=True,output_format='numpy')
-        ## the output CRS should be automatically updated for this operation
-        self.assertEqual(ops.output_crs,CFWGS84())
+        rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
+        ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16],
+                            spatial_operation='clip', aggregate=True, output_format='numpy')
+        # the output CRS should be automatically updated for this operation
+        self.assertEqual(ops.output_crs, CFWGS84())
         ret = ops.execute()
-        ret = ret.gvu(16,'tas')
-        self.assertEqual(ret.shape,(1, 248, 1, 1, 1))
+        ret = ret.gvu(16, 'tas')
+        self.assertEqual(ret.shape, (1, 248, 1, 1, 1))
         self.assertAlmostEqual(ret.mean(), 269.83051915322579)
-        
+
     def test_read(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         field = rd.get()
-        self.assertIsInstance(field.spatial.crs,CFRotatedPole)
-        
+        self.assertIsInstance(field.spatial.crs, CFRotatedPole)
+
     def test_to_netcdf(self):
-        rd = self.test_data.get_rd('narccap_rotated_pole',kwds=dict(time_region={'month':[12],'year':[1982]}))
-        ## it does not care about slices or no geometries
-        ops = OcgOperations(dataset=rd,output_format='nc')
+        rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
+        # it does not care about slices or no geometries
+        ops = OcgOperations(dataset=rd, output_format='nc')
         ret = ops.execute()
-        rd2 = ocgis.RequestDataset(uri=ret,variable='tas')
-        self.assertEqual(rd2.get().temporal.extent,(5444.0,5474.875))
-        
+        rd2 = ocgis.RequestDataset(uri=ret, variable='tas')
+        self.assertEqual(rd2.get().temporal.extent, (5444.0, 5474.875))
+
     def test_to_netcdf_with_geometry(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         # this bounding box covers the entire spatial domain. the software will move between rotated pole and CFWGS84
@@ -93,25 +97,25 @@ class TestRotatedPole(TestBase):
                     var2 = ds2.variables[var_name][:]
                     diff = np.abs(var - var2)
                     self.assertTrue(diff.max() <= 1.02734374963e-06)
-        
+
     def test_to_netcdf_with_slice(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         ops = OcgOperations(dataset=rd,
                             output_format='nc',
-                            slice=[None,[0,10],None,[0,10],[0,10]],
+                            slice=[None, [0, 10], None, [0, 10], [0, 10]],
                             prefix='slice')
         ret = ops.execute()
-        rd3 = ocgis.RequestDataset(uri=ret,variable='tas')
-        self.assertEqual(rd3.get().shape,(1,10,1,10,10))
-        
-        
+        rd3 = ocgis.RequestDataset(uri=ret, variable='tas')
+        self.assertEqual(rd3.get().shape, (1, 10, 1, 10, 10))
+
+
 class Test(TestBase):
-            
     def test_cf_lambert_conformal(self):
         rd = self.test_data.get_rd('narccap_lambert_conformal')
         field = rd.get()
         crs = field.spatial.crs
-        self.assertDictEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
+        self.assertDictEqual(crs.value, {'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc',
+                                         'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
 
     @attr('slow')
     def test_read_write_projections(self):
@@ -120,7 +124,7 @@ class Test(TestBase):
         data_dir = os.path.join(ocgis.env.DIR_TEST_DATA, 'nc', 'narccap')
         ocgis.env.DIR_DATA = data_dir
         ocgis.env.OVERWRITE = True
-        
+
         real = {'pr': {'pr_RCM3_cgcm3_1986010103.nc': {'mu': 2.7800052478033606e-07, 'shape': (1, 1, 1, 7, 15)},
                        'pr_MM5I_ncep_1981010103.nc': {'mu': 3.3648159627007675e-08, 'shape': (1, 1, 1, 7, 14)},
                        'pr_RCM3_ncep_1986010103.nc': {'mu': 9.7176247154926553e-09, 'shape': (1, 1, 1, 7, 15)},
@@ -189,36 +193,33 @@ class Test(TestBase):
         for uri in os.listdir(data_dir):
             if uri.endswith('nc'):
                 variable = uri.split('_')[0]
-                for output_format in [
-                                      'numpy',
-                                      'nc'
-                                      ]:
-                    rd = RequestDataset(uri=uri,variable=variable)#,time_range=time_range)
-                    
+                for output_format in ['numpy', 'nc']:
+                    rd = RequestDataset(uri=uri, variable=variable)
+
                     try:
-                        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[16],snippet=True,
+                        ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16], snippet=True,
                                             output_format=output_format)
                     except DefinitionValidationError:
-                        ## rotated pole may not be written to netCDF
+                        # rotated pole may not be written to netCDF
                         crs = rd._get_crs_()
-                        if isinstance(crs,CFRotatedPole):
+                        if isinstance(crs, CFRotatedPole):
                             continue
                         else:
                             raise
-                    
+
                     try:
                         ret = ops.execute()
-                        
+
                         if output_format == 'numpy':
                             ref = ret[16].values()[0].variables.values()[0].value
                             mu = np.ma.mean(ref)
-                            
+
                             r_mu = real[variable][uri]['mu']
                             try:
-                                self.assertAlmostEqual(r_mu,mu)
+                                self.assertAlmostEqual(r_mu, mu, places=4)
                             except AssertionError:
-                                self.assertEqual(r_mu,np.ma.core.MaskedConstant)
-                                self.assertEqual(real[variable][uri]['shape'],ref.shape)
+                                self.assertEqual(r_mu, np.ma.core.MaskedConstant)
+                                self.assertEqual(real[variable][uri]['shape'], ref.shape)
 
                         if output_format == 'nc':
                             with nc_scope(ret) as ds:
@@ -226,16 +227,11 @@ class Test(TestBase):
                                     grid_mapping = ds.variables[rd.variable].grid_mapping
                                     self.assertTrue(grid_mapping in ds.variables)
                                 except AttributeError:
-                                    ## time slice files do not have a projection
+                                    # time slice files do not have a projection
                                     self.assertTrue('_TMSL_' in rd.uri)
-                                
+
                     except ExtentError:
                         if 'ECP2_ncep' in rd.uri:
                             pass
                         else:
                             raise
-
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

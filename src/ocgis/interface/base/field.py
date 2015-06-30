@@ -9,6 +9,7 @@ from shapely.geometry import mapping
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
+
 from shapely.geometry.point import Point
 
 from ocgis import constants
@@ -379,8 +380,19 @@ class Field(Attributes):
         return ret
 
     def get_time_region(self, time_region):
+        # todo: consider using the built-in slicing as opposed to the copy then slice variables approach
         ret = copy(self)
         ret.temporal, indices = self.temporal.get_time_region(time_region, return_indices=True)
+        slc = [slice(None), indices, slice(None), slice(None), slice(None)]
+        variables = self.variables.get_sliced_variables(slc)
+        ret.variables = variables
+        return ret
+
+    def get_time_subset_by_function(self, func):
+        # tdk: test
+        # tdk: doc
+        ret = copy(self)
+        ret.temporal, indices = self.temporal.get_subset_by_function(func, return_indices=True)
         slc = [slice(None), indices, slice(None), slice(None), slice(None)]
         variables = self.variables.get_sliced_variables(slc)
         ret.variables = variables

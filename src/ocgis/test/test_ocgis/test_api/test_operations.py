@@ -568,6 +568,29 @@ class TestOcgOperations(TestBase):
         for r in ops.dataset.itervalues():
             self.assertEqual(r.time_region, tr)
 
+    def test_keyword_time_subset_func(self):
+
+        def _func_(value, bounds=None):
+            indices = []
+            for ii, v in enumerate(value.flat):
+                if v.month == 6:
+                    indices.append(ii)
+            return indices
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom='state_boundaries', geom_select_uid=[20])
+        ret = ops.execute()
+        for v in ret[20]['tas'].temporal.value_datetime:
+            self.assertEqual(v.month, 6)
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom='state_boundaries', geom_select_uid=[20],
+                            output_format=constants.OUTPUT_FORMAT_NETCDF)
+        ret = ops.execute()
+        rd_out = RequestDataset(ret)
+        for v in rd_out.get().temporal.value_datetime:
+            self.assertEqual(v.month, 6)
+
     def test_validate(self):
         # snippets should be allowed for field objects
         field = self.test_data.get_rd('cancm4_tas').get()

@@ -132,9 +132,9 @@ class OcgOperations(object):
                  agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False, dir_output=None,
                  slice=None, file_only=False, headers=None, format_time=True, calc_sample_size=False,
                  search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
-                 optimizations=None, callback=None, time_range=None, time_region=None, level_range=None,
-                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None,
-                 melted=False):
+                 optimizations=None, callback=None, time_range=None, time_region=None, time_subset_func=None,
+                 level_range=None, conform_units_to=None, select_nearest=False, regrid_destination=None,
+                 regrid_options=None, melted=False):
 
         # tells "__setattr__" to not perform global validation until all values are set initially
         self._is_init = True
@@ -172,6 +172,8 @@ class OcgOperations(object):
         self.callback = Callback(callback)
         self.time_range = TimeRange(time_range)
         self.time_region = TimeRegion(time_region)
+        # tdk: document on operations
+        self.time_subset_func = TimeSubsetFunction(time_subset_func)
         self.level_range = LevelRange(level_range)
         self.conform_units_to = ConformUnitsTo(conform_units_to)
         self.select_nearest = SelectNearest(select_nearest)
@@ -324,7 +326,8 @@ class OcgOperations(object):
         geom.select_ugid = svalue
 
         # time and/or level subsets must be applied to the request datasets individually. if they are not none.
-        for attr in ['time_range', 'time_region', 'level_range']:
+        # tdk: test time_subset_func updated
+        for attr in ['time_range', 'time_region', 'time_subset_func', 'level_range']:
             if getattr(self, attr) is not None:
                 for rd in self.dataset.itervalues():
                     setattr(rd, attr, getattr(self, attr))

@@ -5,6 +5,7 @@ import logging
 import netCDF4 as nc
 from warnings import warn
 import numpy as np
+from ocgis import messages
 
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis.api.request.driver.base import AbstractDriver
@@ -298,7 +299,10 @@ class DriverNetcdf(AbstractDriver):
                       realization=loaded['realization'], meta=source_metadata.copy(), uid=self.rd.did,
                       name=self.rd.name, attrs=source_metadata['dataset'].copy())
 
-        # apply any subset parameters after the field is loaded
+        # Apply any subset parameters after the field is loaded.
+        # tdk: document how the time subset function is applied first
+        if self.rd.time_subset_func is not None:
+            ret = ret.get_time_subset_by_function(self.rd.time_subset_func)
         if self.rd.time_range is not None:
             ret = ret.get_between('temporal', min(self.rd.time_range), max(self.rd.time_range))
         if self.rd.time_region is not None:
@@ -309,8 +313,7 @@ class DriverNetcdf(AbstractDriver):
             except AttributeError:
                 # there may be no level dimension
                 if ret.level is None:
-                    msg = ("A level subset was requested but the target dataset does not have a level dimension. The "
-                           "dataset's alias is: {0}".format(self.rd.alias))
+                    msg = messages.M4.format(self.rd.alias)
                     raise ValueError(msg)
                 else:
                     raise

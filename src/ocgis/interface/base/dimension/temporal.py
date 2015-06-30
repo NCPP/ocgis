@@ -264,6 +264,16 @@ class TemporalDimension(base.VectorDimension):
 
         return lines
 
+    def get_subset_by_function(self, func, return_indices=False):
+        # tdk: doc
+        # tdk: rst doc
+
+        indices = np.array(func(self.value_datetime, bounds=self.bounds_datetime))
+        ret = self[indices]
+        if return_indices:
+            ret = (ret, indices)
+        return ret
+
     def get_time_region(self, time_region, return_indices=False):
         assert isinstance(time_region, dict)
 

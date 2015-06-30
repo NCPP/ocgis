@@ -12,7 +12,9 @@ import numpy as np
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
+
 from shapely.geometry.multipolygon import MultiPolygon
+
 from shapely.geometry.point import Point
 
 from ocgis import messages
@@ -1172,6 +1174,7 @@ class TimeRange(base.IterableParameter, base.AbstractParameter):
         assert ret is not None
         return ret
 
+
 class TimeRegion(base.AbstractParameter):
     name = 'time_region'
     nullable = True
@@ -1209,6 +1212,21 @@ class TimeRegion(base.AbstractParameter):
             key_value = [int(e) for e in key_value]
             ret[key] = key_value
         return ret
+
+
+class TimeSubsetFunction(base.AbstractParameter):
+    name = 'time_subset_func'
+    default = None
+    nullable = True
+    return_type = FunctionType
+    input_types = [FunctionType]
+
+    def _get_meta_(self):
+        if self.value is None:
+            msg = "No time subset function provided."
+        else:
+            msg = "A time subset function was provided."
+        return msg
 
 
 class VectorWrap(base.BooleanParameter):

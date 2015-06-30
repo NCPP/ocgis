@@ -128,15 +128,17 @@ class RequestDataset(object):
     _Drivers[DriverVector.key] = DriverVector
 
     def __init__(self, uri=None, variable=None, alias=None, units=None, time_range=None, time_region=None,
-                 level_range=None, conform_units_to=None, crs=None, t_units=None, t_calendar=None,
-                 t_conform_units_to=None, did=None, meta=None, s_abstraction=None, dimension_map=None, name=None,
-                 driver=None, regrid_source=True, regrid_destination=False):
+                 time_subset_func=None, level_range=None, conform_units_to=None, crs=None, t_units=None,
+                 t_calendar=None, t_conform_units_to=None, did=None, meta=None, s_abstraction=None, dimension_map=None,
+                 name=None, driver=None, regrid_source=True, regrid_destination=False):
 
         self._alias = None
         self._conform_units_to = None
         self._name = None
         self._level_range = None
         self._time_range = None
+        self._time_range = None
+        self._time_subset_func = None
         self._units = None
 
         self._is_init = True
@@ -167,6 +169,7 @@ class RequestDataset(object):
         self.name = name
         self.time_range = time_range
         self.time_region = time_region
+        self.time_subset_func = time_subset_func
         self.level_range = level_range
 
         self._crs = deepcopy(crs)
@@ -338,6 +341,18 @@ class RequestDataset(object):
         # ensure the time range and region overlaps
         if not self._is_init:
             self._validate_time_subset_()
+
+    @property
+    def time_subset_func(self):
+        # tdk: test
+        # tdk: document param to request dataset
+        return self._time_subset_func.value
+
+    @time_subset_func.setter
+    def time_subset_func(self, value):
+        from ocgis.api.parms.definition import TimeSubsetFunction
+
+        self._time_subset_func = TimeSubsetFunction(value)
 
     @property
     def units(self):

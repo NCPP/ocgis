@@ -624,6 +624,30 @@ class TestTemporalDimension(AbstractTestTemporal):
         target = tdim.get_report()
         self.assertTrue(len(target) > 5)
 
+    def test_get_subset_by_function(self):
+
+        def _func_(value, bounds=None):
+            months = [6, 7]
+            indices = []
+            for ii, dt in enumerate(value.flat):
+                if dt.month in months:
+                    if dt.month == 6 and dt.day >= 15:
+                        indices.append(ii)
+                    elif dt.month == 7 and dt.day <= 15:
+                        indices.append(ii)
+            return indices
+
+        dates = get_date_list(dt(2002, 1, 31), dt(2003, 12, 31), 1)
+        td = TemporalDimension(value=dates)
+
+        ret = td.get_subset_by_function(_func_)
+        self.assertEqual(ret.shape, (62,))
+        for v in ret.value_datetime:
+            self.assertIn(v.month, [6, 7])
+
+        ret2 = td.get_subset_by_function(_func_, return_indices=True)
+        self.assertNumpyAll(td[ret2[1]].value_datetime, ret.value_datetime)
+
     def test_get_time_region_value_only(self):
         dates = get_date_list(dt(2002, 1, 31), dt(2009, 12, 31), 1)
         td = TemporalDimension(value=dates)

@@ -2,11 +2,11 @@ import pickle
 import tempfile
 
 from cfunits import Units
-from ocgis.api.query import QueryInterface
 
+from ocgis.api.query import QueryInterface
 from ocgis.exc import OcgWarning
 from ocgis.conv.numpy_ import NumpyConverter
-from ocgis.api.parms.base import BooleanParameter
+from ocgis.api.parms.base import BooleanParameter, AbstractParameter
 from ocgis import env
 from ocgis.api.parms.definition import *
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
@@ -1010,3 +1010,15 @@ class TestTimeRegion(TestBase):
         value = {'mnth': [4]}
         with self.assertRaises(DefinitionValidationError):
             TimeRegion(value)
+
+
+class TestTimeSubsetFunction(TestBase):
+    def test_init(self):
+        tsf = TimeSubsetFunction()
+        self.assertEqual(tsf.__class__.__bases__, (AbstractParameter,))
+
+        def _func_(value, bounds=None):
+            return [1, 2, 3]
+
+        tsf = TimeSubsetFunction(_func_)
+        self.assertEqual(tsf.value, _func_)

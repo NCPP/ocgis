@@ -265,8 +265,29 @@ class TemporalDimension(base.VectorDimension):
         return lines
 
     def get_subset_by_function(self, func, return_indices=False):
-        # tdk: doc
-        # tdk: rst doc
+        """
+        Subset the temporal dimension by an arbitrary function. The functions must take one argument and one keyword.
+        The argument is a vector of ``datetime`` objects. The keyword argument should be called "bounds" and may be
+        ``None``. If the bounds value is not ``None``, it should expect a n-by-2 array of ``datetime`` objects. The
+        function must return an integer sequence suitable for indexing. For example:
+
+        >>> def subset_func(value, bounds=None):
+        >>>     indices = []
+        >>>     for ii, v in enumerate(value):
+        >>>         if v.month == 6:
+        >>>             indices.append(ii)
+        >>>     return indices
+        >>> td = TemporalDimension(...)
+        >>>
+        >>> td_subset = td.get_subset_by_function(subset_func)
+
+        :param func: The function to use for subsetting.
+        :type func: :class:`FunctionType`
+        :param return_indices: If ``True``, return the index integers used for slicing/subsetting of the target object.
+        :type return_indices: sequence of integers
+        :returns: A temporal dimension object that has been subset using the supplied function.
+        :rtype: :class:`ocgis.interface.base.dimension.temporal.TemporalDimension`
+        """
 
         indices = np.array(func(self.value_datetime, bounds=self.bounds_datetime))
         ret = self[indices]

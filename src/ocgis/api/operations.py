@@ -104,7 +104,10 @@ class OcgOperations(object):
         
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
-    
+
+    :param time_subset_func: See :meth:`ocgis.interface.base.dimension.temporal.TemporalDimension.get_subset_by_function`
+     for usage instructions.
+    :type time_subset_func: :class:`FunctionType`
     :param level_range: Upper and lower bounds for level dimension subsetting. If `None`, return all levels. Using this
      argument will overload all :class:`~ocgis.RequestDataset` ``level_range`` values.
     :type level_range: [int/float, int/float]
@@ -172,7 +175,6 @@ class OcgOperations(object):
         self.callback = Callback(callback)
         self.time_range = TimeRange(time_range)
         self.time_region = TimeRegion(time_region)
-        # tdk: document on operations
         self.time_subset_func = TimeSubsetFunction(time_subset_func)
         self.level_range = LevelRange(level_range)
         self.conform_units_to = ConformUnitsTo(conform_units_to)
@@ -326,7 +328,6 @@ class OcgOperations(object):
         geom.select_ugid = svalue
 
         # time and/or level subsets must be applied to the request datasets individually. if they are not none.
-        # tdk: test time_subset_func updated
         for attr in ['time_range', 'time_region', 'time_subset_func', 'level_range']:
             if getattr(self, attr) is not None:
                 for rd in self.dataset.itervalues():

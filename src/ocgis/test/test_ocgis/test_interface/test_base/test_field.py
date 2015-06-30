@@ -477,6 +477,15 @@ class TestField(AbstractTestField):
                 self.assertTrue(row[1]['value'] > 3)
         self.assertEqual(set(vids), set([1, 2]))
 
+    def test_get_time_subset_by_function(self):
+        field = self.get_field(with_value=True)
+
+        def _func_(value, bounds=None):
+            return [2, 3, 4]
+
+        ret = field.get_time_subset_by_function(_func_)
+        self.assertEqual(ret.shape, (2, 3, 2, 3, 4))
+
     def test_iter(self):
         field = self.get_field(with_value=True)
         with self.assertRaises(ValueError):

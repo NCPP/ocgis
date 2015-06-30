@@ -9,7 +9,6 @@ from shapely.geometry import mapping
 from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
-
 from shapely.geometry.point import Point
 
 from ocgis import constants
@@ -389,8 +388,14 @@ class Field(Attributes):
         return ret
 
     def get_time_subset_by_function(self, func):
-        # tdk: test
-        # tdk: doc
+        """
+        See :meth:`ocgis.interface.base.dimension.temporal.TemporalDimension.get_subset_by_function` for usage
+        instructions.
+
+        :returns: A field object subsetted by the provided time subsetting function.
+        :rtype: :class:`ocgis.interface.base.field.Field`
+        """
+
         ret = copy(self)
         ret.temporal, indices = self.temporal.get_subset_by_function(func, return_indices=True)
         slc = [slice(None), indices, slice(None), slice(None), slice(None)]

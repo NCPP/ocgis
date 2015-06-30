@@ -3,6 +3,7 @@ import itertools
 import os
 from datetime import datetime as dt
 import datetime
+from types import FunctionType
 
 from numpy import dtype
 import numpy as np
@@ -590,6 +591,11 @@ class TestOcgOperations(TestBase):
         rd_out = RequestDataset(ret)
         for v in rd_out.get().temporal.value_datetime:
             self.assertEqual(v.month, 6)
+
+    def test_update_dependents(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = OcgOperations(dataset=rd, time_subset_func=lambda x, y: [1, 2])
+        self.assertIsInstance(ops.dataset.first().time_subset_func, FunctionType)
 
     def test_validate(self):
         # snippets should be allowed for field objects

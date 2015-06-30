@@ -6,9 +6,9 @@ import pickle
 import shutil
 from datetime import datetime as dt
 import datetime
+from types import FunctionType
 
 import numpy as np
-
 from cfunits import Units
 
 from ocgis.api.request.driver.nc import DriverNetcdf
@@ -491,6 +491,13 @@ class TestRequestDataset(TestBase):
         self.assertTrue(ss.startswith('RequestDataset'))
         self.assertTrue('crs' in ss)
         self.assertGreater(len(ss), 400)
+
+    def test_time_subset_func(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        self.assertIsNone(rd.time_subset_func)
+
+        rd.time_subset_func = lambda x, y: [1, 2, 3]
+        self.assertIsInstance(rd.time_subset_func, FunctionType)
 
     def test_units(self):
         rd = self.test_data.get_rd('cancm4_tas')

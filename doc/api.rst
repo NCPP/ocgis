@@ -394,7 +394,7 @@ snippet
 
 .. note:: The entire spatial domain is returned unless `geom` is specified.
 
-.. note:: Only applies for pure subsetting for limiting computations use `time_range` and/or `time_region`.
+.. note:: Only applies for pure subsetting for limiting computations use ``time_range`` and/or ``time_region``.
 
 ====================== ===========================================================================
 Value                  Description
@@ -425,6 +425,20 @@ A dictionary with keys of 'month' and/or 'year' and values as sequences correspo
 
 >>> time_region = {'month':[6,7],'year':[2010,2011]}
 >>> time_region = {'year':[2010]}
+
+time_subset_func
+~~~~~~~~~~~~~~~~
+
+Subset the time dimension by an arbitrary function. The functions must take one argument and one keyword. The argument is a vector of ``datetime`` objects. The keyword argument should be called "bounds" and may be ``None``. If the bounds value is not ``None``, it should expect a n-by-2 array of ``datetime`` objects. The function must return an integer sequence suitable for indexing. For example:
+
+>>> def subset_func(value, bounds=None):
+>>>     indices = []
+>>>     for ii, v in enumerate(value):
+>>>         if v.month == 6:
+>>>             indices.append(ii)
+>>>     return indices
+
+.. note:: The subset function is applied following ``time_region`` and ``time_range``.
 
 vector_wrap
 ~~~~~~~~~~~

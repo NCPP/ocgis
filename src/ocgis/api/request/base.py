@@ -66,6 +66,9 @@ class RequestDataset(object):
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
 
+    :param time_subset_func: See :meth:`ocgis.interface.base.dimension.temporal.TemporalDimension.get_subset_by_function`
+     for usage instructions.
+    :type time_subset_func: :class:`FunctionType`
     :param level_range: Upper and lower bounds for level dimension subsetting. If ``None``, return all levels.
     :type level_range: [int, int] or [float, float]
     :param crs: Overload the autodiscovered coordinate system.
@@ -344,8 +347,6 @@ class RequestDataset(object):
 
     @property
     def time_subset_func(self):
-        # tdk: test
-        # tdk: document param to request dataset
         return self._time_subset_func.value
 
     @time_subset_func.setter

@@ -300,13 +300,13 @@ class DriverNetcdf(AbstractDriver):
                       name=self.rd.name, attrs=source_metadata['dataset'].copy())
 
         # Apply any subset parameters after the field is loaded.
-        # tdk: document how the time subset function is applied first
-        if self.rd.time_subset_func is not None:
-            ret = ret.get_time_subset_by_function(self.rd.time_subset_func)
         if self.rd.time_range is not None:
             ret = ret.get_between('temporal', min(self.rd.time_range), max(self.rd.time_range))
         if self.rd.time_region is not None:
             ret = ret.get_time_region(self.rd.time_region)
+        # tdk: document how the time subset function is applied last
+        if self.rd.time_subset_func is not None:
+            ret = ret.get_time_subset_by_function(self.rd.time_subset_func)
         if self.rd.level_range is not None:
             try:
                 ret = ret.get_between('level', min(self.rd.level_range), max(self.rd.level_range))

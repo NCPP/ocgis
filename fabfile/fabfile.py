@@ -1,6 +1,6 @@
 import time
-
 import os
+
 from fabric.contrib.project import rsync_project
 from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
@@ -8,6 +8,7 @@ from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
 from saws import AwsManager
 from saws.tasks import ebs_mount
+
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 
 
@@ -244,6 +245,7 @@ def test_node_run_tests(instance_name='ocgis-test-node', branch='next', failed='
         with shell_env(**senv):
             with prefix('source activate {0}'.format(tcenv)):
                 with cd(tsrc):
+                    run('git checkout next')
                     run('git pull')
                     if failed == 'true':
                         cmd = 'cp .noseids /tmp; git checkout {tbranch}; git pull; nosetests -vs --failed --with-id -a {texclude} ocgis/test'

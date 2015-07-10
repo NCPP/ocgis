@@ -1,5 +1,4 @@
 import csv
-
 import numpy as np
 
 from ocgis import constants
@@ -113,6 +112,7 @@ class TestFrequencyDuration(AbstractCalcBase):
             variables = [row['VARIABLE'] for row in reader]
         self.assertEqual(set(variables), set(['tasmax', 'tasmin']))
 
+    @attr('slow')
     def test_real_data(self):
         """Test calculations on real data."""
 

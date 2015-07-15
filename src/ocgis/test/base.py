@@ -11,9 +11,9 @@ from collections import OrderedDict
 import datetime
 import sys
 import warnings
-
 import netCDF4 as nc
 import numpy as np
+
 import fiona
 
 from ocgis.util.shp_cabinet import ShpCabinet
@@ -37,7 +37,6 @@ Definitions for various "attrs":
  * esmf: tests requiring ESMF
  * esmpy7: tests requiring a branch version of ESMF
  * simple: simple tests designed to test core functionality requiring no datasets
- * versions: test the recommended version of packages against the actual versions
  * optional: tests that use optional dependencies
 
 nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis

@@ -4,7 +4,9 @@ from warnings import warn
 
 
 # try to turn off fiona logging except for errors
+import datetime
 from ocgis import env
+import ocgis
 from ocgis.exc import OcgWarning
 
 fiona_logger = logging.getLogger('Fiona')
@@ -138,6 +140,14 @@ class OcgisLogging(object):
             # tell logging to capture warnings
             logging.captureWarnings(env.SUPPRESS_WARNINGS)
 
+            # Insert the current software version into the logging file.
+            self.parent.log(logging.INFO, 'Initialized at {0} (UTC)'.format(datetime.datetime.utcnow()))
+            self.parent.log(logging.INFO, 'OpenClimateGIS v{0}'.format(ocgis.__release__))
+
+            # If we are debugging, print some additional information.
+            if self.level == logging.DEBUG:
+                self._log_versions_()
+
     @staticmethod
     def get_formatted_msg(msg, alias, ugid=None):
         if ugid is None:
@@ -160,6 +170,57 @@ class OcgisLogging(object):
             logging.captureWarnings(None)
         except:
             pass
+
+    def _log_versions_(self):
+        try:
+            import cfunits
+        except ImportError:
+            v_cfunits = None
+        else:
+            v_cfunits = cfunits.__version__
+
+        try:
+            import ESMF
+        except ImportError:
+            v_esmf = None
+        else:
+            v_esmf = ESMF.__release__
+
+        try:
+            import icclim
+        except ImportError:
+            v_icclim = None
+        else:
+            v_icclim = icclim.__version__
+
+        try:
+            import rtree
+        except ImportError:
+            v_rtree = None
+        else:
+            v_rtree = rtree.__version__
+
+        import fiona
+
+        v_fiona = fiona.__version__
+
+        import netCDF4
+
+        v_netcdf4 = netCDF4.__version__
+
+        import numpy
+
+        v_numpy = numpy.__version__
+
+        from ocgis import osgeo
+
+        v_osgeo = osgeo.__version__
+
+        versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
+                        icclim=v_icclim, fiona=v_fiona)
+        versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.iteritems()])
+
+        self.parent.log(logging.DEBUG, 'Dependency versions: {0}'.format(versions))
 
 
 ocgis_lh = OcgisLogging()

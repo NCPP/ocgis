@@ -38,7 +38,7 @@ class RunOcgis(nose.plugins.Plugin):
 class RunNoESMF(RunOcgis):
     name = 'no-esmf'
     _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
-    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!versions'
+    _attrs_standard = '!esmf,!esmpy7,!remote,!slow'
 
     def wantFile(self, file):
         match = re.search(self._exclude, file)
@@ -50,7 +50,7 @@ class RunNoESMF(RunOcgis):
 
 
 class RunSimple(RunOcgis):
-    _attrs_standard = 'simple,!optional,!versions'
+    _attrs_standard = 'simple,!optional'
 
     @property
     def target(self):

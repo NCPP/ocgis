@@ -33,13 +33,30 @@ Package Name  Version  URL                                                    Us
 ``icclim``    3.0      http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ============= ======== ====================================================== =================================================================================================================================
 
+Building Dependencies from Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Dependencies may be built entirely from source. A `bash script`_ is available on GitHub.
+
+Mac OS X Notes
+--------------
+
+Download and install GDAL from a pre-packaged DMG installer: http://www.kyngchaos.com/files/software/frameworks/GDAL_Complete-1.9.dmg
+
+Windows Notes
+-------------
+
+OpenClimateGIS has not been tested on Windows platforms. All libraries are theoretically supported.
+
+There are a number of unofficial Windows binaries for Python extensions available here: http://www.lfd.uci.edu/~gohlke/pythonlibs/
+
 Ubuntu Linux
 ------------
 
-The recommended install method uses hosted packages. These steps also install optional packages. This script is available at: https://github.com/NCPP/ocgis/blob/master/doc/sphinx_examples/install_dependencies_ubuntu.sh.
+This method installs all dependencies using hosted packages. This script is available at: https://github.com/NCPP/ocgis/blob/master/doc/sphinx_examples/install_dependencies_ubuntu.sh.
 
 .. literalinclude:: sphinx_examples/install_dependencies_ubuntu.sh
-   :language: sh
+:language: sh
 
 Package Notes
 ~~~~~~~~~~~~~
@@ -59,38 +76,21 @@ python-pip          all ``pip`` installed Python packages
 wget                ``cfunits`` installation
 =================== =====================================
 
-Building Dependencies from Source
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Dependencies may also be built entirely from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies.
-
-Mac OS X Notes
---------------
-
-Download and install GDAL from a pre-packaged DMG installer: http://www.kyngchaos.com/files/software/frameworks/GDAL_Complete-1.9.dmg
-
-Windows Notes
--------------
-
-OpenClimateGIS has not been tested on Windows platforms. All libraries are theoretically supported.
-
-There are a number of unofficial Windows binaries for Python extensions available here: http://www.lfd.uci.edu/~gohlke/pythonlibs/
-
 Installing OpenClimateGIS
 -------------------------
 
-Conda Installation
-~~~~~~~~~~~~~~~~~~
+Anaconda Installation
+~~~~~~~~~~~~~~~~~~~~~
 
-An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `NESII's Anaconda.org site <https://anaconda.org/NESII>`_ repository. Linux-64 builds are available with osx-64 builds coming soon. There is an outstanding issue with Anaconda's GDAL-HDF5 build. Once this is resolved, osx-64 builds will be posted.
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `NESII's Anaconda.org <https://anaconda.org/NESII>`_ repository. Linux-64 builds are available with osx-64 builds coming soon. There is an outstanding issue with Anaconda's GDAL-HDF5 build. Once this is resolved, osx-64 builds will be posted.
 
-.. code-block::sh
+.. code-block:: sh
 
    conda install -c NESII ocgis
 
 Due to an issue with Anaconda's package solver, ESMPy must be installed separately.
 
-.. code-block::sh
+.. code-block:: sh
 
    conda install -c NESII esmpy==6.3.0rp1
    conda install -c NESII ocgis

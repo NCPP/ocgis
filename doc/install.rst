@@ -59,8 +59,8 @@ python-pip          all ``pip`` installed Python packages
 wget                ``cfunits`` installation
 =================== =====================================
 
-Building from Source
-~~~~~~~~~~~~~~~~~~~~
+Building Dependencies from Source
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Dependencies may also be built entirely from source. A `bash script`_ is available containing a command structure for installing most of the OpenClimateGIS dependencies.
 
@@ -78,6 +78,27 @@ There are a number of unofficial Windows binaries for Python extensions availabl
 
 Installing OpenClimateGIS
 -------------------------
+
+Conda Installation
+~~~~~~~~~~~~~~~~~~
+
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `NESII's Anaconda.org site <https://anaconda.org/NESII>`_ repository. Linux-64 builds are available with osx-64 builds coming soon. There is an outstanding issue with Anaconda's GDAL-HDF5 build. Once this is resolved, osx-64 builds will be posted.
+
+.. code-block::sh
+
+   conda install -c NESII ocgis
+
+Due to an issue with Anaconda's package solver, ESMPy must be installed separately.
+
+.. code-block::sh
+
+   conda install -c NESII esmpy==6.3.0rp1
+   conda install -c NESII ocgis
+
+Build recipes may be found in the `conda-esmf GitHub repository <https://github.com/NESII/conda-esmf>`_.
+
+Building from Source
+~~~~~~~~~~~~~~~~~~~~
 
 1. Download the current release:
 

@@ -2,6 +2,7 @@ language: python
 branches:
   only:
     - next
+    - master
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
@@ -17,7 +18,7 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda config --add channels https://conda.binstar.org/nesii/channel/dev
+  - conda config --add channels nesii/channel/ocgis
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION ocgis nose
   - source activate test-environment
   - yes | conda remove ocgis

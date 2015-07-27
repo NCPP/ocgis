@@ -19,4 +19,4 @@ from ocgis.interface.base.variable import Variable
 from ocgis.interface.base.dimension.base import VectorDimension
 
 __version__ = '1.2.0'
-__release__ = '1.2.0'
+__release__ = '1.2.0n'

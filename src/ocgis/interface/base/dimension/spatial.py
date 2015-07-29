@@ -20,7 +20,7 @@ from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slic
     get_none_or_2d
 from ocgis import constants, env
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
-from ocgis.util.ugrid.helpers import get_update_feature, write_to_netcdf_dataset
+from ocgis.util.ugrid.helpers import get_update_feature, write_netcdf
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -936,15 +936,15 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 
         self.corners = corners
 
-    def write_to_netcdf_dataset(self, dataset, **kwargs):
+    def write_netcdf(self, dataset, **kwargs):
         """
         :param dataset:
         :type dataset: :class:`netCDF4.Dataset`
         """
 
         try:
-            self.row.write_to_netcdf_dataset(dataset, **kwargs)
-            self.col.write_to_netcdf_dataset(dataset, **kwargs)
+            self.row.write_netcdf(dataset, **kwargs)
+            self.col.write_netcdf(dataset, **kwargs)
         except AttributeError:
             # likely no row and column. write the grid value.
             name_yc = self.name_row
@@ -1346,7 +1346,7 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
                 yld = get_update_feature(ctr, yld)
                 yield yld
 
-        write_to_netcdf_dataset(dataset, list(_iter_features_()))
+        write_netcdf(dataset, list(_iter_features_()))
 
     def _get_value_(self):
         fill = self._get_geometry_fill_()

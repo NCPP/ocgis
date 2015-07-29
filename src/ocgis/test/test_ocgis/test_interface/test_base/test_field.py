@@ -741,7 +741,7 @@ class TestField(AbstractTestField):
 
             with nc_scope(path, 'w') as ds:
                 try:
-                    field.write_to_netcdf_dataset(ds, file_only=k.file_only)
+                    field.write_netcdf(ds, file_only=k.file_only)
                 except ValueError:
                     self.assertTrue(k.with_realization)
                     self.assertIsNotNone(field.realization)
@@ -807,7 +807,7 @@ class TestField(AbstractTestField):
         field = Field(variables=var, spatial=sdim)
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
         with self.nc_scope(path, 'r') as out:
             var_out = out.variables['tas'][:]
         target = var_out.reshape(*var.shape)
@@ -820,7 +820,7 @@ class TestField(AbstractTestField):
         field = rd.get()[:, 0:31, :, 20:30, 30:40]
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
             self.assertSetEqual(set(ds.variables.keys()), {u'time', 'time_bnds', u'yc', u'xc', u'Lambert_Conformal',
                                                            'pr'})
             self.assertGreater(len(ds.__dict__), 0)
@@ -836,7 +836,7 @@ class TestField(AbstractTestField):
         field.spatial.grid.col = None
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
             self.assertAsSetEqual(ds.variables.keys(), ['time', 'time_bounds', 'level', 'level_bounds',
                                                         constants.DEFAULT_NAME_ROW_COORDINATES,
                                                         constants.DEFAULT_NAME_COL_COORDINATES, 'yc_corners',
@@ -855,7 +855,7 @@ class TestField(AbstractTestField):
         field.spatial.grid.col = None
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
             self.assertAsSetEqual(ds.variables.keys(),
                                   ['time', 'time_bounds', 'level', 'level_bounds', 'nr', 'nc', 'nr_corners',
                                    'nc_corners', 'tmax'])
@@ -868,7 +868,7 @@ class TestField(AbstractTestField):
         path = os.path.join(self.current_dir_output, 'foo.nc')
         field = self.get_field(with_temporal=False, with_realization=False, with_value=True, with_level=False)
         with self.nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
         with self.nc_scope(path) as ds:
             vars = ds.variables.keys()
             self.assertAsSetEqual(vars, [u'latitude', u'latitude_bounds', u'longitude', u'longitude_bounds', u'tmax'])

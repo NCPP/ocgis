@@ -386,7 +386,7 @@ class TestVectorDimension(TestBase):
                 vd.set_extrapolated_bounds()
             with nc_scope(path, 'w') as ds:
                 try:
-                    vd.write_to_netcdf_dataset(ds, unlimited=k.unlimited, bounds_dimension_name=k.bounds_dimension_name,
+                    vd.write_netcdf(ds, unlimited=k.unlimited, bounds_dimension_name=k.bounds_dimension_name,
                                                **k.kwargs)
                 except ValueError:
                     self.assertIsNone(vd.name)
@@ -441,8 +441,8 @@ class TestVectorDimension(TestBase):
         vd2.set_extrapolated_bounds()
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
-            vd.write_to_netcdf_dataset(ds)
-            vd2.write_to_netcdf_dataset(ds)
+            vd.write_netcdf(ds)
+            vd2.write_netcdf(ds)
             self.assertEqual(ds.variables.keys(), ['one', 'one_bounds', 'two', 'two_bounds'])
 
     def test_get_between(self):

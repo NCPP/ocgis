@@ -406,7 +406,7 @@ class TestBase(unittest.TestCase):
         self.assertIsNone(field.spatial.grid.col)
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
         return path
 
     def get_shapefile_path_with_no_ugid(self):

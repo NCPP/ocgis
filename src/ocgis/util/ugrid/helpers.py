@@ -2,24 +2,62 @@ from collections import deque
 import numpy as np
 
 import fiona
-from fiona.crs import from_epsg
 from shapely.geometry import shape, Polygon, mapping
+from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.point import Point
+from shapely.geometry.polygon import orient
 
-from constants_ugrid import CONVENTIONS_VERSION
+from constants import PYUGRID_LINK_ATTRIBUTE_NAME, PYUGRID_CONVENTIONS_VERSION
+
+
+def convert_multipart_to_singlepart(path_in, path_out, uid=None, new_uid_name=PYUGRID_LINK_ATTRIBUTE_NAME):
+    """
+    Convert a vector GIS file from multipart to singlepart geometries. The function copies all attributes and
+    maintains things like coordinate systems.
+
+    :param str path_in: Path to the input file containing multipart geometries.
+    :param str path_out: Path to the output file.
+    :param str uid: If provided, use this attribute as the integer unique identifier.
+    :param str new_uid_name: Use this name as the default for the create unique identifier if ``uid`` is ``None``.
+    """
+
+    with fiona.open(path_in) as source:
+        if uid is None:
+            source.meta['schema']['properties'][new_uid_name] = 'int'
+        with fiona.open(path_out, mode='w', **source.meta) as sink:
+            for record in source:
+                if uid is None:
+                    uid_value = record['id']
+                else:
+                    uid_value = record['properties'][uid]
+                geom = shape(record['geometry'])
+                if uid is None:
+                    record['properties'][new_uid_name] = uid_value
+                if isinstance(geom, BaseMultipartGeometry):
+                    for element in geom:
+                        record['geometry'] = mapping(element)
+                        sink.write(record)
+                else:
+                    sink.write(record)
 
 
 def get_update_feature(fid, feature):
-    #todo: doc
+    # todo: doc
 
     # create the geometry object
     obj = shape(feature['geometry'])
-    # add this to feature dictionary
-    feature['geometry'].update({'object': obj})
-    # coordinates read from shapefile are clockwise, update to anti-clockwise
-    feature['geometry']['coordinates'][0].reverse()
     # only polygons are acceptable geometry types
-    assert (feature['geometry']['type'] == 'Polygon')
+    try:
+        assert not isinstance(obj, BaseMultipartGeometry)
+    except AssertionError:
+        msg = 'Only singlepart geometries allowed. Perhaps "ugrid.convert_multipart_to_singlepart" would be useful?'
+        raise ValueError(msg)
+    # if the coordinates are not counterclockwise, reverse the orientation
+    if not obj.exterior.is_ccw:
+        obj = orient(obj)
+        feature['geometry'] = mapping(obj)
+    # add this to feature dictionary
+    feature['geometry']['object'] = obj
     # add a custom feature identifier
     feature['fid'] = fid
     return feature
@@ -37,9 +75,10 @@ def iter_edge_nodes(idx_nodes):
         yield yld
 
 
-def get_features_from_shapefile(shp_path):
+def get_features_from_fiona(in_path, driver='ESRI Shapefile'):
     """
-    :param str shp_path: Full path to a the target shapefile to extract features from.
+    :param str in_path: Full path to a the target shapefile to extract features from.
+    :param str driver: The ``fiona`` driver to use.
     :returns: A ``deque`` containing feature dictionaries. This is the standard record collection as returned by
      ``fiona`` with the addition of a ``fid`` key and ``object`` key in the ``geometry`` dictionary.
     :rtype: :class:`collections.deque`
@@ -48,7 +87,7 @@ def get_features_from_shapefile(shp_path):
     # load features from disk constructing geometry objects
     features = deque()
     idx_fid = 0
-    with fiona.open(shp_path, 'r') as source:
+    with fiona.open(in_path, 'r', driver=driver) as source:
         for feature in source:
             features.append(get_update_feature(idx_fid, feature))
             idx_fid += 1
@@ -57,7 +96,7 @@ def get_features_from_shapefile(shp_path):
 
 def get_mesh2_variables(features):
     """
-    :param features: A features sequence as returned from :func:`ugrid.helpers.get_features_from_shapefile`.
+    :param features: A features sequence as returned from :func:`ugrid.helpers.get_features_from_fiona`.
     :type features: :class:`collections.deque`
     :returns: A tuple of arrays with index locations corresponding to:
 
@@ -204,32 +243,34 @@ def get_mesh2_variables(features):
            np.array(Mesh2_face_links, dtype=np.int32)
 
 
-def mesh2_to_shapefile(out_path, Mesh2_face_nodes, Mesh2_node_x, Mesh2_node_y):
-    #todo: doc
+def mesh2_to_fiona(out_path, Mesh2_face_nodes, Mesh2_node_x, Mesh2_node_y, crs=None, driver='ESRI Shapefile'):
+    # todo: doc
 
-    crs = from_epsg(4326)
-    driver = 'ESRI Shapefile'
-    schema = {'geometry': 'Polygon',
-              'properties': {}}
-
+    schema = {'geometry': 'Polygon', 'properties': {}}
     with fiona.open(out_path, 'w', driver=driver, crs=crs, schema=schema) as f:
-        for feature_idx in range(Mesh2_face_nodes.shape[0]):
-            coordinates = deque()
-            for node_idx in Mesh2_face_nodes[feature_idx, :].compressed():
-                coordinates.append((Mesh2_node_x[node_idx], Mesh2_node_y[node_idx]))
-            polygon = Polygon(coordinates)
-            feature = {'id': feature_idx, 'properties': {}, 'geometry': mapping(polygon)}
+        for feature in mesh2_to_fiona_iter(Mesh2_face_nodes, Mesh2_node_x, Mesh2_node_y):
             f.write(feature)
-
     return out_path
 
 
-def write_to_netcdf_dataset(ds, features):
+def mesh2_to_fiona_iter(Mesh2_face_nodes, Mesh2_node_x, Mesh2_node_y):
+    # todo: doc
+
+    for feature_idx in range(Mesh2_face_nodes.shape[0]):
+        coordinates = deque()
+        for node_idx in Mesh2_face_nodes[feature_idx, :].compressed():
+            coordinates.append((Mesh2_node_x[node_idx], Mesh2_node_y[node_idx]))
+        polygon = Polygon(coordinates)
+        feature = {'id': feature_idx, 'properties': {}, 'geometry': mapping(polygon)}
+        yield feature
+
+
+def write_netcdf(ds, features):
     """
     Write to an open dataset object.
 
     :param ds: :class:`netCDF4.Dataset`
-    :param features: A feature sequence as returned from :func:`ugrid.helpers.get_features_from_shapefile`.
+    :param features: A feature sequence as returned from :func:`ugrid.helpers.get_features_from_fiona`.
     """
 
     start_index = 0
@@ -250,9 +291,9 @@ def write_to_netcdf_dataset(ds, features):
     vMesh2.face_node_connectivity = "Mesh2_face_nodes"
     vMesh2.edge_node_connectivity = "Mesh2_edge_nodes"
     vMesh2.edge_coordinates = "Mesh2_edge_x Mesh2_edge_y"
-    vMesh2.face_coordinates = "Mesh2_face_x Mesh2_face_y"
-    vMesh2.face_edge_connectivity = "Mesh2_face_edges"
-    vMesh2.face_face_connectivity = "Mesh2_face_links"
+    # vMesh2.face_coordinates = "Mesh2_face_x Mesh2_face_y"
+    # vMesh2.face_edge_connectivity = "Mesh2_face_edges"
+    # vMesh2.face_face_connectivity = "Mesh2_face_links"
     vMesh2_face_nodes = ds.createVariable('Mesh2_face_nodes',
                                           Mesh2_face_nodes.dtype,
                                           dimensions=(nMesh2_face._name, nMaxMesh2_face_nodes._name),
@@ -294,4 +335,4 @@ def write_to_netcdf_dataset(ds, features):
     vMesh2_node_y.units = "degrees_north"
 
     # add global variables
-    ds.Conventions = CONVENTIONS_VERSION
+    ds.Conventions = PYUGRID_CONVENTIONS_VERSION

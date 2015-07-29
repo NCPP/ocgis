@@ -349,10 +349,10 @@ class TemporalDimension(base.VectorDimension):
 
         return ret
 
-    def write_to_netcdf_dataset(self, dataset, **kwargs):
+    def write_netcdf(self, dataset, **kwargs):
         """
         Calls superclass write method then adds ``calendar`` and ``units`` attributes to time variable and time bounds
-        variable. See documentation for :meth:`~ocgis.interface.base.dimension.base.VectorDimension#write_to_netcdf_dataset`.
+        variable. See documentation for :meth:`~ocgis.interface.base.dimension.base.VectorDimension#write_netcdf`.
         """
 
         # swap the value/bounds references from datetime to numtime for the duration for the write
@@ -363,7 +363,7 @@ class TemporalDimension(base.VectorDimension):
         else:
             swapped_value_bounds = False
 
-        super(TemporalDimension, self).write_to_netcdf_dataset(dataset, **kwargs)
+        super(TemporalDimension, self).write_netcdf(dataset, **kwargs)
 
         # return the value and bounds to their original state
         if swapped_value_bounds:
@@ -667,7 +667,7 @@ class TemporalGroupDimension(TemporalDimension):
 
         TemporalDimension.__init__(self, *args, **kwargs)
 
-    def write_to_netcdf_dataset(self, dataset, **kwargs):
+    def write_netcdf(self, dataset, **kwargs):
         """
         For CF-compliance, ensures climatology bounds are correctly attributed.
         """
@@ -675,7 +675,7 @@ class TemporalGroupDimension(TemporalDimension):
         previous_name_bounds = self.name_bounds
         self.name_bounds = 'climatology_bounds'
         try:
-            super(TemporalGroupDimension, self).write_to_netcdf_dataset(dataset, **kwargs)
+            super(TemporalGroupDimension, self).write_netcdf(dataset, **kwargs)
             variable = dataset.variables[self.name_value]
             variable.climatology = variable.bounds
             variable.delncattr('bounds')

@@ -483,7 +483,7 @@ class TestDriverNetcdf(TestBase):
 
         path2 = os.path.join(self.current_dir_output, 'foo2.nc')
         with self.nc_scope(path2, 'w') as ds:
-            new_field.write_to_netcdf_dataset(ds)
+            new_field.write_netcdf(ds)
         self.assertNcEqual(path, path2, ignore_attributes={'foo': ['grid_mapping']},
                            ignore_variables=['latitude_longitude'])
 

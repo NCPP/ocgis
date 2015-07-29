@@ -408,7 +408,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         self.bounds = get_bounds_from_1d(self.value)
         self._has_interpolated_bounds = True
 
-    def write_to_netcdf_dataset(self, dataset, unlimited=False, bounds_dimension_name=None, **kwargs):
+    def write_netcdf(self, dataset, unlimited=False, bounds_dimension_name=None, **kwargs):
         """
         Write the dimension and its associated value and bounds to an open netCDF dataset object.
 

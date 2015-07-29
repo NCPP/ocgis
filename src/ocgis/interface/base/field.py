@@ -182,6 +182,46 @@ class Field(Attributes):
         return(self._get_spatial_operation_('get_clip', polygon, use_spatial_index=use_spatial_index,
                                             select_nearest=select_nearest))
     
+    @staticmethod
+    def get_fiona_dict(field, arch):
+        """
+        :param field: The field object.
+        :type field: :class:`ocgis.Field`
+        :param dict arch: An archetype data dictionary.
+        :returns: A dictionary with fiona types and conversion mappings.
+        :rtype: dict
+        """
+
+        arch = arch.copy()
+        for k, v in arch.iteritems():
+            try:
+                arch[k] = v.tolist()
+            except AttributeError:
+                continue
+
+        from ocgis.conv.fiona_ import AbstractFionaConverter
+
+        ret = {}
+        fproperties = OrderedDict()
+        fconvert = {}
+        for k, v in arch.iteritems():
+            ftype = AbstractFionaConverter.get_field_type(type(v))
+            fproperties[k] = 'int' if ftype is None else ftype
+            if ftype == 'str':
+                fconvert[k] = str
+        schema = {'geometry': field.spatial.abstraction_geometry.geom_type, 'properties': fproperties}
+
+        try:
+            ret['crs'] = field.spatial.crs.value
+        except AttributeError:
+            if field.spatial.crs is None:
+                msg = 'A coordinate system is required when writing to fiona formats.'
+                raise ValueError(msg)
+
+        ret['schema'] = schema
+        ret['fconvert'] = fconvert
+        return ret
+
     def get_intersects(self, polygon, use_spatial_index=True, select_nearest=False):
         return(self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
                                             select_nearest=select_nearest))
@@ -303,7 +343,7 @@ class Field(Attributes):
                         ref_idx = variable.value.fill_value
                     yld[variable_alias] = ref_idx
                 yield _process_yield_(geom, yld)
-                
+
     def get_shallow_copy(self):
         return copy(self)
 
@@ -464,47 +504,7 @@ class Field(Attributes):
             if should_close and fobject is not None:
                 fobject.close()
 
-    @staticmethod
-    def get_fiona_dict(field, arch):
-        """
-        :param field: The field object.
-        :type field: :class:`ocgis.Field`
-        :param dict arch: An archetype data dictionary.
-        :returns: A dictionary with fiona types and conversion mappings.
-        :rtype: dict
-        """
-
-        arch = arch.copy()
-        for k, v in arch.iteritems():
-            try:
-                arch[k] = v.tolist()
-            except AttributeError:
-                continue
-
-        from ocgis.conv.fiona_ import AbstractFionaConverter
-
-        ret = {}
-        fproperties = OrderedDict()
-        fconvert = {}
-        for k, v in arch.iteritems():
-            ftype = AbstractFionaConverter.get_field_type(type(v))
-            fproperties[k] = 'int' if ftype is None else ftype
-            if ftype == 'str':
-                fconvert[k] = str
-        schema = {'geometry': field.spatial.abstraction_geometry.geom_type, 'properties': fproperties}
-
-        try:
-            ret['crs'] = field.spatial.crs.value
-        except AttributeError:
-            if field.spatial.crs is None:
-                msg = 'A coordinate system is required when writing to fiona formats.'
-                raise ValueError(msg)
-
-        ret['schema'] = schema
-        ret['fconvert'] = fconvert
-        return ret
-
-    def write_to_netcdf_dataset(self, dataset, file_only=False, **kwargs):
+    def write_netcdf(self, dataset, file_only=False, **kwargs):
         """
         Write the field object to an open netCDF dataset object.
 
@@ -538,7 +538,7 @@ class Field(Attributes):
         value_dimensions = []
         try:
             with name_scope(self.temporal, 'time', 'T'):
-                self.temporal.write_to_netcdf_dataset(dataset, **kwargs)
+                self.temporal.write_netcdf(dataset, **kwargs)
                 value_dimensions.append(self.temporal.name)
         except AttributeError:
             if self.temporal is not None:
@@ -546,7 +546,7 @@ class Field(Attributes):
 
         try:
             with name_scope(self.level, 'level', 'Z'):
-                self.level.write_to_netcdf_dataset(dataset, **kwargs)
+                self.level.write_netcdf(dataset, **kwargs)
                 if self.level is not None:
                     value_dimensions.append(self.level.name)
         except AttributeError:
@@ -556,13 +556,13 @@ class Field(Attributes):
         try:
             with name_scope(self.spatial.grid.row, 'yc', 'Y'):
                 with name_scope(self.spatial.grid.col, 'xc', 'X'):
-                    self.spatial.grid.write_to_netcdf_dataset(dataset, **kwargs)
+                    self.spatial.grid.write_netcdf(dataset, **kwargs)
                     value_dimensions.append(self.spatial.grid.row.name)
                     value_dimensions.append(self.spatial.grid.col.name)
         except AttributeError:
             # write the grid.value directly
             if self.spatial.grid.row is None or self.spatial.grid.col is None:
-                self.spatial.grid.write_to_netcdf_dataset(dataset, **kwargs)
+                self.spatial.grid.write_netcdf(dataset, **kwargs)
                 value_dimensions.append(self.spatial.grid.name_row)
                 value_dimensions.append(self.spatial.grid.name_col)
             else:
@@ -629,6 +629,20 @@ class Field(Attributes):
         yld = {'did': self.uid, 'variable': variable.name, 'alias': variable.alias, 'vid': variable.uid}
         return yld
                     
+    def _set_default_names_uids_(self):
+
+        def _set_(dim, name, name_uid):
+            dim = getattr(self, dim)
+            if dim is not None:
+                if dim._name_uid is None:
+                    dim.name_uid = name_uid
+                if dim.name is None:
+                    dim.name = name
+
+        _set_('realization', NAME_DIMENSION_REALIZATION, NAME_UID_DIMENSION_REALIZATION)
+        _set_('temporal', NAME_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_TEMPORAL)
+        _set_('level', NAME_DIMENSION_LEVEL, NAME_UID_DIMENSION_LEVEL)
+
     @staticmethod
     def _set_new_value_mask_(field,mask):
         ret_shp = field.shape
@@ -643,20 +657,6 @@ class Field(Attributes):
                 for idx_r,idx_t,idx_l in itertools.product(rng_realization,rng_temporal,rng_level):
                     ref = v[idx_r,idx_t,idx_l]
                     ref.mask = ref_logical_or(ref.mask,mask)
-
-    def _set_default_names_uids_(self):
-
-        def _set_(dim, name, name_uid):
-            dim = getattr(self, dim)
-            if dim is not None:
-                if dim._name_uid is None:
-                    dim.name_uid = name_uid
-                if dim.name is None:
-                    dim.name = name
-
-        _set_('realization', NAME_DIMENSION_REALIZATION, NAME_UID_DIMENSION_REALIZATION)
-        _set_('temporal', NAME_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_TEMPORAL)
-        _set_('level', NAME_DIMENSION_LEVEL, NAME_UID_DIMENSION_LEVEL)
 
 
 class DerivedField(Field):

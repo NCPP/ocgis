@@ -827,7 +827,7 @@ class TestTemporalDimension(AbstractTestTemporal):
             original_bounds = deepcopy(td.bounds)
 
             with nc_scope(path, 'w') as ds:
-                td.write_to_netcdf_dataset(ds)
+                td.write_netcdf(ds)
                 for name, expected_value in zip([td.name_value, td.name_bounds], [td.value_numtime, td.bounds_numtime]):
                     try:
                         variable = ds.variables[name]
@@ -866,7 +866,7 @@ class TestTemporalGroupDimension(TestBase):
         tgd = self.get_tgd()
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
-            tgd.write_to_netcdf_dataset(ds)
+            tgd.write_netcdf(ds)
             self.assertIn('climatology_bounds', ds.variables)
             ncvar = ds.variables[tgd.name_value]
             self.assertEqual(ncvar.climatology, 'climatology_bounds')
@@ -877,6 +877,6 @@ class TestTemporalGroupDimension(TestBase):
         self.assertNotEqual(tgd.name_bounds, 'climatology_bounds')
         with nc_scope(path, 'w') as ds:
             try:
-                tgd.write_to_netcdf_dataset(ds, darkness='forever')
+                tgd.write_netcdf(ds, darkness='forever')
             except TypeError:
                 self.assertNotEqual(tgd.name_bounds, 'climatology_bounds')

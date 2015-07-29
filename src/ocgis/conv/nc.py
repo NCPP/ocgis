@@ -119,7 +119,7 @@ class NcConverter(AbstractCollectionConverter):
         :param bool file_only: If ``True``, this is writing the template file only and there is no data fill.
         """
 
-        arch.write_to_netcdf_dataset(dataset, file_only=is_file_only)
+        arch.write_netcdf(dataset, file_only=is_file_only)
     
     def _write_coll_(self, ds, coll):
         """

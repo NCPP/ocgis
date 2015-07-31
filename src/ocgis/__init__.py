@@ -12,7 +12,7 @@ from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGrid
     SpatialGeometryPolygonDimension, SpatialGeometryPointDimension
 from ocgis.interface.base.field import Field
 from ocgis.util.inspect import Inspect
-from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.interface.base.variable import Variable

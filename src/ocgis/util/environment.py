@@ -42,6 +42,8 @@ class Environment(object):
     def __init__(self):
         self.OVERWRITE = EnvParm('OVERWRITE', False, formatter=self._format_bool_)
         self.DIR_OUTPUT = EnvParm('DIR_OUTPUT', os.getcwd())
+        self.DIR_GEOMCABINET = EnvParm('DIR_GEOMCABINET', None)
+        # Left in for backwards compatibility. Performs the same function as DIR_GEOMCABINET.
         self.DIR_SHPCABINET = EnvParm('DIR_SHPCABINET', None)
         self.DIR_DATA = EnvParm('DIR_DATA', None)
         self.DIR_TEST_DATA = EnvParm('DIR_TEST_DATA', None)
@@ -94,6 +96,13 @@ class Environment(object):
             attr.value = value
             if attr.on_change is not None:
                 attr.on_change()
+
+    def get_geomcabinet_path(self):
+        return self.DIR_GEOMCABINET or self.DIR_SHPCABINET
+
+    def set_geomcabinet_path(self, value):
+        self.DIR_SHPCABINET = value
+        self.DIR_GEOMCABINET = value
 
     def reset(self):
         """

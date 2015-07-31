@@ -10,10 +10,9 @@ from ocgis import env
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPolygonDimension, \
     SpatialGeometryPointDimension
-from ocgis.util.shp_cabinet import ShpCabinet, ShpCabinetIterator, get_uid_from_properties
+from ocgis.util.geom_cabinet import GeomCabinet, GeomCabinetIterator, get_uid_from_properties
 import ocgis
 from ocgis.test.base import TestBase
-
 
 Layer = ogr.Layer
 
@@ -35,9 +34,9 @@ class Test(TestBase):
             get_uid_from_properties(properties, 'name')
 
 
-class TestShpCabinetIterator(TestBase):
+class TestGeomCabinetIterator(TestBase):
     def test_init(self):
-        sci = ShpCabinetIterator(key='state_boundaries', uid='ID', as_spatial_dimension=True)
+        sci = GeomCabinetIterator(key='state_boundaries', uid='ID', as_spatial_dimension=True)
         self.assertIsNone(sci.select_sql_where)
         self.assertEqual(sci.uid, 'ID')
         for sdim in sci:
@@ -45,14 +44,14 @@ class TestShpCabinetIterator(TestBase):
             break
 
         s = 'STATE_NAME = "Wisconsin"'
-        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where=s)
+        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where=s)
         self.assertEqual(sci.select_sql_where, s)
 
     def test_as_spatial_dimension(self):
         """Test iteration returned as SpatialDimension objects."""
 
         select_ugid = [16, 17, 51]
-        sci = ShpCabinetIterator(key='state_boundaries', select_uid=select_ugid, as_spatial_dimension=True)
+        sci = GeomCabinetIterator(key='state_boundaries', select_uid=select_ugid, as_spatial_dimension=True)
 
         for _ in range(2):
             ugids = []
@@ -73,18 +72,18 @@ class TestShpCabinetIterator(TestBase):
     def test_as_spatial_dimension_points(self):
         """Test SpatialDimension iteration with a point shapefile as source."""
 
-        sci = ShpCabinetIterator(key='qed_city_centroids', as_spatial_dimension=True)
+        sci = GeomCabinetIterator(key='qed_city_centroids', as_spatial_dimension=True)
         for sdim in sci:
             self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
 
     def test_iter(self):
         # test with a select statement
-        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME in ("Wisconsin", "Vermont")')
+        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME in ("Wisconsin", "Vermont")')
         for row in sci:
             self.assertIn(row['properties']['STATE_NAME'], ("Wisconsin", "Vermont"))
 
     def test_select_ugids_absent_raises_exception(self):
-        sci = ShpCabinetIterator(key='state_boundaries', select_uid=[999])
+        sci = GeomCabinetIterator(key='state_boundaries', select_uid=[999])
         with self.assertRaises(ValueError):
             list(sci)
 
@@ -95,43 +94,56 @@ class TestShpCabinetIterator(TestBase):
             ops.execute()
 
     def test_iteration_no_geoms(self):
-        sci = ShpCabinetIterator(key='state_boundaries', load_geoms=False)
+        sci = GeomCabinetIterator(key='state_boundaries', load_geoms=False)
         for geom in sci:
             self.assertNotIn('geom', geom)
 
     def test_len(self):
-        path = ShpCabinet().get_shp_path('state_boundaries')
-        sci = ShpCabinetIterator(path=path)
+        path = GeomCabinet().get_shp_path('state_boundaries')
+        sci = GeomCabinetIterator(path=path)
         self.assertEqual(len(sci), 51)
-        sci = ShpCabinetIterator(path=path, select_uid=[16, 19])
+        sci = GeomCabinetIterator(path=path, select_uid=[16, 19])
         self.assertEqual(len(sci), 2)
 
-        sci = ShpCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME = "Vermont"')
+        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME = "Vermont"')
         self.assertEqual(len(sci), 1)
 
     def test_iteration_by_path(self):
         # test that a shapefile may be retrieved by passing a full path to the file
-        path = ShpCabinet().get_shp_path('state_boundaries')
-        ocgis.env.DIR_SHPCABINET = None
-        sci = ShpCabinetIterator(path=path)
+        path = GeomCabinet().get_shp_path('state_boundaries')
+        ocgis.env.DIR_GEOMCABINET = None
+        sci = GeomCabinetIterator(path=path)
         self.assertEqual(len(list(sci)), 51)
         for geom in sci:
             self.assertIn(type(geom['geom']), (Polygon, MultiPolygon))
 
     def test_iteration_by_path_with_bad_path(self):
         # if the path does not exist on the filesystem, then an exception should be raised
-        ocgis.env.DIR_SHPCABINET = None
-        sci = ShpCabinetIterator(path='/foo/foo/foo/foo/foo')
+        ocgis.env.DIR_GEOMCABINET = None
+        sci = GeomCabinetIterator(path='/foo/foo/foo/foo/foo')
         with self.assertRaises(RuntimeError):
             list(sci)
 
     def test_key_used_before_path(self):
         # the key always takes preference over the path
-        sci = ShpCabinetIterator(key='state_boundaries', path='/foo/foo/foo/foo/foo')
+        sci = GeomCabinetIterator(key='state_boundaries', path='/foo/foo/foo/foo/foo')
         self.assertEqual(len(list(sci)), 51)
 
 
-class TestShpCabinet(TestBase):
+class TestGeomCabinet(TestBase):
+    def test_init(self):
+        bp = '/a/bad/location'
+        with self.assertRaises(ValueError):
+            cabinet = GeomCabinet(bp)
+            list(cabinet.iter_geoms('state_boundaries'))
+
+        try:
+            ocgis.env.set_geomcabinet_path(None)
+            with self.assertRaises(ValueError):
+                list(GeomCabinet().iter_geoms('state_boundaries'))
+        finally:
+            ocgis.env.reset()
+
     def test_get_features_object(self):
         # test with a shapefile not having the default unique geometry identifier
         path = self.get_shapefile_path_with_no_ugid()
@@ -143,8 +155,8 @@ class TestShpCabinet(TestBase):
             ds = ogr.Open(path)
             try:
                 try:
-                    obj = ShpCabinet._get_features_object_(ds, uid=k.uid, select_uid=k.select_uid,
-                                                           select_sql_where=k.select_sql_where)
+                    obj = GeomCabinet._get_features_object_(ds, uid=k.uid, select_uid=k.select_uid,
+                                                            select_sql_where=k.select_sql_where)
                 except RuntimeError:
                     self.assertIsNone(k.uid)
                     self.assertIsNotNone(k.select_uid)
@@ -162,21 +174,21 @@ class TestShpCabinet(TestBase):
                 ds.Destroy()
 
         # test on a shapefile having the default unique geometry identifier
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         ds = ogr.Open(path)
         try:
-            obj = ShpCabinet._get_features_object_(ds, select_uid=[8, 11, 13])
+            obj = GeomCabinet._get_features_object_(ds, select_uid=[8, 11, 13])
             self.assertEqual(len(obj), 3)
         finally:
             ds.Destroy()
 
     def test_get_features_object_select_sql_where(self):
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
 
         def _run_(s, func):
             try:
                 ds = ogr.Open(path)
-                obj = ShpCabinet._get_features_object_(ds, select_sql_where=s)
+                obj = GeomCabinet._get_features_object_(ds, select_sql_where=s)
                 func(obj)
             finally:
                 ds.Destroy()
@@ -220,7 +232,7 @@ class TestShpCabinet(TestBase):
     def test_number_in_shapefile_name(self):
         """Test number in shapefile name."""
 
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         out_path = os.path.join(self.current_dir_output, '51_states.shp')
         with fiona.open(path) as source:
@@ -228,16 +240,16 @@ class TestShpCabinet(TestBase):
                             crs=source.meta['crs']) as sink:
                 for record in source:
                     sink.write(record)
-        ret = list(ShpCabinetIterator(select_uid=[23], path=out_path))
+        ret = list(GeomCabinetIterator(select_uid=[23], path=out_path))
         self.assertEqual(len(ret), 1)
 
     def test_iter_geoms_select_ugid_is_sorted(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         with self.assertRaises(ValueError):
             list(sc.iter_geoms('state_boundaries', select_uid=[23, 18]))
 
     def test_iter_geoms_no_load_geoms(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         it = sc.iter_geoms('state_boundaries', load_geoms=False)
         geoms = list(it)
         self.assertEqual(len(geoms), 51)
@@ -246,7 +258,7 @@ class TestShpCabinet(TestBase):
             self.assertNotIn('geom', geom)
 
     def test_iter_geoms(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         it = sc.iter_geoms('state_boundaries')
         geoms = list(it)
         self.assertEqual(len(geoms), 51)
@@ -257,7 +269,7 @@ class TestShpCabinet(TestBase):
         # test with a shapefile not having a unique identifier
         env.DEFAULT_GEOM_UID = 'ggidd'
         new = self.get_shapefile_path_with_no_ugid()
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         target = list(sc.iter_geoms(path=new))
         self.assertEqual(len(target), 11)
         self.assertEqual(target[0]['properties'][env.DEFAULT_GEOM_UID], 1)
@@ -276,53 +288,40 @@ class TestShpCabinet(TestBase):
         path = self.get_shapefile_path_with_no_ugid()
         geom_select_uid = [12, 15]
         geom_uid = 'ID'
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         records = list(sc.iter_geoms(path=path, uid=geom_uid, select_uid=geom_select_uid))
         self.assertEqual(len(records), 2)
         self.assertEqual([r['properties']['ID'] for r in records], geom_select_uid)
 
     def test_iter_geoms_select_sql_where(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         sql = 'STATE_NAME = "New Hampshire"'
         self.assertEqual(len(list(sc.iter_geoms('state_boundaries', select_sql_where=sql))), 1)
 
     def test_iter_geoms_select_ugid(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         it = sc.iter_geoms('state_boundaries', select_uid=[13])
         geoms = list(it)
         self.assertEqual(len(geoms), 1)
         self.assertEqual(geoms[0]['properties']['STATE_NAME'], 'New Hampshire')
 
     def test_sql_subset(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         ds = ogr.Open(path)
         ret = ds.ExecuteSQL('select * from state_boundaries where state_name = "New Jersey"')
         ret.ResetReading()
         self.assertEqual(len(ret), 1)
 
-    def test_bad_path(self):
-        bp = '/a/bad/location'
-        with self.assertRaises(ValueError):
-            list(ShpCabinet(bp).iter_geoms('state_boundaries'))
-
-    def test_none_path(self):
-        try:
-            ocgis.env.DIR_SHPCABINET = None
-            with self.assertRaises(ValueError):
-                list(ShpCabinet().iter_geoms('state_boundaries'))
-        finally:
-            ocgis.env.reset()
-
     def test_get_keys(self, dir_shpcabinet=None):
-        ocgis.env.DIR_SHPCABINET = dir_shpcabinet or ocgis.env.DIR_SHPCABINET
-        sc = ShpCabinet()
+        ocgis.env.DIR_GEOMCABINET = dir_shpcabinet or ocgis.env.DIR_GEOMCABINET
+        sc = GeomCabinet()
         ret = sc.keys()
         target_keys = ['state_boundaries', 'world_countries']
         self.assertEqual(len(set(target_keys).intersection(set(ret))), len(target_keys))
 
     def test_shapefiles_not_in_folders(self):
-        for dirpath, dirnames, filenames in os.walk(ocgis.env.DIR_SHPCABINET):
+        for dirpath, dirnames, filenames in os.walk(ocgis.env.get_geomcabinet_path()):
             for filename in filenames:
                 if filename.startswith('state_boundaries') or filename.startswith('world_countries'):
                     dst = os.path.join(self.current_dir_output, filename)
@@ -330,6 +329,6 @@ class TestShpCabinet(TestBase):
                     shutil.copy2(src, dst)
         self.test_get_keys(dir_shpcabinet=self.current_dir_output)
 
-        sc = ShpCabinet(path=self.current_dir_output)
+        sc = GeomCabinet(path=self.current_dir_output)
         path = sc.get_shp_path('world_countries')
         self.assertEqual(path, os.path.join(self.current_dir_output, 'world_countries.shp'))

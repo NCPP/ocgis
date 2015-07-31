@@ -10,8 +10,7 @@ from __future__ import division
 
 import ocgis
 import os
-import re
-from ocgis.exc import DefinitionValidationError, MaskedDataError, ExtentError
+from ocgis.exc import ExtentError
 import numpy as np
 from mpi4py import MPI
 
@@ -28,7 +27,7 @@ ocgis.env.DIR_DATA = '/Users/joshsims/gcModels/wicci_data/' + model
 #directory where you want to write data
 ocgis.env.DIR_OUTPUT = '/Users/joshsims/gcModels/wicci_climdiv/' + model
 #directory ABOVE shapefile directory
-ocgis.env.DIR_SHPCABINET = '/Users/joshsims/gcModels/'
+ocgis.env.DIR_GEOMCABINET = '/Users/joshsims/gcModels/'
 ocgis.env.OVERWRITE = True
 ocgis.env.DEBUG = True
 files = os.listdir(ocgis.env.DIR_DATA) #get all files in data directory

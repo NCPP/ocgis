@@ -4,12 +4,11 @@ import shutil
 from collections import OrderedDict
 from datetime import datetime as dt
 import datetime
-
 import netCDF4 as nc
+
 import numpy as np
 from cfunits import Units
 import fiona
-
 from shapely.geometry.geo import shape
 
 from ocgis import env
@@ -24,14 +23,14 @@ from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimensi
     SpatialDimension
 from ocgis.exc import EmptySubsetError, DimensionNotFound, OcgWarning
 import ocgis
-from ocgis import ShpCabinet
+from ocgis import GeomCabinet
 
 
 class TestDriverNetcdf(TestBase):
     def get_2d_state_boundaries(self):
         geoms = []
         build = True
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         with fiona.open(path, 'r') as source:
             for ii, row in enumerate(source):

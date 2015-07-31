@@ -133,10 +133,10 @@ It is recommended that a simple suite of tests are run to verify the new install
 
 Please report any errors to the support email address.
 
-Configuring the :class:`~ocgis.ShpCabinet`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configuring the :class:`~ocgis.GeomCabinet`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Set the path to the directory containing the shapefile folders in :attr:`ocgis.env.DIR_SHPCABINET`. You may also set the system environment variable ``OCGIS_DIR_SHPCABINET``.
+Set the path to the directory containing the shapefile folders in :attr:`ocgis.env.DIR_GEOMCABINET`. You may also set the system environment variable ``OCGIS_DIR_SHPCABINET``.
 
 Uninstalling OpenClimateGIS
 ---------------------------

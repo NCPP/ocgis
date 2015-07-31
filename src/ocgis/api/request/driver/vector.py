@@ -62,9 +62,9 @@ class DriverVector(AbstractDriver):
         raise NotImplementedError
 
     def open(self):
-        from ocgis import ShpCabinetIterator
+        from ocgis import GeomCabinetIterator
 
-        return ShpCabinetIterator(path=self.rd.uri)
+        return GeomCabinetIterator(path=self.rd.uri)
 
     def _get_field_(self, format_time=None):
         # todo: option to pass select_ugid

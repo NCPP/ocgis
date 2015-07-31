@@ -2,13 +2,11 @@ from csv import DictReader
 import os
 
 import fiona
-
 from shapely.geometry import Point
-
 from shapely.geometry.multipoint import MultiPoint
 
 from ocgis import constants
-from ocgis import ShpCabinet, RequestDataset, OcgOperations, env
+from ocgis import GeomCabinet, RequestDataset, OcgOperations, env
 from ocgis.test.base import TestBase
 
 """
@@ -20,7 +18,7 @@ package hierarchy. Hence, these tests in theory may be removed...
 
 class Test20150119(TestBase):
     def test_shapefile_through_operations_subset(self):
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         field = rd.get()
         self.assertIsNone(field.spatial.properties)
@@ -32,7 +30,7 @@ class Test20150119(TestBase):
         self.assertEqual(tuple([1] * 5), field2.shape)
 
     def test_shapefile_through_operations(self):
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         field = rd.get()
         self.assertIsNone(field.spatial.properties)

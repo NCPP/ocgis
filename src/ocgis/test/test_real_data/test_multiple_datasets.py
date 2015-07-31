@@ -1,15 +1,15 @@
 from itertools import izip
 import os
 from copy import deepcopy
-import numpy as np
 
+import numpy as np
 import fiona
 
 from ocgis.api.operations import OcgOperations
 from ocgis.test.base import TestBase, attr
 import ocgis
 from ocgis.exc import DefinitionValidationError
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
 from ocgis import constants
 
@@ -23,7 +23,7 @@ class Test(TestBase):
 
     @property
     def california(self):
-        ret = list(ShpCabinetIterator('state_boundaries', select_uid=[25]))
+        ret = list(GeomCabinetIterator('state_boundaries', select_uid=[25]))
         return ret
 
     @property

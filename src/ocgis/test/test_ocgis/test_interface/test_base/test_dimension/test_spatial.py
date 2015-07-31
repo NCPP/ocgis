@@ -10,7 +10,7 @@ from fiona.crs import from_epsg
 from shapely.geometry import shape, mapping, Polygon, MultiPoint
 from shapely.geometry.point import Point
 
-from ocgis import constants, ShpCabinet, RequestDataset
+from ocgis import constants, GeomCabinet, RequestDataset
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryDimension, \
     SpatialGeometryPolygonDimension, SpatialGridDimension, SpatialGeometryPointDimension, SingleElementRetriever
 from ocgis.test import strings
@@ -162,7 +162,7 @@ class TestSingleElementRetriever(AbstractTestSpatialDimension):
 
 class TestSpatialDimension(AbstractTestSpatialDimension):
     def get_records(self):
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         with fiona.open(path, 'r') as source:
             records = list(source)
@@ -608,7 +608,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
 
         poly = strings.S2
         poly = wkt.loads(poly)
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         field = RequestDataset(path).get()
         sdim = field.spatial
         """:type sdim: :class:`ocgis.SpatialDimension`"""
@@ -967,7 +967,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
 
     def test_geoms_only(self):
         geoms = []
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         with fiona.open(path, 'r') as source:
             for row in source:

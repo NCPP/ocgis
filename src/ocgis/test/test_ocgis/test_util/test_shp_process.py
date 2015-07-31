@@ -6,14 +6,14 @@ import fiona
 
 from ocgis.test.base import TestBase
 from ocgis.util.shp_process import ShpProcess
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinet
 
 
 class TestShpProcess(TestBase):
 
     def test_shp_process(self):
         copy_path = os.path.join(self.current_dir_output, 'test_shp_process')
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         test_path = os.path.split(sc.get_shp_path('wc_4326'))[0]
         shutil.copytree(test_path, copy_path)
 
@@ -22,7 +22,7 @@ class TestShpProcess(TestBase):
         sp = ShpProcess(shp_path, out_folder)
         sp.process(key='world_countries', ugid=None)
 
-        sc = ShpCabinet(path=out_folder)
+        sc = GeomCabinet(path=out_folder)
         select_ugid = [33, 126, 199]
         geoms = list(sc.iter_geoms('world_countries', select_uid=select_ugid))
         self.assertEqual(len(geoms), 3)
@@ -31,7 +31,7 @@ class TestShpProcess(TestBase):
 
     def test_process_name(self):
         copy_path = os.path.join(self.current_dir_output, 'test_shp_process')
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         test_path = os.path.split(sc.get_shp_path('wc_4326'))[0]
         shutil.copytree(test_path, copy_path)
 

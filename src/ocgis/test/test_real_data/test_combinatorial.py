@@ -3,8 +3,8 @@ from csv import DictReader
 import os
 import shutil
 import itertools
-import numpy as np
 
+import numpy as np
 import fiona
 from shapely import wkt
 
@@ -217,7 +217,7 @@ class TestProjectionCombinations(TestSimpleBase):
         no_level_nc.write()
         no_level_uri = os.path.join(env.DIR_OUTPUT, no_level_nc.filename)
 
-        ocgis.env.DIR_SHPCABINET = self.current_dir_output
+        ocgis.env.DIR_GEOMCABINET = self.current_dir_output
         # ocgis.env.DEBUG = True
         #        ocgis.env.VERBOSE = True
 

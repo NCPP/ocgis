@@ -1,9 +1,9 @@
 from collections import OrderedDict
 import os
 import itertools
-import numpy as np
 from datetime import datetime as dt, datetime
 
+import numpy as np
 import fiona
 from shapely.geometry import Point, mapping
 
@@ -18,7 +18,7 @@ from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
     add_shapefile_unique_identifier, get_tuple
 from ocgis.test.base import TestBase
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class Test1(AbstractTestSpatialDimension):
@@ -234,7 +234,7 @@ class Test2(TestBase):
         out_path = os.path.join(self.current_dir_output, 'foo_out.shp')
         add_shapefile_unique_identifier(in_path, out_path)
 
-        sci = ShpCabinetIterator(path=out_path)
+        sci = GeomCabinetIterator(path=out_path)
         records = list(sci)
         self.assertAsSetEqual([1, 2], [xx['properties'][OCGIS_UNIQUE_GEOMETRY_IDENTIFIER] for xx in records])
         self.assertAsSetEqual([6, 60], [xx['properties']['fid'] for xx in records])
@@ -252,7 +252,7 @@ class Test2(TestBase):
         # test using a template attribute
         out_path = os.path.join(self.current_dir_output, 'template.shp')
         add_shapefile_unique_identifier(in_path, out_path, template='fid')
-        sci = ShpCabinetIterator(path=out_path)
+        sci = GeomCabinetIterator(path=out_path)
         records = list(sci)
         self.assertAsSetEqual([6, 60], [xx['properties'][OCGIS_UNIQUE_GEOMETRY_IDENTIFIER] for xx in records])
 

@@ -1,5 +1,5 @@
 from ocgis import CoordinateReferenceSystem, OcgOperations
-from ocgis import ShpCabinetIterator
+from ocgis import GeomCabinetIterator
 from ocgis.api.parms.definition import Dataset
 from ocgis.api.query import QueryInterface
 from ocgis.calc.library.statistics import FrequencyPercentile
@@ -22,7 +22,7 @@ class TestQueryInterface(TestBase):
 
         self.assertIsInstance(ops._get_object_('dataset'), Dataset)
         self.assertEqual(ops.dataset.first().uri, rd.uri)
-        self.assertIsInstance(ops.geom, ShpCabinetIterator)
+        self.assertIsInstance(ops.geom, GeomCabinetIterator)
         self.assertEqual(ops.spatial_operation, 'intersects')
         self.assertEqual(ops.geom_select_uid, (20, 30))
 

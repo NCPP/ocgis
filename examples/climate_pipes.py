@@ -1,9 +1,6 @@
-import ocgis
 import tempfile
-import shutil
-import os.path
-from ocgis.api.collection import SpatialCollection
-from ocgis.conv.fiona_ import GeoJsonConverter
+
+import ocgis
 
 '''
 Usage:
@@ -51,7 +48,8 @@ field = rd.get()
 if GEOM is None:
     select_ugid = None
 else:
-    select_geom = filter(lambda x: x['properties']['STATE_ABBR'] == 'TX',ocgis.ShpCabinetIterator(path=SHAPEFILE_PATH))
+    select_geom = filter(lambda x: x['properties']['STATE_ABBR'] == 'TX',
+                         ocgis.GeomCabinetIterator(path=SHAPEFILE_PATH))
     ## this argument must always come in as a list
     select_ugid = [select_geom[0]['properties']['UGID']]
     

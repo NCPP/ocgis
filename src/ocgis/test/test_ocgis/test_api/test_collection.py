@@ -1,9 +1,9 @@
 from collections import OrderedDict
 import os
 from copy import copy, deepcopy
-import numpy as np
 import datetime
 
+import numpy as np
 import fiona
 from numpy.core.multiarray import ndarray
 from shapely.geometry import Point, shape, MultiPoint
@@ -14,7 +14,7 @@ from ocgis.api.collection import SpatialCollection, AbstractCollection, get_ugeo
 from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical, WGS84, CFWGS84
 from ocgis.test.base import TestBase
 from ocgis.util.addict import Dict
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis import constants, SpatialDimension
 from ocgis.calc.library.statistics import Mean
 from ocgis.interface.base.variable import Variable
@@ -117,7 +117,7 @@ class TestAbstractCollection(TestBase):
 class TestSpatialCollection(AbstractTestField):
     def get_collection(self):
         field = self.get_field(with_value=True)
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta, key='state_boundaries')
         for row in sc.iter_geoms('state_boundaries', as_spatial_dimension=True):
@@ -233,7 +233,7 @@ class TestSpatialCollection(AbstractTestField):
         cfield.temporal.name_value = 'time'
         cfield.spatial.name_uid = 'gid'
 
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_CALC)
         for row in sc.iter_geoms('state_boundaries', as_spatial_dimension=True):
@@ -278,7 +278,7 @@ class TestSpatialCollection(AbstractTestField):
         cfield.temporal.name_value = 'time'
         cfield.spatial.name_uid = 'gid'
 
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_CALC)
         for row in sc.iter_geoms('state_boundaries', as_spatial_dimension=True):
@@ -379,7 +379,7 @@ class TestSpatialCollection(AbstractTestField):
         field.spatial.geom.name_uid = 'gid'
         field.spatial.name_uid = 'gid'
 
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_RAW)
         for row in sc.iter_geoms('state_boundaries', as_spatial_dimension=True):
@@ -411,7 +411,7 @@ class TestSpatialCollection(AbstractTestField):
                                           spatial=field.spatial, meta=field.meta, uid=field.uid)
         cfield.spatial.name_uid = 'gid'
 
-        sc = ShpCabinet()
+        sc = GeomCabinet()
         meta = sc.get_meta('state_boundaries')
         sp = SpatialCollection(meta=meta, key='state_boundaries', headers=constants.HEADERS_MULTI)
         for row in sc.iter_geoms('state_boundaries', as_spatial_dimension=True):

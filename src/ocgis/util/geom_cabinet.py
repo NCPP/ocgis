@@ -10,120 +10,40 @@ from ocgis import env
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 
 
-class ShpCabinetIterator(object):
-    """
-    Iterate over geometries from a shapefile specified by ``key`` or ``path``.
-
-    >>> sc = ShpCabinet()
-    >>> geoms = sc.iter_geoms('state_boundaries', select_uid=[1, 48])
-    >>> len(list(geoms))
-    2
-
-    :param key: Unique key identifier for a shapefile contained in the ShpCabinet directory.
-    :type key: str
-
-    >>> key = 'state_boundaries'
-
-    :param select_uid: Sequence of unique identifiers to select from the target shapefile.
-    :type select_uid: sequence
-
-    >>> select_uid = [23, 24]
-
-    :param path: Path to the target shapefile to iterate over. If ``key`` is provided it will override ``path``.
-    :type path: str
-
-    >>> path = '/path/to/shapefile.shp'
-
-    :param bool load_geoms: If ``False``, do not load geometries, excluding the ``'geom'`` key from the output
-     dictionary.
-    :param bool as_spatial_dimension: If ``True``, yield spatial dimension (:class:`~ocgis.SpatialDimension`)
-     objects.
-    :param str uid: The name of the attribute containing the unique identifier. If ``None``,
-     :attr:`ocgis.env.DEFAULT_GEOM_UID` will be used if present. If no unique identifier is found, add one with name
-     :attr:`ocgis.env.DEFAULT_GEOM_UID`.
-    :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
-     for documentation (section titled "WHERE").
-
-    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
-
-    :raises: ValueError, RuntimeError
-    :rtype: dict
-    """
-
-    def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False, uid=None,
-                 select_sql_where=None):
-        self.key = key
-        self.path = path
-        self.select_uid = select_uid
-        self.load_geoms = load_geoms
-        self.as_spatial_dimension = as_spatial_dimension
-        self.uid = uid
-        self.select_sql_where = select_sql_where
-        self.sc = ShpCabinet()
-
-    def __iter__(self):
-        """
-        Return an iterator as from :meth:`ocgis.ShpCabinet.iter_geoms`.
-        """
-
-        for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
-                                      load_geoms=self.load_geoms, as_spatial_dimension=self.as_spatial_dimension,
-                                      uid=self.uid, select_sql_where=self.select_sql_where):
-            yield row
-
-    def __len__(self):
-        # get the path to the output shapefile
-        shp_path = self.sc._get_path_by_key_or_direct_path_(key=self.key, path=self.path)
-
-        if self.select_uid is not None:
-            ret = len(self.select_uid)
-        else:
-            # get the geometries
-            ds = ogr.Open(shp_path)
-            try:
-                features = self.sc._get_features_object_(ds, uid=self.uid, select_uid=self.select_uid,
-                                                         select_sql_where=self.select_sql_where)
-                ret = len(features)
-            finally:
-                ds.Destroy()
-                ds = None
-        return ret
-
-
-class ShpCabinet(object):
+class GeomCabinet(object):
     """
     A utility object designed for accessing shapefiles stored in a locally accessible location.
 
-    >>> # Adjust location of :class:`ocgis.ShpCabinet` search directory.
+    >>> # Adjust location of search directory.
     >>> import ocgis
     ...
-    >>> ocgis.env.DIR_SHPCABINET = '/path/to/local/shapefile/directory'
-    >>> sc = ShpCabinet()
+    >>> ocgis.env.DIR_GEOMCABINET = '/path/to/local/shapefile/directory'
+    >>> sc = GeomCabinet()
     >>> # List the shapefiles available.
     >>> sc.keys()
     ['state_boundaries', 'mi_watersheds', 'world_countries']
     >>> # Load geometries from the shapefile.
     >>> geoms = sc.get_geoms('state_boundaries')
 
-    :param path: Absolute path the directory holding shapefile folders. Defaults to :attr:`ocgis.env.DIR_SHPCABINET`.
+    :param path: Absolute path the directory holding shapefile folders. Defaults to :attr:`ocgis.env.DIR_GEOMCABINET`.
     :type path: str
     """
 
     def __init__(self, path=None):
-        self._path = path or env.DIR_SHPCABINET
+        self._path = path or env.get_geomcabinet_path()
 
     @property
     def path(self):
         if self._path is None:
-            msg = 'A path value is required. Either pass a path to the constructor or set ocgis.env.DIR_SHPCABINET.'
+            msg = 'A path value is required. Either pass a path to the constructor or set ocgis.env.DIR_GEOMCABINET.'
             raise ValueError(msg)
         elif not os.path.exists(self._path):
-            raise ValueError('Specified path to ShpCabinet folder does not exist: {0}'.format(self._path))
+            raise ValueError('Specified path to GeomCabinet folder does not exist: {0}'.format(self._path))
         return self._path
 
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.
-        
+
         :rtype: list of str
         """
         ret = []
@@ -158,7 +78,7 @@ class ShpCabinet(object):
     def iter_geoms(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False,
                    uid=None, select_sql_where=None):
         """
-        See documentation for :class:`~ocgis.util.shp_cabinet.ShpCabinetIterator`.
+        See documentation for :class:`~ocgis.GeomCabinetIterator`.
         """
 
         # ensure select ugid is in ascending order
@@ -274,6 +194,86 @@ class ShpCabinet(object):
         return features
 
 
+class GeomCabinetIterator(object):
+    """
+    Iterate over geometries from a shapefile specified by ``key`` or ``path``.
+
+    >>> sc = GeomCabinet()
+    >>> geoms = sc.iter_geoms('state_boundaries', select_uid=[1, 48])
+    >>> len(list(geoms))
+    2
+
+    :param key: Unique key identifier for a shapefile contained in the :class:`~ocgis.GeomCabinet` directory.
+    :type key: str
+
+    >>> key = 'state_boundaries'
+
+    :param select_uid: Sequence of unique identifiers to select from the target shapefile.
+    :type select_uid: sequence
+
+    >>> select_uid = [23, 24]
+
+    :param path: Path to the target shapefile to iterate over. If ``key`` is provided it will override ``path``.
+    :type path: str
+
+    >>> path = '/path/to/shapefile.shp'
+
+    :param bool load_geoms: If ``False``, do not load geometries, excluding the ``'geom'`` key from the output
+     dictionary.
+    :param bool as_spatial_dimension: If ``True``, yield spatial dimension (:class:`~ocgis.SpatialDimension`)
+     objects.
+    :param str uid: The name of the attribute containing the unique identifier. If ``None``,
+     :attr:`ocgis.env.DEFAULT_GEOM_UID` will be used if present. If no unique identifier is found, add one with name
+     :attr:`ocgis.env.DEFAULT_GEOM_UID`.
+    :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
+     for documentation (section titled "WHERE").
+
+    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+
+    :raises: ValueError, RuntimeError
+    :rtype: dict
+    """
+
+    def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False, uid=None,
+                 select_sql_where=None):
+        self.key = key
+        self.path = path
+        self.select_uid = select_uid
+        self.load_geoms = load_geoms
+        self.as_spatial_dimension = as_spatial_dimension
+        self.uid = uid
+        self.select_sql_where = select_sql_where
+        self.sc = GeomCabinet()
+
+    def __iter__(self):
+        """
+        Return an iterator as from :meth:`ocgis.GeomCabinet.iter_geoms`.
+        """
+
+        for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
+                                      load_geoms=self.load_geoms, as_spatial_dimension=self.as_spatial_dimension,
+                                      uid=self.uid, select_sql_where=self.select_sql_where):
+            yield row
+
+    def __len__(self):
+        # get the path to the output shapefile
+        shp_path = self.sc._get_path_by_key_or_direct_path_(key=self.key, path=self.path)
+
+        if self.select_uid is not None:
+            ret = len(self.select_uid)
+        else:
+            # get the geometries
+            ds = ogr.Open(shp_path)
+            try:
+                features = self.sc._get_features_object_(ds, uid=self.uid, select_uid=self.select_uid,
+                                                         select_sql_where=self.select_sql_where)
+                ret = len(features)
+            finally:
+                ds.Destroy()
+                ds = None
+        return ret
+
+
 def get_uid_from_properties(properties, uid):
     """
     :param dict properties: A dictionary of properties with key corresponding to property names.
@@ -308,3 +308,13 @@ def get_uid_from_properties(properties, uid):
         add_uid = False
 
     return uid, add_uid
+
+
+class ShpCabinet(GeomCabinet):
+    """Left in for backwards compatibility."""
+    pass
+
+
+class ShpCabinetIterator(GeomCabinetIterator):
+    """Left in for backwards compatibility."""
+    pass

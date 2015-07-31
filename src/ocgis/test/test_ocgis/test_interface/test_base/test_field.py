@@ -12,7 +12,7 @@ from shapely import wkt
 from shapely.geometry import shape, Point
 from shapely.ops import cascaded_union
 
-from ocgis import constants, SpatialCollection, ShpCabinet
+from ocgis import constants, SpatialCollection, GeomCabinet
 from ocgis import RequestDataset
 from ocgis.constants import NAME_UID_FIELD, NAME_UID_DIMENSION_LEVEL
 from ocgis.interface.base.attributes import Attributes
@@ -411,7 +411,7 @@ class TestField(AbstractTestField):
 
     def test_get_intersects(self):
         # test with vector geometries
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         field = rd.get()
         polygon = wkb.loads(
@@ -660,7 +660,7 @@ class TestField(AbstractTestField):
             field.write_fiona(path, fobject=Nothing())
 
         # test all geometries are accounted for as well as properties
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         field = rd.get()
         out = self.get_temporary_file_path('foo.shp')

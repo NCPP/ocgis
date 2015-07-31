@@ -9,13 +9,14 @@ import datetime
 from copy import deepcopy
 from csv import DictReader
 import tempfile
-import numpy as np
 
+import numpy as np
 from fiona.crs import from_string
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 import fiona
 from shapely.geometry.geo import mapping
+
 from shapely import wkt
 
 from ocgis import osr
@@ -35,7 +36,7 @@ from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, Sim
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.interface.base.field import DerivedMultivariateField
 from ocgis.util.itester import itr_products_keywords
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 from ocgis.util.spatial.fiona_maker import FionaMaker
 
 
@@ -851,7 +852,7 @@ class TestSimple(TestSimpleBase):
             f.write(record_nebraska)
             f.write(record_kansas)
 
-        ocgis.env.DIR_SHPCABINET = self.current_dir_output
+        ocgis.env.DIR_GEOMCABINET = self.current_dir_output
         ops = OcgOperations(dataset=self.get_dataset(),
                             geom='states',
                             output_format='shp',
@@ -1419,7 +1420,7 @@ class TestSimple360(TestSimpleBase):
             ret = ops.execute()
             if k.output_format == constants.OUTPUT_FORMAT_SHAPEFILE:
                 path_ugid = ret.replace('.', '_ugid.')
-                rows = list(ShpCabinetIterator(path=path_ugid))
+                rows = list(GeomCabinetIterator(path=path_ugid))
                 bounds = rows[0]['geom'].bounds
             else:
                 bounds = ret.geoms[1].bounds
@@ -1595,7 +1596,7 @@ class TestSimpleProjected(TestSimpleBase):
         path = os.path.join(self.current_dir_output, 'ab_{0}.shp'.format('polygon'))
         with FionaMaker(path, geometry='Polygon') as fm:
             fm.write(features)
-        ocgis.env.DIR_SHPCABINET = self.current_dir_output
+        ocgis.env.DIR_GEOMCABINET = self.current_dir_output
 
         ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_SHAPEFILE,
                             geom='ab_polygon')

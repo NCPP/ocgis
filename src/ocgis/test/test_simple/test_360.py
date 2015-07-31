@@ -10,7 +10,7 @@ from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.test.base import TestBase, attr
 import ocgis
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class NcSpatial(object):
@@ -90,7 +90,7 @@ class Test360(TestBase):
     @property
     def nebraska(self):
         path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
-        sci = ShpCabinetIterator(path=path, select_uid=[16])
+        sci = GeomCabinetIterator(path=path, select_uid=[16])
         geom = list(sci)
         return geom
 

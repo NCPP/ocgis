@@ -14,7 +14,7 @@ from ocgis.util.helpers import make_poly
 from ocgis.test.base import TestBase, attr
 from ocgis.calc.library.statistics import Mean
 from ocgis.util.itester import itr_products_keywords
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.calc.eval_function import MultivariateEvalFunction
 
 
@@ -593,11 +593,11 @@ class TestGeom(TestBase):
         g = Geom('state_boundaries')
         self.assertEqual(str(g), 'geom="state_boundaries"')
 
-        geoms = list(ShpCabinetIterator('state_boundaries'))
+        geoms = list(GeomCabinetIterator('state_boundaries'))
         g = Geom('state_boundaries')
         self.assertEqual(len(list(g.value)), len(geoms))
 
-        sci = ShpCabinetIterator(key='state_boundaries')
+        sci = GeomCabinetIterator(key='state_boundaries')
         self.assertFalse(sci.as_spatial_dimension)
         g = Geom(sci)
         for _ in range(2):
@@ -678,7 +678,7 @@ class TestGeom(TestBase):
         for k in self.iter_product_keywords(keywords):
             g = Geom(geom_uid=k.geom_uid)
             ret = g.parse_string('state_boundaries')
-            self.assertIsInstance(ret, ShpCabinetIterator)
+            self.assertIsInstance(ret, GeomCabinetIterator)
             if k.geom_uid is None:
                 actual = None
             else:
@@ -698,7 +698,7 @@ class TestGeom(TestBase):
     def test_spatial_dimension(self):
         """Test using a SpatialDimension as input value."""
 
-        sdim = SpatialDimension.from_records(ShpCabinetIterator(key='state_boundaries'))
+        sdim = SpatialDimension.from_records(GeomCabinetIterator(key='state_boundaries'))
         self.assertIsInstance(sdim.crs, CFWGS84)
         g = Geom(sdim)
         self.assertEqual(len(g.value), 51)
@@ -707,12 +707,12 @@ class TestGeom(TestBase):
             self.assertEqual(sdim.shape, (1, 1))
 
     def test_using_shp_path(self):
-        # # pass a path to a shapefile as opposed to a key
-        path = ShpCabinet().get_shp_path('state_boundaries')
-        ocgis.env.DIR_SHPCABINET = None
-        ## make sure there is path associated with the ShpCabinet
+        # pass a path to a shapefile as opposed to a key
+        path = GeomCabinet().get_shp_path('state_boundaries')
+        ocgis.env.set_geomcabinet_path(None)
+        # make sure there is path associated with the GeomCabinet
         with self.assertRaises(ValueError):
-            ShpCabinet().keys()
+            GeomCabinet().keys()
         g = Geom(path)
         self.assertEqual(g._shp_key, path)
         self.assertEqual(len(list(g.value)), 51)

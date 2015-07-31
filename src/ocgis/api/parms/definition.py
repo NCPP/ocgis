@@ -12,9 +12,7 @@ import numpy as np
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.polygon import Polygon
-
 from shapely.geometry.multipolygon import MultiPolygon
-
 from shapely.geometry.point import Point
 
 from ocgis import messages
@@ -27,7 +25,7 @@ from ocgis import constants
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
 from ocgis.api.parms.definition_helpers import MetadataAttributes
-from ocgis.util.shp_cabinet import ShpCabinetIterator
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 from ocgis.calc.library import register
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -578,8 +576,8 @@ class Geom(base.AbstractParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [list, tuple, ShpCabinetIterator, Polygon, MultiPolygon, Point, MultiPoint, SpatialDimension]
-    return_type = [ShpCabinetIterator, tuple]
+    input_types = [list, tuple, GeomCabinetIterator, Polygon, MultiPolygon, Point, MultiPoint, SpatialDimension]
+    return_type = [GeomCabinetIterator, tuple]
     _shp_key = None
     _bounds = None
     _ugid_key = constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
@@ -612,7 +610,7 @@ class Geom(base.AbstractParameter):
         return ret
 
     def _get_value_(self):
-        if isinstance(self._value, ShpCabinetIterator):
+        if isinstance(self._value, GeomCabinetIterator):
             self._value.select_uid = self.select_ugid
         return base.AbstractParameter._get_value_(self)
 
@@ -641,7 +639,7 @@ class Geom(base.AbstractParameter):
                 ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
                 ret = SpatialDimension.from_records(ret, crs=CFWGS84(), uid=self.geom_uid)
                 self._bounds = geom.bounds
-        elif isinstance(value, ShpCabinetIterator):
+        elif isinstance(value, GeomCabinetIterator):
             self._shp_key = value.key or value.path
             # always want to yield SpatialDimension objects
             value.as_spatial_dimension = True
@@ -704,7 +702,7 @@ class Geom(base.AbstractParameter):
 
             kwds['select_sql_where'] = self.geom_select_sql_where
             kwds['uid'] = self.geom_uid
-            ret = ShpCabinetIterator(**kwds)
+            ret = GeomCabinetIterator(**kwds)
         return ret
 
     def _get_meta_(self):

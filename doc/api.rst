@@ -18,12 +18,12 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
  Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
 
 :attr:`env.DIR_OUTPUT` = ``None`` (defaults to current working directory)
- The directory where output data is written. OpenClimateGIS always creates directories inside which output data is stored. Also, many of the output formats have multiple output files making a single directory location potentially troubling in terms of file quantity. If `None`, it defaults to the current working directory.
+ The directory where output data is written. OpenClimateGIS creates directories inside which output data is stored unless :attr:`~ocgis.OcgOperations.add_auxiliary_files` is ``False``. If ``None``, it defaults to the current working directory.
 
-.. _env.DIR_SHPCABINET:
+.. _env.DIR_GEOMCABINET:
 
-:attr:`env.DIR_SHPCABINET` = <path-to-directory>
- Location of the shapefile directory for use by :class:`~ocgis.ShpCabinet`.
+:attr:`env.DIR_GEOMCABINET` = <path-to-directory>
+ Location of the geometry directory (e.g. a directory containing shapefiles) for use by :class:`~ocgis.GeomCabinet`. Formerly called ``DIR_SHPCABINET``.
 
 :attr:`env.MELTED` = ``False``
  If ``True``, use a melted tabular format with all variable values collected in a single column.
@@ -232,14 +232,14 @@ This is a list of floats corresponding to: `[longitude,latitude]`. The coordinat
 
 >>> geom = [-120.4,36.5]
 
-3. Using :class:`ocgis.ShpCabinetIterator`
+3. Using :class:`ocgis.GeomCabinetIterator`
 
->>> from ocgis import ShpCabinetIterator
->>> geom = ShpCabinetIterator('state_boundaries',geom_select_uid=[16])
+>>> from ocgis import GeomCabinetIterator
+>>> geom = GeomCabinetIterator('state_boundaries',geom_select_uid=[16])
 
 .. _geom key:
 
-4. Using a :class:`ocgis.ShpCabinet` Key
+4. Using a :class:`ocgis.GeomCabinet` Key
 
 >>> geom = 'state_boundaries'
 
@@ -273,7 +273,7 @@ Select specific geometries from the target shapefile chosen using "`geom`_". The
 >>> geom_select_uid = [4, 55]
 >>> geom_select_uid = [1]
 
-As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_SHPCABINET`_) with the following attribute table:
+As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_GEOMCABINET`_) with the following attribute table:
 
 ==== =======
 UGID Name
@@ -452,13 +452,13 @@ Value             Description
 `False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
 ================= ====================================================================================================
 
-:class:`ocgis.ShpCabinet`
-=========================
+:class:`ocgis.GeomCabinet`
+==========================
 
-.. autoclass:: ocgis.ShpCabinet
+.. autoclass:: ocgis.GeomCabinet
    :members: keys, iter_geoms
 
-.. autoclass:: ocgis.ShpCabinetIterator
+.. autoclass:: ocgis.GeomCabinetIterator
    :members: __iter__
 
 Adding Additional Shapefile Data
@@ -466,7 +466,7 @@ Adding Additional Shapefile Data
 
 .. warning:: Only add data WGS84 geographic data, ESPS=4326.
 
-Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_SHPCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`geom_select_uid`_" argument to find specific geometries inside the shapefile.
+Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_GEOMCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`geom_select_uid`_" argument to find specific geometries inside the shapefile.
 
 The shapefile's "`geom key`_" is the name of the shapefile. It must have an alphanumeric name with no spaces with the only allowable special character being underscores "_".
 

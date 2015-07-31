@@ -12,11 +12,11 @@ import datetime
 import sys
 import warnings
 import netCDF4 as nc
-import numpy as np
 
+import numpy as np
 import fiona
 
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.field import Field
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
@@ -415,7 +415,7 @@ class TestBase(unittest.TestCase):
         :rtype: str
         """
 
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         new = self.get_temporary_file_path('state_boundaries_without_ugid.shp')
         with fiona.open(path) as source:
             meta = source.meta.copy()

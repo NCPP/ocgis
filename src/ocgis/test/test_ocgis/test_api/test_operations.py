@@ -19,7 +19,7 @@ from ocgis import constants
 from ocgis.api.operations import OcgOperations
 from ocgis.util.helpers import make_poly
 import ocgis
-from ocgis.util.shp_cabinet import ShpCabinetIterator, ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinetIterator, GeomCabinet
 
 
 class TestOcgOperations(TestBase):
@@ -363,7 +363,7 @@ class TestOcgOperations(TestBase):
         g = definition.Geom('mi_watersheds')
         self.assertEqual(str(g), 'geom="mi_watersheds"')
 
-        geoms = ShpCabinetIterator('mi_watersheds')
+        geoms = GeomCabinetIterator('mi_watersheds')
         g = definition.Geom(geoms)
         self.assertEqual(len(list(g.value)), 60)
         self.assertEqual(g._shp_key, 'mi_watersheds')
@@ -501,7 +501,7 @@ class TestOcgOperations(TestBase):
                                 geom='state_boundaries', select_ugid=[25], vector_wrap=vector_wrap,
                                 prefix=str(vector_wrap), melted=True)
             ret = ops.execute()
-            sci = ShpCabinetIterator(path=ret)
+            sci = GeomCabinetIterator(path=ret)
             geoms = [element['geom'] for element in sci]
             for geom in geoms:
                 if vector_wrap:
@@ -604,7 +604,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(ops.snippet)
 
         # test driver validation is called appropriately
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, output_format='csv')

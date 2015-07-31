@@ -1,5 +1,5 @@
 from ocgis import constants
-from ocgis import RequestDataset, ShpCabinet, ShpCabinetIterator
+from ocgis import RequestDataset, GeomCabinet, GeomCabinetIterator
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.crs import WGS84
@@ -13,7 +13,7 @@ class TestDriverVector(TestBase):
         return driver
 
     def get_rd(self, variable=None):
-        uri = ShpCabinet().get_shp_path('state_boundaries')
+        uri = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=uri, driver='vector', variable=variable)
         return rd
 
@@ -81,5 +81,5 @@ class TestDriverVector(TestBase):
     def test_open(self):
         driver = self.get_driver()
         sci = driver.open()
-        self.assertIsInstance(sci, ShpCabinetIterator)
+        self.assertIsInstance(sci, GeomCabinetIterator)
         self.assertFalse(sci.as_spatial_dimension)

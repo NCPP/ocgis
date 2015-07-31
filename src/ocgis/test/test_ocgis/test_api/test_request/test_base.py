@@ -13,7 +13,7 @@ from cfunits import Units
 
 from ocgis.api.request.driver.nc import DriverNetcdf
 from ocgis.api.request.driver.vector import DriverVector
-from ocgis.util.shp_cabinet import ShpCabinet
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.interface.base.field import Field
 from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError, RequestValidationError
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get_tuple, get_is_none
@@ -185,7 +185,7 @@ class TestRequestDataset(TestBase):
                 raise
 
     def test_init_driver(self):
-        uri = ShpCabinet().get_shp_path('state_boundaries')
+        uri = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=uri, driver='vector')
         self.assertIsNotNone(rd.variable)
         self.assertIsInstance(rd.get(), Field)
@@ -387,7 +387,7 @@ class TestRequestDataset(TestBase):
             rd.inspect()
         self.assertTrue(len(ps.storage) >= 1)
 
-        uri = ShpCabinet().get_shp_path('state_boundaries')
+        uri = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=uri, driver='vector')
         with self.print_scope() as ps:
             rd.inspect()
@@ -450,7 +450,7 @@ class TestRequestDataset(TestBase):
             rd.get()
 
     def test_name(self):
-        path = ShpCabinet().get_shp_path('state_boundaries')
+        path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=path, driver='vector')
         self.assertIsNotNone(rd.name)
 

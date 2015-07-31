@@ -1,7 +1,9 @@
 import os
+
 import fiona
 from shapely.geometry import Point
-from ocgis import CoordinateReferenceSystem, ShpCabinetIterator
+
+from ocgis import CoordinateReferenceSystem, GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.util.spatial.fiona_maker import FionaMaker
 
@@ -31,7 +33,7 @@ class TestFionaMaker(TestBase):
 
         with self.get(geometry='Point') as source:
             source.write({'geom': Point(-130, 50), 'UGID': 1, 'NAME': 'the point'})
-        sci = ShpCabinetIterator(path=source.path, as_spatial_dimension=True)
+        sci = GeomCabinetIterator(path=source.path, as_spatial_dimension=True)
         sdims = list(sci)
         self.assertEqual(len(sdims), 1)
         sdim = sdims[0]

@@ -82,7 +82,7 @@ Installing OpenClimateGIS
 Anaconda Installation
 ~~~~~~~~~~~~~~~~~~~~~
 
-An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `NESII's Anaconda.org <https://anaconda.org/NESII>`_ repository. Linux-64 builds are available with osx-64 builds coming soon. There is an outstanding issue with Anaconda's GDAL-HDF5 build. Once this is resolved, osx-64 builds will be posted.
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `NESII's Anaconda.org <https://anaconda.org/NESII>`_ repository. Linux-64 builds are available with osx-64 builds coming soon. There is an outstanding issue with Anaconda's GDAL-HDF5 build. Once this is resolved, osx-64 builds will be posted. If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below.
 
 .. code-block:: sh
 
@@ -99,6 +99,8 @@ Build recipes may be found in the `conda-esmf GitHub repository <https://github.
 
 Building from Source
 ~~~~~~~~~~~~~~~~~~~~
+
+.. _download-form:
 
 1. Download the current release:
 

@@ -29,4 +29,7 @@ class Attributes(object):
         """
 
         for k, v in self.attrs.iteritems():
-            setattr(target, k, v)
+            if k == 'axis' and isinstance(v, basestring):
+                target.axis = str(v)
+            else:
+                target.setncattr(k, v)

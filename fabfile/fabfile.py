@@ -8,7 +8,6 @@ from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
 from saws import AwsManager
 from saws.tasks import ebs_mount
-
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 
 
@@ -210,15 +209,13 @@ r = RunAwsTests()
 def test_node_launch(instance_type='m3.xlarge'):
     am = AwsManager()
     instance_name = 'ocgis-test-node'
-    image_id = 'ami-3bb8820b'
-    # instance_type = 't2.micro'
-    ebs_snapshot_id = 'snap-310873bc'
+    image_id = 'ami-d1878fe1'
     ebs_mount_dir = '~/data'
-    ebs_mount_name = '/dev/xvdg'
-    instance = am.launch_new_instance(instance_name, image_id=image_id, instance_type=instance_type,
-                                      ebs_snapshot_id=ebs_snapshot_id, ebs_mount_name=ebs_mount_name)
+    ebs_mount_name = '/dev/xvdf'
+    instance = am.launch_new_instance(instance_name, image_id=image_id, instance_type=instance_type)
     test_node_ebs_mount(instance_name=instance_name, ebs_mount_name=ebs_mount_name, ebs_mount_dir=ebs_mount_dir)
     print am.get_ssh_command(instance=instance)
+
 
 @task
 def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xvdg', ebs_mount_dir='~/data'):
@@ -232,7 +229,7 @@ def test_node_ebs_mount(instance_name='ocgis-test-node', ebs_mount_name='/dev/xv
 def test_node_run_tests(instance_name='ocgis-test-node', branch='next', failed='false'):
     am = AwsManager()
     instance = am.get_instance_by_name(instance_name)
-    tcenv = 'test_ocgis'
+    tcenv = 'test-ocgis'
     texclude = '!slow,!remote,!esmpy7'
     tgdal_data = '/home/ubuntu/anaconda/envs/{0}/share/gdal'.format(tcenv)
     tocgis_dir_shpcabinet = '/home/ubuntu/data/ocgis_test_data/shp'

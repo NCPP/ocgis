@@ -10,13 +10,13 @@ Required Dependencies
 ============== ======= =======================================================================
 Package Name   Version URL
 ============== ======= =======================================================================
-Python         2.7.6   http://www.python.org/download/releases/2.7.6/
-``osgeo``      1.11.1  https://pypi.python.org/pypi/GDAL/
-``setuptools`` 12.0.5  https://pypi.python.org/pypi/setuptools
-``shapely``    1.5.6   https://pypi.python.org/pypi/Shapely
-``fiona``      1.4.8   https://pypi.python.org/pypi/Fiona
+Python         2.7.10  https://www.python.org/downloads/
+``osgeo``      1.11.2  https://pypi.python.org/pypi/GDAL/
+``setuptools`` 18.0.1  https://pypi.python.org/pypi/setuptools
+``shapely``    1.5.9   https://pypi.python.org/pypi/Shapely
+``fiona``      1.5.1   https://pypi.python.org/pypi/Fiona
 ``numpy``      1.9.2   http://sourceforge.net/projects/numpy/files/NumPy/1.9.2/
-``netCDF4``    1.1.1   http://unidata.github.io/netcdf4-python/
+``netCDF4``    1.1.8   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================
 
 Optional Dependencies
@@ -30,7 +30,7 @@ Package Name  Version  URL                                                    Us
 ``rtree``     0.8.0    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cfunits``   1.0      https://bitbucket.org/cfpython/cfunits-python          Allows unit transformations for ``conform_units_to`` argument to :class:`~ocgis.RequestDataset` or :class:`~ocgis.OcgOperations`.
 ``ESMPy``     6.3.0rp1 https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
-``icclim``    3.0      http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``icclim``    3.0.0    http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ============= ======== ====================================================== =================================================================================================================================
 
 Building Dependencies from Source
@@ -54,9 +54,6 @@ Ubuntu Linux
 ------------
 
 This method installs all dependencies using hosted packages. This script is available at: https://github.com/NCPP/ocgis/blob/master/doc/sphinx_examples/install_dependencies_ubuntu.sh.
-
-.. literalinclude:: sphinx_examples/install_dependencies_ubuntu.sh
-:language: sh
 
 Package Notes
 ~~~~~~~~~~~~~

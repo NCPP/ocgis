@@ -14,7 +14,7 @@ VERSION = '1.2.0n'
 
 
 class SimpleTestCommand(Command):
-    description = 'run a simple test suite to validate installation'
+    description = 'run a test suite to validate installation'
     user_options = []
 
     def initialize_options(self):
@@ -24,10 +24,9 @@ class SimpleTestCommand(Command):
         pass
 
     def run(self):
-        cwd = os.path.split(os.path.realpath(__file__))[0]
-        path = os.path.join(cwd, 'src', 'ocgis', 'test', 'test_simple', 'run_simple.py')
-        cmd = ['python', path]
-        check_call(cmd)
+        from ocgis.test import run_simple
+
+        run_simple(attrs='simple')
 
 
 class UninstallCommand(Command):

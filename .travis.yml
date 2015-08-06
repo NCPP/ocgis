@@ -3,6 +3,7 @@ branches:
   only:
     - next
     - master
+    - ocgis-376-setup-test
 sudo: false
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
@@ -17,13 +18,29 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  # Replace dep1 dep2 ... with your dependencies
-  - conda config --add channels nesii/channel/ocgis
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION ocgis nose
-  - source activate test-environment
+  # Install OCGIS without ESMPy.
+  - conda config --add channels https://conda.binstar.org/nesii/channel/ocgis
+  - conda create -q -n test-environment-ocgis python=$TRAVIS_PYTHON_VERSION ocgis nose
+  - source activate test-environment-ocgis
+  - yes | conda remove ocgis
+  - python setup.py install
+
+  # Install OCGIS with ESMPy.
+  - source deactivate
+  - conda config --add channels https://conda.binstar.org/nesii/channel/esmf
+  - conda create -q -n test-environment-ocgis-esmf python=$TRAVIS_PYTHON_VERSION esmpy==6.3.0rp1 ocgis nose
+  - source activate test-environment-ocgis-esmf
   - yes | conda remove ocgis
   - python setup.py install
 
 script:
+  # Test OCGIS+ESMPy.
+  - source deactivate
+  - source activate test-environment-ocgis-esmf
+  - python setup.py test
+
+  # Test only OCGIS.
+  - source deactivate
+  - source activate test-environment-ocgis
   - cd
   - python -c "from ocgis.test import run_simple; run_simple()"

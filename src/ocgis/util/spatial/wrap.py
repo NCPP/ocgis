@@ -1,10 +1,11 @@
 import numpy as np
-from ocgis.util.helpers import make_poly
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 from shapely.geometry.point import Point
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
+
+from ocgis.util.helpers import make_poly
 
 
 class Wrapper(object):
@@ -50,7 +51,12 @@ class Wrapper(object):
             # behavior mostly due to the possibility of invalid geometries
             processed_geometries = []
             for to_process in self._get_iter_(geom):
-                assert to_process.is_valid
+                try:
+                    assert to_process.is_valid
+                except AssertionError:
+                    # Attempt a simple buffering trick to make the geometry valid.
+                    to_process = to_process.buffer(0)
+                    assert to_process.is_valid
 
                 # intersection with the two regions
                 left = to_process.intersection(self.clip1)

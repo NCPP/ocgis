@@ -3,6 +3,7 @@ import os
 from copy import deepcopy
 
 import ogr
+
 from shapely import wkb
 import fiona
 
@@ -76,7 +77,7 @@ class GeomCabinet(object):
             raise ValueError(msg)
 
     def iter_geoms(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False,
-                   uid=None, select_sql_where=None):
+                   uid=None, select_sql_where=None, slice=None):
         """
         See documentation for :class:`~ocgis.GeomCabinetIterator`.
         """
@@ -101,6 +102,15 @@ class GeomCabinet(object):
             features = self._get_features_object_(ds, uid=uid, select_uid=select_uid, select_sql_where=select_sql_where)
             build = True
             for ctr, feature in enumerate(features):
+                # With a slice passed, ...
+                if slice is not None:
+                    # ... iterate until start is reached.
+                    if ctr < slice[0]:
+                        continue
+                    # ... stop if we have reached the stop.
+                    elif ctr == slice[1]:
+                        raise StopIteration
+
                 if load_geoms:
                     yld = {'geom': wkb.loads(feature.geometry().ExportToWkb())}
                 else:
@@ -230,12 +240,17 @@ class GeomCabinetIterator(object):
 
     >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
 
+    :param slice: A two-element integer sequence: [start, stop].
+
+    >>> slc = [0, 5]
+
+    :type slice: sequence
     :raises: ValueError, RuntimeError
     :rtype: dict
     """
 
     def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_spatial_dimension=False, uid=None,
-                 select_sql_where=None):
+                 select_sql_where=None, slice=None):
         self.key = key
         self.path = path
         self.select_uid = select_uid
@@ -243,6 +258,7 @@ class GeomCabinetIterator(object):
         self.as_spatial_dimension = as_spatial_dimension
         self.uid = uid
         self.select_sql_where = select_sql_where
+        self.slice = slice
         self.sc = GeomCabinet()
 
     def __iter__(self):
@@ -252,14 +268,16 @@ class GeomCabinetIterator(object):
 
         for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
                                       load_geoms=self.load_geoms, as_spatial_dimension=self.as_spatial_dimension,
-                                      uid=self.uid, select_sql_where=self.select_sql_where):
+                                      uid=self.uid, select_sql_where=self.select_sql_where, slice=self.slice):
             yield row
 
     def __len__(self):
         # get the path to the output shapefile
         shp_path = self.sc._get_path_by_key_or_direct_path_(key=self.key, path=self.path)
 
-        if self.select_uid is not None:
+        if self.slice is not None:
+            ret = self.slice[1] - self.slice[0]
+        elif self.select_uid is not None:
             ret = len(self.select_uid)
         else:
             # get the geometries

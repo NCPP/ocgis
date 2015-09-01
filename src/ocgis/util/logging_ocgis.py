@@ -134,7 +134,8 @@ class OcgisLogging(object):
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
-                console.setFormatter(logging.Formatter('%(name)s: %(levelname)s: %(message)s'))
+                console.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s: %(name)s: %(message)s',
+                                                       datefmt='%Y-%m-%d %H:%M:%S'))
                 self.parent.addHandler(console)
 
             # tell logging to capture warnings

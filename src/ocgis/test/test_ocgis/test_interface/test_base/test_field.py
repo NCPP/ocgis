@@ -261,37 +261,6 @@ class TestField(AbstractTestField):
         ref_field_real_slc = field.variables['tmax'].value[:, 0:2, 0, :, :]
         self.assertNumpyAll(ref_field_real_slc.flatten(), field_slc.variables['tmax'].value.flatten())
 
-    def test_get_aggregated_all(self):
-        for wv in [True, False]:
-            field = self.get_field(with_value=wv)
-            try:
-                agg = field.get_spatially_aggregated()
-            except NotImplementedError:
-                if not wv:
-                    continue
-                else:
-                    raise
-            self.assertNotEqual(field.spatial.grid, None)
-            self.assertEqual(agg.spatial.grid, None)
-            self.assertEqual(agg.shape, (2, 31, 2, 1, 1))
-            self.assertNumpyAll(field.variables['tmax'].value, agg._raw.variables['tmax'].value)
-            self.assertTrue(np.may_share_memory(field.variables['tmax'].value, agg._raw.variables['tmax'].value))
-
-            to_test = field.variables['tmax'].value[0, 0, 0, :, :].mean()
-            self.assertNumpyAll(to_test, agg.variables['tmax'].value[0, 0, 0, 0, 0])
-
-    def test_get_aggregated_irregular(self):
-        single = wkt.loads(
-            'POLYGON((-99.894355 40.230645,-98.725806 40.196774,-97.726613 40.027419,-97.032258 39.942742,-97.681452 39.626613,-97.850806 39.299194,-98.178226 39.643548,-98.844355 39.920161,-99.894355 40.230645))')
-        field = self.get_field(with_value=True)
-        for b in [True, False]:
-            ret = field.get_clip(single, use_spatial_index=b)
-            agg = ret.get_spatially_aggregated()
-            to_test = agg.spatial.geom.polygon.value[0, 0]
-            self.assertAlmostEqual(to_test.area, single.area)
-            self.assertAlmostEqual(to_test.bounds, single.bounds)
-            self.assertAlmostEqual(to_test.exterior.length, single.exterior.length)
-
     def test_get_clip_single_cell(self):
         single = wkt.loads(
             'POLYGON((-97.997731 39.339322,-97.709012 39.292322,-97.742584 38.996888,-97.668726 38.641026,-98.158876 38.708170,-98.340165 38.916316,-98.273021 39.218463,-97.997731 39.339322))')
@@ -476,6 +445,37 @@ class TestField(AbstractTestField):
             if row[1]['alias'] == 'tmax2':
                 self.assertTrue(row[1]['value'] > 3)
         self.assertEqual(set(vids), set([1, 2]))
+
+    def test_get_spatially_aggregated_all(self):
+        for wv in [True, False]:
+            field = self.get_field(with_value=wv)
+            try:
+                agg = field.get_spatially_aggregated()
+            except NotImplementedError:
+                if not wv:
+                    continue
+                else:
+                    raise
+            self.assertNotEqual(field.spatial.grid, None)
+            self.assertEqual(agg.spatial.grid, None)
+            self.assertEqual(agg.shape, (2, 31, 2, 1, 1))
+            self.assertNumpyAll(field.variables['tmax'].value, agg._raw.variables['tmax'].value)
+            self.assertTrue(np.may_share_memory(field.variables['tmax'].value, agg._raw.variables['tmax'].value))
+
+            to_test = field.variables['tmax'].value[0, 0, 0, :, :].mean()
+            self.assertNumpyAll(to_test, agg.variables['tmax'].value[0, 0, 0, 0, 0])
+
+    def test_get_spatially_aggregated_irregular(self):
+        single = wkt.loads(
+            'POLYGON((-99.894355 40.230645,-98.725806 40.196774,-97.726613 40.027419,-97.032258 39.942742,-97.681452 39.626613,-97.850806 39.299194,-98.178226 39.643548,-98.844355 39.920161,-99.894355 40.230645))')
+        field = self.get_field(with_value=True)
+        for b in [True, False]:
+            ret = field.get_clip(single, use_spatial_index=b)
+            agg = ret.get_spatially_aggregated()
+            to_test = agg.spatial.geom.polygon.value[0, 0]
+            self.assertAlmostEqual(to_test.area, single.area)
+            self.assertAlmostEqual(to_test.bounds, single.bounds)
+            self.assertAlmostEqual(to_test.exterior.length, single.exterior.length)
 
     def test_get_time_subset_by_function(self):
         field = self.get_field(with_value=True)

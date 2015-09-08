@@ -3,7 +3,6 @@ branches:
   only:
     - next
     - master
-    - ocgis-376-setup-test
 sudo: false
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
@@ -42,5 +41,6 @@ script:
   # Test only OCGIS.
   - source deactivate
   - source activate test-environment-ocgis
+  - python setup.py test --no-optional
   - cd
   - python -c "from ocgis.test import run_simple; run_simple()"

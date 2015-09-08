@@ -75,7 +75,7 @@ class TestBase(unittest.TestCase):
     def path_bin(self):
         """Path to binary test file directory."""
 
-        base_dir = os.path.split(__file__)[0]
+        base_dir = os.path.realpath(os.path.split(__file__)[0])
         ret = os.path.join(base_dir, 'bin')
         return ret
 
@@ -103,6 +103,27 @@ class TestBase(unittest.TestCase):
                     raise AssertionError(msg)
                 self.assertEqual(v, d2[k], msg=msg)
             self.assertEqual(set(d1.keys()), set(d2.keys()))
+
+    def assertFionaMetaEqual(self, meta, actual, abs_dtype=True):
+        self.assertEqual(meta['crs'], actual['crs'])
+        self.assertEqual(meta['driver'], actual['driver'])
+
+        schema_meta = meta['schema']
+        schema_actual = actual['schema']
+        self.assertEqual(schema_meta['geometry'], schema_actual['geometry'])
+
+        properties_meta = schema_meta['properties']
+        properties_actual = schema_actual['properties']
+
+        for km in properties_meta.iterkeys():
+            if abs_dtype:
+                self.assertEqual(properties_meta[km], properties_actual[km])
+            else:
+                property_meta = properties_meta[km]
+                property_actual = properties_actual[km]
+                dtype_meta = property_meta.split(':')[0]
+                dtype_actual = property_actual.split(':')[0]
+                self.assertEqual(dtype_meta, dtype_actual)
 
     def assertIsInstances(self, obj, klasses):
         for klass in klasses:

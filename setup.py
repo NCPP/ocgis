@@ -15,10 +15,10 @@ VERSION = '1.2.0n'
 
 class SimpleTestCommand(Command):
     description = 'run a test suite to validate installation'
-    user_options = []
+    user_options = [('no-optional', None, '')]
 
     def initialize_options(self):
-        pass
+        self.no_optional = False
 
     def finalize_options(self):
         pass
@@ -26,7 +26,12 @@ class SimpleTestCommand(Command):
     def run(self):
         from ocgis.test import run_simple
 
-        run_simple(attrs='simple')
+        if not self.no_optional:
+            attrs = 'simple'
+        else:
+            attrs = 'simple,!optional'
+
+        run_simple(attrs=attrs)
 
 
 class UninstallCommand(Command):

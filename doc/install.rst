@@ -124,11 +124,15 @@ or
 Testing the Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. note:: There are tests for the optional dependencies. These will fail if the optional dependencies are not installed!
-
 It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.org/en/latest/).
 
+.. note:: There are tests for the optional dependencies. These will fail if the optional dependencies are not installed!
+
 >>> python setup.py test
+
+To not run tests for the optional dependencies:
+
+>>> python setup.py test --no-optional
 
 Please report any errors to the support email address.
 

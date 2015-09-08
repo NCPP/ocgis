@@ -1,7 +1,7 @@
 import datetime
 import os
-
 from netCDF4 import Dataset
+
 import numpy as np
 
 from ocgis.interface.base.field import Field
@@ -9,6 +9,18 @@ from ocgis.test.base import TestBase
 
 
 class TestTestBase(TestBase):
+    def test_assertFionaMetaEqual(self):
+        fiona_meta = {'crs': {'init': 'epsg:4326'},
+                      'driver': u'ESRI Shapefile',
+                      'schema': {'geometry': 'Polygon',
+                                 'properties': {'UGID': 'int:9'}}}
+        fiona_meta_actual = {'crs': {'init': 'epsg:4326'},
+                             'driver': u'ESRI Shapefile',
+                             'schema': {'geometry': 'Polygon',
+                                        'properties': {'UGID': 'int:10'}}}
+        with self.assertRaises(AssertionError):
+            self.assertFionaMetaEqual(fiona_meta, fiona_meta_actual)
+        self.assertFionaMetaEqual(fiona_meta, fiona_meta_actual, abs_dtype=False)
 
     def test_assertNcEqual(self):
 

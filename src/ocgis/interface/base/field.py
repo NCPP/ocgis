@@ -581,7 +581,7 @@ class Field(Attributes):
             # be sure and write attributes before filling to account for offset and scale factor
             variable.write_attributes_to_netcdf_object(nc_variable)
             if not file_only:
-                nc_variable[:] = variable.value
+                nc_variable[:] = variable.value.reshape(nc_variable.shape)
 
             try:
                 nc_variable.grid_mapping = variable_crs._name

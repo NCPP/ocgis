@@ -18,6 +18,8 @@ class AbstractDimension(object):
     :param dict meta:
     :param str name:
     :param array-like properties:
+    :param unlimited: If ``True``, the dimension is unlimited and may be expanded.
+    :type unlimited: bool
     """
     __metaclass__ = abc.ABCMeta
 
@@ -29,10 +31,11 @@ class AbstractDimension(object):
     def _attrs_slice(self):
         """sequence of strings"""
 
-    def __init__(self, meta=None, name=None, properties=None):
+    def __init__(self, meta=None, name=None, properties=None, unlimited=False):
         self.meta = meta or {}
         self.name = name
         self.properties = properties
+        self.unlimited = unlimited
 
         if self.properties is not None:
             assert isinstance(self.properties, np.ndarray)
@@ -138,7 +141,7 @@ class AbstractUidDimension(AbstractDimension):
 class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
     def __init__(self, *args, **kwargs):
         kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'attrs', 'conform_units_to']
-        kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name']
+        kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name', 'unlimited']
 
         kwds_all = kwds_value + kwds_uid
         for key in kwargs.keys():
@@ -408,14 +411,12 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         self.bounds = get_bounds_from_1d(self.value)
         self._has_interpolated_bounds = True
 
-    def write_netcdf(self, dataset, unlimited=False, bounds_dimension_name=None, **kwargs):
+    def write_netcdf(self, dataset, bounds_dimension_name=None, **kwargs):
         """
         Write the dimension and its associated value and bounds to an open netCDF dataset object.
 
         :param dataset: An open dataset object.
         :type dataset: :class:`netCDF4.Dataset`
-        :param bool unlimited: If ``True``, create the dimension on the netCDF object with ``size=None``. See
-         http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createDimension.
         :param str bounds_dimension_name: If ``None``, default to
          :attr:`ocgis.interface.base.dimension.base.VectorDimension.name_bounds_dimension`.
         :param kwargs: Extra keyword arguments in addition to ``dimensions`` to pass to ``createVariable``. See
@@ -427,7 +428,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
 
         bounds_dimension_name = bounds_dimension_name or self.name_bounds_dimension
 
-        if unlimited:
+        if self.unlimited:
             size = None
         else:
             size = self.shape[0]

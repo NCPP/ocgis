@@ -381,13 +381,12 @@ class TestVectorDimension(TestBase):
             else:
                 attrs = None
             vd = VectorDimension(value=[2., 4.], attrs=attrs, name=k.name, name_bounds=k.name_bounds,
-                                 name_value=k.name_value, axis=k.axis)
+                                 name_value=k.name_value, axis=k.axis, unlimited=k.unlimited)
             if k.with_bounds:
                 vd.set_extrapolated_bounds()
             with nc_scope(path, 'w') as ds:
                 try:
-                    vd.write_netcdf(ds, unlimited=k.unlimited, bounds_dimension_name=k.bounds_dimension_name,
-                                               **k.kwargs)
+                    vd.write_netcdf(ds, bounds_dimension_name=k.bounds_dimension_name, **k.kwargs)
                 except ValueError:
                     self.assertIsNone(vd.name)
                     continue

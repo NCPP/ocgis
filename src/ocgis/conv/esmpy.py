@@ -1,10 +1,10 @@
 import ESMF
-from ocgis.conv.base import AbstractFileConverter
+
+from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.exc import DefinitionValidationError
-from ocgis.regrid.base import get_esmf_grid_from_sdim
 
 
-class ESMPyConverter(AbstractFileConverter):
+class ESMPyConverter(AbstractCollectionConverter):
     #todo: doc
 
     def __init__(self, *args, **kwargs):
@@ -26,7 +26,7 @@ class ESMPyConverter(AbstractFileConverter):
         elif ops.spatial_operation == 'clip':
             msg = 'Clip operations not allowed for "esmpy" output.'
             target = 'spatial_operation'
-        elif ops.select_ugid is not None and not ops.agg_selection and len(ops.select_ugid) > 1:
+        elif ops.geom_select_uid is not None and not ops.agg_selection and len(ops.geom_select_uid) > 1:
             msg = 'Only one selection geometry allowed for "esmpy" output.'
             target = 'select_ugid'
         elif ops.aggregate:
@@ -41,6 +41,8 @@ class ESMPyConverter(AbstractFileConverter):
 
         for coll in self.colls:
             """:type coll: :class:`ocgis.api.collection.SpatialCollection`"""
+            from ocgis.regrid.base import get_esmf_grid_from_sdim
+
             for row in coll.get_iter_melted():
                 field = row['field']
                 variable = row['variable']

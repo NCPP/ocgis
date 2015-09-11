@@ -5,10 +5,8 @@ from warnings import warn
 
 import numpy as np
 from shapely.geometry.point import Point
-
 from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
-
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 
@@ -835,10 +833,9 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             ret = (self.uid.shape[0], self.uid.shape[1])
         return ret
 
-    def get_subset_bbox(self, min_col, min_row, max_col, max_row, return_indices=False, closed=True,
-                        use_bounds=True):
-        assert (min_row <= max_row)
-        assert (min_col <= max_col)
+    def get_subset_bbox(self, min_col, min_row, max_col, max_row, return_indices=False, closed=True, use_bounds=True):
+        assert min_row <= max_row
+        assert min_col <= max_col
 
         if self.row is None:
             r_row = self.value[0, :, :]
@@ -863,20 +860,20 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             keep_row = np.any(idx_row, axis=1)
             keep_col = np.any(idx_col, axis=0)
 
-            # # slice reduction may fail due to empty bounding box returns. catch
-            # # these value errors and repurpose as subset errors.
+            # Slice reduction may fail due to empty bounding box returns. Catch these value errors and re-purpose as
+            # subset errors.
             try:
                 row_slc = get_reduced_slice(real_idx_row[keep_row])
             except ValueError:
                 if real_idx_row[keep_row].shape[0] == 0:
-                    raise (EmptySubsetError(origin='Y'))
+                    raise EmptySubsetError(origin='Y')
                 else:
                     raise
             try:
                 col_slc = get_reduced_slice(real_idx_col[keep_col])
             except ValueError:
                 if real_idx_col[keep_col].shape[0] == 0:
-                    raise (EmptySubsetError(origin='X'))
+                    raise EmptySubsetError(origin='X')
                 else:
                     raise
 

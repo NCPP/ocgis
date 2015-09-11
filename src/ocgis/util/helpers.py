@@ -12,9 +12,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
 import fiona
-
 from shapely.geometry.geo import mapping
-
 from fiona.crs import from_epsg
 
 from ocgis.util.environment import ogr
@@ -480,7 +478,6 @@ def get_ordered_dicts_from_records_array(arr):
 
 def get_reduced_slice(arr):
     arr_min, arr_max = arr.min(), arr.max()
-    assert (arr_max - arr_min + 1 == arr.shape[0])
     ret = slice(arr_min, arr_max + 1)
     return ret
 

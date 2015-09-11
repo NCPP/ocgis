@@ -131,9 +131,16 @@ class TestSpatialCollection(AbstractTestField):
         props1 = [('UGID', 10), ('STATE_FIPS', '06'), ('ID', 25.0), ('STATE_NAME', 'California'), ('STATE_ABBR', 'CA')]
         props2 = [('UGID', 11), ('STATE_FIPS', '08'), ('ID', 26.0), ('STATE_NAME', 'Ontario'), ('STATE_ABBR', 'CB')]
 
+        schema = {'geometry': 'Point',
+                  'properties': OrderedDict([('UGID', 'int'),
+                                             ('STATE_FIPS', 'str:2'),
+                                             ('ID', 'float'),
+                                             ('STATE_NAME', 'str'),
+                                             ('STATE_ABBR', 'str:2')])}
+
         def get_sdim(geom, props, crs):
             record = {'geom': geom, 'properties': OrderedDict(props)}
-            return SpatialDimension.from_records([record], crs=crs)
+            return SpatialDimension.from_records([record], schema, crs=crs)
 
         sdim1, sdim2 = [get_sdim(g, p, crs) for g, p in zip([pt1, pt2], [props1, props2])]
 
@@ -141,7 +148,7 @@ class TestSpatialCollection(AbstractTestField):
         coll.ugeom[10] = sdim1
         coll.ugeom[11] = sdim2
 
-        pdtype = [('UGID', '<i8'), ('STATE_FIPS', 'O'), ('ID', '<f8'), ('STATE_NAME', 'O'), ('STATE_ABBR', 'O')]
+        pdtype = [('UGID', '<i8'), ('STATE_FIPS', '|S2'), ('ID', '<f8'), ('STATE_NAME', '|S80'), ('STATE_ABBR', '|S2')]
 
         return coll, pdtype, pt1, pt2
 
@@ -149,8 +156,9 @@ class TestSpatialCollection(AbstractTestField):
         pt = pt or Point(1, 2)
         record1 = {'geom': pt, 'properties': {'ID': 4, 'NAME': 'hello'}}
         record2 = {'geom': pt, 'properties': {'ID': 5, 'NAME': 'another'}}
-        sd1 = SpatialDimension.from_records([record1], uid='ID')
-        sd2 = SpatialDimension.from_records([record2], uid='ID')
+        schema = {'geometry': 'Point', 'properties': {'ID': 'int', 'NAME': 'str'}}
+        sd1 = SpatialDimension.from_records([record1], schema, uid='ID')
+        sd2 = SpatialDimension.from_records([record2], schema, uid='ID')
         sc = SpatialCollection()
         field = self.get_field()
         sc.add_field(field, ugeom=sd1)
@@ -185,7 +193,8 @@ class TestSpatialCollection(AbstractTestField):
         self.assertIsNone(sc.ugeom[1])
 
         record = {'geom': Point(1, 2), 'properties': {'ID': 4, 'NAME': 'hello'}}
-        sd = SpatialDimension.from_records([record], uid='ID')
+        schema = {'geometry': 'Point', 'properties': {'ID': 'int', 'NAME': 'str'}}
+        sd = SpatialDimension.from_records([record], schema, uid='ID')
         sc.add_field(field, ugeom=sd)
         self.assertEqual(sc.keys(), [1, 4])
         self.assertEqual(sc.ugeom[4].geom.point.value[0, 0], record['geom'])

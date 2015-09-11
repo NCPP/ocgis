@@ -1,8 +1,10 @@
+from collections import OrderedDict
 import os.path
 import abc
 import csv
 import logging
 
+import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 import fiona
@@ -13,6 +15,9 @@ from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
 from ocgis.util.inspect import Inspect
 from ocgis.util.logging_ocgis import ocgis_lh
+
+FIONA_FIELD_TYPES_REVERSED = {v: k for k, v in fiona.FIELD_TYPES_MAP.iteritems()}
+FIONA_FIELD_TYPES_REVERSED[str] = 'str'
 
 
 class AbstractConverter(object):
@@ -201,11 +206,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
                             # convert the collection properties to fiona properties
                             from fiona_ import AbstractFionaConverter
 
-                            fiona_properties = {}
-                            archetype_properties = coll.properties.values()[0]
-                            for name in archetype_properties.dtype.names:
-                                fiona_properties[name] = AbstractFionaConverter.get_field_type(
-                                    type(archetype_properties[name][0]))
+                            fiona_properties = get_schema_from_numpy_dtype(coll.properties.values()[0].dtype)
 
                             fiona_schema = {'geometry': 'MultiPolygon', 'properties': fiona_properties}
                             fiona_meta = {'schema': fiona_schema, 'driver': 'ESRI Shapefile'}
@@ -388,3 +389,16 @@ def get_converter_map():
             }
 
     return mmap
+
+
+def get_schema_from_numpy_dtype(dtype):
+    ret = OrderedDict()
+    for name in dtype.names:
+        name_dtype, _ = dtype.fields[name]
+        if name_dtype.str.startswith('|S'):
+            ftype = 'str:{0}'.format(name_dtype.itemsize)
+        else:
+            ftype = type(np.array(0, dtype=name_dtype).item())
+            ftype = FIONA_FIELD_TYPES_REVERSED[ftype]
+        ret[name] = ftype
+    return ret

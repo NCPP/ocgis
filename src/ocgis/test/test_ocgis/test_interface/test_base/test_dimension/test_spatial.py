@@ -3,11 +3,13 @@ from copy import deepcopy, copy
 import os
 import itertools
 
+from shapely.geometry.geo import box
 import numpy as np
 from shapely import wkt, wkb
 import fiona
 from fiona.crs import from_epsg
 from shapely.geometry import shape, mapping, Polygon, MultiPoint
+
 from shapely.geometry.point import Point
 
 from ocgis import constants, GeomCabinet, RequestDataset
@@ -450,53 +452,57 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         """Test creating SpatialDimension directly from Fiona records."""
 
         record_dict = self.get_records()
-        for crs in [record_dict['meta']['crs'], None, CFWGS84()]:
-            for abstraction in ['polygon', 'point']:
-                for add_geom in [True, False]:
+        schema = {'geometry': None,
+                  'properties': OrderedDict([(u'UGID', 'int'), (u'STATE_FIPS', u'str:2'), (u'ID', 'float'),
+                                             (u'STATE_NAME', u'str'), (u'STATE_ABBR', u'str:2')])}
+        keywords = dict(crs=[record_dict['meta']['crs'], None, CFWGS84()],
+                        abstraction=['polygon', 'point'],
+                        add_geom=[True, False],
+                        schema=[None, schema])
+        for k in self.iter_product_keywords(keywords):
+            record_dict = deepcopy(record_dict)
+            records = deepcopy(record_dict['records'])
 
-                    record_dict = deepcopy(record_dict)
-                    records = deepcopy(record_dict['records'])
+            if k.add_geom:
+                for record in records:
+                    record['geom'] = shape(record['geometry'])
+                    if k.abstraction == 'point':
+                        record['geom'] = record['geom'].centroid
+            else:
+                if k.abstraction == 'point':
+                    for record in records:
+                        geom = shape(record['geometry']).centroid
+                        record['geometry'] = mapping(geom)
+                self.assertTrue('geom' not in records[10])
 
-                    if add_geom:
-                        for record in records:
-                            record['geom'] = shape(record['geometry'])
-                            if abstraction == 'point':
-                                record['geom'] = record['geom'].centroid
-                    else:
-                        if abstraction == 'point':
-                            for record in records:
-                                geom = shape(record['geometry']).centroid
-                                record['geometry'] = mapping(geom)
-                        self.assertTrue('geom' not in records[10])
+            sdim = SpatialDimension.from_records(records, crs=k.crs, schema=schema)
 
-                    sdim = SpatialDimension.from_records(records, crs=crs)
+            self.assertIsInstance(sdim, SpatialDimension)
+            self.assertEqual(sdim.shape, (1, 51))
+            self.assertEqual(sdim.properties.shape, (51,))
+            if k.abstraction == 'polygon':
+                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(),
+                                      SpatialGeometryPolygonDimension)
+            else:
+                self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
+            self.assertEqual(sdim.properties[0]['UGID'], sdim.uid[0, 0])
+            self.assertEqual(sdim.properties.dtype.names,
+                             ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
+            self.assertEqual(sdim.crs, CFWGS84())
+            self.assertDictEqual(sdim.meta, {})
+            if k.abstraction == 'polygon':
+                self.assertNumpyAllClose(np.array(sdim.geom.polygon.value[0, 23].bounds),
+                                         np.array((-114.04727330260259, 36.991746361915986, -109.04320629794219,
+                                                   42.00230036658243)))
+            else:
+                _point = sdim.geom.point.value[0, 23]
+                xy = _point.x, _point.y
+                self.assertNumpyAllClose(np.array(xy), np.array((-111.67605350692477, 39.322512402249)))
+            self.assertNumpyAll(sdim.uid, np.ma.array(range(1, 52)).reshape(1, 51))
+            self.assertEqual(sdim.abstraction, k.abstraction)
 
-                    self.assertIsInstance(sdim, SpatialDimension)
-                    self.assertEqual(sdim.shape, (1, 51))
-                    self.assertEqual(sdim.properties.shape, (51,))
-                    if abstraction == 'polygon':
-                        self.assertIsInstance(sdim.geom.get_highest_order_abstraction(),
-                                              SpatialGeometryPolygonDimension)
-                    else:
-                        self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
-                    self.assertEqual(sdim.properties[0]['UGID'], sdim.uid[0, 0])
-                    self.assertEqual(sdim.properties.dtype.names,
-                                     ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
-                    self.assertEqual(sdim.crs, CFWGS84())
-                    self.assertDictEqual(sdim.meta, {})
-                    if abstraction == 'polygon':
-                        self.assertNumpyAllClose(np.array(sdim.geom.polygon.value[0, 23].bounds),
-                                                 np.array((-114.04727330260259, 36.991746361915986, -109.04320629794219,
-                                                           42.00230036658243)))
-                    else:
-                        _point = sdim.geom.point.value[0, 23]
-                        xy = _point.x, _point.y
-                        self.assertNumpyAllClose(np.array(xy), np.array((-111.67605350692477, 39.322512402249)))
-                    self.assertNumpyAll(sdim.uid, np.ma.array(range(1, 52)).reshape(1, 51))
-                    self.assertEqual(sdim.abstraction, abstraction)
-
-                    for prop in sdim.properties[0]:
-                        self.assertNotEqual(prop, None)
+            for prop in sdim.properties[0]:
+                self.assertNotEqual(prop, None)
 
     def test_from_records_proper_uid(self):
         """Test records without 'UGID' property."""
@@ -1267,6 +1273,14 @@ class TestSpatialGeometryPointDimension(AbstractTestSpatialDimension):
             for element in ret.value.data.flat:
                 self.assertIsInstance(element, Point)
             self.assertIsNotNone(sdim.grid)
+
+        # Test pre-masked values in geometry are okay for intersects operation.
+        value = [Point(1, 1), Point(2, 2), Point(3, 3)]
+        value = np.ma.array(value, mask=[False, True, False], dtype=object).reshape(-1, 1)
+        s = SpatialGeometryPointDimension(value=value)
+        b = box(0, 0, 5, 5)
+        res = s.get_intersects_masked(b)
+        self.assertNumpyAll(res.value.mask, value.mask)
 
 
 class TestSpatialGeometryPolygonDimension(AbstractTestSpatialDimension):

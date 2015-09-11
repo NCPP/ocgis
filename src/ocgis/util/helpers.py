@@ -5,20 +5,21 @@ import tempfile
 import sys
 from copy import deepcopy
 from tempfile import mkdtemp
-import numpy as np
 import datetime
 
+import numpy as np
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
 import fiona
+
 from shapely.geometry.geo import mapping
+
 from fiona.crs import from_epsg
 
 from ocgis.util.environment import ogr
 from ocgis.util.shp_process import ShpProcess
 from ocgis.exc import SingleElementError, ShapeError
-
 
 CreateGeometryFromWkb = ogr.CreateGeometryFromWkb
 
@@ -468,7 +469,11 @@ def get_ordered_dicts_from_records_array(arr):
         fill = OrderedDict()
         row = arr[ii]
         for name in _names:
-            fill[name] = row[name]
+            fill_value = row[name]
+            # A masked value of True in the records array indicates a NULL value in OGR files.
+            if np.ma.is_masked(fill_value):
+                fill_value = None
+            fill[name] = fill_value
         ret.append(fill)
     return ret
 

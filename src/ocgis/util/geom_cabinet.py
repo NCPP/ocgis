@@ -3,7 +3,6 @@ import os
 from copy import deepcopy
 
 import ogr
-
 from shapely import wkb
 import fiona
 
@@ -121,6 +120,9 @@ class GeomCabinet(object):
 
                 if build:
                     uid, add_uid = get_uid_from_properties(properties, uid)
+                    # The properties schema needs to be updated to account for the adding of a unique identifier.
+                    if add_uid:
+                        meta['schema']['properties'][uid] = 'int'
                     build = False
 
                 # add the unique identifier if required
@@ -131,7 +133,7 @@ class GeomCabinet(object):
                     properties[uid] = int(properties[uid])
 
                 if as_spatial_dimension:
-                    yld = SpatialDimension.from_records([yld], crs=yld['meta']['crs'], uid=uid)
+                    yld = SpatialDimension.from_records([yld], meta['schema'], crs=yld['meta']['crs'], uid=uid)
 
                 yield yld
             try:

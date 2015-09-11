@@ -254,12 +254,11 @@ class SpatialCollection(AbstractCollection):
          then ``path`` will be ignored.
         :type fobject: :class:`fiona.collection.Collection`
         """
+        from ocgis.conv.base import get_schema_from_numpy_dtype
 
         if fobject is None and self.crs is None:
             msg = 'A coordinate system is required when writing to Fiona formats.'
             raise ValueError(msg)
-
-        from ocgis.conv.fiona_ import AbstractFionaConverter
 
         build = True if fobject is None else False
         is_open = False
@@ -281,11 +280,7 @@ class SpatialCollection(AbstractCollection):
                     else:
                         geometry = type_check.pop()
 
-                    fiona_properties = OrderedDict()
-                    archetype_properties = self.properties[ugid]
-                    for name in archetype_properties.dtype.names:
-                        fiona_properties[name] = AbstractFionaConverter.get_field_type(
-                            type(archetype_properties[name][0]))
+                    fiona_properties = get_schema_from_numpy_dtype(self.properties[ugid].dtype)
                     fiona_schema = {'geometry': geometry, 'properties': fiona_properties}
                     fiona_kwds = {'schema': fiona_schema, 'driver': driver, 'mode': 'w'}
                     if self.crs is not None:

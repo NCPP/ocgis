@@ -1,13 +1,17 @@
 from collections import deque, OrderedDict
 import itertools
 from copy import copy
+from warnings import warn
 
 import numpy as np
 from shapely.geometry.point import Point
+
 from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
+
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
+
 from shapely import wkb
 import fiona
 from shapely.geometry.geo import mapping, shape
@@ -211,12 +215,18 @@ class SpatialDimension(base.AbstractUidDimension):
                     assert not to_check.any()
 
     @classmethod
-    def from_records(cls, records, crs=None, uid=None):
+    def from_records(cls, records, schema=None, crs=None, uid=None):
         """
         Create a :class:`ocgis.interface.base.dimension.SpatialDimension` from Fiona-like records.
 
         :param records: A sequence of records returned from an Fiona file object.
         :type records: sequence
+        :param schema: A Fiona-like schema dictionary. If ``None`` and any records properties are ``None``, then this
+         must be provided.
+        :type schema: dict
+
+        >>> schema = {'geometry': 'Point', 'properties': {'UGID': 'int', 'NAME', 'str:4'}}
+
         :param crs: If ``None``, default to :attr:`~ocgis.env.DEFAULT_COORDSYS`.
         :type crs: dict or :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
         :param str uid: If provided, use this attribute name as the unique identifier. Otherwise search for
@@ -239,8 +249,6 @@ class SpatialDimension(base.AbstractUidDimension):
         mapping_kwds = {SpatialGeometryPolygonDimension: 'polygon',
                         SpatialGeometryPointDimension: 'point'}
 
-        # holds data types for the property structure array
-        dtype = []
         # holds geometry objects
         deque_geoms = deque()
         # holds unique identifiers
@@ -265,27 +273,12 @@ class SpatialDimension(base.AbstractUidDimension):
                 else:
                     has_uid = False
 
-                for k, v in record['properties'].iteritems():
-                    the_type = type(v)
-                    if the_type == unicode:
-                        the_type = object
-                    if isinstance(v, basestring):
-                        the_type = object
-                    dtype.append((str(k), the_type))
-                properties = np.empty(0, dtype=dtype)
-                property_order = record['properties'].keys()
-
             # the UGID may be present as a property. otherwise the enumeration counter is used for the identifier.
             if has_uid:
                 to_append = int(record['properties'][uid])
             else:
                 to_append = ctr
             deque_uid.append(to_append)
-
-            # append to the properties array
-            properties_new = np.empty(1, dtype=dtype)
-            properties_new[0] = tuple([record['properties'][key] for key in property_order])
-            properties = np.append(properties, properties_new)
 
         # fill the geometry array. to avoid having the geometry objects turned into coordinates, fill by index...
         geoms = np.empty((1, len(deque_geoms)), dtype=object)
@@ -307,6 +300,11 @@ class SpatialDimension(base.AbstractUidDimension):
         # arguments to geometry dimension
         kwds = {mapping_kwds[klass]: dim_geom_type}
         dim_geom = SpatialGeometryDimension(**kwds)
+
+        # convert the records to a masked numpy structure array.
+        if schema is not None:
+            schema = schema['properties']
+        properties = get_numpy_structure_array_from_records(records, schema, key='properties')
 
         sdim = SpatialDimension(geom=dim_geom, uid=uid_values, properties=properties, crs=crs,
                                 abstraction=mapping_kwds[klass], name_uid=uid)
@@ -609,10 +607,7 @@ class SpatialDimension(base.AbstractUidDimension):
                 new_spatial = _crs.get_rotated_pole_transformation(self)
             # likely an inverse transformation if the destination crs is rotated pole.
             except AttributeError:
-                try:
-                    new_spatial = to_crs.get_rotated_pole_transformation(self, inverse=True)
-                except AttributeError:
-                    raise e
+                new_spatial = to_crs.get_rotated_pole_transformation(self, inverse=True)
             self.__dict__ = new_spatial.__dict__
             self.crs = to_crs
 
@@ -1180,9 +1175,10 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
             si = SpatialIndex()
             _add = si.add
             _value = self.value
+            _uid = self.uid
             # add the geometries to the index
-            for (ii, jj), id_value in iter_array(self.uid, return_value=True):
-                _add(id_value, _value[ii, jj])
+            for (ii, jj), v in iter_array(_value, return_value=True):
+                _add(_uid[ii, jj], v)
             # this mapping simulates a dictionary for the item look-ups from two-dimensional arrays
             geom_mapping = GeomMapping(self.uid, self.value)
             _uid = ret.uid
@@ -1372,3 +1368,52 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
                 polygon = Polygon(coords)
                 r_data[row, col] = polygon
         return fill
+
+
+def get_numpy_dtype_from_schema(schema):
+    dtype = []
+    for k, v in schema.iteritems():
+        if v.startswith('str'):
+            if ':' in v:
+                length = v.split(':')[1]
+            else:
+                length = 80
+            nd = 'S{0}'.format(length)
+        else:
+            nd = fiona.prop_type(v)
+        dtype.append((str(k), nd))
+    return dtype
+
+
+def get_numpy_structure_array_from_records(records, schema, key=None):
+    if schema is None:
+        from ocgis.conv.base import FIONA_FIELD_TYPES_REVERSED
+
+        for r in records:
+            if key is not None:
+                r = r[key]
+            schema = OrderedDict()
+            for k, v in r.iteritems():
+                schema[k] = FIONA_FIELD_TYPES_REVERSED[type(v)]
+            break
+    dtype = get_numpy_dtype_from_schema(schema)
+    p = np.empty(0, dtype=dtype)
+    nones = []
+    for idx_record, record in enumerate(records):
+        if key is not None:
+            record = record[key]
+        pnew = np.empty(1, dtype=dtype)
+        for idx, (k, v) in enumerate(record.iteritems()):
+            if v is None:
+                nones.append((idx_record, idx))
+            else:
+                try:
+                    pnew[0][k] = v
+                except UnicodeEncodeError:
+                    warn('Cannot encode attribute value. Setting to NULL/None.')
+                    nones.append((idx_record, idx))
+        p = np.append(p, pnew)
+    p = np.ma.array(p)
+    for e in nones:
+        p.mask[e[0]][e[1]] = True
+    return p

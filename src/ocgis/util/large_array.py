@@ -1,10 +1,12 @@
+import netCDF4 as nc
+from copy import deepcopy
+
+import numpy as np
+
 import ocgis
 from ocgis.calc import tile
-import netCDF4 as nc
 from ocgis.util.helpers import ProgressBar
-import numpy as np
 from ocgis.api.operations import OcgOperations
-from copy import deepcopy
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.base import AbstractMultivariateFunction
 
@@ -34,12 +36,12 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
     >>> ret = compute(ops, 25)
     """
 
-    ## validate arguments
-    assert(isinstance(ops, OcgOperations))
-    assert(ops.calc is not None)
-    assert(ops.output_format == 'nc')
+    # validate arguments
+    assert (isinstance(ops, OcgOperations))
+    assert (ops.calc is not None)
+    assert (ops.output_format == 'nc')
 
-    ## ensure that progress is not showing 100% at first
+    # ensure that progress is not showing 100% at first
     if ops.callback is not None:
         orgcallback = ops.callback
 
@@ -47,37 +49,37 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             orgcallback(0., m)
 
         ops.callback = zeropercentagecallback
-    
+
     tile_dimension = int(tile_dimension)
     if tile_dimension <= 0:
         raise (ValueError('"tile_dimension" must be greater than 0'))
 
-    ## determine if we are working with a multivariate function
+    # determine if we are working with a multivariate function
     if OcgCalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
-        ## only one multivariate calculation allowed
+        # only one multivariate calculation allowed
         assert (len(ops.calc) == 1)
         has_multivariate = True
     else:
-        ## only one calculation allowed
+        # only one calculation allowed
         assert (len(ops.dataset) == 1)
         has_multivariate = False
 
-    ## work on a copy of the operations to create the template file
+    # work on a copy of the operations to create the template file
     ops_file_only = deepcopy(ops)
-    ## we need the output to be file only for the first request
+    # we need the output to be file only for the first request
     ops_file_only.file_only = True
-    ## save the environment flag for calculation optimizations.
+    # save the environment flag for calculation optimizations.
     orig_oc = ocgis.env.OPTIMIZE_FOR_CALC
 
     try:
-        ## tell the software we are optimizing for calculations   
+        # tell the software we are optimizing for calculations   
         ocgis.env.OPTIMIZE_FOR_CALC = True
 
-        ## first, write the template file
+        # first, write the template file
         if verbose: print('getting fill file...')
         fill_file = ops_file_only.execute()
-        ## if there is a geometry, we have to find the offset for the slice. we
-        ## also need to account for the subset mask.
+        # if there is a geometry, we have to find the offset for the slice. we
+        # also need to account for the subset mask.
         if ops.geom is not None:
             if verbose:
                 print('geometry subset is present. calculating slice offsets...')
@@ -89,23 +91,29 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             coll = ops_offset.execute()
 
             for row in coll.get_iter_melted():
-                ## assert the values are not loaded...
-                assert(row['variable']._value is None)
-                ## assert only 3 or 4 dimensional data is being used
-                assert(row['field'].shape_as_dict['R'] == 1)
+                # assert the values are not loaded...
+                assert (row['variable']._value is None)
+                # assert only 3 or 4 dimensional data is being used
+                assert (row['field'].shape_as_dict['R'] == 1)
 
             ref_spatial = coll[1][ops_offset.dataset.first().name].spatial
-            row_offset = ref_spatial.grid.row._src_idx[0]
-            col_offset = ref_spatial.grid.col._src_idx[0]
+            try:
+                row_offset = ref_spatial.grid.row._src_idx[0]
+                col_offset = ref_spatial.grid.col._src_idx[0]
+            except AttributeError:
+                # Likely no row and column for a 2-dimensional grid.
+                row_offset = ref_spatial.grid._src_idx['row'][0]
+                col_offset = ref_spatial.grid._src_idx['col'][0]
             mask_spatial = ref_spatial.get_mask()
-        ## otherwise the offset is zero...
+        # otherwise the offset is zero...
         else:
             row_offset = 0
             col_offset = 0
             mask_spatial = None
 
-        ## get the shape for the tile schema
-        if verbose: print('getting tile schema shape inputs...')
+        # get the shape for the tile schema
+        if verbose:
+            print('getting tile schema shape inputs...')
         #        if has_multivariate == False:
         #            shp_variable = '{0}_{1}'.format(ops.calc[0]['name'],ops.dataset[0].alias)
         #        else:
@@ -116,8 +124,8 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         shp = template_field.shape[-2:]
 
         if use_optimizations:
-            ## if there is a calculation grouping, optimize for it. otherwise, pass
-            ## this value as None.
+            # if there is a calculation grouping, optimize for it. otherwise, pass
+            # this value as None.
             try:
                 tgd_field = ops.dataset.first().get()
                 template_tgd = tgd_field.temporal.get_grouping(deepcopy(ops.calc_grouping))
@@ -129,7 +137,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             except TypeError:
                 optimizations = None
 
-            ## load the fields and pass those for optimization
+            # load the fields and pass those for optimization
             field_optimizations = {}
             for rd in ops.dataset.itervalues():
                 gotten_field = rd.get(format_time=ops.format_time)
@@ -147,11 +155,13 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         if ops.callback is not None:
             percentageDone = 0
             callback = ops.callback
-            def newcallback(p,m):
-              p = (p/lschema)+percentageDone
-              orgcallback(p,m)
+
+            def newcallback(p, m):
+                p = (p / lschema) + percentageDone
+                orgcallback(p, m)
+
             ops.callback = newcallback
-        
+
         if verbose:
             print('output file is: {0}'.format(fill_file))
             print('tile count: {0}'.format(lschema))
@@ -161,19 +171,19 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             if verbose:
                 progress = ProgressBar('tiles progress')
             if ops.callback is not None and callback:
-                callback(0,"Initializing calculation")
+                callback(0, "Initializing calculation")
             for ctr, indices in enumerate(schema.itervalues(), start=1):
-                ## appropriate adjust the slices to account for the spatial subset
+                # appropriate adjust the slices to account for the spatial subset
                 row = [ii + row_offset for ii in indices['row']]
                 col = [ii + col_offset for ii in indices['col']]
 
-                ## copy the operations and modify arguments
+                # copy the operations and modify arguments
                 ops_slice = deepcopy(ops)
                 ops_slice.geom = None
                 ops_slice.slice = [None, None, None, row, col]
                 ops_slice.output_format = 'numpy'
                 ops_slice.optimizations = optimizations
-                ## return the object slice
+                # return the object slice
                 ret = ops_slice.execute()
                 for field_map in ret.itervalues():
                     for field in field_map.itervalues():
@@ -181,18 +191,18 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                         for alias, variable in field.variables.iteritems():
                             vref = fds.variables[alias]
                             assert (isinstance(variable.value, np.ma.MaskedArray))
-                            ## we need to remove the offsets to adjust for the zero-based
-                            ## fill file.
+                            # we need to remove the offsets to adjust for the zero-based
+                            # fill file.
                             slice_row = slice(row[0] - row_offset, row[1] - row_offset)
                             slice_col = slice(col[0] - col_offset, col[1] - col_offset)
-                            ## if there is a spatial mask, update accordingly
+                            # if there is a spatial mask, update accordingly
                             if mask_spatial is not None:
                                 fill_mask = np.zeros(variable.value.shape, dtype=bool)
                                 fill_mask[..., :, :] = mask_spatial[slice_row, slice_col]
                                 variable.value.mask = fill_mask
-                            ## squeeze out extra dimensions from ocgis
+                            # squeeze out extra dimensions from ocgis
                             fill_value = np.squeeze(variable.value)
-                            ## fill the netCDF container variable adjusting for shape
+                            # fill the netCDF container variable adjusting for shape
                             if len(vref.shape) == 3:
                                 reshape = (field_shape['T'], field_shape['Y'], field_shape['X'])
                                 vref[:, slice_row, slice_col] = fill_value.reshape(*reshape)
@@ -202,7 +212,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                             else:
                                 raise (NotImplementedError(vref.shape))
 
-                            ## write the data to disk
+                            # write the data to disk
                             fds.sync()
                 if verbose:
                     progress.progress(int((float(ctr) / lschema) * 100))
@@ -216,4 +226,4 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         progress.endProgress()
         print('complete.')
 
-    return(fill_file)
+    return (fill_file)

@@ -4,9 +4,10 @@ import time
 
 import numpy as np
 
+from ocgis import Variable
 from ocgis.test.base import TestBase, attr
 import ocgis
-from ocgis.util.large_array import compute
+from ocgis.util.large_array import compute, set_variable_spatial_mask
 from ocgis.calc import tile
 from ocgis.api.request.base import RequestDatasetCollection, RequestDataset
 
@@ -22,7 +23,7 @@ class Test(TestBase):
         field.spatial.grid.col = None
         path = self.get_temporary_file_path('2d_netcdf.nc')
         with self.nc_scope(path, 'w') as ds:
-            field.write_to_netcdf_dataset(ds)
+            field.write_netcdf(ds)
         return path
 
     def get_random_integer(self, low=1, high=100):
@@ -209,6 +210,23 @@ class Test(TestBase):
 
             tile_ds.close()
         std_ds.close()
+
+    def test_set_variable_spatial_mask(self):
+        value = np.random.rand(10, 3, 4)
+        value = np.ma.array(value, mask=False)
+        mask_spatial = np.zeros((3, 4), dtype=bool)
+        mask_spatial[2, 3] = True
+        value.mask[:, 1, 1] = True
+        var = Variable(value=value)
+        slice_row = slice(None)
+        slice_col = slice(None)
+        self.assertFalse(var.value.mask[:, 2, 3].any())
+        set_variable_spatial_mask(var, mask_spatial, slice_row, slice_col)
+        self.assertTrue(var.value.mask.any())
+        self.assertTrue(var.value.mask[:, 1, 1].all())
+        var.value.mask[:, 1, 1] = False
+        var.value.mask[:, 2, 3] = False
+        self.assertFalse(var.value.mask.any())
 
     def test_tile_get_tile_schema(self):
         schema = tile.get_tile_schema(5, 5, 2)

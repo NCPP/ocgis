@@ -197,9 +197,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                             slice_col = slice(col[0] - col_offset, col[1] - col_offset)
                             # if there is a spatial mask, update accordingly
                             if mask_spatial is not None:
-                                fill_mask = np.zeros(variable.value.shape, dtype=bool)
-                                fill_mask[..., :, :] = mask_spatial[slice_row, slice_col]
-                                variable.value.mask = fill_mask
+                                set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col)
                             # squeeze out extra dimensions from ocgis
                             fill_value = np.squeeze(variable.value)
                             # fill the netCDF container variable adjusting for shape
@@ -227,3 +225,24 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         print('complete.')
 
     return (fill_file)
+
+
+def set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col):
+    """
+    Update the mask on ``variable`` in-place to match ``mask_spatial``. The array slice updated is constrained by
+    ``slice_row`` and ``slice_col``.
+
+    :param variable: The target variable to update.
+    :type variable: :class:`ocgis.Variable`
+    :param mask_spatial: The boolean mask array resulting from a spatial operation on the ``variable``'s field. Must
+     have same spatial dimensions as ``variable``.
+    :type mask_spatial: boolean ndarray
+    :param slice_row: The row slice to update.
+    :type slice_row: slice
+    :param slice_col: The column slice to update.
+    :type slice_col: slice
+    """
+
+    fill_mask = np.zeros(variable.value.shape, dtype=bool)
+    fill_mask[..., :, :] = mask_spatial[slice_row, slice_col]
+    variable.value.mask = np.logical_or(fill_mask, variable.value.mask[..., :, :])

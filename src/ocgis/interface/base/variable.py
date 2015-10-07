@@ -315,7 +315,13 @@ class Variable(AbstractSourcedVariable, AbstractValueVariable):
             if not isinstance(value, np.ma.MaskedArray):
                 ret = np.ma.array(value, mask=False)
             else:
-                ret = value
+                # Indexing into masks should always be supported. If the mask is a scalar, convert to a boolean array.
+                if np.isscalar(value.mask):
+                    new_mask = np.empty_like(value, dtype=bool)
+                    new_mask[:] = value.mask
+                    ret = np.ma.array(value.data, mask=new_mask)
+                else:
+                    ret = value
         return ret
 
     def _get_value_(self):

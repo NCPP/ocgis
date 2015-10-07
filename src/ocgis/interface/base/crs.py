@@ -2,10 +2,11 @@ from copy import copy, deepcopy
 import tempfile
 import itertools
 import abc
-import numpy as np
 
+import numpy as np
 from fiona.crs import from_string, to_string
 from shapely.geometry import Point, Polygon
+
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis.util.environment import osr
@@ -13,7 +14,6 @@ from ocgis import constants
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
 from ocgis.util.spatial.wrap import Wrapper
 from ocgis.util.helpers import iter_array
-
 
 SpatialReference = osr.SpatialReference
 
@@ -463,10 +463,19 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
 
         r_var = meta['variables'][var]
         try:
-            # look for the grid_mapping attribute on the target variable
+            # Look for the grid_mapping attribute on the target variable.
             r_grid_mapping = meta['variables'][r_var['attrs']['grid_mapping']]
         except KeyError:
-            raise ProjectionDoesNotMatch
+            # Search for grid mapping name across variables.
+            found = False
+            for v in meta['variables'].itervalues():
+                if 'grid_mapping_name' in v['attrs']:
+                    if v['attrs']['grid_mapping_name'] == cls.grid_mapping_name:
+                        r_grid_mapping = v
+                        found = True
+                        break
+            if not found:
+                raise ProjectionDoesNotMatch
         try:
             grid_mapping_name = r_grid_mapping['attrs']['grid_mapping_name']
         except KeyError:
@@ -509,7 +518,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         return variable
 
 
-class CFWGS84(WGS84, CFCoordinateReferenceSystem, ):
+class CFWGS84(WGS84, CFCoordinateReferenceSystem):
     grid_mapping_name = 'latitude_longitude'
     iterable_parameters = None
     map_parameters = None

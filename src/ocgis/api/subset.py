@@ -128,9 +128,7 @@ class SubsetOperation(object):
             for coll in self._process_subsettables_(rds):
                 # if there are calculations, do those now and return a new type of collection
                 if self.cengine is not None:
-                    ocgis_lh('Starting calculations.',
-                             self._subset_log,
-                             alias=coll.items()[0][1].keys()[0],
+                    ocgis_lh('Starting calculations.', self._subset_log, alias=coll.items()[0][1].keys()[0],
                              ugid=coll.keys()[0])
 
                     # look for any optimizations for temporal grouping.
@@ -139,8 +137,7 @@ class SubsetOperation(object):
                     else:
                         tgds = self.ops.optimizations.get('tgds')
                     # execute the calculations
-                    coll = self.cengine.execute(coll, file_only=self.ops.file_only,
-                                                tgds=tgds)
+                    coll = self.cengine.execute(coll, file_only=self.ops.file_only, tgds=tgds)
                 else:
                     # if there are no calculations, mark progress to indicate a geometry has been completed.
                     self._progress.mark()

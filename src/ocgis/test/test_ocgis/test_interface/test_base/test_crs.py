@@ -1,8 +1,8 @@
 import os
 from copy import deepcopy
 import netCDF4 as nc
-import numpy as np
 
+import numpy as np
 from shapely.geometry import Point, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 
@@ -488,6 +488,12 @@ class TestCFRotatedPole(TestBase):
     def test_load_from_metadata(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
+
+        # Test without the grid_mapping attribute attached to a variable.
+        meta = rd.source_metadata.copy()
+        meta['variables']['tas']['attrs'].pop('grid_mapping')
+        res = CFRotatedPole.load_from_metadata('tas', meta)
+        self.assertIsInstance(res, CFRotatedPole)
 
     def test_write_to_rootgrp(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')

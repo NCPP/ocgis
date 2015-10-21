@@ -100,7 +100,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             try:
                 row_offset = ref_spatial.grid.row._src_idx[0]
                 col_offset = ref_spatial.grid.col._src_idx[0]
-            except AttributeError:
+            except (AttributeError, TypeError):
                 # Likely no row and column for a 2-dimensional grid.
                 row_offset = ref_spatial.grid._src_idx['row'][0]
                 col_offset = ref_spatial.grid._src_idx['col'][0]

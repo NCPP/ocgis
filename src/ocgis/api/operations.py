@@ -74,6 +74,8 @@ class OcgOperations(object):
     :param dir_output: The output directory to which any disk format folders are written. If the directory does not
      exist, an exception will be raised. This will override :attr:`env.DIR_OUTPUT`.
     :type dir_output: str
+    :param slice: A five-element list to use for slicing the input data. This will override any other susetting.
+    :type slice: list
     :param headers: A sequence of strings specifying the output headers. Default value of ('did', 'ugid', 'gid') is
      always applied.
     :type headers: sequence

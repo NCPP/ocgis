@@ -1088,25 +1088,28 @@ class Slice(base.IterableParameter, base.AbstractParameter):
 
     def validate_all(self, values):
         if len(values) != 5:
-            raise (DefinitionValidationError(self, 'Slices must have 5 values.'))
+            raise DefinitionValidationError(self, 'Slices must have 5 values.')
 
     def _parse_(self, value):
         if value is None:
             ret = slice(None)
         elif type(value) == int:
-            ret = slice(value, value + 1)
+            if value < 0:
+                ret = slice(value, None)
+            else:
+                ret = slice(value, value + 1)
         elif type(value) in [list, tuple]:
             ret = slice(*value)
         else:
             raise (DefinitionValidationError(self, '"{0}" cannot be converted to a slice object'.format(value)))
-        return (ret)
+        return ret
 
     def _get_meta_(self):
         if self.value is None:
             ret = 'No slice passed.'
         else:
             ret = 'A slice was used.'
-        return (ret)
+        return ret
 
 
 class Snippet(base.BooleanParameter):

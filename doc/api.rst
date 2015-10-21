@@ -387,6 +387,29 @@ select_nearest
 
 If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
 
+slice
+~~~~~
+
+This is a list of integers, ``None``s, or lists of integers. The values composing the list will be converted to slice objects. For example, to return the first ten time steps:
+
+>>> slc = [None, [0, 10], None, None, None]
+
+The index locations in the above list correspond to:
+
+===== =============================
+Index Description
+===== =============================
+0     Realization / Ensemble Member
+1     Time
+2     Level
+3     Row
+4     Column
+===== =============================
+
+To select the last time step:
+
+>>> slice = [None, -1, None, None, None]
+
 .. _snippet_headline:
 
 snippet

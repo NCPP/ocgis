@@ -929,6 +929,17 @@ class TestRegridOptions(TestBase):
         self.assertTrue('numpy.ndarray' in ro._get_meta_())
 
 
+class TestSlice(TestBase):
+    def test(self):
+        v = [None, -1, None, None, None]
+        s = Slice(v)
+        self.assertEqual(s.value[1], slice(-1, None))
+
+        v = [None, [-2, -1], None, None, None]
+        s = Slice(v)
+        self.assertEqual(s.value[1], slice(-2, -1))
+
+
 class TestSpatialOperation(TestBase):
     def test_init(self):
         values = (None, 'clip', 'intersects')

@@ -1,13 +1,12 @@
 language: python
-branches:
-  only:
-    - next
-    - master
+
 sudo: false
+
 python:
   # We don't actually use the Travis Python, but this keeps it organized.
   - "2.7"
-install:
+
+before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
@@ -17,19 +16,22 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
+install:
   # Install OCGIS without ESMPy.
-  - conda config --add channels https://conda.binstar.org/nesii/channel/ocgis
+  - conda config --add channels nesii/channel/ocgis
   - conda create -q -n test-environment-ocgis python=$TRAVIS_PYTHON_VERSION ocgis nose
   - source activate test-environment-ocgis
-  - yes | conda remove ocgis
+  - conda remove ocgis
   - python setup.py install
 
   # Install OCGIS with ESMPy.
   - source deactivate
-  - conda config --add channels https://conda.binstar.org/nesii/channel/esmf
-  - conda create -q -n test-environment-ocgis-esmf python=$TRAVIS_PYTHON_VERSION esmpy==6.3.0rp1 ocgis nose
+  - conda config --add channels nesii/channel/esmf
+  - conda create -q -n test-environment-ocgis-esmf python=$TRAVIS_PYTHON_VERSION nose
   - source activate test-environment-ocgis-esmf
-  - yes | conda remove ocgis
+  - conda install esmpy==6.3.0rp1
+  - conda install ocgis
+  - conda remove ocgis
   - python setup.py install
 
 script:

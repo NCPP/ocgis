@@ -3,11 +3,11 @@ import unittest
 import itertools
 
 import numpy as np
-
 from cfunits import Units
 
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
+from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.variable import DerivedVariable, Variable
 from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
@@ -158,6 +158,12 @@ class TestMovingWindow(AbstractTestField):
                     continue
                 else:
                     raise
+
+    def test_validate(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        calc = [{'func': 'moving_window', 'name': 'TGx5day', 'kwds': {'k': 5, 'operation': 'max', 'mode': 'same'}}]
+        with self.assertRaises(DefinitionValidationError):
+            ocgis.OcgOperations(dataset=rd, calc_grouping=['year'], calc=calc)
 
 
 class TestFrequencyPercentile(AbstractTestField):

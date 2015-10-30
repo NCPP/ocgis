@@ -7,6 +7,7 @@ import numpy as np
 
 from ocgis.calc import base
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractParameterizedFunction
+from ocgis.exc import DefinitionValidationError
 
 
 class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
@@ -71,6 +72,13 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
             raise NotImplementedError(mode)
 
         return fill
+
+    @classmethod
+    def validate(cls, ops):
+        if ops.calc_grouping is not None:
+            from ocgis.api.parms.definition import CalcGrouping
+            msg = 'Moving window calculations may not have a temporal grouping.'
+            raise DefinitionValidationError(CalcGrouping, msg)
 
     @staticmethod
     def _iter_kernel_values_(values, k, mode='valid'):

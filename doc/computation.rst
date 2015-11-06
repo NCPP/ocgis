@@ -19,7 +19,6 @@ As a functional example, the following code replicates (in principle) the comput
 
 >>> import numpy as np
 >>> from datetime import datetime
-...
 >>> # Generate a random three-dimensional dataset (time, latitude/Y, longitude/X).
 >>> data = np.ma.array(np.random.rand(4, 2, 2),mask=False)
 >>> # This is an example "temporal dimension".
@@ -59,7 +58,6 @@ Functions currently available are listed below: :ref:`available_functions`. In t
 For example to calculate a monthly mean and median on a hypothetical daily climate dataset (written to CSV format), an OpenClimateGIS call may look like:
 
 >>> from ocgis import OcgOperations, RequestDataset
-...
 >>> rd = RequestDataset('/path/to/data', 'tas')
 >>> calc = [{'func': 'mean', 'name': 'monthly_mean'}, {'func': 'median', 'name': 'monthly_median'}]
 >>> ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=['month'], output_format='csv', prefix='my_calculation')
@@ -77,7 +75,7 @@ There are also keyword arguments common to all calculations:
 
 >>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 'the_value'}}]
 >>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': {'new_attribute': 5, 'hello': 'attribute'}}]
->>> # modify the field attributes using a fully specified "meta_attrs" dictionary
+>>> # Modify the field attributes using a fully specified "meta_attrs" dictionary.
 >>> meta_attrs = {'variable': {'new_attribute': 5, 'hello': 'attribute'}, 'field': {'global_attr': 50}}
 >>> calc = [{'func': 'mean', 'name': 'mean', 'meta_attrs': meta_attrs}]
 
@@ -112,7 +110,7 @@ Inheritance Structure
 All calculations are classes that inherit from the following abstract base classes:
  1. :class:`~ocgis.calc.base.AbstractUnivariateFunction`: Functions with no required parameters operating on a single variable.
  2. :class:`~ocgis.calc.base.AbstractUnivariateSetFunction`: Functions with no required parameters opearting on a single variable and reducing along the temporal axis.
- 3. :class:`~ocgis.calc.base.AbstractParameterizedFunction`: Functions with input parameters. Functions do not inherit directly from this base class. It used as part of a 'mix-in' to indiciate a function has parameters.
+ 3. :class:`~ocgis.calc.base.AbstractParameterizedFunction`: Functions with input parameters. Functions do not inherit directly from this base class. It is used as part of a 'mix-in' to indicate a function has parameters.
  4. :class:`~ocgis.calc.base.AbstractMultivariateFunction`: Functions operating on two or more variables.
 
 -------------------------------------------------

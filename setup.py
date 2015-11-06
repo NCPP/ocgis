@@ -5,7 +5,7 @@ import tempfile
 
 from setuptools import setup, Command, find_packages
 
-VERSION = '1.2.0n'
+VERSION = '1.2.0.dev1'
 
 
 ########################################################################################################################

@@ -4,8 +4,6 @@
 Computation
 ===========
 
-.. warning:: The computational API is considered to be in an `alpha` development stage and may change rapidly. Suggestions are welcome! The API is stable but there will be changes to the inheritance structure, functionality, and attribution of the class structure. All changes will be backwards compatible.
-
 OpenClimateGIS offers an extensible computation framework that supports:
   1. NumPy-based array calculations
   2. Temporal grouping (level grouping not supported)
@@ -22,16 +20,17 @@ As a functional example, the following code replicates (in principle) the comput
 >>> import numpy as np
 >>> from datetime import datetime
 ...
->>> ## generate a random three-dimensional dataset (time, latitude/Y, longitude/X)
->>> data = np.ma.array(np.random.rand(4,2,2),mask=False)
->>> ## this is an example temporal dimension
+>>> # Generate a random three-dimensional dataset (time, latitude/Y, longitude/X).
+>>> data = np.ma.array(np.random.rand(4, 2, 2),mask=False)
+>>> # This is an example "temporal dimension".
 >>> temporal = np.array([datetime(2001,8,1),datetime(2001,8,2),datetime(2001,9,1),datetime(2001,9,2)])
->>> ## assuming a calc_grouping of ['month'], split the data into monthly groups (OpenClimateGIS uses a boolean array here)
->>> aug,sept = data[0:2,:,:],data[2:,:,:]
->>> ## calculate means along the temporal axis
->>> mu_aug,mu_sept = [np.ma.mean(d,axis=0) for d in [aug,sept]]
->>> ## recombine the data
->>> ret = np.vstack((mu_aug,mu_sept))
+>>> # Assuming a "calc_grouping" of ['month'], split the data into monthly groups (OpenClimateGIS uses a boolean array
+>>> # here).
+>>> aug, sept = data[0:2, :, :], data[2:, :, :]
+>>> # Calculate means along the temporal axis.
+>>> mu_aug, mu_sept = [np.ma.mean(d,axis=0) for d in [aug, sept]]
+>>> # Recombine the data.
+>>> ret = np.vstack((mu_aug, mu_sept))
 >>> ret.shape
 (2, 2, 2)
 

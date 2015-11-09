@@ -903,7 +903,7 @@ class TestSimple(TestSimpleBase):
                            'driver': u'ESRI Shapefile',
                            'schema': {'geometry': 'Polygon', 'properties': OrderedDict([(u'UGID', 'int:10'),
                                                                                         (u'STATE_NAME', 'str:80')])}}
-            self.assertFionaMetaEqual(fiona_meta, meta_actual)
+            self.assertFionaMetaEqual(fiona_meta, meta_actual, abs_dtype=False)
             record1 = {'geometry': {'type': 'Polygon', 'coordinates': strings.S7}, 'type': 'Feature', 'id': '0',
                        'properties': OrderedDict([(u'UGID', 1), (u'STATE_NAME', u'Nebraska')])}
             record2 = {'geometry': {'type': 'Polygon', 'coordinates': strings.S8}, 'type': 'Feature', 'id': '1',

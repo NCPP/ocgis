@@ -318,7 +318,7 @@ class TestField(AbstractTestField):
             self.assertEqual(real[k], v)
         self.assertEqual(set(field.variables['tmax'].value.flatten().tolist()), set([r[1]['value'] for r in rows]))
 
-        # test without names
+        # Test without names.
         field = self.get_field(with_value=True, with_dimension_names=False)
         rows = list(field.get_iter())
         self.assertAsSetEqual(rows[10][1].keys(),
@@ -326,7 +326,7 @@ class TestField(AbstractTestField):
                                'alias', 'tid', 'ub_level', 'rlz', 'variable', 'gid', 'rid', 'level', 'lb_time', 'day',
                                'ugid'])
 
-        # test not melted
+        # Test not melted.
         field = self.get_field(with_value=True)
         other_variable = deepcopy(field.variables.first())
         other_variable.alias = 'two'
@@ -335,29 +335,31 @@ class TestField(AbstractTestField):
         rows = list(field.get_iter(melted=False))
         self.assertEqual(len(rows), 1488)
         for row in rows:
+            attrs = row[1]
+            # Test variable aliases are in the row dictionaries.
             for variable in field.variables.itervalues():
-                self.assertIn(variable.alias, row[1])
+                self.assertIn(variable.alias, attrs)
 
-        # test for upper keys
+        # Test for upper keys.
         field = self.get_field(with_value=True)[0, 0, 0, 0, 0]
         for row in field.get_iter(use_upper_keys=True):
             for key in row[1].keys():
                 self.assertTrue(key.isupper())
 
-        # test passing limiting headers
+        # Test passing limiting headers.
         field = self.get_field(with_value=True)
         headers = ['time', 'tid']
         for _, row in field.get_iter(headers=headers):
             self.assertEqual(row.keys(), headers)
 
-        # test passing a ugid
+        # Test passing a selection geometry identifier.
         field = self.get_field(with_value=True)[0, 0, 0, 0, 0]
         record = {'geom': Point(1, 2), 'properties': {'HI': 50, 'goodbye': 'forever'}}
         ugeom = SpatialDimension.from_records([record], uid='HI')
         _, row = field.get_iter(ugeom=ugeom).next()
         self.assertEqual(row['HI'], 50)
 
-        # test value_keys
+        # Test value keys.
         field = self.get_field(with_value=True)[0, 0, 0, 0, 0]
         fill = np.ma.array(np.zeros(2, dtype=[('a', float), ('b', float)]))
         value = np.ma.array(np.zeros(field.shape, dtype=object), mask=False)
@@ -659,7 +661,7 @@ class TestField(AbstractTestField):
         with self.assertRaises(WriteMe):
             field.write_fiona(path, fobject=Nothing())
 
-        # test all geometries are accounted for as well as properties
+        # Test all geometries are accounted for as well as properties.
         path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(path)
         field = rd.get()
@@ -678,7 +680,7 @@ class TestField(AbstractTestField):
                         break
                 self.assertTrue(found)
 
-        # test with upper keys
+        # Test with upper keys.
         field = self.get_field(with_value=True, crs=WGS84())[0, 0, 0, 0, 0]
         path = self.get_temporary_file_path('what.shp')
         field.write_fiona(path=path, use_upper_keys=True)

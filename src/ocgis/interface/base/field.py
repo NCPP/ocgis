@@ -242,7 +242,7 @@ class Field(Attributes):
         :rtype: tuple(:class:`shapely.geometry.base.BaseGeometry`, dict)
         """
 
-        # extract from the selection geometry if it is available
+        # Extract from the selection geometry if it is available.
         if ugeom is not None:
             ugeom_name_uid = ugeom.name_uid
             ugeom_uid = ugeom.uid[0, 0]
@@ -252,7 +252,7 @@ class Field(Attributes):
             if ugeom_name_uid.lower() in [k.lower() for k in self.variables.keys()]:
                 ugeom_name_uid = None
 
-        # headers always come through lowercase
+        # Headers always come through lowercase.
         if headers is not None and ugeom_name_uid is not None:
             ugeom_name_uid = ugeom_name_uid.lower()
 
@@ -279,8 +279,8 @@ class Field(Attributes):
 
         is_masked = np.ma.is_masked
 
-        # value keys occur when the value array is in fact a structured array with field definitions. this occurs with
-        # keyed output functions...
+        # Value keys occur when the value array is in fact a structured array with field definitions. This occurs with
+        # keyed output functions.
         has_value_keys = False if value_keys is None else True
 
         r_gid_name = self.spatial.name_uid
@@ -298,30 +298,30 @@ class Field(Attributes):
                     to_yld = deepcopy(yld)
                     ref_idx = ref_value[ridx, tidx, lidx, sridx, scidx]
 
-                    # determine if the data is masked
+                    # Determine if the data is masked.
                     if is_masked(ref_idx):
                         if add_masked_value:
                             ref_idx = masked_value
                         else:
                             continue
 
-                    # realization, time, and level values.
+                    # Realization, time, and level values.
                     to_yld.update(rlz)
                     to_yld.update(t)
                     to_yld.update(l)
 
-                    # add geometries to the output
+                    # Add geometries to the output.
                     to_yld[r_gid_name] = gid
 
-                    # the target value is a structure array, multiple value elements need to be added. these outputs do
-                    # not a specific value, so it is not added. there may also be multiple elements in the structure
+                    # The target value is a structure array, multiple value elements need to be added. These outputs do
+                    # not a specific value, so it is not added. There may also be multiple elements in the structure
                     # which changes how the loop progresses.
                     if has_value_keys:
                         for ii in range(ref_idx.shape[0]):
                             for vk in value_keys:
                                 try:
                                     to_yld[vk] = ref_idx.data[vk][ii]
-                                # attempt to access the data directly. masked determination is done above.
+                                # Attempt to access the data directly. Masked determination is done above.
                                 except ValueError:
                                     to_yld[vk] = ref_idx.data[vk][ii]
                             yield _process_yield_(geom, to_yld)
@@ -338,7 +338,7 @@ class Field(Attributes):
                     yld.update(element)
                 for variable_alias, variable in self.variables.iteritems():
                     ref_idx = variable.value[ridx, tidx, lidx, sridx, scidx]
-                    # determine if the data is masked
+                    # Check if the data is masked.
                     if is_masked(ref_idx):
                         ref_idx = variable.value.fill_value
                     yld[variable_alias] = ref_idx

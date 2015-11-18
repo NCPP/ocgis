@@ -129,6 +129,7 @@ class OcgOperations(object):
     :param bool melted: If ``None``, default to :attr:`ocgis.env.MELTED`. If ``False`` (the default), variable names are
      individual columns in tabular output formats (i.e. ``'csv'``). If ``True``, all variable values will be collected
      under a single value column.
+    :param dict output_format_options: A dictionary of output-specific options. See expanded description for details.
     """
 
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,
@@ -139,9 +140,9 @@ class OcgOperations(object):
                  search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
                  optimizations=None, callback=None, time_range=None, time_region=None, time_subset_func=None,
                  level_range=None, conform_units_to=None, select_nearest=False, regrid_destination=None,
-                 regrid_options=None, melted=False):
+                 regrid_options=None, melted=False, output_format_options=None):
 
-        # tells "__setattr__" to not perform global validation until all values are set initially
+        # Tells "__setattr__" to not perform global validation until all values are initially set.
         self._is_init = True
 
         self.dataset = Dataset(dataset)
@@ -156,6 +157,7 @@ class OcgOperations(object):
         self.backend = Backend(backend)
         self.prefix = Prefix(prefix or env.PREFIX)
         self.output_format = OutputFormat(output_format)
+        self.output_format_options = OutputFormatOptions(output_format_options)
         self.agg_selection = AggregateSelection(agg_selection)
         self.geom_select_sql_where = GeomSelectSqlWhere(geom_select_sql_where)
         self.geom_select_uid = GeomSelectUid(geom_select_uid or select_ugid)
@@ -186,7 +188,7 @@ class OcgOperations(object):
         self.melted = Melted(init_value=env.MELTED or melted, dataset=self._get_object_('dataset'),
                              output_format=self._get_object_('output_format'))
 
-        # these values are left in to perhaps be added back in at a later date.
+        # These values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
 
         # Initial values have been set and global validation should now occur when any parameters are updated.

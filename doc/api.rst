@@ -359,6 +359,19 @@ Value                           Description
 ``'nc-ugrid-2d-flexible-mesh'`` A flexible mesh representation. See :ref:`2d-flexible-mesh-label` for more details and :ref:`2d-flexible-mesh-example-label` for an example.
 =============================== ============================================================================================================================================
 
+output_format_options
+~~~~~~~~~~~~~~~~~~~~~
+
+A dictionary of converter-specific options. Options for each converter are listed in the table below.
+
++---------------+-------------+-----------------------------------------------------------------------------------+
+| Output Format | Option      | Description                                                                       |
++===============+=============+===================================================================================+
+| ``'nc'``      | data_model  | The netCDF data model: http://unidata.github.io/netcdf4-python/#netCDF4.Dataset.  |
++---------------+-------------+-----------------------------------------------------------------------------------+
+
+>>> output_format_options = {'data_model': 'NETCDF4_CLASSIC'}
+
 regrid_destination
 ~~~~~~~~~~~~~~~~~~
 

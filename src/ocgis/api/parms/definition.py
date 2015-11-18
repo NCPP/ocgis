@@ -951,6 +951,21 @@ class OutputFormat(base.StringOptionParameter):
         return ret
 
 
+class OutputFormatOptions(base.AbstractParameter):
+    name = 'output_format_options'
+    nullable = True
+    default = None
+    input_types = [dict]
+    return_type = [dict]
+
+    def _get_meta_(self):
+        if self.value is None:
+            msg = 'No output format options supplied.'
+        else:
+            msg = 'Output-specific options were supplied: {}'.format(self.value)
+        return msg
+
+
 class Prefix(base.StringParameter):
     name = 'prefix'
     nullable = False

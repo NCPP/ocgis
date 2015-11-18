@@ -56,15 +56,22 @@ class AbstractFileConverter(AbstractConverter):
     :type outdir: str
     :param overwrite: (``=False``) If ``True``, attempt to overwrite any existing output files.
     :type overwrite: bool
+    :param options: (``=None``) A dictionary of converter-specific options. See converters for options documentation.
+    :type options: dict
     """
 
     __metaclass__ = abc.ABCMeta
     _ext = None
 
-    def __init__(self, prefix=None, outdir=None, overwrite=False):
+    def __init__(self, prefix=None, outdir=None, overwrite=False, options=None):
         self.outdir = outdir
         self.overwrite = overwrite
         self.prefix = prefix
+
+        if options is None:
+            self.options = {}
+        else:
+            self.options = options
 
         if self._ext is None:
             self.path = self.outdir
@@ -95,11 +102,11 @@ class AbstractCollectionConverter(AbstractFileConverter):
     """
 
     __metaclass__ = abc.ABCMeta
-    _add_did_file = True  # add a descriptor file for the request datasets
-    _add_ugeom = False  # added user geometry in the output folder
-    _add_ugeom_nest = True  # nest the user geometry in a shp folder
-    _add_source_meta = True  # add a source metadata file
-    _use_upper_keys = True  # if headers should be capitalized
+    _add_did_file = True  # Add a descriptor file for the request datasets.
+    _add_ugeom = False  # Add user geometry in the output folder.
+    _add_ugeom_nest = True  # Nest the user geometry in a overview geometry shapefile folder.
+    _add_source_meta = True  # Add a source metadata file.
+    _use_upper_keys = True  # If headers should be capitalized.
 
     def __init__(self, colls, **kwargs):
         self.colls = colls

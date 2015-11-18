@@ -821,6 +821,14 @@ class TestOutputFormat(TestBase):
                                                    constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, 'meta-json'])
 
 
+class TestOutputFormatOptions(TestBase):
+    def test_init(self):
+        self.assertIsNone(OutputFormatOptions().value)
+        opts = {'data_model': 'foo'}
+        ofo = OutputFormatOptions(opts)
+        self.assertDictEqual(opts, ofo.value)
+
+
 class TestRegridDestination(TestBase):
     @property
     def possible_datasets(self):

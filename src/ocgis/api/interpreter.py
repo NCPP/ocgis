@@ -6,9 +6,9 @@ from ocgis import constants
 from ocgis.api.parms.definition import OutputFormat
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis import exc, env
-from ocgis.conv.meta import MetaOCGISConverter, AbstractMetaConverter
+from ocgis.conv.meta import AbstractMetaConverter
 from subset import SubsetOperation
-from ocgis.conv.base import AbstractFileConverter, AbstractTabularConverter, get_converter
+from ocgis.conv.base import AbstractTabularConverter
 
 
 class Interpreter(object):
@@ -152,7 +152,7 @@ class OcgInterpreter(Interpreter):
         """
 
         kwargs = dict(outdir=outdir, prefix=prefix, ops=self.ops, add_auxiliary_files=self.ops.add_auxiliary_files,
-                      overwrite=env.OVERWRITE)
+                      overwrite=env.OVERWRITE, options=self.ops.output_format_options)
         if issubclass(conv_klass, AbstractTabularConverter):
             kwargs['melted'] = self.ops.melted
         conv = conv_klass(so, **kwargs)
@@ -166,9 +166,8 @@ class OcgInterpreter(Interpreter):
         :rtype: :class:`ocgis.util.logging_ocgis.ProgressOcgOperations`
         """
 
-        # if file logging is enable, perform some logic based on the operational parameters.
+        # If file logging is enabled, check where or if the log should be written.
         if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files is True:
-            # todo: should not have to list the output formats here
             if self.ops.output_format in self._no_directory:
                 to_file = None
             else:
@@ -176,21 +175,19 @@ class OcgInterpreter(Interpreter):
         else:
             to_file = None
 
-        # flags to determine streaming to console
+        # Flags to determine streaming to console.
         if env.VERBOSE:
             to_stream = True
         else:
             to_stream = False
 
-        # configure the logger
+        # Configure the logger.
         if env.DEBUG:
             level = logging.DEBUG
         else:
             level = logging.INFO
-        # this wraps the callback function with methods to capture the completion of major operations.
+        # This wraps the callback function with methods to capture the completion of major operations.
         progress = ProgressOcgOperations(callback=self.ops.callback)
-        ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level, callback=progress,
-                           callback_level=level)
+        ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level, callback=progress, callback_level=level)
 
         return progress
-

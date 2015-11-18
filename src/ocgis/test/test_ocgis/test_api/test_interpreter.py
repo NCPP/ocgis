@@ -6,6 +6,7 @@ from ocgis.api.interpreter import OcgInterpreter
 from ocgis import OcgOperations
 from ocgis.api.subset import SubsetOperation
 from ocgis.conv.fiona_ import ShpConverter
+from ocgis.conv.nc import NcConverter
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.exc import ExtentError
 from ocgis.test.base import TestBase
@@ -41,11 +42,19 @@ class TestOcgInterpreter(TestBase):
         ret = interp._get_converter_(NumpyConverter, outdir, prefix, so)
         self.assertIsInstance(ret, NumpyConverter)
 
+        # Test melted is registered by the converter.
         ops = OcgOperations(dataset=rd, melted=True, output_format=constants.OUTPUT_FORMAT_SHAPEFILE)
         interp = OcgInterpreter(ops)
         ret = interp._get_converter_(ShpConverter, outdir, prefix, so)
         self.assertIsInstance(ret, ShpConverter)
         self.assertTrue(ret.melted)
+
+        # Test options are passed to the underlying converter.
+        opts = {'data_model': 'foo'}
+        ops = OcgOperations(dataset=rd, output_format='nc', output_format_options=opts)
+        interp = OcgInterpreter(ops)
+        ret = interp._get_converter_(NcConverter, outdir, prefix, so)
+        self.assertDictEqual(ret.options, opts)
 
     def test_get_progress_and_configure_logging(self):
         env.VERBOSE = True

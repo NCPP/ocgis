@@ -18,7 +18,7 @@ from ocgis import constants
 
 class TestNcConverter(AbstractTestConverter):
     def test_fill_value_modified(self):
-        # test the fill value is appropriately copied if reset inside the field
+        # Test the fill value is appropriately copied if reset inside the field.
         coll = self.get_spatial_collection()
         ref = coll[1]['tas'].variables['tas']
         ref._dtype = np.int32
@@ -42,7 +42,7 @@ class TestNcConverter(AbstractTestConverter):
             self.assertEqual(fill_value_test, ds.variables['tas']._FillValue)
 
     def test_get_file_format(self):
-        # test the file format is pulled from the environment and not from constants
+        # Test the file format is pulled from the environment and not from constants.
         env.NETCDF_FILE_FORMAT = 'NETCDF3_CLASSIC'
         coll = self.get_spatial_collection(field=self.get_field())
         conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo')
@@ -50,19 +50,24 @@ class TestNcConverter(AbstractTestConverter):
         self.assertEqual(file_format, 'NETCDF3_CLASSIC')
         env.reset()
 
-        # use a field as the input dataset
+        # Pass a data model directly.
+        options = {'data_model': 'foo'}
+        conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', options=options)
+        self.assertEqual(conv._get_file_format_(), 'foo')
+
+        # Use a field as the input dataset.
         coll = self.get_spatial_collection(field=self.get_field())
         conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo')
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
-        # add operations with a field as the dataset
+        # Add operations with a field as the dataset.
         ops = OcgOperations(dataset=coll[1]['foo'], output_format='nc')
         conv = NcConverter([coll], outdir=self.current_dir_output, prefix='foo', ops=ops)
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
-        # add operations and use a request dataset
+        # Add operations and use a request dataset.
         coll = self.get_spatial_collection()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, output_format='nc')
@@ -71,7 +76,7 @@ class TestNcConverter(AbstractTestConverter):
         with nc_scope(rd.uri) as ds:
             self.assertEqual(file_format, ds.file_format)
 
-        # use a shapefile as the input format
+        # Use a shapefile as the input format.
         path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=path)
         of = constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH
@@ -81,7 +86,7 @@ class TestNcConverter(AbstractTestConverter):
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
     def test_write_coll(self):
-        # use a field as the input dataset
+        # Use a field as the input dataset.
         field = self.get_field()
         coll = self.get_spatial_collection(field=field)
 

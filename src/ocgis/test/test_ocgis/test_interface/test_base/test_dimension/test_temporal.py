@@ -6,18 +6,19 @@ from datetime import datetime as dt
 import datetime
 
 from netCDF4 import num2date, date2num
-import numpy as np
 
+import numpy as np
 from cfunits import Units
 import netcdftime
 
+from ocgis.api.parms.definition import CalcGrouping
 from ocgis.util.itester import itr_products_keywords
 from ocgis import constants
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.interface.base.dimension.temporal import TemporalDimension, get_is_interannual, get_sorted_seasons, \
     get_time_regions, iter_boolean_groups_from_time_regions, get_datetime_conversion_state, \
     get_datetime_from_months_time_units, get_difference_in_months, get_num_from_months_time_units, \
-    get_origin_datetime_from_months_units, get_datetime_from_template_time_units
+    get_origin_datetime_from_months_units, get_datetime_from_template_time_units, TemporalGroupDimension
 from ocgis.util.helpers import get_date_list
 from ocgis.exc import IncompleteSeasonError, CannotFormatTimeError
 from ocgis.interface.base.dimension.base import VectorDimension
@@ -386,7 +387,17 @@ class TestTemporalDimension(AbstractTestTemporal):
         tgd = td.get_grouping(['year'])
         self.assertEqual(tgd.value, np.array([datetime.datetime(1900, 7, 1)]))
 
-    def test_get_grouping_for_all(self):
+        # Test with a 360_day calendar and 3-hourly data.
+        start = 0.0625
+        stop = 719.9375
+        step = 0.125
+        values = np.arange(start, stop + step, step)
+        td = TemporalDimension(value=values, calendar='360_day', units='days since 1960-01-01')
+        for g in CalcGrouping.iter_possible():
+            tgd = td.get_grouping(g)
+            self.assertIsInstance(tgd, TemporalGroupDimension)
+
+    def test_get_grouping_all(self):
         for b in [True, False]:
             td = self.get_temporal_dimension(add_bounds=b)
             tgd = td.get_grouping('all')

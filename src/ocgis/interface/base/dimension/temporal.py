@@ -3,14 +3,13 @@ import itertools
 from copy import deepcopy
 import datetime
 from decimal import Decimal
-
 import netCDF4 as nc
+
 import numpy as np
 import netcdftime
 
 import base
 from ocgis import constants
-from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
 
@@ -548,52 +547,51 @@ class TemporalDimension(base.VectorDimension):
         ret = np.empty((ref_value.shape[0],), dtype=object)
         try:
             set_grouping = set(grouping)
-            if set_grouping == set(['month']):
+            if set_grouping == {'month'}:
                 ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
                     month = ref_value[idx]['month']
-                    # get the start year from the bounds data
+                    # Get the start year from the bounds data.
                     start_year = ref_bounds[idx][0].year
-                    # create the datetime object
-                    ret[idx] = datetime.datetime(start_year, month, ref_calc_month_centroid)
-            elif set_grouping == set(['year']):
+                    ret[idx] = get_datetime_or_netcdftime(start_year, month, ref_calc_month_centroid)
+            elif set_grouping == {'year'}:
                 ref_calc_year_centroid_month = constants.CALC_YEAR_CENTROID_MONTH
                 ref_calc_year_centroid_day = constants.CALC_YEAR_CENTROID_DAY
                 for idx in range(ret.shape[0]):
                     year = ref_value[idx]['year']
-                    # create the datetime object
-                    ret[idx] = datetime.datetime(year, ref_calc_year_centroid_month, ref_calc_year_centroid_day)
-            elif set_grouping == set(['month', 'year']):
+                    ret[idx] = get_datetime_or_netcdftime(year, ref_calc_year_centroid_month,
+                                                          ref_calc_year_centroid_day)
+            elif set_grouping == {'month', 'year'}:
                 ref_calc_month_centroid = constants.CALC_MONTH_CENTROID
                 for idx in range(ret.shape[0]):
                     year, month = ref_value[idx]['year'], ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(year, month, ref_calc_month_centroid)
-            elif set_grouping == set(['day']):
+                    ret[idx] = get_datetime_or_netcdftime(year, month, ref_calc_month_centroid)
+            elif set_grouping == {'day'}:
                 for idx in range(ret.shape[0]):
                     start_year, start_month = ref_bounds[idx][0].year, ref_bounds[idx][0].month
-                    ret[idx] = datetime.datetime(start_year, start_month, ref_value[idx]['day'], 12)
-            elif set_grouping == set(['day', 'month']):
+                    ret[idx] = get_datetime_or_netcdftime(start_year, start_month, ref_value[idx]['day'], hour=12)
+            elif set_grouping == {'day', 'month'}:
                 for idx in range(ret.shape[0]):
                     start_year = ref_bounds[idx][0].year
                     day, month = ref_value[idx]['day'], ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(start_year, month, day, 12)
-            elif set_grouping == set(['day', 'year']):
+                    ret[idx] = get_datetime_or_netcdftime(start_year, month, day, hour=12)
+            elif set_grouping == {'day', 'year'}:
                 for idx in range(ret.shape[0]):
                     day, year = ref_value[idx]['day'], ref_value[idx]['year']
-                    ret[idx] = datetime.datetime(year, 1, day, 12)
-            elif set_grouping == set(['day', 'year', 'month']):
+                    ret[idx] = get_datetime_or_netcdftime(year, constants.CALC_YEAR_CENTROID_MONTH, day, hour=12)
+            elif set_grouping == {'day', 'year', 'month'}:
                 for idx in range(ret.shape[0]):
                     day, year, month = ref_value[idx]['day'], ref_value[idx]['year'], ref_value[idx]['month']
-                    ret[idx] = datetime.datetime(year, month, day, 12)
+                    ret[idx] = get_datetime_or_netcdftime(year, month, day, hour=12)
             else:
-                ocgis_lh(logger='interface.temporal', exc=NotImplementedError('grouping: {0}'.format(self.grouping)))
-        # likely a seasonal aggregation
+                raise NotImplementedError('grouping: {0}'.format(grouping))
+        # Likely a seasonal aggregation.
         except TypeError:
-            # set for testing if seasonal group crosses the end of a year
+            # Set for testing if seasonal group crosses the end of a year.
             cross_months_set = set([12, 1])
             for idx in range(ret.shape[0]):
                 r_bounds = bounds[idx, :]
-                # if the season crosses into a new year, find the middles differently
+                # The season crosses into a new year, find the middles differently.
                 r_value_months = value[idx]['months']
                 if cross_months_set.issubset(r_value_months):
                     middle_index = int(np.floor(len(r_value_months) / 2))
@@ -601,9 +599,9 @@ class TemporalDimension(base.VectorDimension):
                 else:
                     center_month = int(np.floor(np.mean([r_bounds[0].month, r_bounds[1].month])))
                 center_year = int(np.floor(np.mean([r_bounds[0].year, r_bounds[1].year])))
-                fill = datetime.datetime(center_year, center_month, constants.CALC_MONTH_CENTROID)
+                fill = get_datetime_or_netcdftime(center_year, center_month, constants.CALC_MONTH_CENTROID)
                 ret[idx] = fill
-        return (ret)
+        return ret
 
     def _get_grouping_seasonal_unique_(self, grouping):
         """
@@ -756,6 +754,15 @@ def get_datetime_from_template_time_units(vec):
         hour = int(hour)
         fill[idx] = dt(year, month, day, hour=hour, minute=minute)
     return fill
+
+
+def get_datetime_or_netcdftime(year, month, day, **kwargs):
+    try:
+        ret = datetime.datetime(year, month, day, **kwargs)
+    except ValueError:
+        # Assume the datetime object is not compatible with the arguments. Return a netcdftime object.
+        ret = netcdftime.datetime(year, month, day, **kwargs)
+    return ret
 
 
 def get_difference_in_months(origin, target):

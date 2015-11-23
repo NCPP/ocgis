@@ -151,15 +151,15 @@ class TestNcUgrid2DFlexibleMeshConverter(AbstractTestConverter):
         field = coll[25]['tas']
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:
-            NcUgrid2DFlexibleMeshConverter._write_archetype_(field, ds, None)
+            NcUgrid2DFlexibleMeshConverter._write_archetype_(field, ds, None, {})
         with self.nc_scope(path) as ds:
             self.assertEqual(len(ds.dimensions['nMesh2_face']), 13)
 
-        # test with the polygons as none
+        # Test with the polygons as none.
         field.spatial.geom._polygon = None
         field.spatial.geom.grid = None
         with self.assertRaises(ValueError):
-            NcUgrid2DFlexibleMeshConverter._write_archetype_(field, None, None)
+            NcUgrid2DFlexibleMeshConverter._write_archetype_(field, None, None, {})
 
     def test_write_archetype_from_shapefile(self):
         """Test writing from a shapefile."""

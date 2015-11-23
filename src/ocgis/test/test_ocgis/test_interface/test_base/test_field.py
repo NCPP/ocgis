@@ -707,13 +707,14 @@ class TestField(AbstractTestField):
             for row in source:
                 self.assertEqual(row['properties'][constants.HEADERS.ID_SELECTION_GEOMETRY], 10)
 
-    def test_write_to_netcdf_dataset(self):
+    def test_write_netcdf(self):
         keywords = dict(file_only=[False, True],
                         second_variable_alias=[None, 'tmin_alias'],
                         with_realization=[False, True],
                         remove_dimension_names=[False, True],
                         crs=[None, Spherical()],
-                        with_level=[True, False])
+                        with_level=[True, False],
+                        variable_kwargs=[{}, {'zlib': True, 'complevel': 5}, {'bad': 'keyword'}])
         path = os.path.join(self.current_dir_output, 'foo.nc')
 
         for k in itr_products_keywords(keywords, as_namedtuple=True):
@@ -729,7 +730,7 @@ class TestField(AbstractTestField):
                 field.spatial.grid.row.name = None
                 field.spatial.grid.col.name = None
 
-            # add another variable
+            # Add another variable.
             value = np.random.rand(*field.shape)
             second_variable_name = 'tmin'
             second_variable_alias = k.second_variable_alias or second_variable_name
@@ -737,13 +738,17 @@ class TestField(AbstractTestField):
             variable.attrs['open'] = 'up'
             field.variables.add_variable(variable, assign_new_uid=True)
 
-            # add some attributes
+            # Add some attributes.
             field.attrs['foo'] = 'some information'
             field.attrs['another'] = 'some more information'
 
             with nc_scope(path, 'w') as ds:
                 try:
-                    field.write_netcdf(ds, file_only=k.file_only)
+                    field.write_netcdf(ds, file_only=k.file_only, **k.variable_kwargs)
+                except TypeError:
+                    # Test variable keyword are actually passed by providing a bad keyword argument.
+                    self.assertDictEqual(k.variable_kwargs, {'bad': 'keyword'})
+                    continue
                 except ValueError:
                     self.assertTrue(k.with_realization)
                     self.assertIsNotNone(field.realization)
@@ -800,7 +805,7 @@ class TestField(AbstractTestField):
                 level_shape = 1
             self.assertEqual(new_field.shape, (1, 31, level_shape, 3, 4))
 
-    def test_write_to_netcdf_dataset_scale_offset(self):
+    def test_write_netcdf_scale_offset(self):
         """Test with a scale and offset in the attributes."""
 
         var = Variable(value=np.random.rand(1, 1, 1, 3, 4), attrs={'scale_value': 2, 'add_offset': 10}, name='tas')
@@ -815,7 +820,7 @@ class TestField(AbstractTestField):
         target = var_out.reshape(*var.shape)
         self.assertNumpyAllClose(var.value.data, target)
 
-    def test_write_to_netcdf_dataset_with_metadata(self):
+    def test_write_netcdf_with_metadata(self):
         """Test writing to netCDF with a source metadata dictionary attached and data loaded from file."""
 
         rd = self.test_data.get_rd('narccap_lambert_conformal')
@@ -828,7 +833,7 @@ class TestField(AbstractTestField):
             self.assertGreater(len(ds.__dict__), 0)
             self.assertGreater(len(ds.variables['time'].__dict__), 0)
 
-    def test_write_to_netcdf_dataset_without_row_column_on_grid(self):
+    def test_write_netcdf_without_row_column_on_grid(self):
         """Test writing a field without rows and columns on the grid."""
 
         field = self.get_field(with_value=True, with_realization=False)
@@ -864,7 +869,7 @@ class TestField(AbstractTestField):
             self.assertAsSetEqual(ds.dimensions.keys(),
                                   ['time', 'bounds', 'level', 'nr', 'nc', constants.DEFAULT_NAME_CORNERS_DIMENSION])
 
-    def test_write_to_netcdf_dataset_without_temporal(self):
+    def test_write_netcdf_without_temporal(self):
         """Test without a temporal dimensions."""
 
         path = os.path.join(self.current_dir_output, 'foo.nc')

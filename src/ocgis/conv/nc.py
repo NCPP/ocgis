@@ -19,18 +19,30 @@ class NcConverter(AbstractCollectionConverter):
 
     :param options: (``=None``) The following options are valid:
 
-    +-------------+-----------------------------------------------------------------------------------+
-    | Option      | Description                                                                       |
-    +=============+===================================================================================+
-    | data_model  | The netCDF data model: http://unidata.github.io/netcdf4-python/#netCDF4.Dataset.  |
-    +-------------+-----------------------------------------------------------------------------------+
+    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | Option           | Description                                                                                                                            |
+    +==================+========================================================================================================================================+
+    | data_model       | The netCDF data model: http://unidata.github.io/netcdf4-python/#netCDF4.Dataset.                                                       |
+    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | variable_kwargs  | Dictionary of keyword parameters to use for netCDF variable creation. See: http://unidata.github.io/netcdf4-python/#netCDF4.Variable.  |
+    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
 
     >>> options = {'data_model': 'NETCDF4_CLASSIC'}
+    >>> options = {'variable_kwargs': {'zlib': True, 'complevel': 4}}
 
     :type options: str
     """
 
     _ext = 'nc'
+
+    @property
+    def _variable_kwargs(self):
+        try:
+            ret = self.ops.output_format_options.get('variable_kwargs', {})
+        except AttributeError:
+            # Likely "ops" or "output_format_options" is None.
+            ret = {}
+        return ret
 
     @classmethod
     def validate_ops(cls, ops):
@@ -129,7 +141,7 @@ class NcConverter(AbstractCollectionConverter):
         return ret
 
     @staticmethod
-    def _write_archetype_(arch, dataset, is_file_only):
+    def _write_archetype_(arch, dataset, is_file_only, variable_kwargs):
         """
         Write a field to a netCDF dataset object.
 
@@ -138,9 +150,10 @@ class NcConverter(AbstractCollectionConverter):
         :param dataset: An open netCDF4 dataset object.
         :type dataset: :class:`netCDF4.Dataset`
         :param bool file_only: If ``True``, this is writing the template file only and there is no data fill.
+        :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
+         See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
         """
-
-        arch.write_netcdf(dataset, file_only=is_file_only)
+        arch.write_netcdf(dataset, file_only=is_file_only, **variable_kwargs)
     
     def _write_coll_(self, ds, coll):
         """
@@ -163,7 +176,7 @@ class NcConverter(AbstractCollectionConverter):
             # No operations object available.
             is_file_only = False
 
-        self._write_archetype_(arch, ds, is_file_only)
+        self._write_archetype_(arch, ds, is_file_only, self._variable_kwargs)
 
         # Append to the history attribute.
         history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
@@ -200,7 +213,7 @@ class NcUgrid2DFlexibleMeshConverter(NcConverter):
             raise DefinitionValidationError(OutputFormat, msg)
 
     @staticmethod
-    def _write_archetype_(arch, dataset, is_file_only):
+    def _write_archetype_(arch, dataset, is_file_only, variable_kwargs):
         poly = arch.spatial.geom.polygon
         """:type poly: :class:`ocgis.SpatialGeometryPolygonDimension`"""
 

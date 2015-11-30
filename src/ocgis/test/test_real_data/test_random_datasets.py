@@ -1,21 +1,21 @@
 import itertools
-import unittest
-from csv import DictReader
-from copy import deepcopy
 import os
+import unittest
+from copy import deepcopy
+from csv import DictReader
 from datetime import datetime as dt
 
-import numpy as np
 import fiona
+import numpy as np
 from shapely.geometry.point import Point
 
 import ocgis
-from ocgis.test.base import TestBase, nc_scope, attr
+from ocgis import constants
 from ocgis.api.operations import OcgOperations
+from ocgis.api.request.base import RequestDataset
 from ocgis.exc import MaskedDataError, ExtentError, RequestValidationError
 from ocgis.interface.base.crs import CFWGS84
-from ocgis.api.request.base import RequestDataset
-from ocgis import constants
+from ocgis.test.base import TestBase, nc_scope, attr
 
 
 class TestCMIP3Masking(TestBase):
@@ -210,7 +210,7 @@ class Test(TestBase):
         self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape, (1, 4, 1, 4, 3))
         temporal = ret[23]['tas'].temporal
         numtime = temporal.value_numtime
-        numtime_actual = np.array([56993., 56718., 56809., 56901.])
+        numtime_actual = np.array([56955.0, 56680.0, 56771.0, 56863.0])
         self.assertNumpyAll(numtime, numtime_actual)
 
         calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'std', 'name': 'my_std'}]
@@ -222,7 +222,7 @@ class Test(TestBase):
         self.assertEqual(ret[23]['tas'].variables['my_std'].value.shape, (1, 2, 1, 4, 3))
         temporal = ret[23]['tas'].temporal
         bounds_numtime = temporal.bounds_numtime
-        bounds_numtime_actual = np.array([[55152.0, 58804.0], [55183.0, 58529.0]])
+        bounds_numtime_actual = np.array([[55115.0, 58765.0], [55146.0, 58490.0]])
         self.assertNumpyAll(bounds_numtime, bounds_numtime_actual)
 
     def test_seasonal_calc_dkp(self):

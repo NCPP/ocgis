@@ -1,27 +1,26 @@
-from copy import deepcopy
+import datetime
+import itertools
 import os
 from collections import deque
-import itertools
+from copy import deepcopy
 from datetime import datetime as dt
-import datetime
-
 from netCDF4 import num2date, date2num
 
+import netcdftime
 import numpy as np
 from cfunits import Units
-import netcdftime
 
-from ocgis.api.parms.definition import CalcGrouping
-from ocgis.util.itester import itr_products_keywords
 from ocgis import constants
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.api.parms.definition import CalcGrouping
+from ocgis.exc import IncompleteSeasonError, CannotFormatTimeError
+from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension, get_is_interannual, get_sorted_seasons, \
     get_time_regions, iter_boolean_groups_from_time_regions, get_datetime_conversion_state, \
     get_datetime_from_months_time_units, get_difference_in_months, get_num_from_months_time_units, \
     get_origin_datetime_from_months_units, get_datetime_from_template_time_units, TemporalGroupDimension
+from ocgis.test.base import TestBase, nc_scope
 from ocgis.util.helpers import get_date_list
-from ocgis.exc import IncompleteSeasonError, CannotFormatTimeError
-from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.util.itester import itr_products_keywords
 
 
 class AbstractTestTemporal(TestBase):
@@ -396,6 +395,8 @@ class TestTemporalDimension(AbstractTestTemporal):
         for g in CalcGrouping.iter_possible():
             tgd = td.get_grouping(g)
             self.assertIsInstance(tgd, TemporalGroupDimension)
+            # Test calendar is maintained when creating a group dimension.
+            self.assertEqual(tgd.calendar, '360_day')
 
     def test_get_grouping_all(self):
         for b in [True, False]:
@@ -473,7 +474,7 @@ class TestTemporalDimension(AbstractTestTemporal):
         td = TemporalDimension(value=dates)
         group = [[12, 1, 2], 'unique']
         tg = td.get_grouping(group)
-        # there should be a month missing from the last season (february) and it should not be considered complete
+        # There should be a month missing from the last season (february) and it should not be considered complete.
         self.assertEqual(tg.value.shape[0], 2)
 
     def test_get_grouping_seasonal_real_data_all_seasons(self):
@@ -488,7 +489,7 @@ class TestTemporalDimension(AbstractTestTemporal):
         self.assertEqual(set([xx.day for xx in tgd.value.flat]), {constants.CALC_MONTH_CENTROID})
         self.assertEqual([2006, 2005, 2005, 2005], [xx.year for xx in tgd.value.flat])
         self.assertNumpyAll(tgd.bounds_numtime,
-                            np.array([[55152.0, 58804.0], [55211.0, 58590.0], [55303.0, 58682.0], [55395.0, 58773.0]]))
+                            np.array([[55115.0, 58765.0], [55174.0, 58551.0], [55266.0, 58643.0], [55358.0, 58734.0]]))
 
     def test_get_grouping_seasonal_unique_flag(self):
         """Test the unique flag for seasonal groups."""

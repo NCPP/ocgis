@@ -1,12 +1,12 @@
-from collections import deque
-import itertools
-from copy import deepcopy
 import datetime
-from decimal import Decimal
+import itertools
 import netCDF4 as nc
+from collections import deque
+from copy import deepcopy
+from decimal import Decimal
 
-import numpy as np
 import netcdftime
+import numpy as np
 
 import base
 from ocgis import constants
@@ -202,7 +202,8 @@ class TemporalDimension(base.VectorDimension):
 
         tgd = self._get_temporal_group_dimension_(grouping=grouping, date_parts=date_parts, bounds=new_bounds,
                                                   dgroups=dgroups, value=repr_dt, name_value='time', name_uid='tid',
-                                                  name=self.name, meta=self.meta, units=self.units)
+                                                  name=self.name, meta=self.meta, units=self.units,
+                                                  calendar=self.calendar)
 
         return tgd
 

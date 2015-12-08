@@ -2,10 +2,11 @@ from copy import deepcopy
 
 from shapely.geometry import Point
 
-from ocgis.test.base import attr
 from ocgis import RequestDataset, OcgOperations
+from ocgis.test.base import attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
+from ocgis.util.units import get_units_object
 
 
 @attr('simple', 'optional')
@@ -14,9 +15,7 @@ class TestOptionalDependencies(TestSimpleBase):
     fn = 'test_simple_spatial_no_level_01.nc'
 
     def test_cfunits(self):
-        from cfunits import Units
-
-        units = Units('K')
+        units = get_units_object('K')
         self.assertEqual(str(units), 'K')
 
     @attr('esmf')

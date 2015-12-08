@@ -1,49 +1,37 @@
-from collections import OrderedDict
+import datetime
 import itertools
 import os
-import tempfile
 import sys
+import tempfile
+from collections import OrderedDict
 from copy import deepcopy
 from tempfile import mkdtemp
-import datetime
 
+import fiona
 import numpy as np
+from fiona.crs import from_epsg
 from shapely.geometry import Point
+from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
-import fiona
-from shapely.geometry.geo import mapping
-from fiona.crs import from_epsg
 
-from ocgis.util.environment import ogr
-from ocgis.util.shp_process import ShpProcess
 from ocgis.exc import SingleElementError, ShapeError
-
-CreateGeometryFromWkb = ogr.CreateGeometryFromWkb
 
 
 class ProgressBar(object):
-
-    def __init__(self,title):
-        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
+    def __init__(self, title):
+        sys.stdout.write(title + ": [" + "-" * 40 + "]" + chr(8) * 41)
         sys.stdout.flush()
         self.px = 0
-#        globals()["progress_x"] = 0
 
-#    def startProgress(title):
-#        sys.stdout.write(title + ": [" + "-"*40 + "]" + chr(8)*41)
-#        sys.stdout.flush()
-#        globals()["progress_x"] = 0
-
-    def progress(self,x):
-        x = x*40//100
-        sys.stdout.write("#"*(x - self.px))
+    def progress(self, x):
+        x = x * 40 // 100
+        sys.stdout.write("#" * (x - self.px))
         sys.stdout.flush()
         self.px = x
-#        globals()["progress_x"] = x
 
     def endProgress(self):
-        sys.stdout.write("#"*(40 - self.px))
+        sys.stdout.write("#" * (40 - self.px))
         sys.stdout.write("]\n")
         sys.stdout.flush()
 
@@ -61,6 +49,8 @@ def add_shapefile_unique_identifier(in_path, out_path, name=None, template=None)
     :returns: Path to the copied shapefile with the addition of a unique integer attribute called ``name``.
     :rtype: str
     """
+
+    from ocgis.util.shp_process import ShpProcess
 
     out_folder, key = os.path.split(out_path)
     sp = ShpProcess(in_path, out_folder)
@@ -98,18 +88,18 @@ def get_added_slice(slice1, slice2):
     :raises AssertionError:
     :returns slice:
     '''
-    assert(slice1.step == None)
-    assert(slice2.step == None)
+    assert (slice1.step == None)
+    assert (slice2.step == None)
 
-    def _add_(a,b):
+    def _add_(a, b):
         a = a or 0
         b = b or 0
-        return(a+b)
+        return (a + b)
 
-    start = _add_(slice1.start,slice2.start)
-    stop = _add_(slice1.stop,slice2.stop)
+    start = _add_(slice1.start, slice2.start)
+    stop = _add_(slice1.stop, slice2.stop)
 
-    return(slice(start,stop))
+    return (slice(start, stop))
 
 
 def get_bbox_poly(minx, miny, maxx, maxy):
@@ -194,7 +184,7 @@ def get_date_list(start, stop, days):
     return ret
 
 
-def get_default_or_apply(target,f,default=None):
+def get_default_or_apply(target, f, default=None):
     if target is None:
         ret = default
     else:
@@ -223,13 +213,13 @@ def get_extrapolated_corners_esmf(arr):
         return ret
 
     # the corners array has one additional row and column
-    corners = np.zeros((arr.shape[0]+1, arr.shape[1]+1), dtype=arr.dtype)
+    corners = np.zeros((arr.shape[0] + 1, arr.shape[1] + 1), dtype=arr.dtype)
 
     # fill the interior of the array first with a 2x2 moving window. then do edges.
-    for ii in range(arr.shape[0]-1):
-        for jj in range(arr.shape[1]-1):
-            window_values = arr[ii:ii+2, jj:jj+2]
-            corners[ii+1, jj+1] = np.mean(window_values)
+    for ii in range(arr.shape[0] - 1):
+        for jj in range(arr.shape[1] - 1):
+            window_values = arr[ii:ii + 2, jj:jj + 2]
+            corners[ii + 1, jj + 1] = np.mean(window_values)
 
     # flag to determine if rows are increasing in value
     row_increasing = get_is_increasing(arr[:, 0])
@@ -241,7 +231,7 @@ def get_extrapolated_corners_esmf(arr):
     col_diff = np.mean(np.abs(np.diff(arr[0, :])))
 
     # fill the rows accounting for increasing flag
-    for ii in range(1, corners.shape[0]-1):
+    for ii in range(1, corners.shape[0] - 1):
         if col_increasing:
             corners[ii, 0] = corners[ii, 1] - col_diff
             corners[ii, -1] = corners[ii, -2] + col_diff
@@ -250,7 +240,7 @@ def get_extrapolated_corners_esmf(arr):
             corners[ii, -1] = corners[ii, -2] - col_diff
 
     # fill the columns accounting for increasing flag
-    for jj in range(1, corners.shape[1]-1):
+    for jj in range(1, corners.shape[1] - 1):
         if row_increasing:
             corners[0, jj] = corners[1, jj] - row_diff
             corners[-1, jj] = corners[-2, jj] + row_diff
@@ -283,14 +273,13 @@ def get_extrapolated_corners_esmf_vector(vec):
         msg = 'A vector is required.'
         raise ShapeError(msg)
 
-    corners = np.zeros((2, vec.shape[0]+1), dtype=vec.dtype)
+    corners = np.zeros((2, vec.shape[0] + 1), dtype=vec.dtype)
     corners[:] = get_bounds_vector_from_centroids(vec)
 
     return corners
 
 
 def get_formatted_slice(slc, n_dims):
-
     def _format_(slc):
         if isinstance(slc, int):
             ret = slice(slc, slc + 1)
@@ -437,13 +426,13 @@ def get_ocgis_corners_from_esmf_corners(ecorners):
     :rtype: :class:`~numpy.ma.core.MaskedArray`
     """
 
-    base_shape = [xx-1 for xx in ecorners.shape[1:]]
+    base_shape = [xx - 1 for xx in ecorners.shape[1:]]
     grid_corners = np.zeros([2] + base_shape + [4], dtype=ecorners.dtype)
     slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
     # collect the corners and insert into ocgis corners array
     for ii, jj in itertools.product(range(base_shape[0]), range(base_shape[1])):
-        row_slice = slice(ii, ii+2)
-        col_slice = slice(jj, jj+2)
+        row_slice = slice(ii, ii + 2)
+        col_slice = slice(jj, jj + 2)
         row_corners = ecorners[0][row_slice, col_slice]
         col_corners = ecorners[1][row_slice, col_slice]
         for kk, slc in enumerate(slices):
@@ -508,7 +497,7 @@ def get_sorted_uris_by_time_dimension(uris, variable=None):
     return ret
 
 
-def get_trimmed_array_by_mask(arr,return_adjustments=False):
+def get_trimmed_array_by_mask(arr, return_adjustments=False):
     '''
     Returns a slice of the masked array ``arr`` with masked rows and columns
     removed.
@@ -527,11 +516,11 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
         if arr.dtype == np.dtype(bool):
             _mask = arr
         else:
-            raise(NotImplementedError('Array type is not implemented.'))
+            raise (NotImplementedError('Array type is not implemented.'))
     ## row 0 to end
     start_row = 0
     for idx_row in range(arr.shape[0]):
-        if _mask[idx_row,:].all():
+        if _mask[idx_row, :].all():
             start_row += 1
         else:
             break
@@ -540,7 +529,7 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     stop_row = 0
     idx_row_adjust = 1
     for __ in range(arr.shape[0]):
-        if _mask[stop_row-idx_row_adjust,:].all():
+        if _mask[stop_row - idx_row_adjust, :].all():
             idx_row_adjust += 1
         else:
             idx_row_adjust -= 1
@@ -553,7 +542,7 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     ## col 0 to end
     start_col = 0
     for idx_col in range(arr.shape[1]):
-        if _mask[:,idx_col].all():
+        if _mask[:, idx_col].all():
             start_col += 1
         else:
             break
@@ -562,7 +551,7 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     stop_col = 0
     idx_col_adjust = 1
     for __ in range(arr.shape[0]):
-        if _mask[:,stop_col-idx_col_adjust,].all():
+        if _mask[:, stop_col - idx_col_adjust, ].all():
             idx_col_adjust += 1
         else:
             idx_col_adjust -= 1
@@ -572,12 +561,12 @@ def get_trimmed_array_by_mask(arr,return_adjustments=False):
     else:
         stop_col = stop_col - idx_col_adjust
 
-    ret = arr[start_row:stop_row,start_col:stop_col]
+    ret = arr[start_row:stop_row, start_col:stop_col]
 
     if return_adjustments:
-        ret = (ret,{'row':slice(start_row,stop_row),'col':slice(start_col,stop_col)})
+        ret = (ret, {'row': slice(start_row, stop_row), 'col': slice(start_col, stop_col)})
 
-    return(ret)
+    return (ret)
 
 
 def get_tuple(value):
@@ -625,7 +614,7 @@ def itersubclasses(cls, _seen=None):
     if _seen is None: _seen = set()
     try:
         subs = cls.__subclasses__()
-    except TypeError: # fails only when cls is type
+    except TypeError:  # fails only when cls is type
         subs = cls.__subclasses__(cls)
     for sub in subs:
         if sub not in _seen:
@@ -677,6 +666,7 @@ def iter_array(arr, use_mask=True, return_value=False):
             ret = idx
         yield ret
 
+
 def locate(pattern, root=os.curdir, followlinks=True):
     """
     Locate all files matching supplied filename pattern in and below supplied root directory.
@@ -688,6 +678,9 @@ def locate(pattern, root=os.curdir, followlinks=True):
 
 
 def project_shapely_geometry(geom, from_sr, to_sr):
+    from ocgis.util.environment import ogr
+    CreateGeometryFromWkb = ogr.CreateGeometryFromWkb
+
     if from_sr.IsSame(to_sr) == 1:
         ret = geom
     else:
@@ -710,58 +703,76 @@ def set_name_attributes(name_mapping):
             target.name = name
 
 
-def validate_time_subset(time_range,time_region):
-    '''
-    Ensure `time_range` and `time_region` overlap. If one of the values is `None`, the
-    function always returns `True`. Function will return `False` if the two time range
-    descriptions do not overlap.
+def set_new_value_mask_for_field(field, mask):
+    shape_field = field.shape
+    for var in field.variables.itervalues():
+        if var._value is not None:
+            set_new_value_mask_for_variable(mask, shape_field, var.value)
+
+
+def set_new_value_mask_for_variable(mask, shape_field, value):
+    rng_realization = range(shape_field[0])
+    rng_temporal = range(shape_field[1])
+    rng_level = range(shape_field[2])
+    ref_logical_or = np.logical_or
+    for idx_r, idx_t, idx_l in itertools.product(rng_realization, rng_temporal, rng_level):
+        ref = value[idx_r, idx_t, idx_l]
+        ref.mask = ref_logical_or(ref.mask, mask)
+
+
+def validate_time_subset(time_range, time_region):
+    """
+    Ensure ``time_range`` and ``time_region`` overlap. If one of the values is ``None``, the function always returns
+     ``True``. Function will return `False` if the two time range descriptions do not overlap.
 
     :param time_range: Sequence with two datetime elements.
     :type time_range: sequence
-    :param time_region: Dictionary with two keys 'month' and 'year' each containing
-    an integer sequence corresponding to the respective time parts. For example:
+    :param time_region: Dictionary with two keys ``'month'`` and ``'year'`` each containing an integer sequence
+     corresponding to the respective time parts. For example:
+
     >>> time_region = {'month':[1,2],'year':[2013]}
-    If a 'month' or 'year' key is missing, the key will be added with a default of `None`.
+
+     If a 'month' or 'year' key is missing, the key will be added with a default of ``None``.
     :type time_region: dict
     :rtype: bool
-    '''
+    """
 
-    def _between_(target,lower,upper):
+    def _between_(target, lower, upper):
         if target >= lower and target <= upper:
             ret = True
         else:
             ret = False
-        return(ret)
+        return ret
 
-    def _check_months_(targets,months):
+    def _check_months_(targets, months):
         check = [target in months for target in targets]
         if all(check):
             ret = True
         else:
             ret = False
-        return(ret)
+        return ret
 
-    def _check_years_(targets,min_range_year,max_range_year):
-        if all([_between_(year_bound,min_range_year,max_range_year) for year_bound in targets]):
+    def _check_years_(targets, min_range_year, max_range_year):
+        if all([_between_(year_bound, min_range_year, max_range_year) for year_bound in targets]):
             ret = True
         else:
             ret = False
-        return(ret)
+        return ret
 
-    ## by default we return that it does not validate
+    # By default we return that it does not validate.
     ret = False
-    ## if any of the parameters are none, then it will validate True
-    if any([t is None for t in [time_range,time_region]]):
+    # If any of the parameters are none, then it will validate True.
+    if any([t is None for t in [time_range, time_region]]):
         ret = True
     else:
-        ## ensure time region has the necessary keys
+        # Ensure time region has the necessary keys.
         copy_time_region = deepcopy(time_region)
-        for key in ['month','year']:
+        for key in ['month', 'year']:
             if key not in copy_time_region:
                 copy_time_region[key] = None
-        ## pull basic date information from the time range
-        min_range_year,max_range_year = time_range[0].year,time_range[1].year
-        delta = datetime.timedelta(days=29,hours=12)
+        # Pull basic date information from the time range.
+        min_range_year, max_range_year = time_range[0].year, time_range[1].year
+        delta = datetime.timedelta(days=29, hours=12)
         months = set()
         current = time_range[0]
         while current <= time_range[1]:
@@ -769,23 +780,23 @@ def validate_time_subset(time_range,time_region):
             months.update([current.month])
             if len(months) == 12:
                 break
-        ## construct boundaries from time region. first, the case of only months.
+        # Construct boundaries from time region. first, the case of only months.
         if copy_time_region['month'] is not None and copy_time_region['year'] is None:
-            month_bounds = min(copy_time_region['month']),max(copy_time_region['month'])
-            ret = _check_months_(month_bounds,months)
-        ## case of only years
+            month_bounds = min(copy_time_region['month']), max(copy_time_region['month'])
+            ret = _check_months_(month_bounds, months)
+        # Case of only years.
         elif copy_time_region['month'] is None and copy_time_region['year'] is not None:
-            year_bounds = min(copy_time_region['year']),max(copy_time_region['year'])
-            ret = _check_years_(year_bounds,min_range_year,max_range_year)
-        ## case with both years and months
+            year_bounds = min(copy_time_region['year']), max(copy_time_region['year'])
+            ret = _check_years_(year_bounds, min_range_year, max_range_year)
+        # Case with both years and months.
         else:
-            month_bounds = min(copy_time_region['month']),max(copy_time_region['month'])
-            year_bounds = min(copy_time_region['year']),max(copy_time_region['year'])
-            ret_months = _check_months_(month_bounds,months)
-            ret_years = _check_years_(year_bounds,min_range_year,max_range_year)
-            if all([ret_months,ret_years]):
+            month_bounds = min(copy_time_region['month']), max(copy_time_region['month'])
+            year_bounds = min(copy_time_region['year']), max(copy_time_region['year'])
+            ret_months = _check_months_(month_bounds, months)
+            ret_years = _check_years_(year_bounds, min_range_year, max_range_year)
+            if all([ret_months, ret_years]):
                 ret = True
-    return(ret)
+    return ret
 
 
 def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
@@ -813,20 +824,20 @@ def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
             source.write(rec)
     return path
 
-        
-def make_poly(rtup,ctup):
+
+def make_poly(rtup, ctup):
     """
     rtup = (row min, row max)
     ctup = (col min, col max)
     """
-    
-    return Polygon(((ctup[0],rtup[0]),
-                    (ctup[0],rtup[1]),
-                    (ctup[1],rtup[1]),
-                    (ctup[1],rtup[0])))
+
+    return Polygon(((ctup[0], rtup[0]),
+                    (ctup[0], rtup[1]),
+                    (ctup[1], rtup[1]),
+                    (ctup[1], rtup[0])))
 
 
-def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_prefix=None):
+def get_temp_path(suffix='', name=None, nest=False, only_dir=False, wd=None, dir_prefix=None):
     """Return absolute path to a temporary file."""
 
     if dir_prefix is not None:
@@ -837,14 +848,14 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_pref
 
     def _get_wd_():
         if wd is None:
-            return(tempfile.gettempdir())
+            return tempfile.gettempdir()
         else:
-            return(wd)
+            return wd
 
     if nest:
         f = tempfile.NamedTemporaryFile()
         f.close()
-        dir = os.path.join(_get_wd_(),dir_prefix+os.path.split(f.name)[-1])
+        dir = os.path.join(_get_wd_(), dir_prefix + os.path.split(f.name)[-1])
         os.mkdir(dir)
     else:
         dir = _get_wd_()
@@ -852,9 +863,9 @@ def get_temp_path(suffix='',name=None,nest=False,only_dir=False,wd=None,dir_pref
         ret = dir
     else:
         if name is not None:
-            ret = os.path.join(dir,name+suffix)
+            ret = os.path.join(dir, name + suffix)
         else:
-            f = tempfile.NamedTemporaryFile(suffix=suffix,dir=dir)
+            f = tempfile.NamedTemporaryFile(suffix=suffix, dir=dir)
             f.close()
             ret = f.name
-    return(str(ret))
+    return str(ret)

@@ -8,7 +8,6 @@ from netCDF4 import num2date, date2num
 
 import netcdftime
 import numpy as np
-from cfunits import Units
 
 from ocgis import constants
 from ocgis.api.parms.definition import CalcGrouping
@@ -18,9 +17,10 @@ from ocgis.interface.base.dimension.temporal import TemporalDimension, get_is_in
     get_time_regions, iter_boolean_groups_from_time_regions, get_datetime_conversion_state, \
     get_datetime_from_months_time_units, get_difference_in_months, get_num_from_months_time_units, \
     get_origin_datetime_from_months_units, get_datetime_from_template_time_units, TemporalGroupDimension
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import get_date_list
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.units import get_units_object, get_are_units_equal
 
 
 class AbstractTestTemporal(TestBase):
@@ -33,7 +33,7 @@ class AbstractTestTemporal(TestBase):
         return np.array([20000101., 20000102., 20000103., 20000104., 20000105., 20000106.])
 
 
-class TestFunctions(AbstractTestTemporal):
+class Test(AbstractTestTemporal):
     def test_get_datetime_conversion_state(self):
         archetypes = [45.5, datetime.datetime(2000, 1, 1), netcdftime.datetime(2000, 4, 5)]
         for archetype in archetypes:
@@ -122,7 +122,7 @@ class TestFunctions(AbstractTestTemporal):
         start = datetime.datetime(1900, 1, 1)
         end = datetime.datetime(1902, 12, 31)
         value = self.get_time_series(start, end)
-        temporal_dimension = TemporalDimension(value=value)
+        temporal_dimension = TemporalDimension(value=value, units=constants.DEFAULT_TEMPORAL_UNITS)
 
         itr = iter_boolean_groups_from_time_regions(time_regions, temporal_dimension, yield_subset=yield_subset,
                                                     raise_if_incomplete=raise_if_incomplete)
@@ -152,8 +152,8 @@ class TestTemporalDimension(AbstractTestTemporal):
 
     def get_template_units(self, conform_units_to=None):
         units = 'day as %Y%m%d.%f'
-        td = TemporalDimension(value=self.value_template_units, units=units, conform_units_to=conform_units_to,
-                               calendar='proleptic_gregorian')
+        td = TemporalDimension(value=self.value_template_units, units=units, calendar='proleptic_gregorian',
+                               conform_units_to=conform_units_to)
         return td
 
     def test_init(self):
@@ -171,11 +171,6 @@ class TestTemporalDimension(AbstractTestTemporal):
         td = TemporalDimension(value=[datetime.datetime(2000, 1, 1)], units="months since 1978-12", axis='foo')
         self.assertTrue(td._has_months_units)
         self.assertEqual(td.axis, 'foo')
-
-        # test with template units
-        td = self.get_template_units()
-        self.assertEqual(td.units, constants.DEFAULT_TEMPORAL_UNITS)
-        self.assertEqual(td.calendar, 'proleptic_gregorian')
 
     def test_360_day_calendar(self):
         months = range(1, 13)
@@ -199,7 +194,8 @@ class TestTemporalDimension(AbstractTestTemporal):
         value_options = [value, value, value_datetime]
         for format_time in [True, False]:
             for value, bounds in zip(value_options, bounds_options):
-                td = TemporalDimension(value=value, bounds=bounds, format_time=format_time)
+                td = TemporalDimension(value=value, bounds=bounds, format_time=format_time,
+                                       units=constants.DEFAULT_TEMPORAL_UNITS)
                 try:
                     try:
                         self.assertNumpyAll(td.bounds_datetime, bounds_datetime)
@@ -215,18 +211,29 @@ class TestTemporalDimension(AbstractTestTemporal):
                         self.assertFalse(format_time)
 
     def test_cfunits(self):
-        temporal = TemporalDimension(value=[4, 5, 6])
+        temporal = TemporalDimension(value=[4, 5, 6], units='days since 1900-1-1')
         self.assertEqual(temporal.cfunits.calendar, temporal.calendar)
 
     def test_cfunits_conform(self):
+        # Test with template units.
+        td = self.get_template_units()
+        value_numtime_original = td.value_numtime.copy()
+        value_datetime_original = td.value_datetime.copy()
+        td.cfunits_conform(get_units_object('days since 1920-1-1', calendar=td.calendar))
+        self.assertLess(td.value_numtime.mean(), value_numtime_original.mean())
+        self.assertNumpyAll(value_datetime_original, td.value_datetime)
+        self.assertEqual(td.units, 'days since 1920-1-1')
+        self.assertEqual(td.calendar, 'proleptic_gregorian')
+
+    @attr('data')
+    def test_cfunits_conform_data(self):
 
         def _get_temporal_(kwds=None):
             rd = self.test_data.get_rd('cancm4_tas', kwds=kwds)
             field = rd.get()
-            temporal = field.temporal
-            return temporal
+            return field.temporal
 
-        target = Units('days since 1949-1-1', calendar='365_day')
+        target = get_units_object('days since 1949-1-1', calendar='365_day')
         kwds = {'t_conform_units_to': target}
         temporal = _get_temporal_(kwds)
         temporal_orig = _get_temporal_()
@@ -234,19 +241,18 @@ class TestTemporalDimension(AbstractTestTemporal):
         self.assertNumpyAll(temporal.value_datetime, temporal_orig.value_datetime)
 
     def test_conform_units_to(self):
-        d = 'days since 1949-1-1'
-        td = TemporalDimension(value=[4, 5, 6], conform_units_to=d)
-        actual = Units(d, calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
-        self.assertTrue(td.cfunits.equals(actual))
+        d = get_units_object('days since 1900-1-1', calendar=constants.DEFAULT_TEMPORAL_CALENDAR)
+        td = TemporalDimension(value=[4, 5, 6], units='days since 1901-1-1', conform_units_to=d)
+        self.assertTrue(get_are_units_equal((td.cfunits, d)))
 
         td = TemporalDimension(value=[4, 5, 6])
         self.assertIsNone(td.conform_units_to)
 
-        # test with template units
-        units = 'days since 1960-1-1'
+        # Test with template units.
+        units = get_units_object('days since 1960-1-1', calendar='proleptic_gregorian')
         td = self.get_template_units(conform_units_to=units)
         self.assertAlmostEqual(td.value_numtime.mean(), 4020.9375)
-        self.assertEqual(td.units, units)
+        self.assertEqual(str(td.units), str(units).split('calendar=')[0].strip())
 
     def test_extent_datetime_and_extent_numtime(self):
         value_numtime = np.array([6000., 6001., 6002])
@@ -432,6 +438,7 @@ class TestTemporalDimension(AbstractTestTemporal):
             '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x0c\x85cnumpy\ndtype\nq\x04U\x03V16K\x00K\x01\x87Rq\x05(K\x03U\x01|NU\x06monthsq\x06U\x04yearq\x07\x86q\x08}q\t(h\x06h\x04U\x02O8K\x00K\x01\x87Rq\n(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tbK\x00\x86h\x07h\x04U\x02i8K\x00K\x01\x87Rq\x0b(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tbK\x08\x86uK\x10K\x01K\x1btb\x89]q\x0c(]q\r(K\x0cK\x01K\x02eMk\x07\x86q\x0e]q\x0f(K\x03K\x04K\x05eMk\x07\x86q\x10]q\x11(K\x06K\x07K\x08eMk\x07\x86q\x12]q\x13(K\tK\nK\x0beMk\x07\x86q\x14h\rMl\x07\x86q\x15h\x0fMl\x07\x86q\x16h\x11Ml\x07\x86q\x17h\x13Ml\x07\x86q\x18h\rMm\x07\x86q\x19h\x0fMm\x07\x86q\x1ah\x11Mm\x07\x86q\x1bh\x13Mm\x07\x86q\x1cetb.')
         self.assertNumpyAll(actual_date_parts, date_parts)
 
+    @attr('data')
     def test_get_grouping_seasonal(self):
         dates = get_date_list(dt(2012, 4, 1), dt(2012, 10, 31), 1)
         td = TemporalDimension(value=dates)
@@ -477,6 +484,7 @@ class TestTemporalDimension(AbstractTestTemporal):
         # There should be a month missing from the last season (february) and it should not be considered complete.
         self.assertEqual(tg.value.shape[0], 2)
 
+    @attr('data')
     def test_get_grouping_seasonal_real_data_all_seasons(self):
         """Test with real data and full seasons."""
 
@@ -689,13 +697,6 @@ class TestTemporalDimension(AbstractTestTemporal):
         td = TemporalDimension(value=[5, 6])
         self.assertFalse(td._has_months_units)
 
-    def test_has_template_units(self):
-        td = self.get_template_units()
-        self.assertFalse(td._has_template_units)
-        td = TemporalDimension(value=[4, 5])
-        td.units = 'day as %Y%m%d.%f'
-        self.assertTrue(td._has_template_units)
-
     def test_months_in_time_units(self):
         units = "months since 1978-12"
         vec = range(0, 36)
@@ -724,6 +725,13 @@ class TestTemporalDimension(AbstractTestTemporal):
         value = np.array([31])
         td = TemporalDimension(value=value, units=units, calendar='standard')
         self.assertFalse(td._has_months_units)
+
+    def test_units(self):
+        # Test calendar is maintained when setting units.
+        td = TemporalDimension(value=[5])
+        td.units = get_units_object('days since 1950-1-1', calendar='360_day')
+        self.assertEqual(td.calendar, '360_day')
+        self.assertEqual(td.units, 'days since 1950-1-1')
 
     def test_get_time_regions(self):
         dates = get_date_list(dt(2012, 1, 1), dt(2013, 12, 31), 1)
@@ -817,6 +825,7 @@ class TestTemporalDimension(AbstractTestTemporal):
                 self.assertFalse(k.format_time)
             self.assertNumpyAll(td.value_numtime, value)
 
+    @attr('data')
     def test_write_to_netcdf_dataset(self):
         rd = self.test_data.get_rd('cancm4_tas')
         path = os.path.join(self.current_dir_output, 'foo.nc')
@@ -828,7 +837,8 @@ class TestTemporalDimension(AbstractTestTemporal):
             field = rd.get()
             td = field.temporal
             if not k.with_bounds:
-                td.bounds
+                td.value
+                td._request_dataset = None
                 td.bounds = None
                 self.assertIsNone(td.bounds)
             if k.as_datetime:
@@ -862,6 +872,7 @@ class TestTemporalGroupDimension(TestBase):
         tgd = td.get_grouping(['month'])
         return tgd
 
+    @attr('data')
     def test_init(self):
         tgd = self.get_tgd()
         self.assertIsInstance(tgd, TemporalDimension)
@@ -874,6 +885,7 @@ class TestTemporalGroupDimension(TestBase):
         self.assertTrue(tgd.dgroups[0].all())
         self.assertNumpyAll(tgd.uid, np.array([1], dtype=np.int32))
 
+    @attr('data')
     def test_write_to_netcdf_dataset(self):
         tgd = self.get_tgd()
         path = os.path.join(self.current_dir_output, 'foo.nc')

@@ -1,13 +1,12 @@
-from copy import deepcopy
 import json
 import logging
-# noinspection PyPep8Naming
 import netCDF4 as nc
+from copy import deepcopy
 from warnings import warn
-import numpy as np
-from ocgis import messages
 
-from ocgis.interface.nc.spatial import NcSpatialGridDimension
+import numpy as np
+
+from ocgis import messages, TemporalDimension
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.exc import ProjectionDoesNotMatch, VariableNotFoundError, DimensionNotFound, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CFCoordinateReferenceSystem
@@ -16,9 +15,16 @@ from ocgis.interface.base.variable import VariableCollection, Variable
 from ocgis.interface.metadata import NcMetadata
 from ocgis.interface.nc.dimension import NcVectorDimension
 from ocgis.interface.nc.field import NcField
-from ocgis.interface.nc.temporal import NcTemporalDimension
+from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis.util.helpers import itersubclasses, get_iter, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
+
+
+class NcTemporalDimension(TemporalDimension, NcVectorDimension):
+    """Allows the temporal dimension use the source loading for netCDF formats."""
+
+    def __init__(self, *args, **kwargs):
+        TemporalDimension.__init__(self, *args, **kwargs)
 
 
 class DriverNetcdf(AbstractDriver):
@@ -209,9 +215,9 @@ class DriverNetcdf(AbstractDriver):
             name = ref_variable['axis']['dimension']
 
             # assemble parameters for creating the dimension class then initialize the class.
-            kwds = dict(name_uid=v['name_uid'], src_idx=src_idx, data=self.rd, meta=ref_variable, axis=axis_value,
-                        name_value=ref_variable.get('name'), dtype=dtype, attrs=ref_variable['attrs'].copy(),
-                        name=name, name_bounds=ref_variable['axis'].get('bounds'))
+            kwds = dict(name_uid=v['name_uid'], src_idx=src_idx, request_dataset=self.rd, meta=ref_variable,
+                        axis=axis_value, name_value=ref_variable.get('name'), dtype=dtype,
+                        attrs=ref_variable['attrs'].copy(), name=name, name_bounds=ref_variable['axis'].get('bounds'))
 
             # there may be additional parameters for each dimension.
             if v['adds'] is not None:
@@ -278,7 +284,7 @@ class DriverNetcdf(AbstractDriver):
                        'col': np.arange(0, shape_src_idx[1], dtype=np.int32)}
             name_row = kwds_grid['row']['name']
             name_col = kwds_grid['col']['name']
-            kwds_grid = {'name_row': name_row, 'name_col': name_col, 'data': self.rd, 'src_idx': src_idx}
+            kwds_grid = {'name_row': name_row, 'name_col': name_col, 'request_dataset': self.rd, 'src_idx': src_idx}
 
         grid = NcSpatialGridDimension(**kwds_grid)
 
@@ -291,7 +297,7 @@ class DriverNetcdf(AbstractDriver):
             dtype = np.dtype(variable_meta['dtype'])
             fill_value = variable_meta['fill_value']
             variable = Variable(vdict['variable'], vdict['alias'], units=variable_units, meta=variable_meta,
-                                data=self.rd, conform_units_to=vdict['conform_units_to'], dtype=dtype,
+                                request_dataset=self.rd, conform_units_to=vdict['conform_units_to'], dtype=dtype,
                                 fill_value=fill_value, attrs=variable_meta['attrs'].copy())
             vc.add_variable(variable)
 

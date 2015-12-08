@@ -1,25 +1,25 @@
 import csv
+import datetime
 import itertools
 import os
 from datetime import datetime as dt
-import datetime
 from types import FunctionType
 
-from numpy import dtype
 import numpy as np
+from numpy import dtype
 
+import ocgis
+from ocgis import constants
 from ocgis import env
-from ocgis.api.request.base import RequestDataset
+from ocgis.api.operations import OcgOperations
+from ocgis.api.parms import definition
 from ocgis.api.parms.definition import RegridOptions, OutputFormat
+from ocgis.api.request.base import RequestDataset
+from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase, attr
-from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
-from ocgis.api.parms import definition
-from ocgis import constants
-from ocgis.api.operations import OcgOperations
-from ocgis.util.helpers import make_poly
-import ocgis
 from ocgis.util.geom_cabinet import GeomCabinetIterator, GeomCabinet
+from ocgis.util.helpers import make_poly
 
 
 class TestOcgOperations(TestBase):
@@ -209,7 +209,7 @@ class TestOcgOperations(TestBase):
         slc = [None, [0, 10], None, [0, 10], [0, 10]]
         for output_format in ['numpy', 'csv']:
             ops = OcgOperations(dataset=rd, output_format=output_format, aggregate=True, slice=slc, melted=True)
-            # spatial operations on rotated pole require the output crs be wgs84
+            # Spatial operations on rotated pole require the output crs be WGS84.
             self.assertEqual(ops.output_crs, CFWGS84())
             ret = ops.execute()
             if output_format == constants.OUTPUT_FORMAT_NUMPY:
@@ -328,7 +328,7 @@ class TestOcgOperations(TestBase):
         for ds in ops.dataset.itervalues():
             self.assertEqual(ds.conform_units_to, 'celsius')
 
-        # # test that the conform argument is updated
+        # Test conform argument is updated.
         ops.conform_units_to = 'fahrenheit'
         for ds in ops.dataset.itervalues():
             self.assertEqual(ds.conform_units_to, 'fahrenheit')
@@ -525,8 +525,6 @@ class TestOcgOperations(TestBase):
         ret = ops.execute()
         field = ret[1]['slp']
         self.assertEqual(field.shape, (1, 365, 1, 18, 143))
-        slp = field.variables.first()
-        self.assertEqual(slp.value.mask.sum(), 611010)
 
     def test_keyword_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')

@@ -2,21 +2,20 @@ import logging
 from copy import deepcopy, copy
 
 import numpy as np
-
 from shapely.geometry import Point, MultiPoint
 
-from ocgis.calc.engine import OcgCalculationEngine
 from ocgis import env, constants
+from ocgis.api.collection import SpatialCollection
+from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
+from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, VariableInCollectionError, \
     BoundsAlreadyAvailableError
-from ocgis.interface.base.field import Field
-from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
-from ocgis.api.collection import SpatialCollection
 from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, Spherical, WGS84, WrappableCoordinateReferenceSystem
-from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
-from ocgis.util.helpers import get_default_or_apply
-from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension
+from ocgis.interface.base.field import Field
+from ocgis.util.helpers import get_default_or_apply
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 
 
 class SubsetOperation(object):
@@ -207,9 +206,12 @@ class SubsetOperation(object):
                     try:
                         field_object = rds_element.get(format_time=self.ops.format_time)
                     except AttributeError:
-                        # likely a field object which does not need to be loaded from source
+                        # Likely a field object which does not need to be loaded from source.
                         if not self.ops.format_time:
                             raise NotImplementedError
+                        # Check that is indeed a field before a proceeding.
+                        if not isinstance(rds_element, Field):
+                            raise
                         field_object = rds_element
 
                     # extrapolate the spatial bounds if requested

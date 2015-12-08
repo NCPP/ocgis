@@ -1,30 +1,30 @@
-import os
-import itertools
-from copy import deepcopy
-from collections import OrderedDict
-from datetime import datetime as dt
 import datetime
+import itertools
+import os
+from collections import OrderedDict
+from copy import deepcopy
+from datetime import datetime as dt
 
+import fiona
 import numpy as np
 from shapely import wkb
-import fiona
 from shapely import wkt
 from shapely.geometry import shape, Point
 from shapely.ops import cascaded_union
 
-from ocgis import constants, SpatialCollection, GeomCabinet
 from ocgis import RequestDataset
+from ocgis import constants, SpatialCollection, GeomCabinet
 from ocgis.constants import NAME_UID_FIELD, NAME_UID_DIMENSION_LEVEL
+from ocgis.exc import EmptySubsetError
 from ocgis.interface.base.attributes import Attributes
 from ocgis.interface.base.crs import WGS84, Spherical
-from ocgis.util.helpers import get_date_list, make_poly
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis.interface.base.field import Field, DerivedField
-from ocgis.test.base import TestBase, nc_scope
-from ocgis.exc import EmptySubsetError
-from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis.interface.base.dimension.temporal import TemporalDimension
+from ocgis.interface.base.field import Field, DerivedField
+from ocgis.interface.base.variable import Variable, VariableCollection
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.util.helpers import get_date_list, make_poly
 from ocgis.util.itester import itr_products_keywords
 
 
@@ -113,7 +113,7 @@ class AbstractTestField(TestBase):
             value = None
             data = 'foo'
 
-        var = Variable(name, units=units, data=data, value=value)
+        var = Variable(name, units=units, request_dataset=data, value=value)
         vc = VariableCollection(variables=var)
         field = Field(variables=vc, temporal=temporal, level=level, realization=realization, spatial=spatial,
                       name=field_name)
@@ -525,14 +525,6 @@ class TestField(AbstractTestField):
         var2.alias = 'tmax2'
         field.variables.add_variable(var2, assign_new_uid=True)
         self.assertEqual(field.name, 'tmax_tmax2')
-
-    def test_loading_from_source_spatial_bounds(self):
-        """Test row bounds may be set to None when loading from source."""
-
-        field = self.test_data.get_rd('cancm4_tas').get()
-        field.spatial.grid.row.bounds
-        field.spatial.grid.row.bounds = None
-        self.assertIsNone(field.spatial.grid.row.bounds)
 
     def test_should_regrid(self):
         field = self.get_field()

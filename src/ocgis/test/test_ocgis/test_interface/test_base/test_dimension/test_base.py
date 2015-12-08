@@ -1,23 +1,22 @@
-from collections import OrderedDict
 import os
+from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
 
-from cfunits import Units
-
-from ocgis.constants import OCGIS_BOUNDS
-from ocgis.interface.base.variable import AbstractSourcedVariable, AbstractValueVariable
 from ocgis import constants
+from ocgis.constants import OCGIS_BOUNDS
 from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
 from ocgis.interface.base.dimension.base import VectorDimension, AbstractUidValueDimension, AbstractValueDimension, \
     AbstractDimension, AbstractUidDimension
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.interface.base.variable import AbstractSourcedVariable
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import get_bounds_from_1d
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.units import get_units_object
 
 
-class FakeAbstractDimension(AbstractDimension):
+class MockAbstractDimension(AbstractDimension):
     _ndims = None
     _attrs_slice = None
 
@@ -34,51 +33,35 @@ class TestAbstractDimension(TestBase):
         return properties
 
     def test_init(self):
-        ad = FakeAbstractDimension()
+        ad = MockAbstractDimension()
         self.assertEqual(ad.name, None)
 
-        ad = FakeAbstractDimension(name='time')
+        ad = MockAbstractDimension(name='time')
         self.assertEqual(ad.name, 'time')
 
         self.assertEqual(ad.meta, {})
 
-        FakeAbstractDimension(properties=self.example_properties)
+        MockAbstractDimension(properties=self.example_properties)
 
 
-class FakeAbstractUidDimension(AbstractUidDimension):
+class MockAbstractUidDimension(AbstractUidDimension):
     _attrs_slice = None
     _ndims = 1
 
 
 class TestAbstractUidDimension(TestBase):
     def test_init(self):
-        au = FakeAbstractUidDimension(uid=[1, 2, 3])
+        au = MockAbstractUidDimension(uid=[1, 2, 3])
         self.assertEqual(au.name_uid, 'None_uid')
-        au = FakeAbstractUidDimension(uid=[1, 2, 3], name='foo')
+        au = MockAbstractUidDimension(uid=[1, 2, 3], name='foo')
         self.assertEqual(au.name_uid, 'foo_uid')
         self.assertIsNone(au._name_uid)
-        au = FakeAbstractUidDimension(uid=[1, 2, 3], name='foo', name_uid='hello')
+        au = MockAbstractUidDimension(uid=[1, 2, 3], name='foo', name_uid='hello')
         self.assertEqual(au.name_uid, 'hello')
 
 
-class FakeAbstractUidValueDimension(AbstractUidValueDimension):
-    _ndims = 1
-    _attrs_slice = None
-
-    def _get_value_(self):
-        pass
-
-
-class TestAbstractUidValueDimension(TestBase):
-
-    def test_init(self):
-        c = 'celsius'
-        ff = FakeAbstractUidValueDimension(conform_units_to=c)
-        self.assertEqual(ff.conform_units_to, Units(c))
-
-
-class FakeAbstractValueDimension(AbstractValueDimension):
-    def _get_value_(self):
+class MockAbstractValueDimension(AbstractValueDimension):
+    def _get_value_from_source_(self):
         pass
 
 
@@ -86,16 +69,16 @@ class TestAbstractValueDimension(TestBase):
     create_dir = False
 
     def test_init(self):
-        FakeAbstractValueDimension()
-        self.assertEqual(AbstractValueDimension.__bases__, (AbstractValueVariable,))
+        MockAbstractValueDimension()
+        self.assertEqual(AbstractValueDimension.__bases__, (AbstractSourcedVariable,))
 
     def test_name_value(self):
         name_value = 'foo'
-        avd = FakeAbstractValueDimension(name_value=name_value)
+        avd = MockAbstractValueDimension(name_value=name_value)
         self.assertEqual(avd.name_value, name_value)
 
         name = 'foobar'
-        avd = FakeAbstractValueDimension(name=name)
+        avd = MockAbstractValueDimension(name=name)
         self.assertEqual(avd.name_value, name)
         self.assertIsNone(avd._name_value)
 
@@ -111,58 +94,41 @@ class TestVectorDimension(TestBase):
         self.assertEqual(vd.name_bounds, 'None_{0}'.format(OCGIS_BOUNDS))
         self.assertIsNone(vd.axis)
         self.assertEqual(vd.name_bounds_dimension, OCGIS_BOUNDS)
+        self.assertIsNone(vd._src_idx)
 
-        # test passing attributes to the constructor
+        # Test passing attributes to the constructor.
         attrs = {'something': 'underground'}
         vd = VectorDimension(value=[4, 5], attrs=attrs, axis='D', name_bounds_dimension='vds')
         self.assertEqual(vd.attrs, attrs)
         self.assertEqual(vd.axis, 'D')
         self.assertEqual(vd.name_bounds_dimension, 'vds')
 
-        # empty dimensions are not allowed
+        # Empty dimensions are not allowed.
         with self.assertRaises(ValueError):
             VectorDimension()
 
-        # test passing the name bounds
-        vd = VectorDimension(value=[5, 6], name_bounds='lat_bnds')
-        self.assertEqual(vd.name_bounds, 'lat_bnds')
+        # Test with bounds.
+        bounds = [[3, 5], [4, 6], [5, 7]]
+        vdim = VectorDimension(value=[4, 5, 6], bounds=bounds, name_bounds='lat_bnds')
+        self.assertNumpyAll(vdim.bounds, np.array(bounds))
+        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=np.int32))
+        self.assertEqual(vdim.resolution, 2.0)
+        self.assertEqual(vdim.name_bounds, 'lat_bnds')
 
-    def test_init_conform_units_to(self):
-        target = np.array([4, 5, 6])
-        target_copy = target.copy()
-        vd = VectorDimension(value=target, units='celsius', conform_units_to='kelvin')
-        self.assertNumpyNotAll(vd.value, target_copy)
-        self.assertNumpyAll(vd.value, np.array([277.15, 278.15, 279.15]))
-        self.assertEqual(vd.units, 'kelvin')
-        self.assertEqual(vd.cfunits, Units('kelvin'))
-
-        target = np.array([4., 5., 6.])
-        target_bounds = np.array([[3.5, 4.5], [4.5, 5.5], [5.5, 6.5]])
-        vd = VectorDimension(value=target, bounds=target_bounds, units='celsius', conform_units_to='kelvin')
-        self.assertNumpyAll(vd.bounds, np.array([[276.65, 277.65], [277.65, 278.65], [278.65, 279.65]]))
-
-    def test_bad_dtypes(self):
+        # Test different data types between value and bounds. The bounds should be casted to match the data type of the
+        # value.
         vd = VectorDimension(value=181.5, bounds=[181, 182])
         self.assertEqual(vd.value.dtype, vd.bounds.dtype)
-
+        # These data types cannot be casted.
         with self.assertRaises(ValueError):
             VectorDimension(value=181.5, bounds=['a', 'b'])
 
-    def test_bad_keywords(self):
-        # there should be keyword checks on the bad keywords names
+        # Test bad keywords are not allowed.
         with self.assertRaises(ValueError):
             VectorDimension(value=40, bounds=[38, 42], ddtype=float)
 
-    def test_boolean_slice(self):
-        """Test slicing with boolean values."""
-
-        vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
-        vdim_slc = vdim[np.array([True, False, True])]
-        self.assertFalse(len(vdim_slc) > 2)
-        self.assertNumpyAll(vdim_slc.value, np.array([4, 6]))
-        self.assertNumpyAll(vdim_slc.bounds, np.array([[3, 5], [5, 7]]))
-
-    def test_bounds_only_two_dimensional(self):
+    def test_bounds(self):
+        # Test only 2-d bounds.
         value = [10, 20, 30, 40, 50]
         bounds = [
             [[b - 5, b + 5, b + 10] for b in value],
@@ -173,10 +139,105 @@ class TestVectorDimension(TestBase):
             with self.assertRaises(ValueError):
                 VectorDimension(value=value, bounds=b)
 
+    @attr('data')
+    def test_bounds_data(self):
+        # Test setting bounds to None with a request dataset.
+        field = self.test_data.get_rd('cancm4_tas').get()
+        field.spatial.grid.row.value
+        field.spatial.grid.row._request_dataset = None
+        field.spatial.grid.row.bounds = None
+        self.assertIsNone(field.spatial.grid.row.bounds)
+
+    def test_cfunits_conform(self):
+        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
+        vdim.set_extrapolated_bounds()
+        vdim.cfunits_conform(get_units_object('kelvin'))
+        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
+
+        # Test conforming without bounds.
+        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
+        vdim.cfunits_conform('kelvin')
+        self.assertNumpyAll(vdim.value, np.array([278.15, 283.15, 288.15]))
+
     def test_dtype(self):
         value = [10, 20, 30, 40, 50]
         vdim = VectorDimension(value=value)
         self.assertEqual(vdim.dtype, np.array(value).dtype)
+
+    def test_getitem_boolean(self):
+        """Test slicing with boolean values."""
+
+        vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
+        vdim_slc = vdim[np.array([True, False, True])]
+        self.assertFalse(len(vdim_slc) > 2)
+        self.assertNumpyAll(vdim_slc.value, np.array([4, 6]))
+        self.assertNumpyAll(vdim_slc.bounds, np.array([[3, 5], [5, 7]]))
+
+    def test_get_between(self):
+        vdim = VectorDimension(value=[0])
+        with self.assertRaises(EmptySubsetError):
+            vdim.get_between(100, 200)
+
+        vdim = VectorDimension(value=[100, 200, 300, 400])
+        vdim_between = vdim.get_between(100, 200)
+        self.assertEqual(len(vdim_between), 2)
+
+    def test_get_between_bounds(self):
+        value = [0., 5., 10.]
+        bounds = [[-2.5, 2.5], [2.5, 7.5], [7.5, 12.5]]
+
+        # A reversed copy of these bounds are created here.
+        value_reverse = deepcopy(value)
+        value_reverse.reverse()
+        bounds_reverse = deepcopy(bounds)
+        bounds_reverse.reverse()
+        for ii in range(len(bounds)):
+            bounds_reverse[ii].reverse()
+
+        data = {'original': {'value': value, 'bounds': bounds},
+                'reversed': {'value': value_reverse, 'bounds': bounds_reverse}}
+        for key in ['original', 'reversed']:
+            vdim = VectorDimension(value=data[key]['value'],
+                                   bounds=data[key]['bounds'])
+
+            vdim_between = vdim.get_between(1, 3)
+            self.assertEqual(len(vdim_between), 2)
+            if key == 'original':
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
+            else:
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
+            self.assertEqual(vdim.resolution, 5.0)
+
+            # Preference is given to the lower bound in the case of "ties" where the value could be assumed part of the
+            # lower or upper cell.
+            vdim_between = vdim.get_between(2.5, 2.5)
+            self.assertEqual(len(vdim_between), 1)
+            if key == 'original':
+                self.assertNumpyAll(vdim_between.bounds, np.array([[2.5, 7.5]]))
+            else:
+                self.assertNumpyAll(vdim_between.bounds, np.array([[7.5, 2.5]]))
+
+            # If the interval is closed and the subset range falls only on bounds value then the subset will be empty.
+            with self.assertRaises(EmptySubsetError):
+                vdim.get_between(2.5, 2.5, closed=True)
+
+            vdim_between = vdim.get_between(2.5, 7.5)
+            if key == 'original':
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
+            else:
+                self.assertEqual(vdim_between.bounds.tostring(),
+                                 '\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
+
+    def test_get_between_use_bounds(self):
+        value = [3., 5.]
+        bounds = [[2., 4.], [4., 6.]]
+        vdim = VectorDimension(value=value, bounds=bounds)
+        ret = vdim.get_between(3, 4.5, use_bounds=False)
+        self.assertNumpyAll(ret.value, np.array([3.]))
+        self.assertNumpyAll(ret.bounds, np.array([[2., 4.]]))
 
     def test_get_iter(self):
         vdim = VectorDimension(value=[10, 20, 30, 40, 50])
@@ -230,7 +291,7 @@ class TestVectorDimension(TestBase):
     def test_load_from_source(self):
         """Test loading from a fake data source."""
 
-        vdim = VectorDimension(src_idx=[0, 1, 2, 3], data='foo')
+        vdim = VectorDimension(src_idx=[0, 1, 2, 3], request_dataset='foo')
         self.assertNumpyAll(vdim.uid, np.array([1, 2, 3, 4], dtype=np.int32))
         with self.assertRaises(NotImplementedError):
             vdim.value
@@ -266,35 +327,22 @@ class TestVectorDimension(TestBase):
         vd = VectorDimension(value=[4, 5], name_bounds_tuple=('a', 'b'))
         self.assertEqual(vd.name_bounds_tuple, ('a', 'b'))
 
-    def test_one_value(self):
-        """Test passing a single value."""
-
-        values = [5, np.array([5])]
-        for value in values:
-            vdim = VectorDimension(value=value, src_idx=10)
-            self.assertEqual(vdim.value[0], 5)
-            self.assertEqual(vdim.uid[0], 1)
-            self.assertEqual(len(vdim.uid), 1)
-            self.assertEqual(vdim.shape, (1,))
-            self.assertIsNone(vdim.bounds)
-            self.assertEqual(vdim[0].value[0], 5)
-            self.assertEqual(vdim[0].uid[0], 1)
-            self.assertEqual(vdim[0]._src_idx[0], 10)
-            self.assertIsNone(vdim[0].bounds)
-            with self.assertRaises(ResolutionError):
-                vdim.resolution
-
     def test_resolution_with_units(self):
         vdim = VectorDimension(value=[5, 10, 15], units='large')
         self.assertEqual(vdim.resolution, 5.0)
+
+    def test_remove_bounds(self):
+        vd = VectorDimension(value=[1, 2, 3])
+        vd.set_extrapolated_bounds()
+        self.assertIsNotNone(vd.bounds)
+        vd.remove_bounds()
+        self.assertIsNone(vd.bounds)
 
     def test_set_extrapolated_bounds(self):
         value = np.array([1, 2, 3, 4], dtype=float)
         vd = VectorDimension(value=value)
         self.assertIsNone(vd.bounds)
-        self.assertFalse(vd._has_interpolated_bounds)
         vd.set_extrapolated_bounds()
-        self.assertTrue(vd._has_interpolated_bounds)
         actual = np.array([[0.5, 1.5], [1.5, 2.5], [2.5, 3.5], [3.5, 4.5]], dtype=float)
         self.assertNumpyAll(vd.bounds, actual)
 
@@ -302,7 +350,6 @@ class TestVectorDimension(TestBase):
         value = np.array([1.5])
         bounds = np.array([[1.0, 2.0]])
         vd = VectorDimension(value=value, bounds=bounds)
-        self.assertFalse(vd._has_interpolated_bounds)
         with self.assertRaises(BoundsAlreadyAvailableError):
             vd.set_extrapolated_bounds()
 
@@ -323,7 +370,7 @@ class TestVectorDimension(TestBase):
         self.assertNumpyAll(vdim.value, vdim_slc2.value)
 
     def test_slice_source_idx_only(self):
-        vdim = VectorDimension(src_idx=[4, 5, 6], data='foo')
+        vdim = VectorDimension(src_idx=[4, 5, 6], request_dataset='foo')
         vdim_slice = vdim[0]
         self.assertEqual(vdim_slice._src_idx[0], 4)
 
@@ -331,34 +378,43 @@ class TestVectorDimension(TestBase):
         value = [5., 10., 15.]
         vdim = VectorDimension(value=value, units='celsius',
                                bounds=get_bounds_from_1d(np.array(value)))
-        vdim.cfunits_conform(Units('kelvin'))
+        vdim.cfunits_conform(get_units_object('kelvin'))
         self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
 
-    def test_with_bounds(self):
-        """Test passing bounds to the constructor."""
+    def test_value(self):
+        vdim = VectorDimension(value=[4, 5, 6])
+        self.assertIsInstance(vdim.value, np.ndarray)
 
-        vdim = VectorDimension(value=[4, 5, 6], bounds=[[3, 5], [4, 6], [5, 7]])
-        self.assertNumpyAll(vdim.bounds, np.array([[3, 5], [4, 6], [5, 7]]))
-        self.assertNumpyAll(vdim.uid, np.array([1, 2, 3], dtype=np.int32))
-        self.assertEqual(vdim.resolution, 2.0)
+        # Test passing a single value.
+        values = [5, np.array([5])]
+        for value in values:
+            vdim = VectorDimension(value=value, src_idx=10)
+            self.assertEqual(vdim.value[0], 5)
+            self.assertEqual(vdim.uid[0], 1)
+            self.assertEqual(len(vdim.uid), 1)
+            self.assertEqual(vdim.shape, (1,))
+            self.assertIsNone(vdim.bounds)
+            self.assertEqual(vdim[0].value[0], 5)
+            self.assertEqual(vdim[0].uid[0], 1)
+            self.assertEqual(vdim[0]._src_idx[0], 10)
+            self.assertIsNone(vdim[0].bounds)
+            with self.assertRaises(ResolutionError):
+                vdim.resolution
 
-    def test_with_units(self):
-        vdim = VectorDimension(value=[5, 10, 15], units='celsius')
-        self.assertEqual(vdim.cfunits, Units('celsius'))
-        vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.value, np.array([278.15, 283.15, 288.15]))
+        # Test conforming units.
+        for seb in [True, False]:
+            if seb:
+                v = VectorDimension(value=[4, 5, 6], units='celsius', conform_units_to='kelvin')
+                v.set_extrapolated_bounds()
+            else:
+                v = VectorDimension(value=[4, 5, 6], bounds=[[3.5, 4.5], [4.5, 5.5], [5.5, 6.5]], units='celsius',
+                                    conform_units_to='kelvin')
+            self.assertGreater(v.value.mean(), 200)
+            self.assertGreater(v.bounds.mean(), 200)
 
-    def test_with_units_and_bounds_convert_after_load(self):
-        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
-        vdim.set_extrapolated_bounds()
-        vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
-
-    def test_with_units_and_bounds_interpolation(self):
-        vdim = VectorDimension(value=[5., 10., 15.], units='celsius')
-        vdim.set_extrapolated_bounds()
-        vdim.cfunits_conform(Units('kelvin'))
-        self.assertNumpyAll(vdim.bounds, np.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
+        # Test with a request dataset, conforming units, and no initial value.
+        v = VectorDimension(conform_units_to='kelvin', units='celsius', request_dataset='foo')
+        self.assertIsNone(v._value)
 
     def test_write_to_netcdf_dataset(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
@@ -443,70 +499,3 @@ class TestVectorDimension(TestBase):
             vd.write_netcdf(ds)
             vd2.write_netcdf(ds)
             self.assertEqual(ds.variables.keys(), ['one', 'one_bounds', 'two', 'two_bounds'])
-
-    def test_get_between(self):
-        vdim = VectorDimension(value=[0])
-        with self.assertRaises(EmptySubsetError):
-            vdim.get_between(100, 200)
-
-        vdim = VectorDimension(value=[100, 200, 300, 400])
-        vdim_between = vdim.get_between(100, 200)
-        self.assertEqual(len(vdim_between), 2)
-
-    def test_get_between_bounds(self):
-        value = [0., 5., 10.]
-        bounds = [[-2.5, 2.5], [2.5, 7.5], [7.5, 12.5]]
-
-        # # a reversed copy of these bounds are created here
-        value_reverse = deepcopy(value)
-        value_reverse.reverse()
-        bounds_reverse = deepcopy(bounds)
-        bounds_reverse.reverse()
-        for ii in range(len(bounds)):
-            bounds_reverse[ii].reverse()
-
-        data = {'original': {'value': value, 'bounds': bounds},
-                'reversed': {'value': value_reverse, 'bounds': bounds_reverse}}
-        for key in ['original', 'reversed']:
-            vdim = VectorDimension(value=data[key]['value'],
-                                   bounds=data[key]['bounds'])
-
-            vdim_between = vdim.get_between(1, 3)
-            self.assertEqual(len(vdim_between), 2)
-            if key == 'original':
-                self.assertEqual(vdim_between.bounds.tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
-            else:
-                self.assertEqual(vdim_between.bounds.tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
-            self.assertEqual(vdim.resolution, 5.0)
-
-            ## preference is given to the lower bound in the case of "ties" where
-            ## the value could be assumed part of the lower or upper cell
-            vdim_between = vdim.get_between(2.5, 2.5)
-            self.assertEqual(len(vdim_between), 1)
-            if key == 'original':
-                self.assertNumpyAll(vdim_between.bounds, np.array([[2.5, 7.5]]))
-            else:
-                self.assertNumpyAll(vdim_between.bounds, np.array([[7.5, 2.5]]))
-
-            ## if the interval is closed and the subset range falls only on bounds
-            ## value then the subset will be empty
-            with self.assertRaises(EmptySubsetError):
-                vdim.get_between(2.5, 2.5, closed=True)
-
-            vdim_between = vdim.get_between(2.5, 7.5)
-            if key == 'original':
-                self.assertEqual(vdim_between.bounds.tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
-            else:
-                self.assertEqual(vdim_between.bounds.tostring(),
-                                 '\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
-
-    def test_get_between_use_bounds(self):
-        value = [3., 5.]
-        bounds = [[2., 4.], [4., 6.]]
-        vdim = VectorDimension(value=value, bounds=bounds)
-        ret = vdim.get_between(3, 4.5, use_bounds=False)
-        self.assertNumpyAll(ret.value, np.array([3.]))
-        self.assertNumpyAll(ret.bounds, np.array([[2., 4.]]))

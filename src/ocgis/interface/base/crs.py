@@ -1,19 +1,18 @@
-from copy import copy, deepcopy
-import tempfile
-import itertools
 import abc
+import itertools
+import tempfile
+from copy import copy, deepcopy
 
 import numpy as np
 from fiona.crs import from_string, to_string
 from shapely.geometry import Point, Polygon
-
 from shapely.geometry.base import BaseMultipartGeometry
 
-from ocgis.util.environment import osr
 from ocgis import constants
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
-from ocgis.util.spatial.wrap import Wrapper
+from ocgis.util.environment import osr
 from ocgis.util.helpers import iter_array
+from ocgis.util.spatial.wrap import Wrapper
 
 SpatialReference = osr.SpatialReference
 
@@ -637,23 +636,23 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
                            'col': {'name': spatial.grid.col.name,
                                    'meta': spatial.grid.col.meta,
                                    'attrs': spatial.grid.col.attrs}}
-        # a previously transformed rotated pole spatial dimension will not have row and columns. these should be
-        # available in the state dictionary
+        # A previously transformed rotated pole spatial dimension will not have row and columns. these should be
+        # available in the state dictionary.
         except AttributeError:
             rc_original = self._inverse_state['rc_original']
 
-        # if this metadata information is not stored, put in the state dictionary to use for inverse transformations
+        # If this metadata information is not stored, put in the state dictionary to use for inverse transformations.
         if 'rc_original' not in self._inverse_state:
             self._inverse_state['rc_original'] = rc_original
 
         new_spatial.grid = self._get_rotated_pole_transformation_for_grid_(new_spatial.grid, inverse=inverse,
                                                                            rc_original=rc_original)
 
-        # ensure the masks are updated appropriately
+        # Ensure masks are updated appropriately.
         new_spatial.grid.value.mask = spatial.grid.value.mask.copy()
         new_spatial.grid.uid.mask = spatial.grid.uid.mask.copy()
 
-        # the crs has been transformed, so updated accordingly
+        # The CRS has been transformed, so update accordingly.
         if inverse:
             new_spatial.crs = deepcopy(self)
         else:

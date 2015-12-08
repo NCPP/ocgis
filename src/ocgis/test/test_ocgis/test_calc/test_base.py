@@ -1,17 +1,17 @@
 from copy import deepcopy
 
 import numpy as np
-from cfunits import Units
 
+from ocgis import constants, OcgOperations, FunctionRegistry
 from ocgis import env
+from ocgis.api.parms.definition_helpers import MetadataAttributes
+from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
+    AbstractMultivariateFunction, AbstractParameterizedFunction
+from ocgis.exc import UnitsValidationError, DefinitionValidationError
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
 from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
-    AbstractMultivariateFunction, AbstractParameterizedFunction
-from ocgis import constants, OcgOperations, FunctionRegistry
-from ocgis.exc import UnitsValidationError, DefinitionValidationError
-from ocgis.api.parms.definition_helpers import MetadataAttributes
+from ocgis.util.units import get_units_object
 
 
 class FooNeedsUnits(AbstractUnivariateFunction):
@@ -32,9 +32,9 @@ class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
     required_units = ['K', 'kelvin']
     standard_name = ''
     long_name = ''
-    
-    def calculate(self,values):
-        return np.ma.mean(values,axis=0)
+
+    def calculate(self, values):
+        return np.ma.mean(values, axis=0)
 
 
 class FooSampleSize(FooNeedsUnitsSet):
@@ -195,25 +195,25 @@ class TestAbstractParameterizedFunction(AbstractTestField):
     def test_validate_definition(self):
         definition = {'func': 'foo_pf', 'name': 'food'}
 
-        # keywords are required
+        # Keywords are required.
         with self.assertRaises(DefinitionValidationError):
             FooAbstractParameterizedFunction.validate_definition(definition)
 
-        # these are the wrong keyword arguments
+        # These are the wrong keyword arguments.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argC': 'never'}}
         with self.assertRaises(DefinitionValidationError):
             FooAbstractParameterizedFunction.validate_definition(definition)
 
-        # one parameter passed
+        # One parameter passed.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
         FooAbstractParameterizedFunction.validate_definition(definition)
 
-        # this function class has some required parameters
+        # This function class has some required parameters.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
         with self.assertRaises(DefinitionValidationError):
             FooAbstractParameterizedFunctionRequiredParameters.validate_definition(definition)
 
-        # test with required variables present
+        # Test with required variables present.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argB': 5, 'tas': None}}
         FooAbstractParameterizedFunctionRequiredParametersMultivariate.validate_definition(definition)
 
@@ -230,7 +230,7 @@ class TestAbstractUnivariateFunction(AbstractTestField):
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         field.variables['tmax'].units = 'celsius'
-        self.assertEqual(field.variables['tmax'].cfunits, Units('celsius'))
+        self.assertEqual(field.variables['tmax'].cfunits, get_units_object('celsius'))
         fnu = FooNeedsUnits(field=field)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()
@@ -241,14 +241,14 @@ class TestAbstractUnivariateSetFunction(AbstractTestField):
     def test_validate_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
-        fnu = FooNeedsUnitsSet(field=field,tgd=tgd)
+        fnu = FooNeedsUnitsSet(field=field, tgd=tgd)
         fnu.execute()
         
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
         field.variables['tmax'].units = 'celsius'
-        self.assertEqual(field.variables['tmax'].cfunits,Units('celsius'))
+        self.assertEqual(field.variables['tmax'].cfunits, get_units_object('celsius'))
         fnu = FooNeedsUnitsSet(field=field,tgd=tgd)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()

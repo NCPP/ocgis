@@ -1,13 +1,14 @@
-from collections import OrderedDict
 import os
 import re
+from collections import OrderedDict
+
 import numpy as np
 
 import ocgis
+from ocgis import Inspect, RequestDataset
 from ocgis.test.base import nc_scope, TestBase
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
-from ocgis import Inspect, RequestDataset
 from ocgis.util.itester import itr_products_keywords
 
 
@@ -149,17 +150,17 @@ class TestInspect2(TestSimpleBase):
     def test_unknown_calendar_attribute(self):
         """Test a calendar attribute with an unknown calendar attribute."""
 
-        # path to the test data file
+        # Path to the test data file.
         out_nc = os.path.join(self.current_dir_output, self.fn)
 
-        # case of a calendar being set a bad value but read anyway
+        # Case of a calendar being set a bad value but read anyway.
         with nc_scope(out_nc, 'a') as ds:
             ds.variables['time'].calendar = 'foo'
 
         rd = ocgis.RequestDataset(uri=out_nc, variable='foo')
         field = rd.get()
         self.assertEqual(field.temporal.calendar, 'foo')
-        # calendar is only access when the float values are converted to datetime objects
+        # Calendar is only accessed when the float values are converted to datetime objects.
         with self.assertRaises(ValueError):
             field.temporal.value_datetime
         # now overload the value and ensure the field datetimes may be loaded
@@ -169,17 +170,17 @@ class TestInspect2(TestSimpleBase):
         self.assertEqual(field.temporal.calendar, 'standard')
         field.temporal.value_datetime
 
-        # case of a missing calendar attribute altogether
+        # Case of a missing calendar attribute.
         with nc_scope(out_nc, 'a') as ds:
             ds.variables['time'].delncattr('calendar')
         rd = ocgis.RequestDataset(uri=out_nc, variable='foo')
         self.assertEqual(rd.t_calendar, None)
         self.assertIsInstance(rd.inspect_as_dct(), OrderedDict)
-        # write the data to a netCDF and ensure the calendar is written.
+        # Write the data to a netCDF and ensure the calendar is written.
         ret = ocgis.OcgOperations(dataset=rd, output_format='nc').execute()
         with nc_scope(ret) as ds:
             self.assertEqual(ds.variables['time'].calendar, 'standard')
             self.assertEqual(ds.variables['time_bnds'].calendar, 'standard')
         field = rd.get()
-        # the standard calendar name should be available at the dataset level
+        # The standard calendar name should be available at the dataset level.
         self.assertEqual(field.temporal.calendar, 'standard')

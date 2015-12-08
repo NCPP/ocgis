@@ -1,20 +1,21 @@
-from collections import OrderedDict
-from copy import deepcopy
 import inspect
+import itertools
 import logging
 import os
-import itertools
 import re
+from collections import OrderedDict
+from copy import deepcopy
 
-from ocgis.api.request.driver.vector import DriverVector
-from ocgis.interface.base.field import Field
+from ocgis import env
 from ocgis.api.collection import AbstractCollection
 from ocgis.api.request.driver.nc import DriverNetcdf
+from ocgis.api.request.driver.vector import DriverVector
 from ocgis.exc import RequestValidationError, NoUnitsError, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CFWGS84
+from ocgis.interface.base.field import Field
 from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple
-from ocgis import env
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.util.units import get_units_object, get_are_units_equivalent
 
 
 class RequestDataset(object):
@@ -657,19 +658,18 @@ def get_is_none(value):
 
 
 def validate_units(keyword, sequence):
-    from cfunits import Units
+    # Check all units are convertible into the appropriate backend.
     try:
-        map(Units, sequence)
+        map(get_units_object, sequence)
     except ValueError as e:
         raise RequestValidationError(keyword, e.message)
 
 
 def validate_unit_equivalence(src_units, dst_units):
-    # import the cfunits package and attempt to construct a units object.
-    # if this is okay, save the units string
-    from cfunits import Units
+    from ocgis.api.parms.definition import ConformUnitsTo
+
     for s, d in itertools.izip(src_units, dst_units):
-        if not Units(s).equivalent(Units(d)):
-            raise RequestValidationError('conform_units_to',
-             'The units specified in "conform_units_to" ("{0}") are not equivalent to the source units "{1}".'.\
-             format(d.format(names=True), s.format(names=True)))
+        s, d = map(get_units_object, (s, d))
+        if not get_are_units_equivalent((s, d)):
+            msg = 'The units specified in "{2}" ("{0}") are not equivalent to the source units "{1}".'
+            raise RequestValidationError(ConformUnitsTo.name, msg.format(s, d, ConformUnitsTo.name))

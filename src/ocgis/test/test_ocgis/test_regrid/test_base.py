@@ -1,18 +1,18 @@
-from copy import deepcopy
 import itertools
+from copy import deepcopy
 
 import ESMF
-from shapely.geometry import Polygon, MultiPolygon
 import numpy as np
+from shapely.geometry import Polygon, MultiPolygon
 
-from ocgis.conv.esmpy import ESMPyConverter
-from ocgis.api.collection import SpatialCollection
-from ocgis.interface.base.dimension.temporal import TemporalDimension
-from ocgis.interface.base.dimension.base import VectorDimension
 import ocgis
+from ocgis.api.collection import SpatialCollection
+from ocgis.conv.esmpy import ESMPyConverter
 from ocgis.exc import RegriddingError, CornersInconsistentError, CannotFormatTimeError
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, Spherical
+from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
+from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.interface.base.field import Field
 from ocgis.interface.base.variable import VariableCollection, Variable
 from ocgis.regrid.base import check_fields_for_regridding, iter_regridded_fields, get_esmf_grid_from_sdim, \
@@ -307,23 +307,20 @@ class TestRegrid(TestSimpleBase):
             self.assertIsNone(regridded.spatial.grid.corners)
             self.assertIsNone(regridded.spatial.geom.polygon)
 
-        # check that the destination grid is not modified
+        # Check that the destination grid is not modified.
         self.assertIsNotNone(destination_field.spatial.grid.row.bounds)
 
-        # remove corners from the destination and make sure that this is caught when with_corners is True
+        # Remove corners from the destination and make sure that this is caught when with_corners is True.
         dest = deepcopy(destination_field).spatial
-        dest.grid.value
-        dest.grid.row.bounds
-        dest.grid.row.bounds = None
-        dest.grid.col.bounds
-        dest.grid.col.bounds = None
+        dest.grid.row.remove_bounds()
+        dest.grid.col.remove_bounds()
         dest.grid._corners = None
         self.assertIsNone(dest.grid.corners)
         with self.assertRaises(CornersInconsistentError):
             list(iter_regridded_fields(sources, dest, with_corners=True))
-        # if this is now false, then there should be no problem as only centroids are used
+        # If this is now false, then there should be no problem as only centroids are used.
         list(iter_regridded_fields(sources, dest, with_corners=False))
-        # this is also the case with 'choose'
+        # This is also the case with 'choose'.
         list(iter_regridded_fields(sources, dest, with_corners='choose'))
 
     def test_iter_regridded_fields_differing_crs(self):
@@ -475,10 +472,8 @@ class TestRegrid(TestSimpleBase):
             sdim = field.spatial
 
             if not h:
-                sdim.grid.row.bounds
-                sdim.grid.col.bounds
-                sdim.grid.row.bounds = None
-                sdim.grid.col.bounds = None
+                sdim.grid.row.remove_bounds()
+                sdim.grid.col.remove_bounds()
                 self.assertIsNone(sdim.grid.row.bounds)
                 self.assertIsNone(sdim.grid.col.bounds)
 

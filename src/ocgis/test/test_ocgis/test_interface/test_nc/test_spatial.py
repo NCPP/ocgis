@@ -1,24 +1,26 @@
+import numpy as np
+
 from ocgis import RequestDataset
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension
-from ocgis.interface.base.variable import AbstractSourcedVariable
 from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension
 from ocgis.interface.nc.spatial import NcSpatialGridDimension
 from ocgis.test.base import TestBase
-import numpy as np
 
 
 class TestNcSpatialGridDimension(TestBase):
+    def get(self, **kwargs):
+        kwargs['row'] = kwargs.pop('row', VectorDimension(value=[4, 5]))
+        kwargs['col'] = kwargs.pop('col', VectorDimension(value=[6, 7, 8]))
+        return NcSpatialGridDimension(**kwargs)
 
     def test_init(self):
-        self.assertEqual(NcSpatialGridDimension.__bases__, (AbstractSourcedVariable, SpatialGridDimension))
-
-        row = VectorDimension(value=[4, 5])
-        col = VectorDimension(value=[6, 7, 8])
-        NcSpatialGridDimension(row=row, col=col)
+        self.assertEqual(NcSpatialGridDimension.__bases__, (SpatialGridDimension,))
+        ngd = self.get()
+        self.assertIsInstance(ngd, NcSpatialGridDimension)
 
     def test_getitem(self):
         src_idx = {'row': np.array([5, 6, 7, 8]), 'col': np.array([9, 10, 11])}
-        grid = NcSpatialGridDimension(src_idx=src_idx, data='foo')
+        grid = NcSpatialGridDimension(src_idx=src_idx, request_dataset='foo')
         self.assertIsNone(grid._uid)
         sub = grid[1:3, 1]
         self.assertNumpyAll(sub._src_idx['col'], np.array([10]))
@@ -26,14 +28,9 @@ class TestNcSpatialGridDimension(TestBase):
         for k, v in src_idx.iteritems():
             self.assertNumpyAll(grid._src_idx[k], v)
 
-    def test_format_src_idx(self):
-        ref = NcSpatialGridDimension._format_src_idx_
-        value = {'row': np.array([5]), 'col': np.array([6])}
-        self.assertEqual(value, ref(value))
-
     def test_get_uid(self):
         src_idx = {'row': np.array([5, 6, 7, 8]), 'col': np.array([9, 10, 11])}
-        grid = NcSpatialGridDimension(src_idx=src_idx, data='foo')
+        grid = NcSpatialGridDimension(src_idx=src_idx, request_dataset='foo')
         uid1 = grid._get_uid_()
         self.assertEqual(uid1.shape, (4, 3))
 
@@ -44,12 +41,12 @@ class TestNcSpatialGridDimension(TestBase):
 
         self.assertNumpyAll(uid1, uid2)
 
-    def test_set_value_from_source(self):
+    def test_get_value_from_source(self):
         path = self.get_netcdf_path_no_row_column()
         rd = RequestDataset(path)
 
         src_idx = {'row': np.array([0, 1]), 'col': np.array([0])}
-        grid = NcSpatialGridDimension(data=rd, src_idx=src_idx, name_row='yc', name_col='xc')
+        grid = NcSpatialGridDimension(request_dataset=rd, src_idx=src_idx, name_row='yc', name_col='xc')
         self.assertEqual(grid.value.shape, (2, 2, 1))
         with self.nc_scope(path) as ds:
             var_row = ds.variables[grid.name_row]
@@ -58,7 +55,7 @@ class TestNcSpatialGridDimension(TestBase):
             self.assertNumpyAll(var_col[:, 0].reshape(2, 1), grid.value[1].data)
 
         src_idx = {'row': np.array([0]), 'col': np.array([1])}
-        grid = NcSpatialGridDimension(data=rd, src_idx=src_idx, name_row='yc', name_col='xc')
+        grid = NcSpatialGridDimension(request_dataset=rd, src_idx=src_idx, name_row='yc', name_col='xc')
         self.assertIsNone(grid._value)
         self.assertIsNone(grid._corners)
         self.assertEqual(grid.value.shape, (2, 1, 1))
@@ -69,7 +66,7 @@ class TestNcSpatialGridDimension(TestBase):
 
     def test_shape(self):
         src_idx = {'row': np.array([5, 6, 7, 8]), 'col': np.array([9, 10, 11])}
-        grid = NcSpatialGridDimension(src_idx=src_idx, data='foo')
+        grid = NcSpatialGridDimension(src_idx=src_idx, request_dataset='foo')
         self.assertEqual(grid.shape, (4, 3))
         self.assertIsNone(grid._value)
 
@@ -78,11 +75,19 @@ class TestNcSpatialGridDimension(TestBase):
         grid = NcSpatialGridDimension(row=row, col=col)
         self.assertEqual(grid.shape, (2, 3))
 
+    def test_src_idx(self):
+        src_idx = {'row': np.array([5]), 'col': np.array([6])}
+        ngd = self.get(src_idx=src_idx)
+        self.assertEqual(ngd._src_idx, src_idx)
+
+        # Test assertions.
+        with self.assertRaises(AssertionError):
+            self.get(src_idx=[])
 
     def test_validate(self):
         with self.assertRaises(ValueError):
             NcSpatialGridDimension()
-        NcSpatialGridDimension(data='foo')
+        NcSpatialGridDimension(request_dataset='foo')
 
     def test_value(self):
         row = VectorDimension(value=[4, 5])

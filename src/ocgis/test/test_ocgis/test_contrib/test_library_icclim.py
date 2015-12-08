@@ -2,36 +2,34 @@ import json
 from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
+from netCDF4 import date2num
 from unittest import SkipTest
 
-from netCDF4 import date2num
-from numpy.ma import MaskedArray
 import numpy as np
-
 from icclim.percentile_dict import get_percentile_dict
+from numpy.ma import MaskedArray
 
-from ocgis.calc.temporal_groups import SeasonalTemporalGroup
-from ocgis.interface.base.dimension.temporal import TemporalDimension
+import ocgis
+from ocgis.api.operations import OcgOperations
+from ocgis.api.parms.definition import Calc, CalcGrouping
 from ocgis.calc.base import AbstractParameterizedFunction
-from ocgis.interface.base.variable import Variable, VariableCollection
-from ocgis.interface.base.field import Field
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis.interface.nc.temporal import NcTemporalDimension
-from ocgis.test import strings
-from ocgis.test.base import TestBase, nc_scope, attr
+from ocgis.calc.library.register import FunctionRegistry, register_icclim
+from ocgis.calc.library.statistics import Mean
+from ocgis.calc.library.thresholds import Threshold
+from ocgis.calc.temporal_groups import SeasonalTemporalGroup
+from ocgis.contrib import library_icclim
 from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, IcclimTN, \
     IcclimTX, AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction, IcclimTG10p, \
     AbstractIcclimPercentileIndice, IcclimCD
-from ocgis.calc.library.statistics import Mean
-from ocgis.api.parms.definition import Calc, CalcGrouping
-from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
-from ocgis.api.operations import OcgOperations
-from ocgis.calc.library.thresholds import Threshold
-import ocgis
+from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
+from ocgis.interface.base.dimension.temporal import TemporalDimension
+from ocgis.interface.base.field import Field
+from ocgis.interface.base.variable import Variable, VariableCollection
+from ocgis.test import strings
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import itersubclasses
-from ocgis.contrib import library_icclim
 from ocgis.util.large_array import compute
 
 
@@ -187,7 +185,7 @@ class TestCD(TestBase):
         calendar = 'standard'
         units = 'days since 1500-01-01'
         time_series = date2num(time_series, units, calendar)
-        tdim = NcTemporalDimension(value=time_series, calendar=calendar, units=units)
+        tdim = TemporalDimension(value=time_series, calendar=calendar, units=units)
         field = Field(temporal=tdim, spatial=sdim, variables=VariableCollection())
         var_tas = Variable(name='tas', value=np.random.rand(*field.shape))
         value_pr = np.random.lognormal(0.0, 0.5, field.shape)

@@ -1,17 +1,17 @@
-from collections import OrderedDict
-from copy import deepcopy
 import abc
 import itertools
 import logging
+from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
 
+from ocgis import constants
 from ocgis import env
+from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.interface.base.variable import DerivedVariable, VariableCollection
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis import constants
-from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 
 
@@ -330,8 +330,8 @@ class AbstractFunction(object):
         else:
             data = None
 
-        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents, data=data,
-                             dtype=dtype, fill_value=fill_value, attrs=attrs)
+        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents,
+                             request_dataset=data, dtype=dtype, fill_value=fill_value, attrs=attrs)
 
         # allow more complex manipulations of metadata
         self.set_variable_metadata(dv)

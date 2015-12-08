@@ -1,19 +1,19 @@
+import itertools
 import pickle
 import unittest
-import itertools
 
 import numpy as np
-from cfunits import Units
 
+import ocgis
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
 from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.variable import DerivedVariable, Variable
 from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-import ocgis
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.large_array import compute
+from ocgis.util.units import get_units_object
 
 
 class TestDailyPercentile(AbstractTestField):
@@ -179,16 +179,6 @@ class TestFrequencyPercentile(AbstractTestField):
 
 
 class TestMean(AbstractTestField):
-    def test_units_are_maintained(self):
-        field = self.get_field(with_value=True, month_count=2)
-        self.assertEqual(field.variables['tmax'].cfunits, Units('kelvin'))
-        grouping = ['month']
-        tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=False,
-                  dtype=np.float64)
-        dvc = mu.execute()
-        self.assertEqual(dvc['my_mean'].cfunits, Units('kelvin'))
-
     def test(self):
         field = self.get_field(with_value=True, month_count=2)
         grouping = ['month']
@@ -232,8 +222,7 @@ class TestMean(AbstractTestField):
 
     def test_two_variables(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
-                                              name='tmin', alias='tmin'))
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64)
@@ -243,8 +232,7 @@ class TestMean(AbstractTestField):
 
     def test_two_variables_sample_size(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
-                                              name='tmin', alias='tmin'))
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64, calc_sample_size=True)
@@ -254,20 +242,30 @@ class TestMean(AbstractTestField):
         self.assertEqual(set(['my_mean_tmax', 'n_my_mean_tmax', 'my_mean_tmin', 'n_my_mean_tmin']),
                          set(ret.keys()))
 
+    def test_units_are_maintained(self):
+        field = self.get_field(with_value=True, month_count=2)
+        units_kelvin = get_units_object('kelvin')
+        self.assertEqual(field.variables['tmax'].cfunits, units_kelvin)
+        grouping = ['month']
+        tgd = field.temporal.get_grouping(grouping)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=False,
+                  dtype=np.float64)
+        dvc = mu.execute()
+        self.assertEqual(dvc['my_mean'].cfunits, units_kelvin)
+
     def test_file_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         field = field[:, 10:20, :, 20:30, 40:50]
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        ## value should not be loaded at this point
+        # Value should not be loaded at this point.
         self.assertEqual(field.variables['tas']._value, None)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', file_only=True)
         ret = mu.execute()
-        ## value should still not be loaded
+        # Value should still not be loaded.
         self.assertEqual(field.variables['tas']._value, None)
-        ## there should be no value in the variable present and attempts to load
-        ## it should fail.
+        # There should be no value in the variable present and attempts to load it should fail.
         with self.assertRaises(Exception):
             ret['my_mean_tas'].value
 

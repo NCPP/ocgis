@@ -1,27 +1,26 @@
-from collections import deque, OrderedDict
 import itertools
+from collections import deque, OrderedDict
 from copy import copy
 from warnings import warn
 
+import fiona
 import numpy as np
+from shapely import wkb
+from shapely.geometry.geo import mapping, shape
+from shapely.geometry.multipoint import MultiPoint
+from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 from shapely.prepared import prep
-from shapely.geometry.multipoint import MultiPoint
-from shapely.geometry.multipolygon import MultiPolygon
 
-from shapely import wkb
-import fiona
-from shapely.geometry.geo import mapping, shape
-
-from ocgis.util.environment import ogr
 import base
+from ocgis import constants, env
+from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem, WGS84, CFRotatedPole
+from ocgis.util.environment import ogr
 from ocgis.util.helpers import iter_array, get_formatted_slice, get_reduced_slice, get_trimmed_array_by_mask, \
     get_added_slice, make_poly, set_name_attributes, get_extrapolated_corners_esmf, get_ocgis_corners_from_esmf_corners, \
     get_none_or_2d
-from ocgis import constants, env
-from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.util.ugrid.helpers import get_update_feature, write_netcdf
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
@@ -599,10 +598,9 @@ class SpatialDimension(base.AbstractUidDimension):
 
                 self.crs = to_crs
         else:
-            _crs = self.crs
             try:
                 """:type _crs: ocgis.interface.base.crs.CFRotatedPole"""
-                new_spatial = _crs.get_rotated_pole_transformation(self)
+                new_spatial = self.crs.get_rotated_pole_transformation(self)
             # likely an inverse transformation if the destination crs is rotated pole.
             except AttributeError:
                 new_spatial = to_crs.get_rotated_pole_transformation(self, inverse=True)
@@ -670,7 +668,6 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
     _attrs_slice = None
     _name_row = None
 
-
     def __init__(self, *args, **kwargs):
         self._corners = None
 
@@ -688,7 +685,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
 
         self._validate_()
 
-        # set names of row and column if available
+        # Set names of row and column if available.
         name_mapping = {self.row: 'yc', self.col: 'xc'}
         set_name_attributes(name_mapping)
 
@@ -971,16 +968,6 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
                 msg = 'Without a value, a row and column dimension are required.'
                 raise ValueError(msg)
 
-    def _format_private_value_(self, value):
-        if value is None:
-            ret = None
-        else:
-            assert len(value.shape) == 3
-            assert value.shape[0] == 2
-            assert isinstance(value, np.ma.MaskedArray)
-            ret = value
-        return ret
-
     def _get_uid_(self, shp=None):
         if shp is None:
             if self._value is None:
@@ -992,16 +979,23 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
         return ret
 
     def _get_value_(self):
-        # assert types of row and column are equivalent
+        # Assert types of row and column are equivalent.
         if self.row.value.dtype != self.col.value.dtype:
             self.col._value = self.col._value.astype(self.row.value.dtype)
-        # fill the centroids
+        # Fill the centroids.
         fill = np.empty((2, self.row.shape[0], self.col.shape[0]), dtype=self.row.value.dtype)
         fill = np.ma.array(fill, mask=False)
         col_coords, row_coords = np.meshgrid(self.col.value, self.row.value)
         fill[0, :, :] = row_coords
         fill[1, :, :] = col_coords
         return fill
+
+    def _set_value_(self, value):
+        if value is not None:
+            assert len(value.shape) == 3
+            assert value.shape[0] == 2
+            assert isinstance(value, np.ma.MaskedArray)
+        super(SpatialGridDimension, self)._set_value_(value)
 
 
 class SpatialGeometryDimension(base.AbstractUidDimension):
@@ -1154,40 +1148,37 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         :returns: :class:`ocgis.interface.base.dimension.spatial.SpatialGeometryPointDimension`
         """
 
-        # only polygons are acceptable for subsetting. if a point is required, buffer it.
+        # Only polygons are acceptable for subsetting.
         if type(polygon) not in (Polygon, MultiPolygon):
             raise NotImplementedError(type(polygon))
 
-        # return a shallow copy of self
         ret = copy(self)
-        # create the fill array and reference the mask. this is the output geometry value array.
+        # Create the fill array and reference the mask. This is the output geometry value array.
         fill = np.ma.array(ret.value, mask=True)
         ref_fill_mask = fill.mask
 
-        # this is the path if a spatial index is used.
         if use_spatial_index:
-            # keep this as a local import as it is not a required dependency
+            # Keep this as a local import as it is not a required dependency.
             from ocgis.util.spatial.index import SpatialIndex
-            # create the index object and reference import members
+            # Create the index object and reference import members.
             si = SpatialIndex()
             _add = si.add
             _value = self.value
             _uid = self.uid
-            # add the geometries to the index
+            # Add the geometries to the index.
             for (ii, jj), v in iter_array(_value, return_value=True):
                 _add(_uid[ii, jj], v)
-            # this mapping simulates a dictionary for the item look-ups from two-dimensional arrays
+            # This mapping simulates a dictionary for the item look-ups from two-dimensional arrays.
             geom_mapping = GeomMapping(self.uid, self.value)
             _uid = ret.uid
-            # return the identifiers of the objects intersecting the target geometry and update the mask accordingly
+            # Return the identifiers of the objects intersecting the target geometry and update the mask accordingly.
             for intersect_id in si.iter_intersects(polygon, geom_mapping, keep_touches=False):
                 sel = _uid == intersect_id
                 ref_fill_mask[sel] = False
-        # this is the slower simpler case
         else:
-            # prepare the polygon for faster spatial operations
+            # Prepare the polygon for faster spatial operations.
             prepared = prep(polygon)
-            # we are not keeping touches at this point. remember the mask is an inverse.
+            # We are not keeping touches at this point. Remember the mask is an inverse.
             for (ii, jj), geom in iter_array(self.value, return_value=True):
                 bool_value = False
                 if prepared.intersects(geom):
@@ -1197,13 +1188,13 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
                     bool_value = True
                 ref_fill_mask[ii, jj] = bool_value
 
-        # if everything is masked, this is an empty subset
+        # If everything is masked, this is an empty subset.
         if ref_fill_mask.all():
             raise EmptySubsetError(self.name)
 
-        # set the returned value to the fill array
+        # Set the returned value to the fill array.
         ret._value = fill
-        # also update the unique identifier array
+        # Also update the unique identifier array.
         ret.uid = np.ma.array(ret.uid, mask=fill.mask.copy())
 
         return ret
@@ -1214,7 +1205,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         :type from_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
         """
 
-        # be sure and project masked geometries to maintain underlying geometries for masked values.
+        # Be sure and project masked geometries to maintain underlying geometries.
         r_value = self.value.data
         r_loads = wkb.loads
         to_sr = to_crs.sr
@@ -1244,19 +1235,6 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
     def _write_fiona_prep_geom_(geom):
         return geom
 
-    def _format_private_value_(self, value):
-        if value is not None:
-            try:
-                assert (len(value.shape) == 2)
-                ret = value
-            except (AssertionError, AttributeError):
-                msg = 'Geometry values must come in as 2-d NumPy arrays to avoid array interface modifications by shapely.'
-                raise ValueError(msg)
-        else:
-            ret = None
-        ret = self._get_none_or_array_(ret, masked=True)
-        return ret
-
     def _format_slice_state_(self, state, slc):
         state._value = get_none_or_2d(state._value)
         return state
@@ -1272,7 +1250,7 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
         return fill
 
     def _get_value_(self):
-        # we are interested in creating geometries for all the underlying coordinates regardless if the data is masked
+        # Create geometries for all the underlying coordinates regardless if the data is masked.
         ref_grid = self.grid.value.data
 
         fill = self._get_geometry_fill_()
@@ -1284,6 +1262,17 @@ class SpatialGeometryPointDimension(base.AbstractUidValueDimension):
             r_data[idx_row, idx_col] = pt
         return fill
 
+    def _set_value_(self, value):
+        if value is not None:
+            try:
+                assert len(value.shape) == 2
+            except (AssertionError, AttributeError):
+                msg = ('Geometry values must come in as 2-d NumPy arrays to avoid array interface modifications by '
+                       'shapely.')
+                raise ValueError(msg)
+        value = base.get_none_or_array(value, self._ndims, masked=True)
+        super(SpatialGeometryPointDimension, self)._set_value_(value)
+
 
 class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
     _geom_type_default = 'MultiPolygon'
@@ -1293,12 +1282,12 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
         super(SpatialGeometryPolygonDimension, self).__init__(*args, **kwargs)
 
         if self._value is None:
-            # we can construct from a grid dimension having bounds
+            # We can construct from a grid dimension having bounds.
             if self.grid is None:
                 msg = 'A grid dimension is required for constructing a polygon dimension without a value.'
                 raise ValueError(msg)
             else:
-                # corners may also be used to construct polygons. if they are not immediately available, check for
+                # Corners may also be used to construct polygons. If they are not immediately available, check for
                 # bounds are on the row and column.
                 none_bounds_row = self.grid.row is None or self.grid.row.bounds is None
                 none_bounds_col = self.grid.col is None or self.grid.col.bounds is None
@@ -1352,9 +1341,9 @@ class SpatialGeometryPolygonDimension(SpatialGeometryPointDimension):
                 col_min, col_max = ref_col_bounds[idx_col, :].min(), ref_col_bounds[idx_col, :].max()
                 r_data[idx_row, idx_col] = Polygon(
                     [(col_min, row_min), (col_min, row_max), (col_max, row_max), (col_max, row_min)])
-        # the grid dimension may not have row/col or row/col bounds
+        # The grid dimension may not have row/col or row/col bounds.
         except AttributeError:
-            # we want geometries for everything even if masked
+            # We want geometries for everything even if masked.
             corners = self.grid.corners.data
             range_row = range(self.grid.shape[0])
             range_col = range(self.grid.shape[1])

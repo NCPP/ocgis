@@ -1,31 +1,31 @@
-from contextlib import contextmanager
-import unittest
 import abc
-import tempfile
-import subprocess
-import itertools
-import shutil
-from copy import deepcopy, copy
-import os
-from collections import OrderedDict
 import datetime
-import sys
-import warnings
+import itertools
 import netCDF4 as nc
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+import warnings
+from collections import OrderedDict
+from contextlib import contextmanager
+from copy import deepcopy, copy
 
-import numpy as np
 import fiona
+import numpy as np
 
-from ocgis.util.geom_cabinet import GeomCabinet
-from ocgis.api.collection import SpatialCollection
-from ocgis.interface.base.field import Field
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis import env
 import ocgis
+from ocgis import env
+from ocgis.api.collection import SpatialCollection
 from ocgis.api.request.base import RequestDataset
 from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension
+from ocgis.interface.base.field import Field
 from ocgis.interface.base.variable import Variable
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -38,6 +38,7 @@ Definitions for various "attrs":
  * esmpy7: tests requiring a branch version of ESMF
  * simple: simple tests designed to test core functionality requiring no datasets
  * optional: tests that use optional dependencies
+ * data: test requires a data file
 
 nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis
 """

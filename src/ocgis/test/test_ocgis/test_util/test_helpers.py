@@ -1,24 +1,24 @@
-from collections import OrderedDict
-import os
 import itertools
+import os
+from collections import OrderedDict
 from datetime import datetime as dt, datetime
 
-import numpy as np
 import fiona
+import numpy as np
 from shapely.geometry import Point, mapping
 
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
-from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
 from ocgis.exc import SingleElementError, ShapeError
+from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
+from ocgis.test.base import TestBase
 from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
     get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask,\
     get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
     get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, get_is_increasing, \
     get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
-    add_shapefile_unique_identifier, get_tuple
-from ocgis.test.base import TestBase
-from ocgis.util.geom_cabinet import GeomCabinetIterator
+    add_shapefile_unique_identifier, get_tuple, set_new_value_mask_for_field
 
 
 class Test1(AbstractTestSpatialDimension):
@@ -495,63 +495,71 @@ class Test2(TestBase):
         self.assertEqual(a.name, 'evil_twin')
         self.assertEqual(b.name, 'harbringer')
 
+    def test_set_new_value_mask_for_field(self):
+        field = self.get_field()
+        self.assertFalse(field.variables.first().value.mask.any())
+        mask = np.array([True, False, True, False]).reshape(2, 2)
+        set_new_value_mask_for_field(field, mask)
+        self.assertTrue(field.variables.first().value.mask.any())
+        self.assertEqual(field.variables.first().value.mask.sum(), 4)
+
     def test_validate_time_subset(self):
-        time_range = [dt(2000,1,1),dt(2001,1,1)]
-        self.assertTrue(validate_time_subset(time_range,{'year':[2000,2001]}))
-        self.assertFalse(validate_time_subset(time_range,{'year':[2000,2001,2002]}))
-        self.assertTrue(validate_time_subset(time_range,{'month':[6,7,8]}))
-        self.assertTrue(validate_time_subset(time_range,{'month':[6,7,8],'year':[2000]}))
-        self.assertFalse(validate_time_subset(time_range,{'month':[6,7,8],'year':[2008]}))
-        self.assertFalse(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],{'month':[6,7,8],'year':[2008]}))
-        self.assertTrue(validate_time_subset([dt(2000,1,1),dt(2000,2,1)],None))
+        time_range = [dt(2000, 1, 1), dt(2001, 1, 1)]
+        self.assertTrue(validate_time_subset(time_range, {'year': [2000, 2001]}))
+        self.assertFalse(validate_time_subset(time_range, {'year': [2000, 2001, 2002]}))
+        self.assertTrue(validate_time_subset(time_range, {'month': [6, 7, 8]}))
+        self.assertTrue(validate_time_subset(time_range, {'month': [6, 7, 8], 'year': [2000]}))
+        self.assertFalse(validate_time_subset(time_range, {'month': [6, 7, 8], 'year': [2008]}))
+        self.assertFalse(validate_time_subset([dt(2000, 1, 1), dt(2000, 2, 1)], {'month': [6, 7, 8], 'year': [2008]}))
+        self.assertTrue(validate_time_subset([dt(2000, 1, 1), dt(2000, 2, 1)], None))
 
     def test_iter_array_masked_objects(self):
         """Test when use mask is False and objects are returned. Ensure the object is operable."""
 
         arr = np.ma.array([Point(1, 2), Point(1, 4)], mask=[True, False], dtype=object)
-        for (idx, ), obj in iter_array(arr, use_mask=False, return_value=True):
+        for (_,), obj in iter_array(arr, use_mask=False, return_value=True):
             self.assertEqual(obj.x, 1)
 
     def test_iter_array(self):
         arrays = [
-                  1,
-                  [[1,2],[1,2]],
-                  np.array([1,2,3]),
-                  np.array(1),
-                  np.ma.array([1,2,3],mask=False),
-                  np.ma.array([[1,2],[3,4]],mask=[[True,False],[False,True]]),
-                  np.ma.array([[1,2],[3,4]],mask=True),
-                 ]
+            1,
+            [[1, 2], [1, 2]],
+            np.array([1, 2, 3]),
+            np.array(1),
+            np.ma.array([1, 2, 3], mask=False),
+            np.ma.array([[1, 2], [3, 4]], mask=[[True, False], [False, True]]),
+            np.ma.array([[1, 2], [3, 4]], mask=True),
+        ]
         _flag1 = [
-                  True,
-                  False
-                  ]
+            True,
+            False
+        ]
         _flag2 = [
-                  True,
-                  False
-                  ]
-        
-        for arr,flag1,flag2 in itertools.product(arrays,_flag1,_flag2):
-            for ret in iter_array(arr,use_mask=flag1,return_value=flag2):
+            True,
+            False
+        ]
+
+        for arr, flag1, flag2 in itertools.product(arrays, _flag1, _flag2):
+            for _ in iter_array(arr, use_mask=flag1, return_value=flag2):
                 pass
 
-        arr = np.ma.array([1,2,3],mask=True)
+        arr = np.ma.array([1, 2, 3], mask=True)
         ret = list(iter_array(arr))
-        self.assertEqual(len(ret),0)
-        arr = np.ma.array([1,2,3],mask=False)
+        self.assertEqual(len(ret), 0)
+        arr = np.ma.array([1, 2, 3], mask=False)
         ret = list(iter_array(arr))
-        self.assertEqual(len(ret),3)
-        
-        values = np.random.rand(2,2,4,4)
-        mask = np.random.random_integers(0,1,values.shape)
-        values = np.ma.array(values,mask=mask)
+        self.assertEqual(len(ret), 3)
+
+        values = np.random.rand(2, 2, 4, 4)
+        mask = np.random.random_integers(0, 1, values.shape)
+        values = np.ma.array(values, mask=mask)
         for idx in iter_array(values):
             self.assertFalse(values.mask[idx])
-        self.assertEqual(len(list(iter_array(values,use_mask=True))),len(values.compressed()))
-        self.assertEqual(len(list(iter_array(values,use_mask=False))),len(values.data.flatten()))
+        self.assertEqual(len(list(iter_array(values, use_mask=True))), len(values.compressed()))
+        self.assertEqual(len(list(iter_array(values, use_mask=False))), len(values.data.flatten()))
         
     def test_format_bool(self):
-        mmap = {0:False,1:True,'t':True,'True':True,'f':False,'False':False}
-        for key,value in mmap.iteritems():
+        mmap = {0: False, 1: True, 't': True, 'True': True, 'f': False, 'False': False}
+        for key, value in mmap.iteritems():
             ret = format_bool(key)
-            self.assertEqual(ret,value)
+            self.assertEqual(ret, value)

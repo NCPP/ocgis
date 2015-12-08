@@ -1,29 +1,29 @@
-from collections import OrderedDict
-from copy import deepcopy
+import datetime
 import itertools
 import os
 import pickle
 import shutil
+from collections import OrderedDict
+from copy import deepcopy
 from datetime import datetime as dt
-import datetime
 from types import FunctionType
 
 import numpy as np
-from cfunits import Units
 
-from ocgis.api.request.driver.nc import DriverNetcdf
-from ocgis.api.request.driver.vector import DriverVector
-from ocgis.util.geom_cabinet import GeomCabinet
-from ocgis.interface.base.field import Field
-from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError, RequestValidationError
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get_tuple, get_is_none
 import ocgis
 from ocgis import env, constants
-from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
-from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.api.operations import OcgOperations
+from ocgis.api.request.base import RequestDataset, RequestDatasetCollection, get_tuple, get_is_none
+from ocgis.api.request.driver.nc import DriverNetcdf
+from ocgis.api.request.driver.vector import DriverVector
+from ocgis.exc import DefinitionValidationError, NoUnitsError, VariableNotFoundError, RequestValidationError
+from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
+from ocgis.interface.base.field import Field
+from ocgis.test.base import TestBase, nc_scope, attr
+from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.util.helpers import get_iter
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.units import get_units_object, get_conformed_units
 
 
 class Test(TestBase):
@@ -252,7 +252,6 @@ class TestRequestDataset(TestBase):
         rd.alias = ['foo', 'foo2']
         self.assertEqual(rd.alias, ('foo', 'foo2'))
         self.assertEqual(rd.name, 'foo_foo2')
-
         with self.assertRaises(RequestValidationError):
             rd.units = 'crap'
         with self.assertRaises(RequestValidationError):
@@ -347,14 +346,14 @@ class TestRequestDataset(TestBase):
     def test_get_field_nonequivalent_units_in_source_data(self):
         new_path = self.test_data.copy_file('cancm4_tas', self.current_dir_output)
 
-        # put non-equivalent units on the source data and attempto to conform
+        # Put non-equivalent units on the source data and attempt to conform.
         with nc_scope(new_path, 'a') as ds:
             ds.variables['tas'].units = 'coulomb'
         rd = RequestDataset(uri=new_path, variable='tas', conform_units_to='celsius')
         with self.assertRaises(RequestValidationError):
             rd.get()
 
-        # remove units altogether
+        # Remove units altogether.
         with nc_scope(new_path, 'a') as ds:
             ds.variables['tas'].delncattr('units')
         rd = RequestDataset(uri=new_path, variable='tas', conform_units_to='celsius')
@@ -366,19 +365,21 @@ class TestRequestDataset(TestBase):
         preload = [False, True]
         for pre in preload:
             field = rd.get()
-            # conform units argument needs to be attached to a field variable
-            self.assertEqual(field.variables['tas']._conform_units_to, Units('celsius'))
+            # Conform units argument needs to be attached to a field variable.
+            units_celsius = get_units_object('celsius')
+            self.assertEqual(field.variables['tas']._conform_units_to, units_celsius)
             sub = field.get_time_region({'year': [2009], 'month': [5]})
             if pre:
-                # if we wanted to load the data prior to subset then do so and manually perform the units conversion
-                to_test = Units.conform(sub.variables['tas'].value, sub.variables['tas'].cfunits, Units('celsius'))
-            # assert the conform attribute makes it though the subset
-            self.assertEqual(sub.variables['tas']._conform_units_to, Units('celsius'))
+                # If we wanted to load the data prior to subset then do so and manually perform the units conversion.
+                to_test = sub.variables['tas'].value.copy()
+                get_conformed_units(to_test, sub.variables['tas'].cfunits, units_celsius)
+            # Assert the conform attribute makes it though the subset
+            self.assertEqual(sub.variables['tas']._conform_units_to, units_celsius)
             value = sub.variables['tas'].value
             self.assertAlmostEqual(np.ma.mean(value), 5.921925206338206)
             self.assertAlmostEqual(np.ma.median(value), 10.745431900024414)
             if pre:
-                # assert the manually converted array matches the loaded value
+                # Assert the manually converted array matches the loaded value.
                 self.assertNumpyAll(to_test, value)
 
     def test_inspect(self):

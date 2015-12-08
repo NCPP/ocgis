@@ -1,28 +1,27 @@
+import itertools
+import os
 from collections import OrderedDict
 from copy import deepcopy, copy
-import os
-import itertools
 
-from shapely.geometry.geo import box
-import numpy as np
-from shapely import wkt, wkb
 import fiona
+import numpy as np
 from fiona.crs import from_epsg
+from shapely import wkt, wkb
 from shapely.geometry import shape, mapping, Polygon, MultiPoint
-
+from shapely.geometry.geo import box
 from shapely.geometry.point import Point
 
 from ocgis import constants, GeomCabinet, RequestDataset
+from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
+from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole, \
+    WrappableCoordinateReferenceSystem, Spherical
+from ocgis.interface.base.dimension.base import AbstractUidValueDimension
+from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryDimension, \
     SpatialGeometryPolygonDimension, SpatialGridDimension, SpatialGeometryPointDimension, SingleElementRetriever
 from ocgis.test import strings
+from ocgis.test.base import TestBase, attr
 from ocgis.util.helpers import iter_array, make_poly
-from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
-from ocgis.test.base import TestBase
-from ocgis.interface.base.dimension.base import AbstractUidValueDimension
-from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole, \
-    WrappableCoordinateReferenceSystem, Spherical
-from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.ugrid.convert import mesh2_nc_to_fiona
 
@@ -884,6 +883,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         with self.assertRaises(RuntimeError):
             sdim.update_crs(to_crs)
 
+    @attr('data')
     def test_update_crs_rotated_pole(self):
         """Test moving between rotated pole and WGS84."""
 
@@ -894,6 +894,8 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         original_spatial = deepcopy(field.spatial)
         original_crs = copy(field.spatial.crs)
         field.spatial.update_crs(CFWGS84())
+        # Test source indices are copied to the target grid object.
+        self.assertIsNotNone(field.spatial.grid._src_idx)
         self.assertNumpyNotAllClose(original_spatial.grid.value, field.spatial.grid.value)
         field.spatial.update_crs(original_crs)
         self.assertNumpyAllClose(original_spatial.grid.value, field.spatial.grid.value)
@@ -1548,9 +1550,9 @@ class TestSpatialGridDimension(AbstractTestSpatialDimension):
             self.assertEqual(extent, grid.extent_polygon.bounds)
 
     def test_load_from_source_grid_slicing(self):
-        row = VectorDimension(src_idx=[10, 20, 30, 40], name='row', data='foo')
+        row = VectorDimension(src_idx=[10, 20, 30, 40], name='row', request_dataset='foo')
         self.assertEqual(row.name, 'row')
-        col = VectorDimension(src_idx=[100, 200, 300], name='col', data='foo')
+        col = VectorDimension(src_idx=[100, 200, 300], name='col', request_dataset='foo')
         grid = SpatialGridDimension(row=row, col=col, name='grid')
         self.assertEqual(grid.shape, (4, 3))
         grid_slc = grid[1, 2]

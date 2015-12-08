@@ -8,13 +8,12 @@ from decimal import Decimal
 import netcdftime
 import numpy as np
 
-import base
-from ocgis import constants
+from ocgis import constants, VectorDimension
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
 
 
-class TemporalDimension(base.VectorDimension):
+class TemporalDimension(VectorDimension):
     """
     .. note:: Accepts all parameters to :class:`~ocgis.interface.base.dimension.base.VectorDimension`.
 
@@ -36,22 +35,11 @@ class TemporalDimension(base.VectorDimension):
         self._value_numtime = None
         self._bounds_numtime = None
 
-        self.calendar = kwargs.pop('calendar', constants.DEFAULT_TEMPORAL_CALENDAR)
+        self.calendar = kwargs.pop('calendar', None) or constants.DEFAULT_TEMPORAL_CALENDAR
         self.format_time = kwargs.pop('format_time', True)
 
         kwargs['axis'] = kwargs.get('axis') or 'T'
         kwargs['units'] = kwargs.get('units') or constants.DEFAULT_TEMPORAL_UNITS
-
-        if kwargs['units'] == 'day as %Y%m%d.%f':
-            from ocgis.interface.nc.temporal import NcTemporalDimension
-
-            units_original = kwargs['units']
-            units_conform_units_to = kwargs.pop('conform_units_to', None)
-            kwargs['units'] = constants.DEFAULT_TEMPORAL_UNITS
-            td = NcTemporalDimension(*args, **kwargs)
-            td.units = units_original
-            kwargs['value'] = td.value_datetime
-            kwargs['conform_units_to'] = units_conform_units_to
 
         super(TemporalDimension, self).__init__(*args, **kwargs)
 
@@ -77,17 +65,10 @@ class TemporalDimension(base.VectorDimension):
                     self._bounds_numtime = self.bounds
         return self._bounds_numtime
 
-    @base.VectorDimension.conform_units_to.setter
-    def conform_units_to(self, value):
-        base.VectorDimension._conform_units_to_setter_(self, value)
-        if self._conform_units_to is not None:
-            self._conform_units_to = self._conform_units_to.__class__(self._conform_units_to.units,
-                                                                      calendar=self.calendar)
-
     @property
     def cfunits(self):
         ret = super(TemporalDimension, self).cfunits
-        ret = ret.__class__(ret.units, calendar=self.calendar)
+        ret = ret.__class__(str(ret), calendar=self.calendar)
         return ret
 
     @property
@@ -128,16 +109,8 @@ class TemporalDimension(base.VectorDimension):
 
     @property
     def _has_months_units(self):
-        # test if the units are the special case with months in the time units
-        if self.units.startswith('months'):
-            ret = True
-        else:
-            ret = False
-        return ret
-
-    @property
-    def _has_template_units(self):
-        if self.units == 'day as %Y%m%d.%f':
+        # Test if the units are the special case with months in the time units.
+        if str(self.units).startswith('months'):
             ret = True
         else:
             ret = False
@@ -156,28 +129,21 @@ class TemporalDimension(base.VectorDimension):
         :rtype: :class:`numpy.ndarray`
         """
 
-        # if there are month units, call the special procedure to convert those to datetime objects
+        # If there are month units, call the special procedure to convert those to datetime objects.
         if not self._has_months_units:
-            try:
-                arr = np.atleast_1d(nc.num2date(arr, self.units, calendar=self.calendar))
-            except ValueError:
-                # this may be caused by template units
-                if self._has_template_units:
-                    arr = get_datetime_from_template_time_units(arr)
-                else:
-                    raise
-            else:
-                dt = datetime.datetime
-                for idx, t in iter_array(arr, return_value=True):
-                    # attempt to convert times to datetime objects
-                    try:
-                        arr[idx] = dt(t.year, t.month, t.day, t.hour, t.minute, t.second)
-                    # this may fail for some calendars, in that case maintain the instance object returned from
-                    # netcdftime see: http://netcdf4-python.googlecode.com/svn/trunk/docs/netcdftime.netcdftime.datetime-class.html
-                    except ValueError:
-                        arr[idx] = arr[idx]
+            arr = np.atleast_1d(nc.num2date(arr, str(self.units), calendar=self.calendar))
+            dt = datetime.datetime
+            for idx, t in iter_array(arr, return_value=True):
+                # Attempt to convert times to datetime objects.
+                try:
+                    arr[idx] = dt(t.year, t.month, t.day, t.hour, t.minute, t.second)
+                # This may fail for some calendars, in that case maintain the instance object returned from netcdftime.
+                # See: http://netcdf4-python.googlecode.com/svn/trunk/docs/netcdftime.netcdftime.datetime-class.html
+                except ValueError:
+                    arr[idx] = arr[idx]
         else:
-            arr = get_datetime_from_months_time_units(arr, self.units, month_centroid=constants.CALC_MONTH_CENTROID)
+            arr = get_datetime_from_months_time_units(arr, str(self.units),
+                                                      month_centroid=constants.CALC_MONTH_CENTROID)
         return arr
 
     def get_grouping(self, grouping):
@@ -190,13 +156,13 @@ class TemporalDimension(base.VectorDimension):
         :rtype: :class:`~ocgis.interface.base.dimension.temporal.TemporalGroupDimension`
         """
 
-        # there is no need to go through the process of breaking out datetime parts when the grouping is 'all'.
+        # There is no need to go through the process of breaking out datetime parts when the grouping is 'all'.
         if grouping == 'all':
             new_bounds, date_parts, repr_dt, dgroups = self._get_grouping_all_()
-        # the process for getting "unique" seasons is also specialized
+        # The process for getting "unique" seasons is also specialized.
         elif 'unique' in grouping:
             new_bounds, date_parts, repr_dt, dgroups = self._get_grouping_seasonal_unique_(grouping)
-        # for standard groups ("['month']") or seasons across entire time range
+        # For standard groups ("['month']") or seasons across entire time range.
         else:
             new_bounds, date_parts, repr_dt, dgroups = self._get_grouping_other_(grouping)
 
@@ -224,9 +190,9 @@ class TemporalDimension(base.VectorDimension):
         """
 
         try:
-            ret = np.atleast_1d(nc.date2num(arr, self.units, calendar=self.calendar))
+            ret = np.atleast_1d(nc.date2num(arr, str(self.units), calendar=self.calendar))
         except (ValueError, TypeError):
-            # special behavior for conversion of time units with months
+            # Special behavior for conversion of time units with months.
             if self._has_months_units:
                 ret = get_num_from_months_time_units(arr, self.units, dtype=None)
             else:
@@ -241,7 +207,7 @@ class TemporalDimension(base.VectorDimension):
                 res = int(self.resolution)
                 try:
                     start_date, end_date = self.extent_datetime
-                # the times may not be formattable
+                # The times may not be formattable.
                 except (ValueError, OverflowError) as e:
                     messages = ('year is out of range', 'month must be in 1..12', 'date value out of range')
                     if e.message in messages:
@@ -251,7 +217,7 @@ class TemporalDimension(base.VectorDimension):
             else:
                 res = 'NA (non-formatted times requested)'
                 start_date, end_date = self.extent
-        # raised if the temporal dimension has a single value. possible with snippet or a small dataset...
+        # Raised if the temporal dimension has a single value.
         except ResolutionError:
             res = 'NA (singleton)'
             start_date, end_date = self.extent
@@ -650,12 +616,39 @@ class TemporalDimension(base.VectorDimension):
     def _get_to_conform_value_(self):
         return self.value_numtime
 
+    def _set_to_conform_value_(self, value):
+        # Wipe the original values.
+        self._value_numtime = None
+        self._value_datetime = None
+        # Set the new value.
+        self.value = value
+
     def _set_date_parts_(self, yld, value):
         if self.format_time:
             fill = (value.year, value.month, value.day)
         else:
             fill = [None] * 3
         yld['year'], yld['month'], yld['day'] = fill
+
+    def _set_units_(self, value):
+        try:
+            self.calendar = value.calendar
+        except AttributeError:
+            if value is not None and not isinstance(value, basestring):
+                raise
+        # "cfunits" appends the calendar name to the string representation.
+        value = str(value)
+        if 'calendar=' in value:
+            value = value.split('calendar=')[0].strip()
+        super(TemporalDimension, self)._set_units_(value)
+
+    def _set_value_(self, value):
+        # Special handling for template units.
+        if self.units == 'day as %Y%m%d.%f':
+            value = get_datetime_from_template_time_units(value)
+            # Update the units.
+            self.units = constants.DEFAULT_TEMPORAL_UNITS
+        super(TemporalDimension, self)._set_value_(value)
 
 
 class TemporalGroupDimension(TemporalDimension):
@@ -738,9 +731,9 @@ def get_datetime_from_months_time_units(vec, units, month_centroid=16):
 def get_datetime_from_template_time_units(vec):
     """
     :param vec: A one-dimensional array of floats.
-    :type vec: :class:`numpy.core.multiarray.ndarray`
+    :type vec: :class:`numpy.ndarray`
     :returns: An object array with same shape as ``vec`` containing datetime objects.
-    :rtype: :class:`numpy.core.multiarray.ndarray`
+    :rtype: :class:`numpy.ndarray`
     """
 
     dt = datetime.datetime

@@ -1,23 +1,24 @@
+import itertools
+from collections import deque, OrderedDict
 from contextlib import contextmanager
 from copy import copy, deepcopy
-from collections import deque, OrderedDict
-import itertools
 
-import numpy as np
 import fiona
+import numpy as np
 from shapely.geometry import mapping
-from shapely.ops import cascaded_union
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
+from shapely.ops import cascaded_union
 
+from ocgis import SpatialCollection
 from ocgis import constants
 from ocgis.constants import NAME_DIMENSION_REALIZATION, NAME_DIMENSION_LEVEL, NAME_DIMENSION_TEMPORAL, \
     NAME_UID_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_LEVEL, NAME_UID_DIMENSION_REALIZATION, NAME_UID_FIELD
 from ocgis.interface.base.attributes import Attributes
-from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice
 from ocgis.interface.base.variable import Variable, VariableCollection
-from ocgis import SpatialCollection
+from ocgis.util.helpers import get_default_or_apply, get_none_or_slice, get_formatted_slice, get_reduced_slice, \
+    set_new_value_mask_for_field
 
 
 class Field(Attributes):
@@ -608,8 +609,8 @@ class Field(Attributes):
         slc = [slice(None), slice(None), slice(None)] + list(slc)
         ret.variables = self.variables.get_sliced_variables(slc)
 
-        # we need to update the value mask with the geometry mask
-        self._set_new_value_mask_(ret, ret.spatial.get_mask())
+        # Update the value mask with the geometry mask.
+        set_new_value_mask_for_field(ret, ret.spatial.get_mask())
 
         return ret
 
@@ -642,21 +643,6 @@ class Field(Attributes):
         _set_('realization', NAME_DIMENSION_REALIZATION, NAME_UID_DIMENSION_REALIZATION)
         _set_('temporal', NAME_DIMENSION_TEMPORAL, NAME_UID_DIMENSION_TEMPORAL)
         _set_('level', NAME_DIMENSION_LEVEL, NAME_UID_DIMENSION_LEVEL)
-
-    @staticmethod
-    def _set_new_value_mask_(field,mask):
-        ret_shp = field.shape
-        rng_realization = range(ret_shp[0])
-        rng_temporal = range(ret_shp[1])
-        rng_level = range(ret_shp[2])
-        ref_logical_or = np.logical_or
-
-        for var in field.variables.itervalues():
-            if var._value is not None:
-                v = var._value
-                for idx_r,idx_t,idx_l in itertools.product(rng_realization,rng_temporal,rng_level):
-                    ref = v[idx_r,idx_t,idx_l]
-                    ref.mask = ref_logical_or(ref.mask,mask)
 
 
 class DerivedField(Field):

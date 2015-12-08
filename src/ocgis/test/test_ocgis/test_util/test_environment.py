@@ -16,7 +16,7 @@ class TestEnvImportParm(TestBase):
     def test_constructor(self):
         pm = EnvParmImport('USE_NUMPY', None, 'numpy')
         self.assertEqual(pm.value, True)
-        self.assertEqual(pm.module_name, 'numpy')
+        self.assertEqual(pm.module_names, 'numpy')
 
     def test_bad_import(self):
         pm = EnvParmImport('USE_FOO', None, 'foo')
@@ -71,11 +71,16 @@ class TestEnvironment(TestBase):
             env.reset()
 
     def test_import_attributes(self):
-        # with both modules installed, these are expected to be true
-        self.assertEqual(env.USE_CFUNITS, self.get_is_available('cfunits'))
+        try:
+            # With both modules installed, these are expected to be true.
+            self.assertEqual(env.USE_CFUNITS, self.get_is_available('cf_units'))
+        except AssertionError:
+            # Try the other unit conversion library.
+            self.assertEqual(env.USE_CFUNITS, self.get_is_available('cfunits'))
+
         self.assertEqual(env.USE_SPATIAL_INDEX, self.get_is_available('rtree'))
 
-        # turn off the spatial index
+        # Turn off the spatial index.
         env.USE_SPATIAL_INDEX = False
         self.assertEqual(env.USE_SPATIAL_INDEX, False)
         env.reset()

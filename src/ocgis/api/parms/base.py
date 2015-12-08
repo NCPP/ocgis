@@ -70,7 +70,7 @@ class AbstractParameter(object):
         type_matches = map(lambda x: isinstance(value, x), input_types)
         if not any(type_matches):
             msg = 'Input value type "{1}" is not in accepted types: {0}'
-            raise DefinitionValidationError(self,msg.format(input_types, type(value)))
+            raise DefinitionValidationError(self, msg.format(input_types, type(value)))
         if isinstance(value, basestring):
             value = self.parse_string(value)
         else:
@@ -90,10 +90,10 @@ class AbstractParameter(object):
             raise (DefinitionValidationError(self, 'Return type does not match.'))
         self.validate(ret)
         self._value = ret
-        # final hook for any modifications to the object
+        # Final hook for any modifications to the object.
         self.finalize()
 
-    # Return the value associated with the paramter. Note it does not return the object.
+    # Return the value associated with the parameter. Note it does not return the object.
     value = property(_get_value_, _set_value_)
 
     def finalize(self):

@@ -2,9 +2,12 @@ language: python
 
 sudo: false
 
-python:
-  # We don't actually use the Travis Python, but this keeps it organized.
-  - "2.7"
+env:
+  - CONDA="python=2.7" CFUNITS="cf_units" USE_ESMF="true"
+  - CONDA="python=2.7" CFUNITS="cf_units" USE_ESMF="false"
+  - CONDA="python=2.7" CFUNITS="cfunits-python" USE_ESMF="false"
+  - CONDA="python=3.4" USE_ESMF="false"
+  - CONDA="python=3.5" USE_ESMF="false"
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -12,37 +15,26 @@ before_install:
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
+  - conda update --all --yes
   - conda info -a
+  - travis_retry conda create -n test $CONDA nose
 
 install:
-  # Install OCGIS without ESMPy.
-  - conda config --add channels nesii/channel/ocgis
-  - conda create -q -n test-environment-ocgis python=$TRAVIS_PYTHON_VERSION ocgis nose
-  - source activate test-environment-ocgis
-  - conda remove ocgis
-  - python setup.py install
-
-  # Install OCGIS with ESMPy.
-  - source deactivate
-  - conda config --add channels nesii/channel/esmf
-  - conda create -q -n test-environment-ocgis-esmf python=$TRAVIS_PYTHON_VERSION nose
-  - source activate test-environment-ocgis-esmf
-  - conda install esmpy==6.3.0rp1
-  - conda install ocgis
+  - source activate test
+  - if [[ $USE_ESMF == "true" ]]; then
+      travis_retry conda install -c nesii/channel/esmf esmpy==6.3.0rp1;
+    fi
+  - travis_retry conda install -c nesii/channel/ocgis ocgis "gdal<2" "libgdal<2" "libgeos==3.4.2"
+  - if [[ $CFUNITS == "cf_units" ]]; then
+      conda remove cfunits-python;
+      travis_retry conda install -c ioos cf_units --no-deps;
+    fi
   - conda remove ocgis
   - python setup.py install
 
 script:
-  # Test OCGIS+ESMPy.
-  - source deactivate
-  - source activate test-environment-ocgis-esmf
   - python setup.py test
-
-  # Test only OCGIS.
-  - source deactivate
-  - source activate test-environment-ocgis
   - python setup.py test --no-optional
+  - nosetests src/ocgis/test/test_ocgis/test_util/test_units.py
   - cd
   - python -c "from ocgis.test import run_simple; run_simple()"

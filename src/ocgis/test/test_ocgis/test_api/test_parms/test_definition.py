@@ -1,21 +1,20 @@
 import pickle
 import tempfile
 
-from cfunits import Units
-
-from ocgis.api.query import QueryInterface
-from ocgis.exc import OcgWarning
-from ocgis.conv.numpy_ import NumpyConverter
-from ocgis.api.parms.base import BooleanParameter, AbstractParameter
 from ocgis import env
+from ocgis.api.parms.base import BooleanParameter, AbstractParameter
 from ocgis.api.parms.definition import *
-from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
-from ocgis.util.helpers import make_poly
-from ocgis.test.base import TestBase, attr
-from ocgis.calc.library.statistics import Mean
-from ocgis.util.itester import itr_products_keywords
-from ocgis.util.geom_cabinet import GeomCabinet
+from ocgis.api.query import QueryInterface
 from ocgis.calc.eval_function import MultivariateEvalFunction
+from ocgis.calc.library.statistics import Mean
+from ocgis.conv.numpy_ import NumpyConverter
+from ocgis.exc import OcgWarning
+from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPointDimension
+from ocgis.test.base import TestBase, attr
+from ocgis.util.geom_cabinet import GeomCabinet
+from ocgis.util.helpers import make_poly
+from ocgis.util.itester import itr_products_keywords
+from ocgis.util.units import get_units_object, get_are_units_equal
 
 
 class Test(TestBase):
@@ -348,7 +347,7 @@ class TestCalcGrouping(TestBase):
 class TestConformUnitsTo(TestBase):
     create_dir = False
 
-    def test_constructor(self):
+    def test_init(self):
         cc = ConformUnitsTo()
         self.assertEqual(cc.value, None)
 
@@ -358,8 +357,9 @@ class TestConformUnitsTo(TestBase):
         cc = ConformUnitsTo('not_a_unit')
         self.assertEqual(cc.value, 'not_a_unit')
 
-        cc = ConformUnitsTo(Units('celsius'))
-        self.assertTrue(cc.value.equals(Units('celsius')))
+        cc = ConformUnitsTo(get_units_object('celsius'))
+        target = get_are_units_equal((cc.value, get_units_object('celsius')))
+        self.assertTrue(target)
 
 
 class TestHeaders(TestBase):

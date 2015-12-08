@@ -483,6 +483,7 @@ class Test(TestBase):
             ret = ops.execute()
 
             if output_format == constants.OUTPUT_FORMAT_NUMPY:
+                self.assertFalse(ret[1]['bias'].temporal.format_time)
                 self.assertNumpyAll(ret[1]['bias'].temporal.value,
                                     np.array([-712208.5, -712117., -712025., -711933.5]))
                 self.assertNumpyAll(ret[1]['bias'].temporal.bounds,

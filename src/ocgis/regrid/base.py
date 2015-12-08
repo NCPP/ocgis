@@ -1,6 +1,8 @@
 from copy import deepcopy
+
 import ESMF
 import numpy as np
+
 from ocgis import TemporalDimension, Field
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.interface.base.crs import Spherical
@@ -384,10 +386,8 @@ def iter_regridded_fields(sources, destination, with_corners='choose', value_mas
                 # if this is not conservative regridding then bounds and corners on the output should be stripped.
                 if not with_corners or regrid_method is None:
                     if out_sdim.grid.row is not None:
-                        out_sdim.grid.row.bounds
-                        out_sdim.grid.row.bounds = None
-                        out_sdim.grid.col.bounds
-                        out_sdim.grid.col.bounds = None
+                        out_sdim.grid.row.remove_bounds()
+                        out_sdim.grid.col.remove_bounds()
                         out_sdim.grid._corners = None
                     # remove any polygons if they exist
                     out_sdim.geom._polygon = None

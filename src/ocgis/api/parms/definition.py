@@ -1,35 +1,36 @@
-from collections import OrderedDict
-from os.path import exists
-from types import NoneType
+import datetime
+import itertools
 import logging
 import os
+from collections import OrderedDict
 from copy import deepcopy
+from os.path import exists
 from types import FunctionType
-import itertools
-import datetime
+from types import NoneType
 
 import numpy as np
 from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import Polygon
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
+from shapely.geometry.polygon import Polygon
 
-from ocgis import messages
-from ocgis.conv.base import AbstractTabularConverter, get_converter, get_converter_map
-from ocgis.api.parms import base
-from ocgis.exc import DefinitionValidationError, NoDimensionedVariablesFound
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
 from ocgis import constants
+from ocgis import messages
+from ocgis.api.parms import base
+from ocgis.api.parms.definition_helpers import MetadataAttributes
+from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
+from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
+from ocgis.calc.library import register
+from ocgis.conv.base import AbstractTabularConverter, get_converter, get_converter_map
+from ocgis.exc import DefinitionValidationError, NoDimensionedVariablesFound
+from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
-from ocgis.api.parms.definition_helpers import MetadataAttributes
 from ocgis.util.geom_cabinet import GeomCabinetIterator
-from ocgis.calc.library import register
-from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
+from ocgis.util.units import get_units_class
 
 
 class Abstraction(base.StringOptionParameter):
@@ -393,19 +394,25 @@ class ConformUnitsTo(base.AbstractParameter):
     name = 'conform_units_to'
     nullable = True
     default = None
-    return_type = str
-    input_types = []
 
-    def __init__(self, init_value=None):
-        # # cfunits is an optional installation. account for this on the import types.
-        try:
-            from cfunits import Units
+    @property
+    def input_types(self):
+        # CF units conversion packages are optional.
+        uc = get_units_class(should_raise=False)
+        if uc is None:
+            ret = []
+        else:
+            ret = [uc]
+        return ret
 
-            self.input_types.append(Units)
-            self.return_type = [self.return_type] + [Units]
-        except ImportError:
-            pass
-        super(ConformUnitsTo, self).__init__(init_value=init_value)
+    @property
+    def return_type(self):
+        ret = [str]
+        # CF units conversion packages are optional.
+        uc = get_units_class(should_raise=False)
+        if uc is not None:
+            ret.append(uc)
+        return ret
 
     def _get_meta_(self):
         if self.value is None:

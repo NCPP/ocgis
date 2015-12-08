@@ -1,26 +1,20 @@
 import abc
 from collections import OrderedDict
-from copy import copy, deepcopy
+from copy import copy
 from operator import mul
 
 import numpy as np
 
 from ocgis import constants
 from ocgis.constants import NAME_BOUNDS_DIMENSION_LOWER, NAME_BOUNDS_DIMENSION_UPPER, OCGIS_BOUNDS
+from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
+from ocgis.interface.base.variable import AbstractSourcedVariable
 from ocgis.util.helpers import get_none_or_1d, get_none_or_2d, get_none_or_slice, \
     get_formatted_slice, get_bounds_from_1d
-from ocgis.exc import EmptySubsetError, ResolutionError, BoundsAlreadyAvailableError
-from ocgis.interface.base.variable import AbstractValueVariable, AbstractSourcedVariable
+from ocgis.util.units import get_conformed_units, get_are_units_equal
 
 
 class AbstractDimension(object):
-    """
-    :param dict meta:
-    :param str name:
-    :param array-like properties:
-    :param unlimited: If ``True``, the dimension is unlimited and may be expanded.
-    :type unlimited: bool
-    """
     __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
@@ -56,17 +50,6 @@ class AbstractDimension(object):
     def _format_slice_state_(self, state, slc):
         return state
 
-    def _get_none_or_array_(self, arr, masked=False):
-        if self._ndims == 1:
-            ret = get_none_or_1d(arr)
-        elif self._ndims == 2:
-            ret = get_none_or_2d(arr)
-        else:
-            raise NotImplementedError
-        if ret is not None and masked and not isinstance(ret, np.ma.MaskedArray):
-            ret = np.ma.array(ret, mask=False)
-        return ret
-
     def _get_sliced_properties_(self, slc):
         if self.properties is not None:
             raise NotImplementedError
@@ -74,16 +57,18 @@ class AbstractDimension(object):
             return None
 
 
-class AbstractValueDimension(AbstractValueVariable):
+class AbstractValueDimension(AbstractSourcedVariable):
     """
     :keyword str name_value: (``=None``) The name of the value for the dimension.
     """
     __metaclass__ = abc.ABCMeta
-    _name_value = None
 
     def __init__(self, *args, **kwargs):
+        self._name_value = None
+
         self.name_value = kwargs.pop('name_value', None)
-        AbstractValueVariable.__init__(self, *args, **kwargs)
+
+        AbstractSourcedVariable.__init__(self, *args, **kwargs)
 
     @property
     def name_value(self):
@@ -97,9 +82,17 @@ class AbstractValueDimension(AbstractValueVariable):
     def name_value(self, value):
         self._name_value = value
 
+    def _get_value_from_source_(self):
+        if self._value is None:
+            raise NotImplementedError
+        return self._value
+
 
 class AbstractUidDimension(AbstractDimension):
     def __init__(self, *args, **kwargs):
+        self._name_uid = None
+        self._uid = None
+
         self.uid = kwargs.pop('uid', None)
         self.name_uid = kwargs.pop('name_uid', None)
 
@@ -125,7 +118,7 @@ class AbstractUidDimension(AbstractDimension):
 
     @uid.setter
     def uid(self, value):
-        self._uid = self._get_none_or_array_(value, masked=True)
+        self._uid = get_none_or_array(value, self._ndims, masked=True)
 
     def _get_uid_(self):
         if self.value is None:
@@ -140,7 +133,8 @@ class AbstractUidDimension(AbstractDimension):
 
 class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
     def __init__(self, *args, **kwargs):
-        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'attrs', 'conform_units_to']
+        kwds_value = ['value', 'name_value', 'units', 'name', 'dtype', 'attrs', 'src_idx', 'request_dataset',
+                      'conform_units_to']
         kwds_uid = ['uid', 'name_uid', 'meta', 'properties', 'name', 'unlimited']
 
         kwds_all = kwds_value + kwds_uid
@@ -158,57 +152,82 @@ class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
         AbstractUidDimension.__init__(self, *args, **kwds_uid)
 
 
-class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
+class VectorDimension(AbstractUidValueDimension):
+    """
+    :keyword str alias: (``=None``) An alternate name value. If ``None``, defaults to ``name``.
+    :keyword dict attrs: (``=None``) A dictionary of arbitrary key-value attributes.
+    :keyword str axis: (``=None``) Name of the axis. Possible values are ``'R'``, ``'T'``, ``'X'``,``'Y'``, and ``'Z'``.
+    :keyword conform_units_to: (``=None``) If provided, conform the value data to match these units.
+    :type conform_units_to: same as ``units``
+    :keyword dtype: (``=None``) Data type for the dimension. If ``None``, defaults to ``value``'s data type.
+    :type dtype: :class:`numpy.dtype`
+    :keyword dict meta: (``=None``) Dictionary of arbitrary metadata.
+    :keyword str name: (``=None``) Name of the dimension.
+    :keyword str name_bounds: (``=None``) Name of the bounds data.
+    :keyword str name_bounds_dimension: (``=None``) Name of the bounds dimension.
+    :keyword str name_bounds_tuple: (``=None``) Tuple of strings for constructing bounds name headers.
+    :keyword str name_uid: (``=None``) Name of the unique identifier.
+    :keyword str name_value: (``=None``) Name of the value data.
+    :keyword properties: (``=None``) Structure array of property values.
+    :type properties: :class:`numpy.ndarray`
+    :keyword request_dataset: (``=None``) Source request dataset to use for value loading.
+    :type request_dataset: :class:`~ocgis.RequestDataset`
+    :keyword src_idx: (``=None``) Data to use for loading from source data.
+    :type src_idx: Typically a :class:`numpy.ndarray`.
+    :keyword uid: (``=None``) Integer unique identifiers for the elements in the dimension.
+    :type uid: :class:`numpy.ndarray`
+    :keyword units: (``=None``) Units for the dimension.
+    :type units: str or units object
+    :keyword unlimited: (``=None``) If ``True``, the dimension is unlimited and may be expanded.
+    :type unlimited: bool
+    :keyword value: (``=None``) Value associated with the dimension (i.e. time float values).
+    :type value: :class:`numpy.ndarray`
+    """
     _attrs_slice = ('uid', '_value', '_src_idx')
     _ndims = 1
 
     def __init__(self, *args, **kwargs):
-        if kwargs.get('value') is None and kwargs.get('data') is None:
-            msg = 'Without a "data" object, "value" is required.'
+        if kwargs.get('value') is None and kwargs.get('request_dataset') is None:
+            msg = 'Without a "request_dataset" object, "value" is required.'
             raise ValueError(msg)
 
         self._bounds = None
         self._name_bounds = None
         self._name_bounds_tuple = None
+        self._original_units = None
+        # If True, bounds should always be None.
+        self._has_removed_bounds = False
 
         self.name_bounds_dimension = kwargs.pop('name_bounds_dimension', OCGIS_BOUNDS)
         bounds = kwargs.pop('bounds', None)
-        # used for creating name_bounds as well as the name of the bounds dimension in netCDF
+        # Used for creating name_bounds as well as the name of the bounds dimension in netCDF.
         self.name_bounds = kwargs.pop('name_bounds', None)
         self.name_bounds_tuple = kwargs.pop('name_bounds_tuple', None)
         self.axis = kwargs.pop('axis', None)
-        # if True, bounds were interpolated. if False, they were loaded from source data. used in conforming units.
-        self._has_interpolated_bounds = False
 
-        AbstractSourcedVariable.__init__(self, kwargs.pop('data', None), kwargs.pop('src_idx', None))
         AbstractUidValueDimension.__init__(self, *args, **kwargs)
 
-        # setting bounds requires checking the data type of value set in a superclass.
+        # Setting bounds requires checking the data type of value set in a superclass.
         self.bounds = bounds
-
-        # conform any units if they provided. check they are not equivalent first
-        if self.conform_units_to is not None:
-            if not self.conform_units_to.equals(self.cfunits):
-                self.cfunits_conform(self.conform_units_to)
 
     def __len__(self):
         return self.shape[0]
 
     @property
     def bounds(self):
-        # always load the value first. any bounds read from source are set during this process. bounds without values
-        # are meaningless!
-        self.value
-
-        # if no error is encountered, then the bounds should have been set during loading from source. simply return the
-        # value. it will be none, if no bounds were present in the source data.
+        if self._bounds is None and not self._has_removed_bounds:
+            # Always load the value first.
+            assert self.value is not None
+            self.bounds = self._get_bounds_from_source_()
         return self._bounds
 
     @bounds.setter
     def bounds(self, value):
-        # set the bounds variable.
         self._bounds = get_none_or_2d(value)
-        # validate the value
+        if self._bounds is not None and self._original_units is not None:
+            are_units_equal = get_are_units_equal((self.units, self._original_units))
+            if not are_units_equal:
+                self._bounds = get_conformed_units(self._bounds, self._original_units, self.conform_units_to)
         if value is not None:
             self._validate_bounds_()
 
@@ -265,79 +284,62 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
     def shape(self):
         return self.uid.shape
 
-    def cfunits_conform(self, to_units):
-        """
-        Convert and set value and bounds for the dimension object to new units.
+    def cfunits_conform(self, *args, **kwargs):
+        # Get the from units before conforming the value. The units are changed in the value conform.
+        from_units = kwargs.get('from_units') or self.cfunits
+        # Store the original units to use for bounds conversion.
+        self._original_units = self.cfunits
+        # Conform the value.
+        AbstractSourcedVariable.cfunits_conform(self, *args, **kwargs)
 
-        :param to_units: The destination units.
-        :type to_units: :class:`cfunits.cfunits.Units`
-        """
-
-        # get the original units for bounds conversion. the "cfunits_conform" method updates the object's internal
-        # "units" attribute.
-        original_units = deepcopy(self.cfunits)
-        # call the superclass unit conversion
-        AbstractValueVariable.cfunits_conform(self, to_units)
-        # if the bounds are already loaded, convert
+        # Conform the units
         if self._bounds is not None:
-            AbstractValueVariable.cfunits_conform(self, to_units, value=self._bounds, from_units=original_units)
-        # if the bound are not set, they may be interpolated
-        elif self.bounds is not None:
-            # if the bounds were interpolated, then this should be set to "None" so the units conforming will use the
-            # source value units spec.
-            if self._has_interpolated_bounds:
-                from_units = None
-            else:
-                from_units = original_units
-            # conform the bounds value
-            AbstractValueVariable.cfunits_conform(self, to_units, value=self.bounds, from_units=from_units)
+            self._bounds = get_conformed_units(self._bounds, from_units, args[0])
 
     def get_between(self, lower, upper, return_indices=False, closed=False, use_bounds=True):
         assert (lower <= upper)
 
-        # # determine if data bounds are contiguous (if bounds exists for the
-        # # data). bounds must also have more than one row
+        # Determine if data bounds are contiguous (if bounds exists for the data). Bounds must also have more than one
+        # row.
         is_contiguous = False
         if self.bounds is not None:
             try:
                 if len(set(self.bounds[0, :]).intersection(set(self.bounds[1, :]))) > 0:
                     is_contiguous = True
             except IndexError:
-                ## there is likely not a second row
+                # There is likely not a second row.
                 if self.bounds.shape[0] == 1:
                     pass
                 else:
                     raise
 
-        ## subset operation when bounds are not present
+        # Subset operation when bounds are not present.
         if self.bounds is None or use_bounds == False:
             if closed:
                 select = np.logical_and(self.value > lower, self.value < upper)
             else:
                 select = np.logical_and(self.value >= lower, self.value <= upper)
-        ## subset operation in the presence of bounds
+        # Subset operation in the presence of bounds.
         else:
-            ## determine which bound column contains the minimum
+            # Determine which bound column contains the minimum.
             if self.bounds[0, 0] <= self.bounds[0, 1]:
                 lower_index = 0
                 upper_index = 1
             else:
                 lower_index = 1
                 upper_index = 0
-            ## reference the minimum and maximum bounds
+            # Reference the minimum and maximum bounds.
             bounds_min = self.bounds[:, lower_index]
             bounds_max = self.bounds[:, upper_index]
 
-            ## if closed is True, then we are working on a closed interval and
-            ## are not concerned if the values at the bounds are equivalent. it
-            ## does not matter if the bounds are contiguous.
+            # If closed is True, then we are working on a closed interval and are not concerned if the values at the
+            # bounds are equivalent. It does not matter if the bounds are contiguous.
             if closed:
                 select_lower = np.logical_or(bounds_min > lower, bounds_max > lower)
                 select_upper = np.logical_or(bounds_min < upper, bounds_max < upper)
             else:
-                ## if the bounds are contiguous, then preference is given to the
-                ## lower bound to avoid duplicate containers (contiguous bounds
-                ## share a coordinate)
+                # If the bounds are contiguous, then preference is given to the lower bound to avoid duplicate
+                # containers (contiguous bounds share a coordinate)
                 if is_contiguous:
                     select_lower = np.logical_or(bounds_min >= lower, bounds_max > lower)
                     select_upper = np.logical_or(bounds_min <= upper, bounds_max < upper)
@@ -403,13 +405,16 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         lines.append('Data Type = {0}'.format(self.dtype))
         return lines
 
+    def remove_bounds(self):
+        self.bounds = None
+        self._has_removed_bounds = True
+
     def set_extrapolated_bounds(self):
         """Set the bounds variable using extrapolation."""
 
         if self.bounds is not None:
             raise BoundsAlreadyAvailableError
         self.bounds = get_bounds_from_1d(self.value)
-        self._has_interpolated_bounds = True
 
     def write_netcdf(self, dataset, bounds_dimension_name=None, **kwargs):
         """
@@ -442,7 +447,7 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             try:
                 dataset.createDimension(bounds_dimension_name, size=2)
             except RuntimeError:
-                # bounds dimension likely created previously. check for it, then move on
+                # Bounds dimension likely created previously. Check for it, then move on.
                 if bounds_dimension_name not in dataset.dimensions:
                     raise
             kwargs['dimensions'] = (self.name, bounds_dimension_name)
@@ -450,22 +455,15 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
             bounds_variable[:] = self.bounds
             variable.setncattr('bounds', self.name_bounds)
 
-        # data mode issues require that this be last...?
+        # HACK: Data mode issues require that this be last...?
         self.write_attributes_to_netcdf_object(variable)
-
-    def _format_private_value_(self, value):
-        value = self._get_none_or_array_(value, masked=False)
-        return value
 
     def _format_slice_state_(self, state, slc):
         state.bounds = get_none_or_slice(state._bounds, (slc, slice(None)))
-        return (state)
-
-    def _format_src_idx_(self, value):
-        return (self._get_none_or_array_(value))
+        return state
 
     def _get_iter_value_bounds_(self):
-        return (self.value, self.bounds)
+        return self.value, self.bounds
 
     def _get_uid_(self):
         if self._value is not None:
@@ -476,22 +474,34 @@ class VectorDimension(AbstractSourcedVariable, AbstractUidValueDimension):
         ret = np.atleast_1d(ret)
         return ret
 
-    def _set_value_from_source_(self):
-        if self._value is None:
-            raise NotImplementedError
-        else:
-            self._value = self._value
+    def _get_bounds_from_source_(self):
+        return self._bounds
 
     def _validate_bounds_(self):
-        # # bounds must be two-dimensional
+        # Bounds must be two-dimensional.
         if self._bounds.shape[1] != 2:
-            raise (ValueError('Bounds array must be two-dimensional.'))
-        # # bounds and value arrays must have matching data types. if they do
-        ## not match, attempt to cast the bounds.
+            raise ValueError('Bounds array must be two-dimensional.')
+        # Bounds and value arrays must have matching data types. If they do not match, attempt to cast the bounds.
         try:
             assert (self._bounds.dtype == self._value.dtype)
         except AssertionError:
             try:
                 self._bounds = np.array(self._bounds, dtype=self._value.dtype)
             except:
-                raise (ValueError('Value and bounds data types do not match and types could not be casted.'))
+                raise ValueError('Value and bounds data types do not match and types could not be casted.')
+
+    def _set_value_(self, value):
+        value = get_none_or_array(value, self._ndims, masked=False)
+        AbstractSourcedVariable._set_value_(self, value)
+
+
+def get_none_or_array(arr, ndim, masked=False):
+    if ndim == 1:
+        ret = get_none_or_1d(arr)
+    elif ndim == 2:
+        ret = get_none_or_2d(arr)
+    else:
+        raise NotImplementedError
+    if ret is not None and masked and not isinstance(ret, np.ma.MaskedArray):
+        ret = np.ma.array(ret, mask=False)
+    return ret

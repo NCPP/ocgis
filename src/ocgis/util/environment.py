@@ -1,16 +1,16 @@
 import os
-from importlib import import_module
-import numpy as np
 import subprocess
+from importlib import import_module
 from warnings import warn
 
-from ocgis import constants
+import numpy as np
 
+from ocgis import constants
+from ocgis.util.helpers import get_iter
 
 # HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
 # different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
 # import is okay (if it is not installed).
-
 try:
     import ESMF
 except ImportError:
@@ -57,7 +57,7 @@ class Environment(object):
         self.DEBUG = EnvParm('DEBUG', False, formatter=self._format_bool_)
         self.DIR_BIN = EnvParm('DIR_BIN', None)
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX', None, 'rtree')
-        self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, 'cfunits')
+        self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, ('cf_units', 'cfunits'))
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
         self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)
@@ -177,8 +177,8 @@ class EnvParm(object):
 
 
 class EnvParmImport(EnvParm):
-    def __init__(self, name, default, module_name):
-        self.module_name = module_name
+    def __init__(self, name, default, module_names):
+        self.module_names = module_names
         super(EnvParmImport, self).__init__(name, default)
 
     @property
@@ -201,12 +201,16 @@ class EnvParmImport(EnvParm):
         self._value = value
 
     def _get_module_available_(self):
-        try:
-            import_module(self.module_name)
-            ret = True
-        except ImportError:
-            ret = False
-        return ret
+        results = []
+        for m in get_iter(self.module_names):
+            try:
+                import_module(m)
+                app = True
+            except ImportError:
+                app = False
+            results.append(app)
+        return any(results)
+
 env = Environment()
 
 

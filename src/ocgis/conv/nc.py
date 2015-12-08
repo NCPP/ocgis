@@ -1,14 +1,14 @@
 import datetime
 import netCDF4 as nc
 
+import ocgis
+from ocgis import constants
 from ocgis import env
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
-import ocgis
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.conv.base import AbstractCollectionConverter
-from ocgis import constants
 from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.crs import CFWGS84
 
@@ -19,20 +19,21 @@ class NcConverter(AbstractCollectionConverter):
 
     :param options: (``=None``) The following options are valid:
 
-    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
-    | Option           | Description                                                                                                                            |
-    +==================+========================================================================================================================================+
-    | data_model       | The netCDF data model: http://unidata.github.io/netcdf4-python/#netCDF4.Dataset.                                                       |
-    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
-    | variable_kwargs  | Dictionary of keyword parameters to use for netCDF variable creation. See: http://unidata.github.io/netcdf4-python/#netCDF4.Variable.  |
-    +------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | Option                 | Description                                                                                                                            |
+    +========================+========================================================================================================================================+
+    | data_model             | The netCDF data model: http://unidata.github.io/netcdf4-python/#netCDF4.Dataset.                                                       |
+    +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | variable_kwargs        | Dictionary of keyword parameters to use for netCDF variable creation. See: http://unidata.github.io/netcdf4-python/#netCDF4.Variable.  |
+    +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+    | unlimited_to_fixedsize | If ``True``, convert the unlimited dimension to fixed size. Only applies to time and level dimensions.                                 |
+    +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
 
     >>> options = {'data_model': 'NETCDF4_CLASSIC'}
     >>> options = {'variable_kwargs': {'zlib': True, 'complevel': 4}}
 
     :type options: str
     """
-
     _ext = 'nc'
 
     @property
@@ -140,8 +141,7 @@ class NcConverter(AbstractCollectionConverter):
                         ret = env.NETCDF_FILE_FORMAT
         return ret
 
-    @staticmethod
-    def _write_archetype_(arch, dataset, is_file_only, variable_kwargs):
+    def _write_archetype_(self, arch, dataset, is_file_only, variable_kwargs):
         """
         Write a field to a netCDF dataset object.
 
@@ -149,11 +149,13 @@ class NcConverter(AbstractCollectionConverter):
         :type arch: :class:`~ocgis.Field`
         :param dataset: An open netCDF4 dataset object.
         :type dataset: :class:`netCDF4.Dataset`
-        :param bool file_only: If ``True``, this is writing the template file only and there is no data fill.
+        :param bool is_file_only: If ``True``, this is writing the template file only and there is no data fill.
         :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
          See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
         """
-        arch.write_netcdf(dataset, file_only=is_file_only, **variable_kwargs)
+        unlimited_to_fixedsize = self.options.get('unlimited_to_fixedsize', False)
+        arch.write_netcdf(dataset, file_only=is_file_only, unlimited_to_fixedsize=unlimited_to_fixedsize,
+                          **variable_kwargs)
     
     def _write_coll_(self, ds, coll):
         """

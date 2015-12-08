@@ -175,64 +175,67 @@ class DriverNetcdf(AbstractDriver):
         :rtype: :class:`ocgis.interface.base.dimension.base.VectorDimension`
         """
 
-        # this is the string axis representation
+        # This is the string axis definition for the dimension.
         axis_value = v['axis']
-        # pull the axis information out of the dimension map
+        # Get the axis dictionary from the dimension map.
         ref_axis = source_metadata['dim_map'].get(axis_value)
-        # if the axis is not represented, fill it with none. this happens when a dataset does not have a vertical
-        # level or projection axis for example.
+        # If there is no axis, fill with none. This happens when a dataset does not have a vertical level or projection
+        # axis for example.
         if ref_axis is None:
             fill = None
         else:
             ref_variable = source_metadata['variables'].get(ref_axis['variable'])
 
-            # for data with a projection/realization axis there may be no associated variable.
+            # For data with a projection/realization axis there may be no associated variable.
             try:
                 ref_variable['axis'] = ref_axis
             except TypeError:
                 if axis_value == 'R' and ref_variable is None:
                     ref_variable = {'axis': ref_axis, 'name': ref_axis['dimension'], 'attrs': {}}
 
-            # realization axes may not have a variable associated with them
+            # Realization axes may not have an associated variable.
             if k != 'realization'and len(ref_variable['dimensions']) > 1:
                 return ref_variable
 
-            # extract the data length to use when creating the source index arrays.
+            # Extract the data length to use when creating the source index arrays.
             length = source_metadata['dimensions'][ref_axis['dimension']]['len']
             src_idx = np.arange(0, length, dtype=np.int32)
 
-            # get the target data type for the dimension
+            # Get the target data type for the dimension.
             try:
                 dtype = np.dtype(ref_variable['dtype'])
-            # the realization dimension may not be a associated with a variable
+            # The realization dimension may not be a associated with a variable.
             except KeyError:
                 if k == 'realization' and ref_variable['axis']['variable'] is None:
                     dtype = None
                 else:
                     raise
 
-            # get the name of the dimension
+            # Get the dimension's name.
             name = ref_variable['axis']['dimension']
+            # Get if the dimension is unlimited.
+            unlimited = source_metadata['dimensions'][name]['isunlimited']
 
-            # assemble parameters for creating the dimension class then initialize the class.
+            # Assemble keyword arguments for the dimension.
             kwds = dict(name_uid=v['name_uid'], src_idx=src_idx, request_dataset=self.rd, meta=ref_variable,
                         axis=axis_value, name_value=ref_variable.get('name'), dtype=dtype,
-                        attrs=ref_variable['attrs'].copy(), name=name, name_bounds=ref_variable['axis'].get('bounds'))
+                        attrs=ref_variable['attrs'].copy(), name=name, name_bounds=ref_variable['axis'].get('bounds'),
+                        unlimited=unlimited)
 
-            # there may be additional parameters for each dimension.
+            # There may be additional parameters for each dimension.
             if v['adds'] is not None:
                 try:
                     kwds.update(v['adds'](ref_variable['attrs']))
-                # adds may not be a callable object. assume they are a dictionary.
                 except TypeError:
+                    # Adds may not be a callable object. Assume they are a dictionary.
                     kwds.update(v['adds'])
 
-            # check for the name of the bounds dimension in the source metadata. loop through the dimension map,
+            # Check for the name of the bounds dimension in the source metadata. Loop through the dimension map,
             # look for a bounds variable, and choose the bounds dimension if possible
             name_bounds_dimension = self._get_name_bounds_dimension_(source_metadata)
             kwds['name_bounds_dimension'] = name_bounds_dimension
 
-            # create instance of the dimension
+            # Initialize the dimension object.
             fill = v['cls'](**kwds)
 
         return fill

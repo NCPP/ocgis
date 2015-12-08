@@ -467,6 +467,28 @@ class TestOcgOperations(TestBase):
         with self.nc_scope(ret) as ds:
             self.assertEqual(len(ds.dimensions['nMesh2_face']), 13)
 
+    @attr('data')
+    def test_keyword_output_format_options(self):
+        # Test for netCDF output, unlimited dimensions are converted to fixed size.
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        self.assertTrue(field.temporal.unlimited)
+        for b in [False, True]:
+            output_format_options = {'unlimited_to_fixedsize': b}
+            ops = OcgOperations(dataset=rd, snippet=True, output_format=constants.OUTPUT_FORMAT_NETCDF,
+                                output_format_options=output_format_options, prefix=str(b))
+            self.assertDictEqual(output_format_options, ops.output_format_options)
+            ret = ops.execute()
+            ocgis_unlimited = RequestDataset(ret).get().temporal.unlimited
+            with self.nc_scope(ret) as ds:
+                d = ds.dimensions[field.temporal.name]
+                if b:
+                    self.assertFalse(d.isunlimited())
+                    self.assertFalse(ocgis_unlimited)
+                else:
+                    self.assertTrue(d.isunlimited())
+                    self.assertTrue(ocgis_unlimited)
+
     def test_keyword_regrid_destination(self):
         """Test regridding not allowed with clip operation."""
 

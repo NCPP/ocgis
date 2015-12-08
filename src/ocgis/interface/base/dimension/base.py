@@ -145,8 +145,8 @@ class AbstractUidValueDimension(AbstractValueDimension, AbstractUidDimension):
                 msg = '"{0}" is not a valid keyword argument for "{1}".'
                 raise ValueError(msg.format(key, self.__class__.__name__))
 
-        kwds_value = {key: kwargs.get(key, None) for key in kwds_value}
-        kwds_uid = {key: kwargs.get(key, None) for key in kwds_uid}
+        kwds_value = get_keyword_arguments_from_template_keys(kwargs, kwds_value)
+        kwds_uid = get_keyword_arguments_from_template_keys(kwargs, kwds_uid)
 
         AbstractValueDimension.__init__(self, *args, **kwds_value)
         AbstractUidDimension.__init__(self, *args, **kwds_uid)
@@ -416,7 +416,7 @@ class VectorDimension(AbstractUidValueDimension):
             raise BoundsAlreadyAvailableError
         self.bounds = get_bounds_from_1d(self.value)
 
-    def write_netcdf(self, dataset, bounds_dimension_name=None, **kwargs):
+    def write_netcdf(self, dataset, bounds_dimension_name=None, unlimited_to_fixedsize=False, **kwargs):
         """
         Write the dimension and its associated value and bounds to an open netCDF dataset object.
 
@@ -424,6 +424,7 @@ class VectorDimension(AbstractUidValueDimension):
         :type dataset: :class:`netCDF4.Dataset`
         :param str bounds_dimension_name: If ``None``, default to
          :attr:`ocgis.interface.base.dimension.base.VectorDimension.name_bounds_dimension`.
+        :param bool unlimited_to_fixedsize: If ``True``, convert the unlimited dimension to fixed size.
         :param kwargs: Extra keyword arguments in addition to ``dimensions`` to pass to ``createVariable``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         """
@@ -433,7 +434,9 @@ class VectorDimension(AbstractUidValueDimension):
 
         bounds_dimension_name = bounds_dimension_name or self.name_bounds_dimension
 
-        if self.unlimited:
+        # Do not create the unlimited dimension if the unlimited dimension should be converted to a fixed size
+        # dimension.
+        if self.unlimited and not unlimited_to_fixedsize:
             size = None
         else:
             size = self.shape[0]
@@ -493,6 +496,17 @@ class VectorDimension(AbstractUidValueDimension):
     def _set_value_(self, value):
         value = get_none_or_array(value, self._ndims, masked=False)
         AbstractSourcedVariable._set_value_(self, value)
+
+
+def get_keyword_arguments_from_template_keys(kwargs, keys):
+    ret = {}
+    for key in keys:
+        try:
+            ret[key] = kwargs[key]
+        except KeyError:
+            # Pass on key errors to allow classes to overload default keyword argument values.
+            pass
+    return ret
 
 
 def get_none_or_array(arr, ndim, masked=False):

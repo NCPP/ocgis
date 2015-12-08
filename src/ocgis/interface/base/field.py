@@ -505,7 +505,7 @@ class Field(Attributes):
             if should_close and fobject is not None:
                 fobject.close()
 
-    def write_netcdf(self, dataset, file_only=False, **kwargs):
+    def write_netcdf(self, dataset, file_only=False, unlimited_to_fixedsize=False, **kwargs):
         """
         Write the field object to an open netCDF dataset object.
 
@@ -513,11 +513,13 @@ class Field(Attributes):
         :type dataset: :class:`netCDF4.Dataset`
         :param bool file_only: If ``True``, we are not filling the value variables. Only the file schema and dimension
          values will be written.
+        :param bool unlimited_to_fixedsize: If ``True``, convert the unlimited dimension to fixed size. Only applies to
+         time and level dimensions.
         :param kwargs: Extra keyword arguments in addition to ``dimensions`` to pass to ``createVariable``. See
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         :raises: ValueError
         """
-
+        # tdk: doc unlimited_to_fixedsize
         if self.realization is not None:
             msg = 'Fields with a realization dimension may not be written to netCDF.'
             raise ValueError(msg)
@@ -539,7 +541,7 @@ class Field(Attributes):
         value_dimensions = []
         try:
             with name_scope(self.temporal, 'time', 'T'):
-                self.temporal.write_netcdf(dataset, **kwargs)
+                self.temporal.write_netcdf(dataset, unlimited_to_fixedsize=unlimited_to_fixedsize, **kwargs)
                 value_dimensions.append(self.temporal.name)
         except AttributeError:
             if self.temporal is not None:
@@ -547,7 +549,7 @@ class Field(Attributes):
 
         try:
             with name_scope(self.level, 'level', 'Z'):
-                self.level.write_netcdf(dataset, **kwargs)
+                self.level.write_netcdf(dataset, unlimited_to_fixedsize=unlimited_to_fixedsize, **kwargs)
                 if self.level is not None:
                     value_dimensions.append(self.level.name)
         except AttributeError:

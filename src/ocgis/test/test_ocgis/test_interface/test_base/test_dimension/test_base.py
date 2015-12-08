@@ -95,6 +95,7 @@ class TestVectorDimension(TestBase):
         self.assertIsNone(vd.axis)
         self.assertEqual(vd.name_bounds_dimension, OCGIS_BOUNDS)
         self.assertIsNone(vd._src_idx)
+        self.assertEqual(vd.unlimited, False)
 
         # Test passing attributes to the constructor.
         attrs = {'something': 'underground'}
@@ -416,7 +417,7 @@ class TestVectorDimension(TestBase):
         v = VectorDimension(conform_units_to='kelvin', units='celsius', request_dataset='foo')
         self.assertIsNone(v._value)
 
-    def test_write_to_netcdf_dataset(self):
+    def test_write_netcdf(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
 
         other_bounds_name = 'bnds'
@@ -487,7 +488,7 @@ class TestVectorDimension(TestBase):
                 self.assertEqual(var.dimensions, (vd.name,))
                 self.assertNumpyAll(vd.value, var[:])
 
-    def test_write_to_netcdf_dataset_bounds_dimension_exists(self):
+    def test_write_netcdf_bounds_dimension_exists(self):
         """Test writing with bounds when the bounds dimension has already been created."""
 
         vd = VectorDimension(value=[3., 7.], name='one')
@@ -499,3 +500,12 @@ class TestVectorDimension(TestBase):
             vd.write_netcdf(ds)
             vd2.write_netcdf(ds)
             self.assertEqual(ds.variables.keys(), ['one', 'one_bounds', 'two', 'two_bounds'])
+
+    def test_write_netcdf_unlimited_to_fixedsize(self):
+        v = VectorDimension(value=[1, 2, 3], name='foo', unlimited=True)
+        path = self.get_temporary_file_path('foobar.nc')
+        with self.nc_scope(path, 'w') as ds:
+            v.write_netcdf(ds, unlimited_to_fixedsize=True)
+        with self.nc_scope(path) as ds:
+            d = ds.dimensions['foo']
+            self.assertFalse(d.isunlimited())

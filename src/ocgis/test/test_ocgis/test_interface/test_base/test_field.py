@@ -812,6 +812,17 @@ class TestField(AbstractTestField):
         target = var_out.reshape(*var.shape)
         self.assertNumpyAllClose(var.value.data, target)
 
+    def test_write_netcdf_unlimited_to_fixedsize(self):
+        field = self.get_field(with_realization=False, with_value=True)
+        field.temporal.unlimited = True
+        self.assertTrue(field.temporal.unlimited)
+        path = self.get_temporary_file_path('foo.nc')
+        with self.nc_scope(path, 'w') as ds:
+            field.write_netcdf(ds, unlimited_to_fixedsize=True)
+        with self.nc_scope(path) as ds:
+            d = ds.dimensions['time']
+            self.assertFalse(d.isunlimited())
+
     def test_write_netcdf_with_metadata(self):
         """Test writing to netCDF with a source metadata dictionary attached and data loaded from file."""
 

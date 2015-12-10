@@ -519,7 +519,7 @@ class Field(Attributes):
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         :raises: ValueError
         """
-        # tdk: doc unlimited_to_fixedsize
+
         if self.realization is not None:
             msg = 'Fields with a realization dimension may not be written to netCDF.'
             raise ValueError(msg)

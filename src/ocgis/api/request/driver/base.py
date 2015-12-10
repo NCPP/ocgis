@@ -66,10 +66,10 @@ class AbstractDriver(object):
 
     def get_field(self, **kwargs):
         field = self._get_field_(**kwargs)
-        # if this is a source grid for regridding, ensure the flag is updated
+        # If this is a source grid for regridding, ensure the flag is updated.
         if self.rd.regrid_source:
             field._should_regrid = True
-        # update the assigned coordinate system flag
+        # Update the assigned coordinate system flag.
         if self.rd._has_assigned_coordinate_system:
             field._has_assigned_coordinate_system = True
         return field

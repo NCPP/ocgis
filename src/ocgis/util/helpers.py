@@ -549,12 +549,11 @@ def get_trimmed_array_by_mask(arr, return_adjustments=False):
 
     ## col end to 0
     stop_col = 0
-    idx_col_adjust = 1
+    idx_col_adjust = 0
     for __ in range(arr.shape[0]):
-        if _mask[:, stop_col - idx_col_adjust, ].all():
+        if _mask[:, stop_col - (idx_col_adjust + 1), ].all():
             idx_col_adjust += 1
         else:
-            idx_col_adjust -= 1
             break
     if idx_col_adjust == 0:
         stop_col = None

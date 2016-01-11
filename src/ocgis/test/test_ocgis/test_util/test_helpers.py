@@ -399,7 +399,7 @@ class Test2(TestBase):
         arr.mask[-1,:] = True
         arr.mask[:,0] = True
         arr.mask[:,-1] = True
-        ret = get_trimmed_array_by_mask(arr)
+        ret, slc = get_trimmed_array_by_mask(arr, return_adjustments=True)
         self.assertNumpyAll(ret,arr[1:-1,1:-1])
         self.assertTrue(np.may_share_memory(ret,arr))
         ret,adjust = get_trimmed_array_by_mask(arr,return_adjustments=True)
@@ -427,7 +427,18 @@ class Test2(TestBase):
         arr = np.ma.array(arr,mask=True)
         ret,adjust = get_trimmed_array_by_mask(arr,return_adjustments=True)
         self.assertEqual(ret.shape,(0,0))
-        self.assertEqual(adjust,{'col': slice(4, -5), 'row': slice(4, -5)})
+        self.assertEqual(adjust, {'col': slice(4, -4), 'row': slice(4, -5)})
+
+    def test_get_trimmed_array_by_mask_singleton_dimension(self):
+        arr = np.array([[True, False, True]], dtype=bool)
+        ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
+        self.assertEqual(ret.shape, (1, 1))
+        self.assertNumpyAll(ret, np.array([[False]]))
+
+        arr = arr.reshape(3, 1)
+        ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
+        self.assertEqual(ret.shape, (1, 1))
+        self.assertNumpyAll(ret, np.array([[False]]))
 
     def test_get_tuple(self):
         value = [4, 5]

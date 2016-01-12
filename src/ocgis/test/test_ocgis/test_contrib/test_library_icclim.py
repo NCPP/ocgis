@@ -74,6 +74,7 @@ class TestAbstractIcclimFunction(TestBase):
         self.assertIn(str(['day']), aa.field.attrs['history'])
 
 
+@attr('icclim')
 class TestLibraryIcclim(TestBase):
     def test_bad_icclim_key_to_operations(self):
         value = [{'func': 'icclim_TG_bad', 'name': 'TG'}]
@@ -172,6 +173,7 @@ class TestLibraryIcclim(TestBase):
         self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value, ret_icclim[1]['tas'].variables['TG'].value)
 
 
+@attr('icclim')
 class TestCD(TestBase):
     def get_field_tdim(self):
         np.random.seed(1)
@@ -262,6 +264,7 @@ class TestCD(TestBase):
         ops.execute()
 
 
+@attr('icclim')
 class TestTG10p(TestBase):
     def test_init(self):
         tg = IcclimTG10p()
@@ -318,6 +321,7 @@ class TestTG10p(TestBase):
             self.assertAlmostEqual(ds.variables['itg'][:].mean(), 78.113095238095241)
 
 
+@attr('icclim')
 class TestDTR(TestBase):
     def test_calculate(self):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
@@ -356,6 +360,7 @@ class TestDTR(TestBase):
         ops.execute()
 
 
+@attr('icclim')
 class TestETR(TestBase):
     def test_calculate(self):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
@@ -387,6 +392,7 @@ class TestETR(TestBase):
             self.assertEqual(ds.variables['ETR'][:].shape, (12, 103, 106))
 
 
+@attr('icclim')
 class TestTx(TestBase):
     def test_calculate_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
@@ -439,6 +445,7 @@ class TestTx(TestBase):
                 self.assertNumpyAll(ret_icclim[klass.key].value, ret_ocgis['mean'].value)
 
 
+@attr('icclim')
 class TestSU(TestBase):
     def test_calculate(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')

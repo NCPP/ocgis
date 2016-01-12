@@ -39,6 +39,7 @@ Definitions for various "attrs":
  * simple: simple tests designed to test core functionality requiring no datasets
  * optional: tests that use optional dependencies
  * data: test requires a data file
+ * icclim: test requires ICCLIM
 
 nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis
 """

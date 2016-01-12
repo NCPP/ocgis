@@ -9,7 +9,7 @@ from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.units import get_units_object
 
 
-@attr('simple', 'optional')
+@attr('optional')
 class TestOptionalDependencies(TestSimpleBase):
     nc_factory = SimpleNcNoLevel
     fn = 'test_simple_spatial_no_level_01.nc'
@@ -28,6 +28,7 @@ class TestOptionalDependencies(TestSimpleBase):
         ignore_variables = ['latitude_longitude']
         self.assertNcEqual(ret, rd1.uri, ignore_attributes=ignore_attributes, ignore_variables=ignore_variables)
 
+    @attr('icclim')
     def test_icclim(self):
         rd = RequestDataset(**self.get_dataset())
         calc = [{'func': 'icclim_TG', 'name': 'TG'}]

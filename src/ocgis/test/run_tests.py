@@ -1,6 +1,6 @@
 import os
-import sys
 import re
+import sys
 
 import nose
 
@@ -24,7 +24,15 @@ class RunOcgis(nose.plugins.Plugin):
         super(RunOcgis, self).__init__(*args, **kwargs)
 
     def get_argv(self):
-        argv = [sys.argv[0], '--with-{0}'.format(self.name), '-s', '-a', self.attrs]
+        argv = [sys.argv[0], '--with-{0}'.format(self.name), '-s']
+
+        if isinstance(self.attrs, basestring):
+            attrs = [self.attrs]
+        else:
+            attrs = self.attrs
+        for a in attrs:
+            argv.extend(['-a', a])
+
         if self.verbose:
             argv.append('-v')
         argv += self._get_argv_adds_()

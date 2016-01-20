@@ -2,6 +2,6 @@
 
 OpenClimateGIS provides a set of geoprocessing, conversion, and calculation tools for CF-compliant climate datasets.
 
-For documentation please visit: http://ocgis.readthedocs.org/
+For documentation please visit: http://ncpp.github.io/ocgis/
 
 For additional project information please visit: http://www.earthsystemcog.org/projects/openclimategis/

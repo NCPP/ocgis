@@ -4,6 +4,7 @@ from ocgis.api.parms.definition import Dataset
 from ocgis.api.query import QueryInterface
 from ocgis.calc.library.statistics import FrequencyPercentile
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestQueryInterface(TestBase):
@@ -14,6 +15,7 @@ class TestQueryInterface(TestBase):
         self.assertDictEqual(qi.query_dict, {'foo': ['a'], 'bar': ['45']})
         self.assertEqual(qi.query_string, qs)
 
+    @attr('data')
     def test_get_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         qs = "uri={0}&spatial_operation=intersects&geom=state_boundaries&geom_select_uid=20|30&output_format=shp&snippet=true".format(rd.uri)
@@ -39,6 +41,7 @@ class TestQueryInterface(TestBase):
         self.assertEqual(ops.calc[2]["ref"], FrequencyPercentile)
         self.assertEqual(ops.output_crs, CoordinateReferenceSystem(epsg=4326))
 
+    @attr('data')
     def test_get_operations_dataset(self):
         """Test creating a dataset parameters from a query string."""
 

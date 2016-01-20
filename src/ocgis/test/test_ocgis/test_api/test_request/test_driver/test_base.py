@@ -6,6 +6,7 @@ from ocgis.api.request.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.crs import CFWGS84
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class FakeAbstractDriver(AbstractDriver):
@@ -35,7 +36,7 @@ class FakeAbstractDriver(AbstractDriver):
 
 
 class TestAbstractDriver(TestBase):
-
+    @attr('data')
     def test_get_field(self):
         # test updating of regrid source flag
         rd = self.test_data.get_rd('cancm4_tas')
@@ -57,6 +58,7 @@ class TestAbstractDriver(TestBase):
         field = driver.get_field()
         self.assertTrue(field._has_assigned_coordinate_system)
 
+    @attr('data')
     def test_eq(self):
         rd = self.test_data.get_rd('cancm4_tas')
         d = DriverNetcdf(rd)
@@ -66,6 +68,7 @@ class TestAbstractDriver(TestBase):
         d2.key = 'bad'
         self.assertNotEqual(d, d2)
 
+    @attr('data')
     def test_inspect(self):
         rd = self.test_data.get_rd('cancm4_tas')
         driver = DriverNetcdf(rd)
@@ -73,6 +76,7 @@ class TestAbstractDriver(TestBase):
             driver.inspect()
         self.assertTrue(len(ps.storage) > 1)
 
+    @attr('data')
     def test_validate_ops(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)

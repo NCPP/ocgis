@@ -1,9 +1,10 @@
 from copy import deepcopy
-import numpy as np
 
+import numpy as np
 from shapely import wkt
 
 from ocgis import CoordinateReferenceSystem, RequestDataset
+from ocgis import env
 from ocgis.exc import EmptySubsetError
 from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialDimension
@@ -13,7 +14,6 @@ from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
-from ocgis import env
 
 
 class TestSpatialSubsetOperation(TestBase):
@@ -107,12 +107,14 @@ class TestSpatialSubsetOperation(TestBase):
 
         return ret
 
+    @attr('data')
     def test_init_output_crs(self):
         for ss, k in self:
             if k.output_crs is None:
                 if isinstance(k.target, Field):
                     self.assertEqual(ss.sdim.crs, k.target.spatial.crs)
 
+    @attr('data')
     def test_field(self):
         for ss, k in self:
             try:
@@ -152,6 +154,7 @@ class TestSpatialSubsetOperation(TestBase):
             with self.assertRaises(AssertionError):
                 self.assertNumpyAllClose(np.array(ref_buffered.bounds), np.array(ref_original.bounds))
 
+    @attr('data')
     def test_get_should_wrap(self):
         # a 360 dataset
         field_360 = self.test_data.get_rd('cancm4_tas').get()
@@ -212,6 +215,7 @@ class TestSpatialSubsetOperation(TestBase):
                     ctr_test += 1
         self.assertGreater(ctr_test, 5)
 
+    @attr('data')
     def test_get_spatial_subset_circular_geometries(self):
         """Test circular geometries. They were causing wrapping errors."""
 
@@ -225,6 +229,7 @@ class TestSpatialSubsetOperation(TestBase):
             ret = ss.get_spatial_subset('intersects', subset_sdim)
             self.assertTrue(np.all(ret.spatial.grid.extent > 0))
 
+    @attr('data')
     def test_get_spatial_subset_output_crs(self):
         """Test subsetting with an output CRS."""
 
@@ -245,6 +250,7 @@ class TestSpatialSubsetOperation(TestBase):
         ret = ss.get_spatial_subset('intersects', subset_sdim)
         self.assertEqual(ret.spatial.crs, env.DEFAULT_COORDSYS)
 
+    @attr('data')
     def test_get_spatial_subset_rotated_pole(self):
         """Test input has rotated pole with now output CRS."""
 
@@ -255,6 +261,7 @@ class TestSpatialSubsetOperation(TestBase):
         self.assertEqual(ret.spatial.crs, rd.get().spatial.crs)
         self.assertAlmostEqual(ret.spatial.grid.value.data.mean(), -2.0600000000000009)
 
+    @attr('data')
     def test_get_spatial_subset_wrap(self):
         """Test subsetting with wrap set to a boolean value."""
 
@@ -272,6 +279,7 @@ class TestSpatialSubsetOperation(TestBase):
         self.assertEqual(ret.spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
         self.assertAlmostEqual(ret.spatial.grid.value.data[1].mean(), 260.15625)
 
+    @attr('data')
     def test_prepare_target(self):
         for ss, k in self:
             self.assertIsNone(ss._original_rotated_pole_state)
@@ -283,6 +291,7 @@ class TestSpatialSubsetOperation(TestBase):
                 ss._prepare_target_()
                 self.assertIsNone(ss._original_rotated_pole_state)
 
+    @attr('data')
     def test_prepare_subset_sdim(self):
         for subset_sdim in self.get_subset_sdim():
             for ss, k in self:
@@ -306,10 +315,12 @@ class TestSpatialSubsetOperation(TestBase):
         prepared = ss._prepare_subset_sdim_(nebraska)
         self.assertEqual(prepared.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
 
+    @attr('data')
     def test_sdim(self):
         for ss, k in self:
             self.assertIsInstance(ss.sdim, SpatialDimension)
 
+    @attr('data')
     def test_should_update_crs(self):
         # no output crs provided
         target = self.test_data.get_rd('cancm4_tas')

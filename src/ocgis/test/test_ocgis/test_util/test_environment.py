@@ -7,6 +7,7 @@ import numpy as np
 from ocgis import constants
 from ocgis import env, OcgOperations
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.util.environment import EnvParmImport
 
 
@@ -56,6 +57,7 @@ class TestEnvironment(TestBase):
     def test_default_coordsys(self):
         env.DEFAULT_COORDSYS
 
+    @attr('data')
     def test_env_overload(self):
         # check env overload
         out = tempfile.mkdtemp()

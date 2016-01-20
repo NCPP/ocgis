@@ -1,13 +1,15 @@
 from datetime import datetime as dt
+
 import ocgis
-from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.library.index.heat_index import HeatIndex
 from ocgis.exc import UnitsValidationError
 from ocgis.interface.base.variable import VariableCollection
+from ocgis.test.base import attr
+from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 
 
 class TestHeatIndex(AbstractTestField):
-    
+    @attr('data')
     def test_units_raise_exception(self):
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}
         ds = [self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds),self.test_data.get_rd('cancm4_rhsmax',kwds=kwds)]
@@ -16,7 +18,8 @@ class TestHeatIndex(AbstractTestField):
         self.assertEqual(ops.calc_grouping,None)
         with self.assertRaises(UnitsValidationError):
             ops.execute()
-        
+
+    @attr('data')
     def test_units_conform_to(self):
         ocgis.env.OVERWRITE = True
         kwds = {'time_range':[dt(2011,1,1),dt(2011,12,31,23,59,59)]}

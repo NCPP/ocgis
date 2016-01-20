@@ -5,14 +5,15 @@ import fiona
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 
-from ocgis.util.environment import ogr
+import ocgis
 from ocgis import env
 from ocgis.interface.base.crs import WGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryPolygonDimension, \
     SpatialGeometryPointDimension
-from ocgis.util.geom_cabinet import GeomCabinet, GeomCabinetIterator, get_uid_from_properties
-import ocgis
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
+from ocgis.util.environment import ogr
+from ocgis.util.geom_cabinet import GeomCabinet, GeomCabinetIterator, get_uid_from_properties
 
 Layer = ogr.Layer
 
@@ -82,6 +83,7 @@ class TestGeomCabinetIterator(TestBase):
         for row in sci:
             self.assertIn(row['properties']['STATE_NAME'], ("Wisconsin", "Vermont"))
 
+    @attr('data')
     def test_select_ugids_absent_raises_exception(self):
         sci = GeomCabinetIterator(key='state_boundaries', select_uid=[999])
         with self.assertRaises(ValueError):

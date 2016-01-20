@@ -1,22 +1,24 @@
-from copy import deepcopy
 import os
+from copy import deepcopy
 
 import numpy as np
 
-from ocgis import env
-from ocgis.util.geom_cabinet import GeomCabinet
-from ocgis.api.request.base import RequestDataset
-from ocgis.exc import DefinitionValidationError
-from ocgis.test.base import nc_scope
-from ocgis.util.itester import itr_products_keywords
-from ocgis.api.operations import OcgOperations
-from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
-from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 import ocgis
 from ocgis import constants
+from ocgis import env
+from ocgis.api.operations import OcgOperations
+from ocgis.api.request.base import RequestDataset
+from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+from ocgis.exc import DefinitionValidationError
+from ocgis.test.base import attr
+from ocgis.test.base import nc_scope
+from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
+from ocgis.util.geom_cabinet import GeomCabinet
+from ocgis.util.itester import itr_products_keywords
 
 
 class TestNcConverter(AbstractTestConverter):
+    @attr('data')
     def test_fill_value_modified(self):
         # Test the fill value is appropriately copied if reset inside the field.
         coll = self.get_spatial_collection()
@@ -32,6 +34,7 @@ class TestNcConverter(AbstractTestConverter):
             self.assertEqual(var.shape, (1, 1, 1))
             self.assertEqual(var._FillValue, np.ma.array([], dtype=np.dtype('int32')).fill_value)
 
+    @attr('data')
     def test_fill_value_copied(self):
         rd = self.test_data.get_rd('cancm4_tas')
         with nc_scope(rd.uri) as ds:
@@ -41,6 +44,7 @@ class TestNcConverter(AbstractTestConverter):
         with nc_scope(ret) as ds:
             self.assertEqual(fill_value_test, ds.variables['tas']._FillValue)
 
+    @attr('data')
     def test_get_file_format(self):
         # Test the file format is pulled from the environment and not from constants.
         env.NETCDF_FILE_FORMAT = 'NETCDF3_CLASSIC'
@@ -85,6 +89,7 @@ class TestNcConverter(AbstractTestConverter):
         file_format = conv._get_file_format_()
         self.assertEqual(file_format, env.NETCDF_FILE_FORMAT)
 
+    @attr('data')
     def test_write_coll(self):
         # Use a field as the input dataset.
         field = self.get_field()
@@ -124,6 +129,7 @@ class TestNcUgrid2DFlexibleMeshConverter(AbstractTestConverter):
     def test_init(self):
         self.assertEqual(NcUgrid2DFlexibleMeshConverter.__bases__, (NcConverter,))
 
+    @attr('data')
     def test_validate_ops(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = deepcopy(rd1)
@@ -145,6 +151,7 @@ class TestNcUgrid2DFlexibleMeshConverter(AbstractTestConverter):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, output_format=output_format)
 
+    @attr('data')
     def test_write_archetype(self):
         rd = self.test_data.get_rd('cancm4_tas')
         coll = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[25]).execute()

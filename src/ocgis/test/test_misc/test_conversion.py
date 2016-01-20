@@ -1,14 +1,16 @@
-from ocgis import constants
 import netCDF4 as nc
 import os
 
 import fiona
 
-from ocgis.test.base import TestBase
 import ocgis
+from ocgis import constants
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class Test(TestBase):
+    @attr('data')
     def test_nc_projection_writing(self):
         rd = self.test_data.get_rd('daymet_tmax')
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='nc')
@@ -16,6 +18,7 @@ class Test(TestBase):
         ds = nc.Dataset(ret)
         self.assertTrue('lambert_conformal_conic' in ds.variables)
 
+    @attr('data')
     def test_csv_shp_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
         rd2 = self.test_data.get_rd('maurer_bccr_1950')
@@ -29,6 +32,7 @@ class Test(TestBase):
         fheaders = [h.strip() for h in line.split(',')]
         self.assertEqual(fheaders, [h.upper() for h in headers])
 
+    @attr('data')
     def test_shp_custom_headers(self):
         rd1 = self.test_data.get_rd('cancm4_tasmax_2011')
         rd2 = self.test_data.get_rd('maurer_bccr_1950')
@@ -40,6 +44,7 @@ class Test(TestBase):
         with fiona.open(ret) as f:
             self.assertEqual(f.meta['schema']['properties'].keys(), [h.upper() for h in headers])
 
+    @attr('data')
     def test_meta(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         of = constants.OUTPUT_FORMAT_METADATA_OCGIS
@@ -48,6 +53,7 @@ class Test(TestBase):
         ret = ops.execute()
         self.assertTrue(isinstance(ret, basestring))
 
+    @attr('data')
     def test_meta_with_source(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='csv', geom='state_boundaries',

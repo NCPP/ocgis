@@ -1,15 +1,15 @@
 import netCDF4 as nc
-from copy import deepcopy
 import time
+from copy import deepcopy
 
 import numpy as np
 
-from ocgis import Variable
-from ocgis.test.base import TestBase, attr
 import ocgis
-from ocgis.util.large_array import compute, set_variable_spatial_mask
-from ocgis.calc import tile
+from ocgis import Variable
 from ocgis.api.request.base import RequestDatasetCollection, RequestDataset
+from ocgis.calc import tile
+from ocgis.test.base import TestBase, attr
+from ocgis.util.large_array import compute, set_variable_spatial_mask
 
 
 class Test(TestBase):
@@ -29,6 +29,7 @@ class Test(TestBase):
     def get_random_integer(self, low=1, high=100):
         return int(np.random.random_integers(low, high))
 
+    @attr('data')
     def test_compute_2d_grid(self):
         path = self.get_path_to_2d_grid_netcdf()
         rd = RequestDataset(path)
@@ -40,6 +41,7 @@ class Test(TestBase):
         field = RequestDataset(ret).get()
         self.assertEqual(field.shape, (1, 4, 1, 16, 27))
 
+    @attr('data')
     def test_with_callback(self):
         """Test callback reports status appropriately."""
 
@@ -81,6 +83,7 @@ class Test(TestBase):
         tmean = {k: {'mean': np.array(v).mean(), 'stdev': np.array(v).std()} for k, v in t.iteritems()}
         self.assertTrue(tmean[True]['mean'] < tmean[False]['mean'])
 
+    @attr('data')
     def test_multivariate_computation(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
         rd2 = deepcopy(rd)
@@ -97,6 +100,7 @@ class Test(TestBase):
         ret_ocgis = ops.execute()
         self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
 
+    @attr('data')
     def test_with_no_calc_grouping(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
         ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'ln', 'name': 'ln'}],
@@ -110,6 +114,7 @@ class Test(TestBase):
         ret_ocgis = ops.execute()
         self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
 
+    @attr('data')
     def test_compute_with_time_region(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
         ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
@@ -123,6 +128,7 @@ class Test(TestBase):
         ret_ocgis = ops.execute()
         self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
 
+    @attr('data')
     def test_compute_with_geom(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
@@ -136,6 +142,7 @@ class Test(TestBase):
         ret_ocgis = ops.execute()
         self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
 
+    @attr('data')
     def test_compute_small(self):
         rd = self.test_data.get_rd('cancm4_tas')
 

@@ -4,12 +4,14 @@ from copy import deepcopy
 import fiona
 
 from ocgis import constants
-from ocgis.test.base import TestBase
 from ocgis.api.operations import OcgOperations
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class Test(TestBase):
+    @attr('data')
     def test_geometries_not_duplicated_with_equivalent_ugid(self):
         # if geometries are equivalent, they should not have duplicates in the output shapefile.
         rd = self.test_data.get_rd('cancm4_tas')
@@ -22,6 +24,7 @@ class Test(TestBase):
         with fiona.open(path_shp) as source:
             self.assertEqual(len(list(source)), 1)
 
+    @attr('data')
     def test_geometries_different_ugid(self):
         # equivalent geometries with different ugid values should be included
         row = list(GeomCabinetIterator(key='state_boundaries', select_uid=[16]))

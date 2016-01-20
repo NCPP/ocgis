@@ -1,17 +1,17 @@
-from itertools import izip
 import os
 from copy import deepcopy
+from itertools import izip
 
-import numpy as np
 import fiona
+import numpy as np
 
-from ocgis.api.operations import OcgOperations
-from ocgis.test.base import TestBase, attr
 import ocgis
-from ocgis.exc import DefinitionValidationError
-from ocgis.util.geom_cabinet import GeomCabinetIterator
-from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
 from ocgis import constants
+from ocgis.api.operations import OcgOperations
+from ocgis.exc import DefinitionValidationError
+from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
+from ocgis.test.base import TestBase, attr
+from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class Test(TestBase):
@@ -43,6 +43,7 @@ class Test(TestBase):
         ret = ops.execute()
         return ret[25]
 
+    @attr('data')
     def test_default(self):
         ops = self.get_ops()
         ret = ops.execute()
@@ -53,6 +54,7 @@ class Test(TestBase):
         for (ugid, field_alias, var_alias, variable), shape in izip(ret.get_iter_elements(), shapes):
             self.assertEqual(variable.value.shape, shapes[var_alias])
 
+    @attr('data')
     def test_vector_wrap(self):
         geom = self.california
         keys = [['maurer_bccr_1950', (1, 12, 1, 77, 83)], ['cancm4_tasmax_2011', (1, 3650, 1, 5, 4)]]
@@ -70,6 +72,7 @@ class Test(TestBase):
                 else:
                     self.assertTrue(np.all(ref == prev_value))
 
+    @attr('data')
     def test_aggregate_clip(self):
         kwds = {'aggregate': True, 'spatial_operation': 'clip'}
 
@@ -79,6 +82,7 @@ class Test(TestBase):
                 self.assertEqual(field.spatial.geom.shape, (1, 1))
                 self.assertEqual(variable.value.shape, (1, 1, 1, 1, 1))
 
+    @attr('data')
     def test_calculation(self):
         calc = [{'func': 'mean', 'name': 'mean'}, {'func': 'std', 'name': 'std'}]
         calc_grouping = ['year']
@@ -102,6 +106,7 @@ class Test(TestBase):
         for value in ref.variables.itervalues():
             self.assertEqual(value.value.shape, (1, 10, 1, 1, 1))
 
+    @attr('data')
     def test_same_variable_name(self):
         ds = deepcopy([self.cancm4, self.cancm4])
 

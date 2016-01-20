@@ -10,6 +10,7 @@ from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFun
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
 from ocgis.interface.base.variable import VariableCollection, DerivedVariable
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.util.units import get_units_object
 
@@ -141,6 +142,7 @@ class TestAbstractMultivariateFunction(TestBase):
 
         FakeAbstractMultivariateFunction()
 
+    @attr('data')
     def test_validate(self):
         FunctionRegistry.append(FakeAbstractMultivariateFunction)
         rd1 = self.test_data.get_rd('cancm4_tas')

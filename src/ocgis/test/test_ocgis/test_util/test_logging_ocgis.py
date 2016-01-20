@@ -1,13 +1,14 @@
-import os
 import itertools
 import logging
+import os
 
+import ocgis
+from ocgis import env
 from ocgis.exc import OcgWarning
 from ocgis.test.base import TestBase
-from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations, OcgisLogging
-from ocgis import env
-import ocgis
+from ocgis.test.base import attr
 from ocgis.util.helpers import get_temp_path
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations, OcgisLogging
 
 
 class TestOcgisLogging(TestBase):
@@ -165,6 +166,7 @@ class TestOcgisLogging(TestBase):
         self.assertEqual(lines, ['this is a test message\n', 'this is a second test message\n',
                                  'FooError: foo message for value error\n'])
 
+    @attr('data')
     def test_writing(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='csv')

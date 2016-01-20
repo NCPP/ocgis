@@ -24,6 +24,7 @@ from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.interface.base.field import Field, DerivedField
 from ocgis.interface.base.variable import Variable, VariableCollection
 from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import attr
 from ocgis.util.helpers import get_date_list, make_poly
 from ocgis.util.itester import itr_products_keywords
 
@@ -823,6 +824,7 @@ class TestField(AbstractTestField):
             d = ds.dimensions['time']
             self.assertFalse(d.isunlimited())
 
+    @attr('data')
     def test_write_netcdf_with_metadata(self):
         """Test writing to netCDF with a source metadata dictionary attached and data loaded from file."""
 

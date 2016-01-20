@@ -1,24 +1,25 @@
+import netCDF4 as nc
 import os
 from copy import deepcopy
-import netCDF4 as nc
 
 import numpy as np
 from shapely.geometry import Point, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 
+import ocgis
+from ocgis import constants
+from ocgis.exc import SpatialWrappingError
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
     CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem, \
     CFCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
-from ocgis.exc import SpatialWrappingError
-from ocgis.test.base import TestBase, nc_scope
-from ocgis.util.helpers import make_poly
 from ocgis.interface.metadata import NcMetadata
-import ocgis
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import attr
+from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
-from ocgis import constants
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -228,6 +229,7 @@ class TestSpherical(TestBase):
         self.assertNumpyAll(ret, np.array([False, True, False, True]))
         self.assertNumpyAll(arr, np.array([123., constants.MERIDIAN_180TH, 200., constants.MERIDIAN_180TH]))
 
+    @attr('data')
     def test_wrap_unwrap_with_mask(self):
         """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""
 
@@ -372,7 +374,7 @@ class TestCFAlbersEqualArea(TestBase):
 
 
 class TestCFLambertConformalConic(TestBase):
-    
+    @attr('data')
     def test_load_from_metadata(self):
         uri = self.test_data.get_uri('narccap_wrfg')
         ds = nc.Dataset(uri,'r')
@@ -386,6 +388,7 @@ class TestCFLambertConformalConic(TestBase):
         self.assertEqual(crs.map_parameters_values,{u'latitude_of_projection_origin': 47.5, u'longitude_of_central_meridian': -97.0, u'false_easting': 3325000.0, u'false_northing': 2700000.0, 'units': u'm'})
         ds.close()
 
+    @attr('data')
     def test_write_to_rootgrp(self):
         uri = self.test_data.get_uri('narccap_wrfg')
         ds = nc.Dataset(uri,'r')
@@ -421,11 +424,13 @@ class TestCFRotatedPole(TestBase):
         self.assertDictEqual(rp.value, {'lonc': 0, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'omerc', 'x_0': 0,
                                         'units': 'm', 'alpha': 0, 'k': 1, 'gamma': 0, 'lat_0': 0})
 
+    @attr('data')
     def test_equal(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
         self.assertEqual(rd.get().spatial.crs, rd2.get().spatial.crs)
 
+    @attr('data')
     def test_get_rotated_pole_transformation(self):
         """Test SpatialDimension objects are appropriately transformed."""
 
@@ -477,6 +482,7 @@ class TestCFRotatedPole(TestBase):
         self.assertDictEqual(spatial.grid.col.meta, inverse_spatial.grid.col.meta)
         self.assertEqual(spatial.grid.col.name, inverse_spatial.grid.col.name)
 
+    @attr('data')
     def test_in_operations(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         rd2 = deepcopy(rd)
@@ -485,6 +491,7 @@ class TestCFRotatedPole(TestBase):
         ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
         ops.execute()
 
+    @attr('data')
     def test_load_from_metadata(self):
         rd = self.test_data.get_rd('rotated_pole_ichec')
         self.assertIsInstance(rd.get().spatial.crs, CFRotatedPole)
@@ -495,6 +502,7 @@ class TestCFRotatedPole(TestBase):
         res = CFRotatedPole.load_from_metadata('tas', meta)
         self.assertIsInstance(res, CFRotatedPole)
 
+    @attr('data')
     def test_write_to_rootgrp(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         path = os.path.join(self.current_dir_output, 'foo.nc')

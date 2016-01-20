@@ -1,16 +1,17 @@
-import unittest
 import itertools
+import unittest
 
 import numpy as np
 
-from ocgis import env
 import ocgis
+from ocgis import env
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.math import NaturalLogarithm, Divide, Sum, Convolve1D
-from ocgis.interface.base.variable import Variable
-from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.calc.library.thresholds import Threshold
 from ocgis.exc import SampleSizeNotImplemented
+from ocgis.interface.base.variable import Variable
+from ocgis.test.base import attr
+from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 
 
 class Test(AbstractTestField):
@@ -201,6 +202,7 @@ class TestConvolve1D(AbstractTestField):
         actual = np.loads('\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xd0\x01\x01\x0c\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xd0\x01\x02\x0c\x00\x00\x00\x00\x00\x85Rq\tetb.')
         self.assertNumpyAll(actual, cd.field.temporal.value)
 
+    @attr('data')
     def test_execute_valid_through_operations(self):
         """Test executing a "valid" convolution mode through operations ensuring the data is appropriately truncated."""
 

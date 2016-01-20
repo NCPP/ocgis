@@ -384,6 +384,7 @@ class TestHeaders(TestBase):
 class TestMelted(TestBase):
     create_dir = False
 
+    @attr('data')
     def test_init(self):
         rd = self.test_data.get_rd('cancm4_tas')
         dataset = Dataset(rd)
@@ -404,7 +405,7 @@ class TestMelted(TestBase):
 
 
 class TestDataset(TestBase):
-
+    @attr('data')
     def test_init(self):
         rd = self.test_data.get_rd('cancm4_tas')
         dd = Dataset(rd)
@@ -497,6 +498,7 @@ class TestDataset(TestBase):
         self.assertTrue(np.may_share_memory(ofield_value, efield))
         self.assertNumpyAll(ofield_value, efield)
 
+    @attr('data')
     def test(self):
         env.DIR_DATA = ocgis.env.DIR_TEST_DATA
         reference_rd = self.test_data.get_rd('cancm4_tas')
@@ -511,6 +513,7 @@ class TestDataset(TestBase):
         dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
 
+    @attr('data')
     def test_from_query(self):
         rd = self.test_data.get_rd('cancm4_tas')
         qs = 'uri={0}'.format(rd.uri)
@@ -530,6 +533,7 @@ class TestDataset(TestBase):
         d = Dataset.from_query(qi)
         self.assertEqual(d.value.keys(), ['tas', 'rhsmax'])
 
+    @attr('data')
     def test_get_meta(self):
         # test with standard request dataset collection
         rd = self.test_data.get_rd('cancm4_tas')
@@ -541,6 +545,7 @@ class TestDataset(TestBase):
         ret = dd.get_meta()
         self.assertEqual(ret, ['* dataset=', 'NcField(name=tas, ...)', ''])
 
+    @attr('data')
     def test_validate(self):
         rd = self.test_data.get_rd('cancm4_tas')
         for iv in [rd, rd.get()]:
@@ -868,6 +873,7 @@ class TestRegridDestination(TestBase):
         rd = self.test_data.get_rd('cancm4_tas', kwds=kwargs)
         return rd
 
+    @attr('data')
     def test_init(self):
         """Also tests get_meta."""
 

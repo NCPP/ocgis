@@ -1,13 +1,13 @@
-import itertools
 import datetime
-
+import itertools
 import netCDF4 as nc
+
 import numpy as np
 
 from ocgis.api.operations import OcgOperations
 from ocgis.api.request.base import RequestDataset
-from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.calc.library.index.dynamic_kernel_percentile import DynamicDailyKernelPercentileThreshold
+from ocgis.test.base import TestBase, nc_scope, attr
 
 
 class TestDynamicDailyKernelPercentileThreshold(TestBase):
@@ -38,6 +38,7 @@ class TestDynamicDailyKernelPercentileThreshold(TestBase):
     def test_constructor(self):
         DynamicDailyKernelPercentileThreshold()
 
+    @attr('data')
     def test_calculate(self):
         # daily data for three years is wanted for the test. subset a CMIP5 decadal simulation to use for input into the 
         # computation.

@@ -1,13 +1,15 @@
 import datetime
-import numpy as np
 
 import fiona
+import numpy as np
 
-from ocgis.test.base import TestBase
 import ocgis
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class Test(TestBase):
+    @attr('data')
     def test_months_in_units(self):
         rd = self.test_data.get_rd('clt_month_units')
         field = rd.get()
@@ -16,6 +18,7 @@ class Test(TestBase):
         self.assertEqual(field.temporal.bounds, None)
         self.assertEqual(field.temporal.shape, (120,))
 
+    @attr('data')
     def test_months_in_units_time_range_subsets(self):
         rd = self.test_data.get_rd('clt_month_units')
         field = rd.get()
@@ -24,6 +27,7 @@ class Test(TestBase):
         ret = ops.execute()
         self.assertEqual((1, 1, 1, 46, 72), ret[1]['clt'].shape)
 
+    @attr('data')
     def test_months_in_units_convert_to_shapefile(self):
         uri = self.test_data.get_uri('clt_month_units')
         variable = 'clt'
@@ -37,6 +41,7 @@ class Test(TestBase):
         with fiona.open(ret, driver='ESRI Shapefile') as source:
             self.assertEqual(len(source), 6624)
 
+    @attr('data')
     def test_months_in_units_convert_to_netcdf(self):
         uri = self.test_data.get_uri('clt_month_units')
         variable = 'clt'
@@ -51,6 +56,7 @@ class Test(TestBase):
         self.assertNumpyAll(field.temporal.value_datetime, field2.temporal.value_datetime)
         self.assertNumpyAll(field.temporal.value, field2.temporal.value)
 
+    @attr('data')
     def test_months_in_units_calculation(self):
         rd = self.test_data.get_rd('clt_month_units')
         calc = [{'func': 'mean', 'name': 'mean'}]

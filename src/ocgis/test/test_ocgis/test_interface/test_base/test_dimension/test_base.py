@@ -84,6 +84,7 @@ class TestAbstractValueDimension(TestBase):
 
 
 class TestVectorDimension(TestBase):
+    @attr('data')
     def test_init(self):
         vd = VectorDimension(value=[4, 5])
         self.assertIsInstances(vd, (AbstractSourcedVariable, AbstractUidValueDimension))

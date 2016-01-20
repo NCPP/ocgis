@@ -1,15 +1,16 @@
-from collections import OrderedDict
+import datetime
 import os
-import numpy as np
+from collections import OrderedDict
 
 import fiona
+import numpy as np
 
-import datetime
-from ocgis.interface.base.crs import WGS84
 import ocgis
 from ocgis.api.subset import SubsetOperation
 from ocgis.conv.fiona_ import ShpConverter, AbstractFionaConverter
+from ocgis.interface.base.crs import WGS84
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 
 
@@ -31,6 +32,7 @@ class TestShpConverter(TestBase):
         conv = ShpConverter([coll], outdir=self.current_dir_output, prefix='foo', melted=True)
         self.assertTrue(conv.melted)
 
+    @attr('data')
     def test_attributes_copied(self):
         """Test attributes in geometry dictionaries are properly accounted for in the converter."""
 
@@ -89,6 +91,7 @@ class TestShpConverter(TestBase):
         ShpConverter.get_field_type(the_type, key=key, fiona_conversion=fiona_conversion)
         self.assertEqual(fiona_conversion[key], unicode)
 
+    @attr('data')
     def test_none_geom(self):
         """Test a NoneType geometry will pass through the Fiona converter."""
 

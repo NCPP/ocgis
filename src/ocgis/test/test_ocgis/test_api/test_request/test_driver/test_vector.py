@@ -1,9 +1,10 @@
-from ocgis import constants
 from ocgis import RequestDataset, GeomCabinet, GeomCabinetIterator
+from ocgis import constants
 from ocgis.api.request.driver.base import AbstractDriver
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.crs import WGS84
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestDriverVector(TestBase):
@@ -17,6 +18,7 @@ class TestDriverVector(TestBase):
         rd = RequestDataset(uri=uri, driver='vector', variable=variable)
         return rd
 
+    @attr('data')
     def test_init(self):
         self.assertIsInstances(self.get_driver(), (DriverVector, AbstractDriver))
 

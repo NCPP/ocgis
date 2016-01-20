@@ -1,11 +1,12 @@
-from ocgis.test.base import TestBase
 import ocgis
-from ocgis.exc import DefinitionValidationError
 from ocgis import constants
+from ocgis.exc import DefinitionValidationError
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class Test(TestBase):
-
+    @attr('data')
     def test_nc(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_rhsmax')

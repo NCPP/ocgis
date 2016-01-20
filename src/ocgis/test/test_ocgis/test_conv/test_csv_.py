@@ -1,14 +1,15 @@
-import numpy as np
-from csv import DictReader
 import os
 import tempfile
+from csv import DictReader
 
 import fiona
+import numpy as np
 
-from ocgis import constants, env
-from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
 from ocgis import OcgOperations, RequestDataset
+from ocgis import constants, env
 from ocgis.api.subset import SubsetOperation
+from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 from ocgis.util.addict import Dict
 
@@ -35,6 +36,7 @@ class TestCsvConverter(AbstractTestConverter):
 
         return conv
 
+    @attr('data')
     def test_write(self):
         conv = self.get()
         self.assertFalse(conv.melted)
@@ -69,10 +71,12 @@ class TestCsvShapefileConverter(AbstractTestConverter):
 
         return conv
 
+    @attr('data')
     def test_init(self):
         conv = self.get()
         self.assertIsInstance(conv, CsvConverter)
 
+    @attr('data')
     def test_build(self):
         path = self.get_shapefile_path_with_no_ugid()
         keywords = dict(geom_uid=['ID', None])
@@ -95,6 +99,7 @@ class TestCsvShapefileConverter(AbstractTestConverter):
             actual = [constants.HEADERS.ID_DATASET.upper(), actual, constants.HEADERS.ID_GEOMETRY.upper()]
             self.assertEqual(actual, ret['fiona_object'].meta['schema']['properties'].keys())
 
+    @attr('data')
     def test_geom_uid(self):
         rd = self.test_data.get_rd('cancm4_tas')
         for geom_uid in ['IDD', None]:
@@ -104,6 +109,7 @@ class TestCsvShapefileConverter(AbstractTestConverter):
                 geom_uid = env.DEFAULT_GEOM_UID
             self.assertEqual(conv.geom_uid, geom_uid)
 
+    @attr('data')
     def test_write(self):
         # test melted format
         for melted in [False, True]:

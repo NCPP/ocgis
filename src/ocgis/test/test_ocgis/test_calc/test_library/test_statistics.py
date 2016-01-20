@@ -9,6 +9,7 @@ from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
 from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.variable import DerivedVariable, Variable
+from ocgis.test.base import attr
 from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.util.itester import itr_products_keywords
@@ -27,6 +28,7 @@ class TestDailyPercentile(AbstractTestField):
         vc = dp.execute()
         self.assertAlmostEqual(vc['daily_perc'].value.mean(), 0.76756388346354165)
 
+    @attr('data')
     def test_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         kwds = {'percentile': 90, 'window_width': 5}
@@ -38,6 +40,7 @@ class TestDailyPercentile(AbstractTestField):
             if output_format == 'numpy':
                 self.assertEqual(ret[23]['tas'].variables['dp'].value.mask.sum(), 730)
 
+    @attr('data')
     def test_compute(self):
         rd = self.test_data.get_rd('cancm4_tas')
         kwds = {'percentile': 90, 'window_width': 5}
@@ -48,6 +51,7 @@ class TestDailyPercentile(AbstractTestField):
         rd = ocgis.RequestDataset(uri=ret)
         self.assertEqual(rd.get().shape, (1, 365, 1, 4, 3))
 
+    @attr('data')
     def test_get_daily_percentile_from_request_dataset(self):
         rd = self.test_data.get_rd('cancm4_tas')
         kwds = {'percentile': 90, 'window_width': 5}
@@ -93,6 +97,7 @@ class TestMovingWindow(AbstractTestField):
                     self.assertEqual(vc['moving_window'].value.shape, (2, 2, 2, 3, 4))
                     self.assertEqual(ma.field.shape, (2, 2, 2, 3, 4))
 
+    @attr('data')
     def test_execute_valid_through_operations(self):
         """Test executing a "valid" convolution mode through operations ensuring the data is appropriately truncated."""
 
@@ -159,6 +164,7 @@ class TestMovingWindow(AbstractTestField):
                 else:
                     raise
 
+    @attr('data')
     def test_validate(self):
         rd = self.test_data.get_rd('cancm4_tas')
         calc = [{'func': 'moving_window', 'name': 'TGx5day', 'kwds': {'k': 5, 'operation': 'max', 'mode': 'same'}}]
@@ -253,6 +259,7 @@ class TestMean(AbstractTestField):
         dvc = mu.execute()
         self.assertEqual(dvc['my_mean'].cfunits, units_kelvin)
 
+    @attr('data')
     def test_file_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -269,6 +276,7 @@ class TestMean(AbstractTestField):
         with self.assertRaises(Exception):
             ret['my_mean_tas'].value
 
+    @attr('data')
     def test_output_datatype(self):
         # ensure the output data type is the same as the input data type of the variable.
         rd = self.test_data.get_rd('cancm4_tas')
@@ -279,6 +287,7 @@ class TestMean(AbstractTestField):
             var_dtype = ds.variables['tas'].dtype
         self.assertEqual(ret[27]['tas'].variables['mean'].dtype, var_dtype)
 
+    @attr('data')
     def test_file_only_by_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],

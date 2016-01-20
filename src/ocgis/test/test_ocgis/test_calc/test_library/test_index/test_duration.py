@@ -1,11 +1,12 @@
 import csv
+
 import numpy as np
 
 from ocgis import constants
-from ocgis.test.base import attr
+from ocgis.api.operations import OcgOperations
 from ocgis.calc.library.index.duration import Duration, FrequencyDuration
 from ocgis.exc import DefinitionValidationError
-from ocgis.api.operations import OcgOperations
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
 
 
@@ -52,6 +53,7 @@ class TestDuration(AbstractCalcBase):
         ret = duration.calculate(values, 4, operation='gte', summary='mean')
         self.assertNumpyAll(np.ma.array([4., 2., 1.5, 1.5], dtype=ret.dtype), ret.flatten())
 
+    @attr('data')
     def test_standard_operations(self):
         ret = self.run_standard_operations(
             [{'func': 'duration', 'name': 'max_duration',
@@ -70,6 +72,7 @@ class TestFrequencyDuration(AbstractCalcBase):
     def test_constructor(self):
         FrequencyDuration()
 
+    @attr('data')
     def test_calculate(self):
         fduration = FrequencyDuration()
 

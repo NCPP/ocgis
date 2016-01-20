@@ -1,8 +1,9 @@
 import os
 
-from ocgis.test.test_simple.test_simple import nc_scope
-from ocgis.test.base import TestBase
 from ocgis.interface.metadata import NcMetadata
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
+from ocgis.test.test_simple.test_simple import nc_scope
 
 
 class TestNcMetadata(TestBase):
@@ -11,6 +12,7 @@ class TestNcMetadata(TestBase):
     def rd(self):
         return self.test_data.get_rd('cancm4_tasmax_2001')
 
+    @attr('data')
     def test_init(self):
         with nc_scope(self.rd.uri, 'r') as ds:
             ncm = NcMetadata(ds)

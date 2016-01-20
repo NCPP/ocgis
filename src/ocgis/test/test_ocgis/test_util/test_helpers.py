@@ -11,6 +11,7 @@ from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 from ocgis.exc import SingleElementError, ShapeError
 from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
 from ocgis.util.geom_cabinet import GeomCabinetIterator
 from ocgis.util.helpers import format_bool, iter_array, validate_time_subset,\
@@ -292,6 +293,7 @@ class Test2(TestBase):
             self.assertEqual(len(ret), 1)
             self.assertIsInstance(ret[0], FooIterable)
 
+    @attr('data')
     def test_get_sorted_uris_by_time_dimension(self):
         rd_2001 = self.test_data.get_rd('cancm4_tasmax_2001')
         rd_2011 = self.test_data.get_rd('cancm4_tasmax_2011')

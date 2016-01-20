@@ -28,6 +28,7 @@ class TestCMIP3Masking(TestBase):
             ret = OcgOperations(dataset=rd, geom=geom).execute()
             self.assertEqual(ret[1]['Prcp'].variables['Prcp'].value.shape, (1, 1800, 1, 1, 1))
 
+    @attr('data')
     def test(self):
         for key in ['subset_test_Prcp', 'subset_test_Tavg_sresa2', 'subset_test_Tavg']:
             # test method to return a RequestDataset
@@ -54,6 +55,7 @@ class TestCnrmCerfacs(TestBase):
     def rd(self):
         return self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
 
+    @attr('data')
     def test_subset(self):
         """Test data may be subsetted and that coordinate transformations return the same value arrays."""
 
@@ -75,6 +77,7 @@ class TestCnrmCerfacs(TestBase):
         # grid coordinates should not be the same
         self.assertNumpyNotAll(ret[69]['pr'].spatial.grid.value, ret2[69]['pr'].spatial.grid.value)
 
+    @attr('data')
     def test_subset_shp(self):
         """Test conversion to shapefile."""
 
@@ -90,6 +93,7 @@ class TestCnrmCerfacs(TestBase):
 
 
 class Test(TestBase):
+    @attr('data')
     def test_cccma_rotated_pole(self):
         # with rotated pole, the uid mask was not being updated correctly following a transformation back to rotated
         # pole. this needed to be updated explicitly in subset.py
@@ -105,6 +109,7 @@ class Test(TestBase):
             for element in gid:
                 self.assertTrue(element > 4000)
 
+    @attr('data')
     def test_ichec_rotated_pole(self):
         # this point is far outside the domain
         ocgis.env.OVERWRITE = True
@@ -115,6 +120,7 @@ class Test(TestBase):
             with self.assertRaises(ExtentError):
                 ops.execute()
 
+    @attr('data')
     def test_narccap_cancm4_point_subset_no_abstraction(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
@@ -127,6 +133,7 @@ class Test(TestBase):
         with self.assertRaises(ValueError):
             ops.execute()
 
+    @attr('data')
     def test_narccap_cancm4_point_subset_with_abstraction(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
@@ -150,6 +157,7 @@ class Test(TestBase):
         # # the first buffer radius is larger
         self.assertTrue(ret.geoms[1].area > ret.geoms[2].area)
 
+    @attr('data')
     def test_narccap_cancm4_point_subset_with_abstraction_to_csv_shp(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_tas_rcm3_gfdl')
@@ -168,6 +176,7 @@ class Test(TestBase):
             rows = list(ds)
         self.assertEqual(set([row['properties']['UGID'] for row in rows]), set([1, 2]))
 
+    @attr('data')
     def test_collection_field_geometries_equivalent(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds=dict(time_region={'month': [6, 7, 8]}))
         geom = ['state_boundaries',
@@ -181,6 +190,7 @@ class Test(TestBase):
             self.assertTrue(coll_geom.bounds, field_geom.bounds)
             self.assertTrue(coll_geom.area, field_geom.area)
 
+    @attr('data')
     def test_empty_subset_multi_geometry_wrapping(self):
         # # adjacent state boundaries were causing an error with wrapping where
         # # a reference to the source field was being updated.
@@ -189,6 +199,7 @@ class Test(TestBase):
         ret = ops.execute()
         self.assertEqual(set(ret.keys()), set([5, 6, 7]))
 
+    @attr('data')
     def test_seasonal_calc(self):
         """Test some calculations using a seasonal grouping."""
 
@@ -225,6 +236,7 @@ class Test(TestBase):
         bounds_numtime_actual = np.array([[55115.0, 58765.0], [55146.0, 58490.0]])
         self.assertNumpyAll(bounds_numtime, bounds_numtime_actual)
 
+    @attr('data')
     def test_seasonal_calc_dkp(self):
         key = 'dynamic_kernel_percentile_threshold'
         calc = [{'func': key, 'name': 'dkp', 'kwds': {'operation': 'lt', 'percentile': 90, 'width': 5}}]
@@ -240,6 +252,7 @@ class Test(TestBase):
                                 dtype=np.dtype('float32'))
         self.assertNumpyAll(to_test, reference)
 
+    @attr('data')
     def test_selecting_single_value(self):
         rd = self.test_data.get_rd('cancm4_tas')
         lat_index = 32
@@ -296,6 +309,7 @@ class Test(TestBase):
                                   select_ugid=[25])
         ops.execute()
 
+    @attr('data')
     def test_qed_multifile(self):
         """Test concatenating three single time slice climatological files."""
 
@@ -331,6 +345,7 @@ class Test(TestBase):
             variables = set([row['properties']['VARIABLE'] for row in f])
         self.assertEqual(variables, set([u'pr', u'tasmax', u'tasmin', u'tas']))
 
+    @attr('data')
     def test_point_shapefile_subset(self):
         """Test subsetting using a point shapefile."""
 
@@ -371,6 +386,7 @@ class Test(TestBase):
         self.assertNumpyAll(time_subset, ref2.variables['tasmax'].value)
         self.assertFalse(np.any(ref2.variables['tasmax'].value < 0))
 
+    @attr('data')
     def test_time_region_subset(self):
 
         _month = [[6, 7], [12], None, [1, 3, 8]]
@@ -396,6 +412,7 @@ class Test(TestBase):
         for month, year in itertools.product(_month, _year):
             run_test(month, year)
 
+    @attr('data')
     def test_time_range_time_region_subset(self):
         time_range = [dt(2013, 1, 1), dt(2015, 12, 31)]
         time_region = {'month': [6, 7, 8], 'year': [2013, 2014]}
@@ -407,6 +424,7 @@ class Test(TestBase):
         years = set([obj.year for obj in ref.temporal.value_datetime])
         self.assertFalse(2015 in years)
 
+    @attr('data')
     def test_time_range_time_region_do_not_overlap(self):
         time_range = [dt(2013, 1, 1), dt(2015, 12, 31)]
         time_region = {'month': [6, 7, 8], 'year': [2013, 2014, 2018]}
@@ -445,6 +463,7 @@ class Test(TestBase):
                                       calc_grouping=calc_grouping, prefix=key)
             ret = ops.execute()
 
+    @attr('data')
     def test_clip_aggregate(self):
         # this geometry was hanging
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2003]}})
@@ -472,6 +491,7 @@ class Test(TestBase):
         ref = ret[1]['pr']
         self.assertEqual(set(ref.variables.keys()), set(['mean', 'median', 'max', 'min']))
 
+    @attr('data')
     def test_bad_time_dimension(self):
         """Test not formatting the time dimension."""
 
@@ -503,6 +523,7 @@ class Test(TestBase):
                                                       'bias': ['_FillValue', 'grid_mapping', 'units']},
                                    ignore_variables=['latitude_longitude'])
 
+    @attr('data')
     def test_time_region_climatology(self):
         """Test for reading metadata from QED 2013 climate data files."""
 
@@ -534,6 +555,7 @@ class Test(TestBase):
         ret = ops.execute()
         ref = ret[16]['climatology_Tas_annual_max_of_annual_means']
 
+    @attr('data')
     def test_mfdataset_to_nc(self):
         rd = self.test_data.get_rd('maurer_2010_pr')
         ops = OcgOperations(dataset=rd, output_format='nc', calc=[{'func': 'mean', 'name': 'my_mean'}],

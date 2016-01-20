@@ -1,8 +1,10 @@
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup, AbstractTemporalGroup
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestSeasonalTemporalGroup(TestBase):
+    @attr('data')
     def test_init(self):
         actual = [[12, 1, 2], [3, 4, 5], 'unique']
         st = SeasonalTemporalGroup(actual)

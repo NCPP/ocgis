@@ -1,14 +1,16 @@
 from copy import deepcopy
+
 import numpy as np
 
-from ocgis.test.base import TestBase
-from ocgis.calc.library.statistics import Mean
-from ocgis.calc.engine import OcgCalculationEngine
 import ocgis
-from ocgis.util.logging_ocgis import ProgressOcgOperations
 from ocgis.api.collection import SpatialCollection
-from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.eval_function import EvalFunction
+from ocgis.calc.library.statistics import Mean
+from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
+from ocgis.util.logging_ocgis import ProgressOcgOperations
 
 
 class TestOcgCalculationEngine(TestBase):
@@ -30,6 +32,7 @@ class TestOcgCalculationEngine(TestBase):
             grouping = self.grouping
         return OcgCalculationEngine(grouping, funcs, **kwds)
 
+    @attr('data')
     def test_with_eval_function_one_variable(self):
         funcs = [{'func': 'tas2=tas+4', 'ref': EvalFunction}]
         engine = self.get_engine(funcs=funcs, grouping=None)
@@ -39,6 +42,7 @@ class TestOcgCalculationEngine(TestBase):
         engine.execute(coll)
         self.assertNumpyAll(coll[1]['tas'].variables['tas2'].value, to_test[1]['tas'].variables['tas'].value + 4)
 
+    @attr('data')
     def test_with_eval_function_two_variables(self):
         funcs = [{'func': 'tas_out=tas+tas2', 'ref': EvalFunction}]
         engine = self.get_engine(funcs=funcs, grouping=None)
@@ -61,6 +65,7 @@ class TestOcgCalculationEngine(TestBase):
         for kwds in [None, {'progress': ProgressOcgOperations()}]:
             self.get_engine(kwds=kwds)
 
+    @attr('data')
     def test_execute(self):
         rd = self.test_data.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd, slice=[None, [0, 700], None, [0, 10], [0, 10]]).execute()
@@ -68,6 +73,7 @@ class TestOcgCalculationEngine(TestBase):
         ret = engine.execute(coll)
         self.assertEqual(ret[1]['tas'].shape, (1, 12, 1, 10, 10))
 
+    @attr('data')
     def test_execute_tgd(self):
         rd = self.test_data.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd, slice=[None, [0, 700], None, [0, 10], [0, 10]],
@@ -80,6 +86,7 @@ class TestOcgCalculationEngine(TestBase):
         self.assertNumpyAll(coll.gvu(1, 'mean'), coll_engine.gvu(1, 'mean'))
         self.assertFalse(np.may_share_memory(coll.gvu(1, 'mean'), coll_engine.gvu(1, 'mean')))
 
+    @attr('data')
     def test_execute_tgd_malformed(self):
         rd = self.test_data.get_rd('cancm4_tas')
         coll = ocgis.OcgOperations(dataset=rd, slice=[None, [0, 700], None, [0, 10], [0, 10]],

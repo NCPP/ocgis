@@ -189,6 +189,7 @@ class TestRegrid(TestSimpleBase):
                 else:
                     check_fields_for_regridding(sources, ref, with_corners=with_corners)
 
+    @attr('data')
     def test_iter_regridded_fields_different_grid_shapes(self):
         """Test regridding a downscaled dataset to GCM output. The input and output grids have different shapes."""
 
@@ -229,6 +230,7 @@ class TestRegrid(TestSimpleBase):
                 self.assertTrue(vmask[:, :, :, 1, 3].all())
                 self.assertEqual(vmask.sum(), 28)
 
+    @attr('data')
     def test_iter_regridded_fields_problem_bounds(self):
         """Test a dataset with crap bounds will work when with_corners is False."""
 
@@ -351,6 +353,7 @@ class TestRegrid(TestSimpleBase):
         for regridded in iter_regridded_fields(sources, destination_field, value_mask=value_mask):
             self.assertTrue(np.all(regridded.variables.first().value.mask[:, :, :, 1, 1]))
 
+    @attr('data')
     def test_iter_regridded_fields_nonoverlapping_extents(self):
         """Test regridding with fields that do not spatially overlap."""
 
@@ -366,6 +369,7 @@ class TestRegrid(TestSimpleBase):
         with self.assertRaises(RegriddingError):
             list(iter_regridded_fields([source], destination))
 
+    @attr('data')
     def test_iter_regridded_fields_partial_extents(self):
         """Test regridding with fields that partially overlap."""
 
@@ -447,6 +451,7 @@ class TestRegrid(TestSimpleBase):
             else:
                 self.assertIsNone(nsdim.grid.corners)
 
+    @attr('data')
     def test_get_esmf_grid_from_sdim_with_mask(self):
         """Test with masked data."""
 
@@ -504,6 +509,7 @@ class TestRegrid(TestSimpleBase):
                 for idx in [0, 1]:
                     self.assertNumpyAll(corner[idx], np.array(0.0))
 
+    @attr('data')
     def test_get_esmf_grid_from_sdim_real_data(self):
         """Test creating ESMF field from real data using an OCGIS spatial dimension."""
 

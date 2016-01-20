@@ -1,28 +1,28 @@
-from copy import deepcopy
 import csv
+import itertools
 import os
 import pickle
-import itertools
+from copy import deepcopy
 
 import numpy as np
 from shapely import wkt
 
-from ocgis.calc.library.index.duration import FrequencyDuration
-from ocgis.api.parms.definition import OutputFormat
-from ocgis.exc import DefinitionValidationError
-from ocgis.interface.base.field import Field
+import ocgis
+from ocgis import env, constants
+from ocgis.api.collection import SpatialCollection
 from ocgis.api.operations import OcgOperations
+from ocgis.api.parms.definition import OutputFormat
+from ocgis.api.subset import SubsetOperation
+from ocgis.calc.library.index.duration import FrequencyDuration
 from ocgis.conv.numpy_ import NumpyConverter
+from ocgis.exc import DefinitionValidationError
 from ocgis.interface.base.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84, CoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGridDimension
+from ocgis.interface.base.field import Field
 from ocgis.test.base import TestBase, attr
-import ocgis
-from ocgis.api.subset import SubsetOperation
-from ocgis.api.collection import SpatialCollection
 from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
-from ocgis import env, constants
 
 
 class TestSubsetOperation(TestBase):
@@ -39,6 +39,7 @@ class TestSubsetOperation(TestBase):
         subset = SubsetOperation(ops)
         return subset
 
+    @attr('data')
     def test_init(self):
         for rb, p in itertools.product([True, False], [None, ProgressOcgOperations()]):
             sub = SubsetOperation(self.get_operations(), request_base_size_only=rb, progress=p)
@@ -46,6 +47,7 @@ class TestSubsetOperation(TestBase):
                 self.assertIsInstance(coll, SpatialCollection)
         self.assertEqual(ii, 0)
 
+    @attr('data')
     def test_process_subsettables(self):
         # test extrapolating spatial bounds with no row and column
         for with_corners in [False, True]:
@@ -100,6 +102,7 @@ class TestSubsetOperation(TestBase):
             for key in FrequencyDuration.structure_dtype['names']:
                 self.assertIn(key, coll.headers)
 
+    @attr('data')
     def test_abstraction_not_available(self):
         """Test appropriate exception is raised when a selected abstraction is not available."""
 
@@ -196,6 +199,7 @@ class TestSubsetOperation(TestBase):
                 expected_contents = [xx.format(ops.prefix) for xx in expected_contents]
                 self.assertAsSetEqual(contents, expected_contents)
 
+    @attr('data')
     def test_dataset_as_field_from_file(self):
         """Test with dataset argument coming in as a field as opposed to a request dataset collection."""
 
@@ -212,6 +216,7 @@ class TestSubsetOperation(TestBase):
         field_out_from_rd = ret[23]['tas']
         self.assertNumpyAll(field_out_from_field.variables['tas'].value, field_out_from_rd.variables['tas'].value)
 
+    @attr('data')
     def test_geometry_dictionary(self):
         """Test geometry dictionaries come out properly as collections."""
 
@@ -251,6 +256,7 @@ class TestSubsetOperation(TestBase):
                 self.assertAlmostEqual(field.spatial.grid.value.data.mean(), expected[ugid])
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_bounding_box_wrapped(self):
         """Test subsetting with a wrapped bounding box with the target as a 0-360 global grid."""
 
@@ -269,6 +275,7 @@ class TestSubsetOperation(TestBase):
         self.assertAlmostEqual(field.variables.first().value.mean(), 262.08718532986109)
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_same_field(self):
         """Test regridding operations with same field used to regrid the source."""
 
@@ -321,6 +328,7 @@ class TestSubsetOperation(TestBase):
                         self.assertIsNotNone(to_check)
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_same_field_bad_bounds_without_corners(self):
         """Test bad bounds may be regridded with_corners as False."""
 
@@ -337,6 +345,7 @@ class TestSubsetOperation(TestBase):
                     self.assertIsNone(to_test)
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_same_field_value_mask(self):
         """Test with a value_mask."""
 
@@ -350,6 +359,7 @@ class TestSubsetOperation(TestBase):
         self.assertEqual(1, ret[0][1]['tas'].variables.first().value.mask.sum())
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_different_fields_requiring_wrapping(self):
         """Test with fields requiring wrapping."""
 
@@ -369,6 +379,7 @@ class TestSubsetOperation(TestBase):
                 self.assertEqual(dd['field'].shape, (1, 28, 1, 5, 4))
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_different_fields_variable_regrid_targets(self):
         """Test with a request dataset having regrid_source as False."""
 
@@ -397,6 +408,7 @@ class TestSubsetOperation(TestBase):
                     raise NotImplementedError
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_update_crs(self):
         """Test with different CRS values than spherical on input data."""
 
@@ -596,6 +608,7 @@ class TestSubsetOperation(TestBase):
                 self.assertNumpyAll(to_test, actual)
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_with_output_crs(self):
         """Test with an output coordinate system."""
 
@@ -613,6 +626,7 @@ class TestSubsetOperation(TestBase):
             self.assertEqual(field.shape[1], 3650)
 
     @attr('esmf')
+    @attr('data')
     def test_regridding_two_projected_coordinate_systems(self):
         """Test with two coordinate systems not in spherical coordinates."""
 

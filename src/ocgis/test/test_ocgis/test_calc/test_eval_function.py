@@ -1,8 +1,9 @@
 import numpy as np
 
 from ocgis import env
-from ocgis.test.base import TestBase
 from ocgis.calc.eval_function import EvalFunction
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestEvalFunction(TestBase):
@@ -11,6 +12,7 @@ class TestEvalFunction(TestBase):
         ef = EvalFunction(expr=expr)
         self.assertEqual(ef.expr, expr)
 
+    @attr('data')
     def test_calculation_file_only_one_variable(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -22,6 +24,7 @@ class TestEvalFunction(TestBase):
         self.assertEqual(ret['es'].dtype, env.NP_FLOAT)
         self.assertEqual(ret['es'].fill_value, np.ma.array([1], dtype=env.NP_FLOAT).fill_value)
 
+    @attr('data')
     def test_calculation_file_only_two_variables(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
@@ -34,6 +37,7 @@ class TestEvalFunction(TestBase):
         ret = ef.execute()
         self.assertEqual(ret['foo']._value, None)
 
+    @attr('data')
     def test_calculation_one_variable_exp_and_log(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -45,6 +49,7 @@ class TestEvalFunction(TestBase):
         actual_value = 6.1078 * np.exp(np.log(17.08085) * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
         self.assertNumpyAll(ret['es'].value, actual_value)
 
+    @attr('data')
     def test_calculation_one_variable_exp_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -62,6 +67,7 @@ class TestEvalFunction(TestBase):
         actual_value = 6.1078 * np.exp(17.08085 * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
         self.assertNumpyAll(ret['es'].value, actual_value)
 
+    @attr('data')
     def test_calculation_two_variables_exp_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tasmax_2001')

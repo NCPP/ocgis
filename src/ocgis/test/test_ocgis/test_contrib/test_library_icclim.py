@@ -158,6 +158,7 @@ class TestLibraryIcclim(TestBase):
         self.assertIn('icclim_TG', fr)
         self.assertIn('icclim_vDTR', fr)
 
+    @attr('data')
     def test_seasonal_calc_grouping(self):
         """Test seasonal calculation grouping with an ICCLIM function."""
 
@@ -234,6 +235,7 @@ class TestCD(TestBase):
         self.assertEqual(var.name, IcclimCD.key)
         self.assertEqual(var.shape, (1, 12, 1, 2, 3))
 
+    @attr('data')
     def test_operations(self):
         calc_grouping = ['month']
 
@@ -269,6 +271,7 @@ class TestTG10p(TestBase):
     def test_init(self):
         tg = IcclimTG10p()
 
+    @attr('data')
     def test_execute(self):
         for pd in [False, True]:
 
@@ -290,6 +293,7 @@ class TestTG10p(TestBase):
             self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
             self.assertEqual(ret['icclim_TG10p'].value.mean(), 30.0625)
 
+    @attr('data')
     def test_large_array_compute_local(self):
         """Test tiling works for percentile-based indice on a local dataset."""
 
@@ -323,6 +327,7 @@ class TestTG10p(TestBase):
 
 @attr('icclim')
 class TestDTR(TestBase):
+    @attr('data')
     def test_calculate(self):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
@@ -334,6 +339,7 @@ class TestDTR(TestBase):
         ret = dtr.execute()
         self.assertEqual(ret['icclim_DTR'].value.shape, (1, 12, 1, 25, 25))
 
+    @attr('data')
     def test_bad_keyword_mapping(self):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tas = self.test_data.get_rd('cancm4_tas')
@@ -348,6 +354,7 @@ class TestDTR(TestBase):
             ocgis.OcgOperations(dataset=rds, calc=calc, calc_grouping=['month'],
                                 output_format='nc')
 
+    @attr('data')
     def test_calculation_operations(self):
         # note the kwds must contain a map of the required variables to their associated aliases.
         calc = [{'func': 'icclim_DTR', 'name': 'DTR', 'kwds': {'tasmin': 'tasmin', 'tasmax': 'tasmax'}}]
@@ -362,6 +369,7 @@ class TestDTR(TestBase):
 
 @attr('icclim')
 class TestETR(TestBase):
+    @attr('data')
     def test_calculate(self):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
@@ -373,6 +381,7 @@ class TestETR(TestBase):
         ret = dtr.execute()
         self.assertEqual(ret['icclim_ETR'].value.shape, (1, 12, 1, 25, 25))
 
+    @attr('data')
     def test_calculate_rotated_pole(self):
         tasmin_fake = self.test_data.get_rd('rotated_pole_ichec')
         tasmin_fake.alias = 'tasmin'
@@ -394,6 +403,7 @@ class TestETR(TestBase):
 
 @attr('icclim')
 class TestTx(TestBase):
+    @attr('data')
     def test_calculate_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         slc = [None, None, None, [0, 10], [0, 10]]
@@ -407,6 +417,7 @@ class TestTx(TestBase):
             ret_icclim = ops_icclim.execute()
             self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value, ret_icclim[1]['tas'].variables['TG'].value)
 
+    @attr('data')
     def test_calculation_operations_to_nc(self):
         rd = self.test_data.get_rd('cancm4_tas')
         slc = [None, None, None, [0, 10], [0, 10]]
@@ -430,6 +441,7 @@ class TestTx(TestBase):
                       u'long_name': u'Mean of daily mean temperature'}
             self.assertEqual(dict(var.__dict__), actual)
 
+    @attr('data')
     def test_calculate(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
@@ -447,6 +459,7 @@ class TestTx(TestBase):
 
 @attr('icclim')
 class TestSU(TestBase):
+    @attr('data')
     def test_calculate(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         field = rd.get()
@@ -459,6 +472,7 @@ class TestSU(TestBase):
             ret_ocgis = threshold.execute()
             self.assertNumpyAll(ret_icclim['icclim_SU'].value, ret_ocgis['threshold'].value)
 
+    @attr('data')
     def test_calculation_operations_bad_units(self):
         rd = self.test_data.get_rd('daymet_tmax')
         calc_icclim = [{'func': 'icclim_SU', 'name': 'SU'}]
@@ -466,6 +480,7 @@ class TestSU(TestBase):
         with self.assertRaises(UnitsValidationError):
             ops_icclim.execute()
 
+    @attr('data')
     def test_calculation_operations_to_nc(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         slc = [None, None, None, [0, 10], [0, 10]]

@@ -1,16 +1,17 @@
-import unittest
-import itertools
-from datetime import datetime as dt
 import datetime
+import itertools
+import unittest
+from datetime import datetime as dt
 
 import numpy as np
 
-from ocgis.api.operations import OcgOperations
 import ocgis
-from ocgis.test.base import TestBase
+from ocgis import constants
+from ocgis.api.operations import OcgOperations
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.library.thresholds import Threshold
-from ocgis import constants
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class AbstractCalcBase(TestBase):
@@ -77,7 +78,8 @@ class Test(AbstractCalcBase):
      * Data is required to be 4-dimensional:
          arr.shape = (t,1,m,n)
     """
-    
+
+    @attr('data')
     def test_date_groups_all(self):
         calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
@@ -94,7 +96,8 @@ class Test(AbstractCalcBase):
         lhs = np.ma.mean(parents.value, axis=1).reshape(1, 1, 1, 5, 4).astype(parents.dtype)
         rhs = variable.value
         self.assertNumpyAll(lhs, rhs)
-    
+
+    @attr('data')
     def test_time_region(self):
         kwds = {'time_region':{'year':[2011]}}
         rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
@@ -125,6 +128,7 @@ class Test(AbstractCalcBase):
         threshold = ret[2762]['tasmax'].variables['threshold'].value
         self.assertEqual(threshold.flatten()[0],62)
 
+    @attr('data')
     def test_computational_nc_output(self):
         """Test writing a computation to netCDF."""
 
@@ -192,6 +196,7 @@ class Test(AbstractCalcBase):
         ret = cseq[idx,:,:,:]
         self.assertAlmostEqual(5.1832553259829295,ret.sum())
 
+    @attr('data')
     def test_date_groups(self):
         calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
@@ -271,6 +276,7 @@ class TestOcgCalculationEngine(TestBase):
         ret = ops.execute()
         return(ret)
 
+    @attr('data')
     def test_agg_raw(self):
         """Test using raw values for calculations as opposed to spatially averaged data values."""
 

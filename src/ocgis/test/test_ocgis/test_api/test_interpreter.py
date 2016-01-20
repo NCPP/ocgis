@@ -1,20 +1,22 @@
 import logging
 import os
 
+from ocgis import OcgOperations
 from ocgis import constants, env
 from ocgis.api.interpreter import OcgInterpreter
-from ocgis import OcgOperations
 from ocgis.api.subset import SubsetOperation
 from ocgis.conv.fiona_ import ShpConverter
 from ocgis.conv.nc import NcConverter
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.exc import ExtentError
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 
 
 class TestOcgInterpreter(TestBase):
+    @attr('data')
     def test_execute_directory(self):
         """Test that the output directory is removed appropriately following an operations failure."""
 
@@ -32,6 +34,7 @@ class TestOcgInterpreter(TestBase):
                 contents = os.listdir(self.current_dir_output)
                 self.assertEqual(len(contents), 0)
 
+    @attr('data')
     def test_get_converter(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
@@ -56,6 +59,7 @@ class TestOcgInterpreter(TestBase):
         ret = interp._get_converter_(NcConverter, outdir, prefix, so)
         self.assertDictEqual(ret.options, opts)
 
+    @attr('data')
     def test_get_progress_and_configure_logging(self):
         env.VERBOSE = True
         rd = self.test_data.get_rd('cancm4_tas')

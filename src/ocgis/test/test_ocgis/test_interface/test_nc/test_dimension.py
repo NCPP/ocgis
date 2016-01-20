@@ -1,6 +1,7 @@
 from ocgis import VectorDimension
 from ocgis.interface.nc.dimension import NcVectorDimension
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestNcVectorDimension(TestBase):
@@ -26,10 +27,12 @@ class TestNcVectorDimension(TestBase):
         src_idx = [1, 2, 3, 4, 5]
         return src_idx
 
+    @attr('data')
     def test_init(self):
         self.assertEqual(NcVectorDimension.__bases__, (VectorDimension,))
         self.assertIsInstance(self.get(), NcVectorDimension)
 
+    @attr('data')
     def test_bounds(self):
         vdim = self.get(axis='T')
         self.assertEqual(vdim.bounds.shape[0], vdim._src_idx.shape[0])
@@ -40,6 +43,7 @@ class TestNcVectorDimension(TestBase):
         self.assertIsNone(vdim._request_dataset)
         self.assertIsNone(vdim.bounds)
 
+    @attr('data')
     def test_value(self):
         vdim = self.get(axis='T')
         self.assertEqual(vdim.value.shape, vdim._src_idx.shape)

@@ -127,9 +127,8 @@ class TestBase(unittest.TestCase):
                 dtype_actual = property_actual.split(':')[0]
                 self.assertEqual(dtype_meta, dtype_actual)
 
-    def assertIsInstances(self, obj, klasses):
-        for klass in klasses:
-            self.assertIsInstance(obj, klass)
+    def assertIsInstances(self, actual, desired):
+        self.assertTrue(isinstance, desired)
 
     def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True):
         """
@@ -629,6 +628,10 @@ class TestBase(unittest.TestCase):
                 ocgis_lh.shutdown()
 
 
+class NeedsTestData(Exception):
+    pass
+
+
 class TestData(OrderedDict):
     @property
     def size(self):
@@ -665,7 +668,6 @@ class TestData(OrderedDict):
         :returns: A request dataset object to use for testing!
         :rtype: :class:`ocgis.RequestDataset`
         """
-
         ref = self[key]
         if kwds is None:
             kwds = {}
@@ -690,7 +692,6 @@ class TestData(OrderedDict):
         :rtype: list[str,] or str
         :raises: OSError, ValueError
         """
-
         ref = self[key]
         coll = deepcopy(ref['collection'])
         if env.DIR_TEST_DATA is None:

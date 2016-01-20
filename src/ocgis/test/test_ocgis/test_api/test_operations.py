@@ -37,6 +37,7 @@ class TestOcgOperations(TestBase):
                          for rd in rds]
         self.datasets_no_range = [{'uri': rd.uri, 'variable': rd.variable} for rd in rds]
 
+    @attr('data')
     def test_init(self):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations()
@@ -65,6 +66,7 @@ class TestOcgOperations(TestBase):
         self.assertEqual(ops.geom_select_sql_where, s)
         self.assertEqual(len(ops.geom), 2)
 
+    @attr('data')
     def test_str(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
@@ -72,6 +74,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(str(ret).startswith('OcgOperations'))
         self.assertGreater(len(ret), 1000)
 
+    @attr('data')
     def test_get_base_request_size(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
@@ -89,6 +92,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd).get_base_request_size()
 
+    @attr('data')
     def test_get_base_request_size_multifile(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
@@ -112,6 +116,7 @@ class TestOcgOperations(TestBase):
                                                 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}},
                           'total': 1783969.9140625}, size)
 
+    @attr('data')
     def test_get_base_request_size_multifile_with_geom(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
@@ -139,6 +144,7 @@ class TestOcgOperations(TestBase):
                                                       'row': {'kb': 0.03125, 'shape': (4,),
                                                               'dtype': dtype('float64')}}}, 'total': 21769.5078125})
 
+    @attr('data')
     def test_get_base_request_size_test_data(self):
         for key in self.test_data.keys():
             rd = self.test_data.get_rd(key)
@@ -152,6 +158,7 @@ class TestOcgOperations(TestBase):
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
 
+    @attr('data')
     def test_get_base_request_size_with_calculation(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
@@ -159,6 +166,7 @@ class TestOcgOperations(TestBase):
         size = ops.get_base_request_size()
         self.assertEqual(size['variables']['tas']['temporal']['shape'][0], 3650)
 
+    @attr('data')
     def test_get_base_request_size_with_geom(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23])
@@ -174,6 +182,7 @@ class TestOcgOperations(TestBase):
                                                       'row': {'kb': 0.03125, 'shape': (4,),
                                                               'dtype': dtype('float64')}}}, 'total': 199.6640625})
 
+    @attr('data')
     def test_get_meta(self):
         ops = OcgOperations(dataset=self.datasets)
         meta = ops.get_meta()
@@ -186,6 +195,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(len(meta) > 100)
         self.assertTrue('\n' in meta)
 
+    @attr('data')
     def test_keyword_abstraction(self):
         kk = definition.Abstraction
 
@@ -199,6 +209,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             kk('pt')
 
+    @attr('data')
     def test_keyword_aggregate(self):
         rd = self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
 
@@ -224,6 +235,7 @@ class TestOcgOperations(TestBase):
                 self.assertEqual(len(rows), 10)
                 self.assertAlmostEqual(float(rows[4]['VALUE']), manual_mean)
 
+    @attr('data')
     def test_keyword_calc_grouping_none_date_parts(self):
         _cg = [None, ['day', 'month'], 'day']
 
@@ -255,6 +267,7 @@ class TestOcgOperations(TestBase):
                         if reraise:
                             raise
 
+    @attr('data')
     def test_keyword_calc_grouping_seasonal_with_unique(self):
         """Test calc_grouping argument using a seasonal unique flag."""
 
@@ -279,6 +292,7 @@ class TestOcgOperations(TestBase):
                           [datetime.datetime(2009, 12, 1, 12, 0), datetime.datetime(2010, 2, 28, 12, 0)]])
         self.assertEqual(field.shape, (1, 9, 1, 3, 3))
 
+    @attr('data')
     def test_keyword_calc_grouping_seasonal_with_year(self):
         calc_grouping = [[1, 2, 3], 'year']
         calc = [{'func': 'mean', 'name': 'mean'}]
@@ -288,6 +302,7 @@ class TestOcgOperations(TestBase):
         ret = ops.execute()
         self.assertEqual(ret[25]['tas'].shape, (1, 10, 1, 5, 4))
 
+    @attr('data')
     def test_keyword_calc_grouping_with_string_expression(self):
         """Test that no calculation grouping is allowed with a string expression."""
 
@@ -297,6 +312,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping)
 
+    @attr('data')
     def test_keyword_callback(self):
 
         app = []
@@ -320,6 +336,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(len(app) > 15)
         self.assertEqual(app[-1][0], 100.0)
 
+    @attr('data')
     def test_keyword_conform_units_to(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -333,6 +350,7 @@ class TestOcgOperations(TestBase):
         for ds in ops.dataset.itervalues():
             self.assertEqual(ds.conform_units_to, 'fahrenheit')
 
+    @attr('data')
     def test_keyword_conform_units_to_bad_units(self):
         rd = self.test_data.get_rd('cancm4_tas')
         with self.assertRaises(RequestValidationError):
@@ -350,6 +368,7 @@ class TestOcgOperations(TestBase):
         # self.inspect(ret)
         raise
 
+    @attr('data')
     def test_keyword_geom(self):
         geom = make_poly((37.762, 38.222), (-102.281, -101.754))
         g = definition.Geom(geom)
@@ -368,6 +387,7 @@ class TestOcgOperations(TestBase):
         self.assertEqual(len(list(g.value)), 60)
         self.assertEqual(g._shp_key, 'mi_watersheds')
 
+    @attr('data')
     def test_keyword_geom_having_changed_select_ugid(self):
         ops = OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
                             geom='state_boundaries')
@@ -375,6 +395,7 @@ class TestOcgOperations(TestBase):
         ops.geom_select_uid = [16, 17]
         self.assertEqual(len(list(ops.geom)), 2)
 
+    @attr('data')
     def test_keyword_geom_string(self):
         ops = OcgOperations(dataset=self.datasets, geom='state_boundaries')
         self.assertEqual(len(list(ops.geom)), 51)
@@ -385,6 +406,7 @@ class TestOcgOperations(TestBase):
         ops.geom = [-120, 40, -110, 50]
         self.assertEqual(ops.geom[0].single.geom.bounds, (-120.0, 40.0, -110.0, 50.0))
 
+    @attr('data')
     def test_keyword_headers(self):
         headers = ['did', 'value']
         for htype in [list, tuple]:
@@ -400,6 +422,7 @@ class TestOcgOperations(TestBase):
         hh = definition.Headers(headers)
         self.assertEqual(hh.value, tuple(constants.HEADERS_REQUIRED))
 
+    @attr('data')
     def test_keyword_level_range(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -416,6 +439,7 @@ class TestOcgOperations(TestBase):
         for r in ops.dataset.itervalues():
             self.assertEqual(r.level_range, tuple(lr))
 
+    @attr('data')
     def test_keyword_prefix(self):
         # the meta output format should not create an output directory
         rd = self.test_data.get_rd('cancm4_tas')
@@ -450,6 +474,7 @@ class TestOcgOperations(TestBase):
                 self.assertFalse(k.with_slice)
                 self.assertEqual(ret.shape, (1, 3650, 1, 64, 128))
 
+    @attr('data')
     def test_keyword_output_format_nc_package_validation_raised_first(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('rotated_pole_ichec', kwds={'alias': 'tas2'})
@@ -459,6 +484,7 @@ class TestOcgOperations(TestBase):
             self.assertIn('Data packages (i.e. more than one RequestDataset) may not be written to netCDF.',
                           e.message)
 
+    @attr('data')
     def test_keyword_output_format_nc_2d_flexible_mesh_ugrid(self):
         rd = self.test_data.get_rd('cancm4_tas')
         output = constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH
@@ -489,6 +515,7 @@ class TestOcgOperations(TestBase):
                     self.assertTrue(d.isunlimited())
                     self.assertTrue(ocgis_unlimited)
 
+    @attr('data')
     def test_keyword_regrid_destination(self):
         """Test regridding not allowed with clip operation."""
 
@@ -497,6 +524,7 @@ class TestOcgOperations(TestBase):
             OcgOperations(dataset=rd, regrid_destination=rd, spatial_operation='clip')
 
     @attr('esmf')
+    @attr('data')
     def test_keyword_regrid_destination_to_nc(self):
         """Write regridded data to netCDF."""
 
@@ -512,6 +540,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(np.any(field.variables.first().value.mask))
 
     @attr('esmf')
+    @attr('data')
     def test_keyword_regrid_destination_to_shp_vector_wrap(self):
         """Test writing to shapefile with different vector wrap options."""
 
@@ -531,6 +560,7 @@ class TestOcgOperations(TestBase):
                 else:
                     self.assertGreater(geom.bounds[0], 0)
 
+    @attr('data')
     def test_keyword_spatial_operation(self):
         values = (None, 'clip', 'intersects')
         ast = ('intersects', 'clip', 'intersects')
@@ -540,6 +570,7 @@ class TestOcgOperations(TestBase):
             obj = klass(v)
             self.assertEqual(obj.value, a)
 
+    @attr('data')
     def test_keyword_spatial_operations_bounding_box(self):
         geom = [-80, 22.5, 50, 70.0]
         rd = self.test_data.get_rd('subset_test_slp')
@@ -548,6 +579,7 @@ class TestOcgOperations(TestBase):
         field = ret[1]['slp']
         self.assertEqual(field.shape, (1, 365, 1, 18, 143))
 
+    @attr('data')
     def test_keyword_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -564,6 +596,7 @@ class TestOcgOperations(TestBase):
         for r in ops.dataset.itervalues():
             self.assertEqual(r.time_range, tuple(tr))
 
+    @attr('data')
     def test_keyword_time_range_and_time_region_null_parms(self):
         ops = OcgOperations(dataset=self.datasets_no_range)
         self.assertEqual(ops.geom, None)
@@ -573,6 +606,7 @@ class TestOcgOperations(TestBase):
             self.assertEqual(ds.level_range, None)
         ops.__repr__()
 
+    @attr('data')
     def test_keyword_time_region(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -589,6 +623,7 @@ class TestOcgOperations(TestBase):
         for r in ops.dataset.itervalues():
             self.assertEqual(r.time_region, tr)
 
+    @attr('data')
     def test_keyword_time_subset_func(self):
 
         def _func_(value, bounds=None):
@@ -612,11 +647,13 @@ class TestOcgOperations(TestBase):
         for v in rd_out.get().temporal.value_datetime:
             self.assertEqual(v.month, 6)
 
+    @attr('data')
     def test_update_dependents(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, time_subset_func=lambda x, y: [1, 2])
         self.assertIsInstance(ops.dataset.first().time_subset_func, FunctionType)
 
+    @attr('data')
     def test_validate(self):
         # snippets should be allowed for field objects
         field = self.test_data.get_rd('cancm4_tas').get()

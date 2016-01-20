@@ -1,15 +1,17 @@
-import unittest
+import netCDF4 as nc
 import os
+import unittest
 from datetime import datetime
 
-import netCDF4 as nc
 import numpy as np
 
-from ocgis.test.base import TestBase
 import ocgis
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class Test(TestBase):
+    @attr('data')
     def test_missing_bounds(self):
         rd = self.test_data.get_rd('snippet_maurer_dtr')
         rd.inspect_as_dct()

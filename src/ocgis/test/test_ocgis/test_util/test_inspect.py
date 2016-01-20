@@ -6,6 +6,7 @@ import numpy as np
 
 import ocgis
 from ocgis import Inspect, RequestDataset
+from ocgis.test.base import attr
 from ocgis.test.base import nc_scope, TestBase
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
@@ -36,6 +37,7 @@ class TestInspect1(TestBase):
         fai = Inspect(request_dataset=rd)
         return fai
 
+    @attr('data')
     def test_init(self):
         for k in self:
             try:
@@ -53,27 +55,32 @@ class TestInspect1(TestBase):
         ip._append_dump_report_(target)
         self.assertTrue(len(target) > 5)
 
+    @attr('data')
     def test_get_field_report(self):
         rd = self.test_data.get_rd('cancm4_tas')
         fai = Inspect(request_dataset=rd)
         target = fai.get_field_report()
         self.assertEqual(len(target), 25)
 
+    @attr('data')
     def test_get_header(self):
         fai = self.get()
         h = fai.get_header()
         self.assertEqual(len(h), 2)
 
+    @attr('data')
     def test_get_report(self):
         fai = self.get()
         target = fai.get_report()
         self.assertEqual(len(target), 109)
 
+    @attr('data')
     def test_get_report_no_field(self):
         fai = self.get()
         target = fai.get_report_no_field()
         self.assertEqual(len(target), 84)
 
+    @attr('data')
     def test_get_report_possible(self):
         uri = [self.test_data.get_uri('cancm4_tas'), self.get_netcdf_path_no_dimensioned_variables()]
         for u in uri:
@@ -81,6 +88,7 @@ class TestInspect1(TestBase):
             target = ip.get_report_possible()
             self.assertTrue(len(target) > 10)
 
+    @attr('data')
     def test_str(self):
         ret = str(Inspect(uri=self.uri))
         self.assertTrue(len(ret) > 4000)
@@ -89,6 +97,7 @@ class TestInspect1(TestBase):
         ret = str(Inspect(uri=novar))
         self.assertTrue(len(ret) > 100)
 
+    @attr('data')
     def test_variable(self):
         fai = Inspect(uri=self.uri, variable='tasmax')
         self.assertEqual(fai.variable, 'tasmax')

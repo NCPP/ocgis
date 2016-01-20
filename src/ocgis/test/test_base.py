@@ -6,6 +6,7 @@ import numpy as np
 
 from ocgis.interface.base.field import Field
 from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 
 
 class TestTestBase(TestBase):
@@ -58,7 +59,8 @@ class TestTestBase(TestBase):
         self.assertEqual(ret[0], start)
         self.assertEqual(ret[-1], end)
         self.assertEqual(ret[1]-ret[0], datetime.timedelta(days=1))
-        
+
+    @attr('data')
     def test_multifile(self):
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         self.assertEqual(len(rd.uri),2)
@@ -75,6 +77,7 @@ class TestTestData(TestBase):
         ret = self.test_data.get_relative_dir('clt_month_units')
         self.assertEqual(ret, 'nc/misc/month_in_time_units')
 
+    @attr('data')
     def test_size(self):
         size = self.test_data.size
         self.assertGreater(size, 1138333)

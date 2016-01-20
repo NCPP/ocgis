@@ -2,15 +2,16 @@ import os
 
 import numpy as np
 
-from ocgis.test.base import TestBase, nc_scope, attr
-from ocgis.api.request.base import RequestDataset
 import ocgis
 from ocgis.api.operations import OcgOperations
+from ocgis.api.request.base import RequestDataset
 from ocgis.exc import DefinitionValidationError, ExtentError
 from ocgis.interface.base.crs import CFRotatedPole, CFWGS84
+from ocgis.test.base import TestBase, nc_scope, attr
 
 
 class TestRotatedPole(TestBase):
+    @attr('data')
     def test_validation(self):
         # CFRotatedPole is not an appropriate output crs. it may also not be transformed to anything but WGS84
         rd = self.test_data.get_rd('narccap_rotated_pole')
@@ -21,6 +22,7 @@ class TestRotatedPole(TestBase):
         rd2 = self.test_data.get_rd('narccap_lambert_conformal')
         OcgOperations(dataset=[rd, rd2], output_crs=CFWGS84())
 
+    @attr('data')
     def test_calculation(self):
         rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
         calc = [{'func': 'mean', 'name': 'mean'}]
@@ -32,6 +34,7 @@ class TestRotatedPole(TestBase):
         self.assertIsInstance(field.spatial.crs, CFRotatedPole)
         self.assertEqual(field.shape, (1, 1, 1, 130, 155))
 
+    @attr('data')
     def test_intersects(self):
         rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16])
@@ -55,6 +58,7 @@ class TestRotatedPole(TestBase):
                                       [True, False, False, False, False, False, False, False, False, False, True, True,
                                        True, True, True]], dtype=bool))
 
+    @attr('data')
     def test_clip_aggregate(self):
         rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[16],
@@ -66,11 +70,13 @@ class TestRotatedPole(TestBase):
         self.assertEqual(ret.shape, (1, 248, 1, 1, 1))
         self.assertAlmostEqual(ret.mean(), 269.83051915322579)
 
+    @attr('data')
     def test_read(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         field = rd.get()
         self.assertIsInstance(field.spatial.crs, CFRotatedPole)
 
+    @attr('data')
     def test_to_netcdf(self):
         rd = self.test_data.get_rd('narccap_rotated_pole', kwds=dict(time_region={'month': [12], 'year': [1982]}))
         # it does not care about slices or no geometries
@@ -79,6 +85,7 @@ class TestRotatedPole(TestBase):
         rd2 = ocgis.RequestDataset(uri=ret, variable='tas')
         self.assertEqual(rd2.get().temporal.extent, (5444.0, 5474.875))
 
+    @attr('data')
     def test_to_netcdf_with_geometry(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         # this bounding box covers the entire spatial domain. the software will move between rotated pole and CFWGS84
@@ -98,6 +105,7 @@ class TestRotatedPole(TestBase):
                     diff = np.abs(var - var2)
                     self.assertTrue(diff.max() <= 1.02734374963e-06)
 
+    @attr('data')
     def test_to_netcdf_with_slice(self):
         rd = self.test_data.get_rd('narccap_rotated_pole')
         ops = OcgOperations(dataset=rd,
@@ -110,6 +118,7 @@ class TestRotatedPole(TestBase):
 
 
 class Test(TestBase):
+    @attr('data')
     def test_cf_lambert_conformal(self):
         rd = self.test_data.get_rd('narccap_lambert_conformal')
         field = rd.get()

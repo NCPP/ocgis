@@ -1,26 +1,26 @@
-from csv import DictReader
-import os
 import itertools
-from copy import deepcopy
+import os
 import tempfile
+from copy import deepcopy
+from csv import DictReader
 
-import numpy as np
 import fiona
-
+import numpy as np
 from shapely.geometry import Point
 
-from ocgis.conv.meta import MetaJSONConverter
-from ocgis.interface.base.crs import WGS84
-from ocgis.interface.base.dimension.spatial import SpatialDimension
+import ocgis
+from ocgis import constants
+from ocgis.api.collection import SpatialCollection
 from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter, \
     AbstractFileConverter
-from ocgis import constants
-from ocgis.test.base import TestBase, nc_scope
-from ocgis.api.collection import SpatialCollection
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
-import ocgis
 from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
+from ocgis.conv.meta import MetaJSONConverter
 from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+from ocgis.interface.base.crs import WGS84
+from ocgis.interface.base.dimension.spatial import SpatialDimension
+from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import attr
 
 
 class AbstractTestConverter(TestBase):
@@ -103,6 +103,7 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
         # # if the file is overwritten the modification time will be more recent!
         self.assertTrue(all([m2 > m for m2, m in zip(mtimes2, mtimes)]))
 
+    @attr('data')
     def test_multiple_variables(self):
         conv_klasses = [CsvConverter, NcConverter]
         rd = self.test_data.get_rd('cancm4_tas')
@@ -130,6 +131,7 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
                     self.assertAlmostEqual(ds.variables['tas'][:].mean(), np.float32(247.08411))
                     self.assertNumpyAll(ds.variables['tas'][:], ds.variables['tas2'][:])
 
+    @attr('data')
     def test_overwrite_false_csv(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
@@ -142,15 +144,19 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
         with self.assertRaises(IOError):
             CsvConverter([coll], outdir=outdir, prefix='ocgis_output')
 
+    @attr('data')
     def test_overwrite_true_csv(self):
         self.run_overwrite_true_tst(CsvConverter)
 
+    @attr('data')
     def test_overwrite_true_nc(self):
         self.run_overwrite_true_tst(NcConverter)
 
+    @attr('data')
     def test_overwrite_true_shp(self):
         self.run_overwrite_true_tst(ShpConverter)
 
+    @attr('data')
     def test_overwrite_true_csv_shp(self):
         self.run_overwrite_true_tst(CsvShapefileConverter, include_ops=True)
 
@@ -174,18 +180,23 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
         self.assertEqual([r['properties']['ID'] for r in records], [5, 50])
         self.assertEqual([r['properties']['name'] for r in records], ['heaven', 'hell'])
 
+    @attr('data')
     def test_add_auxiliary_files_csv(self):
         self.run_auxiliary_file_tst(CsvConverter, ['ocgis_output.csv'])
 
+    @attr('data')
     def test_add_auxiliary_files_geojson(self):
         self.run_auxiliary_file_tst(GeoJsonConverter, ['ocgis_output.json'])
 
+    @attr('data')
     def test_add_auxiliary_files_nc(self):
         self.run_auxiliary_file_tst(NcConverter, ['ocgis_output.nc'])
 
+    @attr('data')
     def test_add_auxiliary_files_csv_shp(self):
         self.run_auxiliary_file_tst(CsvShapefileConverter, ['ocgis_output.csv', 'shp'])
 
+    @attr('data')
     def test_add_auxiliary_files_shp(self):
         self.run_auxiliary_file_tst(ShpConverter,
                                     ['ocgis_output.dbf', 'ocgis_output.shx', 'ocgis_output.shp', 'ocgis_output.cpg',

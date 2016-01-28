@@ -173,55 +173,54 @@ class OcgisLogging(object):
             pass
 
     def _log_versions_(self):
-        try:
-            import cfunits
-        except ImportError:
-            v_cfunits = None
-        else:
-            v_cfunits = cfunits.__version__
-
-        try:
-            import ESMF
-        except ImportError:
-            v_esmf = None
-        else:
-            v_esmf = ESMF.__release__
-
-        try:
-            import icclim
-        except ImportError:
-            v_icclim = None
-        else:
-            v_icclim = icclim.__version__
-
-        try:
-            import rtree
-        except ImportError:
-            v_rtree = None
-        else:
-            v_rtree = rtree.__version__
-
-        import fiona
-
-        v_fiona = fiona.__version__
-
-        import netCDF4
-
-        v_netcdf4 = netCDF4.__version__
-
-        import numpy
-
-        v_numpy = numpy.__version__
-
-        from ocgis import osgeo
-
-        v_osgeo = osgeo.__version__
-
-        versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
-                        icclim=v_icclim, fiona=v_fiona)
+        versions = get_versions()
         versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.iteritems()])
 
         self.parent.log(logging.DEBUG, 'Dependency versions: {0}'.format(versions))
+
+
+def get_versions():
+    try:
+        import cfunits
+    except ImportError:
+        v_cfunits = None
+    else:
+        v_cfunits = cfunits.__version__
+    try:
+        import cf_units
+    except ImportError:
+        v_cf_units = None
+    else:
+        v_cf_units = cf_units.__version__
+    try:
+        import ESMF
+    except ImportError:
+        v_esmf = None
+    else:
+        v_esmf = ESMF.__release__
+    try:
+        import icclim
+    except ImportError:
+        v_icclim = None
+    else:
+        v_icclim = icclim.__version__
+    try:
+        import rtree
+    except ImportError:
+        v_rtree = None
+    else:
+        v_rtree = rtree.__version__
+    import fiona
+    v_fiona = fiona.__version__
+    import netCDF4
+    v_netcdf4 = netCDF4.__version__
+    import numpy
+    v_numpy = numpy.__version__
+    from ocgis import osgeo
+    v_osgeo = osgeo.__version__
+    versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
+                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units)
+    return versions
 
 
 ocgis_lh = OcgisLogging()

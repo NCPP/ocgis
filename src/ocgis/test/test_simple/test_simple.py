@@ -1,42 +1,42 @@
-import re
-import itertools
-import os.path
-from abc import ABCMeta, abstractproperty
-import netCDF4 as nc
 import csv
-from collections import OrderedDict
 import datetime
+import itertools
+import netCDF4 as nc
+import os.path
+import re
+import tempfile
+from abc import ABCMeta, abstractproperty
+from collections import OrderedDict
 from copy import deepcopy
 from csv import DictReader
-import tempfile
 
+import fiona
 import numpy as np
 from fiona.crs import from_string
+from shapely import wkt
+from shapely.geometry.geo import mapping
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
-import fiona
-from shapely.geometry.geo import mapping
-from shapely import wkt
 
-from ocgis.test import strings
-from ocgis import osr
-from ocgis.api.operations import OcgOperations
-from ocgis.api.interpreter import OcgInterpreter
-from ocgis.api.parms.definition import SpatialOperation
-from ocgis.util.helpers import make_poly, project_shapely_geometry
-from ocgis import exc, env, constants
-from ocgis.test.base import TestBase, nc_scope, attr
 import ocgis
+from ocgis import exc, env, constants
+from ocgis import osr
+from ocgis.api.interpreter import OcgInterpreter
+from ocgis.api.operations import OcgOperations
+from ocgis.api.parms.definition import OutputFormat
+from ocgis.api.parms.definition import SpatialOperation
+from ocgis.api.request.base import RequestDataset
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.interface.base import crs
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, WrappableCoordinateReferenceSystem
-from ocgis.api.request.base import RequestDataset
+from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.test import strings
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleMaskNc, \
     SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
-from ocgis.api.parms.definition import OutputFormat
-from ocgis.interface.base.field import DerivedMultivariateField
-from ocgis.util.itester import itr_products_keywords
 from ocgis.util.geom_cabinet import GeomCabinetIterator
+from ocgis.util.helpers import make_poly, project_shapely_geometry
+from ocgis.util.itester import itr_products_keywords
 from ocgis.util.spatial.fiona_maker import FionaMaker
 
 

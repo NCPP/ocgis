@@ -1,16 +1,16 @@
-from collections import OrderedDict
-import os.path
 import abc
 import csv
 import logging
+import os.path
+from collections import OrderedDict
 
+import fiona
 import numpy as np
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
-import fiona
 
-from ocgis import messages
 from ocgis import constants
+from ocgis import messages
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
 from ocgis.util.inspect import Inspect

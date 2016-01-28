@@ -4,11 +4,11 @@ from copy import deepcopy
 import numpy as np
 
 import ocgis
-from ocgis.calc import tile
-from ocgis.util.helpers import ProgressBar
 from ocgis.api.operations import OcgOperations
-from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.calc import tile
 from ocgis.calc.base import AbstractMultivariateFunction
+from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.util.helpers import ProgressBar
 
 
 def compute(ops, tile_dimension, verbose=False, use_optimizations=True):

@@ -362,12 +362,14 @@ class TestBase(unittest.TestCase):
         efield = conv.write()
         return efield
 
-    def get_field(self, nlevel=None, nrlz=None, crs=None):
+    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2):
         """
         :param int nlevel: The number of level elements.
         :param int nrlz: The number of realization elements.
         :param crs: The coordinate system for the field.
         :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+        :param ntime: The number of time elements.
+        :type ntime: int
         :returns: A small field object for testing.
         :rtype: `~ocgis.Field`
         """
@@ -377,7 +379,19 @@ class TestBase(unittest.TestCase):
         col = VectorDimension(value=[40., 50.], name='col')
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid, crs=crs)
-        temporal = TemporalDimension(value=[datetime.datetime(2000, 1, 1), datetime.datetime(2000, 2, 1)])
+
+        if ntime == 2:
+            value_temporal = [datetime.datetime(2000, 1, 1), datetime.datetime(2000, 2, 1)]
+        else:
+            value_temporal = []
+            start = datetime.datetime(2000, 1, 1)
+            delta = datetime.timedelta(days=1)
+            ctr = 0
+            while ctr < ntime:
+                value_temporal.append(start)
+                start += delta
+                ctr += 1
+        temporal = TemporalDimension(value=value_temporal)
 
         if nlevel is None:
             nlevel = 1
@@ -391,7 +405,7 @@ class TestBase(unittest.TestCase):
         else:
             realization = VectorDimension(value=range(1, nrlz + 1), name='realization')
 
-        variable = Variable(name='foo', value=np.random.rand(nrlz, 2, nlevel, 2, 2))
+        variable = Variable(name='foo', value=np.random.rand(nrlz, ntime, nlevel, 2, 2))
         field = Field(spatial=sdim, temporal=temporal, variables=variable, level=level, realization=realization)
 
         return field

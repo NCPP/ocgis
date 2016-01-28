@@ -1,6 +1,6 @@
 import calendar
-from collections import OrderedDict, defaultdict
 import itertools
+from collections import OrderedDict, defaultdict
 from datetime import datetime
 
 import numpy as np

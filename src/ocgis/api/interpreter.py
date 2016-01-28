@@ -3,12 +3,12 @@ import os
 import shutil
 
 from ocgis import constants
-from ocgis.api.parms.definition import OutputFormat
-from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis import exc, env
-from ocgis.conv.meta import AbstractMetaConverter
-from subset import SubsetOperation
+from ocgis.api.parms.definition import OutputFormat
 from ocgis.conv.base import AbstractTabularConverter
+from ocgis.conv.meta import AbstractMetaConverter
+from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
+from subset import SubsetOperation
 
 
 class Interpreter(object):

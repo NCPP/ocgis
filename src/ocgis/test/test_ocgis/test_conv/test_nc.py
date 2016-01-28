@@ -171,7 +171,7 @@ class TestNcUgrid2DFlexibleMeshConverter(AbstractTestConverter):
     def test_write_archetype_from_shapefile(self):
         """Test writing from a shapefile."""
 
-        uri = GeomCabinet().get_shp_path('state_boundaries')
+        uri = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
         rd = RequestDataset(uri)
         field = rd.get()
         sub = field[0, 0, 0, 0, [15, 33]]

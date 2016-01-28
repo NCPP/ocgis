@@ -578,6 +578,7 @@ class TestGeom(TestBase):
                          'properties': {uid: ugid, 'COUNTRY': coordinate[0]}})
         return geom
 
+    @attr('data')
     def test_init(self):
         geom = make_poly((37.762, 38.222), (-102.281, -101.754))
 
@@ -678,6 +679,7 @@ class TestGeom(TestBase):
                 for element in ret:
                     self.assertEqual(element.name_uid, actual)
 
+    @attr('data')
     def test_parse_string(self):
         keywords = dict(geom_uid=[None, 'ID'])
         for k in self.iter_product_keywords(keywords):
@@ -700,6 +702,7 @@ class TestGeom(TestBase):
 
         ################################################################################################################
 
+    @attr('data')
     def test_spatial_dimension(self):
         """Test using a SpatialDimension as input value."""
 
@@ -711,6 +714,7 @@ class TestGeom(TestBase):
             self.assertIsInstance(sdim, SpatialDimension)
             self.assertEqual(sdim.shape, (1, 1))
 
+    @attr('data')
     def test_using_shp_path(self):
         # pass a path to a shapefile as opposed to a key
         path = GeomCabinet().get_shp_path('state_boundaries')
@@ -722,6 +726,7 @@ class TestGeom(TestBase):
         self.assertEqual(g._shp_key, path)
         self.assertEqual(len(list(g.value)), 51)
 
+    @attr('data')
     def test_with_changing_select_uid(self):
         select_ugid = [16, 17]
         g = Geom('state_boundaries', select_ugid=select_ugid)

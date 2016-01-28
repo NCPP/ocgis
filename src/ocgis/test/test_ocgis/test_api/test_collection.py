@@ -1,28 +1,29 @@
-from collections import OrderedDict
-import os
-from copy import copy, deepcopy
 import datetime
+import os
+from collections import OrderedDict
+from copy import copy, deepcopy
 
-import numpy as np
 import fiona
+import numpy as np
 from numpy.core.multiarray import ndarray
 from shapely.geometry import Point, shape, MultiPoint
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.multipolygon import MultiPolygon
 
-from ocgis.api.collection import SpatialCollection, AbstractCollection, get_ugeom_attribute
-from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical, WGS84, CFWGS84
-from ocgis.test.base import TestBase
-from ocgis.util.addict import Dict
-from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis import constants, SpatialDimension
+from ocgis.api.collection import SpatialCollection, AbstractCollection, get_ugeom_attribute
+from ocgis.calc.library.math import Divide
 from ocgis.calc.library.statistics import Mean
-from ocgis.interface.base.variable import Variable
+from ocgis.calc.library.thresholds import Threshold
+from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical, WGS84, CFWGS84
 from ocgis.interface.base.field import DerivedField, DerivedMultivariateField, \
     Field
-from ocgis.calc.library.math import Divide
+from ocgis.interface.base.variable import Variable
+from ocgis.test.base import TestBase
+from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
-from ocgis.calc.library.thresholds import Threshold
+from ocgis.util.addict import Dict
+from ocgis.util.geom_cabinet import GeomCabinet
 
 
 class Test(TestBase):
@@ -165,6 +166,7 @@ class TestSpatialCollection(AbstractTestField):
         sc.add_field(field, ugeom=sd2)
         return sc
 
+    @attr('data')
     def test_init(self):
         sp = self.get_collection()
         self.assertIsInstance(sp, AbstractCollection)
@@ -216,6 +218,7 @@ class TestSpatialCollection(AbstractTestField):
         sc.add_field(None, name='food')
         self.assertIsNone(sc[1]['food'])
 
+    @attr('data')
     def test_calculation_iteration(self):
         field = self.get_field(with_value=True, month_count=2)
         field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
@@ -258,6 +261,7 @@ class TestSpatialCollection(AbstractTestField):
             self.assertEqual(len(row), 2)
             self.assertEqual(len(row[1]), len(constants.HEADERS_CALC))
 
+    @attr('data')
     def test_calculation_iteration_two_calculations(self):
         field = self.get_field(with_value=True, month_count=2)
         field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
@@ -370,6 +374,7 @@ class TestSpatialCollection(AbstractTestField):
         row = coll.get_iter_dict(melted=False).next()[1]
         self.assertEqual(row[constants.HEADERS.ID_SELECTION_GEOMETRY], 1)
 
+    @attr('data')
     def test_get_iter_melted(self):
         sp = self.get_collection()
         for row in sp.get_iter_melted():
@@ -380,6 +385,7 @@ class TestSpatialCollection(AbstractTestField):
             self.assertIsInstance(row['variable_alias'], basestring)
             self.assertIsInstance(row['variable'], Variable)
 
+    @attr('data')
     def test_iteration_methods(self):
         field = self.get_field(with_value=True)
 
@@ -403,6 +409,7 @@ class TestSpatialCollection(AbstractTestField):
             self.assertEqual(len(row), 2)
             self.assertEqual(len(row[1]), len(constants.HEADERS_RAW))
 
+    @attr('data')
     def test_multivariate_iteration(self):
         field = self.get_field(with_value=True, month_count=1)
         field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,

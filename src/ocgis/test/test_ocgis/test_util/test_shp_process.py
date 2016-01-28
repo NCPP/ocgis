@@ -4,11 +4,12 @@ import tempfile
 
 import fiona
 
-from ocgis.test.base import TestBase
-from ocgis.util.shp_process import ShpProcess
+from ocgis.test.base import TestBase, attr
 from ocgis.util.geom_cabinet import GeomCabinet
+from ocgis.util.shp_process import ShpProcess
 
 
+@attr('data')
 class TestShpProcess(TestBase):
 
     def test_shp_process(self):

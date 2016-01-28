@@ -17,9 +17,15 @@ before_install:
 
 install:
   - source activate test
-  - travis_retry conda install -c nesii/channel/dev-ocgis -c nesii -c ioos ocgis icclim
+  - travis_retry conda create -n test-full -c nesii/channel/dev-ocgis -c nesii -c ioos ocgis icclim esmpy
+  - source activate test-full
   - conda remove ocgis
-  - python setup.py install
+  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos ocgis
+  - source activate test-minimal
+  - conda remove rtree cf_units ocgis
 
 script:
-  - python setup.py test --with-optional --no-esmf --no-icclim
+  - source activate test-minimal
+  - python setup.py test
+  - source activate test-full
+  - python setup.py test_all

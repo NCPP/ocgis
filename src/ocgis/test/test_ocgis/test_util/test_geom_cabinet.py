@@ -36,6 +36,12 @@ class Test(TestBase):
 
 
 class TestGeomCabinetIterator(TestBase):
+    def setUp(self):
+        super(TestGeomCabinetIterator, self).setUp()
+        self._original_dir_geomcabinet = env.DIR_GEOMCABINET
+        path = os.path.join(self.path_bin, 'shp')
+        env.DIR_GEOMCABINET = path
+
     def test_init(self):
         sci = GeomCabinetIterator(key='state_boundaries', uid='ID', as_spatial_dimension=True)
         self.assertIsNone(sci.select_sql_where)
@@ -70,9 +76,11 @@ class TestGeomCabinetIterator(TestBase):
                 ugids.append(sdim.uid[0, 0])
             self.assertEqual(ugids, select_ugid)
 
+    @attr('data')
     def test_as_spatial_dimension_points(self):
         """Test SpatialDimension iteration with a point shapefile as source."""
 
+        env.DIR_GEOMCABINET = self._original_dir_geomcabinet
         sci = GeomCabinetIterator(key='qed_city_centroids', as_spatial_dimension=True)
         for sdim in sci:
             self.assertIsInstance(sdim.geom.get_highest_order_abstraction(), SpatialGeometryPointDimension)
@@ -85,12 +93,13 @@ class TestGeomCabinetIterator(TestBase):
 
     @attr('data')
     def test_select_ugids_absent_raises_exception(self):
-        sci = GeomCabinetIterator(key='state_boundaries', select_uid=[999])
+        path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
+        sci = GeomCabinetIterator(path=path, select_uid=[999])
         with self.assertRaises(ValueError):
             list(sci)
 
         ops = ocgis.OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
-                                  geom='state_boundaries',
+                                  geom=path,
                                   select_ugid=[9999])
         with self.assertRaises(ValueError):
             ops.execute()
@@ -133,6 +142,11 @@ class TestGeomCabinetIterator(TestBase):
 
 
 class TestGeomCabinet(TestBase):
+    def setUp(self):
+        super(TestGeomCabinet, self).setUp()
+        path = os.path.join(self.path_bin, 'shp')
+        env.DIR_GEOMCABINET = path
+
     def test_init(self):
         bp = '/a/bad/location'
         with self.assertRaises(ValueError):
@@ -315,11 +329,12 @@ class TestGeomCabinet(TestBase):
         ret.ResetReading()
         self.assertEqual(len(ret), 1)
 
-    def test_get_keys(self, dir_shpcabinet=None):
-        ocgis.env.DIR_GEOMCABINET = dir_shpcabinet or ocgis.env.DIR_GEOMCABINET
+    def test_get_keys(self, path=None):
+        if path is not None:
+            env.DIR_GEOMCABINET = path
         sc = GeomCabinet()
         ret = sc.keys()
-        target_keys = ['state_boundaries', 'world_countries']
+        target_keys = ['state_boundaries']
         self.assertEqual(len(set(target_keys).intersection(set(ret))), len(target_keys))
 
     def test_shapefiles_not_in_folders(self):
@@ -329,8 +344,4 @@ class TestGeomCabinet(TestBase):
                     dst = os.path.join(self.current_dir_output, filename)
                     src = os.path.join(dirpath, filename)
                     shutil.copy2(src, dst)
-        self.test_get_keys(dir_shpcabinet=self.current_dir_output)
-
-        sc = GeomCabinet(path=self.current_dir_output)
-        path = sc.get_shp_path('world_countries')
-        self.assertEqual(path, os.path.join(self.current_dir_output, 'world_countries.shp'))
+        self.test_get_keys(path=self.current_dir_output)

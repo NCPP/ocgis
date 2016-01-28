@@ -5,7 +5,7 @@ import fiona
 from shapely.geometry import Point
 from shapely.geometry.multipoint import MultiPoint
 
-from ocgis import GeomCabinet, RequestDataset, OcgOperations, env
+from ocgis import RequestDataset, OcgOperations, env
 from ocgis import constants
 from ocgis.test.base import TestBase, attr
 
@@ -18,11 +18,11 @@ package hierarchy. Hence, these tests in theory may be removed...
 
 class Test20150119(TestBase):
     def test_shapefile_through_operations_subset(self):
-        path = GeomCabinet().get_shp_path('state_boundaries')
+        path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
         rd = RequestDataset(path)
         field = rd.get()
         self.assertIsNone(field.spatial.properties)
-        ops = OcgOperations(dataset=rd, output_format='shp', geom='state_boundaries', select_ugid=[15])
+        ops = OcgOperations(dataset=rd, output_format='shp', geom=path, select_ugid=[15])
         ret = ops.execute()
         rd2 = RequestDataset(ret)
         field2 = rd2.get()
@@ -30,7 +30,7 @@ class Test20150119(TestBase):
         self.assertEqual(tuple([1] * 5), field2.shape)
 
     def test_shapefile_through_operations(self):
-        path = GeomCabinet().get_shp_path('state_boundaries')
+        path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
         rd = RequestDataset(path)
         field = rd.get()
         self.assertIsNone(field.spatial.properties)

@@ -41,35 +41,6 @@ class test(TestCommand):
         run_simple(attrs=attrs, verbose=False)
 
 
-class test(TestCommand):
-    user_options = [('with-optional', None, 'If present, run optional dependency tests.'),
-                    ('no-esmf', None, 'If present, do not run ESMF tests.'),
-                    ('no-icclim', None, 'If present, do not run ICCLIM tests.')]
-
-    def initialize_options(self):
-        TestCommand.initialize_options(self)
-        self.with_optional = False
-        self.no_esmf = False
-        self.no_icclim = False
-
-    # def finalize_options(self):
-    #     pass
-
-    def run_tests(self):
-        from ocgis.test import run_simple
-
-        attrs = ['simple']
-        if self.with_optional:
-            to_append = 'optional'
-            if self.no_esmf:
-                to_append += ',!esmf'
-            if self.no_esmf:
-                to_append += ',!icclim'
-            attrs.append(to_append)
-
-        run_simple(attrs=attrs, verbose=False)
-
-
 class test_all(TestCommand):
     def run_tests(self):
         from ocgis.test import run_all

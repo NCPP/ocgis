@@ -300,7 +300,16 @@ class Field(Attributes):
                     ref_idx = ref_value[ridx, tidx, lidx, sridx, scidx]
 
                     # Determine if the data is masked.
-                    if is_masked(ref_idx):
+                    try:
+                        is_ref_idx_masked = is_masked(ref_idx)
+                    except TypeError:
+                        # "is_masked" will fail for compound types. Assume data is not masked.
+                        if len(ref_idx.dtype) > 1:
+                            is_ref_idx_masked = False
+                        else:
+                            raise
+
+                    if is_ref_idx_masked:
                         if add_masked_value:
                             ref_idx = masked_value
                         else:

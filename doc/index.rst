@@ -8,10 +8,11 @@ Introduction
 
 OpenClimateGIS is a Python package designed for geoprocessing and computation on CF_-compliant climate datasets.
 
-There is additional project content for OpenClimateGIS hosted on its `CoG Site`_. Please visit the :ref:`contact_information` page for support and mailing list addresses.
+There is additional project content for OpenClimateGIS hosted on its `CoG Site`_. Source code and issue tracking are hosted on `GitHub`_. Please visit the :ref:`contact_information` page for support and mailing list addresses.
 
 .. _CF: http://cf-pcmdi.llnl.gov/
 .. _CoG Site: http://www.earthsystemcog.org/projects/openclimategis/
+.. _GitHub: https://github.com/NCPP/ocgis
 
 Contents:
 
@@ -19,13 +20,13 @@ Contents:
    :maxdepth: 2
 
    contact
-   links
    install
    api
+         classes
+         functions
    computation
    regrid
    examples
-   utility
    constants
    exc
    appendix

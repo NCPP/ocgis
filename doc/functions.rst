@@ -1,6 +1,8 @@
-========================
-Utility/Helper Functions
-========================
+.. _function_reference-label:
+
+==================
+Function Reference
+==================
 
 .. automodule:: ocgis
    :members: format_return

@@ -17,7 +17,7 @@ before_install:
 
 install:
   - source activate test
-  - travis_retry conda create -n test-full -c nesii/channel/dev-ocgis -c nesii -c ioos ocgis icclim esmpy
+  - travis_retry conda create -n test-full -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c nesii -c ioos ocgis icclim esmpy
   - source activate test-full
   - conda remove ocgis
   - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos ocgis
@@ -26,6 +26,6 @@ install:
 
 script:
   - source activate test-minimal
-  - python setup.py test
+  - python -c "from ocgis.test import run_simple; run_simple(verbose=False)"
   - source activate test-full
-  - python setup.py test_all
+  - python -c "from ocgis.test import run_all; run_all(verbose=False)"

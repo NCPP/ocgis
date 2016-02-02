@@ -1,3 +1,5 @@
+.. _examples-label:
+
 ========
 Examples
 ========
@@ -13,7 +15,7 @@ First, it is always a good idea to ensure a dataset is readable by OpenClimateGI
 
 .. literalinclude:: sphinx_examples/inspect.py
 
-As an alternative, you may use the :meth:`ocgis.RequestDataset.inspect` method to generate a similar output (variable-level only):
+As an alternative, you may use the :meth:`ocgis.RequestDataset.inspect` method to generate a similar output:
 
 .. literalinclude:: sphinx_examples/inspect_request_dataset.py
 

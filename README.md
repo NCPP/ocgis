@@ -1,7 +1,5 @@
-![Travis CI](https://travis-ci.org/NCPP/ocgis.svg?branch=master)
+![Travis CI](https://travis-ci.org/NCPP/ocgis.svg?branch=next)
 
-OpenClimateGIS provides a set of geoprocessing, conversion, and calculation tools for CF-compliant climate datasets.
-
-For documentation please visit: http://ncpp.github.io/ocgis/
+For documentation please visit: https://ocgis.readthedocs.org/en/next/
 
 For additional project information please visit: http://www.earthsystemcog.org/projects/openclimategis/

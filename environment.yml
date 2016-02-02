@@ -1,0 +1,43 @@
+# Should only be used for ReadTheDocs builds!
+
+name: env
+
+channels:
+- nesii/channel/dev-ocgis
+- ioos
+
+dependencies:
+- click=4.1=py27_0
+- click-plugins=1.0.3=py27_0
+- cligj=0.2.0=py27_0
+- curl=7.43.0=1
+- fiona=1.6.3=np110py27_0
+- gdal=1.11.3=np110py27_1
+- geos=3.4.2=4
+- hdf4=4.2.11=0
+- hdf5=1.8.15.1=2
+- jpeg=8d=0
+- krb5=1.13.2=0
+- libgfortran=1.0=0
+- libnetcdf=4.3.3.1=1
+- libspatialindex=1.8.5=1
+- munch=2.0.4=py27_0
+- netcdf4=1.2.2=np110py27_0
+- numpy=1.10.2=py27_0
+- ocgis=1.2.0.dev1=py27_1
+- openblas=0.2.14=3
+- openjpeg=2.1.0=0
+- openssl=1.0.1k=1
+- pip=8.0.2=py27_0
+- proj.4=4.9.1=1
+- python=2.7.10=1
+- readline=6.2=2
+- rtree=0.8.2=py27_2
+- setuptools=19.6.2=py27_0
+- shapely=1.5.13=np110py27_1
+- six=1.10.0=py27_0
+- sqlite=3.9.2=0
+- tk=8.5.18=0
+- wheel=0.26.0=py27_1
+- xerces-c=3.1.2=0
+- zlib=1.2.8=0

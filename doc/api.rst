@@ -1,61 +1,35 @@
+:tocdepth: 4
+
 .. _python_api:
 
+====================
+Python API Reference
+====================
+
+This page provides an overview of OpenClimateGIS's Python interface. A :ref:`class_reference-label` and :ref:`function_reference-label` are also available.
+
+Operations
 ==========
-Python API
-==========
 
-Additional information on keyword arguments can be found below the initial documentation in the `Detailed Argument Information`_ section.
+OpenClimateGIS's combined functionality is generally accessed using the operations interface (:class:`~ocgis.OcgOperations`). Potential keyword arguments are described below in `Keyword Arguments`_. Please see :ref:`examples-label` for an overview of how this object is used with real data.
 
-Environment/Global Parameters
-=============================
+The basic operations syntax is:
 
-These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
+>>> import ocgis
+>>> ops = ocgis.OcgOperations(**kwargs)
+>>> res = ops.execute()
 
-:attr:`env.DEFAULT_GEOM_UID` = ``'UGID'``
- The default unique geometry identifier to search for in geometry datasets. This is also the name of the created unique identifier if none exists in the target.
+Some notable features of the operations object:
+ 1. The only required keyword argument is `dataset`_.
+ 2. All keyword arguments are exposed as public attributes which may be  arbitrarily set using standard syntax:
 
-:attr:`env.DIR_DATA` = ``None``
- Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
+>>> ops = OcgOperations(RequestDataset('/path/to/some/dataset','foo'))
+>>> ops.aggregate = True
 
-:attr:`env.DIR_OUTPUT` = ``None`` (defaults to current working directory)
- The directory where output data is written. OpenClimateGIS creates directories inside which output data is stored unless :attr:`~ocgis.OcgOperations.add_auxiliary_files` is ``False``. If ``None``, it defaults to the current working directory.
+ 3. The object SHOULD NOT be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution.
 
-.. _env.DIR_GEOMCABINET:
-
-:attr:`env.DIR_GEOMCABINET` = <path-to-directory>
- Location of the geometry directory (e.g. a directory containing shapefiles) for use by :class:`~ocgis.GeomCabinet`. Formerly called ``DIR_SHPCABINET``.
-
-:attr:`env.MELTED` = ``False``
- If ``True``, use a melted tabular format with all variable values collected in a single column.
-
-:attr:`env.OVERWRITE` = ``False``
- .. warning:: Use with caution.
- 
- Set to ``True`` to overwrite existing output folders. This will remove the folder if it exists!
-
-:attr:`env.PREFIX` = ``'ocgis_output'``
- The default prefix to apply to output files. This is also the output folder name.
-
-:attr:`env.SUPPRESS_WARNINGS` = ``True``
- If ``True``, suppress all OpenClimateGIS warning messages to standard out. Warning messages will still be logged.
-
-:attr:`env.USE_CFUNITS` = ``True``
- If ``True``, use :mod:`cfunits` for any unit transformations. This will be automatically set to ``False`` if :mod:`cfunits` is not available for import.
-
-:attr:`env.USE_SPATIAL_INDEX` = ``True``
- If ``True``, use :mod:`rtree` to create spatial indices for spatial operations. This will be automatically set to ``False`` if :mod:`rtree` is not available for import.
-
-:attr:`env.VERBOSE` = ``False``
- Indicate if additional output information should be printed to terminal.
-
-Operations API (:class:`ocgis.OcgOperations`)
-=============================================
-
-.. autoclass:: ocgis.OcgOperations
-   :members: execute, get_base_request_size
-
-Detailed Argument Information
------------------------------
+Keyword Arguments
+-----------------
 
 Additional information on arguments are found in their respective sections.
 
@@ -193,16 +167,20 @@ Destination units for conversion. If this parameter is set, then the :mod:`cfuni
 dataset
 ~~~~~~~
 
+This is the only required parameter. All elements of ``dataset`` will be processed.
+
 A ``dataset`` is the target file(s) or object(s) containing data to process. A ``dataset`` may be:
  1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
  2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
  3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
 
-.. autoclass:: ocgis.RequestDataset
-   :members: inspect, inspect_as_dct
-
-.. autoclass:: ocgis.RequestDatasetCollection
-   :members: update
+>>> # A keyword argument dictionary can be used in place of an actual request object.
+>>> dataset = {'uri': '/path/to/my/data.nc'}
+>>> # Use variable auto-discovery.
+>>> from ocgis import RequestDataset
+>>> dataset = RequestDataset(uri='/path/to/my/data.nc'}
+>>> # Specify the target variable directly.
+>>> dataset = RequestDataset(uri='/path/to/my/data.nc', variable='tas')
 
 dir_output
 ~~~~~~~~~~
@@ -267,7 +245,7 @@ If provided, this string will be used as part of a SQL WHERE statement to select
 geom_select_uid
 ~~~~~~~~~~~~~~~
 
-Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Adding Additional Shapefile Data`_.
+Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Shapefile Data`_.
 
 >>> geom_select_uid = [1, 2, 3]
 >>> geom_select_uid = [4, 55]
@@ -350,7 +328,7 @@ output_format
 =============================== ============================================================================================================================================
 Value                           Description
 =============================== ============================================================================================================================================
-``'numpy'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_).
+``'numpy'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Data Collections`_ for more information on this output format.
 ``'shp'``                       A shapefile representation of the data.
 ``'csv'``                       A CSV file representation of the data.
 ``'csv-shp'``                   In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
@@ -408,7 +386,7 @@ If ``True``, the nearest geometry to the centroid of the current selection geome
 slice
 ~~~~~
 
-This is a list of integers, ``None``s, or lists of integers. The values composing the list will be converted to slice objects. For example, to return the first ten time steps:
+This is a list of integers, ``None``, or lists of integers. The values composing the list will be converted to slice objects. For example, to return the first ten time steps:
 
 >>> slc = [None, [0, 10], None, None, None]
 
@@ -493,29 +471,52 @@ Value             Description
 `False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
 ================= ====================================================================================================
 
-:class:`ocgis.GeomCabinet`
-==========================
+Environment
+===========
 
-.. autoclass:: ocgis.GeomCabinet
-   :members: keys, iter_geoms
+These are global parameters used by OpenClimateGIS. For those familiar with :mod:`arcpy` programming, this behaves similarly to the :mod:`arcpy.env` module. Any :mod:`ocgis.env` variable be overloaded with system environment variables by setting `OCGIS_<variable-name>`.
 
-.. autoclass:: ocgis.GeomCabinetIterator
-   :members: __iter__
+:attr:`env.DEFAULT_GEOM_UID` = ``'UGID'``
+ The default unique geometry identifier to search for in geometry datasets. This is also the name of the created unique identifier if none exists in the target.
 
-Adding Additional Shapefile Data
---------------------------------
+:attr:`env.DIR_DATA` = ``None``
+ Directory(s) to search through to find data. If specified, this should be a sequence of directories. It may also be a single directory location. Note that the search may take considerable time if a very high level directory is chosen. If this variable is set, it is only necessary to specify the filename(s) when creating a :class:`~ocgis.RequestDataset`.
 
-.. warning:: Only add data WGS84 geographic data, ESPS=4326.
+:attr:`env.DIR_OUTPUT` = ``None`` (defaults to current working directory)
+ The directory where output data is written. OpenClimateGIS creates directories inside which output data is stored unless :attr:`~ocgis.OcgOperations.add_auxiliary_files` is ``False``. If ``None``, it defaults to the current working directory.
 
-Shapefiles may be added to the directory mapped by the environment variable :attr:`ocgis.env.DIR_GEOMCABINET`. Shapefiles must have a unique integer attribute called 'UGID'. This attribute is required for the "`geom_select_uid`_" argument to find specific geometries inside the shapefile.
+.. _env.DIR_GEOMCABINET:
 
-The shapefile's "`geom key`_" is the name of the shapefile. It must have an alphanumeric name with no spaces with the only allowable special character being underscores "_".
+:attr:`env.DIR_GEOMCABINET` = <path-to-directory>
+ Location of the geometry directory (e.g. a directory containing shapefiles) for use by :class:`~ocgis.GeomCabinet`. Formerly called ``DIR_SHPCABINET``.
 
-:class:`ocgis.Inspect`
-=========================
+:attr:`env.MELTED` = ``False``
+ If ``True``, use a melted tabular format with all variable values collected in a single column.
 
-.. autoclass:: ocgis.Inspect
-   :members:
+:attr:`env.OVERWRITE` = ``False``
+ .. warning:: Use with caution.
+
+ Set to ``True`` to overwrite existing output folders. This will remove the folder if it exists!
+
+:attr:`env.PREFIX` = ``'ocgis_output'``
+ The default prefix to apply to output files. This is also the output folder name.
+
+:attr:`env.SUPPRESS_WARNINGS` = ``True``
+ If ``True``, suppress all OpenClimateGIS warning messages to standard out. Warning messages will still be logged.
+
+:attr:`env.USE_CFUNITS` = ``True``
+ If ``True``, use :mod:`cfunits` for any unit transformations. This will be automatically set to ``False`` if :mod:`cfunits` is not available for import.
+
+:attr:`env.USE_SPATIAL_INDEX` = ``True``
+ If ``True``, use :mod:`rtree` to create spatial indices for spatial operations. This will be automatically set to ``False`` if :mod:`rtree` is not available for import.
+
+:attr:`env.VERBOSE` = ``False``
+ Indicate if additional output information should be printed to terminal.
+
+Inspecting Data
+===============
+
+The :class:`~ocgis.Inspect` class may be used to dump metadata information for a target data object.
 
 Data Collections
 ================
@@ -544,3 +545,9 @@ When the default output format (i.e. ``numpy``) is returned by OpenClimateGIS, t
 .. _shapely documentation: http://toblerity.github.com/shapely/manual.html
 
     
+Shapefile Data
+==============
+
+Shapefiles may be added to the directory mapped by the environment variable :ref:`env.DIR_GEOMCABINET <env.DIR_GEOMCABINET>`.
+
+The shapefile's `geom key`_ is the name of the shapefile. It must have an alphanumeric name with no spaces with the only allowable special character being underscores "_".

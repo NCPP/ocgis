@@ -18,7 +18,7 @@ class RunOcgis(nose.plugins.Plugin):
 
         dir_shpcabinet = kwargs.pop('dir_shpcabinet', '~/data/ocgis_test_data/shp')
         dir_test_data = kwargs.pop('dir_test_data', '~/data/ocgis_test_data')
-        os.environ['OCGIS_DIR_SHPCABINET'] = os.path.expanduser(dir_shpcabinet)
+        os.environ['OCGIS_DIR_GEOMCABINET'] = os.path.expanduser(dir_shpcabinet)
         os.environ['OCGIS_DIR_TEST_DATA'] = os.path.expanduser(dir_test_data)
 
         super(RunOcgis, self).__init__(*args, **kwargs)

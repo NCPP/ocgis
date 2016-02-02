@@ -11,22 +11,8 @@ from ocgis.interface.base.crs import CFRotatedPole, WGS84
 class OcgOperations(object):
     """
     Entry point for all OCGIS operations.
-    
-    .. warning:: The object SHOULD NOT be reused following an execution as the software may add/modify attribute
-     contents. Instantiate a new object following an execution.
-    
-    .. note:: The only required argument is `dataset`.
-    
-    All keyword arguments are exposed as public attributes which may be  arbitrarily set using standard syntax:
 
-    >>> ops = OcgOperations(RequestDataset('/path/to/some/dataset','foo'))
-    >>> ops.aggregate = True
-        
-    The builtins :func:`__getattribute__` and :func:`__setattr__` are overloaded to perform 
-    validation and input formatting.
-
-    :param dataset: The target dataset(s) for the request. This is the only required parameter. All elements of
-     ``dataset`` will be processed.
+    :param dataset: A ``dataset`` is the target file(s) or object(s) containing data to process.
     :type dataset: :class:`~ocgis.RequestDatasetCollection`, :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field`, or
      sequence of :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field` objects
     :param spatial_operation: The geometric operation to be performed.
@@ -36,9 +22,6 @@ class OcgOperations(object):
     :type geom: list of dict, list of float, str
     :param str geom_select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
      for documentation (section titled "WHERE").
-
-    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
-
     :param geom_select_uid: The unique identifiers of specific geometries contained in the geometry datasets. Geometries
      having these unique identifiers will be used for subsetting.
     :type geom_select_uid: sequence of integers
@@ -103,10 +86,6 @@ class OcgOperations(object):
      month and/or year values. Empty region selection for a key may be set to `None`. Using this argument will overload
      all :class:`~ocgis.RequestDataset` ``time_region`` values.
     :type time_region: dict
-        
-    >>> time_region = {'month':[6,7],'year':[2010,2011]}
-    >>> time_region = {'year':[2010]}
-
     :param time_subset_func: See :meth:`ocgis.interface.base.dimension.temporal.TemporalDimension.get_subset_by_function`
      for usage instructions.
     :type time_subset_func: :class:`FunctionType`
@@ -129,7 +108,7 @@ class OcgOperations(object):
     :param bool melted: If ``None``, default to :attr:`ocgis.env.MELTED`. If ``False`` (the default), variable names are
      individual columns in tabular output formats (i.e. ``'csv'``). If ``True``, all variable values will be collected
      under a single value column.
-    :param dict output_format_options: A dictionary of output-specific options. See expanded description for details.
+    :param dict output_format_options: A dictionary of output-specific format options.
     """
 
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,

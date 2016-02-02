@@ -26,6 +26,8 @@ install:
 
 script:
   - source activate test-minimal
+  - python setup.py install
   - python -c "from ocgis.test import run_simple; run_simple(verbose=False)"
   - source activate test-full
+  - python setup.py install
   - python -c "from ocgis.test import run_all; run_all(verbose=False)"

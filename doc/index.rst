@@ -22,8 +22,8 @@ Contents:
    contact
    install
    api
-         classes
-         functions
+   classes
+   functions
    computation
    regrid
    examples

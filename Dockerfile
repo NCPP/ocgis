@@ -13,7 +13,6 @@ RUN pip install ipdb
 RUN conda remove ocgis
 RUN git clone -b next https://github.com/NCPP/ocgis.git
 RUN cd ocgis && python setup.py install
-RUN cd .. && rm -r ocgis
 
 ENV GDAL_DATA /opt/conda/share/gdal
 

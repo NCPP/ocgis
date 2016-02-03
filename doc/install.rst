@@ -21,8 +21,6 @@ Installation with all optional dependencies:
 
    conda install -c nesii/channel/icclim -c ioos ocgis esmpy==7.0.0 icclim nose
 
-Build recipes may be found in the `conda-esmf GitHub repository <https://github.com/NESII/conda-esmf>`_.
-
 Building from Source
 --------------------
 

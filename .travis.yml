@@ -13,15 +13,14 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update --all --yes
   - conda info -a
-  - travis_retry conda create -n test $CONDA_PYTHON
 
 install:
-  - source activate test
-  - travis_retry conda create -n test-full -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos ocgis icclim esmpy nose
+  - travis_retry conda create -n test-full -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis icclim esmpy nose
   - source activate test-full
   - conda remove ocgis
   - python setup.py install
-  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos ocgis nose
+
+  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis nose
   - source activate test-minimal
   - conda remove rtree cf_units ocgis
   - python setup.py install
@@ -29,5 +28,6 @@ install:
 script:
   - source activate test-minimal
   - python -c "from ocgis.test import run_simple; run_simple(verbose=False)"
+
   - source activate test-full
   - python -c "from ocgis.test import run_all; run_all(verbose=False)"

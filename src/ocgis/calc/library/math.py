@@ -40,6 +40,10 @@ class Sum(base.AbstractUnivariateSetFunction):
     def calculate(self, values):
         return np.ma.sum(values, axis=0)
 
+    def aggregate_spatial(self, values, weights):
+        # All element values contribute in their entirety. Weights are not applied.
+        return np.ma.sum(values)
+
 
 class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunction):
     key = 'convolve_1d'

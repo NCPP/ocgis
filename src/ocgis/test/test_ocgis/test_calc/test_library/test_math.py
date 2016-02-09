@@ -1,9 +1,9 @@
 import itertools
-import unittest
 
 import numpy as np
 
 import ocgis
+from ocgis import VectorDimension, SpatialGridDimension, SpatialDimension, TemporalDimension, Field, OcgOperations
 from ocgis import env
 from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.math import NaturalLogarithm, Divide, Sum, Convolve1D
@@ -152,16 +152,35 @@ class TestSum(AbstractTestField):
         to_test = sum.calculate(values)
         self.assertNumpyAll(to_test, np.ma.sum(values, axis=0))
 
+    def test_calculate_operations(self):
+        """Test calculation through operations."""
+
+        row = VectorDimension(value=[1, 2, 3, 4])
+        col = VectorDimension(value=[10, 11, 12])
+        grid = SpatialGridDimension(row=row, col=col)
+        spatial = SpatialDimension(grid=grid)
+        time = TemporalDimension(value=[1, 2])
+        field = Field(spatial=spatial, temporal=time)
+
+        data = np.zeros((1, 2, 1, 4, 3), dtype=float)
+        data[:, 0, :] = 1
+        data[:, 1, :] = 2
+
+        var = Variable(value=data, name='data')
+
+        field.variables.add_variable(var)
+
+        calc = [{'func': 'sum', 'name': 'sum'}]
+        ops = OcgOperations(dataset=field, calc=calc, calc_grouping='day', calc_raw=True, aggregate=True)
+        ret = ops.execute()
+        actual = ret[1]['data'].variables['sum'].value.flatten()
+        self.assertNumpyAll(actual, np.ma.array([12.0, 24.0]))
+
     def test_registry(self):
         """Test sum function is appropriately registered."""
 
         c = Calc([{'func': 'sum', 'name': 'sum'}])
         self.assertEqual(c.value[0]['ref'], Sum)
-
-
-if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
 
 
 class TestConvolve1D(AbstractTestField):

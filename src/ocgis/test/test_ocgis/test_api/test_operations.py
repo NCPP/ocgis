@@ -356,17 +356,26 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(RequestValidationError):
             OcgOperations(dataset=rd, conform_units_to='crap')
 
-    @attr('esmpy7', 'esmf')
+    @attr('esmf', 'data')
     def test_keyword_dataset_esmf(self):
         """Test with operations on an ESMF Field."""
 
-        efield = self.get_esmf_field()
+        efield = self.get_esmf_field(with_bounds=True)
         output_format = OutputFormat.iter_possible()
         for kk in output_format:
-            ops = OcgOperations(dataset=efield, output_format=kk, prefix=kk)
-            ops.execute()
-        # self.inspect(ret)
-        raise
+            # Geojson may only be written with a WGS84 coordinate system.
+            if kk == constants.OUTPUT_FORMAT_GEOJSON:
+                output_crs = CFWGS84()
+            else:
+                output_crs = None
+            try:
+                ops = OcgOperations(dataset=efield, output_format=kk, prefix=kk, output_crs=output_crs)
+            except DefinitionValidationError:
+                self.assertEqual(kk, constants.OUTPUT_FORMAT_METADATA_JSON)
+                continue
+            ret = ops.execute()
+            self.assertIsNotNone(ret)
+        efield.destroy()
 
     @attr('data')
     def test_keyword_geom(self):
@@ -447,13 +456,11 @@ class TestOcgOperations(TestBase):
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 
-    @attr('esmpy7', 'esmf')
+    @attr('esmf', 'data', 'slow')
     def test_keyword_output_format_esmpy(self):
         """Test with the ESMPy output format."""
         import ESMF
 
-        # todo: test spatial subsetting
-        # todo: test calculations
         slc = [None, None, None, [0, 10], [0, 10]]
         kwds = dict(as_field=[False, True],
                     with_slice=[True, False])
@@ -469,10 +476,10 @@ class TestOcgOperations(TestBase):
             ret = ops.execute()
             self.assertIsInstance(ret, ESMF.Field)
             try:
-                self.assertEqual(ret.shape, (1, 3650, 1, 10, 10))
+                self.assertEqual(ret.data.shape, (1, 3650, 1, 10, 10))
             except AssertionError:
                 self.assertFalse(k.with_slice)
-                self.assertEqual(ret.shape, (1, 3650, 1, 64, 128))
+                self.assertEqual(ret.data.shape, (1, 3650, 1, 64, 128))
 
     @attr('data')
     def test_keyword_output_format_nc_package_validation_raised_first(self):
@@ -523,8 +530,7 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd, spatial_operation='clip')
 
-    @attr('esmf')
-    @attr('data')
+    @attr('data', 'esmf')
     def test_keyword_regrid_destination_to_nc(self):
         """Write regridded data to netCDF."""
 
@@ -539,8 +545,7 @@ class TestOcgOperations(TestBase):
         self.assertIsNotNone(field.spatial.grid.corners)
         self.assertTrue(np.any(field.variables.first().value.mask))
 
-    @attr('esmf')
-    @attr('data')
+    @attr('data', 'esmf')
     def test_keyword_regrid_destination_to_shp_vector_wrap(self):
         """Test writing to shapefile with different vector wrap options."""
 

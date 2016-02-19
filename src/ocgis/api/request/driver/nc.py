@@ -1,9 +1,9 @@
 import json
 import logging
-import netCDF4 as nc
 from copy import deepcopy
 from warnings import warn
 
+import netCDF4 as nc
 import numpy as np
 
 from ocgis import messages, TemporalDimension
@@ -49,7 +49,7 @@ class DriverNetcdf(AbstractDriver):
     def open(self):
         try:
             ret = nc.Dataset(self.rd.uri, 'r')
-        except TypeError:
+        except (TypeError, RuntimeError):
             try:
                 ret = nc.MFDataset(self.rd.uri)
             except KeyError as e:
@@ -297,11 +297,21 @@ class DriverNetcdf(AbstractDriver):
         for vdict in self.rd:
             variable_meta = deepcopy(source_metadata['variables'][vdict['variable']])
             variable_units = vdict['units'] or variable_meta['attrs'].get('units')
-            dtype = np.dtype(variable_meta['dtype'])
-            fill_value = variable_meta['fill_value']
+            attrs = variable_meta['attrs'].copy()
+            if variable_meta['dtype_packed'] is None:
+                dtype = np.dtype(variable_meta['dtype'])
+                fill_value = variable_meta['fill_value']
+            else:
+                dtype = np.dtype(variable_meta['dtype_packed'])
+                fill_value = variable_meta['fill_value_packed']
+                # Remove scale factors and offsets from the metadata.
+                attrs.pop('scale_factor')
+                attrs.pop('add_offset', None)
+                attrs.pop('missing_value', None)
+                attrs.pop('_Fill_Value', None)
             variable = Variable(vdict['variable'], vdict['alias'], units=variable_units, meta=variable_meta,
                                 request_dataset=self.rd, conform_units_to=vdict['conform_units_to'], dtype=dtype,
-                                fill_value=fill_value, attrs=variable_meta['attrs'].copy())
+                                fill_value=fill_value, attrs=attrs)
             vc.add_variable(variable)
 
         ret = NcField(variables=vc, spatial=spatial, temporal=loaded['temporal'], level=loaded['level'],

@@ -5,7 +5,16 @@ from ocgis.exc import DefinitionValidationError
 
 
 class ESMPyConverter(AbstractCollectionConverter):
-    #todo: doc
+    """
+    Convert a spatial collection to an ESMF field object.
+
+    .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractCollectionConverter`.
+
+    :param with_corners: (``=True``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
+    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
+    :param esmf_field_name: (``=None``) Optional name for the returned ESMF field.
+    :type esmf_field_name: str
+    """
 
     def __init__(self, *args, **kwargs):
         self.with_corners = kwargs.pop('with_corners', True)
@@ -37,8 +46,6 @@ class ESMPyConverter(AbstractCollectionConverter):
             raise DefinitionValidationError(target, msg)
 
     def write(self):
-        #todo: doc
-
         for coll in self.colls:
             """:type coll: :class:`ocgis.api.collection.SpatialCollection`"""
             from ocgis.regrid.base import get_esmf_grid_from_sdim
@@ -48,8 +55,9 @@ class ESMPyConverter(AbstractCollectionConverter):
                 variable = row['variable']
                 egrid = get_esmf_grid_from_sdim(field.spatial, with_corners=self.with_corners,
                                                 value_mask=self.value_mask)
+
                 esmf_field_name = self.esmf_field_name or variable.alias
-                efield = ESMF.Field(egrid, esmf_field_name, ndbounds=field.shape[0:-2], mask_values=[0])
-                efield[:] = variable.value
+                efield = ESMF.Field(egrid, name=esmf_field_name, ndbounds=field.shape[0:-2])
+                efield.data[:] = variable.value
 
                 return efield

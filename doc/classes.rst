@@ -28,6 +28,12 @@ OcgOperations
 .. autoclass:: ocgis.OcgOperations
     :members: execute, get_base_request_size
 
+RegridOperation
+===============
+
+.. autoclass:: ocgis.regrid.base.RegridOperation
+    :members: execute
+
 RequestDataset
 ==============
 

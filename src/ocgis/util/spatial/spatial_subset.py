@@ -1,7 +1,8 @@
 from copy import deepcopy, copy
+
+from ocgis import RequestDataset
 from ocgis.interface.base.crs import CFRotatedPole, CFWGS84, WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialDimension
-from ocgis import RequestDataset
 
 
 class SpatialSubsetOperation(object):
@@ -56,7 +57,7 @@ class SpatialSubsetOperation(object):
 
         try:
             ret = self.field.spatial
-        # if "target" is a spatial dimension, then the field is None. return the object assuming it is a spatial
+        # If "target" is a spatial dimension, then the field is None. return the object assuming it is a spatial
         # dimension.
         except AttributeError:
             ret = self.target

@@ -58,6 +58,7 @@ class Environment(object):
         self.DIR_BIN = EnvParm('DIR_BIN', None)
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX', None, 'rtree')
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, ('cf_units', 'cfunits'))
+        self.USE_ESMF = EnvParmImport('USE_ESMF', None, 'ESMF')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
         self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)

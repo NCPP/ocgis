@@ -3,15 +3,15 @@ from copy import deepcopy
 import ESMF
 import numpy as np
 
-from ocgis.exc import DefinitionValidationError
 from ocgis import SpatialCollection, OcgOperations
 from ocgis.conv.base import AbstractFileConverter
 from ocgis.conv.esmpy import ESMPyConverter
+from ocgis.exc import DefinitionValidationError
 from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 
 
-@attr('esmpy7')
+@attr('data', 'esmf')
 class TestESMPyConverter(AbstractTestConverter):
 
     def get_conv(self, with_corners=True, value_mask=None, esmf_field_name=None, field=None):
@@ -30,11 +30,6 @@ class TestESMPyConverter(AbstractTestConverter):
         self.assertIsInstance(res[0], SpatialCollection)
 
     def test_write(self):
-        #todo: test with multiple collections
-        #todo: test with multiple variables
-        #todo: test with multiple fields
-        #todo: test with mask on field
-
         kwds = dict(nlevel=[1, 3],
                     nrlz=[1, 5],
                     esmf_field_name=[None, 'foo'],
@@ -61,13 +56,12 @@ class TestESMPyConverter(AbstractTestConverter):
                 self.assertEqual(efield.name, ovariable.alias)
             self.assertIsInstance(efield, ESMF.Field)
             self.assertFalse(np.may_share_memory(ovariable.value, efield))
-            # field are currently always 64-bit in ESMF...
-            self.assertEqual(efield.dtype, np.float64)
-            self.assertNumpyAll(ovariable.value, efield, check_arr_type=False, check_arr_dtype=False)
+            # Field are currently always 64-bit in ESMF...
+            self.assertEqual(efield.data.dtype, np.float64)
+            self.assertNumpyAll(ovariable.value.data, efield.data, check_arr_type=False, check_arr_dtype=False)
 
             if k.value_mask:
                 self.assertTrue(np.any(efield.grid.mask[0] == 0))
-                self.assertTrue(efield.mask.any())
 
     def test_validate_ops(self):
         rd = self.test_data.get_rd('cancm4_tas')

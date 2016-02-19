@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from warnings import warn
+
 import numpy as np
 
 
@@ -84,8 +85,17 @@ class NcMetadata(AbstractMetadata):
         for key, value in rootgrp.variables.iteritems():
             subvar = OrderedDict()
             for attr in value.ncattrs():
-                if attr.startswith('_'): continue
+                if attr.startswith('_'):
+                    continue
                 subvar.update({attr: getattr(value, attr)})
+
+            # Remove scale factors and offsets from the metadata.
+            if 'scale_factor' in subvar:
+                dtype_packed = value[0].dtype
+                fill_value_packed = np.ma.array([], dtype=dtype_packed).fill_value
+            else:
+                dtype_packed = None
+                fill_value_packed = None
 
             # make two attempts at missing value attributes otherwise assume the default from a numpy masked array
             try:
@@ -100,7 +110,9 @@ class NcMetadata(AbstractMetadata):
                                     'attrs': subvar,
                                     'dtype': str(value.dtype),
                                     'name': value._name,
-                                    'fill_value': fill_value}})
+                                    'fill_value': fill_value,
+                                    'dtype_packed': dtype_packed,
+                                    'fill_value_packed': fill_value_packed}})
         self.update({'variables': variables})
 
         # get dimensions

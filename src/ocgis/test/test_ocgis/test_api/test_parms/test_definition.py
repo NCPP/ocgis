@@ -486,17 +486,16 @@ class TestDataset(TestBase):
         dsb = [dsa, {'uri': reference_rd2.uri, 'variable': reference_rd2.variable, 'alias': 'knight'}]
         Dataset(dsb)
 
-    @attr('esmpy7')
+    @attr('esmf')
     def test_init_esmf(self):
-        # todo: what to do about time values, units, etc.
         efield = self.get_esmf_field()
         dd = Dataset(efield)
         self.assertIsInstance(dd.value, RequestDatasetCollection)
         ofield = dd.value.first()
         self.assertIsInstance(ofield, Field)
         ofield_value = ofield.variables.first().value
-        self.assertTrue(np.may_share_memory(ofield_value, efield))
-        self.assertNumpyAll(ofield_value, efield)
+        self.assertTrue(np.may_share_memory(ofield_value, efield.data))
+        self.assertNumpyAll(ofield_value.data, efield.data)
 
     @attr('data')
     def test(self):
@@ -817,7 +816,7 @@ class TestOutputFormat(TestBase):
         of2 = OutputFormat(of)
         self.assertEqual(of.value, of2.value)
 
-    @attr('esmpy7')
+    @attr('esmf')
     def test_init_esmpy(self):
         oo = OutputFormat(constants.OUTPUT_FORMAT_ESMPY_GRID)
         self.assertEqual(oo.value, constants.OUTPUT_FORMAT_ESMPY_GRID)
@@ -828,7 +827,8 @@ class TestOutputFormat(TestBase):
 
     def test_valid(self):
         self.assertAsSetEqual(OutputFormat.valid, ['csv', 'csv-shp', 'geojson', 'meta-ocgis', 'nc', 'numpy', 'shp',
-                                                   constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, 'meta-json'])
+                                                   constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, 'meta-json',
+                                                   constants.OUTPUT_FORMAT_ESMPY_GRID])
 
 
 class TestOutputFormatOptions(TestBase):
@@ -934,7 +934,7 @@ class TestRegridOptions(TestBase):
         self.assertDictEqual(ro.value, {'with_corners': True, 'value_mask': None})
 
         ro = RegridOptions({'value_mask': np.array([True, False])})
-        self.assertEqual(ro.value['with_corners'], 'choose')
+        self.assertEqual(ro.value['with_corners'], 'auto')
         self.assertNumpyAll(ro.value['value_mask'], np.array([True, False]))
 
         with self.assertRaises(DefinitionValidationError):

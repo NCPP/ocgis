@@ -13,3 +13,5 @@ Function Reference
 .. automodule:: ocgis.util.large_array
    :members: compute
 
+.. automodule:: ocgis.regrid.base
+   :members: iter_esmf_fields, iter_regridded_fields, get_esmf_grid_from_sdim

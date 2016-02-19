@@ -10,6 +10,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 
 from ocgis import constants
+from ocgis import env
 from ocgis import messages
 from ocgis.api.request.driver.vector import DriverVector
 from ocgis.interface.base.field import Field
@@ -381,7 +382,6 @@ def get_converter_map():
     from ocgis.conv.numpy_ import NumpyConverter
     from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
     from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter
-    # from ocgis.conv.esmpy import ESMPyConverter
 
     mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
             constants.OUTPUT_FORMAT_CSV: CsvConverter,
@@ -392,8 +392,12 @@ def get_converter_map():
             constants.OUTPUT_FORMAT_METADATA_JSON: MetaJSONConverter,
             constants.OUTPUT_FORMAT_METADATA_OCGIS: MetaOCGISConverter,
             constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter,
-            # constants.OUTPUT_FORMAT_ESMPY_GRID: ESMPyConverter
             }
+
+    # ESMF is an optional dependendency.
+    if env.USE_ESMF:
+        from ocgis.conv.esmpy import ESMPyConverter
+        mmap[constants.OUTPUT_FORMAT_ESMPY_GRID] = ESMPyConverter
 
     return mmap
 

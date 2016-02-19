@@ -1,7 +1,6 @@
 import abc
 import datetime
 import itertools
-import netCDF4 as nc
 import os
 import shutil
 import subprocess
@@ -14,6 +13,7 @@ from contextlib import contextmanager
 from copy import deepcopy, copy
 
 import fiona
+import netCDF4 as nc
 import numpy as np
 
 import ocgis
@@ -35,13 +35,12 @@ Definitions for various "attrs":
  * slow: long-running tests that are typically ran before a release
  * remote: tests relying on remote datasets that are typically run before a release
  * esmf: tests requiring ESMF
- * esmpy7: tests requiring a branch version of ESMF
  * simple: simple tests designed to test core functionality requiring no datasets
  * optional: tests that use optional dependencies
  * data: test requires a data file
  * icclim: test requires ICCLIM
 
-nosetests -vs --with-id -a '!slow,!remote,!esmpy7' ocgis
+nosetests -vs --with-id -a '!slow,!remote' ocgis
 """
 
 
@@ -83,6 +82,14 @@ class TestBase(unittest.TestCase):
 
     def assertAsSetEqual(self, sequence1, sequence2, msg=None):
         self.assertSetEqual(set(sequence1), set(sequence2), msg=msg)
+
+    def assertDescriptivesAlmostEqual(self, desired_descriptives, actual_arr):
+        actual_descriptives = self.get_descriptive_statistics(actual_arr)
+        for k, v in desired_descriptives.items():
+            if k == 'shape':
+                self.assertEqual(v, actual_descriptives['shape'])
+            else:
+                self.assertTrue(np.isclose(v, actual_descriptives[k]))
 
     def assertDictEqual(self, d1, d2, msg=None):
         """
@@ -130,7 +137,8 @@ class TestBase(unittest.TestCase):
     def assertIsInstances(self, actual, desired):
         self.assertTrue(isinstance, desired)
 
-    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True):
+    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True,
+                       rtol=None):
         """
         Asserts arrays are equal according to the test criteria.
 
@@ -140,9 +148,15 @@ class TestBase(unittest.TestCase):
         :type arr2: :class:`numpy.ndarray`
         :param bool check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
         :param bool check_arr_dtype: If ``True``, check the data types of the arrays are equal.
-        :param bool check_arr_type: If ``True``, check the types of the incoming arrays:
+        :param bool check_arr_type: If ``True``, check the types of the incoming arrays.
 
         >>> type(arr1) == type(arr2)
+
+        :param places: If this is a float value, use a "close" data comparison as opposed to exact comparison. The
+         value is the test tolerance. See http://docs.scipy.org/doc/numpy/reference/generated/numpy.allclose.html.
+        :type places: float
+
+        >>> places = 1e-4
 
         :raises: AssertionError
         """
@@ -153,14 +167,21 @@ class TestBase(unittest.TestCase):
         if check_arr_dtype:
             self.assertEqual(arr1.dtype, arr2.dtype)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
-            self.assertTrue(np.all(arr1.data == arr2.data))
+            data_to_check = (arr1.data, arr2.data)
             self.assertTrue(np.all(arr1.mask == arr2.mask))
             if check_fill_value_dtype:
                 self.assertEqual(arr1.fill_value, arr2.fill_value)
             else:
                 self.assertTrue(np.equal(arr1.fill_value, arr2.fill_value.astype(arr1.fill_value.dtype)))
         else:
-            self.assertTrue(np.all(arr1 == arr2))
+            data_to_check = (arr1, arr2)
+
+        # Check the data values.
+        if rtol is None:
+            to_assert = np.all(data_to_check[0] == data_to_check[1])
+        else:
+            to_assert = np.allclose(data_to_check[0], data_to_check[1], rtol=rtol)
+        self.assertTrue(to_assert)
 
     def assertNcEqual(self, uri_src, uri_dest, check_types=True, close=False, metadata_only=False,
                       ignore_attributes=None, ignore_variables=None):
@@ -344,6 +365,17 @@ class TestBase(unittest.TestCase):
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
 
+    def get_descriptive_statistics(self, arr):
+        ret = {'mean': arr.mean(),
+               'min': arr.min(),
+               'max': arr.max(),
+               'std': np.std(arr),
+               'shape': arr.shape}
+        if arr.ndim == 1:
+            arr = np.diagflat(arr)
+        ret['trace'] = np.trace(arr)
+        return ret
+
     def get_esmf_field(self, **kwargs):
         """
         :keyword field: (``=None``) The field object. If ``None``, call :meth:`~ocgis.test.base.TestBase.get_field`
@@ -357,12 +389,12 @@ class TestBase(unittest.TestCase):
 
         field = kwargs.pop('field', None) or self.get_field(**kwargs)
         coll = SpatialCollection()
-        coll.add_field(1, None, field)
+        coll.add_field(field)
         conv = ESMPyConverter([coll])
         efield = conv.write()
         return efield
 
-    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2):
+    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False):
         """
         :param int nlevel: The number of level elements.
         :param int nrlz: The number of realization elements.
@@ -370,6 +402,8 @@ class TestBase(unittest.TestCase):
         :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
         :param ntime: The number of time elements.
         :type ntime: int
+        :param with_bounds: If ``True``, extrapolate bounds on spatial dimensions.
+        :type with_bounds: bool
         :returns: A small field object for testing.
         :rtype: `~ocgis.Field`
         """
@@ -377,6 +411,11 @@ class TestBase(unittest.TestCase):
         np.random.seed(1)
         row = VectorDimension(value=[4., 5.], name='row')
         col = VectorDimension(value=[40., 50.], name='col')
+
+        if with_bounds:
+            row.set_extrapolated_bounds()
+            col.set_extrapolated_bounds()
+
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid, crs=crs)
 
@@ -612,6 +651,14 @@ class TestBase(unittest.TestCase):
 
     def nc_scope(self, *args, **kwargs):
         return nc_scope(*args, **kwargs)
+
+    def panoply(self, *args):
+        paths = args[0]
+        if isinstance(paths, basestring):
+            paths = [paths]
+        paths = list(paths)
+        cmd = ['/home/benkoziol/sandbox/PanoplyJ/panoply.sh'] + paths
+        subprocess.check_call(cmd)
 
     def print_scope(self):
         return print_scope()

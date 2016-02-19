@@ -367,7 +367,7 @@ If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be r
 regrid_options
 ~~~~~~~~~~~~~~
 
-A dictionary with regridding options. Please see the documentation for :meth:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
+A dictionary with regridding options. Please see the documentation for :func:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
 
 >>> regrid_options = {'with_value': True}
 

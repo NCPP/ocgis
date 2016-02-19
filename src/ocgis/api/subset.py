@@ -11,7 +11,7 @@ from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.exc import EmptyData, ExtentError, MaskedDataError, EmptySubsetError, VariableInCollectionError, \
     BoundsAlreadyAvailableError
-from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, Spherical, WGS84, WrappableCoordinateReferenceSystem
+from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WrappableCoordinateReferenceSystem
 from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension
 from ocgis.interface.base.field import Field
 from ocgis.util.helpers import get_default_or_apply
@@ -494,100 +494,15 @@ class SubsetOperation(object):
         :param subset_sdim_for_regridding: The original, unaltered spatial dimension to use for subsetting.
         :type subset_sdim_for_regridding: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         :param bool with_buffer: If ``True``, buffer the geometry used to subset the destination grid.
+        :rtype: :class:`~ocgis.Field`
         """
 
-        # todo: cache spatial operations on regrid destination field
-
-        from ocgis.regrid.base import iter_regridded_fields
-        from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
-
-        if subset_sdim_for_regridding is None:
-            regrid_destination = self.ops.regrid_destination
-        else:
-            if with_buffer:
-                # buffer the subset geometry by the resolution of the source field to give extents a chance to be
-                # compatible
-                buffer_value = sfield.spatial.grid.resolution
-                buffer_crs = sfield.spatial.crs
-            else:
-                buffer_value, buffer_crs = [None, None]
-            ss = SpatialSubsetOperation(self.ops.regrid_destination)
-            regrid_destination = ss.get_spatial_subset('intersects', subset_sdim_for_regridding,
-                                                       use_spatial_index=env.USE_SPATIAL_INDEX,
-                                                       select_nearest=False, buffer_value=buffer_value,
-                                                       buffer_crs=buffer_crs)
-
-        original_sfield_crs = sfield.spatial.crs
-        # check crs on the source field
-        regrid_required_update_crs = False
-        if not isinstance(sfield.spatial.crs, Spherical):
-            # this as _assigned_ a WGS84 crs hence we cannot assume the default crs
-            if isinstance(sfield.spatial.crs, WGS84) and sfield._has_assigned_coordinate_system:
-                regrid_required_update_crs = True
-            # the data has a coordinate system that is not WGS84
-            elif not isinstance(sfield.spatial.crs, WGS84):
-                regrid_required_update_crs = True
-        if regrid_required_update_crs:
-            # need to load values as source indices will disappear during crs update
-            for variable in sfield.variables.itervalues():
-                variable.value
-            sfield.spatial.update_crs(Spherical())
-        else:
-            sfield.spatial.crs = Spherical()
-
-        # update the coordinate system of the regrid destination if required
-        try:
-            destination_sdim = regrid_destination.spatial
-        except AttributeError:
-            # likely a spatial dimension object
-            destination_sdim = regrid_destination
-        update_regrid_destination_crs = False
-        if not isinstance(destination_sdim.crs, Spherical):
-            if isinstance(regrid_destination, Field):
-                if isinstance(destination_sdim.crs, WGS84) and regrid_destination._has_assigned_coordinate_system:
-                    update_regrid_destination_crs = True
-                elif isinstance(destination_sdim.crs,
-                                WGS84) and not regrid_destination._has_assigned_coordinate_system:
-                    pass
-                else:
-                    update_regrid_destination_crs = True
-            else:
-                if not isinstance(destination_sdim.crs, Spherical):
-                    update_regrid_destination_crs = True
-        if update_regrid_destination_crs:
-            destination_sdim.update_crs(Spherical())
-        else:
-            destination_sdim.crs = Spherical()
-
-        # check that wrapping is equivalent
-        if destination_sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
-            if sfield.spatial.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
-                sfield.spatial = deepcopy(sfield.spatial)
-                sfield.spatial.unwrap()
-        if destination_sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
-            if sfield.spatial.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
-                sfield.spatial = deepcopy(sfield.spatial)
-                sfield.spatial.wrap()
-
-        # remove the mask from the destination field.
-        new_mask = np.zeros(destination_sdim.shape, dtype=bool)
-        destination_sdim.set_mask(new_mask)
-
-        # regrid the input fields.
-        sfield = list(iter_regridded_fields([sfield], destination_sdim, **self.ops.regrid_options))[0]
-
-        if regrid_required_update_crs:
-            sfield.spatial.update_crs(original_sfield_crs)
-        else:
-            sfield.spatial.crs = original_sfield_crs
-
-        # subset the output from the regrid operation as masked values may be introduced on the edges
-        if subset_sdim_for_regridding is not None:
-            ss = SpatialSubsetOperation(sfield)
-            sfield = ss.get_spatial_subset('intersects', subset_sdim_for_regridding,
-                                           use_spatial_index=env.USE_SPATIAL_INDEX,
-                                           select_nearest=False)
-
+        from ocgis.regrid.base import RegridOperation
+        ocgis_lh(logger=self._subset_log, msg='Starting regrid operation...', level=logging.INFO)
+        ro = RegridOperation(sfield, self.ops.regrid_destination, subset_sdim=subset_sdim_for_regridding,
+                             with_buffer=with_buffer, regrid_options=self.ops.regrid_options)
+        sfield = ro.execute()
+        ocgis_lh(logger=self._subset_log, msg='Regrid operation complete.', level=logging.INFO)
         return sfield
 
     def _process_geometries_(self, itr, field, headers, value_keys, alias):
@@ -654,6 +569,7 @@ class SubsetOperation(object):
             if not self._request_base_size_only:
                 # perform regridding operations if requested
                 if self.ops.regrid_destination is not None and sfield._should_regrid:
+                    # TODO: This is called twice with a regridding error. Catch an exception specific to ESMF when it is avaiable.
                     try:
                         original_sfield_sdim = deepcopy(sfield.spatial)
                         sfield = self._get_regridded_field_with_subset_(

@@ -7,7 +7,7 @@ RUN apt-get -y upgrade
 RUN apt-get -y install build-essential \
                        gfortran
 
-RUN conda install -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos ocgis icclim esmpy nose ipython
+RUN conda install -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos ocgis icclim esmpy==7.0.0 nose ipython
 RUN pip install ipdb
 
 RUN conda remove ocgis

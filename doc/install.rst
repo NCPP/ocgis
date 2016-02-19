@@ -98,7 +98,7 @@ Package Name  Version  URL                                                    Us
 ``cf_units``  1.0.0    https://github.com/SciTools/cf_units                   Allows unit transformations.
     *or*
 ``cfunits``   1.0      https://bitbucket.org/cfpython/cfunits-python          Allows unit transformations.
-``ESMPy``     6.3.0rp1 https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``ESMPy``     7.0.0    https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
 ``icclim``    3.0.0    http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ============= ======== ====================================================== =================================================================================================================================
 

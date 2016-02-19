@@ -340,14 +340,13 @@ class OcgOperations(object):
         converter_klass = get_converter(self.output_format)
         converter_klass.validate_ops(self)
 
-        # no regridding with a spatial operation of clip
+        # No clipping with regridding.
         if self.regrid_destination is not None:
             if self.spatial_operation == 'clip':
                 msg = 'Regridding not allowed with spatial "clip" operation.'
                 raise DefinitionValidationError(SpatialOperation, msg)
 
-        # collect projections for the dataset sets. None is returned if one is not parsable. the WGS84 default is
-        # actually done in the RequestDataset object.
+        # Collect unique coordinate systems. None is returned if one is not parsable.
         projections = []
         for rd in self.dataset.itervalues():
             if not any([_ == rd.crs for _ in projections]):
@@ -374,13 +373,15 @@ class OcgOperations(object):
                 ocgis_lh(level=logging.WARN, msg=msg, logger='operations')
                 self._get_object_('output_crs')._value = CFWGS84()
 
-        # only WGS84 may be written to to GeoJSON
-        if self.output_format == 'geojson':
-            if any([element != WGS84() for element in projections if element is not None]):
-                _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
+        # Only WGS84 coordinate system may be written to GeoJSON.
+        if self.output_format == constants.OUTPUT_FORMAT_GEOJSON:
+            msg = 'Only data with a WGS84 projection may be written to GeoJSON.'
             if self.output_crs is not None:
-                if self.output_crs != WGS84():
-                    _raise_('Only data with a WGS84 projection may be written to GeoJSON.')
+                if not isinstance(self.output_crs, WGS84):
+                    _raise_(msg)
+            else:
+                if any([not isinstance(element, WGS84) for element in projections if element is not None]):
+                    _raise_(msg)
 
         # snippet only relevant for subsetting not operations with a calculation or time region
         if self.snippet:

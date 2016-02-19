@@ -452,9 +452,9 @@ class Dataset(base.AbstractParameter):
                             ocgis_lh('Could not import ESMF library.', level=logging.WARN)
                         else:
                             if isinstance(init_value, ESMF.Field):
-                                from ocgis.regrid.base import get_ocgis_field_from_esmpy_field
+                                from ocgis.regrid.base import get_ocgis_field_from_esmf_field
 
-                                field = get_ocgis_field_from_esmpy_field(init_value)
+                                field = get_ocgis_field_from_esmf_field(init_value)
                                 itr = [field]
                                 should_raise = False
                         if should_raise:
@@ -1035,10 +1035,10 @@ class RegridDestination(base.AbstractParameter):
 class RegridOptions(base.AbstractParameter):
     name = 'regrid_options'
     nullable = True
-    default = {'with_corners': 'choose', 'value_mask': None}
+    default = {'with_corners': 'auto', 'value_mask': None, 'split': True}
     input_types = [dict]
     return_type = [dict]
-    _possible_with_options = ['choose', True, False]
+    _possible_with_options = ['auto', True, False]
     _possible_value_mask_types = [NoneType, np.ndarray]
 
     def _parse_(self, value):
@@ -1048,7 +1048,7 @@ class RegridOptions(base.AbstractParameter):
                 raise DefinitionValidationError(self, msg)
 
         if 'with_corners' not in value:
-            value['with_corners'] = 'choose'
+            value['with_corners'] = 'auto'
         if 'value_mask' not in value:
             value['value_mask'] = None
 

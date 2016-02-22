@@ -1,34 +1,36 @@
 package:
     name: ocgis
-    version: 1.3.0.dev1
+    version: 1.3.0
 
 source:
     git_url: https://github.com/NCPP/ocgis.git
-    git_tag: next
+    git_tag: master
 
 build:
-    number: 1
+    number: 0
+    skip: True # [win]
+    skip: True # [py3k]
 
 requirements:
     build:
-        - python
-        - setuptools
-        - numpy
-        - netcdf4
-        - shapely
+        - python >=2.7,<3
         - fiona
         - gdal <2
-        - proj.4
+        - libgdal <2
+        - netcdf4
+        - numpy
+        - shapely
     run:
         - python
-        - numpy
-        - netcdf4
-        - shapely
+        - cf_units
         - fiona
         - gdal <2
-        - cf_units
-        - rtree
+        - libgdal <2
+        - netcdf4
+        - numpy
+        - shapely
         - proj.4
+        - rtree
 
 test:
   requires:

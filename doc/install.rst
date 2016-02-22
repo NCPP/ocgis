@@ -7,7 +7,7 @@ Installation
 Anaconda Package
 ----------------
 
-An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `IOOS's Anaconda Channel <https://anaconda.org/IOOS>`_ repository. Linux-64 and osx-64 builds are both available. If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below. Filling out the form also helps us collect useful usage statistics.
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `IOOS's Anaconda Channel <https://anaconda.org/IOOS>`_ repository (linux-64 and osx-64). If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below. Filling out the form also helps us collect useful usage statistics.
 
 Base installation with spatial index and unit conversion support (``nose`` is used for testing purposes only):
 
@@ -71,6 +71,8 @@ Set the path to the directory containing the shapefiles or shapefile folders in 
 Dependencies
 ------------
 
+OpenClimateGIS is tested against the library versions listed below.
+
 Required
 ~~~~~~~~
 
@@ -78,12 +80,12 @@ Required
 Package Name   Version URL
 ============== ======= =======================================================================
 Python         2.7.10  https://www.python.org/downloads/
-``osgeo``      1.11.2  https://pypi.python.org/pypi/GDAL/
-``setuptools`` 18.0.1  https://pypi.python.org/pypi/setuptools
-``shapely``    1.5.9   https://pypi.python.org/pypi/Shapely
-``fiona``      1.5.1   https://pypi.python.org/pypi/Fiona
-``numpy``      1.9.2   http://sourceforge.net/projects/numpy/files/NumPy/1.9.2/
-``netCDF4``    1.1.8   http://unidata.github.io/netcdf4-python/
+``osgeo``      1.11.3  https://pypi.python.org/pypi/GDAL/
+``setuptools`` 19.6.2  https://pypi.python.org/pypi/setuptools
+``shapely``    1.5.13  https://pypi.python.org/pypi/Shapely
+``fiona``      1.6.3   https://pypi.python.org/pypi/Fiona
+``numpy``      1.10.4  http://sourceforge.net/projects/numpy/files/NumPy/1.9.2/
+``netCDF4``    1.2.2   http://unidata.github.io/netcdf4-python/
 ============== ======= =======================================================================
 
 Optional
@@ -94,12 +96,11 @@ Optional dependencies are listed below. OpenClimateGIS will still operate withou
 ============= ======== ====================================================== =================================================================================================================================
 Package Name  Version  URL                                                    Usage
 ============= ======== ====================================================== =================================================================================================================================
-``rtree``     0.8.0    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cf_units``  1.0.0    https://github.com/SciTools/cf_units                   Allows unit transformations.
-    *or*
-``cfunits``   1.0      https://bitbucket.org/cfpython/cfunits-python          Allows unit transformations.
+``rtree``     0.8.2    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
+``cf_units``  1.1      https://github.com/SciTools/cf_units                   Allows unit transformations.
 ``ESMPy``     7.0.0    https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
-``icclim``    3.0.0    http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``icclim``    4.1.1    http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``nose``      1.3.7    https://nose.readthedocs.org/en/latest/                Run unit tests.
 ============= ======== ====================================================== =================================================================================================================================
 
 Building from Source

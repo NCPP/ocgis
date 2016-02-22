@@ -330,7 +330,7 @@ class Field(Attributes):
                         for ii in range(ref_idx.shape[0]):
                             for vk in value_keys:
                                 try:
-                                    to_yld[vk] = ref_idx.data[vk][ii]
+                                    to_yld[vk] = ref_idx[vk][ii]
                                 # Attempt to access the data directly. Masked determination is done above.
                                 except ValueError:
                                     to_yld[vk] = ref_idx.data[vk][ii]

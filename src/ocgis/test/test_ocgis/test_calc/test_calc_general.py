@@ -56,9 +56,9 @@ class AbstractCalcBase(TestBase):
                         # ensure the geometry mask is appropriately update by the function
                         try:
                             self.assertTrue(np.ma.is_masked(ref[0, 0, 0, 0, 0]))
-                        # likely a structure array with multiple masked elements per index
+                        # likely a structure array where testing requires using the mask property
                         except TypeError:
-                            self.assertTrue(np.all([np.ma.is_masked(element) for element in ref[0, 0, 0, 0, 0]]))
+                            self.assertTrue(ref.mask[0, 0, 0, 0, 0])
             except ValueError:
                 raise
             except AssertionError:

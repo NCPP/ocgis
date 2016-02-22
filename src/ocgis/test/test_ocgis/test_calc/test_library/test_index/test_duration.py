@@ -69,7 +69,7 @@ class TestDuration(AbstractCalcBase):
 
 
 class TestFrequencyDuration(AbstractCalcBase):
-    def test_constructor(self):
+    def test_init(self):
         FrequencyDuration()
 
     @attr('data')
@@ -80,8 +80,8 @@ class TestFrequencyDuration(AbstractCalcBase):
         values = self.get_reshaped(values)
         ret = fduration.calculate(values, threshold=2, operation='gt')
         self.assertEqual(ret.flatten()[0].dtype.names, ('duration', 'count'))
-        self.assertNumpyAll(np.ma.array([2, 3, 5]), ret.flatten()[0]['duration'])
-        self.assertNumpyAll(np.ma.array([2, 1, 1]), ret.flatten()[0]['count'])
+        self.assertNumpyAll(np.array([2, 3, 5]), ret.flatten()[0]['duration'])
+        self.assertNumpyAll(np.array([2, 1, 1]), ret.flatten()[0]['count'])
 
         calc = [{'func': 'freq_duration', 'name': 'freq_duration', 'kwds': {'operation': 'gt', 'threshold': 280}}]
         ret = self.run_standard_operations(calc, capture=True, output_format=None)
@@ -92,7 +92,7 @@ class TestFrequencyDuration(AbstractCalcBase):
                 if dct['parms']['output_format'] == 'nc' or dct['parms']['calc_grouping'] == ['month']:
                     pass
             else:
-                raise (dct['exception'])
+                raise dct['exception']
 
     @attr('slow')
     def test_real_data_multiple_datasets(self):

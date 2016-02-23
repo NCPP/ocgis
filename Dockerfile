@@ -11,7 +11,7 @@ RUN conda install -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos ocg
 RUN pip install ipdb
 
 RUN conda remove ocgis
-RUN git clone -b master-dev --depth=10 https://github.com/NCPP/ocgis.git
+RUN git clone -b master --depth=10 https://github.com/NCPP/ocgis.git
 RUN cd ocgis && python setup.py install
 
 ENV GDAL_DATA /opt/conda/share/gdal

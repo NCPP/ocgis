@@ -19,7 +19,7 @@ Installation with all optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/icclim -c ioos ocgis esmpy==7.0.0 icclim nose
+   conda install -c ioos -c nesii/channel/icclim ocgis esmpy icclim nose
 
 Building from Source
 --------------------

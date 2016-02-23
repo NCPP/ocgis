@@ -15,14 +15,14 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-full -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis icclim esmpy==7.0.0 nose
+  - travis_retry conda create -n test-full -c nesii/channel/icclim -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis icclim esmpy nose krb5
   - source activate test-full
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis nose
+  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c ioos $CONDA_PYTHON ocgis nose krb5
   - source activate test-minimal
-  - conda remove rtree cf_units ocgis
+  - conda remove rtree cf_units ocgis esmpy
   - python setup.py install
 
 script:

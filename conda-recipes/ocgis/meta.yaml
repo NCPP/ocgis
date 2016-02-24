@@ -18,6 +18,9 @@ requirements:
         - netcdf4
         - numpy
         - shapely
+        - rtree
+        - cf_units
+        - icclim ==4.1.1
     run:
         - python
         - fiona ==1.6.3
@@ -25,9 +28,10 @@ requirements:
         - numpy
         - shapely
         - proj.4
-#        - rtree  #Optional!
-#        - cf_units  #Optional!
-#        - icclim==4.1.1  #Optional!
+        - rtree
+        - cf_units
+        - krb5
+        - icclim ==4.1.1
 #        - esmpy==7.0.0  #Optional!
 
 test:

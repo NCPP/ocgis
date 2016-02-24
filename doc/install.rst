@@ -2,24 +2,36 @@
 Installation
 ============
 
-.. note:: First, make sure `Python 2.7`_ is installed and available on your system path.
+If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below. Filling out the form also helps us collect useful usage statistics.
 
 Anaconda Package
 ----------------
 
-An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is available through `IOOS's Anaconda Channel <https://anaconda.org/IOOS>`_ repository (linux-64 and osx-64). If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below. Filling out the form also helps us collect useful usage statistics.
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ package is available through `IOOS's Anaconda Channel <https://anaconda.org/IOOS>`_ repository (linux-64, osx-64, and windows). This is the recommended method for installing OpenClimateGIS. IOOS offers numerous scientific computing packages which together provide a valuable default computing environment.
 
 Base installation with spatial index and unit conversion support (``nose`` is used for testing purposes only):
 
 .. code-block:: sh
 
-   conda install -c ioos ocgis nose
+   conda install -c ioos ocgis
 
-Installation with all optional dependencies:
+Installation with ESMPy:
 
 .. code-block:: sh
 
-   conda install -c ioos -c nesii/channel/icclim ocgis esmpy icclim nose
+   conda install -c ioos ocgis esmpy
+
+Alternatively, NESII provides linux-64 builds for both OCGIS and ESMPy:
+
+.. code-block:: sh
+
+   conda install -c nesii/channel/ocgis ocgis
+
+With ESMPy:
+
+.. code-block:: sh
+
+   conda install -c nesii/channel/ocgis -c nesii ocgis esmpy
 
 Building from Source
 --------------------

@@ -1,0 +1,53 @@
+name: env
+
+channels:
+- nesii/channel/ocgis
+- nesii
+
+dependencies:
+- alabaster=0.7.7=py27_0
+- babel=2.2.0=py27_0
+- cfunits-python=1.1=py27_0
+- click=6.3=py27_0
+- click-plugins=1.0.3=py27_0
+- cligj=0.4.0=py27_0
+- curl=7.45.0=0
+- docutils=0.12=py27_0
+- esmf=6.3.0rp1=1
+- esmpy=6.3.0rp1=py27_1
+- fiona=1.6.3=py27_0
+- gdal=1.11.3=py27_0
+- geos=3.4.2=0
+- hdf5=1.8.15.1=2
+- jinja2=2.8=py27_0
+- krb5=1.13.2=0
+- libnetcdf=4.3.3.1=3
+- libspatialindex=1.8.5=0
+- markupsafe=0.23=py27_0
+- mkl=11.3.1=0
+- mpi4py=2.0.0=py27_1
+- mpich2=1.4.1p1=0
+- munch=2.0.4=py27_0
+- netcdf-fortran=4.4.1=1
+- netcdf4=1.2.2=np110py27_0
+- numpy=1.10.4=py27_0
+- ocgis=1.2.1=py27_0
+- openssl=1.0.2f=0
+- pip=8.0.3=py27_0
+- proj.4=4.9.1=0
+- pygments=2.1.1=py27_0
+- python=2.7.11=0
+- pytz=2015.7=py27_0
+- readline=6.2=2
+- rtree=0.8.2=py27_0
+- setuptools=20.1.1=py27_0
+- shapely=1.5.13=py27_0
+- six=1.10.0=py27_0
+- snowballstemmer=1.2.1=py27_0
+- sphinx=1.3.5=py27_0
+- sphinx_rtd_theme=0.1.9=py27_0
+- sqlite=3.9.2=0
+- tk=8.5.18=0
+- udunits2=2.2.20=0
+- wheel=0.29.0=py27_0
+- zlib=1.2.8=0

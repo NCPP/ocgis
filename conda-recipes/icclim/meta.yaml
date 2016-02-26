@@ -1,0 +1,31 @@
+package:
+    name: icclim
+    version: 4.1.1
+
+source:
+    git_url: https://github.com/cerfacs-globc/icclim
+    git_tag: 4.1.1
+
+build:
+    number: 0
+
+requirements:
+    build:
+        - python
+        - setuptools
+        - numpy
+        - netcdf4
+
+    run:
+        - python
+        - numpy
+        - netcdf4
+
+test:
+    imports:
+        - icclim
+
+about:
+    home: http://icclim.readthedocs.org/en/latest/
+    license: Apache 2.0 License
+    summary: Index Calculation CLIMate (ICCLIM) is a Python library for climate indices calculation.

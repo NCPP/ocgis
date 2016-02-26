@@ -1,0 +1,33 @@
+package:
+    name: rtree
+    version: 0.8.2
+
+source:
+    fn: Rtree-0.8.2.tar.gz
+    url: https://pypi.python.org/packages/source/R/Rtree/Rtree-0.8.2.tar.gz
+    md5: 4ba7276cbdb4c51b373068004ae864d3
+    patches:
+        - fix_idx_filename.patch
+        - find_library_nix.patch
+
+build:
+    preserve_egg_dir: True
+    number: 0
+
+requirements:
+    build:
+        - python
+        - setuptools
+        - libspatialindex
+    run:
+        - python
+        - libspatialindex
+
+test:
+    imports:
+        - rtree
+
+about:
+    home: http://toblerity.github.com/rtree/
+    license: GNU Library or Lesser General Public License (LGPL)
+    summary: 'R-Tree spatial index for Python GIS'

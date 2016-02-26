@@ -1,39 +1,39 @@
-import re
+import csv
+import datetime
 import itertools
 import os.path
+import re
+import tempfile
 from abc import ABCMeta, abstractproperty
-import netCDF4 as nc
-import csv
 from collections import OrderedDict
-import datetime
 from copy import deepcopy
 from csv import DictReader
-import tempfile
-import numpy as np
 
+import fiona
+import netCDF4 as nc
+import numpy as np
 from fiona.crs import from_string
+from shapely import wkt
+from shapely.geometry.geo import mapping
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
-import fiona
-from shapely.geometry.geo import mapping
-from shapely import wkt
 
-from ocgis import osr
-from ocgis.api.operations import OcgOperations
-from ocgis.api.interpreter import OcgInterpreter
-from ocgis.api.parms.definition import SpatialOperation
-from ocgis.util.helpers import make_poly, project_shapely_geometry
-from ocgis import exc, env, constants
-from ocgis.test.base import TestBase, nc_scope, attr
 import ocgis
+from ocgis import exc, env, constants
+from ocgis import osr
+from ocgis.api.interpreter import OcgInterpreter
+from ocgis.api.operations import OcgOperations
+from ocgis.api.parms.definition import OutputFormat
+from ocgis.api.parms.definition import SpatialOperation
+from ocgis.api.request.base import RequestDataset
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.interface.base import crs
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, WrappableCoordinateReferenceSystem
-from ocgis.api.request.base import RequestDataset
+from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleMaskNc, \
     SimpleNc360, SimpleNcProjection, SimpleNcNoSpatialBounds, SimpleNcMultivariate
-from ocgis.api.parms.definition import OutputFormat
-from ocgis.interface.base.field import DerivedMultivariateField
+from ocgis.util.helpers import make_poly, project_shapely_geometry
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.shp_cabinet import ShpCabinetIterator
 from ocgis.util.spatial.fiona_maker import FionaMaker
@@ -785,9 +785,11 @@ class TestSimple(TestSimpleBase):
                              (u'FOO', 'float:24.15'), (u'UGID', 'int:10')])
                     self.assertAsSetEqual(target.keys(), schema_properties.keys())
                     self.assertDictEqual(target, schema_properties)
-                    self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'},
-                                                  'driver': u'ESRI Shapefile',
-                                                  'schema': {'geometry': 'Polygon', 'properties': schema_properties}})
+                    desired = f.meta.copy()
+                    desired.pop('crs_wkt', None)
+                    self.assertDictEqual(desired, {'crs': {'init': u'epsg:4326'},
+                                                   'driver': u'ESRI Shapefile',
+                                                   'schema': {'geometry': 'Polygon', 'properties': schema_properties}})
                     self.assertEqual(len(f), 1952)
                     if k.melted:
                         record_properties = OrderedDict(
@@ -826,8 +828,10 @@ class TestSimple(TestSimpleBase):
                              (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LID', 'int:10'),
                              (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
                              (u'MY_MEAN', 'float:24.15'), (u'UGID', 'int:10')])
-                    self.assertDictEqual(f.meta, {'crs': {'init': u'epsg:4326'}, 'driver': u'ESRI Shapefile',
-                                                  'schema': {'geometry': 'Polygon', 'properties': actual}})
+                    desired = f.meta.copy()
+                    desired.pop('crs_wkt', None)
+                    self.assertDictEqual(desired, {'crs': {'init': u'epsg:4326'}, 'driver': u'ESRI Shapefile',
+                                                   'schema': {'geometry': 'Polygon', 'properties': actual}})
                     self.assertEqual(len(f), 64)
 
     def test_shp_conversion_with_external_geometries(self):
@@ -876,6 +880,7 @@ class TestSimple(TestSimpleBase):
                  (u'GID', 'int:10'), (u'VARIABLE', 'str:80'), (u'ALIAS', 'str:80'), (u'TIME', 'str:80'),
                  (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'), (u'LEVEL', 'int:10'),
                  (u'VALUE', 'float:24.15')])
+            fiona_meta.pop('crs_wkt')
             self.assertDictEqual(fiona_meta['schema']['properties'], properties)
             self.assertDictEqual(fiona_meta, {'driver': u'ESRI Shapefile',
                                               'schema': {'geometry': 'Polygon',
@@ -899,6 +904,7 @@ class TestSimple(TestSimpleBase):
             fiona_meta = deepcopy(f.meta)
             fiona_crs = fiona_meta.pop('crs')
             self.assertEqual(CoordinateReferenceSystem(value=fiona_crs), WGS84())
+            fiona_meta.pop('crs_wkt', None)
             self.assertDictEqual(fiona_meta, {'driver': u'ESRI Shapefile', 'schema': {'geometry': 'Polygon',
                                                                                       'properties': OrderedDict(
                                                                                           [(u'UGID', 'int:10'), (
@@ -1213,6 +1219,7 @@ class TestSimple(TestSimpleBase):
             a = CoordinateReferenceSystem(value=fiona_crs)
             b = WGS84()
             self.assertEqual(a, b)
+            fiona_meta.pop('crs_wkt', None)
             self.assertEqual(fiona_meta, {'driver': u'ESRI Shapefile', 'schema': {'geometry': 'Polygon',
                                                                                   'properties': OrderedDict(
                                                                                       [(u'UGID', 'int:10')])}})

@@ -1,0 +1,32 @@
+package:
+  name: cfunits-python
+  version: 1.1
+
+source:
+  git_url: https://bitbucket.org/cfpython/cfunits-python.git
+  git_tag: v1.1
+
+build:
+  number: 0
+  skip: True # [win]
+  skip: True # [osx]
+  skip: True # [py3k]
+
+requirements:
+  build:
+    - python >=2.7,<3
+    - udunits2
+    - netcdf4
+  run:
+    - python
+    - udunits2
+    - netcdf4
+
+test:
+  requires:
+    - pytest
+
+about:
+  home: https://bitbucket.org/cfpython/cfunits-python
+  license: MIT License
+  summary: A Python interface to UNIDATA's Udunits-2 package with CF extensions.

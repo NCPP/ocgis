@@ -56,7 +56,7 @@ Ubuntu Linux
 This method installs all dependencies using hosted packages. This script is available at: https://github.com/NCPP/ocgis/blob/master/doc/sphinx_examples/install_dependencies_ubuntu.sh.
 
 .. literalinclude:: sphinx_examples/install_dependencies_ubuntu.sh
-:language: sh
+    :language: sh
 
 Package Notes
 ~~~~~~~~~~~~~
@@ -92,7 +92,7 @@ Due to an issue with Anaconda's package solver, ESMPy must be installed separate
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/esmf esmpy==6.3.0rp1
+   conda install -c nesii esmpy==6.3.0rp1
    conda install -c nesii/channel/ocgis ocgis
 
 Build recipes may be found in the `conda-esmf GitHub repository <https://github.com/NESII/conda-esmf>`_.
@@ -102,7 +102,7 @@ Building from Source
 
 1. Download the current release:
 
- * http://www.earthsystemmodeling.org/ocgis_releases/public/ocgis-1.1.0/reg/OCGIS_Framework_Reg.html
+ * http://www.earthsystemmodeling.org/ocgis_releases/public/ocgis-1.2.0/reg/OCGIS_Framework_Reg.html
 
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.

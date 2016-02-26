@@ -1,11 +1,11 @@
-import sys
-from subprocess import check_call
 import os
+import sys
 import tempfile
+from subprocess import check_call
 
 from setuptools import setup, Command, find_packages
 
-VERSION = '1.2.0'
+VERSION = '1.2.1'
 
 
 ########################################################################################################################

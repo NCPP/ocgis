@@ -1,0 +1,16 @@
+package:
+    name: libspatialindex
+    version: 1.8.5
+
+source:
+    fn: spatialindex-src-1.8.5.tar.gz
+    url: http://download.osgeo.org/libspatialindex/spatialindex-src-1.8.5.tar.gz
+    md5: 4065c6218ce3d1c4906beb3a313470db
+
+build:
+    number: 0
+
+about:
+    home: http://libspatialindex.github.io
+    license: MIT
+    summary: 'An extensible framework that will support robust spatial indexing methods.'

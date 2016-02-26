@@ -86,14 +86,13 @@ An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ Python package is av
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/ocgis ocgis
+   conda install -c nesii/channel/ocgis ocgis==1.2.1
 
 Due to an issue with Anaconda's package solver, ESMPy must be installed separately.
 
 .. code-block:: sh
 
-   conda install -c nesii esmpy==6.3.0rp1
-   conda install -c nesii/channel/ocgis ocgis
+   conda install -c nesii/channel/ocgis -c nesii ocgis==1.2.1 esmpy==6.3.0rp1
 
 Build recipes may be found in the `conda-esmf GitHub repository <https://github.com/NESII/conda-esmf>`_.
 

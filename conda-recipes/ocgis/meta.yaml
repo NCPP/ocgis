@@ -3,10 +3,8 @@ package:
     version: 1.2.1
 
 source:
-#    git_url: https://github.com/NCPP/ocgis.git
-#    git_tag: v1.2.1
-    # tdk: rever to tag when tagged
-    path: /ocgis
+    git_url: https://github.com/NCPP/ocgis.git
+    git_tag: v1.2.1
 
 build:
     number: 0

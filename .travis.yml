@@ -15,7 +15,7 @@ install:
 
   # Replace dep1 dep2 ... with your dependencies
   - conda config --add channels nesii/channel/ocgis
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION ocgis nose
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION ocgis==1.2.1 nose
   - source activate test-environment
   - yes | conda remove ocgis
   - python setup.py install

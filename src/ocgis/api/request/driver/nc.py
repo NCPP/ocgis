@@ -91,11 +91,14 @@ class DriverNetcdf(AbstractDriver):
 
         # check each variable for appropriate dimensions.
         for variable in variables:
-            try:
-                dim_map = get_dimension_map(variable, metadata)
-            except DimensionNotFound:
-                # if a dimension is not located, then it is not an appropriate variable for subsetting.
-                continue
+            if self.rd.dimension_map is None:
+                try:
+                    dim_map = get_dimension_map(variable, metadata)
+                except DimensionNotFound:
+                    # if a dimension is not located, then it is not an appropriate variable for subsetting.
+                    continue
+            else:
+                dim_map = self.rd.dimension_map
             missing_dimensions = []
 
             # these dimensions are required for subsetting.

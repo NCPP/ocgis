@@ -25,13 +25,13 @@ Alternatively, NESII provides linux-64 builds for both OCGIS and ESMPy:
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/ocgis ocgis
+   conda install -c nesii ocgis
 
 With ESMPy:
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/ocgis -c nesii ocgis esmpy
+   conda install -c nesii ocgis esmpy
 
 Building from Source
 --------------------

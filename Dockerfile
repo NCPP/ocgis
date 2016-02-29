@@ -9,7 +9,7 @@ RUN apt-get -y install build-essential \
 RUN apt-get clean
 
 RUN conda update -y --all
-RUN conda install -y -c nesii/channel/ocgis -c nesii ocgis esmpy nose
+RUN conda install -y -c nesii ocgis esmpy nose
 
 RUN conda remove -y ocgis
 RUN git clone -b master --depth=1 https://github.com/NCPP/ocgis.git

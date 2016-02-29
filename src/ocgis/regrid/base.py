@@ -8,7 +8,7 @@ from ocgis import TemporalDimension, Field
 from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.exc import RegriddingError, CornersInconsistentError
-from ocgis.interface.base.crs import Spherical, WGS84, WrappableCoordinateReferenceSystem
+from ocgis.interface.base.crs import Spherical, WGS84
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.variable import VariableCollection, Variable
@@ -158,24 +158,6 @@ class RegridOperation(AbstractOcgisObject):
             self.field_src.spatial.update_crs(Spherical())
         else:
             self.field_src.spatial.crs = Spherical()
-
-    def _update_regrid_source_wrapping_(self, destination_sdim):
-        """
-        Update the wrapped state of the source field.
-
-        :param destination_sdim: The destination spatial dimension.
-        :type destination_sdim: :class:`~ocgis.SpatialDimension`
-        """
-        if destination_sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
-            if self.field_src.spatial.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
-                self.field_src.spatial = deepcopy(self.field_src.spatial)
-                ocgis_lh(logger='regrid', msg='unwrapping field source', level=logging.DEBUG)
-                self.field_src.spatial.unwrap()
-        if destination_sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
-            if self.field_src.spatial.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
-                self.field_src.spatial = deepcopy(self.field_src.spatial)
-                ocgis_lh(logger='regrid', msg='wrapping field source', level=logging.DEBUG)
-                self.field_src.spatial.wrap()
 
 
 def get_sdim_from_esmf_grid(egrid, crs=None):

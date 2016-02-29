@@ -369,7 +369,7 @@ regrid_options
 
 A dictionary with regridding options. Please see the documentation for :func:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
 
->>> regrid_options = {'with_value': True}
+>>> regrid_options = {'with_corners': True}
 
 .. _search_radius_mult key:
 

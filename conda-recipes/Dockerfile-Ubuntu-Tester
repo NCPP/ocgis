@@ -1,9 +1,0 @@
-FROM continuumio/miniconda
-
-MAINTAINER ben.koziol@gmail.com
-
-RUN apt-get -y update
-RUN apt-get -y upgrade
-RUN apt-get -y install build-essential \
-                       gfortran
-RUN apt-get clean

@@ -144,6 +144,7 @@ class RequestDataset(object):
         self._time_range = None
         self._time_subset_func = None
         self._units = None
+        self._dimension_map = deepcopy(dimension_map)
 
         self._is_init = True
 
@@ -182,7 +183,6 @@ class RequestDataset(object):
         self.t_calendar = t_calendar
         self.t_conform_units_to = t_conform_units_to
 
-        self._dimension_map = deepcopy(dimension_map)
         self.did = did
         self.meta = meta or {}
 

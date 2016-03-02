@@ -471,7 +471,7 @@ class TestSubsetOperation(TestBase):
                 self.assertEqual(actual.shape, (1, 1, 1, 24, 13))
                 self.assertDescriptivesAlmostEqual(desired, actual)
 
-    @attr('data', 'esmf')
+    @attr('data', 'esmf', 'slow')
     def test_regridding_with_output_crs(self):
         """Test with an output coordinate system."""
 

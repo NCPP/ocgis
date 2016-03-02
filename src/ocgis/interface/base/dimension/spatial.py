@@ -940,7 +940,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             name_xc = self.name_col
             dataset.createDimension(name_yc, size=self.shape[0])
             dataset.createDimension(name_xc, size=self.shape[1])
-            value = self.value
+            value = self.value.data
             dimensions = (name_yc, name_xc)
             yc = dataset.createVariable(name_yc, value.dtype, dimensions=dimensions)
             yc[:] = value[0, :, :]
@@ -950,7 +950,7 @@ class SpatialGridDimension(base.AbstractUidValueDimension):
             xc.axis = 'X'
 
             if self.corners is not None:
-                corners = self.corners
+                corners = self.corners.data
                 ncorners = constants.DEFAULT_NAME_CORNERS_DIMENSION
                 dataset.createDimension(ncorners, size=4)
                 name_yc_corner = '{0}_corners'.format(name_yc)

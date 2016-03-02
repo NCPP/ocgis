@@ -91,7 +91,7 @@ class DriverNetcdf(AbstractDriver):
 
         # check each variable for appropriate dimensions.
         for variable in variables:
-            if self.rd.dimension_map is None:
+            if self.rd._dimension_map is None:
                 try:
                     dim_map = get_dimension_map(variable, metadata)
                 except DimensionNotFound:

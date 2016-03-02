@@ -1,7 +1,6 @@
 import csv
 import datetime
 import itertools
-import netCDF4 as nc
 import os.path
 import re
 import tempfile
@@ -11,6 +10,7 @@ from copy import deepcopy
 from csv import DictReader
 
 import fiona
+import netCDF4 as nc
 import numpy as np
 from fiona.crs import from_string
 from shapely import wkt
@@ -522,7 +522,7 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ret[1][self.var].variables[self.var].value.shape, (1, 61, 2, 2, 2))
         ref = ret[1][self.var].variables[self.var].value
         self.assertTrue(np.all(ref[0, 0, :, :] == np.array([[1, 2], [3, 4]], dtype=float)))
-        # # compare areas to intersects returns
+        # compare areas to intersects returns
         ref = ret[1][self.var]
         intersection_areas = [g.area for g in ref.spatial.abstraction_geometry.value.flat]
         for ii in intersection_areas:

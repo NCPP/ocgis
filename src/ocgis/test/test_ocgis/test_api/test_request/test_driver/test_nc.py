@@ -1,5 +1,4 @@
 import datetime
-import netCDF4 as nc
 import os
 import shutil
 from collections import OrderedDict
@@ -7,6 +6,7 @@ from copy import deepcopy
 from datetime import datetime as dt
 
 import fiona
+import netCDF4 as nc
 import numpy as np
 from shapely.geometry.geo import shape
 
@@ -371,7 +371,7 @@ class TestDriverNetcdf(TestBase):
         sub2 = field[:, :, :, 0, 1]
         self.assertEqual(sub2.shape, (1, 124, 1, 1, 1))
 
-    @attr('remote')
+    @attr('remote', 'slow')
     def test_get_field_remote(self):
         uri = 'http://cida.usgs.gov/thredds/dodsC/maurer/maurer_brekke_w_meta.ncml'
         variable = 'sresa1b_bccr-bcm2-0_1_Tavg'
@@ -464,7 +464,7 @@ class TestDriverNetcdf(TestBase):
         self.assertIsNotNone(field.temporal.bounds)
 
     def test_get_field_without_row_column_vectors(self):
-        """Test loading a field objects without row and column vectors."""
+        """Test loading a field object without row and column vectors."""
 
         path = self.get_netcdf_path_no_row_column()
 

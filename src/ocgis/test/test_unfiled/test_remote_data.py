@@ -1,10 +1,9 @@
-from ocgis.test.base import TestBase, attr
 import ocgis
+from ocgis.test.base import TestBase, attr
 
 
 class Test(TestBase):
-
-    @attr('remote')
+    @attr('remote', 'slow')
     def test_geodataportal_prism(self):
         uri = 'http://cida.usgs.gov/thredds/dodsC/prism'
         for variable in ['tmx', 'tmn', 'ppt']:

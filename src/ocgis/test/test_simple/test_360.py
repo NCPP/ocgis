@@ -1,15 +1,16 @@
-from datetime import datetime
-import netCDF4 as nc
 import os
+from datetime import datetime
+from tempfile import mkstemp
 
+import netCDF4 as nc
 import numpy as np
 from shapely.geometry.polygon import Polygon
 
-from ocgis.api.operations import OcgOperations
+import ocgis
 from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
+from ocgis.api.operations import OcgOperations
 from ocgis.test.base import TestBase, attr
-import ocgis
 from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
@@ -56,7 +57,9 @@ class Test360(TestBase):
     def test_high_res(self):
         ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(0.5, (-90.0, 90.0), (0.0, 360.0))
-        path = self.make_data(nc_spatial)
+        f, out_path = mkstemp(dir=env.DIR_OUTPUT, suffix='.nc')
+        os.close(f)
+        path = self.make_data(nc_spatial, path=out_path)
 
         dataset = {'uri': path, 'variable': 'foo'}
         output_format = 'nc'
@@ -74,7 +77,9 @@ class Test360(TestBase):
 
         ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(5.0, (-90.0, 90.0), (0.0, 360.0))
-        path = self.make_data(nc_spatial)
+        f, out_path = mkstemp(dir=env.DIR_OUTPUT, suffix='.nc')
+        os.close(f)
+        path = self.make_data(nc_spatial, path=out_path)
 
         dataset = {'uri': path, 'variable': 'foo'}
         output_format = 'shp'
@@ -115,8 +120,9 @@ class Test360(TestBase):
 
         return var
 
-    def make_data(self, nc_spatial):
-        path = os.path.join(env.DIR_OUTPUT, 'test360 {0}.nc'.format(datetime.now()))
+    def make_data(self, nc_spatial, path=None):
+        if path is None:
+            path = os.path.join(env.DIR_OUTPUT, 'test360 {0}.nc'.format(datetime.now()))
 
         calendar = 'standard'
         units = 'days since 0001-01-01'

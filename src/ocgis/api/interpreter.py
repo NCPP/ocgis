@@ -130,13 +130,13 @@ class OcgInterpreter(Interpreter):
 
             return ret
         except:
-            # on an exception, the output directory needs to be removed if one was created. once the output directory is
-            # removed, reraise.
+            # The output directory needs to be removed if one was created. Shutdown logging before to make sure there
+            # is no file lock (Windows).
+            ocgis_lh.shutdown()
             if made_output_directory:
                 shutil.rmtree(outdir)
             raise
         finally:
-            # shut down logging
             ocgis_lh.shutdown()
 
     def _get_converter_(self, conv_klass, outdir, prefix, so):

@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 
 
+BRANCH=master
+
+sudo bash ~/mount.sh
+
 conda update --yes --all
-conda create -n ocgis -c nesii/channel/dev-ocgis -c nesii/channel/icclim -c ioos ocgis icclim esmpy==7.0.0 ipython nose
+rm -r ~/anaconda2/envs/ocgis
+conda create -y -n ocgis -c nesii ocgis esmpy ipython nose
 source activate ocgis
 pip install logbook
-sudo bash ~/mount.sh
 conda remove -y ocgis
 
 cd ~/src/ocgis
 git fetch
-git checkout next
+git checkout ${BRANCH}
 git pull
 python setup.py install
 
@@ -18,4 +22,4 @@ cd
 export OCGIS_DIR_TEST_DATA=/home/ubuntu/data/ocgis_test_data
 export OCGIS_DIR_GEOMCABINET=/home/ubuntu/data/ocgis_test_data/shp
 rm .noseids
-nosetests -vs --with-id ~/src/ocgis/src/ocgis/test 2>&1 | tee test_ocgis.out
+nosetests -vs --with-id -a '!remote' ~/src/ocgis/src/ocgis/test 2>&1 | tee test_ocgis.out

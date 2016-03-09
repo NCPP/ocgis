@@ -40,7 +40,7 @@ Building from Source
 
 1. Download the current release:
 
- * http://www.earthsystemmodeling.org/ocgis_releases/public/ocgis-1.2.0/reg/OCGIS_Framework_Reg.html
+ * http://www.earthsystemmodeling.org/ocgis_releases/public/ocgis-1.3.0/reg/OCGIS_Framework_Reg.html
 
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.
@@ -122,11 +122,6 @@ Dependencies may be built entirely from source. A `bash script`_ is available on
 
 Platform-Specific Notes
 -----------------------
-
-Windows
-~~~~~~~
-
-OpenClimateGIS has not been tested on Windows platforms. All libraries are theoretically supported. There are a number of unofficial Windows binaries for Python extensions available here: http://www.lfd.uci.edu/~gohlke/pythonlibs/
 
 Ubuntu Linux
 ~~~~~~~~~~~~

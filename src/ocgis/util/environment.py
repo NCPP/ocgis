@@ -4,6 +4,7 @@ from importlib import import_module
 from warnings import warn
 
 import numpy as np
+import sys
 
 from ocgis import constants
 from ocgis.util.helpers import get_iter
@@ -16,12 +17,16 @@ try:
 except ImportError:
     pass
 
-
 # HACK!! the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
 # variable when installing.
 if 'GDAL_DATA' not in os.environ:
     try:
-        datadir = subprocess.check_output(['gdal-config', '--datadir']).strip()
+        if os.name == 'nt':
+            # Try setting the value assuming an Anaconda environment on Windows.
+            datadir = os.path.join(os.path.split(sys.executable)[0], 'share', 'gdal')
+        else:
+            # Try using the gdal-config executable to find the data directory.
+            datadir = subprocess.check_output(['gdal-config', '--datadir']).strip()
     except:
         pass
     else:

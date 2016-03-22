@@ -244,7 +244,7 @@ NESII hosts an Anaconda ``icclim`` build:
 
 .. code-block:: sh
 
-   conda install -c nesii/channel/ocgis icclim
+   conda install -c nesii icclim
 
 For example, to calculate the *TG* indice (mean of daily mean temperature), select the calculation like:
 

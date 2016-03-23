@@ -12,3 +12,8 @@ cd ~/src
 wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
 bash miniconda.sh
 conda update --yes --all
+
+conda create -y -n ocgis -c nesii ocgis esmpy ipython
+source activate ocgis
+conda remove -y ocgis
+pip install logbook ipdb

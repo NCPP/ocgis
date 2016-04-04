@@ -163,3 +163,10 @@ Converting an ESRI Shapefile to UGRID
 -------------------------------------
 
 .. literalinclude:: sphinx_examples/to_ugrid_2d_flexible_mesh.py
+
+Calculating TG90p using ``icclim``
+----------------------------------
+
+*TG90p* is a European Climate Assessment (ECA) climate indice.
+
+.. literalinclude:: sphinx_examples/tg90p_with_icclim.py

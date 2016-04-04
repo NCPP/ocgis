@@ -252,8 +252,8 @@ For example, to calculate the *TG* indice (mean of daily mean temperature), sele
 
 Any optional calculation parameters may be passed in using the ``'kwds'`` key:
 
->>> calc = [{..., 'kwds': {'percentile_dict': dict}}]
+>>> calc = [{..., 'kwds': {'percentile_dict': <Percentile Dictionary>}}]
 
-Custom user indices are not implemented in OCGIS. OCGIS may be used to pre-process an ICCLIM input file prior to a custom calculation. Please contact user support if your application could benefit from custom ICCLIM user indices in OCGIS.
+Custom user indices are not implemented in OpenClimateGIS. OpenClimateGIS may be used to pre-process an ICCLIM input file prior to a custom calculation. Please contact user support if your application could benefit from custom ICCLIM user indices in OpenClimateGIS.
 
 .. _NumPy masked array functions: http://docs.scipy.org/doc/numpy/reference/maskedarray.html

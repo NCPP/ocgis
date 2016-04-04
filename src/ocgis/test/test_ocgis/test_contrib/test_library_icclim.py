@@ -190,6 +190,19 @@ class TestTG10p(TestBase):
         self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
         self.assertEqual(ret['icclim_TG10p'].value.mean(), 30.0625)
 
+        # Test with a percentile dictionary.
+        field_pd = tas[0, 0:800, 0, :, :]
+        arr = field_pd.variables['tas'].value.squeeze()
+        dt_arr = field_pd.temporal.value_datetime
+        percentile = 10
+        window_width = 5
+        pd = tg.get_percentile_dict(arr, dt_arr, percentile, window_width)
+        tg = IcclimTG10p(field=tas, tgd=tgd, parms={'percentile_dict': pd})
+        ret = tg.execute()
+        self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
+        # This value should change since we are using a different base period.
+        self.assertEqual(ret['icclim_TG10p'].value.mean(), 31.0)
+
     @attr('data')
     def test_large_array_compute_local(self):
         """Test tiling works for percentile-based indice on a local dataset."""

@@ -90,7 +90,7 @@ class TestAbstractVariable(TestBase):
         # Conversion of celsius units to kelvin.
         attrs = {k: 1 for k in NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE}
         var = Variable(name='tas', units='celsius', value=self.value, attrs=attrs)
-        self.assertEqual(len(var.attrs), 2)
+        self.assertEqual(len(var.attrs), 4)
         var.cfunits_conform(units_kelvin)
         self.assertNumpyAll(var.value, np.ma.array([278.15] * 3))
         self.assertEqual(var.cfunits, units_kelvin)

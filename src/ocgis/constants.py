@@ -128,7 +128,7 @@ DEFAULT_GEOMETRY_KEY = 'geom'
 
 # Attributes to remove when a value is changed if they are present in the attributes dictionary. These attributes are
 # tuned to specific value ranges and will not apply when a value is changed.
-NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE = ('scale_value', 'add_offset')
+NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE = ('scale_value', 'add_offset', 'actual_range', 'valid_range')
 
 NAME_DIMENSION_REALIZATION = 'rlz'
 NAME_DIMENSION_TEMPORAL = 'time'

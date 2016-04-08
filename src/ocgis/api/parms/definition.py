@@ -394,6 +394,7 @@ class ConformUnitsTo(base.AbstractParameter):
     name = 'conform_units_to'
     nullable = True
     default = None
+    _lower_string = False
 
     @property
     def input_types(self):

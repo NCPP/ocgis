@@ -361,6 +361,10 @@ class TestConformUnitsTo(TestBase):
         target = get_are_units_equal((cc.value, get_units_object('celsius')))
         self.assertTrue(target)
 
+        cc = ConformUnitsTo('hPa')
+        target = get_are_units_equal((cc.value, get_units_object('hPa')))
+        self.assertTrue(target)
+
 
 class TestHeaders(TestBase):
     create_dir = False

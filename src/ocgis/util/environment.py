@@ -1,13 +1,8 @@
 import os
 import subprocess
+import sys
 from importlib import import_module
 from warnings import warn
-
-import numpy as np
-import sys
-
-from ocgis import constants
-from ocgis.util.helpers import get_iter
 
 # HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
 # different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
@@ -24,19 +19,26 @@ if 'GDAL_DATA' not in os.environ:
         if os.name == 'nt':
             # Try setting the value assuming an Anaconda environment on Windows.
             datadir = os.path.join(os.path.split(sys.executable)[0], 'share', 'gdal')
+            if not os.path.exists(datadir):
+                datadir = os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'gdal')
         else:
             # Try using the gdal-config executable to find the data directory.
             datadir = subprocess.check_output(['gdal-config', '--datadir']).strip()
     except:
         pass
     else:
-        msg = 'consider setting the system environment variable "GDAL_DATA={0}" to improve load performance'. \
+        os.environ['GDAL_DATA'] = datadir
+        msg = 'Consider setting the system environment variable "GDAL_DATA={0}" to improve load performance'. \
             format(datadir)
         warn(msg)
         from osgeo import gdal
 
         gdal.SetConfigOption('GDAL_DATA', datadir)
+
 from osgeo import osr, ogr
+import numpy as np
+from ocgis import constants
+from ocgis.util.helpers import get_iter
 
 # tell ogr/osr to raise exceptions
 ogr.UseExceptions()

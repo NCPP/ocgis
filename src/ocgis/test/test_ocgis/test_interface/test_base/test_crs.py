@@ -1,7 +1,7 @@
-import netCDF4 as nc
 import os
 from copy import deepcopy
 
+import netCDF4 as nc
 import numpy as np
 from shapely.geometry import Point, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
@@ -75,6 +75,13 @@ class TestCoordinateReferenceSystem(TestBase):
             self.assertIsInstance(variable, nc.Variable)
             with self.assertRaises(AttributeError):
                 variable.proj4
+
+
+class TestCFCoordinateReferenceSystem(TestBase):
+    def test_init(self):
+        c = CFLambertConformal(false_easting=0, false_northing=0, latitude_of_projection_origin=38,
+                               standard_parallel=[30., 60.], longitude_of_central_meridian=-77., units='km')
+        self.assertEqual(c.name, c.grid_mapping_name)
 
 
 class TestWrappableCoordinateSystem(TestBase):

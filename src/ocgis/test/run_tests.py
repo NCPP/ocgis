@@ -10,7 +10,7 @@ import ocgis
 class RunOcgis(nose.plugins.Plugin):
     name = 'ocgis'
     target = 'ocgis'
-    _attrs_standard = '!esmpy7,!slow,!remote,!data'
+    _attrs_standard = '!slow,!remote,!data'
 
     def __init__(self, *args, **kwargs):
         self.attrs = kwargs.pop('attrs', self._attrs_standard)

@@ -401,7 +401,8 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         self.projection_x_coordinate = kwds.pop('projection_x_coordinate', None)
         self.projection_y_coordinate = kwds.pop('projection_y_coordinate', None)
 
-        name = kwds.pop('name', None)
+        # Always provide a default name for the CF-based coordinate systems.
+        name = kwds.pop('name', self.grid_mapping_name)
 
         check_keys = kwds.keys()
         for key in kwds.keys():

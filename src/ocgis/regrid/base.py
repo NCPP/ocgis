@@ -59,10 +59,12 @@ class RegridOperation(AbstractOcgisObject):
         self._update_regrid_source_coordinate_system_()
 
         # Regrid the input field.
+        ocgis_lh(logger='regrid', msg='Creating regridded fields...', level=logging.INFO)
         regridded_source = list(iter_regridded_fields([self.field_src], destination_sdim, **self.regrid_options))[0]
 
         # Return the source field to its original coordinate system.
         if self._regrid_required_source_crs_update:
+            ocgis_lh(logger='regrid', msg='Reverting source field to original coordinate system...', level=logging.INFO)
             regridded_source.spatial.update_crs(self._original_sfield_crs)
         else:
             regridded_source.spatial.crs = self._original_sfield_crs
@@ -156,6 +158,8 @@ class RegridOperation(AbstractOcgisObject):
             ocgis_lh(logger='regrid', msg='updating regrid source to spherical. regrid source crs is: {}'.format(
                 self.field_src.spatial.crs), level=logging.DEBUG)
             self.field_src.spatial.update_crs(Spherical())
+            ocgis_lh(logger='regrid', msg='completed crs update for regrid source'.format(self.field_src.spatial.crs),
+                     level=logging.DEBUG)
         else:
             self.field_src.spatial.crs = Spherical()
 
@@ -572,6 +576,7 @@ def iter_regridded_fields(sources, destination, with_corners='auto', value_mask=
     # This is the new shape of the output variables.
     new_shape_spatial = destination_sdim.shape
     # Regrid each source.
+    ocgis_lh(logger='iter_regridded_fields', msg='starting source regrid loop', level=logging.DEBUG)
     for source in sources:
         build = True
         fills = {}

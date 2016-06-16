@@ -650,11 +650,12 @@ class SpatialDimension(base.AbstractUidDimension):
         :type value_col: :class:`numpy.ndarray`
         """
 
-        # build the geometry collection
+        # Build the geometry collection.
         geomcol = Geometry(wkbGeometryCollection)
         for ii in range(value_row.shape[0]):
             point = Geometry(wkbPoint)
-            point.AddPoint(value_col[ii], value_row[ii])
+            # Do not allow ugly integers or possibly unsupported NumPy types to enter the collection.
+            point.AddPoint(float(value_col[ii]), float(value_row[ii]))
             geomcol.AddGeometry(point)
         geomcol.AssignSpatialReference(self.crs.sr)
         geomcol.TransformTo(to_sr)

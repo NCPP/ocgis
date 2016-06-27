@@ -581,7 +581,6 @@ class TestGeom(TestBase):
                          'properties': {uid: ugid, 'COUNTRY': coordinate[0]}})
         return geom
 
-    @attr('data')
     def test_init(self):
         geom = make_poly((37.762, 38.222), (-102.281, -101.754))
 
@@ -631,8 +630,7 @@ class TestGeom(TestBase):
         g = Geom(bbox, geom_uid='ID')
         self.assertEqual(g.geom_uid, 'ID')
 
-        ################################################################################################################
-        # tests for geom_select_sql_where
+        # Tests for geom_select_sql_where.
 
         g = Geom('state_boundaries')
         self.assertIsNone(g.geom_select_sql_where)
@@ -643,7 +641,9 @@ class TestGeom(TestBase):
             g = Geom('state_boundaries', geom_select_sql_where=w)
             self.assertEqual(g.geom_select_sql_where, s)
 
-            ################################################################################################################
+        # Test passing a folder which is not allowed.
+        with self.assertRaises(DefinitionValidationError):
+            Geom(tempfile.gettempdir())
 
     def test_geometry_dictionaries(self):
         """Test geometry dictionaries as input."""

@@ -643,7 +643,7 @@ class Geom(base.AbstractParameter):
                     minx, miny, maxx, maxy = value
                     geom = Polygon(((minx, miny), (minx, maxy), (maxx, maxy), (maxx, miny)))
                 if not geom.is_valid:
-                    raise (DefinitionValidationError(self, 'Parsed geometry is not valid.'))
+                    raise DefinitionValidationError(self, 'Parsed geometry is not valid.')
                 ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
                 ret = SpatialDimension.from_records(ret, crs=CFWGS84(), uid=self.geom_uid)
                 self._bounds = geom.bounds
@@ -669,6 +669,11 @@ class Geom(base.AbstractParameter):
         return ret
 
     def parse_string(self, value):
+        if isinstance(value, basestring):
+            if os.path.isdir(value):
+                exc = DefinitionValidationError(self, 'The provided path is a directory.')
+                ocgis_lh(exc=exc, logger='definition')
+
         elements = value.split('|')
         try:
             elements = [float(e) for e in elements]

@@ -598,6 +598,7 @@ class TestGeom(TestBase):
         self.assertEqual(g.value[0].geom.polygon.value[0, 0].bounds, (-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g), 'geom=-120.0|40.0|-110.0|50.0')
 
+        ocgis.env.DIR_GEOMCABINET = self.path_bin
         g = Geom('state_boundaries')
         self.assertEqual(str(g), 'geom="state_boundaries"')
 

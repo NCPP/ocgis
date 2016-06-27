@@ -631,8 +631,7 @@ class TestGeom(TestBase):
         g = Geom(bbox, geom_uid='ID')
         self.assertEqual(g.geom_uid, 'ID')
 
-        ################################################################################################################
-        # tests for geom_select_sql_where
+        # Tests for geom_select_sql_where.
 
         g = Geom('state_boundaries')
         self.assertIsNone(g.geom_select_sql_where)
@@ -642,8 +641,6 @@ class TestGeom(TestBase):
         for w in ws:
             g = Geom('state_boundaries', geom_select_sql_where=w)
             self.assertEqual(g.geom_select_sql_where, s)
-
-            ################################################################################################################
 
     def test_geometry_dictionaries(self):
         """Test geometry dictionaries as input."""

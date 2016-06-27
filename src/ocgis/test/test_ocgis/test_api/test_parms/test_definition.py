@@ -974,6 +974,16 @@ class TestSpatialOperation(TestBase):
             self.assertEqual(obj.value, a)
 
 
+class TestSpatialWrapping(TestBase):
+    def test_init(self):
+        sw = SpatialWrapping()
+        self.assertIsNone(sw.value)
+        self.assertIsNone(sw.as_enum)
+
+        sw = SpatialWrapping('wrap')
+        self.assertEqual(sw.as_enum, WrapAction.WRAP)
+
+
 class TestTimeRange(TestBase):
     create_dir = False
 

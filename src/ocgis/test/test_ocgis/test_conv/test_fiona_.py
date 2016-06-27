@@ -6,7 +6,7 @@ import fiona
 import numpy as np
 
 import ocgis
-from ocgis.api.subset import SubsetOperation
+from ocgis.api.subset import OperationsEngine
 from ocgis.conv.fiona_ import ShpConverter, AbstractFionaConverter
 from ocgis.interface.base.crs import WGS84
 from ocgis.test.base import TestBase
@@ -19,7 +19,7 @@ class TestShpConverter(TestBase):
         geom = TestGeom.get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True, snippet=True)
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         return subset
 
     def test_init(self):
@@ -98,7 +98,7 @@ class TestShpConverter(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         slc = [None, 0, None, [10, 20], [10, 20]]
         ops = ocgis.OcgOperations(dataset=rd, slice=slc)
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         conv = ShpConverter(subset, outdir=self.current_dir_output, prefix='shpconv')
         conv.write()
         contents = os.listdir(self.current_dir_output)

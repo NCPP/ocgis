@@ -8,7 +8,7 @@ from ocgis.api.parms.definition import OutputFormat
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.conv.meta import AbstractMetaConverter
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
-from subset import SubsetOperation
+from subset import OperationsEngine
 
 
 class Interpreter(object):
@@ -115,7 +115,7 @@ class OcgInterpreter(Interpreter):
             else:
                 # the operations object performs subsetting and calculations
                 ocgis_lh('initializing subset', interpreter_log, level=logging.DEBUG)
-                so = SubsetOperation(self.ops, progress=progress)
+                so = OperationsEngine(self.ops, progress=progress)
                 # if there is no grouping on the output files, a singe converter is is needed
                 if self.ops.output_grouping is None:
                     ocgis_lh('initializing converter', interpreter_log, level=logging.DEBUG)
@@ -146,7 +146,7 @@ class OcgInterpreter(Interpreter):
         :param str outdir: The output directory to contain converted files.
         :param str prefix: The file prefix for the file outputs.
         :param so: The subset operation object doing all the work.
-        :type so: :class:`ocgis.api.subset.SubsetOperation`
+        :type so: :class:`ocgis.api.subset.OperationsEngine`
         :returns: A converter object.
         :rtype: :class:`ocgis.conv.base.AbstractCollectionConverter`
         """

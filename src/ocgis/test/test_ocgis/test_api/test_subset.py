@@ -12,7 +12,7 @@ from ocgis import env, constants
 from ocgis.api.collection import SpatialCollection
 from ocgis.api.operations import OcgOperations
 from ocgis.api.parms.definition import OutputFormat
-from ocgis.api.subset import SubsetOperation
+from ocgis.api.subset import OperationsEngine
 from ocgis.calc.library.index.duration import FrequencyDuration
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.exc import DefinitionValidationError
@@ -25,7 +25,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
 
 
-class TestSubsetOperation(TestBase):
+class TestOperationsEngine(TestBase):
     def get_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         slc = [None, [0, 100], None, [0, 10], [0, 10]]
@@ -36,13 +36,13 @@ class TestSubsetOperation(TestBase):
         geom = TestGeom.get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True)
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         return subset
 
     @attr('data')
     def test_init(self):
         for rb, p in itertools.product([True, False], [None, ProgressOcgOperations()]):
-            sub = SubsetOperation(self.get_operations(), request_base_size_only=rb, progress=p)
+            sub = OperationsEngine(self.get_operations(), request_base_size_only=rb, progress=p)
             for ii, coll in enumerate(sub):
                 self.assertIsInstance(coll, SpatialCollection)
         self.assertEqual(ii, 0)
@@ -62,7 +62,7 @@ class TestSubsetOperation(TestBase):
             else:
                 self.assertIsNone(field.spatial.grid.corners)
             ops = OcgOperations(dataset=field, interpolate_spatial_bounds=True)
-            so = SubsetOperation(ops)
+            so = OperationsEngine(ops)
             rds = ops.dataset.values()
             res = list(so._process_subsettables_(rds))
             self.assertEqual(len(res), 1)
@@ -74,7 +74,7 @@ class TestSubsetOperation(TestBase):
         for melted in [False, True]:
             ops = OcgOperations(dataset=rd, slice=[0, 0, 0, 0, 0], melted=melted)
             rds = ops.dataset.values()
-            so = SubsetOperation(ops)
+            so = OperationsEngine(ops)
             ret = so._process_subsettables_(rds)
             for coll in ret:
                 if melted:
@@ -88,14 +88,14 @@ class TestSubsetOperation(TestBase):
         slc = [0, [0, 600], 0, [10, 20], [10, 20]]
         ops = OcgOperations(dataset=rd, slice=slc, calc=calc, calc_grouping=['month', 'year'])
         rds = ops.dataset.values()
-        so = SubsetOperation(ops)
+        so = OperationsEngine(ops)
         ret = so._process_subsettables_(rds)
         for coll in ret:
             self.assertIsNone(coll.headers)
         ops = OcgOperations(dataset=rd, slice=slc, calc=calc, calc_grouping=['month', 'year'],
                             output_format=constants.OUTPUT_FORMAT_CSV, melted=True)
         rds = ops.dataset.values()
-        so = SubsetOperation(ops)
+        so = OperationsEngine(ops)
         ret = so._process_subsettables_(rds)
         for coll in ret:
             self.assertTrue(len(coll.value_keys) == 2)
@@ -305,7 +305,7 @@ class TestSubsetOperation(TestBase):
 
             ops = ocgis.OcgOperations(dataset=[rd1, rd2], geom=k.geom, regrid_destination=k.regrid_destination,
                                       time_region={'month': [1], 'year': [2002]}, select_ugid=select_ugid)
-            subset = SubsetOperation(ops)
+            subset = OperationsEngine(ops)
             colls = list(subset)
             self.assertEqual(len(colls), 4)
             for coll in colls:
@@ -329,7 +329,7 @@ class TestSubsetOperation(TestBase):
         rd1 = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd1, regrid_destination=rd1, snippet=True,
                                   regrid_options={'with_corners': False})
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         ret = list(subset)
         for coll in ret:
             for dd in coll.get_iter_melted():
@@ -349,7 +349,7 @@ class TestSubsetOperation(TestBase):
         value_mask[30, 45] = True
         regrid_options = {'value_mask': value_mask, 'with_corners': False}
         ops = ocgis.OcgOperations(dataset=rd1, regrid_destination=rd2, snippet=True, regrid_options=regrid_options)
-        ret = list(SubsetOperation(ops))
+        ret = list(OperationsEngine(ops))
         self.assertEqual(1, ret[0][1]['tas'].variables.first().value.mask.sum())
 
     @attr('data', 'esmf')
@@ -364,7 +364,7 @@ class TestSubsetOperation(TestBase):
 
         ops = ocgis.OcgOperations(dataset=rd2, regrid_destination=rd1, geom=geom, select_ugid=select_ugid,
                                   time_region={'month': [2], 'year': [1990]})
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         colls = list(subset)
         self.assertEqual(len(colls), 1)
         for coll in colls:
@@ -386,7 +386,7 @@ class TestSubsetOperation(TestBase):
         select_ugid = [25]
 
         ops = ocgis.OcgOperations(dataset=[rd2, rd3], regrid_destination=rd1, geom=geom, select_ugid=select_ugid)
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         colls = list(subset)
         self.assertEqual(len(colls), 2)
         for coll in colls:
@@ -438,7 +438,7 @@ class TestSubsetOperation(TestBase):
 
             ops = ocgis.OcgOperations(dataset=rd1, regrid_destination=destination, geom=geom, select_ugid=select_ugid,
                                       snippet=True)
-            subset = SubsetOperation(ops)
+            subset = OperationsEngine(ops)
             colls = list(subset)
 
             self.assertEqual(len(colls), 1)
@@ -460,7 +460,7 @@ class TestSubsetOperation(TestBase):
         select_ugid = [25]
 
         ops = ocgis.OcgOperations(dataset=rd1, regrid_destination=rd2, geom=geom, select_ugid=select_ugid, snippet=True)
-        subset = SubsetOperation(ops)
+        subset = OperationsEngine(ops)
         colls = list(subset)
         self.assertEqual(len(colls), 1)
         for coll in colls:

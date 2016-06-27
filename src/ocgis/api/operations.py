@@ -2,7 +2,7 @@ from ocgis import env
 from ocgis.api.interpreter import OcgInterpreter
 from ocgis.api.parms.base import AbstractParameter
 from ocgis.api.parms.definition import *
-from ocgis.api.subset import SubsetOperation
+from ocgis.api.subset import OperationsEngine
 from ocgis.conv.base import get_converter
 from ocgis.conv.meta import MetaOCGISConverter
 from ocgis.interface.base.crs import CFRotatedPole, WGS84
@@ -109,6 +109,12 @@ class OcgOperations(object):
      individual columns in tabular output formats (i.e. ``'csv'``). If ``True``, all variable values will be collected
      under a single value column.
     :param dict output_format_options: A dictionary of output-specific format options.
+    :param str spatial_wrapping: If ``"wrap"`` or ``"unwrap"``, wrap or unwrap the spatial coordinates if the associated
+     coordinate system is a wrappable coordinate system like spherical latitude/longitude.
+    :param bool spatial_reorder: If ``True``, reorder wrapped coordinates such that the longitude values are in
+     ascending order. Reordering assumes the first row of longitude coordinates are representative of the other
+     longitude coordinate rows. Bounds and corners will be removed in the event of a reorder. Only applies to spherical
+     coordinate systems.
     """
 
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,
@@ -119,7 +125,8 @@ class OcgOperations(object):
                  search_radius_mult=2.0, output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True,
                  optimizations=None, callback=None, time_range=None, time_region=None, time_subset_func=None,
                  level_range=None, conform_units_to=None, select_nearest=False, regrid_destination=None,
-                 regrid_options=None, melted=False, output_format_options=None):
+                 regrid_options=None, melted=False, output_format_options=None, spatial_wrapping=None,
+                 spatial_reorder=False):
 
         # Tells "__setattr__" to not perform global validation until all values are initially set.
         self._is_init = True
@@ -166,6 +173,8 @@ class OcgOperations(object):
         self.regrid_options = RegridOptions(regrid_options)
         self.melted = Melted(init_value=env.MELTED or melted, dataset=self._get_object_('dataset'),
                              output_format=self._get_object_('output_format'))
+        self.spatial_wrapping = SpatialWrapping(spatial_wrapping)
+        self.spatial_reorder = SpatialReorder(spatial_reorder)
 
         # These values are left in to perhaps be added back in at a later date.
         self.output_grouping = None
@@ -254,7 +263,7 @@ class OcgOperations(object):
             return ret
 
         ops_size = deepcopy(self)
-        subset = SubsetOperation(ops_size, request_base_size_only=True)
+        subset = OperationsEngine(ops_size, request_base_size_only=True)
         ret = dict(variables={})
         for coll in subset:
             for row in coll.get_iter_melted():

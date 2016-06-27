@@ -1,5 +1,6 @@
 import numpy as np
 
+from ocgis.util.enum import IntEnum
 
 # : Standard bounds name used when none is available from the input data.
 OCGIS_BOUNDS = 'bounds'
@@ -95,6 +96,10 @@ OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH = 'nc-ugrid-2d-flexible-mesh'
 OUTPUT_FORMAT_NUMPY = 'numpy'
 OUTPUT_FORMAT_SHAPEFILE = 'shp'
 
+#: These output formats are considered vector output formats affected by operations manipulation vector GIS data. For
+#: example, vector GIS outputs are always wrapped to -180 to 180 if there is a spherical coordinate system.
+VECTOR_OUTPUT_FORMATS = [OUTPUT_FORMAT_GEOJSON, OUTPUT_FORMAT_SHAPEFILE]
+
 # Download URL for test datasets.
 TEST_DATA_DOWNLOAD_PREFIX = None
 
@@ -146,3 +151,23 @@ NAME_UID_FIELD = 'fid'
 CALC_KEY_KEYWORDS = 'kwds'
 CALC_KEY_CLASS_REFERENCE = 'ref'
 NAME_UID_FIELD = 'fid'
+
+
+# Enumerations for wrapped states and actions. #########################################################################
+
+class WrappedState(IntEnum):
+    # Data is wrapped -180 to 180.
+    WRAPPED = 1
+    # Data is unwrapped 0 to 360.
+    UNWRAPPED = 2
+    # The wrapped state is unknown due to coordinate values only in the range 0 to 180.
+    UNKNOWN = 3
+
+
+class WrapAction(IntEnum):
+    # Wrap the data to -180 to 180.
+    WRAP = 1
+    # Unwrap the data 0 to 360.
+    UNWRAP = 2
+
+########################################################################################################################

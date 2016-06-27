@@ -4,7 +4,7 @@ import os
 from ocgis import OcgOperations
 from ocgis import constants, env
 from ocgis.api.interpreter import OcgInterpreter
-from ocgis.api.subset import SubsetOperation
+from ocgis.api.subset import OperationsEngine
 from ocgis.conv.fiona_ import ShpConverter
 from ocgis.conv.nc import NcConverter
 from ocgis.conv.numpy_ import NumpyConverter
@@ -41,7 +41,7 @@ class TestOcgInterpreter(TestBase):
         outdir = self.current_dir_output
         prefix = 'foo'
         interp = OcgInterpreter(ops)
-        so = SubsetOperation(ops)
+        so = OperationsEngine(ops)
         ret = interp._get_converter_(NumpyConverter, outdir, prefix, so)
         self.assertIsInstance(ret, NumpyConverter)
 

@@ -8,6 +8,7 @@ from shapely.geometry.multipolygon import MultiPolygon
 
 import ocgis
 from ocgis import constants
+from ocgis.constants import WrappedState, WrapAction
 from ocgis.exc import SpatialWrappingError
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
     CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem, \
@@ -89,7 +90,7 @@ class TestWrappableCoordinateSystem(TestBase):
 
     def test_get_wrap_action(self):
         _w = WrappableCoordinateReferenceSystem
-        possible = [_w._flag_wrapped, _w._flag_unwrapped, _w._flag_unknown, 'foo']
+        possible = [WrappedState.WRAPPED, WrappedState.UNWRAPPED, WrappedState.UNKNOWN, 'foo']
         keywords = dict(state_src=possible,
                         state_dst=possible)
         for k in itr_products_keywords(keywords, as_namedtuple=True):
@@ -98,12 +99,12 @@ class TestWrappableCoordinateSystem(TestBase):
             except ValueError:
                 self.assertTrue(k.state_src == 'foo' or k.state_dst == 'foo')
                 continue
-            if k.state_dst == _w._flag_unknown:
+            if k.state_dst == WrappedState.UNKNOWN:
                 self.assertIsNone(ret)
-            elif k.state_src == _w._flag_unwrapped and k.state_dst == _w._flag_wrapped:
-                self.assertEqual(ret, _w._flag_action_wrap)
-            elif k.state_src == _w._flag_wrapped and k.state_dst == _w._flag_unwrapped:
-                self.assertEqual(ret, _w._flag_action_unwrap)
+            elif k.state_src == WrappedState.UNWRAPPED and k.state_dst == WrappedState.WRAPPED:
+                self.assertEqual(ret, WrapAction.WRAP)
+            elif k.state_src == WrappedState.WRAPPED and k.state_dst == WrappedState.UNWRAPPED:
+                self.assertEqual(ret, WrapAction.UNWRAP)
             else:
                 self.assertIsNone(ret)
 
@@ -111,26 +112,26 @@ class TestWrappableCoordinateSystem(TestBase):
         refv = WrappableCoordinateReferenceSystem
         refm = refv.get_wrapped_state
 
-        ## test grid ##
+        # Test grid wrapping ###########################################################################################
 
         row = VectorDimension(value=[50, 60])
 
         col = VectorDimension(value=[0, 90, 180])
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid)
-        self.assertEqual(refm(sdim), refv._flag_unknown)
+        self.assertEqual(refm(sdim), WrappedState.UNKNOWN)
 
         col = VectorDimension(value=[-170, 0, 30])
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid)
-        self.assertEqual(refm(sdim), refv._flag_wrapped)
+        self.assertEqual(refm(sdim), WrappedState.WRAPPED)
 
         col = VectorDimension(value=[0, 90, 180, 270])
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid)
-        self.assertEqual(refm(sdim), refv._flag_unwrapped)
+        self.assertEqual(refm(sdim), WrappedState.UNWRAPPED)
 
-        ## test geom ##
+        # Test geometry wrapping #######################################################################################
 
         for with_polygon in [True, False]:
             row = VectorDimension(value=[50, 60])
@@ -141,7 +142,7 @@ class TestWrappableCoordinateSystem(TestBase):
             grid = SpatialGridDimension(row=row, col=col)
             sdim = SpatialDimension(grid=grid)
             sdim.grid = None
-            self.assertEqual(refm(sdim), refv._flag_unknown)
+            self.assertEqual(refm(sdim), WrappedState.UNKNOWN)
 
             row = VectorDimension(value=[50, 60])
             col = VectorDimension(value=[160, 170, 180])
@@ -152,9 +153,9 @@ class TestWrappableCoordinateSystem(TestBase):
             sdim = SpatialDimension(grid=grid)
             sdim.grid = None
             if with_polygon:
-                actual = refv._flag_unwrapped
+                actual = WrappedState.UNWRAPPED
             else:
-                actual = refv._flag_unknown
+                actual = WrappedState.UNKNOWN
             self.assertEqual(refm(sdim), actual)
 
             row = VectorDimension(value=[50, 60])
@@ -165,7 +166,7 @@ class TestWrappableCoordinateSystem(TestBase):
             grid = SpatialGridDimension(row=row, col=col)
             sdim = SpatialDimension(grid=grid)
             sdim.grid = None
-            self.assertEqual(refm(sdim), refv._flag_wrapped)
+            self.assertEqual(refm(sdim), WrappedState.WRAPPED)
 
     def test_get_wrapped_state_from_array(self):
 
@@ -174,34 +175,34 @@ class TestWrappableCoordinateSystem(TestBase):
             self.assertEqual(ret, actual_wrapped_state)
 
         arr = np.array([-170])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+        _run_(arr, WrappedState.WRAPPED)
 
         arr = np.array([270])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        _run_(arr, WrappedState.UNWRAPPED)
 
         arr = np.array([30])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+        _run_(arr, WrappedState.UNKNOWN)
 
         arr = np.array([-180, 0, 30])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+        _run_(arr, WrappedState.WRAPPED)
 
         arr = np.array([0])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+        _run_(arr, WrappedState.UNKNOWN)
 
         arr = np.array([0, 30, 50])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+        _run_(arr, WrappedState.UNKNOWN)
 
         arr = np.array([0, 30, 50, 181])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        _run_(arr, WrappedState.UNWRAPPED)
 
         arr = np.array([0, 30, 50, 180])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_unknown)
+        _run_(arr, WrappedState.UNKNOWN)
 
         arr = np.array([-180])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+        _run_(arr, WrappedState.WRAPPED)
 
         arr = np.array([-180, 0, 50])
-        _run_(arr, WrappableCoordinateReferenceSystem._flag_wrapped)
+        _run_(arr, WrappedState.WRAPPED)
 
     def test_get_wrapped_state_from_geometry(self):
         geoms = [Point(-130, 40),
@@ -211,11 +212,11 @@ class TestWrappableCoordinateSystem(TestBase):
 
         for geom in geoms:
             ret = WrappableCoordinateReferenceSystem._get_wrapped_state_from_geometry_(geom)
-            self.assertEqual(ret, WrappableCoordinateReferenceSystem._flag_wrapped)
+            self.assertEqual(ret, WrappedState.WRAPPED)
 
         pt = Point(270, 50)
         ret = WrappableCoordinateReferenceSystem._get_wrapped_state_from_geometry_(pt)
-        self.assertEqual(ret, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(ret, WrappedState.UNWRAPPED)
 
 
 class TestSpherical(TestBase):
@@ -241,14 +242,26 @@ class TestSpherical(TestBase):
         """Test wrapped and unwrapped geometries with a mask ensuring that masked values are wrapped and unwrapped."""
 
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23])
+
+        ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], spatial_wrapping='wrap')
         ret = ops.execute()
         sdim = ret[23]['tas'].spatial
-        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162], [37.67309213352349, 37.67309213352349, 37.67309213352349], [40.4636506825932, 40.4636506825932, 40.4636506825932], [43.254197169829105, 43.254197169829105, 43.254197169829105]], [[-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125]]], dtype=sdim.grid.value.dtype)
+        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162],
+                            [37.67309213352349, 37.67309213352349, 37.67309213352349],
+                            [40.4636506825932, 40.4636506825932, 40.4636506825932],
+                            [43.254197169829105, 43.254197169829105, 43.254197169829105]],
+                           [[-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125],
+                            [-120.9375, -118.125, -115.3125], [-120.9375, -118.125, -115.3125]]],
+                          dtype=sdim.grid.value.dtype)
         self.assertNumpyAll(actual, sdim.grid.value.data)
 
         Spherical().unwrap(sdim)
-        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162], [37.67309213352349, 37.67309213352349, 37.67309213352349], [40.4636506825932, 40.4636506825932, 40.4636506825932], [43.254197169829105, 43.254197169829105, 43.254197169829105]], [[239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875]]], dtype=sdim.grid.value.dtype)
+        actual = np.array([[[34.88252349825162, 34.88252349825162, 34.88252349825162],
+                            [37.67309213352349, 37.67309213352349, 37.67309213352349],
+                            [40.4636506825932, 40.4636506825932, 40.4636506825932],
+                            [43.254197169829105, 43.254197169829105, 43.254197169829105]],
+                           [[239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875], [239.0625, 241.875, 244.6875],
+                            [239.0625, 241.875, 244.6875]]], dtype=sdim.grid.value.dtype)
         self.assertNumpyAll(actual, sdim.grid.value.data)
 
     def test_wrap_normal(self):
@@ -259,7 +272,7 @@ class TestSpherical(TestBase):
         grid = SpatialGridDimension(row=row, col=col)
         self.assertEqual(grid.resolution, 3.0)
         sdim = SpatialDimension(grid=grid, crs=Spherical())
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
+        self.assertEqual(sdim.wrapped_state, WrappedState.UNKNOWN)
         with self.assertRaises(SpatialWrappingError):
             sdim.crs.wrap(sdim)
     
@@ -302,20 +315,21 @@ class TestSpherical(TestBase):
 
         # bounds values at the prime meridian of 180.
         orig, sdim = _get_sdim_(178, [176, 180.])
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
+        self.assertEqual(sdim.wrapped_state, WrappedState.UNKNOWN)
 
         # bounds values on the other side of the prime meridian
         orig, sdim = _get_sdim_(182, [180, 184])
         sdim.wrap()
-        self.assertIsNone(sdim.grid.col.bounds)
-        self.assertIsNone(sdim.grid.row.bounds)
-        self.assertIsNone(sdim.grid.corners)
+        self.assertNumpyAll(sdim.grid.col.bounds, np.array([[180., -176.]]))
+        self.assertNumpyAll(sdim.grid.row.bounds, np.array([[38., 42.]]))
+        self.assertNumpyAll(sdim.grid.corners, np.ma.array([[[[38.0, 38.0, 42.0, 42.0]]],
+                                                            [[[180.0, -176.0, -176.0, 180.0]]]]))
         self.assertEqual(sdim.geom.polygon.value[0, 0][0].bounds, (-180.0, 38.0, -176.0, 42.0))
         self.assertNumpyAll(np.array(sdim.geom.point.value[0, 0]), np.array([-178., 40.]))
 
         # centroid directly on prime meridian
         orig, sdim = _get_sdim_(180, [178, 182])
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unknown)
+        self.assertEqual(sdim.wrapped_state, WrappedState.UNKNOWN)
         with self.assertRaises(SpatialWrappingError):
             sdim.wrap()
 
@@ -336,9 +350,9 @@ class TestSpherical(TestBase):
         grid = SpatialGridDimension(row=row, col=col)
         sdim = SpatialDimension(grid=grid, crs=Spherical())
         orig_sdim = deepcopy(sdim)
-        self.assertEqual(orig_sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(orig_sdim.wrapped_state, WrappedState.UNWRAPPED)
         sdim.crs.wrap(sdim)
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
+        self.assertEqual(sdim.wrapped_state, WrappedState.WRAPPED)
         sdim.crs.unwrap(sdim)
         self.assertEqual(orig_sdim.geom.polygon.value[0, 0].bounds, sdim.geom.polygon.value[0, 0].bounds)
             

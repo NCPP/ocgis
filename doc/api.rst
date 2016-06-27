@@ -425,12 +425,32 @@ Value                  Description
 spatial_operation
 ~~~~~~~~~~~~~~~~~
 
-======================== =============================================================================================================================================
-Value                    Description
-======================== =============================================================================================================================================
-``intersects`` (default) Source geometries touching or overlapping selection geometries are returned (see :ref:`appendix-intersects`).
-``clip``                 A full geometric intersection is performed between source and selection geometries. New geometries may be created. (see :ref:`appendix-clip`)
-======================== =============================================================================================================================================
+========================== =============================================================================================================================================
+Value                      Description
+========================== =============================================================================================================================================
+``"intersects"`` (default) Source geometries touching or overlapping selection geometries are returned (see :ref:`appendix-intersects`).
+``"clip"``                 A full geometric intersection is performed between source and selection geometries. New geometries may be created. (see :ref:`appendix-clip`)
+========================== =============================================================================================================================================
+
+spatial_reorder
+~~~~~~~~~~~~~~~
+
+If ``True``, reorder wrapped coordinates such that the longitude values are in ascending order. Reordering assumes the first row of longitude coordinates are representative of the other longitude coordinate rows. Bounds and corners will be removed in the event of a reorder. Only applies to spherical coordinate systems.
+
+If ``False`` (the default), do not attempt to reorder wrapped spherical longitude coordinates.
+
+spatial_wrapping
+~~~~~~~~~~~~~~~~
+
+Allows control of the wrapped state for all input fields. Only field objects with a wrappable coordinate system are affected. Wrapping operations are applied before all other operations.
+
+================== ======================================================================
+Value              Description
+================== ======================================================================
+``None`` (default) Do not attempt a wrap or unwrap operation.
+``"wrap"``         Wrap spherical coordinates to the -180 to 180 longitudinal domain.
+``"unwrap"``       Unwrap spherical coordinate to the 0 to 360 longitudinal domain.
+================== ======================================================================
 
 time_range
 ~~~~~~~~~~

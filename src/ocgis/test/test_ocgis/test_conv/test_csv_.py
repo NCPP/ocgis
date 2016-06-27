@@ -7,7 +7,7 @@ import numpy as np
 
 from ocgis import OcgOperations, RequestDataset
 from ocgis import constants, env
-from ocgis.api.subset import SubsetOperation
+from ocgis.api.subset import OperationsEngine
 from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
 from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
@@ -23,7 +23,7 @@ class TestCsvConverter(AbstractTestConverter):
             kwds_ops.update(kwargs_ops)
 
         ops = OcgOperations(**kwds_ops)
-        so = SubsetOperation(ops)
+        so = OperationsEngine(ops)
 
         kwds_conv = Dict()
         kwds_conv.outdir = self.current_dir_output
@@ -58,7 +58,7 @@ class TestCsvShapefileConverter(AbstractTestConverter):
             kwds_ops.update(kwargs_ops)
 
         ops = OcgOperations(**kwds_ops)
-        so = SubsetOperation(ops)
+        so = OperationsEngine(ops)
 
         kwds_conv = Dict()
         kwds_conv.outdir = self.current_dir_output

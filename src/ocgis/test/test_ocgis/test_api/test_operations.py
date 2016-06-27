@@ -9,14 +9,19 @@ import numpy as np
 from numpy import dtype
 
 import ocgis
+from ocgis import Field
 from ocgis import constants
 from ocgis import env
 from ocgis.api.operations import OcgOperations
 from ocgis.api.parms import definition
-from ocgis.api.parms.definition import RegridOptions, OutputFormat
+from ocgis.api.parms.definition import RegridOptions, OutputFormat, SpatialWrapping
 from ocgis.api.request.base import RequestDataset
+from ocgis.constants import WrappedState
 from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
-from ocgis.interface.base.crs import CFWGS84
+from ocgis.interface.base.crs import CFWGS84, Spherical, CoordinateReferenceSystem
+from ocgis.interface.base.dimension.base import VectorDimension
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
+from ocgis.interface.base.variable import Variable
 from ocgis.test.base import TestBase, attr
 from ocgis.util.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.util.helpers import make_poly
@@ -26,7 +31,6 @@ class TestOcgOperations(TestBase):
     def setUp(self):
         TestBase.setUp(self)
 
-        # data may need to be pulled from remote repository
         rds = [self.test_data.get_rd('cancm4_tasmin_2001'), self.test_data.get_rd('cancm4_tasmax_2011'),
                self.test_data.get_rd('cancm4_tas')]
 
@@ -585,6 +589,40 @@ class TestOcgOperations(TestBase):
         self.assertEqual(field.shape, (1, 365, 1, 18, 143))
 
     @attr('data')
+    def test_keyword_spatial_reorder(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+
+        field_2d = rd.get()[0, 0, 0, :, :]
+        field_2d.spatial.grid.value
+        field_2d.spatial.grid.corners
+        field_2d.variables['tas'].value
+        field_2d.spatial.grid.row = None
+        field_2d.spatial.grid.col = None
+        self.assertIsNone(field_2d.spatial.grid.col)
+
+        kwds = {'dataset': [rd, field_2d], 'geom': [None, [-20, -20, 20, 20]]}
+
+        for ctr, k in enumerate(self.iter_product_keywords(kwds)):
+            # if ctr != 1: continue
+            # print ctr, k
+            original_value = rd.get()[:, 0, :, :, :].variables['tas'].value
+            ops = OcgOperations(dataset=k.dataset, snippet=True, geom=k.geom, spatial_wrapping='wrap',
+                                spatial_reorder=True)
+            ret = ops.execute()
+            field = ret[1]['tas']
+            col_value = field.spatial.grid.value[1]
+            actual_longitude = col_value[:, 0].mean()
+            if k.geom is None:
+                self.assertLess(actual_longitude, -170)
+            else:
+                # Test the subset is applied with reordering.
+                self.assertGreater(actual_longitude, -30)
+                self.assertLess(actual_longitude, 0)
+            # Test the value arrays are not the same following a reorder.
+            with self.assertRaises(AssertionError):
+                self.assertNumpyAll(field.variables['tas'].value, original_value)
+
+    @attr('data')
     def test_keyword_time_range(self):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -670,3 +708,50 @@ class TestOcgOperations(TestBase):
         rd = RequestDataset(path)
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, output_format='csv')
+
+
+class TestOcgOperationsNoData(TestBase):
+    @staticmethod
+    def get_wrap_field(crs=None, unwrapped=True):
+        row = VectorDimension(value=[20, 40])
+        if unwrapped:
+            col_value = [1, 180, 270]
+        else:
+            col_value = [-170, 0, 170]
+        col = VectorDimension(value=col_value)
+        grid = SpatialGridDimension(row=row, col=col)
+        spatial = SpatialDimension(grid=grid, crs=crs)
+        value = np.random.rand(2, 3).reshape(1, 1, 1, 2, 3)
+        var = Variable(name='foo', value=value)
+        field = Field(spatial=spatial, variables=var)
+
+        return field
+
+    def test_keyword_spatial_wrapping(self):
+        keywords = {'spatial_wrapping': list(SpatialWrapping.iter_possible()),
+                    'crs': [None, Spherical(), CoordinateReferenceSystem(epsg=2136)],
+                    'unwrapped': [True, False]}
+        for k in self.iter_product_keywords(keywords):
+            # print(k)
+            field = self.get_wrap_field(crs=k.crs, unwrapped=k.unwrapped)
+
+            ops = OcgOperations(dataset=field, spatial_wrapping=k.spatial_wrapping)
+            ret = ops.execute()
+            actual_field = ret[1]['foo']
+            actual = actual_field.spatial.wrapped_state
+
+            if k.crs != Spherical():
+                desired = None
+            else:
+                p = k.spatial_wrapping
+                if p is None:
+                    if k.unwrapped:
+                        desired = WrappedState.UNWRAPPED
+                    else:
+                        desired = WrappedState.WRAPPED
+                elif p == 'wrap':
+                    desired = WrappedState.WRAPPED
+                else:
+                    desired = WrappedState.UNWRAPPED
+
+            self.assertEqual(actual, desired)

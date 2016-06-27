@@ -1,7 +1,8 @@
 from copy import deepcopy, copy
 
 from ocgis import RequestDataset
-from ocgis.interface.base.crs import CFRotatedPole, CFWGS84, WrappableCoordinateReferenceSystem
+from ocgis.constants import WrappedState
+from ocgis.interface.base.crs import CFRotatedPole, CFWGS84
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 
 
@@ -194,7 +195,7 @@ class SpatialSubsetOperation(object):
 
         # the output needs to be wrapped and the input data is unwrapped. output from get_spatial_subset is always
         # wrapped according to the input spatial dimension
-        if self.wrap and sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
+        if self.wrap and sdim.wrapped_state == WrappedState.UNWRAPPED:
             ret = True
         else:
             ret = False
@@ -213,11 +214,11 @@ class SpatialSubsetOperation(object):
 
         prepared = deepcopy(subset_sdim)
         prepared.update_crs(self.sdim.crs)
-        if self.sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
-            if prepared.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
+        if self.sdim.wrapped_state == WrappedState.UNWRAPPED:
+            if prepared.wrapped_state == WrappedState.WRAPPED:
                 prepared.unwrap()
-        elif self.sdim.wrapped_state == WrappableCoordinateReferenceSystem._flag_wrapped:
-            if prepared.wrapped_state == WrappableCoordinateReferenceSystem._flag_unwrapped:
+        elif self.sdim.wrapped_state == WrappedState.WRAPPED:
+            if prepared.wrapped_state == WrappedState.UNWRAPPED:
                 prepared.wrap()
 
         return prepared

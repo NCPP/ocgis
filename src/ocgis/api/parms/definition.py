@@ -23,6 +23,7 @@ from ocgis.api.parms.definition_helpers import MetadataAttributes
 from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.calc.library import register
+from ocgis.constants import WrapAction
 from ocgis.conv.base import AbstractTabularConverter, get_converter, get_converter_map
 from ocgis.exc import DefinitionValidationError, NoDimensionedVariablesFound
 from ocgis.interface.base.crs import CoordinateReferenceSystem, CFWGS84
@@ -1162,7 +1163,41 @@ class SpatialOperation(base.StringOptionParameter):
             ret = 'Geometries touching AND overlapping returned.'
         else:
             ret = 'A full geometric intersection occurred. Where geometries overlapped, a new geometry was created.'
-        return (ret)
+        return ret
+
+
+class SpatialReorder(base.BooleanParameter):
+    name = 'spatial_reorder'
+    default = False
+    meta_true = 'Reorder data and coordinate arrays to have ascending longitudinal coordinates.'
+    meta_false = 'Do not reorder data and coordinate arrays to have ascending longitudinal coordinates.'
+
+
+class SpatialWrapping(base.StringOptionParameter):
+    name = 'spatial_wrapping'
+    default = None
+    nullable = True
+    valid = ('wrap', 'unwrap', None)
+    _enum_mapping = {'wrap': WrapAction.WRAP, 'unwrap': WrapAction.UNWRAP}
+
+    @property
+    def as_enum(self):
+        if self.value is None:
+            ret = None
+        else:
+            ret = self._enum_mapping[self.value]
+        return ret
+
+    @classmethod
+    def iter_possible(cls):
+        for v in cls.valid:
+            yield v
+
+    def _get_meta_(self):
+        msgs = {'wrap': 'Wrap data to -180 to 180 degree spatial domain.',
+                'unwrap': 'Unwrap data to 0 to 360 degree spatial domain.',
+                None: 'No wrapping action applied.'}
+        return msgs[self.value]
 
 
 class TimeRange(base.IterableParameter, base.AbstractParameter):

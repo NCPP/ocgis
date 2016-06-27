@@ -1,14 +1,85 @@
 import os
 import tempfile
+from copy import deepcopy
+
+import numpy as np
 from shapely import wkt
 from shapely.geometry import Point, MultiPoint, MultiPolygon, Polygon
+
 from ocgis.test.base import TestBase
 from ocgis.util.helpers import write_geom_dict, get_iter
-from ocgis.util.spatial.wrap import Wrapper
-import numpy as np
+from ocgis.util.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper, apply_wrapping_index_map
 
 
-class TestWrapper(TestBase):
+class TestCoordinateWrapper(TestBase):
+    def run_wrap(self, arr, desired_not_reordered, desired_reordered):
+        kwds = {'reorder': [True, False], 'inplace': [True, False], 'return_imap': [True, False]}
+        for k in self.iter_product_keywords(kwds):
+            arr_copy = deepcopy(arr)
+            w = CoordinateArrayWrapper(inplace=k.inplace)
+            try:
+                res = w.wrap(arr_copy, return_imap=k.return_imap, reorder=k.reorder)
+            except ValueError:
+                self.assertFalse(k.reorder)
+                self.assertTrue(k.return_imap)
+                continue
+
+            if k.return_imap:
+                actual, imap = res
+            else:
+                actual = res
+
+            if k.reorder:
+                desired = desired_reordered
+            else:
+                desired = desired_not_reordered
+            self.assertNumpyAll(actual, desired)
+
+            may_share = np.may_share_memory(arr_copy, actual)
+            if k.inplace:
+                self.assertTrue(may_share)
+            else:
+                self.assertFalse(may_share)
+
+            if k.return_imap:
+                self.assertGreater(imap.sum(), 0)
+
+    def test_apply_wrapping_index_map(self):
+        imap = np.array([[1, 0], [3, 2]])
+        to_remap = np.array([[1, 2], [3, 4]])
+        desired = np.array([[2, 1], [4, 3]])
+
+        apply_wrapping_index_map(imap, to_remap)
+        self.assertNumpyAll(to_remap, desired)
+
+    def test_wrap(self):
+        # Test with one-dimensional coordinates.
+        arr = np.array([1, 90, 180, 270, 359], dtype=float)
+        desired_reordered = np.array([-90., -1., 1., 90., 180.])
+        desired_not_reordered = np.array([1., 90., 180., -90., -1.])
+        self.run_wrap(arr, desired_not_reordered, desired_reordered)
+
+        # Test with two-dimensional coordinates.
+        arr = np.array([[1, 90, 180, 270, 359],
+                        [0.5, 89.5, 179.5, 269.5, 358.5]], dtype=float)
+        desired_reordered = np.array([[-90., -1., 1., 90., 180.],
+                                      [-90.5, -1.5, 0.5, 89.5, 179.5]])
+        desired_not_reordered = np.array([[1., 90., 180., -90., -1.],
+                                          [0.5, 89.5, 179.5, -90.5, -1.5]])
+        self.run_wrap(arr, desired_not_reordered, desired_reordered)
+
+        # Test wrapping a bounds-like coordinate array.
+        desired = np.array([[-179.5, -178.5], [-178.5, -177.5], [178.5, 179.5], [179.5, -179.5]])
+        bounds = np.array([[178.5, 179.5], [179.5, 180.5], [180.5, 181.5], [181.5, 182.5]])
+        centers = np.array([179., 180., 181., 182.])
+        w = CoordinateArrayWrapper()
+        actual, imap = w.wrap(centers, reorder=True, return_imap=True)
+        actual_bounds = w.wrap(bounds)
+        new_bounds = actual_bounds[imap, :]
+        self.assertNumpyAll(new_bounds, desired)
+
+
+class TestGeometryWrapper(TestBase):
 
     @property
     def axis_multipolygon(self):
@@ -81,12 +152,12 @@ class TestWrapper(TestBase):
             write_geom_dict({1: geom}, path=path)
 
     def test_init(self):
-        Wrapper()
+        GeometryWrapper()
 
     def test_unwrap(self):
         """Test different geometry types are appropriately unwrapped."""
 
-        wrapper = Wrapper()
+        wrapper = GeometryWrapper()
         path = tempfile.mkdtemp()
         for desc, geom in self.possible.iteritems():
             unwrapped = wrapper.unwrap(geom)
@@ -112,7 +183,7 @@ class TestWrapper(TestBase):
     def test_wrap(self):
         """Test different geometry types are appropriately wrapped."""
 
-        wrapper = Wrapper()
+        wrapper = GeometryWrapper()
         for desc, geom in self.possible.iteritems():
             unwrapped = wrapper.unwrap(geom)
             wrapped = wrapper.wrap(unwrapped)

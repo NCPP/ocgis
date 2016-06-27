@@ -12,9 +12,10 @@ from shapely.geometry.geo import box
 from shapely.geometry.point import Point
 
 from ocgis import constants, RequestDataset
+from ocgis.constants import WrappedState
 from ocgis.exc import EmptySubsetError, SpatialWrappingError, MultipleElementsFound, BoundsAlreadyAvailableError
 from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, CFWGS84, CFRotatedPole, \
-    WrappableCoordinateReferenceSystem, Spherical
+    Spherical
 from ocgis.interface.base.dimension.base import AbstractUidValueDimension
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGeometryDimension, \
@@ -1079,7 +1080,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         with self.assertRaises(SpatialWrappingError):
             sdim.unwrap()
         sdim.crs = WGS84()
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
+        self.assertEqual(sdim.wrapped_state, WrappedState.WRAPPED)
         sdim.unwrap()
 
         assertUnwrapped(sdim.grid.value)
@@ -1097,7 +1098,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         self.assertNumpyAll(np.array(sdim.geom.polygon.value[2, 2].bounds), np.array(bounds_from_corner))
         self.assertEqual(sdim.geom.polygon.value[2, 2].bounds, (261.5, 37.5, 262.5, 38.5))
         self.assertNumpyAll(np.array(sdim.geom.point.value[2, 2]), np.array([262., 38.]))
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(sdim.wrapped_state, WrappedState.UNWRAPPED)
 
     def test_wrap(self):
         """Test wrapping a SpatialDimension"""
@@ -1143,7 +1144,7 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
         self.assertIsNone(sdim.wrapped_state)
 
         sdim = self.get_sdim(crs=CFWGS84())
-        self.assertEqual(sdim.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
+        self.assertEqual(sdim.wrapped_state, WrappedState.WRAPPED)
 
 
 class TestSpatialGeometryDimension(TestBase):

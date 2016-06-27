@@ -5,8 +5,9 @@ from shapely import wkt
 
 from ocgis import CoordinateReferenceSystem, RequestDataset
 from ocgis import env
+from ocgis.constants import WrappedState
 from ocgis.exc import EmptySubsetError
-from ocgis.interface.base.crs import CFWGS84, CFRotatedPole, WrappableCoordinateReferenceSystem
+from ocgis.interface.base.crs import CFWGS84, CFRotatedPole
 from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.interface.base.field import Field
 from ocgis.test.base import TestBase, attr
@@ -267,16 +268,16 @@ class TestSpatialSubsetOperation(TestBase):
 
         subset_sdim = SpatialDimension.from_records([self.nebraska])
         rd = self.test_data.get_rd('cancm4_tas')
-        self.assertEqual(rd.get().spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(rd.get().spatial.wrapped_state, WrappedState.UNWRAPPED)
         ss = SpatialSubsetOperation(rd, wrap=True)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
-        self.assertEqual(ret.spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_wrapped)
+        self.assertEqual(ret.spatial.wrapped_state, WrappedState.WRAPPED)
         self.assertAlmostEqual(ret.spatial.grid.value.data[1].mean(), -99.84375)
 
         # test with wrap false
         ss = SpatialSubsetOperation(rd, wrap=False)
         ret = ss.get_spatial_subset('intersects', subset_sdim)
-        self.assertEqual(ret.spatial.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(ret.spatial.wrapped_state, WrappedState.UNWRAPPED)
         self.assertAlmostEqual(ret.spatial.grid.value.data[1].mean(), 260.15625)
 
     @attr('data')
@@ -313,7 +314,7 @@ class TestSpatialSubsetOperation(TestBase):
         field = self.test_data.get_rd('cancm4_tas').get()
         ss = SpatialSubsetOperation(field)
         prepared = ss._prepare_subset_sdim_(nebraska)
-        self.assertEqual(prepared.wrapped_state, WrappableCoordinateReferenceSystem._flag_unwrapped)
+        self.assertEqual(prepared.wrapped_state, WrappedState.UNWRAPPED)
 
     @attr('data')
     def test_sdim(self):

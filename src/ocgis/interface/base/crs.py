@@ -9,10 +9,11 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis import constants
+from ocgis.constants import WrappedState, WrapAction
 from ocgis.exc import SpatialWrappingError, ProjectionCoordinateNotFound, ProjectionDoesNotMatch
 from ocgis.util.environment import osr
 from ocgis.util.helpers import iter_array
-from ocgis.util.spatial.wrap import Wrapper
+from ocgis.util.spatial.wrap import GeometryWrapper
 
 SpatialReference = osr.SpatialReference
 
@@ -119,24 +120,17 @@ class CoordinateReferenceSystem(object):
 class WrappableCoordinateReferenceSystem(object):
     """Meant to be used in mixin classes for coordinate systems that can be wrapped."""
 
-    _flag_wrapped = 'wrapped'
-    _flag_unwrapped = 'unwrapped'
-    _flag_unknown = 'unknown'
-
-    _flag_action_wrap = 'wrap'
-    _flag_action_unwrap = 'unwrap'
-
     @classmethod
     def get_wrap_action(cls, state_src, state_dst):
         """
-        :param str state_src: The wrapped state of the source dataset.
-        :param str state_dst: The wrapped state of the destination dataset.
-        :returns: The wrapping action to perform on ``state_src``.
-        :rtype: str
+        :param int state_src: The wrapped state of the source dataset. (:class:`~ocgis.constants.WrappedState`)
+        :param int state_dst: The wrapped state of the destination dataset. (:class:`~ocgis.constants.WrappedState`)
+        :returns: The wrapping action to perform on ``state_src``. (:class:`~ocgis.constants.WrapAction`)
+        :rtype: int
         :raises: NotImplementedError, ValueError
         """
 
-        possible = [cls._flag_wrapped, cls._flag_unwrapped, cls._flag_unknown]
+        possible = [WrappedState.WRAPPED, WrappedState.UNWRAPPED, WrappedState.UNKNOWN]
         has_issue = None
         if state_src not in possible:
             has_issue = 'source'
@@ -150,16 +144,16 @@ class WrappableCoordinateReferenceSystem(object):
         ret = None
         # if the wrapped state of the destination is unknown, then there is no appropriate wrapping action suitable for
         # the source.
-        if state_dst == cls._flag_unknown:
+        if state_dst == WrappedState.UNKNOWN:
             ret = None
         # if the destination is wrapped and src is unwrapped, then wrap the src.
-        elif state_dst == cls._flag_wrapped:
-            if state_src == cls._flag_unwrapped:
-                ret = cls._flag_action_wrap
+        elif state_dst == WrappedState.WRAPPED:
+            if state_src == WrappedState.UNWRAPPED:
+                ret = WrapAction.WRAP
         # if the destination is unwrapped and the src is wrapped, the source needs to be unwrapped.
-        elif state_dst == cls._flag_unwrapped:
-            if state_src == cls._flag_wrapped:
-                ret = cls._flag_action_unwrap
+        elif state_dst == WrappedState.UNWRAPPED:
+            if state_src == WrappedState.WRAPPED:
+                ret = WrapAction.UNWRAP
         else:
             raise NotImplementedError(state_dst)
         return ret
@@ -175,8 +169,8 @@ class WrappableCoordinateReferenceSystem(object):
         if sdim.grid is not None:
             ret = cls._get_wrapped_state_from_array_(sdim.grid.value[1].data)
         else:
-            stops = (cls._flag_wrapped, cls._flag_unwrapped)
-            ret = cls._flag_unknown
+            stops = (WrappedState.WRAPPED, WrappedState.UNWRAPPED)
+            ret = WrappedState.UNKNOWN
             if sdim.geom.polygon is not None:
                 geoms = sdim.geom.polygon.value.data.flat
             else:
@@ -193,9 +187,9 @@ class WrappableCoordinateReferenceSystem(object):
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if self.get_wrapped_state(spatial) == self._flag_wrapped:
+        if self.get_wrapped_state(spatial) == WrappedState.WRAPPED:
             # unwrap the geometries
-            unwrap = Wrapper().unwrap
+            unwrap = GeometryWrapper().unwrap
             to_wrap = self._get_to_wrap_(spatial)
             for tw in to_wrap:
                 if tw is not None:
@@ -232,9 +226,9 @@ class WrappableCoordinateReferenceSystem(object):
         :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
         """
 
-        if self.get_wrapped_state(spatial) == self._flag_unwrapped:
+        if self.get_wrapped_state(spatial) == WrappedState.UNWRAPPED:
             # wrap the geometries if they are available
-            wrap = Wrapper().wrap
+            wrap = GeometryWrapper().wrap
             to_wrap = self._get_to_wrap_(spatial)
             for tw in to_wrap:
                 if tw is not None:
@@ -254,22 +248,8 @@ class WrappableCoordinateReferenceSystem(object):
                     ref[select] -= 360
                     if spatial.grid.col.bounds is not None:
                         ref = spatial.grid.col.bounds
-                        # check for bounds containing the prime meridian. to avoid adjusting data, bounds will need to
-                        # be removed.
-                        bounds_min = np.min(ref, axis=1)
-                        bounds_max = np.max(ref, axis=1)
-                        select_min = bounds_min <= 180
-                        select_max = bounds_max > 180
-                        select_cross = np.logical_and(select_min, select_max)
-                        if np.any(select_cross):
-                            spatial.grid.row.bounds
-                            spatial.grid.row.bounds = None
-                            spatial.grid.col.bounds
-                            spatial.grid.col.bounds = None
-                            bounds_cross_meridian = True
-                        else:
-                            select = ref > 180
-                            ref[select] -= 360
+                        select = ref > 180
+                        ref[select] -= 360
 
                 # attempt to wrap the grid corners if they exist
                 if spatial.grid.corners is not None:
@@ -303,19 +283,19 @@ class WrappableCoordinateReferenceSystem(object):
         """
         :param arr: Input n-dimensional array.
         :type arr: :class:`numpy.ndarray`
-        :returns: A string flag. See class level ``_flag_*`` attributes for values.
-        :rtype: str
+        :returns: Wrapped state enumeration value from :class:`~ocgis.constants.WrappedState`.
+        :rtype: int
         """
 
         gt_m180 = arr > constants.MERIDIAN_180TH
         lt_pm = arr < 0
 
         if np.any(lt_pm):
-            ret = cls._flag_wrapped
+            ret = WrappedState.WRAPPED
         elif np.any(gt_m180):
-            ret = cls._flag_unwrapped
+            ret = WrappedState.UNWRAPPED
         else:
-            ret = cls._flag_unknown
+            ret = WrappedState.UNKNOWN
 
         return ret
 
@@ -354,7 +334,7 @@ class WrappableCoordinateReferenceSystem(object):
 
         :param arr: The target array to modify inplace.
         :type arr: :class:`numpy.array`
-        :rtype: boolean ;class:`numpy.array`
+        :rtype: boolean :class:`numpy.array`
         """
         from ocgis import constants
 
@@ -533,11 +513,11 @@ class CFWGS84(WGS84, CFCoordinateReferenceSystem):
         try:
             r_grid_mapping = meta['variables'][var]['attrs']['grid_mapping']
             if r_grid_mapping == cls.grid_mapping_name:
-                return (cls())
+                return cls()
             else:
-                raise (ProjectionDoesNotMatch)
+                raise ProjectionDoesNotMatch
         except KeyError:
-            raise (ProjectionDoesNotMatch)
+            raise ProjectionDoesNotMatch
 
 
 class CFAlbersEqualArea(CFCoordinateReferenceSystem):

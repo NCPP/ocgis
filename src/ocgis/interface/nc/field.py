@@ -32,7 +32,17 @@ class NcField(Field):
         # Ensure axes ordering is as expected.
         possible = [['T', 'Y', 'X'], ['T', 'Z', 'Y', 'X'], ['R', 'T', 'Y', 'X'], ['R', 'T', 'Z', 'Y', 'X']]
         check = [axes == poss for poss in possible]
-        assert (any(check))
+        try:
+            assert any(check)
+        except AssertionError:
+            # Allow this special case of axis orders. The axes will be swapped following load from source.
+            if axes == ['T', 'X', 'Y']:
+                swap_row_column = True
+            else:
+                raise
+        else:
+            # Leave row and column axes as is.
+            swap_row_column = False
 
         ds = request_dataset.driver.open()
         try:
@@ -45,6 +55,11 @@ class NcField(Field):
                     raw = ds.variables[variable_name].__getitem__(slc2)
                 else:
                     raise
+
+            # Swap the row/column y/x axes if requested.
+            if swap_row_column:
+                raw = np.swapaxes(raw, 1, 2)
+
             # Always return a masked array.
             if not isinstance(raw, np.ma.MaskedArray):
                 raw = np.ma.array(raw, mask=False)

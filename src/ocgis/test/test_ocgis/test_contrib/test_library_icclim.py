@@ -181,7 +181,7 @@ class TestTG10p(TestBase):
     def test_init(self):
         IcclimTG10p()
 
-    @attr('data')
+    @attr('data', 'slow')
     def test_execute(self):
         tas = self.test_data.get_rd('cancm4_tas').get()
         tas = tas[:, :, :, 10:12, 20:22]
@@ -205,7 +205,7 @@ class TestTG10p(TestBase):
         # This value should change since we are using a different base period.
         self.assertEqual(ret['icclim_TG10p'].value.mean(), 31.0)
 
-    @attr('data')
+    @attr('data', 'slow')
     def test_large_array_compute_local(self):
         """Test tiling works for percentile-based indice on a local dataset."""
 

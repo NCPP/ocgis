@@ -120,6 +120,7 @@ class TestLibraryIcclim(TestBase):
                 keys.remove(subclass.key)
 
                 for cg in CalcGrouping.iter_possible():
+                    print cg
                     calc = [{'func': subclass.key, 'name': subclass.key.split('_')[1]}]
                     if klass == AbstractIcclimUnivariateSetFunction:
                         rd = self.test_data.get_rd('cancm4_tas')
@@ -196,7 +197,8 @@ class TestTG10p(TestBase):
         dt_arr = field_pd.temporal.value_datetime
         percentile = 10
         window_width = 5
-        pd = tg.get_percentile_dict(arr, dt_arr, percentile, window_width)
+        pd = tg.get_percentile_dict(arr, dt_arr, percentile, window_width, field_pd.temporal.calendar,
+                                    field_pd.temporal.units)
         tg = IcclimTG10p(field=tas, tgd=tgd, parms={'percentile_dict': pd})
         ret = tg.execute()
         self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))

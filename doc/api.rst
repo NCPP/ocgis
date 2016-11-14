@@ -439,6 +439,8 @@ If ``True``, reorder wrapped coordinates such that the longitude values are in a
 
 If ``False`` (the default), do not attempt to reorder wrapped spherical longitude coordinates.
 
+.. note:: If ``aggregate=True``, no spatial reordering is ever done.
+
 spatial_wrapping
 ~~~~~~~~~~~~~~~~
 

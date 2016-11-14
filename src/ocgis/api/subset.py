@@ -235,7 +235,11 @@ class OperationsEngine(object):
                     # Ensure coordinate are ordered in ascending order if requested. Note this will remove
                     # bounds/corners.
                     if self.ops.spatial_reorder:
-                        _update_longitude_order_(self, field_object)
+                        if self.ops.aggregate:
+                            msg = 'Spatial reordering not applicable for spatial aggregations. Reordering not executed.'
+                            ocgis_lh(msg=msg, level=logging.WARN, logger=self._subset_log)
+                        else:
+                            _update_longitude_order_(self, field_object)
 
                     field[ii] = field_object
 

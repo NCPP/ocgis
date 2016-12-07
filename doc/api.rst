@@ -312,6 +312,11 @@ TIME NAME   VALUE
 3    TASMAX 40.9
 ==== ====== =====
 
+optimized_bbox_subset
+~~~~~~~~~~~~~~~~~~~~~
+
+If ``True``, only perform the bounding box subset ignoring other subsetting procedures such as spatial operations on geometry objects using a spatial index. Using this option should result in lower memory requirements and shorter processing times for subsets. Note this assumes the bounding box aligns appropriately with the target grid.
+
 output_crs
 ~~~~~~~~~~
 

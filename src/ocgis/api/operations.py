@@ -115,6 +115,8 @@ class OcgOperations(object):
      ascending order. Reordering assumes the first row of longitude coordinates are representative of the other
      longitude coordinate rows. Bounds and corners will be removed in the event of a reorder. Only applies to spherical
      coordinate systems.
+    :param bool optimized_bbox_subset: If ``True``, only perform the bounding box subset ignoring other subsetting
+     procedures such as spatial operations on geometry objects using a spatial index.
     """
 
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,
@@ -126,7 +128,7 @@ class OcgOperations(object):
                  optimizations=None, callback=None, time_range=None, time_region=None, time_subset_func=None,
                  level_range=None, conform_units_to=None, select_nearest=False, regrid_destination=None,
                  regrid_options=None, melted=False, output_format_options=None, spatial_wrapping=None,
-                 spatial_reorder=False):
+                 spatial_reorder=False, optimized_bbox_subset=False):
 
         # Tells "__setattr__" to not perform global validation until all values are initially set.
         self._is_init = True
@@ -162,6 +164,7 @@ class OcgOperations(object):
         self.interpolate_spatial_bounds = InterpolateSpatialBounds(interpolate_spatial_bounds)
         self.add_auxiliary_files = AddAuxiliaryFiles(add_auxiliary_files)
         self.optimizations = Optimizations(optimizations)
+        self.optimized_bbox_subset = OptimizedBoundingBoxSubset(optimized_bbox_subset)
         self.callback = Callback(callback)
         self.time_range = TimeRange(time_range)
         self.time_region = TimeRegion(time_region)

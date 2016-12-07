@@ -917,6 +917,13 @@ class Optimizations(base.AbstractParameter):
             raise DefinitionValidationError(self, msg)
 
 
+class OptimizedBoundingBoxSubset(base.BooleanParameter):
+    name = 'optimized_bbox_subset'
+    default = False
+    meta_true = 'Optimized bounding box subset used.'
+    meta_false = 'Standard subsetting procedure used.'
+
+
 class OutputCRS(base.AbstractParameter):
     input_types = [CoordinateReferenceSystem]
     name = 'output_crs'

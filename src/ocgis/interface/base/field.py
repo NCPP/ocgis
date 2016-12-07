@@ -223,9 +223,9 @@ class Field(Attributes):
         ret['fconvert'] = fconvert
         return ret
 
-    def get_intersects(self, polygon, use_spatial_index=True, select_nearest=False):
+    def get_intersects(self, polygon, use_spatial_index=True, select_nearest=False, optimized_bbox_subset=False):
         return(self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
-                                            select_nearest=select_nearest))
+                                            select_nearest=select_nearest, optimized_bbox_subset=optimized_bbox_subset))
 
     def get_iter(self, add_masked_value=True, value_keys=None, melted=True, use_upper_keys=False, headers=None,
                  ugeom=None):
@@ -612,11 +612,12 @@ class Field(Attributes):
 
         self.write_attributes_to_netcdf_object(dataset)
 
-    def _get_spatial_operation_(self, attr, polygon, use_spatial_index=True, select_nearest=False):
+    def _get_spatial_operation_(self, attr, polygon, use_spatial_index=True, select_nearest=False,
+                                optimized_bbox_subset=False):
         ref = getattr(self.spatial, attr)
         ret = copy(self)
         ret.spatial, slc = ref(polygon, return_indices=True, use_spatial_index=use_spatial_index,
-                               select_nearest=select_nearest)
+                               select_nearest=select_nearest, optimized_bbox_subset=optimized_bbox_subset)
         slc = [slice(None), slice(None), slice(None)] + list(slc)
         ret.variables = self.variables.get_sliced_variables(slc)
 

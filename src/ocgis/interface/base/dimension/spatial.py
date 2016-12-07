@@ -308,11 +308,12 @@ class SpatialDimension(base.AbstractUidDimension):
 
         return sdim
 
-    def get_clip(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
-        assert (type(polygon) in (Polygon, MultiPolygon))
+    def get_clip(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False,
+                 optimized_bbox_subset=False):
+        assert type(polygon) in (Polygon, MultiPolygon)
 
         ret, slc = self.get_intersects(polygon, return_indices=True, use_spatial_index=use_spatial_index,
-                                       select_nearest=select_nearest)
+                                       select_nearest=select_nearest, optimized_bbox_subset=optimized_bbox_subset)
 
         # # clipping with points is okay...
         if ret.geom.polygon is not None:
@@ -325,7 +326,7 @@ class SpatialDimension(base.AbstractUidDimension):
         if return_indices:
             ret = (ret, slc)
 
-        return (ret)
+        return ret
 
     def get_fiona_schema(self):
         """
@@ -376,7 +377,8 @@ class SpatialDimension(base.AbstractUidDimension):
             uid = r_uid[row_idx, col_idx]
             yield (row_idx, col_idx, geom, uid)
 
-    def get_intersects(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False):
+    def get_intersects(self, polygon, return_indices=False, use_spatial_index=True, select_nearest=False,
+                       optimized_bbox_subset=False):
         """
         :param polygon: The subset geometry objec to use for the intersects operation.
         :type polygon: :class:`shapely.geometry.polygon.Polygon` or :class:`shapely.geometry.multipolygon.MultiPolygon`
@@ -384,6 +386,8 @@ class SpatialDimension(base.AbstractUidDimension):
         :param bool use_spatial_index: If ``True``, use an ``rtree`` spatial index.
         :param bool select_nearest: If ``True``, select the geometry nearest ``polygon`` using
          :meth:`shapely.geometry.base.BaseGeometry.distance`.
+        :param bool optimized_bbox_subset: If ``True``, only perform the bounding box subset ignoring other subsetting
+         procedures such as spatial operations on geometry objects using a spatial index.
         :raises: ValueError, NotImplementedError
         :rtype: If ``return_indices`` is ``False``: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`.
          If ``return_indices`` is ``True``: (:class:`ocgis.interface.base.dimension.spatial.SpatialDimension`,
@@ -423,40 +427,49 @@ class SpatialDimension(base.AbstractUidDimension):
                 # update the unique identifier to copy the grid uid
                 ret.uid = ret.grid.uid
                 assert not self.uid.mask.any()
-                # attempt to mask the polygons if the abstraction is point or none
-                if self.geom.polygon is not None and self.abstraction in ['polygon', None]:
-                    ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon,
+
+                # Optimize for the bounding box by skipping compute-intensive GIS operations.
+                if not optimized_bbox_subset:
+                    # attempt to mask the polygons if the abstraction is point or none
+                    if self.geom.polygon is not None and self.abstraction in ['polygon', None]:
+                        ret._geom._polygon = ret.geom.polygon.get_intersects_masked(polygon,
+                                                                                    use_spatial_index=use_spatial_index)
+                        grid_mask = ret.geom.polygon.value.mask
+                    else:
+                        ret._geom._point = ret.geom.point.get_intersects_masked(polygon,
                                                                                 use_spatial_index=use_spatial_index)
-                    grid_mask = ret.geom.polygon.value.mask
-                else:
-                    ret._geom._point = ret.geom.point.get_intersects_masked(polygon,
-                                                                            use_spatial_index=use_spatial_index)
-                    grid_mask = ret.geom.point.value.mask
+                        grid_mask = ret.geom.point.value.mask
+
                 assert not self.uid.mask.any()
                 ret.grid.value.unshare_mask()
-                # transfer the geometry mask to the grid mask
-                ret.grid.value.mask[:, :, :] = grid_mask.copy()
-                # transfer the geometry mask to the grid uid mask
-                ret.grid.uid.unshare_mask()
-                ret.grid.uid.mask = grid_mask.copy()
-                # also transfer the mask to corners
-                if ret.grid._corners is not None:
-                    ret.grid.corners.unshare_mask()
-                    ref = ret.grid.corners.mask
-                    for (ii, jj), mask_value in iter_array(grid_mask, return_value=True):
-                        ref[:, ii, jj, :] = mask_value
 
-                # barbed and circular geometries may result in rows and or columns being entirely masked. these rows and
-                # columns should be trimmed.
-                _, adjust = get_trimmed_array_by_mask(ret.get_mask(), return_adjustments=True)
-                # use the adjustments to trim the returned data object
-                ret = ret[adjust['row'], adjust['col']]
+                # These operations are also for the compute-itensive GIS operations.
+                if not optimized_bbox_subset:
+                    # transfer the geometry mask to the grid mask
+                    ret.grid.value.mask[:, :, :] = grid_mask.copy()
+                    # transfer the geometry mask to the grid uid mask
+                    ret.grid.uid.unshare_mask()
+                    ret.grid.uid.mask = grid_mask.copy()
+                    # also transfer the mask to corners
+                    if ret.grid._corners is not None:
+                        ret.grid.corners.unshare_mask()
+                        ref = ret.grid.corners.mask
+                        for (ii, jj), mask_value in iter_array(grid_mask, return_value=True):
+                            ref[:, ii, jj, :] = mask_value
 
-                # adjust the returned slices
-                if return_indices and not select_nearest:
-                    ret_slc = [None, None]
-                    ret_slc[0] = get_added_slice(slc[0], adjust['row'])
-                    ret_slc[1] = get_added_slice(slc[1], adjust['col'])
+                    # barbed and circular geometries may result in rows and or columns being entirely masked. these rows
+                    # and columns should be trimmed.
+                    _, adjust = get_trimmed_array_by_mask(ret.get_mask(), return_adjustments=True)
+                    # use the adjustments to trim the returned data object
+                    ret = ret[adjust['row'], adjust['col']]
+
+                    # adjust the returned slices
+                    if return_indices and not select_nearest:
+                        ret_slc = [None, None]
+                        ret_slc[0] = get_added_slice(slc[0], adjust['row'])
+                        ret_slc[1] = get_added_slice(slc[1], adjust['col'])
+                else:
+                    ret_slc = slc
 
         else:
             raise NotImplementedError

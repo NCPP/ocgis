@@ -419,7 +419,8 @@ class OperationsEngine(object):
         try:
             if self.ops.spatial_operation == 'intersects':
                 sfield = field.get_intersects(subset_geom, use_spatial_index=env.USE_SPATIAL_INDEX,
-                                              select_nearest=self.ops.select_nearest)
+                                              select_nearest=self.ops.select_nearest,
+                                              optimized_bbox_subset=self.ops.optimized_bbox_subset)
             elif self.ops.spatial_operation == 'clip':
                 sfield = field.get_clip(subset_geom, use_spatial_index=env.USE_SPATIAL_INDEX,
                                         select_nearest=self.ops.select_nearest)

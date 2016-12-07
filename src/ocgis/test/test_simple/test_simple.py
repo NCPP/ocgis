@@ -236,6 +236,17 @@ class TestSimple(TestSimpleBase):
             with self.assertRaises(ValueError):
                 ops.execute()
 
+    def test_optimized_bbox_subset(self):
+        rd = RequestDataset(**self.get_dataset())
+        geom = [-104.4, 37.6, -102.9, 39.4]
+
+        ops = OcgOperations(dataset=rd, geom=geom, optimized_bbox_subset=True)
+        ret = ops.execute()
+
+        actual = ret[1]['foo'].spatial.grid.value.tolist()
+        desired = [[[38.0, 38.0], [39.0, 39.0]], [[-104.0, -103.0], [-104.0, -103.0]]]
+        self.assertEqual(actual, desired)
+
     def test_operations_abstraction_used_for_subsetting(self):
         ret = self.get_ret(kwds={'abstraction': 'point'})
         ref = ret[1]['foo']

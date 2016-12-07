@@ -23,9 +23,9 @@ dependencies:
 - mpi4py=2.0.0=py27_1
 - mpich2=1.4.1p1=0
 - munch=2.0.4=py27_0
-- netcdf-fortran=4.4.1=1
-- netcdf4=1.2.2=np110py27_0
-- numpy=1.10.4=py27_0
+- netcdf-fortran
+- netcdf4
+- numpy
 - ocgis
 - openssl=1.0.2f=0
 - pip=8.0.2=py27_0

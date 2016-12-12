@@ -377,6 +377,9 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     # If False, no attempt to read projection coordinates will be made. they will be set to a None default.
     _find_projection_coordinates = True
 
+    # Default map parameter values.
+    map_parameters_defaults = {}
+
     def __init__(self, **kwds):
         self.projection_x_coordinate = kwds.pop('projection_x_coordinate', None)
         self.projection_y_coordinate = kwds.pop('projection_y_coordinate', None)
@@ -397,7 +400,11 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
                 v = getattr(self, self.iterable_parameters[k])(kwds[k])
                 crs.update(v)
             else:
-                crs.update({self.map_parameters[k]: kwds[k]})
+                try:
+                    crs.update({self.map_parameters[k]: kwds[k]})
+                except KeyError:
+                    # Attempt to load any default map parameter values.
+                    crs.update({self.map_parameters[k]: self.map_parameters_defaults[k]})
 
         super(CFCoordinateReferenceSystem, self).__init__(value=crs, name=name)
 
@@ -540,6 +547,8 @@ class CFLambertConformal(CFCoordinateReferenceSystem):
                       'false_easting': 'x_0',
                       'false_northing': 'y_0',
                       'units': 'units'}
+    map_parameters_defaults = {'false_easting': 0,
+                               'false_northing': 0}
     proj_name = 'lcc'
 
     @classmethod

@@ -16,7 +16,6 @@ from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
     SpatialDimension
-from ocgis.interface.metadata import NcMetadata
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.test.base import attr
 from ocgis.util.helpers import make_poly
@@ -395,27 +394,62 @@ class TestCFAlbersEqualArea(TestBase):
 
 
 class TestCFLambertConformalConic(TestBase):
-    @attr('data')
-    def test_load_from_metadata(self):
-        uri = self.test_data.get_uri('narccap_wrfg')
-        ds = nc.Dataset(uri,'r')
-        meta = NcMetadata(ds)
-        crs = CFLambertConformal.load_from_metadata('pr',meta)
-        self.assertEqual(crs.name, 'Lambert_Conformal')
-        self.assertEqual(crs.value,{'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc', 'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
-        self.assertIsInstance(crs,CFLambertConformal)
-        self.assertEqual(['xc','yc'],[crs.projection_x_coordinate,crs.projection_y_coordinate])
-        self.assertNumpyAll(np.array([ 30.,  60.]),crs.map_parameters_values.pop('standard_parallel'))
-        self.assertEqual(crs.map_parameters_values,{u'latitude_of_projection_origin': 47.5, u'longitude_of_central_meridian': -97.0, u'false_easting': 3325000.0, u'false_northing': 2700000.0, 'units': u'm'})
-        ds.close()
+    @property
+    def archetype_minimal_metadata(self):
+        min_meta = {'variables': {'pr': {'name': 'pr',
+                                         'attrs': {'grid_mapping': 'Lambert_Conformal'}
+                                         },
+                                  'Lambert_Conformal': {'name': 'Lambert_Conformal',
+                                                        'attrs': {'false_easting': 3325000.0,
+                                                                  'standard_parallel': [30., 60.],
+                                                                  'false_northing': 2700000.0,
+                                                                  'grid_mapping_name': 'lambert_conformal_conic',
+                                                                  'latitude_of_projection_origin': 47.5,
+                                                                  'longitude_of_central_meridian': -97.0},
+                                                        },
+                                  'xc': {'name': 'xc',
+                                         'attrs': {'units': 'm',
+                                                   'standard_name': 'projection_x_coordinate',
+                                                   'axis': 'X'}
+                                         },
+                                  'yc': {'name': 'yc',
+                                         'attrs': {'units': 'm',
+                                                   'standard_name': 'projection_y_coordinate',
+                                                   'axis': 'Y'}
+                                         }
+                                  }
+                    }
+        return min_meta
 
-    @attr('data')
+    def test_load_from_metadata(self):
+        crs = CFLambertConformal.load_from_metadata('pr', self.archetype_minimal_metadata)
+        self.assertEqual(crs.name, 'Lambert_Conformal')
+        self.assertEqual(crs.value, {'lon_0': -97, 'ellps': 'WGS84', 'y_0': 2700000, 'no_defs': True, 'proj': 'lcc',
+                                     'x_0': 3325000, 'units': 'm', 'lat_2': 60, 'lat_1': 30, 'lat_0': 47.5})
+        self.assertIsInstance(crs, CFLambertConformal)
+        self.assertEqual(['xc', 'yc'], [crs.projection_x_coordinate, crs.projection_y_coordinate])
+        self.assertEqual([30., 60.], crs.map_parameters_values.pop('standard_parallel'))
+        self.assertEqual(crs.map_parameters_values,
+                         {'latitude_of_projection_origin': 47.5, 'longitude_of_central_meridian': -97.0,
+                          'false_easting': 3325000.0, 'false_northing': 2700000.0, 'units': 'm'})
+
+    def test_load_from_metadata_no_falses(self):
+        """Test without false easting and false northing in attributes."""
+
+        meta = self.archetype_minimal_metadata
+        to_pop = ['false_easting', 'false_northing']
+        for t in to_pop:
+            meta['variables']['Lambert_Conformal']['attrs'].pop(t)
+
+        crs = CFLambertConformal.load_from_metadata('pr', meta)
+        self.assertIsInstance(crs, CFLambertConformal)
+
+        for proj_parm in ['x_0', 'y_0']:
+            self.assertEqual(crs.value[proj_parm], 0)
+
     def test_write_to_rootgrp(self):
-        uri = self.test_data.get_uri('narccap_wrfg')
-        ds = nc.Dataset(uri,'r')
-        meta = NcMetadata(ds)
-        ds.close()
-        crs = CFLambertConformal.load_from_metadata('pr',meta)
+        meta = self.archetype_minimal_metadata
+        crs = CFLambertConformal.load_from_metadata('pr', meta)
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with nc_scope(path, 'w') as ds:
             variable = crs.write_to_rootgrp(ds)
@@ -425,10 +459,12 @@ class TestCFLambertConformalConic(TestBase):
                 try:
                     self.assertEqual(variable_v, v)
                 except ValueError:
-                    self.assertNumpyAll(variable_v, v)
+                    # Some values come back as NumPy arrays.
+                    self.assertEqual(variable_v.tolist(), v)
 
         with nc_scope(path) as ds:
-            meta2 = NcMetadata(ds)
+            meta2 = {'variables': {'Lambert_Conformal': {'attrs': dict(ds.variables['Lambert_Conformal'].__dict__),
+                                                         'name': 'Lambert_Conformal'}}}
         meta['variables']['Lambert_Conformal'] = meta2['variables']['Lambert_Conformal']
         crs2 = CFLambertConformal.load_from_metadata('pr', meta)
         self.assertEqual(crs, crs2)

@@ -41,7 +41,7 @@ class NcVectorDimension(VectorDimension):
         try:
             try:
                 # Reference the variable object.
-                var = ds.variables[self.name_value]
+                var = self._get_variable_from_dataset_(ds, self.name_value)
             except KeyError:
                 # For the realization/projection axis, there may in fact be no value associated with it. In it's place,
                 # put a standard integer array.
@@ -54,3 +54,6 @@ class NcVectorDimension(VectorDimension):
             return ret
         finally:
             self._request_dataset.driver.close(ds)
+
+    def _get_variable_from_dataset_(self, dataset, variable_name):
+        return dataset.variables[variable_name]

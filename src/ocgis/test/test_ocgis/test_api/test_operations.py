@@ -23,6 +23,7 @@ from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.variable import Variable
 from ocgis.test.base import TestBase, attr
+from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
 from ocgis.util.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.util.helpers import make_poly
 
@@ -726,6 +727,24 @@ class TestOcgOperationsNoData(TestBase):
         field = Field(spatial=spatial, variables=var)
 
         return field
+
+    def test_system_mftime(self):
+        """Test a multi-file dataset with varying units on the time variables."""
+
+        paths = create_mftime_nc_files(self, with_all_cf=True)
+        rd = RequestDataset(paths)
+        field = rd.get()
+        self.assertIsNone(field.temporal._value)
+
+        desired = [0., 1., 2., 366., 367., 368.]
+        actual = field.temporal.value.tolist()
+        self.assertEqual(actual, desired)
+
+        ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_NETCDF)
+        ret = ops.execute()
+
+        out_rd = RequestDataset(uri=ret)
+        self.assertEqual(out_rd.get().temporal.value.tolist(), desired)
 
     def test_keyword_spatial_wrapping(self):
         keywords = {'spatial_wrapping': list(SpatialWrapping.iter_possible()),

@@ -5,6 +5,7 @@ from warnings import warn
 
 import netCDF4 as nc
 import numpy as np
+from netCDF4._netCDF4 import MFDataset, MFTime
 
 from ocgis import messages, TemporalDimension
 from ocgis.api.request.driver.base import AbstractDriver
@@ -25,6 +26,14 @@ class NcTemporalDimension(TemporalDimension, NcVectorDimension):
 
     def __init__(self, *args, **kwargs):
         TemporalDimension.__init__(self, *args, **kwargs)
+
+    def _get_variable_from_dataset_(self, dataset, variable_name):
+        base_variable = super(NcTemporalDimension, self)._get_variable_from_dataset_(dataset, variable_name)
+        if isinstance(dataset, MFDataset):
+            ret = MFTime(base_variable)
+        else:
+            ret = base_variable
+        return ret
 
 
 class DriverNetcdf(AbstractDriver):

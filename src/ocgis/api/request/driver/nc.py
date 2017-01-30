@@ -49,7 +49,7 @@ class DriverNetcdf(AbstractDriver):
     def open(self):
         try:
             ret = nc.Dataset(self.rd.uri, 'r')
-        except (TypeError, RuntimeError):
+        except (TypeError, RuntimeError, IOError):
             try:
                 ret = nc.MFDataset(self.rd.uri)
             except KeyError as e:

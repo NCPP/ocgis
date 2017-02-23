@@ -20,15 +20,31 @@ class NcField(Field):
         if self.realization is not None:
             axis_slc['R'] = self.realization._src_idx
         if self.level is not None:
-            axis_slc['Z'] = self.level._src_idx
+            # Scalar level dimensions have no place on the data variable.
+            if not self.level.is_scalar:
+                axis_slc['Z'] = self.level._src_idx
 
         dim_map = request_dataset.source_metadata['dim_map']
-        slc = [None for v in dim_map.values() if v is not None]
+
+        # Handle scalar level dimensions.
+        if self.level is not None and self.level.is_scalar:
+            slc = [None for v in dim_map.values() if v is not None and v['dimension'] is not None]
+        else:
+            slc = [None for v in dim_map.values() if v is not None]
+
         axes = deepcopy(slc)
         for k, v in dim_map.iteritems():
             if v is not None:
-                slc[v['pos']] = axis_slc[k]
-                axes[v['pos']] = k
+                try:
+                    slc[v['pos']] = axis_slc[k]
+                except KeyError:
+                    # No position for scalar level dimensions.
+                    if k == 'Z' and self.level.is_scalar:
+                        continue
+                    else:
+                        raise
+                else:
+                    axes[v['pos']] = k
         # Ensure axes ordering is as expected.
         possible = [['T', 'Y', 'X'], ['T', 'Z', 'Y', 'X'], ['R', 'T', 'Y', 'X'], ['R', 'T', 'Z', 'Y', 'X']]
         check = [axes == poss for poss in possible]

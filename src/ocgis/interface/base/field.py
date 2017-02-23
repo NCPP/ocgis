@@ -559,7 +559,7 @@ class Field(Attributes):
         try:
             with name_scope(self.level, 'level', 'Z'):
                 self.level.write_netcdf(dataset, unlimited_to_fixedsize=unlimited_to_fixedsize, **kwargs)
-                if self.level is not None:
+                if self.level is not None and not self.level.is_scalar:
                     value_dimensions.append(self.level.name)
         except AttributeError:
             if self.level is not None:

@@ -80,6 +80,24 @@ class TestOcgOperations(TestBase):
         self.assertGreater(len(ret), 1000)
 
     @attr('data')
+    def test_system_scalar_level_dimension(self):
+        """Test scalar level dimensions are not dropped in netCDF output."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        desired_height_metadata = rd.source_metadata['variables']['height']
+        ops = OcgOperations(dataset=rd, output_format='nc', snippet=True)
+        ret = ops.execute()
+
+        rd_out = RequestDataset(uri=ret)
+        actual = rd_out.source_metadata['variables']['height']
+
+        # Not worried about order of attributes.
+        desired_height_metadata['attrs'] = dict(desired_height_metadata['attrs'])
+        actual['attrs'] = dict(actual['attrs'])
+
+        self.assertDictEqual(actual, desired_height_metadata)
+
+    @attr('data')
     def test_get_base_request_size(self):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)

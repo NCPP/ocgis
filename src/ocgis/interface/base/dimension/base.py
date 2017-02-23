@@ -1,6 +1,6 @@
 import abc
 from collections import OrderedDict
-from copy import copy
+from copy import copy, deepcopy
 from operator import mul
 
 import numpy as np
@@ -191,6 +191,7 @@ class VectorDimension(AbstractUidValueDimension):
             msg = 'Without a "request_dataset" object, "value" is required.'
             raise ValueError(msg)
 
+        self.is_scalar = kwargs.pop('is_scalar', False)
         self._bounds = None
         self._name_bounds = None
         self._name_bounds_tuple = None
@@ -429,6 +430,8 @@ class VectorDimension(AbstractUidValueDimension):
          http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         """
 
+        kwargs = deepcopy(kwargs)
+
         if self.name is None:
             raise ValueError('Writing to netCDF requires a "name" be set to a string value. It is currently None.')
 
@@ -440,8 +443,11 @@ class VectorDimension(AbstractUidValueDimension):
             size = None
         else:
             size = self.shape[0]
-        dataset.createDimension(self.name, size=size)
-        kwargs['dimensions'] = (self.name,)
+
+        if not self.is_scalar:
+            dataset.createDimension(self.name, size=size)
+            kwargs['dimensions'] = (self.name,)
+
         variable = dataset.createVariable(self.name_value, self.value.dtype, **kwargs)
         variable[:] = self.value
         variable.axis = self.axis if self.axis is not None else ''

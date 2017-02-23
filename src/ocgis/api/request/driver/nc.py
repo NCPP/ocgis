@@ -210,7 +210,16 @@ class DriverNetcdf(AbstractDriver):
                 return ref_variable
 
             # Extract the data length to use when creating the source index arrays.
-            length = source_metadata['dimensions'][ref_axis['dimension']]['len']
+            try:
+                length = source_metadata['dimensions'][ref_axis['dimension']]['len']
+                is_scalar = False
+            except KeyError:
+                # Scalar level dimensions have no length.
+                if axis_value == 'Z' and ref_axis['dimension'] is None:
+                    length = 1
+                    is_scalar = True
+                else:
+                    raise
             src_idx = np.arange(0, length, dtype=np.int32)
 
             # Get the target data type for the dimension.
@@ -226,13 +235,20 @@ class DriverNetcdf(AbstractDriver):
             # Get the dimension's name.
             name = ref_variable['axis']['dimension']
             # Get if the dimension is unlimited.
-            unlimited = source_metadata['dimensions'][name]['isunlimited']
+            try:
+                unlimited = source_metadata['dimensions'][name]['isunlimited']
+            except KeyError:
+                if is_scalar:
+                    # Scalar level dimensions do not care about being unlimited.
+                    unlimited = False
+                else:
+                    raise
 
             # Assemble keyword arguments for the dimension.
             kwds = dict(name_uid=v['name_uid'], src_idx=src_idx, request_dataset=self.rd, meta=ref_variable,
                         axis=axis_value, name_value=ref_variable.get('name'), dtype=dtype,
                         attrs=ref_variable['attrs'].copy(), name=name, name_bounds=ref_variable['axis'].get('bounds'),
-                        unlimited=unlimited)
+                        unlimited=unlimited, is_scalar=is_scalar)
 
             # There may be additional parameters for each dimension.
             if v['adds'] is not None:
@@ -417,6 +433,15 @@ def get_dimension_map(variable, metadata):
         except ValueError:
             # variable name may differ from the dimension name
             mp[axis].update({'pos': dims.index(dim)})
+
+    # Do a quick loop over the variables to search for scalar level dimensions.
+    if mp['Z'] is None:
+        for variable_name, variable_meta in metadata['variables'].items():
+            attrs = variable_meta.get('attrs')
+            for attr_name, attr_value in attrs.items():
+                if attr_name == 'axis' and attr_value == 'Z':
+                    mp['Z'] = {'variable': variable_name, 'dimension': None, 'pos': None}
+                    break
 
     # look for bounds variables
     # bounds_names = set(constants.name_bounds)

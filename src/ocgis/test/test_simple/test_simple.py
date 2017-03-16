@@ -837,6 +837,7 @@ class TestSimple(TestSimpleBase):
                     self.assertEqual(len(f), 64)
 
     def test_shp_conversion_with_external_geometries(self):
+        env.ENABLE_FILE_LOGGING = True
 
         def _make_record_(wkt_str, ugid, state_name):
             geom = wkt.loads(wkt_str)
@@ -900,6 +901,7 @@ class TestSimple(TestSimpleBase):
 
     def test_csv_conversion(self):
         ocgis.env.OVERWRITE = True
+        ocgis.env.ENABLE_FILE_LOGGING = True
 
         geom = make_poly((38, 39), (-104, -103))
         for melted in [True, False]:
@@ -1025,6 +1027,8 @@ class TestSimple(TestSimpleBase):
         self.get_ret(ops)
 
     def test_csv_shapefile_conversion(self):
+        env.ENABLE_FILE_LOGGING = True
+
         ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
         ops.execute()
 

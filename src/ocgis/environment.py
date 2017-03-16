@@ -72,6 +72,7 @@ class Environment(object):
         self.NETCDF_FILE_FORMAT = EnvParm('NETCDF_FILE_FORMAT', constants.NETCDF_DEFAULT_DATA_MODEL, formatter=str)
         self.NP_INT = EnvParm('NP_INT', constants.DEFAULT_NP_INT)
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
+        self.ADD_OPS_MPI_BARRIER = EnvParm('ADD_OPS_MPI_BARRIER', True, formatter=self._format_bool_)
 
         from ocgis.variable.crs import CFSpherical
 

@@ -145,6 +145,9 @@ class OcgInterpreter(Interpreter):
         finally:
             ocgis_lh.shutdown()
 
+            if env.ADD_OPS_MPI_BARRIER:
+                MPI_COMM.Barrier()
+
     def _get_converter_(self, conv_klass, outdir, prefix, so):
         """
         :param conv_klass: The target converter class.

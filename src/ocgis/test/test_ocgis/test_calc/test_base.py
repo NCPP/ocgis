@@ -155,11 +155,21 @@ class MockMultiParamFunction(AbstractFieldFunction, AbstractMultivariateFunction
     required_variables = ('lhs', 'rhs')
 
     def calculate(self, lhs=None, rhs=None, the_exponent=None, offset=None):
+        # Access the variable object by name from the calculation field.
         lhs = self.field[lhs]
         rhs = self.field[rhs]
 
+        # Dimensions similar to netCDF dimensions are available on the variables.
+        assert len(lhs.dimensions) > 0
+        # The get_value() call returns a numpy array. Mask is retrieved by get_mask(). You can get a masked array
+        # by using get_masked_value(). These return references.
         value = (rhs.get_value() - lhs.get_value()) ** the_exponent + offset
+        # Recommended that this method is used to create the output variables. Adds appropriate calculations attributes,
+        # extra record information for tabular output, etc. At the very least, it is import to reuse the dimensions
+        # appropriately as they contain global/local bounds for parallel IO. You can pass a masked array to
+        # "variable_value".
         variable = self.get_fill_variable(lhs, self.alias, lhs.dimensions, variable_value=value)
+        # Add the output variable to calculations variable collection. This is what is returned by the execute() call.
         self.vc.add_variable(variable)
 
 

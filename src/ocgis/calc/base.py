@@ -181,6 +181,22 @@ class AbstractFunction(object):
 
     def get_fill_variable(self, archetype, name, dimensions, file_only=False, dtype=None, add_repeat_record=True,
                           add_repeat_record_archetype_name=True, variable_value=None):
+        """
+        Initialize a return variable for a calculation.
+
+        :param archetype: An archetypical variable to use for the creation of the output variable.
+        :type archetype: :class:`ocgis.Variable`
+        :param str name: Name of the output variable.
+        :param dimensions: Dimension tuple for the variable creation. The dimensions from `archetype` or not used
+         because output dimensions are often different. Temporal grouping is an example of this.
+        :type dimensions: tuple(:class:`ocgis.Dimension`, ...)
+        :param bool file_only: If `True`, this is a file-only operation and no value should be allocated.
+        :param type dtype: The data type for the output variable.
+        :param bool add_repeat_record: If `True`, add a repeat record to the variable containing the calculation key.
+        :param add_repeat_record_archetype_name: If `True`, add the `archetype` name repeat record.
+        :param variable_value: If not `None`, use this as the variable value during initialization.
+        :return: :class:`ocgis.Variable`
+        """
         # If a default data type was provided at initialization, use this value otherwise use the data type from the
         # input value.
         if dtype is None:
@@ -557,7 +573,7 @@ class AbstractFieldFunction(AbstractFunction):
         output field. Clients are responsible for creating well-formed variables with appropriate units, etc. as this
         function type bypasses most output variable preparation steps.
 
-        :param kwargs: Typically keyword arguments to parameterized functions.
+        :param kwargs: Typically keyword arguments to multivariate and/or parameterized functions.
         """
 
     def _execute_(self):

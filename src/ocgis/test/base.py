@@ -8,27 +8,33 @@ import sys
 import tempfile
 import unittest
 import warnings
+from abc import ABCMeta
 from collections import OrderedDict
 from contextlib import contextmanager
 from copy import deepcopy, copy
+from pprint import pprint
 
 import fiona
 import netCDF4 as nc
 import numpy as np
+from shapely import wkt
+from shapely.geometry import Point
 
-import ocgis
+from ocgis import SourcedVariable
+from ocgis import Variable, Dimension, VariableCollection
 from ocgis import env
-from ocgis.api.collection import SpatialCollection
-from ocgis.api.request.base import RequestDataset
-from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
-from ocgis.interface.base.dimension.temporal import TemporalDimension
-from ocgis.interface.base.field import Field
-from ocgis.interface.base.variable import Variable
-from ocgis.util.geom_cabinet import GeomCabinet
-from ocgis.util.helpers import get_iter
+from ocgis.collection.field import OcgField
+from ocgis.collection.spatial import SpatialCollection
+from ocgis.driver.request import RequestDataset
+from ocgis.spatial.geom_cabinet import GeomCabinet
+from ocgis.spatial.grid import GridXY, get_geometry_variable
+from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.variable.crs import CoordinateReferenceSystem
+from ocgis.variable.geom import GeometryVariable
+from ocgis.variable.temporal import TemporalVariable
+from ocgis.vm.mpi import get_standard_comm_state, OcgMpi, MPI_RANK, variable_scatter, variable_collection_scatter
 
 """
 Definitions for various "attrs":
@@ -39,6 +45,7 @@ Definitions for various "attrs":
  * optional: tests that use optional dependencies
  * data: test requires a data file
  * icclim: test requires ICCLIM
+ * benchmark: test used for benchmarking/performance
 
 nosetests -vs --with-id -a '!slow,!remote' ocgis
 """
@@ -57,10 +64,14 @@ class TestBase(unittest.TestCase):
     """
 
     __metaclass__ = abc.ABCMeta
+    # add MPI barrier during test tear down
+    add_barrier = True
     # set to false to not resent the environment before each test
     reset_env = True
     # set to false to not create and destroy a temporary directory before each test
     create_dir = True
+    # Set to False to keep the test directory following test execution.
+    remove_dir = True
     # set to false to not shutdown logging
     shutdown_logging = True
     # prefix for the temporary test directories
@@ -114,7 +125,8 @@ class TestBase(unittest.TestCase):
             self.assertEqual(set(d1.keys()), set(d2.keys()))
 
     def assertFionaMetaEqual(self, meta, actual, abs_dtype=True):
-        self.assertEqual(meta['crs'], actual['crs'])
+        self.assertEqual(CoordinateReferenceSystem(value=meta['crs']),
+                         CoordinateReferenceSystem(value=actual['crs']))
         self.assertEqual(meta['driver'], actual['driver'])
 
         schema_meta = meta['schema']
@@ -183,6 +195,9 @@ class TestBase(unittest.TestCase):
             to_assert = np.allclose(data_to_check[0], data_to_check[1], rtol=rtol)
         self.assertTrue(to_assert)
 
+    def assertNumpyMayShareMemory(self, *args, **kwargs):
+        self.assertTrue(np.may_share_memory(*args, **kwargs))
+
     def assertNcEqual(self, uri_src, uri_dest, check_types=True, close=False, metadata_only=False,
                       ignore_attributes=None, ignore_variables=None):
         """
@@ -210,6 +225,8 @@ class TestBase(unittest.TestCase):
         ignore_attributes = ignore_attributes or {}
 
         try:
+            self.assertEqual(src.data_model, dest.data_model)
+
             for dimname, dim in src.dimensions.iteritems():
                 self.assertEqual(len(dim), len(dest.dimensions[dimname]))
             self.assertEqual(set(src.dimensions.keys()), set(dest.dimensions.keys()))
@@ -226,10 +243,17 @@ class TestBase(unittest.TestCase):
 
                 try:
                     if not metadata_only:
-                        if close:
-                            self.assertNumpyAllClose(var_value, dvar_value)
+                        if var_value.dtype == object:
+                            for idx in range(var_value.shape[0]):
+                                if close:
+                                    self.assertNumpyAllClose(var_value[idx], dvar_value[idx])
+                                else:
+                                    self.assertNumpyAll(var_value[idx], dvar_value[idx], check_arr_dtype=check_types)
                         else:
-                            self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types)
+                            if close:
+                                self.assertNumpyAllClose(var_value, dvar_value)
+                            else:
+                                self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types)
                 except (AssertionError, AttributeError):
                     # Zero-length netCDF variables should not be tested for value equality. Values are meaningless and
                     # only the attributes should be tested for equality.
@@ -315,6 +339,9 @@ class TestBase(unittest.TestCase):
         :raises: AssertionError
         """
 
+        arr1 = np.array(arr1)
+        arr2 = np.array(arr2)
+
         self.assertEqual(type(arr1), type(arr2))
         self.assertEqual(arr1.shape, arr2.shape)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
@@ -390,10 +417,23 @@ class TestBase(unittest.TestCase):
 
         field = kwargs.pop('field', None) or self.get_field(**kwargs)
         coll = SpatialCollection()
-        coll.add_field(field)
+        coll.add_field(field, None)
         conv = ESMPyConverter([coll])
         efield = conv.write()
         return efield
+
+    @staticmethod
+    def get_exact_field_value(longitude, latitude):
+        longitude = np.atleast_1d(longitude)
+        latitude = np.atleast_1d(latitude)
+        select = longitude < 0
+        if np.any(select):
+            longitude = deepcopy(longitude)
+            longitude[select] += 360.
+        longitude_radians = longitude * 0.0174533
+        latitude_radians = latitude * 0.0174533
+        exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
+        return exact
 
     def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False):
         """
@@ -410,15 +450,18 @@ class TestBase(unittest.TestCase):
         """
 
         np.random.seed(1)
-        row = VectorDimension(value=[4., 5.], name='row')
-        col = VectorDimension(value=[40., 50.], name='col')
+        # row = VectorDimension(value=[4., 5.], name='row')
+        row = Variable(value=[4., 5.], name='row', dimensions='row')
+        col = Variable(value=[40., 50.], name='col', dimensions='col')
+        # col = VectorDimension(value=[40., 50.], name='col')
 
         if with_bounds:
             row.set_extrapolated_bounds()
             col.set_extrapolated_bounds()
 
-        grid = SpatialGridDimension(row=row, col=col)
-        sdim = SpatialDimension(grid=grid, crs=crs)
+        # grid = SpatialGridDimension(row=row, col=col)
+        # sdim = SpatialDimension(grid=grid, crs=crs)
+        grid = GridXY(col, row)
 
         if ntime == 2:
             value_temporal = [datetime.datetime(2000, 1, 1), datetime.datetime(2000, 2, 1)]
@@ -431,22 +474,26 @@ class TestBase(unittest.TestCase):
                 value_temporal.append(start)
                 start += delta
                 ctr += 1
-        temporal = TemporalDimension(value=value_temporal)
+        # temporal = TemporalDimension(value=value_temporal)
+        temporal = TemporalVariable(value=value_temporal, dimensions='time', name='time')
 
         if nlevel is None:
             nlevel = 1
             level = None
         else:
-            level = VectorDimension(value=range(1, nlevel + 1), name='level')
+            # level = VectorDimension(value=range(1, nlevel + 1), name='level')
+            level = Variable(value=range(1, nlevel + 1), name='level', dimensions='level')
 
         if nrlz is None:
             nrlz = 1
             realization = None
         else:
-            realization = VectorDimension(value=range(1, nrlz + 1), name='realization')
+            # realization = VectorDimension(value=range(1, nrlz + 1), name='realization')
+            realization = Variable(value=range(1, nrlz + 1), name='realization', dimensions='realization')
 
-        variable = Variable(name='foo', value=np.random.rand(nrlz, ntime, nlevel, 2, 2))
-        field = Field(spatial=sdim, temporal=temporal, variables=variable, level=level, realization=realization)
+        variable = Variable(name='foo', value=np.random.rand(nrlz, ntime, nlevel, 2, 2),
+                            dimensions=['realization', 'time', 'level', 'row', 'col'])
+        field = OcgField(grid=grid, time=temporal, is_data=variable, level=level, realization=realization, crs=crs)
 
         return field
 
@@ -520,7 +567,8 @@ class TestBase(unittest.TestCase):
         :rtype: str
         """
 
-        return tempfile.mkdtemp(prefix=self._prefix_path_test)
+        ret = tempfile.mkdtemp(prefix=self._prefix_path_test)
+        return ret
 
     def get_time_series(self, start, end):
         """
@@ -637,11 +685,6 @@ class TestBase(unittest.TestCase):
 
         return test_data
 
-    def inspect(self, uri, variable=None):
-        from ocgis.util.inspect import Inspect
-
-        print Inspect(uri, variable=None)
-
     def iter_product_keywords(self, keywords, as_namedtuple=True):
         return itr_products_keywords(keywords, as_namedtuple=as_namedtuple)
 
@@ -649,6 +692,18 @@ class TestBase(unittest.TestCase):
         if not os.path.isdir(path):
             path = os.path.split(path)[0]
         subprocess.call(['nautilus', path])
+
+    def ncdump(self, path, header_only=True):
+        cmd = ['ncdump']
+        if header_only:
+            cmd.append('-h')
+        cmd.append(path)
+        subprocess.check_call(cmd)
+
+    def inspect(self, **kwargs):
+        from ocgis import RequestDataset
+        rd = RequestDataset(**kwargs)
+        rd.inspect()
 
     def nc_scope(self, *args, **kwargs):
         return nc_scope(*args, **kwargs)
@@ -661,15 +716,30 @@ class TestBase(unittest.TestCase):
         cmd = ['/home/benkoziol/sandbox/PanoplyJ/panoply.sh'] + paths
         subprocess.check_call(cmd)
 
+    def pprint(self, *args, **kwargs):
+        print('')
+        pprint(*args, **kwargs)
+
+    def pprint_dict(self, target):
+        pprint_dict(target)
+
     def print_scope(self):
         return print_scope()
 
     def setUp(self):
+        comm, rank, size = get_standard_comm_state()
+
         self.current_dir_output = None
         if self.reset_env:
             env.reset()
         if self.create_dir:
-            self.current_dir_output = self.get_temporary_output_directory()
+            if rank == 0:
+                temporary_output_directory = self.get_temporary_output_directory()
+            else:
+                temporary_output_directory = None
+            temporary_output_directory = comm.bcast(temporary_output_directory)
+
+            self.current_dir_output = temporary_output_directory
             env.DIR_OUTPUT = self.current_dir_output
 
     def shortDescription(self):
@@ -680,14 +750,22 @@ class TestBase(unittest.TestCase):
         return None
 
     def tearDown(self):
+        comm, rank, size = get_standard_comm_state()
+
         try:
-            if self.create_dir:
-                shutil.rmtree(self.current_dir_output)
+            if self.create_dir and self.remove_dir:
+                if self.add_barrier:
+                    comm.Barrier()
+                if rank == 0:
+                    shutil.rmtree(self.current_dir_output)
         finally:
             if self.reset_env:
                 env.reset()
             if self.shutdown_logging:
                 ocgis_lh.shutdown()
+
+        if self.add_barrier:
+            comm.Barrier()
 
 
 class NeedsTestData(Exception):
@@ -862,3 +940,303 @@ def print_scope():
         yield myprinter
     finally:
         sys.stdout = prev_stdout
+
+
+class AbstractTestInterface(TestBase):
+    __metaclass__ = ABCMeta
+
+    @property
+    def path_state_boundaries(self):
+        path_shp = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
+        return path_shp
+
+    def assertGeometriesAlmostEquals(self, a, b):
+
+        def _almost_equals_(a, b):
+            return a.almost_equals(b)
+
+        vfunc = np.vectorize(_almost_equals_, otypes=[bool])
+        to_test = vfunc(a.value, b.value)
+        self.assertTrue(to_test.all())
+        self.assertNumpyAll(a.get_mask(), b.get_mask())
+
+    def get_boundedvariable(self, mask=None):
+        value = np.array([4, 5, 6], dtype=float)
+        if mask is not None:
+            value = np.ma.array(value, mask=mask)
+        value_bounds = get_bounds_from_1d(value)
+        bounds = Variable('x_bounds', value=value_bounds, dimensions=['x', 'bounds'])
+        var = Variable('x', value=value, bounds=bounds, dimensions=['x'])
+        return var
+
+    def get_gridxy(self, with_2d_variables=False, crs=None, with_xy_bounds=False, with_value_mask=False,
+                   with_parent=False):
+
+        dest_mpi = OcgMpi()
+        dest_mpi.create_dimension('xdim', 3)
+        dest_mpi.create_dimension('ydim', 4, dist=True)
+        dest_mpi.create_dimension('time', 10)
+        dest_mpi.update_dimension_bounds()
+
+        kwds = {'crs': crs}
+
+        if MPI_RANK == 0:
+            x = [101, 102, 103]
+            y = [40, 41, 42, 43]
+
+            x_dim = Dimension('xdim', size=len(x))
+            y_dim = Dimension('ydim', size=len(y))
+
+            if with_2d_variables:
+                x_value, y_value = np.meshgrid(x, y)
+                x_dims = (y_dim, x_dim)
+                y_dims = x_dims
+            else:
+                x_value, y_value = x, y
+                x_dims = (x_dim,)
+                y_dims = (y_dim,)
+
+            if with_value_mask:
+                x_value = np.ma.array(x_value, mask=[False, True, False])
+                y_value = np.ma.array(y_value, mask=[True, False, True, False])
+
+            vx = Variable('x', value=x_value, dtype=float, dimensions=x_dims)
+            vy = Variable('y', value=y_value, dtype=float, dimensions=y_dims)
+            if with_xy_bounds:
+                vx.set_extrapolated_bounds('xbounds', 'bounds')
+                vy.set_extrapolated_bounds('ybounds', 'bounds')
+
+            if with_parent:
+                np.random.seed(1)
+                tas = np.random.rand(10, 3, 4)
+                tas = Variable(name='tas', value=tas, dimensions=['time', 'xdim', 'ydim'])
+
+                rhs = np.random.rand(4, 3, 10) * 100
+                rhs = Variable(name='rhs', value=rhs, dimensions=['ydim', 'xdim', 'time'])
+
+                parent = VariableCollection(variables=[tas, rhs])
+            else:
+                parent = None
+
+        else:
+            vx, vy, parent = [None] * 3
+
+        svx, _ = variable_scatter(vx, dest_mpi)
+        svy, _ = variable_scatter(vy, dest_mpi)
+
+        if with_parent:
+            parent, _ = variable_collection_scatter(parent, dest_mpi)
+            kwds['parent'] = parent
+
+        grid = GridXY(svx, svy, **kwds)
+
+        return grid
+
+    def get_gridxy_global(self, resolution=1.0, with_bounds=True, wrapped=True):
+        half_resolution = 0.5 * resolution
+        y = np.arange(-90.0 + half_resolution, 90.0, resolution)
+        if wrapped:
+            x = np.arange(-180.0 + half_resolution, 180.0, resolution)
+        else:
+            x = np.arange(0.0 + half_resolution, 360.0, resolution)
+
+        ompi = OcgMpi()
+        ompi.create_dimension('x', x.shape[0], dist=True)
+        ompi.create_dimension('y', y.shape[0], dist=True)
+        ompi.update_dimension_bounds()
+
+        if MPI_RANK == 0:
+            x = Variable(name='x', value=x, dimensions='x')
+            y = Variable(name='y', value=y, dimensions='y')
+        else:
+            x, y = [None] * 2
+        x, _ = variable_scatter(x, ompi)
+        y, _ = variable_scatter(y, ompi)
+
+        grid = GridXY(x, y)
+        if with_bounds:
+            grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
+
+        return grid
+
+    def get_geometryvariable(self, **kwargs):
+        value_point_array = np.array([None, None])
+        value_point_array[:] = [Point(1, 2), Point(3, 4)]
+        if kwargs.get('value') is None:
+            kwargs['value'] = kwargs.pop('value', value_point_array)
+        if kwargs.get('dimensions') is None:
+            kwargs['dimensions'] = 'ngeom'
+        pa = GeometryVariable(**kwargs)
+        return pa
+
+    def get_request_dataset(self, **kwargs):
+        data = self.test_data.get_rd('cancm4_tas', kwds=kwargs)
+        return data
+
+    def get_variable_x(self, bounds=True):
+        value = [-100., -99., -98., -97.]
+        if bounds:
+            bounds = [[v - 0.5, v + 0.5] for v in value]
+            bounds = Variable(value=bounds, name='x_bounds', dimensions=['x', 'bounds'])
+        else:
+            bounds = None
+        x = Variable(value=value, bounds=bounds, name='x', dimensions='x')
+        return x
+
+    def get_variable_y(self, bounds=True):
+        value = [40., 39., 38.]
+        if bounds:
+            bounds = [[v + 0.5, v - 0.5] for v in value]
+            bounds = Variable(value=bounds, name='y_bounds', dimensions=['y', 'bounds'])
+        else:
+            bounds = None
+        y = Variable(value=value, bounds=bounds, name='y', dimensions='y')
+        return y
+
+    @property
+    def polygon_value(self):
+        polys = [['POLYGON ((-100.5 40.5, -99.5 40.5, -99.5 39.5, -100.5 39.5, -100.5 40.5))',
+                  'POLYGON ((-99.5 40.5, -98.5 40.5, -98.5 39.5, -99.5 39.5, -99.5 40.5))',
+                  'POLYGON ((-98.5 40.5, -97.5 40.5, -97.5 39.5, -98.5 39.5, -98.5 40.5))',
+                  'POLYGON ((-97.5 40.5, -96.5 40.5, -96.5 39.5, -97.5 39.5, -97.5 40.5))'],
+                 ['POLYGON ((-100.5 39.5, -99.5 39.5, -99.5 38.5, -100.5 38.5, -100.5 39.5))',
+                  'POLYGON ((-99.5 39.5, -98.5 39.5, -98.5 38.5, -99.5 38.5, -99.5 39.5))',
+                  'POLYGON ((-98.5 39.5, -97.5 39.5, -97.5 38.5, -98.5 38.5, -98.5 39.5))',
+                  'POLYGON ((-97.5 39.5, -96.5 39.5, -96.5 38.5, -97.5 38.5, -97.5 39.5))'],
+                 ['POLYGON ((-100.5 38.5, -99.5 38.5, -99.5 37.5, -100.5 37.5, -100.5 38.5))',
+                  'POLYGON ((-99.5 38.5, -98.5 38.5, -98.5 37.5, -99.5 37.5, -99.5 38.5))',
+                  'POLYGON ((-98.5 38.5, -97.5 38.5, -97.5 37.5, -98.5 37.5, -98.5 38.5))',
+                  'POLYGON ((-97.5 38.5, -96.5 38.5, -96.5 37.5, -97.5 37.5, -97.5 38.5))']]
+        return self.get_shapely_from_wkt_array(polys)
+
+    def get_polygonarray(self):
+        grid = self.get_polygon_array_grid()
+        poly = get_geometry_variable(grid)
+        return poly
+
+    def get_polygon_array_grid(self, with_bounds=True):
+        if with_bounds:
+            xb = Variable(value=[[-100.5, -99.5], [-99.5, -98.5], [-98.5, -97.5], [-97.5, -96.5]], name='xb',
+                          dimensions=['x', 'bounds'])
+            yb = Variable(value=[[40.5, 39.5], [39.5, 38.5], [38.5, 37.5]], name='yb', dimensions=['y', 'bounds'])
+        else:
+            xb, yb = [None, None]
+        x = Variable(value=[-100.0, -99.0, -98.0, -97.0], bounds=xb, name='x', dimensions='x')
+        y = Variable(value=[40.0, 39.0, 38.0], name='y', bounds=yb, dimensions='y')
+        grid = GridXY(x, y)
+        return grid
+
+    def get_shapely_from_wkt_array(self, wkts):
+        ret = np.array(wkts)
+        vfunc = np.vectorize(wkt.loads, otypes=[object])
+        ret = vfunc(ret)
+        ret = np.ma.array(ret, mask=False)
+        return ret
+
+    @staticmethod
+    def write_fiona_htmp(obj, name):
+        path = os.path.join('/home/benkoziol/htmp/ocgis', '{}.shp'.format(name))
+        obj.write_fiona(path)
+
+
+class AbstractTestField(TestBase):
+    def setUp(self):
+        np.random.seed(1)
+        super(AbstractTestField, self).setUp()
+
+    def get_col(self, bounds=True, with_name=True):
+        value = [-100., -99., -98., -97.]
+        if bounds:
+            bounds = [[v - 0.5, v + 0.5] for v in value]
+            bounds_name = 'longitude_bounds' if with_name else None
+            bounds = Variable(value=bounds, name=bounds_name, dimensions=['lon', 'bounds'])
+        else:
+            bounds = None
+        name = 'longitude' if with_name else None
+        col = Variable(value=value, bounds=bounds, name=name, dimensions=['lon'])
+        return col
+
+    def get_row(self, bounds=True, with_name=True):
+        value = [40., 39., 38.]
+        if bounds:
+            bounds = [[v + 0.5, v - 0.5] for v in value]
+            bounds_name = 'latitude_bounds' if with_name else None
+            bounds = Variable(value=bounds, name=bounds_name, dimensions=['lat', 'bounds'])
+        else:
+            bounds = None
+        name = 'latitude' if with_name else None
+        row = Variable(value=value, bounds=bounds, name=name, dimensions='lat')
+        return row
+
+    def get_field(self, with_bounds=True, with_value=False, with_level=True, with_temporal=True, with_realization=True,
+                  month_count=1, name='tmax', units='kelvin', field_name=None, crs=None, with_dimension_names=True):
+        from datetime import datetime as dt
+
+        if with_temporal:
+            temporal_start = dt(2000, 1, 1, 12)
+            if month_count == 1:
+                temporal_stop = dt(2000, 1, 31, 12)
+            elif month_count == 2:
+                temporal_stop = dt(2000, 2, 29, 12)
+            else:
+                raise NotImplementedError
+            temporal_value = get_date_list(temporal_start, temporal_stop, 1)
+            delta_bounds = datetime.timedelta(hours=12)
+            if with_bounds:
+                temporal_bounds = [[v - delta_bounds, v + delta_bounds] for v in temporal_value]
+                time_bounds_name = 'time_bnds' if with_dimension_names else None
+                temporal_bounds = TemporalVariable(value=temporal_bounds, name=time_bounds_name,
+                                                   dimensions=['time', 'bounds'])
+            else:
+                temporal_bounds = None
+            dname = 'time' if with_dimension_names else None
+            temporal = TemporalVariable(value=temporal_value, bounds=temporal_bounds, name=dname, dimensions='time')
+            t_shape = temporal.shape[0]
+        else:
+            temporal = None
+            t_shape = 1
+
+        if with_level:
+            level_value = [50, 150]
+            if with_bounds:
+                level_bounds_name = 'level_bnds' if with_dimension_names else None
+                level_bounds = [[0, 100], [100, 200]]
+                level_bounds = Variable(value=level_bounds, name=level_bounds_name, units='meters',
+                                        dimensions=['level', 'bounds'])
+            else:
+                level_bounds = None
+            dname = 'level' if with_dimension_names else None
+            level = Variable(value=level_value, bounds=level_bounds, name=dname, units='meters', dimensions='level')
+            l_shape = level.shape[0]
+        else:
+            level = None
+            l_shape = 1
+
+        with_name = True if with_dimension_names else False
+        row = self.get_row(bounds=with_bounds, with_name=with_name)
+        col = self.get_col(bounds=with_bounds, with_name=with_name)
+        grid = GridXY(col, row, crs=crs)
+        row_shape = row.shape[0]
+        col_shape = col.shape[0]
+
+        if with_realization:
+            dname = 'realization' if with_dimension_names else None
+            realization = Variable(value=[1, 2], name=dname, dimensions='realization')
+            r_shape = realization.shape[0]
+        else:
+            realization = None
+            r_shape = 1
+
+        if with_value:
+            value = np.random.rand(r_shape, t_shape, l_shape, row_shape, col_shape)
+            data = None
+        else:
+            value = None
+            data = 'foo'
+
+        var = SourcedVariable(name, units=units, request_dataset=data, value=value,
+                              dimensions=['realization', 'time', 'level', 'lat', 'lon'])
+        field = OcgField(variables=var, time=temporal, level=level, realization=realization, grid=grid,
+                         name=field_name, is_data=name)
+
+        return field

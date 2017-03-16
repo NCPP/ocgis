@@ -2,31 +2,32 @@ from copy import deepcopy
 
 import numpy as np
 
-from ocgis import constants, OcgOperations, FunctionRegistry
+from ocgis import OcgOperations, FunctionRegistry
 from ocgis import env
-from ocgis.api.parms.definition_helpers import MetadataAttributes
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
-    AbstractMultivariateFunction, AbstractParameterizedFunction
+    AbstractMultivariateFunction, AbstractParameterizedFunction, AbstractFieldFunction
+from ocgis.collection.field import OcgField
+from ocgis.driver.request import RequestDataset
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
-from ocgis.interface.base.variable import VariableCollection, DerivedVariable
-from ocgis.test.base import TestBase
+from ocgis.ops.parms.definition_helpers import MetadataAttributes
+from ocgis.test.base import TestBase, AbstractTestField
 from ocgis.test.base import attr
-from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.util.units import get_units_object
+from ocgis.variable.base import Variable
 
 
-class FooNeedsUnits(AbstractUnivariateFunction):
+class MockNeedsUnits(AbstractUnivariateFunction):
     description = 'calculation with units'
     key = 'fnu'
     required_units = ['K', 'kelvin']
     standard_name = 'foo_needs_units'
     long_name = 'Foo Needs Units'
-    
+
     def calculate(self, values):
         return values
-            
-            
-class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
+
+
+class MockNeedsUnitsSet(AbstractUnivariateSetFunction):
     description = 'calculation with units'
     dtype_default = 'int'
     key = 'fnu'
@@ -38,53 +39,19 @@ class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
         return np.ma.mean(values, axis=0)
 
 
-class FooSampleSize(FooNeedsUnitsSet):
+class MockSampleSize(MockNeedsUnitsSet):
     standard_name = 'the_standard'
     long_name = 'the_standard_long_name'
 
 
 class TestAbstractFunction(AbstractTestField):
     def test_init(self):
-        f = FooNeedsUnits()
-        self.assertEqual(f.dtype, env.NP_FLOAT)
+        f = MockNeedsUnits()
+        self.assertEqual(f.get_default_dtype(), env.NP_FLOAT)
 
         # Test overloading the datatype.
-        f = FooNeedsUnits(dtype=np.int16)
+        f = MockNeedsUnits(dtype=np.int16)
         self.assertEqual(f.dtype, np.int16)
-
-    def test_add_to_collection(self):
-        kwds = dict(calc_sample_size=[False, True])
-
-        for k in self.iter_product_keywords(kwds):
-            field = self.get_field(with_value=True)
-            tgd = field.temporal.get_grouping(['month'])
-            fb = FooSampleSize(field=field, calc_sample_size=k.calc_sample_size, tgd=tgd)
-            res = fb.execute()
-            variable = res.first()
-            self.assertIsInstance(res, VariableCollection)
-            self.assertIsInstance(variable, DerivedVariable)
-            attrs = {'standard_name': fb.standard_name, 'long_name': fb.long_name}
-            self.assertDictEqual(attrs, variable.attrs)
-
-            if k.calc_sample_size:
-                alias = 'n_{0}'.format(variable.alias)
-                ss = res[alias]
-                attrs = {'standard_name': constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME,
-                         'long_name': constants.DEFAULT_SAMPLE_SIZE_LONG_NAME}
-                self.assertDictEqual(ss.attrs, attrs)
-
-    def test_add_to_collection_parents(self):
-        """Test adding parents to the output derived variable."""
-
-        field = self.get_field(with_value=True)
-        ff = FooNeedsUnits(field=field)
-        res = ff.execute()
-        self.assertIsNone(res['fnu'].parents)
-
-        ff = FooNeedsUnits(field=field, add_parents=True)
-        res = ff.execute()
-        var = res['fnu']
-        self.assertIsInstance(var.parents, VariableCollection)
 
     def test_execute_meta_attrs(self):
         """Test overloaded metadata attributes are appropriately applied."""
@@ -100,14 +67,14 @@ class TestAbstractFunction(AbstractTestField):
                     meta_attrs = MetadataAttributes({'something_new': 'is about to happen', 'standard_name': 'never!'})
                 else:
                     meta_attrs = MetadataAttributes({'something_new': 'is about to happen'})
-                fb = FooNeedsUnits(field=field, meta_attrs=meta_attrs)
+                fb = MockNeedsUnits(field=field, meta_attrs=meta_attrs)
                 ret = fb.execute()
                 if oload:
                     actual = {'long_name': 'Foo Needs Units', 'standard_name': 'never!',
-                              'something_new': 'is about to happen'}
+                              'something_new': 'is about to happen', 'units': 'kelvin'}
                 else:
                     actual = {'long_name': 'Foo Needs Units', 'standard_name': 'foo_needs_units',
-                              'something_new': 'is about to happen'}
+                              'something_new': 'is about to happen', 'units': 'kelvin'}
                 self.assertDictEqual(ret['fnu'].attrs, actual)
                 if oload:
                     self.assertDictEqual(meta_attrs.value['variable'],
@@ -118,12 +85,138 @@ class TestAbstractFunction(AbstractTestField):
         # test attributes are applied to the field object
         field = self.get_field(with_value=True)
         meta_attrs = MetadataAttributes({'field': {'hoover': 'dam'}})
-        fb = FooNeedsUnits(field=field, meta_attrs=meta_attrs)
+        fb = MockNeedsUnits(field=field, meta_attrs=meta_attrs)
         fb.execute()
         self.assertDictEqual(fb.field.attrs, {'hoover': 'dam'})
 
 
-class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):
+class MockFieldFunction(AbstractFieldFunction):
+    key = 'mff'
+    long_name = 'expand the abbreviations'
+    standard_name = 'mock_field_function'
+    description = 'Used for testing a field function'
+
+    def calculate(self):
+        squared_value = self.field['data'].get_value() ** 2
+        squared = self.get_fill_variable(self.field['data'], self.alias, self.field['data'].dimensions, dtype=float,
+                                         variable_value=squared_value)
+        self.vc.add_variable(squared)
+
+        # Field functions modify their associated fields.
+        self.field.pop('data')
+
+
+class TestAbstractFieldFunction(TestBase):
+    desired_value = [16.0, 25.0, 36.0]
+
+    @property
+    def field_for_test(self):
+        data = Variable(name='data', value=[4, 5, 6], dimensions='three')
+        field = OcgField(variables=data)
+        return field
+
+    def setUp(self):
+        super(TestAbstractFieldFunction, self).setUp()
+        FunctionRegistry.append(MockFieldFunction)
+
+    def tearDown(self):
+        super(TestAbstractFieldFunction, self).tearDown()
+        FunctionRegistry.reg.pop(0)
+
+    def test_execute(self):
+        ff = MockFieldFunction(field=self.field_for_test)
+        res = ff.execute()
+        self.assertEqual(res[MockFieldFunction.key].get_value().tolist(), self.desired_value)
+
+    def test_system_through_operations(self):
+        # tdk: test only one field function allowed
+        ops = OcgOperations(dataset=self.field_for_test, calc=[{'func': 'mff', 'name': 'my_mff'}])
+        ret = ops.execute()
+
+        actual_field = ret.get_element()
+        actual_variable = actual_field['my_mff']
+        self.assertEqual(actual_variable.attrs['long_name'], MockFieldFunction.long_name)
+        self.assertEqual(actual_variable.get_value().tolist(), self.desired_value)
+        self.assertNotIn('data', actual_field.keys())
+
+        # Test writing output to netCDF.
+        ops = OcgOperations(dataset=self.field_for_test, calc=[{'func': 'mff', 'name': 'my_mff'}], output_format='nc')
+        ret = ops.execute()
+        actual_field = RequestDataset(ret).get()
+        self.assertEqual(actual_field['my_mff'].get_value().tolist(), self.desired_value)
+
+
+class MockMultiParamFunction(AbstractFieldFunction, AbstractMultivariateFunction, AbstractParameterizedFunction):
+    key = 'mock_mpf'
+    long_name = 'expand the abbreviations again'
+    standard_name = 'mock_multi_param_function'
+    description = 'Used for testing a multivariate, parameterized field function'
+    parms_definition = {'the_exponent': int, 'offset': float}
+    required_variables = ('lhs', 'rhs')
+
+    def calculate(self, lhs=None, rhs=None, the_exponent=None, offset=None):
+        lhs = self.field[lhs]
+        rhs = self.field[rhs]
+
+        value = (rhs.get_value() - lhs.get_value()) ** the_exponent + offset
+        variable = self.get_fill_variable(lhs, self.alias, lhs.dimensions, variable_value=value)
+        self.vc.add_variable(variable)
+
+
+class TestMockMultiParamFunction(TestBase):
+    desired_value = [30.5, 37.5, 57.5]
+
+    @property
+    def field_for_test(self):
+        field = OcgField(variables=[self.variable_lhs_for_test, self.variable_rhs_for_test])
+        return field
+
+    @property
+    def fields_for_ops_test(self):
+        field1 = OcgField(variables=self.variable_lhs_for_test)
+        field2 = OcgField(variables=self.variable_rhs_for_test)
+        return [field1, field2]
+
+    @property
+    def parms_for_test(self):
+        return {'lhs': 'left', 'rhs': 'right', 'the_exponent': 2, 'offset': 21.5}
+
+    @property
+    def variable_lhs_for_test(self):
+        return Variable(name='left', value=[4, 5, 6], dimensions='three', dtype=float)
+
+    @property
+    def variable_rhs_for_test(self):
+        return Variable(name='right', value=[7, 9, 12], dimensions='three', dtype=float)
+
+    def setUp(self):
+        super(TestMockMultiParamFunction, self).setUp()
+        FunctionRegistry.append(MockMultiParamFunction)
+
+    def tearDown(self):
+        super(TestMockMultiParamFunction, self).tearDown()
+        FunctionRegistry.reg.pop(0)
+
+    def test_execute(self):
+        ff = MockMultiParamFunction(field=self.field_for_test, parms=self.parms_for_test)
+        res = ff.execute()
+        self.assertEqual(res[MockMultiParamFunction.key].get_value().tolist(), self.desired_value)
+
+    def test_system_through_operations(self):
+        calc = [{'func': MockMultiParamFunction.key, 'name': 'my_mvp', 'kwds': self.parms_for_test}]
+        ops = OcgOperations(dataset=self.fields_for_ops_test, calc=calc)
+        ret = ops.execute()
+
+        actual_variable = ret.get_element(variable_name='my_mvp')
+        self.assertEqual(actual_variable.get_value().tolist(), self.desired_value)
+
+        ops = OcgOperations(dataset=self.fields_for_ops_test, calc=calc, output_format='nc')
+        ret = ops.execute()
+        actual = RequestDataset(ret).get()['my_mvp']
+        self.assertEqual(actual.get_value().tolist(), self.desired_value)
+
+
+class MockAbstractMultivariateFunction(AbstractMultivariateFunction):
     description = ''
     dtype_default = 'int'
     key = 'fmv'
@@ -136,19 +229,18 @@ class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):
 
 
 class TestAbstractMultivariateFunction(TestBase):
-
     def test_init(self):
         self.assertEqual(AbstractMultivariateFunction.__bases__, (AbstractFunction,))
 
-        FakeAbstractMultivariateFunction()
+        MockAbstractMultivariateFunction()
 
     @attr('data')
     def test_validate(self):
-        FunctionRegistry.append(FakeAbstractMultivariateFunction)
+        FunctionRegistry.append(MockAbstractMultivariateFunction)
         rd1 = self.test_data.get_rd('cancm4_tas')
-        rd1.alias = 'tas2'
+        rd1._rename_variable = 'tas2'
         rd2 = deepcopy(rd1)
-        rd2.alias = 'pr2'
+        rd2._rename_variable = 'pr2'
 
         # test non-string keyword arguments will not raise an exception
         calc = [{'func': 'fmv', 'name': 'fmv', 'kwds': {'tas': 'tas2', 'pr': 'pr2', 'random': {}}}]
@@ -165,7 +257,7 @@ class TestAbstractMultivariateFunction(TestBase):
             OcgOperations(dataset=[rd1, rd2], calc=calc)
 
 
-class FooAbstractParameterizedFunction(AbstractParameterizedFunction):
+class MockAbstractParameterizedFunction(AbstractParameterizedFunction):
     key = 'foo_pf'
     long_name = 'foo_pee_eff'
     standard_name = 'fpf'
@@ -179,18 +271,18 @@ class FooAbstractParameterizedFunction(AbstractParameterizedFunction):
         raise NotImplementedError
 
 
-class FooAbstractParameterizedFunctionRequiredParameters(FooAbstractParameterizedFunction):
+class MockAbstractParameterizedFunctionRequiredParameters(MockAbstractParameterizedFunction):
     parms_required = ('argB',)
 
 
-class FooAbstractParameterizedFunctionRequiredParametersMultivariate(AbstractMultivariateFunction,
-                                                                     FooAbstractParameterizedFunctionRequiredParameters):
+class MockAbstractParameterizedFunctionRequiredParametersMultivariate(AbstractMultivariateFunction,
+                                                                      MockAbstractParameterizedFunctionRequiredParameters):
     required_variables = ['tas', 'pr']
 
 
 class TestAbstractParameterizedFunction(AbstractTestField):
     def test_init(self):
-        ff = FooAbstractParameterizedFunction()
+        ff = MockAbstractParameterizedFunction()
         self.assertIsInstance(ff, AbstractParameterizedFunction)
         self.assertIsNone(ff.parms_required)
 
@@ -199,58 +291,56 @@ class TestAbstractParameterizedFunction(AbstractTestField):
 
         # Keywords are required.
         with self.assertRaises(DefinitionValidationError):
-            FooAbstractParameterizedFunction.validate_definition(definition)
+            MockAbstractParameterizedFunction.validate_definition(definition)
 
         # These are the wrong keyword arguments.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argC': 'never'}}
         with self.assertRaises(DefinitionValidationError):
-            FooAbstractParameterizedFunction.validate_definition(definition)
+            MockAbstractParameterizedFunction.validate_definition(definition)
 
         # One parameter passed.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
-        FooAbstractParameterizedFunction.validate_definition(definition)
+        MockAbstractParameterizedFunction.validate_definition(definition)
 
         # This function class has some required parameters.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argA': 5}}
         with self.assertRaises(DefinitionValidationError):
-            FooAbstractParameterizedFunctionRequiredParameters.validate_definition(definition)
+            MockAbstractParameterizedFunctionRequiredParameters.validate_definition(definition)
 
         # Test with required variables present.
         definition = {'func': 'foo_pf', 'name': 'food', 'kwds': {'argB': 5, 'tas': None}}
-        FooAbstractParameterizedFunctionRequiredParametersMultivariate.validate_definition(definition)
+        MockAbstractParameterizedFunctionRequiredParametersMultivariate.validate_definition(definition)
 
 
 class TestAbstractUnivariateFunction(AbstractTestField):
-    
     def test_validate_units(self):
         field = self.get_field(with_value=True)
-        fnu = FooNeedsUnits(field=field)
+        fnu = MockNeedsUnits(field=field)
         ret = fnu.execute()
-        self.assertNumpyAll(field.variables['tmax'].value.astype(FooNeedsUnits.get_dtype()),
+        self.assertNumpyAll(field['tmax'].value.astype(MockNeedsUnits.get_default_dtype()),
                             ret['fnu'].value)
-        
+
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
-        field.variables['tmax'].units = 'celsius'
-        self.assertEqual(field.variables['tmax'].cfunits, get_units_object('celsius'))
-        fnu = FooNeedsUnits(field=field)
+        field['tmax'].units = 'celsius'
+        self.assertEqual(field['tmax'].cfunits, get_units_object('celsius'))
+        fnu = MockNeedsUnits(field=field)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()
-            
-            
+
+
 class TestAbstractUnivariateSetFunction(AbstractTestField):
-    
     def test_validate_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
-        fnu = FooNeedsUnitsSet(field=field, tgd=tgd)
+        fnu = MockNeedsUnitsSet(field=field, tgd=tgd)
         fnu.execute()
-        
+
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
-        field.variables['tmax'].units = 'celsius'
-        self.assertEqual(field.variables['tmax'].cfunits, get_units_object('celsius'))
-        fnu = FooNeedsUnitsSet(field=field,tgd=tgd)
+        field['tmax'].units = 'celsius'
+        self.assertEqual(field['tmax'].cfunits, get_units_object('celsius'))
+        fnu = MockNeedsUnitsSet(field=field, tgd=tgd)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()

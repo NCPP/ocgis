@@ -1,6 +1,6 @@
 import numpy as np
 
-from ocgis import env
+from ocgis.base import orphaned
 from ocgis.calc.eval_function import EvalFunction
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
@@ -16,13 +16,11 @@ class TestEvalFunction(TestBase):
     def test_calculation_file_only_one_variable(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        field = field[:, 0:10, :, :, :]
+        field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
         ef = EvalFunction(expr=expr, field=field, file_only=True)
         ret = ef.execute()
         self.assertEqual(ret['es']._value, None)
-        self.assertEqual(ret['es'].dtype, env.NP_FLOAT)
-        self.assertEqual(ret['es'].fill_value, np.ma.array([1], dtype=env.NP_FLOAT).fill_value)
 
     @attr('data')
     def test_calculation_file_only_two_variables(self):
@@ -30,8 +28,10 @@ class TestEvalFunction(TestBase):
         rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
         field = rd.get()
         field2 = rd2.get()
-        field.variables.add_variable(field2.variables['tasmax'], assign_new_uid=True)
-        field = field[:, 0:10, :, :, :]
+
+        with orphaned(field2['tasmax']):
+            field.add_variable(field2['tasmax'], is_data=True)
+        field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'foo=log(1000*(tasmax-tas))/3'
         ef = EvalFunction(expr=expr, field=field, file_only=True)
         ret = ef.execute()
@@ -41,11 +41,12 @@ class TestEvalFunction(TestBase):
     def test_calculation_one_variable_exp_and_log(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        field = field[:, 0:10, :, :, :]
+        # field = field[:, 0:10, :, :, :]
+        field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'es=6.1078*exp(log(17.08085)*(tas-273.16)/(234.175+(tas-273.16)))'
         ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
-        var = field.variables['tas']
+        var = field['tas']
         actual_value = 6.1078 * np.exp(np.log(17.08085) * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
         self.assertNumpyAll(ret['es'].value, actual_value)
 
@@ -53,17 +54,16 @@ class TestEvalFunction(TestBase):
     def test_calculation_one_variable_exp_only(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        field = field[:, 0:10, :, :, :]
+        # field = field[:, 0:10, :, :, :]
+        field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
         ef = EvalFunction(expr=expr, field=field, add_parents=True)
         ret = ef.execute()
         self.assertEqual(ret.keys(), ['es'])
         self.assertEqual(ret['es'].units, None)
-        self.assertEqual(ret['es'].alias, 'es')
         self.assertEqual(ret['es'].name, 'es')
-        self.assertEqual(ret['es'].parents.keys(), ['tas'])
 
-        var = field.variables['tas']
+        var = field['tas']
         actual_value = 6.1078 * np.exp(17.08085 * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
         self.assertNumpyAll(ret['es'].value, actual_value)
 
@@ -73,16 +73,19 @@ class TestEvalFunction(TestBase):
         rd2 = self.test_data.get_rd('cancm4_tasmax_2001')
         field = rd.get()
         field2 = rd2.get()
-        field.variables.add_variable(field2.variables['tasmax'], assign_new_uid=True)
-        field = field[:, 0:10, :, :, :]
+
+        with orphaned(field2['tasmax']):
+            field.add_variable(field2['tasmax'], is_data=True)
+
+        field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'foo=log(1000*(tasmax-tas))/3'
         ef = EvalFunction(expr=expr, field=field, add_parents=True)
         ret = ef.execute()
         self.assertEqual(ret.keys(), ['foo'])
-        self.assertEqual(set(ret['foo'].parents.keys()), {'tas', 'tasmax'})
+        # self.assertEqual(set(ret['foo'].parents.keys()), {'tas', 'tasmax'})
 
-        tas = field.variables['tas']
-        tasmax = field.variables['tasmax']
+        tas = field['tas']
+        tasmax = field['tasmax']
         actual_value = np.log(1000 * (tasmax.value - tas.value)) / 3
         self.assertNumpyAll(ret['foo'].value, actual_value)
 

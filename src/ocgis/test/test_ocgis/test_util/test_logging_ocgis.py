@@ -172,7 +172,7 @@ class TestOcgisLogging(TestBase):
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='csv')
         ret = ops.execute()
         folder = os.path.split(ret)[0]
-        log = os.path.join(folder, ops.prefix + '.log')
+        log = os.path.join(folder, '{}-rank-0.log'.format(ops.prefix))
         with open(log) as f:
             lines = f.readlines()
             self.assertTrue(len(lines) >= 4)

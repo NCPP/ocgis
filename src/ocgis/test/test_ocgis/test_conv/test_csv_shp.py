@@ -4,10 +4,10 @@ from copy import deepcopy
 import fiona
 
 from ocgis import constants
-from ocgis.api.operations import OcgOperations
+from ocgis.ops.core import OcgOperations
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
-from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class Test(TestBase):

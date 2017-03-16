@@ -4,8 +4,8 @@ import numpy as np
 
 from ocgis import env
 from ocgis.calc import base
-from ocgis.util.helpers import iter_array
 from ocgis.exc import DefinitionValidationError
+from ocgis.util.helpers import iter_array
 
 
 class Duration(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):

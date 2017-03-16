@@ -1,9 +1,9 @@
-def justify_row(row,indent=4,right_edge=80):
+def justify_row(row, indent=4, right_edge=80):
     edge = right_edge - (indent + 1)
     words = row.strip().split(' ')
     if len(words) == 1:
         tabbedrows = words
-    elif any([len(word) > (right_edge-indent) for word in words]):
+    elif any([len(word) > (right_edge - indent) for word in words]):
         tabbedrows = [row]
     else:
         tabbedrows = []
@@ -26,5 +26,5 @@ def justify_row(row,indent=4,right_edge=80):
                 break
             else:
                 words = words[words_idx:]
-    tabbedrows = [' '*indent + ii for ii in tabbedrows]
-    return(tabbedrows)
+    tabbedrows = [' ' * indent + ii for ii in tabbedrows]
+    return (tabbedrows)

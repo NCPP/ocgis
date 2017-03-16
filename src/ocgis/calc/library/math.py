@@ -7,27 +7,27 @@ from ocgis.util.helpers import iter_array
 class Divide(base.AbstractMultivariateFunction):
     key = 'divide'
     description = 'Divide arr1 by arr2.'
-    required_variables = ['arr1','arr2']
+    required_variables = ['arr1', 'arr2']
 
     standard_name = 'divide'
     long_name = 'Divide'
-    
-    def calculate(self,arr1=None,arr2=None):
-        return(arr1/arr2)
-    
-    
+
+    def calculate(self, arr1=None, arr2=None):
+        return arr1 / arr2
+
+
 class NaturalLogarithm(base.AbstractUnivariateFunction):
     key = 'ln'
     description = 'Compute the natural logarithm.'
 
     standard_name = 'natural_logarithm'
     long_name = 'Natural Logarithm'
-    
-    def calculate(self,values):
-        return(np.ma.log(values))
-    
-    def get_output_units(self,*args,**kwds):
-        return(None)
+
+    def calculate(self, values):
+        return np.ma.log(values)
+
+    def get_output_units(self, *args, **kwds):
+        return None
 
 
 class Sum(base.AbstractUnivariateSetFunction):
@@ -66,23 +66,29 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
         """
 
         # 'full' is not supported as this would add dates to the temporal dimension
-        assert(mode in ('same', 'valid'))
-        assert(len(values.shape) == 5)
+        assert (mode in ('same', 'valid'))
+        assert (len(values.shape) == 5)
 
         # just to be safe, convert the second array to the same input data types as the values
         v = v.astype(values.dtype)
 
         # valid will have less values than the input as this checks if the two convolved arrays completely overlap
         shape_fill = list(values.shape)
-        if mode == 'valid':
-            shape_fill[1] = max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1
-        fill = np.zeros(shape_fill)
+        # if mode == 'valid':
+        #     shape_fill[1] = max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1
+        fill = np.zeros(shape_fill, dtype=self.dtype)
 
         # perform the convolution on the time axis
         itr = iter_array(values)
         for ie, it, il, ir, ic in itr:
             a = values[ie, :, il, ir, ic]
-            fill[ie, :, il, ir, ic] = np.convolve(a, v, mode=mode)
+            res_convolve = np.convolve(a, v, mode=mode)
+            if mode == 'valid':
+                time_slice = slice(0, max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1)
+                # fill[ie, :, il, ir, ic] = res_convolve
+            else:
+                time_slice = slice(None)
+            fill[ie, time_slice, il, ir, ic] = res_convolve
 
         if mode == 'valid':
             # generate the mask for the output data and convert the output to a masked array
@@ -92,7 +98,10 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
 
             # identify where the two arrays completely overlap and collect the indices to subset the field object
             # attached to the calculation object
-            self.field = self.field[:, slice(0, 0-(v.shape[0]-1)), :, :, :]
+            overlap_mask = np.ones(mask.shape, dtype=bool)
+            overlap_mask[:, slice(0, 0 - (v.shape[0] - 1)), :, :, :] = False
+            fill.mask[:] = np.logical_or(fill.mask, overlap_mask)
+            # self.field = self.field[:, slice(0, 0-(v.shape[0]-1)), :, :, :]
         else:
             # same does not modify the output array size
             fill = np.ma.array(fill, mask=values.mask)

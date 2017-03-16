@@ -1,5 +1,6 @@
 import ESMF
 
+from ocgis.constants import TagNames
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.exc import DefinitionValidationError
 
@@ -10,8 +11,8 @@ class ESMPyConverter(AbstractCollectionConverter):
 
     .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractCollectionConverter`.
 
-    :param with_corners: (``=True``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
-    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
+    :param with_corners: (``=True``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param esmf_field_name: (``=None``) Optional name for the returned ESMF field.
     :type esmf_field_name: str
     """
@@ -29,7 +30,7 @@ class ESMPyConverter(AbstractCollectionConverter):
     @classmethod
     def validate_ops(cls, ops):
         msg = None
-        if len(ops.dataset) > 1:
+        if len(list(ops.dataset)) > 1:
             msg = 'Only one requested dataset may be written for "esmpy" output.'
             target = 'dataset'
         elif ops.spatial_operation == 'clip':
@@ -47,17 +48,23 @@ class ESMPyConverter(AbstractCollectionConverter):
 
     def write(self):
         for coll in self.colls:
-            """:type coll: :class:`ocgis.api.collection.SpatialCollection`"""
-            from ocgis.regrid.base import get_esmf_grid_from_sdim
+            from ocgis.regrid.base import get_esmf_grid
 
-            for row in coll.get_iter_melted():
+            for row in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
                 field = row['field']
                 variable = row['variable']
-                egrid = get_esmf_grid_from_sdim(field.spatial, with_corners=self.with_corners,
-                                                value_mask=self.value_mask)
+                egrid = get_esmf_grid(field, with_corners=self.with_corners, value_mask=self.value_mask)
 
-                esmf_field_name = self.esmf_field_name or variable.alias
-                efield = ESMF.Field(egrid, name=esmf_field_name, ndbounds=field.shape[0:-2])
+                esmf_field_name = self.esmf_field_name or variable.name
+
+                # TODO: The undistributed dimensions should be handled more cleanly. This approach assumes well-shaped
+                # data with the last two holding the spatial coordinates.
+                if variable.ndim > 2:
+                    ndbounds = variable.shape[0:-2]
+                else:
+                    ndbounds = None
+
+                efield = ESMF.Field(egrid, name=esmf_field_name, ndbounds=ndbounds)
                 efield.data[:] = variable.value
 
                 return efield

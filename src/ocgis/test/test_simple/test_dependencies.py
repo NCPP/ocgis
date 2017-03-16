@@ -9,7 +9,6 @@ from ocgis.test.base import TestBase, attr
 
 @attr('simple')
 class TestDependencies(TestBase):
-
     def test_netCDF4(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:
@@ -41,7 +40,7 @@ class TestDependencies(TestBase):
 def create_mftime_nc_files(test_obj, with_all_cf=False):
     value = [0, 1, 2]
     units = ['days since 2000-1-1', 'days since 2001-1-1']
-    names = ['time_2000.nc', 'time_0001.nc']
+    names = ['time_2000.nc', 'time_2001.nc']
     paths = []
     for unit, name in zip(units, names):
         path = test_obj.get_temporary_file_path(name)

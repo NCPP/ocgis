@@ -1,8 +1,8 @@
-import netCDF4 as nc
 import os
 import unittest
 from datetime import datetime
 
+import netCDF4 as nc
 import numpy as np
 
 import ocgis

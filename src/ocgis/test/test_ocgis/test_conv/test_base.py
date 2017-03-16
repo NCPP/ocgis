@@ -6,21 +6,21 @@ from csv import DictReader
 
 import fiona
 import numpy as np
+from ocgis.driver.collection import SpatialCollection
+from ocgis.interface.base.dimension.spatial import SpatialDimension
 from shapely.geometry import Point
 
 import ocgis
 from ocgis import constants
-from ocgis.api.collection import SpatialCollection
 from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter, \
     AbstractFileConverter
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
 from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
 from ocgis.conv.meta import MetaJSONConverter
 from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
-from ocgis.interface.base.crs import WGS84
-from ocgis.interface.base.dimension.spatial import SpatialDimension
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.test.base import attr
+from ocgis.variable.crs import WGS84
 
 
 class AbstractTestConverter(TestBase):
@@ -33,7 +33,6 @@ class AbstractTestConverter(TestBase):
 
 
 class Test(TestBase):
-
     def test_get_converter_map(self):
         cmap = get_converter_map()
         self.assertEqual(cmap[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],

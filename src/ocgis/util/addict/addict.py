@@ -1,3 +1,5 @@
+import copy
+import re
 from inspect import isgenerator
 
 
@@ -29,6 +31,7 @@ class Dict(dict):
     while you try to get an item. A lot like a defaultdict.
 
     """
+
     def __init__(self, *args, **kwargs):
         """
         If we're initialized with a dict, make sure we turn all the
@@ -40,12 +43,12 @@ class Dict(dict):
                 continue
             elif isinstance(arg, dict):
                 for key, val in arg.items():
-                    self[key] = val
+                    self[key] = self._hook(val)
             elif isinstance(arg, tuple) and (not isinstance(arg[0], tuple)):
-                self[arg[0]] = arg[1]
+                self[arg[0]] = self._hook(arg[1])
             elif isinstance(arg, (list, tuple)) or isgenerator(arg):
                 for key, val in arg:
-                    self[key] = val
+                    self[key] = self._hook(val)
             else:
                 raise TypeError("Dict does not understand "
                                 "{0} types".format(type(arg)))
@@ -70,7 +73,6 @@ class Dict(dict):
         E.g. some_instance_of_Dict['b'] = val. If 'val
 
         """
-        value = self._hook(value)
         super(Dict, self).__setitem__(name, value)
 
     @classmethod
@@ -98,50 +100,38 @@ class Dict(dict):
 
         """
         if name not in self:
-            self[name] = {}
+            self[name] = Dict()
         return super(Dict, self).__getitem__(name)
 
     def __delattr__(self, name):
-        """
-        Is invoked when del some_instance_of_Dict.b is called.
-
-        """
+        """ Is invoked when del some_addict.b is called. """
         del self[name]
+
+    _re_pattern = re.compile('[a-zA-Z_][a-zA-Z0-9_]*')
 
     def __dir__(self):
         """
-        Is invoked on a Dict instance causes __getitem__() to get invoked
-        which in this module will trigger the creation of the following
-        properties: `__members__` and `__methods__`
-
-        To avoid these keys from being added, we simply return an explicit
-        call to dir for the Dict object
+        Return a list of addict object attributes.
+        This includes key names of any dict entries, filtered to the subset of
+        valid attribute names (e.g. alphanumeric strings beginning with a
+        letter or underscore).  Also includes attributes of parent dict class.
         """
-        return dir(Dict)
+        dict_keys = []
+        for k in self.keys():
+            if isinstance(k, str):
+                m = self._re_pattern.match(k)
+                if m:
+                    dict_keys.append(m.string)
+
+        obj_attrs = list(dir(Dict))
+
+        return dict_keys + obj_attrs
 
     def _ipython_display_(self):
-        print(str(self))    # pragma: no cover
+        print(str(self))  # pragma: no cover
 
     def _repr_html_(self):
         return str(self)
-
-    def get(self, k, default=None, protected=False):
-        """
-        If ``protected`` is ``True``, check the key exist in the dictionary. If it does not, raise ``KeyError``. Behaves
-        like the superclass ``get`` method otherwise.
-
-        >>> a = Dict()
-        >>> a['foo'] = 6
-        >>> a.get('not_there')
-        {}
-        >>> a.get('not_there', protected=True)
-        KeyError
-
-        """
-        if protected and default is None:
-            if k not in self:
-                raise KeyError(k)
-        return super(Dict, self).get(k, default)
 
     def prune(self, prune_zero=False, prune_empty_list=True):
         """
@@ -195,6 +185,7 @@ class Dict(dict):
 
     @classmethod
     def _prune_iter(cls, some_iter, prune_zero=False, prune_empty_list=True):
+
         new_iter = []
         for item in some_iter:
             if item == 0 and prune_zero:
@@ -213,19 +204,53 @@ class Dict(dict):
         return new_iter
 
     def to_dict(self):
-       """
-       Recursively turn your addict Dicts into dicts.
+        """ Recursively turn your addict Dicts into dicts. """
+        base = {}
+        for key, value in self.items():
+            if isinstance(value, type(self)):
+                base[key] = value.to_dict()
+            elif isinstance(value, (list, tuple)):
+                base[key] = type(value)(
+                    item.to_dict() if isinstance(item, type(self)) else
+                    item for item in value)
+            else:
+                base[key] = value
+        return base
 
-       """
-       base = dict()
-       for key, value in self.items():
-           if isinstance(value, type(self)):
-               base[key] = value.to_dict()
-           elif isinstance(value, (list, tuple)):
-               base[key] = type(value)(
-                item.to_dict() if isinstance(item, type(self)) else 
-                item for item in value)
-           else:
-               base[key] = value
-       return base
+    def copy(self):
+        """
+        Return a disconnected deep copy of self. Children of type Dict, list
+        and tuple are copied recursively while values that are instances of
+        other mutable objects are not copied.
 
+        """
+        return Dict(self.to_dict())
+
+    def __deepcopy__(self, memo):
+        """ Return a disconnected deep copy of self. """
+
+        y = self.__class__()
+        memo[id(self)] = y
+        for key, value in self.items():
+            y[copy.deepcopy(key, memo)] = copy.deepcopy(value, memo)
+        return y
+
+    def update(self, d):
+        """ Recursively merge d into self. """
+
+        for k, v in d.items():
+            if ((k not in self) or
+                    (not isinstance(self[k], dict)) or
+                    (not isinstance(v, dict))):
+                self[k] = v
+            else:
+                self[k].update(v)
+
+    def __getnewargs__(self):
+        return tuple(self.items())
+
+    def __getstate__(self):
+        return self
+
+    def __setstate__(self, state):
+        self.update(state)

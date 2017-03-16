@@ -1,11 +1,9 @@
+import itertools
 import re
 from copy import deepcopy
 
-import numpy as np
-
-from ocgis import env
-from ocgis.calc.base import AbstractUnivariateFunction
 from ocgis import constants
+from ocgis.calc.base import AbstractUnivariateFunction
 
 
 class EvalFunction(AbstractUnivariateFunction):
@@ -34,34 +32,67 @@ class EvalFunction(AbstractUnivariateFunction):
         raise NotImplementedError
 
     def _execute_(self):
+
         # get the variable aliases that will map to variables in the string expresssion
         map_vars = {}
-        for variable in self.field.variables.itervalues():
-            map_vars[variable.alias] = '_exec_' + variable.alias + '.value'
+        calculation_targets = {}
+        for variable in self.iter_calculation_targets(yield_calculation_name=False, validate_units=False):
+            # for variable in self.field.variables.itervalues():
+            map_vars[variable.name] = '_exec_' + variable.name
+            calculation_targets[variable.name] = variable
+            # map_vars[variable.name] = '_exec_' + variable.name + '.value'
+            # map_vars[variable.alias] = '_exec_' + variable.alias + '.value'
         # parse the string filling in the local variable names
         expr, out_variable_name = self._get_eval_string_(self.expr, map_vars)
         # update the output alias and key used to create the variable collection later
         self.alias, self.key = out_variable_name, out_variable_name
-        # update the local variable dictionary so when the string expression is evaluated they will be available
-        for k, v in map_vars.iteritems():
-            locals()[v.split('.')[0]] = self.field.variables[k]
 
-        # if the output is file only, do no perform any calculations.
-        if self.file_only:
-            fill = self._empty_fill
-            dtype = self.dtype or env.NP_FLOAT
-            fill_value = np.ma.array([1], dtype=dtype).fill_value
+        # Construct conformed array iterator.
+        keys = map_vars.keys()
+        crosswalks = [self._get_dimension_crosswalk_(calculation_targets[k]) for k in keys]
+        variable_shapes = [calculation_targets[k].shape for k in keys]
+        arrs = [self.get_variable_value(calculation_targets[k]) for k in keys]
+        archetype = calculation_targets[keys[0]]
+        fill = self.get_fill_variable(archetype, self.alias, archetype.dimensions, self.file_only,
+                                      dtype=archetype.dtype)
+        fill.units = None
+
+        if not self.file_only:
+            arr_fill = self.get_variable_value(fill)
+
+            itrs = [self._iter_conformed_arrays_(crosswalks[idx], variable_shapes[idx], arrs[idx], arr_fill, None)
+                    for idx in range(len(crosswalks))]
+
+            for yld in itertools.izip(*itrs):
+                for idx in range(len(keys)):
+                    locals()[map_vars[keys[idx]]] = yld[idx][0]
+                res = eval(expr)
+                carr_fill = yld[0][1]
+                carr_fill.data[:] = res.data
+                carr_fill.mask[:] = res.mask
+
+        # # update the local variable dictionary so when the string expression is evaluated they will be available
+        # for k, v in map_vars.iteritems():
+        #     locals()[v.split('.')[0]] = self.field[k]
+        #     # locals()[v.split('.')[0]] = self.field.variables[k]
+        #
+        # # if the output is file only, do no perform any calculations.
+        # if self.file_only:
+        #     fill = self._empty_fill
+        #     dtype = self.dtype or env.NP_FLOAT
+        #     fill_value = np.ma.array([1], dtype=dtype).fill_value
         # evaluate the expression and update the data type.
 
         # todo: with numpy 1.8.+ you can do the type modification inplace. this
-        # will make the type conversion operation less memory intensive.
-        else:
-            fill = eval(expr)
-            dtype = fill.dtype
-            fill_value = fill.fill_value
+        # # will make the type conversion operation less memory intensive.
+        # else:
+        #     fill = eval(expr)
+        #     dtype = fill.dtype
+        #     fill_value = fill.fill_value
 
-        self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), units=None,
-                                 dtype=dtype, alias=self.alias, fill_value=fill_value)
+        self._add_to_collection_({'fill': fill})
+        # self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), units=None,
+        #                          dtype=dtype, alias=self.alias, fill_value=fill_value)
 
     @staticmethod
     def is_multivariate(expr):

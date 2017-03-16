@@ -14,4 +14,4 @@ Function Reference
    :members: compute
 
 .. automodule:: ocgis.regrid.base
-   :members: iter_esmf_fields, iter_regridded_fields, get_esmf_grid_from_sdim
+:members: iter_esmf_fields, iter_regridded_fields, get_esmf_grid

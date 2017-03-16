@@ -272,13 +272,6 @@ geom_uid
 
 All subset geometries must have a unique identifier. The unique identifier allows subsetted data to be linked to the selection geometry. Passing a string value to ``geom_uid`` will overload the default unique identifier :attr:`~env.DEFAULT_GEOM_UID`. If no unique identifier is available, a one-based unique identifier will be generated having a name with value :attr:`~env.DEFAULT_GEOM_UID`.
 
-headers
-~~~~~~~
-
-Useful to limit the number of attributes included in an output file.
-
->>> headers = ['did', 'time', 'value']
-
 interpolate_spatial_bounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -321,6 +314,16 @@ output_crs
 ~~~~~~~~~~
 
 By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
+
+>>> import ocgis
+>>> output_crs = ocgis.variable.crs.CFWGS84()
+
+
+
+>>> import ocgis
+>>> output_crs = ocgis.variable.crs.CFWGS84()
+
+
 
 >>> import ocgis
 >>> output_crs = ocgis.crs.CFWGS84()

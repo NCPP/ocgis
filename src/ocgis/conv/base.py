@@ -2,20 +2,18 @@ import abc
 import csv
 import logging
 import os.path
-from collections import OrderedDict
+from pprint import pformat
 
 import fiona
-import numpy as np
-from shapely.geometry.multipolygon import MultiPolygon
-from shapely.geometry.polygon import Polygon
 
 from ocgis import constants
 from ocgis import env
 from ocgis import messages
-from ocgis.api.request.driver.vector import DriverVector
-from ocgis.interface.base.field import Field
-from ocgis.util.inspect import Inspect
+from ocgis.constants import TagNames, MPIWriteMode, KeywordArguments
+from ocgis.driver.vector import DriverVector
+from ocgis.util.helpers import get_iter, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.vm.mpi import MPI_RANK
 
 FIONA_FIELD_TYPES_REVERSED = {v: k for k, v in fiona.FIELD_TYPES_MAP.iteritems()}
 FIONA_FIELD_TYPES_REVERSED[str] = 'str'
@@ -117,6 +115,17 @@ class AbstractCollectionConverter(AbstractFileConverter):
 
         super(AbstractCollectionConverter, self).__init__(**kwargs)
 
+    @property
+    def geom_uid(self):
+        none_target = self.ops
+        if none_target is not None:
+            none_target = self.ops.geom_uid
+        if none_target is None:
+            ret = env.DEFAULT_GEOM_UID
+        else:
+            ret = none_target
+        return ret
+
     def get_headers(self, coll):
         """
         :type coll: :class:`ocgis.SpatialCollection`
@@ -185,151 +194,79 @@ class AbstractCollectionConverter(AbstractFileConverter):
     def write(self):
         ocgis_lh('starting write method', self._log, logging.DEBUG)
 
-        unique_geometry_store = []
-
-        # indicates if user geometries should be written to file
+        # Indicates if user geometries should be written to file.
         write_ugeom = False
 
-        try:
-            build = True
+        # Path to the output object.
+        f = {KeywordArguments.PATH: self.path}
 
-            for coll in iter(self.colls):
-                if build:
+        build = True
+        for coll in iter(self.colls):
+            # This will be changed to "write" if we are on the build loop.
+            write_mode = MPIWriteMode.APPEND
 
-                    # write the user geometries if configured and there is one present on the incoming collection.
-                    if self._add_ugeom and coll.geoms.values()[0] is not None:
-                        write_ugeom = True
+            if build:
+                # During a build loop, create the file and write the first series of records. Let the drivers determine
+                # the appropriate write modes for handling parallelism.
+                write_mode = None
 
-                    f = self._build_(coll)
-                    if write_ugeom:
+                # Write the user geometries if selected and there is one present on the incoming collection.
+                if self._add_ugeom and coll.has_container_geometries:
+                    write_ugeom = True
+
+                if write_ugeom:
+                    if MPI_RANK == 0:
+                        # The output file name for the user geometries.
                         ugid_shp_name = self.prefix + '_ugid.shp'
-                        ugid_csv_name = self.prefix + '_ugid.csv'
-
                         if self._add_ugeom_nest:
-                            fiona_path = os.path.join(self._get_or_create_shp_folder_(), ugid_shp_name)
+                            ugeom_fiona_path = os.path.join(self._get_or_create_shp_folder_(), ugid_shp_name)
                         else:
-                            fiona_path = os.path.join(self.outdir, ugid_shp_name)
+                            ugeom_fiona_path = os.path.join(self.outdir, ugid_shp_name)
+                    else:
+                        ugeom_fiona_path = None
 
-                        if coll.meta is None:
-                            # convert the collection properties to fiona properties
-                            from fiona_ import AbstractFionaConverter
+                build = False
 
-                            fiona_properties = get_schema_from_numpy_dtype(coll.properties.values()[0].dtype)
+            f[KeywordArguments.WRITE_MODE] = write_mode
+            self._write_coll_(f, coll)
 
-                            fiona_schema = {'geometry': 'MultiPolygon', 'properties': fiona_properties}
-                            fiona_meta = {'schema': fiona_schema, 'driver': 'ESRI Shapefile'}
-                        else:
-                            fiona_meta = coll.meta
-
-                        # always use the CRS from the collection. shapefile metadata will always be WGS84, but it may be
-                        # overloaded in the operations.
-                        fiona_meta['crs'] = coll.crs.value
-
-                        # selection geometries will always come out as MultiPolygon regardless if they began as points.
-                        # points are buffered during the subsetting process.
-                        fiona_meta['schema']['geometry'] = 'MultiPolygon'
-
-                        fiona_object = fiona.open(fiona_path, 'w', **fiona_meta)
-
-                    build = False
-                self._write_coll_(f, coll)
-                if write_ugeom:
-                    # write the overview geometries to disk
-                    r_geom = coll.geoms.iteritems().next()
-                    uid_value = r_geom[0]
-                    r_geom = r_geom[1]
-                    if isinstance(r_geom, Polygon):
-                        r_geom = MultiPolygon([r_geom])
-                    # see if this geometry is in the unique geometry store
-                    should_append = self._get_should_append_to_unique_geometry_store_(unique_geometry_store, r_geom,
-                                                                                      uid_value)
-                    if should_append:
-                        unique_geometry_store.append({'geom': r_geom, 'ugid': uid_value})
-
-                        # if it is unique write the geometry to the output files
-                        coll.write_ugeom(fobject=fiona_object)
-        finally:
-
-            # errors are masked if the processing failed and file objects, etc. were not properly created. if there are
-            # UnboundLocalErrors pass them through to capture the error that lead to the objects not being created.
-
-            try:
-                try:
-                    self._finalize_(f)
-                except UnboundLocalError:
-                    pass
-            except Exception as e:
-                # this the exception we want to log
-                ocgis_lh(exc=e, logger=self._log)
-            finally:
-                if write_ugeom:
+            if write_ugeom and MPI_RANK == 0:
+                for subset_field in coll.children.values():
+                    # TODO: this should react to live ranks and not assume rank 0 is going to hit this every time.
+                    enter_value = subset_field._is_empty
+                    subset_field._is_empty = False
                     try:
-                        fiona_object.close()
-                    except UnboundLocalError:
-                        pass
+                        subset_field.write(ugeom_fiona_path, write_mode=write_mode, driver=DriverVector,
+                                           ranks_to_write=(0,))
+                    finally:
+                        subset_field._is_empty = enter_value
 
-        # the metadata and dataset descriptor files may only be written if OCGIS operations are present.
-        if self.ops is not None and self.add_auxiliary_files == True:
-            # added OCGIS metadata output if requested.
+        # The metadata and dataset descriptor files may only be written if OCGIS operations are present.
+        ops = self.ops
+        if ops is not None and self.add_auxiliary_files and MPI_RANK == 0:
+            # Add OCGIS metadata output if requested.
             if self.add_meta:
                 ocgis_lh('adding OCGIS metadata file', 'conv', logging.DEBUG)
                 from ocgis.conv.meta import MetaOCGISConverter
 
-                lines = MetaOCGISConverter(self.ops).write()
+                lines = MetaOCGISConverter(ops).write()
                 out_path = os.path.join(self.outdir, self.prefix + '_' + MetaOCGISConverter._meta_filename)
                 with open(out_path, 'w') as f:
                     f.write(lines)
 
-            # add the dataset descriptor file if requested
+            # Add the dataset descriptor file if requested.
             if self._add_did_file:
                 ocgis_lh('writing dataset description (DID) file', 'conv', logging.DEBUG)
-                from ocgis.conv.csv_ import OcgDialect
+                path = os.path.join(self.outdir, self.prefix + '_did.csv')
+                _write_dataset_identifier_file_(path, ops)
 
-                headers = ['DID', 'VARIABLE', 'ALIAS', 'URI', 'STANDARD_NAME', 'UNITS', 'LONG_NAME']
-                out_path = os.path.join(self.outdir, self.prefix + '_did.csv')
-                with open(out_path, 'w') as f:
-                    writer = csv.writer(f, dialect=OcgDialect)
-                    writer.writerow(headers)
-                    for rd in self.ops.dataset.itervalues():
-                        try:
-                            for d in rd:
-                                row = [rd.did, d['variable'], d['alias'], rd.uri]
-                                try:
-                                    ref_variable = rd.source_metadata['variables'][d['variable']]['attrs']
-                                except KeyError:
-                                    if isinstance(rd.driver, DriverVector):
-                                        # not be present in metadata
-                                        ref_variable = {}
-                                    else:
-                                        raise
-                                row.append(ref_variable.get('standard_name', None))
-                                row.append(ref_variable.get('units', None))
-                                row.append(ref_variable.get('long_name', None))
-                                writer.writerow(row)
-                        except NotImplementedError:
-                            if isinstance(rd, Field):
-                                for variable in rd.variables.itervalues():
-                                    row = [rd.uid, variable.name, variable.alias, None,
-                                           variable.attrs.get('standard_name'), variable.units,
-                                           variable.attrs.get('long_name')]
-                                    writer.writerow(row)
-                            else:
-                                raise
-
-            # add source metadata if requested
+            # Add source metadata if requested.
             if self._add_source_meta:
                 ocgis_lh('writing source metadata file', 'conv', logging.DEBUG)
-                out_path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
-                to_write = []
+                path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
+                _write_source_meta_(path, ops)
 
-                for rd in self.ops.dataset.iter_request_datasets():
-                    ip = Inspect(request_dataset=rd)
-                    to_write += ip.get_report_possible()
-
-                with open(out_path, 'w') as f:
-                    f.writelines(Inspect.newline.join(to_write))
-
-        # return the internal path unless overloaded by subclasses.
+        # Return the internal path unless overloaded by subclasses.
         ret = self._get_return_()
 
         return ret
@@ -344,18 +281,8 @@ class AbstractTabularConverter(AbstractCollectionConverter):
     """
 
     def __init__(self, *args, **kwargs):
-        self.melted = kwargs.pop('melted', None) or False
+        self.melted = kwargs.pop(KeywordArguments.MELTED, None) or False
         super(AbstractTabularConverter, self).__init__(*args, **kwargs)
-
-    def get_iter_from_spatial_collection(self, coll):
-        """
-        :type coll: :class:`ocgis.SpatialCollection`
-        :returns: A generator from the input collection.
-        :rtype: generator
-        """
-
-        itr = coll.get_iter_dict(use_upper_keys=self._use_upper_keys, melted=self.melted)
-        return itr
 
 
 def get_converter(output_format):
@@ -380,7 +307,7 @@ def get_converter_map():
     from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
     from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
     from ocgis.conv.numpy_ import NumpyConverter
-    from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+    from ocgis.conv.nc import NcConverter
     from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter
 
     mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
@@ -391,7 +318,7 @@ def get_converter_map():
             constants.OUTPUT_FORMAT_NETCDF: NcConverter,
             constants.OUTPUT_FORMAT_METADATA_JSON: MetaJSONConverter,
             constants.OUTPUT_FORMAT_METADATA_OCGIS: MetaOCGISConverter,
-            constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter,
+            # constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter,
             }
 
     # ESMF is an optional dependendency.
@@ -402,14 +329,69 @@ def get_converter_map():
     return mmap
 
 
-def get_schema_from_numpy_dtype(dtype):
-    ret = OrderedDict()
-    for name in dtype.names:
-        name_dtype, _ = dtype.fields[name]
-        if name_dtype.str.startswith('|S'):
-            ftype = 'str:{0}'.format(name_dtype.itemsize)
-        else:
-            ftype = type(np.array(0, dtype=name_dtype).item())
-            ftype = FIONA_FIELD_TYPES_REVERSED[ftype]
-        ret[name] = ftype
-    return ret
+def _write_dataset_identifier_file_(path, ops):
+    from ocgis.conv.csv_ import OcgDialect
+    rows = []
+    headers = ['DID', 'VARIABLE', 'STANDARD_NAME', 'LONG_NAME', 'UNITS', 'URI', 'GROUP']
+    with open(path, 'w') as f:
+        writer = csv.DictWriter(f, headers, dialect=OcgDialect)
+        writer.writeheader()
+        # writer.writerow(headers)
+        for element in ops.dataset:
+            row_template = {'DID': element.uid}
+            if element.has_data_variables:
+                try:
+                    itr = get_iter(element.variable)
+                except AttributeError:
+                    itr = element.get_by_tag(TagNames.DATA_VARIABLES)
+                for idx, variable in enumerate(itr):
+                    row = row_template.copy()
+                    try:
+                        attrs = variable.attrs
+                        units = variable.units
+                        group = variable.group
+                        uri = None
+                        variable_name = variable.name
+                    except AttributeError:
+                        attrs = element.metadata['variables'][variable]['attributes']
+                        units = get_tuple(element.units)[idx]
+                        group = None
+                        uri = element.uri
+                        variable_name = variable
+                    row['STANDARD_NAME'] = attrs.get('standard_name')
+                    row['LONG_NAME'] = attrs.get('long_name')
+                    row['UNITS'] = units
+                    row['GROUP'] = group
+                    row['URI'] = uri
+                    row['VARIABLE'] = variable_name
+                    rows.append(row)
+        writer.writerows(rows)
+
+
+def _write_source_meta_(path, operations):
+    to_write = []
+    for ctr, element in enumerate(operations.dataset):
+        to_write.append('===========================')
+        to_write.append('== Dataset Identifer (DID): {}'.format(element.uid))
+        to_write.append('===========================')
+        to_write.append('')
+        dimension_map = pformat(element.dimension_map)
+        to_write.append('== Dimension Map ==========')
+        to_write.append('')
+        to_write.append(dimension_map)
+        try:
+            metadata = element.driver.get_dump_report()
+            to_write.append('')
+            to_write.append('== Metadata Dump ==========')
+            to_write.append('')
+            to_write.extend(metadata)
+        except AttributeError:
+            # TODO: Collections/fields should be able to generate metadata.
+            # Field objects cannot create dump reports.
+            pass
+        to_write.append('')
+    with open(path, 'w') as f:
+        for line in to_write:
+            f.write(line)
+            f.write('\n')
+            # f.writelines(to_write)

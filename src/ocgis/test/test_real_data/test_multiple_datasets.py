@@ -7,11 +7,11 @@ import numpy as np
 
 import ocgis
 from ocgis import constants
-from ocgis.api.operations import OcgOperations
 from ocgis.exc import DefinitionValidationError
-from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
+from ocgis.ops.core import OcgOperations
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase, attr
-from ocgis.util.geom_cabinet import GeomCabinetIterator
+from ocgis.variable.crs import CFWGS84, CoordinateReferenceSystem
 
 
 class Test(TestBase):

@@ -10,7 +10,7 @@ import ocgis
 class RunOcgis(nose.plugins.Plugin):
     name = 'ocgis'
     target = 'ocgis'
-    _attrs_standard = '!slow,!remote,!data'
+    _attrs_standard = '!slow,!remote,!data,!benchmark'
 
     def __init__(self, *args, **kwargs):
         self.attrs = kwargs.pop('attrs', self._attrs_standard)
@@ -46,7 +46,7 @@ class RunOcgis(nose.plugins.Plugin):
 class RunNoESMF(RunOcgis):
     name = 'no-esmf'
     _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
-    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data'
+    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data,!benchmark'
 
     def wantFile(self, file):
         match = re.search(self._exclude, file)

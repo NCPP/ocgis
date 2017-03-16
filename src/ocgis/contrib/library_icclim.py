@@ -118,7 +118,14 @@ class AbstractIcclimFunction(object):
 
         # update global attributes using ICCLIM functions
         indice_name = self.key.split('_')[1]
-        time_range = [self.field.temporal.value_datetime.min(), self.field.temporal.value_datetime.max()]
+
+        # Find the minimum and maximum numeric times using those indices to extract the datetime value min and max time
+        # ranges.
+        # time_range = [self.field.temporal.value_datetime.min(), self.field.temporal.value_datetime.max()]
+        min_idx = np.argmin(self.field.temporal.value_numtime)
+        max_idx = np.argmax(self.field.temporal.value_numtime)
+        time_range = [self.field.temporal.value_datetime[min_idx], self.field.temporal.value_datetime[max_idx]]
+
         args = [sim, self.tgd.grouping, indice_name, time_range]
         try:
             set_globattr.history(*args)
@@ -193,9 +200,9 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
         self._storage_percentile = {}
         AbstractIcclimUnivariateSetFunction.__init__(self, *args, **kwargs)
 
-        if self.field is not None:
-            assert self.field.shape[0] == 1
-            assert self.field.shape[2] == 1
+        # if self.field is not None:
+        #     assert self.field.shape[0] == 1
+        #     assert self.field.shape[2] == 1
 
     @abc.abstractproperty
     def percentile(self):
@@ -211,13 +218,12 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
             try:
                 # Make an attempt to find the previous computation. We do not want to recompute the basis for every time
                 # grouping.
-                percentile_basis = self._storage_percentile[self._curr_variable.alias]
+                percentile_basis = self._storage_percentile[self._curr_variable.name]
             except KeyError:
-                variable = self.field.variables[self._curr_variable.alias]
-                value = variable.value[0, :, 0, :, :]
+                value = self._current_conformed_array[0, :, 0, :, :]
                 assert value.ndim == 3
                 percentile_basis = self._get_percentile_basis_(value)
-                self._storage_percentile[self._curr_variable.alias] = percentile_basis
+                self._storage_percentile[self._curr_variable.name] = percentile_basis
 
         ret = self._get_icclim_function_return_(values, percentile_basis)
         return ret

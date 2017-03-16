@@ -1,5 +1,4 @@
-from ocgis.conv.base import AbstractFileConverter, AbstractCollectionConverter
-from ocgis.api.collection import SpatialCollection
+from ocgis.conv.base import AbstractCollectionConverter
 
 
 class NumpyConverter(AbstractCollectionConverter):
@@ -10,17 +9,13 @@ class NumpyConverter(AbstractCollectionConverter):
             yield coll
 
     def write(self):
-        build = True
-        for coll in self:
-            if build:
-                ret = SpatialCollection(meta=coll.meta, key=coll.key, crs=coll.crs, headers=coll.headers)
-                build = False
-            for k, v in coll.iteritems():
-                field = v.values()[0]
-                if field is None:
-                    name = v.keys()[0]
-                else:
-                    name = None
-                ret.add_field(v.values()[0], ugeom=coll.ugeom[k], name=name)
+        for ctr_coll, coll in enumerate(self):
+            if ctr_coll == 0:
+                ret = coll.copy()
+            else:
+                for ctr, (field, container) in enumerate(coll.iter_fields(yield_container=True)):
+                    ret.add_field(field, container, force=True)
+                # Only one field should be added per iteration.
+                assert ctr == 0
 
         return ret

@@ -1,23 +1,21 @@
-from ocgis.util.environment import env
+########################################################################################################################
+# DO NOT CHANGE IMPORT ORDER!! #########################################################################################
+########################################################################################################################
+
 import osgeo
-from osgeo import osr
-from osgeo import ogr
-from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis.interface.base.dimension.temporal import TemporalDimension
-from ocgis.api.collection import SpatialCollection
+from osgeo import osr, ogr
+from ocgis.environment import env
+from ocgis.variable.base import SourcedVariable, Variable, VariableCollection, Dimension
+from ocgis.driver.request import RequestDataset
+from ocgis.ops.core import OcgOperations
 from ocgis.calc.library.register import FunctionRegistry
-from ocgis.interface.base import crs
-from ocgis.interface.base.crs import CoordinateReferenceSystem
-from ocgis.interface.base.dimension.spatial import SpatialDimension, SpatialGridDimension, SpatialGeometryDimension, \
-    SpatialGeometryPolygonDimension, SpatialGeometryPointDimension
-from ocgis.interface.base.field import Field
-from ocgis.util.inspect import Inspect
-from ocgis.util.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, ShpCabinetIterator
+from ocgis.spatial.grid import GridXY
+from ocgis.spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
-from ocgis.interface.base.variable import Variable
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
-from ocgis.api.operations import OcgOperations
+from ocgis.variable import crs
+from ocgis.variable.crs import CoordinateReferenceSystem
+from ocgis.collection.field import OcgField
+from ocgis.collection.spatial import SpatialCollection
 
-
-__version__ = '1.4.0.dev1'
-__release__ = '1.4.0.dev1'
+__version__ = '2.0.0.dev1'
+__release__ = '2.0.0.dev1'

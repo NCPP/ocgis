@@ -1,7 +1,7 @@
+import argparse
 import os
 from collections import OrderedDict
 from warnings import warn
-import argparse
 
 import fiona
 from shapely.geometry.geo import shape, mapping

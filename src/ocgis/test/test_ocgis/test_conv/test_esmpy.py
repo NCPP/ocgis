@@ -13,7 +13,6 @@ from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 
 @attr('data', 'esmf')
 class TestESMPyConverter(AbstractTestConverter):
-
     def get_conv(self, with_corners=True, value_mask=None, esmf_field_name=None, field=None):
         coll = self.get_spatial_collection(field=field)
         conv = ESMPyConverter([coll], with_corners=with_corners, value_mask=value_mask, esmf_field_name=esmf_field_name)

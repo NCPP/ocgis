@@ -1,13 +1,12 @@
+import datetime
 import logging
 import os
 from warnings import warn
 
-
-# try to turn off fiona logging except for errors
-import datetime
-from ocgis import env
 import ocgis
+from ocgis import env
 from ocgis.exc import OcgWarning
+from ocgis.vm.mpi import get_standard_comm_state
 
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)
@@ -52,13 +51,16 @@ class ProgressOcgOperations(object):
 
 
 class OcgisLogging(object):
-    def __init__(self):
+    def __init__(self, comm=None):
+        _, rank, _ = get_standard_comm_state(comm=comm)
+
         self.level = None
         self.null = True  # pass through if not configured
         self.parent = None
         self.callback = None
         self.callback_level = None
         self.loggers = None
+        self.rank = rank
 
         logging.captureWarnings(None)
 
@@ -93,6 +95,7 @@ class OcgisLogging(object):
             if alias is not None:
                 msg = self.get_formatted_msg(msg, alias, ugid=ugid)
             if exc is None:
+                msg += ' (rank={})'.format(self.rank)
                 dest_logger.log(dest_level, msg)
             else:
                 if level == logging.WARN:
@@ -103,34 +106,33 @@ class OcgisLogging(object):
                     raise exc
 
     def configure(self, to_file=None, to_stream=False, level=logging.INFO, callback=None, callback_level=logging.INFO):
-        # set the callback arguments
         self.callback = callback
         self.callback_level = callback_level
 
-        # no need to configure loggers
+        # No logging to file or stdout. There is nothing to configure.
         if to_file is None and not to_stream:
             self.null = True
         else:
             self.level = level
             self.null = False
-            # add the filehandler if request
+            # Log to null if there is no file present.
             if to_file is None:
                 filename = os.devnull
             else:
                 filename = to_file
-            # create the root logger
+            # This is the root logger.
             self.loggers = {}
             self.parent = logging.getLogger('ocgis')
             self.parent.parent = None
             self.parent.setLevel(level)
             self.parent.handlers = []
-            # add the file handler
+            # Always configure the file handler. This goes to to null if there is no file path.
             fh = logging.FileHandler(filename, 'w')
             fh.setLevel(level)
             fh.setFormatter(logging.Formatter(fmt='%(name)s: %(levelname)s: %(asctime)s: %(message)s',
                                               datefmt='%Y-%m-%d %H:%M'))
             self.parent.addHandler(fh)
-            # add the stream handler if requested
+            # This is the stdout logger.
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
@@ -138,7 +140,7 @@ class OcgisLogging(object):
                                                        datefmt='%Y-%m-%d %H:%M:%S'))
                 self.parent.addHandler(console)
 
-            # tell logging to capture warnings
+            # Capture warnings if requested by the environment.
             logging.captureWarnings(env.SUPPRESS_WARNINGS)
 
             # Insert the current software version into the logging file.
@@ -210,6 +212,12 @@ def get_versions():
         v_rtree = None
     else:
         v_rtree = rtree.__version__
+    try:
+        import mpi4py
+    except ImportError:
+        v_mpi4py = None
+    else:
+        v_mpi4py = mpi4py.__version__
     import fiona
     v_fiona = fiona.__version__
     import netCDF4
@@ -219,7 +227,7 @@ def get_versions():
     from ocgis import osgeo
     v_osgeo = osgeo.__version__
     versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
-                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units)
+                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py)
     return versions
 
 

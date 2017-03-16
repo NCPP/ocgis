@@ -1,7 +1,7 @@
 from collections import deque
-import numpy as np
 
 import fiona
+import numpy as np
 from shapely.geometry import shape, Polygon, mapping
 from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.point import Point
@@ -64,7 +64,7 @@ def get_update_feature(fid, feature):
 
 
 def iter_edge_nodes(idx_nodes):
-    #todo: doc
+    # todo: doc
 
     for ii in range(len(idx_nodes)):
         try:

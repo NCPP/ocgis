@@ -1,16 +1,17 @@
 import datetime
-import netCDF4 as nc
 
 import ocgis
 from ocgis import constants
 from ocgis import env
-from ocgis.api.request.driver.vector import DriverVector
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
+from ocgis.constants import KeywordArguments
 from ocgis.conv.base import AbstractCollectionConverter
+from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
+from ocgis.driver.request import RequestDataset
 from ocgis.exc import DefinitionValidationError
-from ocgis.interface.base.crs import CFWGS84
+from ocgis.variable.crs import CFWGS84
 
 
 class NcConverter(AbstractCollectionConverter):
@@ -47,20 +48,21 @@ class NcConverter(AbstractCollectionConverter):
 
     @classmethod
     def validate_ops(cls, ops):
-        from ocgis.api.parms.definition import OutputFormat
+        from ocgis.ops.parms.definition import OutputFormat
 
         def _raise_(msg, ocg_arugument=OutputFormat):
             raise DefinitionValidationError(ocg_arugument, msg)
 
         # We can only write one request dataset to netCDF.
-        if len(ops.dataset) > 1 and ops.calc is None:
-            msg = ('Data packages (i.e. more than one RequestDataset) may not be written to netCDF. '
-                   'There are currently {dcount} RequestDatasets. Note, this is different than a '
-                   'multifile dataset.'.format(dcount=len(ops.dataset)))
+        len_ops_dataset = len(list(ops.dataset))
+        if len_ops_dataset > 1 and ops.calc is None:
+            msg = 'Data packages (i.e. more than one RequestDataset) may not be written to netCDF. There are ' \
+                  'currently {dcount} RequestDatasets. Note, this is different than a multifile dataset.'
+            msg = msg.format(dcount=len_ops_dataset)
             _raise_(msg, OutputFormat)
-        # We can write multivariate functions to netCDF however.
+        # We can write multivariate functions to netCDF.
         else:
-            if ops.calc is not None and len(ops.dataset) > 1:
+            if ops.calc is not None and len_ops_dataset > 1:
                 # Count the occurrences of these classes in the calculation list.
                 klasses_to_check = [AbstractMultivariateFunction, MultivariateEvalFunction]
                 multivariate_checks = []
@@ -100,11 +102,13 @@ class NcConverter(AbstractCollectionConverter):
                 _raise_(msg)
 
     def _build_(self, coll):
-        ds = nc.Dataset(self.path, 'w', format=self._get_file_format_())
-        return ds
+        ret = {'path': self.path, 'dataset_kwargs': {'format': self._get_file_format_()},
+               'variable_kwargs': self._variable_kwargs, 'driver': DriverNetcdfCF}
+        return ret
 
     def _finalize_(self, ds):
-        ds.close()
+        pass
+        # ds.close()
 
     def _get_file_format_(self):
         file_format = set()
@@ -117,12 +121,15 @@ class NcConverter(AbstractCollectionConverter):
                 ret = env.NETCDF_FILE_FORMAT
             else:
                 # If operations are available, check the request datasets and determine the best format for output.
-                for rd in self.ops.dataset.iter_request_datasets():
+                for rd in self.ops.dataset:
+                    # Only request dataset will have a possible output format.
+                    if not isinstance(rd, RequestDataset):
+                        continue
                     try:
-                        rr = rd.source_metadata['file_format']
+                        rr = rd.metadata['file_format']
                     except KeyError:
                         # Likely a shapefile request dataset which does not have an origin netcdf data format.
-                        if isinstance(rd.driver, DriverVector):
+                        if not isinstance(rd.driver, DriverNetcdf):
                             continue
                         else:
                             raise
@@ -141,22 +148,36 @@ class NcConverter(AbstractCollectionConverter):
                         ret = env.NETCDF_FILE_FORMAT
         return ret
 
-    def _write_archetype_(self, arch, dataset, is_file_only, variable_kwargs):
+    def _write_archetype_(self, arch, write_kwargs, is_file_only, variable_kwargs):
         """
         Write a field to a netCDF dataset object.
 
         :param arch: The field to write.
-        :type arch: :class:`~ocgis.Field`
-        :param dataset: An open netCDF4 dataset object.
-        :type dataset: :class:`netCDF4.Dataset`
+        :type arch: :class:`ocgis.new_interface.field.OcgField`
+        :param dict write_kwargs: Dictionary of parameters needed for the write.
         :param bool is_file_only: If ``True``, this is writing the template file only and there is no data fill.
         :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
          See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
         """
-        unlimited_to_fixedsize = self.options.get('unlimited_to_fixedsize', False)
-        arch.write_netcdf(dataset, file_only=is_file_only, unlimited_to_fixedsize=unlimited_to_fixedsize,
-                          **variable_kwargs)
-    
+        # Append to the history attribute.
+        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
+        if self.ops is not None:
+            history_str += ': {0}'.format(self.ops)
+        original_history_str = arch.attrs.get('history', '')
+        arch.attrs['history'] = original_history_str + history_str
+
+        # Pull in dataset and variable keyword arguments.
+        unlimited_to_fixedsize = self.options.get(KeywordArguments.UNLIMITED_TO_FIXED_SIZE, False)
+        write_kwargs[KeywordArguments.VARIABLE_KWARGS] = variable_kwargs
+        variable_kwargs[KeywordArguments.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
+        variable_kwargs[KeywordArguments.FILE_ONLY] = is_file_only
+
+        # This is the output path. The driver handles MPI writing.
+        path = write_kwargs.pop(KeywordArguments.PATH)
+
+        # Write the field.
+        arch.write(path, **write_kwargs)
+
     def _write_coll_(self, ds, coll):
         """
         Write a spatial collection to an open netCDF4 dataset object.
@@ -168,7 +189,7 @@ class NcConverter(AbstractCollectionConverter):
         """
 
         # Get the target field from the collection.
-        arch = coll._archetype_field
+        arch = coll.archetype_field
         """:type arch: :class:`ocgis.Field`"""
 
         # Get from operations if this is file only.
@@ -180,19 +201,11 @@ class NcConverter(AbstractCollectionConverter):
 
         self._write_archetype_(arch, ds, is_file_only, self._variable_kwargs)
 
-        # Append to the history attribute.
-        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
-        if self.ops is not None:
-            history_str += ': {0}'.format(self.ops)
-        original_history_str = ds.__dict__.get('history', '')
-        setattr(ds, 'history', original_history_str + history_str)
-
 
 class NcUgrid2DFlexibleMeshConverter(NcConverter):
-
     @classmethod
     def validate_ops(cls, ops):
-        from ocgis.api.parms.definition import OutputFormat
+        from ocgis.ops.parms.definition import OutputFormat
 
         NcConverter.validate_ops(ops)
         should_raise = False
@@ -210,12 +223,12 @@ class NcUgrid2DFlexibleMeshConverter(NcConverter):
                     break
 
         if should_raise:
-            msg = 'Only polygons may be written to "{0}"'.\
+            msg = 'Only polygons may be written to "{0}"'. \
                 format(constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, ops.abstraction)
             raise DefinitionValidationError(OutputFormat, msg)
 
     @staticmethod
-    def _write_archetype_(arch, dataset, is_file_only, variable_kwargs):
+    def _write_archetype_(self, arch, write_kwargs, is_file_only):
         poly = arch.spatial.geom.polygon
         """:type poly: :class:`ocgis.SpatialGeometryPolygonDimension`"""
 

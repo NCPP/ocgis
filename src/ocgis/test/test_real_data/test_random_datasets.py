@@ -11,11 +11,11 @@ from shapely.geometry.point import Point
 
 import ocgis
 from ocgis import constants
-from ocgis.api.operations import OcgOperations
-from ocgis.api.request.base import RequestDataset
+from ocgis.driver.request import RequestDataset
 from ocgis.exc import MaskedDataError, ExtentError, RequestValidationError
-from ocgis.interface.base.crs import CFWGS84
+from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr
+from ocgis.variable.crs import CFWGS84
 
 
 class TestCMIP3Masking(TestBase):
@@ -96,7 +96,7 @@ class Test(TestBase):
     @attr('data')
     def test_cccma_rotated_pole(self):
         # with rotated pole, the uid mask was not being updated correctly following a transformation back to rotated
-        # pole. this needed to be updated explicitly in subset.py
+        # pole. this needed to be updated explicitly in engine.py
         rd = self.test_data.get_rd('rotated_pole_cccma')
         geom = (5.87161922454834, 47.26985931396479, 15.03811264038086, 55.05652618408209)
         ops = ocgis.OcgOperations(dataset=rd, output_format='shp', geom=geom,
@@ -128,7 +128,8 @@ class Test(TestBase):
         rds = [rd, rd2]
         geom = [-105.2751, 39.9782]
         ops = ocgis.OcgOperations(dataset=rds, geom=geom, output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
-                                  prefix='ncar_point', add_auxiliary_files=True, output_crs=ocgis.crs.CFWGS84(),
+                                  prefix='ncar_point', add_auxiliary_files=True,
+                                  output_crs=ocgis.variable.crs.CFWGS84(),
                                   snippet=True)
         with self.assertRaises(ValueError):
             ops.execute()
@@ -144,7 +145,8 @@ class Test(TestBase):
         ]
         geom = [-105.2751, 39.9782]
         ops = ocgis.OcgOperations(dataset=rds, geom=geom, output_format='numpy',
-                                  prefix='ncar_point', add_auxiliary_files=True, output_crs=ocgis.crs.CFWGS84(),
+                                  prefix='ncar_point', add_auxiliary_files=True,
+                                  output_crs=ocgis.variable.crs.CFWGS84(),
                                   snippet=True, abstraction='point')
         ret = ops.execute()
 
@@ -168,7 +170,8 @@ class Test(TestBase):
         ]
         geom = [-105.2751, 39.9782]
         ops = ocgis.OcgOperations(dataset=rds, geom=geom, output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
-                                  prefix='ncar_point', add_auxiliary_files=True, output_crs=ocgis.crs.CFWGS84(),
+                                  prefix='ncar_point', add_auxiliary_files=True,
+                                  output_crs=ocgis.variable.crs.CFWGS84(),
                                   snippet=True, abstraction='point')
         ret = ops.execute()
         ugid_shp_path = os.path.join(os.path.split(ret)[0], 'shp', ops.prefix + '_ugid.shp')
@@ -289,7 +292,7 @@ class Test(TestBase):
                                          alias='maurer_tasmax')
 
         ops = ocgis.OcgOperations(dataset=rd_maurer, output_format='shp', snippet=True,
-                                  output_crs=ocgis.crs.WGS84(), geom='state_boundaries',
+                                  output_crs=ocgis.variable.crs.WGS84(), geom='state_boundaries',
                                   select_ugid=[25])
         ops.execute()
 

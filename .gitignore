@@ -30,3 +30,7 @@
 # iPython Notebooks #
 #####################
 *.ipynb_checkpoints*
+
+# setuptools #
+##############
+*ocgis.egg-info

@@ -1,16 +1,15 @@
-import csv
-from csv import excel
-import os
-from collections import OrderedDict
 import logging
+import os
+from csv import excel
 
-import fiona
-from shapely.geometry.geo import mapping
-
+from ocgis import Variable
 from ocgis import constants
-from ocgis import env
+from ocgis.collection.field import OcgField
+from ocgis.constants import KeywordArguments, HeaderNames, DriverKeys
 from ocgis.conv.base import AbstractTabularConverter
+from ocgis.driver.csv_ import DriverCSV
 from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.vm.mpi import MPI_RANK, MPI_COMM
 
 
 class OcgDialect(excel):
@@ -20,26 +19,33 @@ class OcgDialect(excel):
 class CsvConverter(AbstractTabularConverter):
     _ext = 'csv'
 
-    def _build_(self, coll):
-        headers = self.get_headers(coll)
-        f = open(self.path, 'w')
-        writer = csv.DictWriter(f, headers, dialect=OcgDialect)
-        writer.writeheader()
-        ret = {'file_object': f, 'csv_writer': writer}
-        return ret
+    def _write_coll_(self, f, coll, add_geom_uid=True):
+        write_mode = f[KeywordArguments.WRITE_MODE]
+        path = f[KeywordArguments.PATH]
 
-    def _write_coll_(self, f, coll):
-        writer = f['csv_writer']
+        iter_kwargs = {'melted': self.melted}
 
-        for geom, row in self.get_iter_from_spatial_collection(coll):
-            writer.writerow(row)
+        for field, container in coll.iter_fields(yield_container=True):
+            if container.geom is not None:
+                repeater = [(self.geom_uid, container.geom.ugid.value[0])]
+            else:
+                repeater = None
 
-    def _finalize_(self, f):
-        for fobj in f.itervalues():
-            try:
-                fobj.close()
-            except:
-                pass
+            if add_geom_uid and field.geom is not None and field.geom.ugid is None:
+                global_ugid = field.geom.create_ugid_global(HeaderNames.ID_GEOMETRY)
+                if field.grid is not None:
+                    archetype = field.grid.archetype
+                    if hasattr(archetype, '_request_dataset'):
+                        if global_ugid.repeat_record is None:
+                            repeat_record = []
+                        else:
+                            repeat_record = global_ugid.repeat_record
+                        repeat_record.append((HeaderNames.DATASET_IDENTIFER, archetype._request_dataset.uid))
+                        global_ugid.repeat_record = repeat_record
+
+            iter_kwargs[KeywordArguments.REPEATERS] = repeater
+            iter_kwargs[KeywordArguments.DRIVER] = DriverCSV
+            field.write(path, write_mode=write_mode, driver=DriverCSV, iter_kwargs=iter_kwargs)
 
 
 class CsvShapefileConverter(CsvConverter):
@@ -50,87 +56,65 @@ class CsvShapefileConverter(CsvConverter):
         if self.ops is None:
             raise ValueError('The argument "ops" may not be "None".')
 
-    @property
-    def geom_uid(self):
-        geom_uid = self.ops.geom_uid or env.DEFAULT_GEOM_UID
-        return geom_uid
+    def _write_coll_(self, f, coll, add_geom_uid=True):
+        # Write the output CSV file.
+        super(CsvShapefileConverter, self)._write_coll_(f, coll, add_geom_uid=add_geom_uid)
 
-    def _build_(self, coll):
-        ret = CsvConverter._build_(self, coll)
-
-        self._ugid_gid_store = {}
-
-        if not self.ops.aggregate:
+        # The output geometry identifier shapefile path.
+        if MPI_RANK == 0:
             fiona_path = os.path.join(self._get_or_create_shp_folder_(), self.prefix + '_gid.shp')
-            archetype_field = coll._archetype_field
-
-            try:
-                fiona_crs = archetype_field.spatial.crs.value
-            except AttributeError:
-                if archetype_field.spatial.crs is None:
-                    raise ValueError('"crs" is None. A coordinate systems is required for writing to Fiona output.')
-                else:
-                    raise
-
-            fiona_schema = {'geometry': archetype_field.spatial.abstraction_geometry.geom_type,
-                            'properties': OrderedDict([[constants.HEADERS.ID_DATASET.upper(), 'int'],
-                                                       [self.geom_uid, 'int'],
-                                                       [constants.HEADERS.ID_GEOMETRY.upper(), 'int']])}
-            fiona_object = fiona.open(fiona_path, 'w', driver='ESRI Shapefile', crs=fiona_crs, schema=fiona_schema)
         else:
+            fiona_path = None
+        fiona_path = MPI_COMM.bcast(fiona_path)
+
+        if self.ops.aggregate:
             ocgis_lh('creating a UGID-GID shapefile is not necessary for aggregated data. use UGID shapefile.',
                      'conv.csv-shp',
                      logging.WARN)
-            fiona_object = None
+        else:
+            # Write the geometries for each container/field combination.
+            for field, container in coll.iter_fields(yield_container=True):
+                # Try to load the geometry from the collection.
+                field.set_abstraction_geom(create_ugid=True)
 
-        ret.update({'fiona_object': fiona_object})
+                if not field.is_empty:
+                    # The container may be empty. Only add the unique geometry identifier if the container has an
+                    # associated geometry.
+                    if container.geom is not None:
+                        ugid_var = Variable(name=container.geom.ugid.name, dimensions=field.geom.dimensions,
+                                            dtype=constants.DEFAULT_NP_INT)
+                        ugid_var.value[:] = container.geom.ugid.value[0]
 
-        return ret
+                    # Extract the variable components of the geometry file.
+                    geom = field.geom.copy()
+                    geom = geom.extract()
+                    if field.crs is not None:
+                        crs = field.crs.copy()
+                        crs = crs.extract()
+                    else:
+                        crs = None
 
-    def _write_coll_(self, f, coll):
-        writer = f['csv_writer']
-        file_fiona = f['fiona_object']
-        rstore = self._ugid_gid_store
-        is_aggregated = self.ops.aggregate
+                    # If the dataset geometry identifier is not present, create it.
+                    gid = field[HeaderNames.ID_GEOMETRY].copy()
+                    gid = gid.extract()
 
-        for geom, row in self.get_iter_from_spatial_collection(coll):
-            writer.writerow(row)
+                    # Construct the field to write.
+                    field_to_write = OcgField(geom=geom, crs=crs, uid=field.uid)
+                    if container.geom is not None:
+                        field_to_write.add_variable(ugid_var, is_data=True)
+                    field_to_write.add_variable(gid, is_data=True)
 
-        if not is_aggregated:
-            for ugid, field_dict in coll.iteritems():
-                for field in field_dict.itervalues():
-                    did = field.uid
-                    for _, _, geom, gid in field.spatial.get_geom_iter():
-                        try:
-                            if gid in rstore[did][ugid]:
-                                continue
-                            else:
-                                raise KeyError
-                        except KeyError:
-                            if did not in rstore:
-                                rstore[did] = {}
-                            if ugid not in rstore[did]:
-                                rstore[did][ugid] = []
-                            if gid not in rstore[did][ugid]:
-                                rstore[did][ugid].append(gid)
+                    # Maintain the field/dataset unique identifier if there is one.
+                    if field.uid is not None:
+                        if gid.repeat_record is None:
+                            rr = []
+                        else:
+                            rr = list(gid.repeat_record)
+                        rr.append((HeaderNames.DATASET_IDENTIFER, field.uid))
+                        gid.repeat_record = rr
 
-                            # for multivariate calculation outputs the dataset identifier is None.
-                            try:
-                                converted_did = int(did)
-                            except TypeError:
-                                converted_did = None
+                else:
+                    field_to_write = OcgField(is_empty=True)
 
-                            feature = {'properties': {constants.HEADERS.ID_GEOMETRY.upper(): int(gid),
-                                                      self.geom_uid: int(ugid),
-                                                      constants.HEADERS.ID_DATASET.upper(): converted_did},
-                                       'geometry': mapping(geom)}
-                            try:
-                                file_fiona.write(feature)
-                            except ValueError as e:
-                                if feature['geometry']['type'] != file_fiona.meta['schema']['geometry']:
-                                    msg = 'Spatial abstractions do not match. You may need to override "abstraction" and/or "s_abstraction"'
-                                    msg = '{0}. Original error message from Fiona is "ValueError({1})".'.format(msg,
-                                                                                                                e.message)
-                                    raise ValueError(msg)
-                                else:
-                                    raise
+                # Write the field.
+                field_to_write.write(fiona_path, write_mode=f[KeywordArguments.WRITE_MODE], driver=DriverKeys.VECTOR)

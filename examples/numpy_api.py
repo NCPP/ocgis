@@ -8,7 +8,7 @@ VARIABLE = 'tas'
 rd = ocgis.RequestDataset(uri=URI, variable='tas')
 ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', time_region={'month': [1]})
 ret = ops.execute()
-""":type: ocgis.api.collection.SpatialCollection"""
+""":type: ocgis.driver.collection.SpatialCollection"""
 
 # the first key corresponds to the UGID of the selection geometry(s). when there is no selection geometry, this defaults
 # to 1.

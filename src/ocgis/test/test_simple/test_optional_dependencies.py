@@ -37,7 +37,7 @@ class TestOptionalDependencies(TestSimpleBase):
         self.assertEqual(ret[1]['foo'].variables['TG'].value.mean(), 2.5)
 
     def test_rtree(self):
-        from ocgis.util.spatial.index import SpatialIndex
+        from ocgis.spatial.index import SpatialIndex
 
         geom_mapping = {1: Point(1, 2)}
         si = SpatialIndex()

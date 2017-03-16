@@ -1,13 +1,13 @@
-import netCDF4 as nc
 from copy import deepcopy
 
+import netCDF4 as nc
 import numpy as np
 
 import ocgis
-from ocgis.api.operations import OcgOperations
 from ocgis.calc import tile
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.ops.core import OcgOperations
 from ocgis.util.helpers import ProgressBar
 
 
@@ -114,7 +114,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         # get the shape for the tile schema
         if verbose:
             print('getting tile schema shape inputs...')
-        #        if has_multivariate == False:
+        # if has_multivariate == False:
         #            shp_variable = '{0}_{1}'.format(ops.calc[0]['name'],ops.dataset[0].alias)
         #        else:
         #            shp_variable = ops.calc[0]['name']

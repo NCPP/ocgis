@@ -6,14 +6,14 @@ import numpy as np
 import ocgis
 from ocgis import constants
 from ocgis import env
-from ocgis.api.operations import OcgOperations
-from ocgis.api.request.base import RequestDataset
 from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+from ocgis.driver.request import RequestDataset
 from ocgis.exc import DefinitionValidationError
+from ocgis.ops.core import OcgOperations
+from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.test.base import attr
 from ocgis.test.base import nc_scope
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
-from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.util.itester import itr_products_keywords
 
 

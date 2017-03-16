@@ -1,26 +1,25 @@
-from copy import deepcopy
-from csv import DictReader
+import itertools
 import os
 import shutil
-import itertools
+from copy import deepcopy
+from csv import DictReader
 
-import numpy as np
 import fiona
+import numpy as np
 from shapely import wkt
 
-from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 import ocgis
-from ocgis.exc import DefinitionValidationError, ExtentError
-from ocgis.interface.base.crs import CFWGS84, CoordinateReferenceSystem
-from ocgis.util.spatial.fiona_maker import FionaMaker
 from ocgis import OcgOperations, env, constants
+from ocgis.driver.request import RequestDataset
+from ocgis.exc import DefinitionValidationError, ExtentError
+from ocgis.spatial.fiona_maker import FionaMaker
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc, SimpleNcNoBounds, SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
+from ocgis.variable.crs import CFWGS84, CoordinateReferenceSystem
 
 
 class TestCombinatorial(TestBase):
-
     def iter_dataset(self):
         for as_request_dataset in [True, False]:
             for k in self.test_data.iterkeys():
@@ -105,28 +104,28 @@ class TestProjectionCombinations(TestSimpleBase):
         rd2['alias'] = 'var2'
 
         dataset = [
-                   # RequestDatasetCollection([rd1]),
-                   RequestDatasetCollection([rd1,rd2])
-                   ]
+            # RequestDatasetCollection([rd1]),
+            RequestDatasetCollection([rd1, rd2])
+        ]
         calc_sample_size = [
-                            True,
-                            # False
-                            ]
+            True,
+            # False
+        ]
         calc = [
-                [{'func':'mean','name':'mean'},{'func':'max','name':'max'}],
-                # [{'func':'ln','name':'ln'}],
-                # None,
-                # [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
-                ]
+            [{'func': 'mean', 'name': 'mean'}, {'func': 'max', 'name': 'max'}],
+            # [{'func':'ln','name':'ln'}],
+            # None,
+            # [{'func':'divide','name':'divide','kwds':{'arr1':'var1','arr2':'var2'}}]
+        ]
         calc_grouping = [
-                         # None,
-                         ['month'],
-                         # ['month','year']
-                         ]
+            # None,
+            ['month'],
+            # ['month','year']
+        ]
         output_format = ['numpy']
 
-        for ii,tup in enumerate(itertools.product(dataset,calc_sample_size,calc,calc_grouping,output_format)):
-            kwds = dict(zip(['dataset','calc_sample_size','calc','calc_grouping','output_format'],tup))
+        for ii, tup in enumerate(itertools.product(dataset, calc_sample_size, calc, calc_grouping, output_format)):
+            kwds = dict(zip(['dataset', 'calc_sample_size', 'calc', 'calc_grouping', 'output_format'], tup))
             kwds['prefix'] = str(ii)
 
             try:
@@ -160,26 +159,26 @@ class TestProjectionCombinations(TestSimpleBase):
                 if kwds['calc_sample_size'] and kwds['calc_grouping']:
                     if kwds['calc'] is not None and kwds['calc'][0]['func'] == 'mean':
                         with self.nc_scope(ret) as ds:
-                            self.assertEqual(sum([v.startswith('n_') for v in ds.variables.keys()]),2)
-                            self.assertEqual(ds.variables['n_max'][:].mean(),30.5)
+                            self.assertEqual(sum([v.startswith('n_') for v in ds.variables.keys()]), 2)
+                            self.assertEqual(ds.variables['n_max'][:].mean(), 30.5)
 
             if kwds['output_format'] == 'csv':
                 if kwds['calc'] is not None and kwds['calc'][0]['func'] == 'mean':
-                    with open(ret,'r') as f:
+                    with open(ret, 'r') as f:
                         reader = DictReader(f)
                         alias_set = set([row['CALC_ALIAS'] for row in reader])
                         if len(kwds['dataset']) == 1:
                             if kwds['calc_sample_size']:
-                                self.assertEqual(alias_set,set(['max','n_max','n_mean','mean']))
+                                self.assertEqual(alias_set, set(['max', 'n_max', 'n_mean', 'mean']))
                             else:
-                                self.assertEqual(alias_set,set(['max','mean']))
+                                self.assertEqual(alias_set, set(['max', 'mean']))
                         else:
                             if kwds['calc_sample_size']:
-                                self.assertEqual(alias_set,set(['max_var1','n_max_var1','n_mean_var1','mean_var1',
-                                                                'max_var2','n_max_var2','n_mean_var2','mean_var2']))
+                                self.assertEqual(alias_set, set(['max_var1', 'n_max_var1', 'n_mean_var1', 'mean_var1',
+                                                                 'max_var2', 'n_max_var2', 'n_mean_var2', 'mean_var2']))
                             else:
-                                self.assertEqual(alias_set,set(['max_var1','mean_var1',
-                                                                'max_var2','mean_var2']))
+                                self.assertEqual(alias_set, set(['max_var1', 'mean_var1',
+                                                                 'max_var2', 'mean_var2']))
 
     @attr('slow')
     def test_combinatorial_projection_with_geometries(self):
@@ -188,10 +187,14 @@ class TestProjectionCombinations(TestSimpleBase):
         # self.get_ret(kwds={'output_format':'shp','prefix':'as_point','abstraction':'point'})
 
         features = [
-            {'NAME': 'a', 'wkt': 'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},
-            {'NAME': 'b', 'wkt': 'POLYGON((-102.212903 39.004301,-102.905376 38.906452,-103.311828 37.694624,-103.326882 37.295699,-103.898925 37.220430,-103.846237 36.746237,-102.619355 37.107527,-102.634409 37.724731,-101.874194 37.882796,-102.212903 39.004301))'},
-            {'NAME': 'c', 'wkt': 'POLYGON((-105.336559 37.175269,-104.945161 37.303226,-104.726882 37.175269,-104.696774 36.844086,-105.043011 36.693548,-105.283871 36.640860,-105.336559 37.175269))'},
-            {'NAME': 'd', 'wkt': 'POLYGON((-102.318280 39.741935,-103.650538 39.779570,-103.620430 39.448387,-103.349462 39.433333,-103.078495 39.606452,-102.325806 39.613978,-102.325806 39.613978,-102.333333 39.741935,-102.318280 39.741935))'},
+            {'NAME': 'a',
+             'wkt': 'POLYGON((-105.020430 40.073118,-105.810753 39.327957,-105.660215 38.831183,-104.907527 38.763441,-104.004301 38.816129,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.643011 39.802151,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-103.959140 40.118280,-104.327957 40.201075,-104.327957 40.201075,-105.020430 40.073118))'},
+            {'NAME': 'b',
+             'wkt': 'POLYGON((-102.212903 39.004301,-102.905376 38.906452,-103.311828 37.694624,-103.326882 37.295699,-103.898925 37.220430,-103.846237 36.746237,-102.619355 37.107527,-102.634409 37.724731,-101.874194 37.882796,-102.212903 39.004301))'},
+            {'NAME': 'c',
+             'wkt': 'POLYGON((-105.336559 37.175269,-104.945161 37.303226,-104.726882 37.175269,-104.696774 36.844086,-105.043011 36.693548,-105.283871 36.640860,-105.336559 37.175269))'},
+            {'NAME': 'd',
+             'wkt': 'POLYGON((-102.318280 39.741935,-103.650538 39.779570,-103.620430 39.448387,-103.349462 39.433333,-103.078495 39.606452,-102.325806 39.613978,-102.325806 39.613978,-102.333333 39.741935,-102.318280 39.741935))'},
         ]
 
         for filename in ['polygon', 'point']:

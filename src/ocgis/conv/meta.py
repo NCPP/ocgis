@@ -1,13 +1,13 @@
-from ocgis import constants
 import abc
 import datetime
 
 import ocgis
-from ocgis.api.parms.base import AbstractParameter
+from ocgis import constants
+from ocgis.collection.field import OcgField
 from ocgis.conv.base import AbstractConverter
 from ocgis.exc import DefinitionValidationError
+from ocgis.ops.parms.base import AbstractParameter
 from ocgis.util.justify import justify_row
-
 
 HEADERS = {
     'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "1" for the case of no provided geometry.',
@@ -36,7 +36,7 @@ class AbstractMetaConverter(AbstractConverter):
     Base class for all metadata converters.
 
     :param ops: An OpenClimateGIS operations object.
-    :type ops: :class:`ocgis.api.operations.OcgOperations`
+    :type ops: :class:`ocgis.driver.operations.OcgOperations`
     """
 
     __metaclass__ = abc.ABCMeta
@@ -46,25 +46,23 @@ class AbstractMetaConverter(AbstractConverter):
 
 
 class MetaJSONConverter(AbstractMetaConverter):
-
     @classmethod
     def validate_ops(cls, ops):
-        from ocgis.api.parms.definition import OutputFormat
-        from ocgis import Field
+        from ocgis.ops.parms.definition import OutputFormat
 
-        if len(ops.dataset) > 1:
+        if len(list(ops.dataset)) > 1:
             msg = 'Only one request dataset allowed for "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
             raise DefinitionValidationError(OutputFormat, msg)
         else:
-            for element in ops.dataset.itervalues():
-                if isinstance(element, Field):
+            for element in ops.dataset:
+                if isinstance(element, OcgField):
                     msg = 'Fields may not be converted to "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
                     raise DefinitionValidationError(OutputFormat, msg)
 
     def write(self):
-        driver = self.ops.dataset.first().driver
-        """:type driver: :class:`ocgis.api.request.driver.base.AbstractDriver`"""
-        return driver.get_source_metadata_as_json()
+        for dataset in self.ops.dataset:
+            """:type driver: :class:`ocgis.driver.request.driver.base.AbstractDriver`"""
+            return dataset.driver.get_source_metadata_as_json()
 
 
 class MetaOCGISConverter(AbstractMetaConverter):

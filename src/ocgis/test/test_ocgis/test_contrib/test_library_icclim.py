@@ -4,26 +4,28 @@ from copy import deepcopy
 from datetime import datetime
 
 import numpy as np
+from ocgis.interface.base.dimension.temporal import TemporalDimension
 
 import ocgis
-from ocgis.api.operations import OcgOperations
-from ocgis.api.parms.definition import Calc, CalcGrouping
+from ocgis.base import orphaned
 from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.calc.library.statistics import Mean
 from ocgis.calc.library.thresholds import Threshold
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
+from ocgis.constants import TagNames
 from ocgis.contrib import library_icclim
 from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, IcclimTN, \
     IcclimTX, AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction, IcclimTG10p, \
     AbstractIcclimPercentileArrayIndice, IcclimR75pTOT
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
-from ocgis.interface.base.dimension.temporal import TemporalDimension
-from ocgis.interface.base.variable import VariableCollection, DerivedVariable
+from ocgis.ops.core import OcgOperations
+from ocgis.ops.parms.definition import Calc, CalcGrouping
 from ocgis.test import strings
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import itersubclasses
 from ocgis.util.large_array import compute
 from ocgis.util.units import get_units_object, get_are_units_equivalent
+from ocgis.variable.base import VariableCollection
 
 
 class FakeAbstractIcclimFunction(AbstractIcclimFunction):
@@ -78,7 +80,8 @@ class TestAbstractIcclimPercentileArrayIndice(TestBase):
         for mod in (1, 2):
             field = self.get_field(ntime=365)
             # Values less than 1 mm/day will be masked inside icclim.
-            var = field.variables.first()
+            # var = field.variables.first()
+            var = field.get_by_tag(TagNames.DATA_VARIABLES)[0]
             var.value[:] = var.value * mod
             tgd = field.temporal.get_grouping(['month'])
 
@@ -90,7 +93,6 @@ class TestAbstractIcclimPercentileArrayIndice(TestBase):
                 # Output units are always mm/day.
                 if isinstance(c, IcclimR75pTOT):
                     self.assertTrue(get_are_units_equivalent((dv.cfunits, get_units_object('mm/day'))))
-                self.assertIsInstance(dv, DerivedVariable)
 
 
 @attr('icclim')
@@ -184,16 +186,18 @@ class TestTG10p(TestBase):
     @attr('data', 'slow')
     def test_execute(self):
         tas = self.test_data.get_rd('cancm4_tas').get()
-        tas = tas[:, :, :, 10:12, 20:22]
+        # tas = tas[:, :, :, 10:12, 20:22]
+        tas = tas.get_field_slice({'y': slice(10, 12), 'x': slice(20, 22)})
         tgd = tas.temporal.get_grouping(['month'])
         tg = IcclimTG10p(field=tas, tgd=tgd)
         ret = tg.execute()
-        self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
+        self.assertEqual(ret['icclim_TG10p'].shape, (12, 2, 2))
         self.assertEqual(ret['icclim_TG10p'].value.mean(), 30.0625)
 
         # Test with a percentile dictionary.
-        field_pd = tas[0, 0:800, 0, :, :]
-        arr = field_pd.variables['tas'].value.squeeze()
+        # field_pd = tas[0, 0:800, 0, :, :]
+        field_pd = tas.get_field_slice({'time': slice(0, 800)})
+        arr = field_pd['tas'].masked_value.squeeze()
         dt_arr = field_pd.temporal.value_datetime
         percentile = 10
         window_width = 5
@@ -201,7 +205,7 @@ class TestTG10p(TestBase):
                                     field_pd.temporal.units)
         tg = IcclimTG10p(field=tas, tgd=tgd, parms={'percentile_dict': pd})
         ret = tg.execute()
-        self.assertEqual(ret['icclim_TG10p'].shape, (1, 12, 1, 2, 2))
+        self.assertEqual(ret['icclim_TG10p'].shape, (12, 2, 2))
         # This value should change since we are using a different base period.
         self.assertEqual(ret['icclim_TG10p'].value.mean(), 31.0)
 
@@ -228,12 +232,16 @@ class TestDTR(TestBase):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
-        field.variables.add_variable(deepcopy(tasmax.get().variables['tasmax']), assign_new_uid=True)
-        field = field[:, 0:600, :, 25:50, 25:50]
+        field_tasmax = tasmax.get()
+        variable_to_add = field_tasmax['tasmax']
+        with orphaned(variable_to_add):
+            field.add_variable(variable_to_add)
+        field.add_dimensioned(variable_to_add)
+        field = field.get_field_slice({'time': slice(0, 600), 'y': slice(25, 50), 'x': slice(25, 50)})
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimDTR(field=field, tgd=tgd)
         ret = dtr.execute()
-        self.assertEqual(ret['icclim_DTR'].value.shape, (1, 12, 1, 25, 25))
+        self.assertEqual(ret['icclim_DTR'].value.shape, (12, 25, 25))
 
     @attr('data')
     def test_bad_keyword_mapping(self):
@@ -270,12 +278,15 @@ class TestETR(TestBase):
         tasmin = self.test_data.get_rd('cancm4_tasmin_2001')
         tasmax = self.test_data.get_rd('cancm4_tasmax_2001')
         field = tasmin.get()
-        field.variables.add_variable(tasmax.get().variables['tasmax'], assign_new_uid=True)
-        field = field[:, 0:600, :, 25:50, 25:50]
+        field_tasmax = tasmax.get()
+        with orphaned(field_tasmax['tasmax']):
+            field.add_variable(field_tasmax['tasmax'])
+        field.add_dimensioned(field_tasmax['tasmax'])
+        field = field.get_field_slice({'time': slice(0, 600), 'y': slice(25, 50), 'x': slice(25, 50)})
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimETR(field=field, tgd=tgd)
         ret = dtr.execute()
-        self.assertEqual(ret['icclim_ETR'].value.shape, (1, 12, 1, 25, 25))
+        self.assertEqual(ret['icclim_ETR'].value.shape, (12, 25, 25))
 
     @attr('data')
     def test_calculate_rotated_pole(self):
@@ -341,7 +352,7 @@ class TestTx(TestBase):
     def test_calculate(self):
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        field = field[:, :, :, 0:10, 0:10]
+        field = field.get_field_slice({'y': slice(0, 10), 'x': slice(0, 10)})
         klasses = [IcclimTG, IcclimTN, IcclimTX]
         for klass in klasses:
             for calc_grouping in [['month'], ['month', 'year']]:
@@ -359,7 +370,7 @@ class TestSU(TestBase):
     def test_calculate(self):
         rd = self.test_data.get_rd('cancm4_tasmax_2011')
         field = rd.get()
-        field = field[:, :, :, 0:10, 0:10]
+        field = field.get_field_slice({'y': slice(0, 10), 'x': slice(0, 10)})
         for calc_grouping in [['month'], ['month', 'year']]:
             tgd = field.temporal.get_grouping(calc_grouping)
             itg = IcclimSU(field=field, tgd=tgd)
@@ -391,7 +402,8 @@ class TestSU(TestBase):
             actual = OrderedDict([(u'source_data_global_attributes',
                                    u'{"institution": "CCCma (Canadian Centre for Climate Modelling and Analysis, Victoria, BC, Canada)", "institute_id": "CCCma", "experiment_id": "decadal2010", "source": "CanCM4 2010 atmosphere: CanAM4 (AGCM15i, T63L35) ocean: CanOM4 (OGCM4.0, 256x192L40) sea ice: CanSIM1 (Cavitating Fluid, T63 Gaussian Grid) land: CLASS2.7", "model_id": "CanCM4", "forcing": "GHG,Oz,SA,BC,OC,LU,Sl,Vl (GHG includes CO2,CH4,N2O,CFC11,effective CFC12)", "parent_experiment_id": "N/A", "parent_experiment_rip": "N/A", "branch_time": 0.0, "contact": "cccma_info@ec.gc.ca", "references": "http://www.cccma.ec.gc.ca/models", "initialization_method": 1, "physics_version": 1, "tracking_id": "64384802-3f0f-4ab4-b569-697bd5430854", "branch_time_YMDH": "2011:01:01:00", "CCCma_runid": "DHFP1B_E002_I2011_M01", "CCCma_parent_runid": "DHFP1_E002", "CCCma_data_licence": "1) GRANT OF LICENCE - The Government of Canada (Environment Canada) is the \\nowner of all intellectual property rights (including copyright) that may exist in this Data \\nproduct. You (as \\"The Licensee\\") are hereby granted a non-exclusive, non-assignable, \\nnon-transferable unrestricted licence to use this data product for any purpose including \\nthe right to share these data with others and to make value-added and derivative \\nproducts from it. This licence is not a sale of any or all of the owner\'s rights.\\n2) NO WARRANTY - This Data product is provided \\"as-is\\"; it has not been designed or \\nprepared to meet the Licensee\'s particular requirements. Environment Canada makes no \\nwarranty, either express or implied, including but not limited to, warranties of \\nmerchantability and fitness for a particular purpose. In no event will Environment Canada \\nbe liable for any indirect, special, consequential or other damages attributed to the \\nLicensee\'s use of the Data product.", "product": "output", "experiment": "10- or 30-year run initialized in year 2010", "frequency": "day", "creation_date": "2012-03-28T15:32:08Z", "history": "2012-03-28T15:32:08Z CMOR rewrote data to comply with CF standards and CMIP5 requirements.", "Conventions": "CF-1.4", "project_id": "CMIP5", "table_id": "Table day (28 March 2011) f9d6cfec5981bb8be1801b35a81002f0", "title": "CanCM4 model output prepared for CMIP5 10- or 30-year run initialized in year 2010", "parent_experiment": "N/A", "modeling_realm": "atmos", "realization": 2, "cmor_version": "2.8.0"}'),
                                   (u'title', u'ECA heat indice SU'), (
-                    u'references', u'ATBD of the ECA indices calculation (http://eca.knmi.nl/documents/atbd.pdf)'),
+                                      u'references',
+                                      u'ATBD of the ECA indices calculation (http://eca.knmi.nl/documents/atbd.pdf)'),
                                   (u'institution', u'Climate impact portal (http://climate4impact.eu)'),
                                   (u'comment', u' ')])
             self.assertDictEqual(to_test, actual)

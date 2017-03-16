@@ -1,13 +1,13 @@
-import netCDF4 as nc
 import time
 from copy import deepcopy
 
+import netCDF4 as nc
 import numpy as np
 
 import ocgis
 from ocgis import Variable
-from ocgis.api.request.base import RequestDatasetCollection, RequestDataset
 from ocgis.calc import tile
+from ocgis.driver.request import RequestDataset
 from ocgis.test.base import TestBase, attr
 from ocgis.util.large_array import compute, set_variable_spatial_mask
 

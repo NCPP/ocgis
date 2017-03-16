@@ -6,12 +6,12 @@ import fiona
 import numpy as np
 
 import ocgis
-from ocgis.api.subset import OperationsEngine
 from ocgis.conv.fiona_ import ShpConverter, AbstractFionaConverter
-from ocgis.interface.base.crs import WGS84
+from ocgis.ops.engine import OperationsEngine
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
-from ocgis.test.test_ocgis.test_api.test_parms.test_definition import TestGeom
+from ocgis.test.test_ocgis.test_ops.test_parms import TestGeom
+from ocgis.variable.crs import WGS84
 
 
 class TestShpConverter(TestBase):

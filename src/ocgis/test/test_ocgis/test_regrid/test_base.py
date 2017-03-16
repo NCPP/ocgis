@@ -3,24 +3,24 @@ from copy import deepcopy
 
 import ESMF
 import numpy as np
-
-import ocgis
-from ocgis.api.collection import SpatialCollection
-from ocgis.conv.esmpy import ESMPyConverter
-from ocgis.exc import RegriddingError, CornersInconsistentError, CannotFormatTimeError
-from ocgis.interface.base.crs import CoordinateReferenceSystem, Spherical
+from ocgis.driver.collection import SpatialCollection
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.spatial import SpatialGridDimension, SpatialDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.interface.base.field import Field
 from ocgis.interface.base.variable import VariableCollection, Variable
-from ocgis.regrid.base import check_fields_for_regridding, iter_regridded_fields, get_esmf_grid_from_sdim, \
-    iter_esmf_fields, get_sdim_from_esmf_grid, get_ocgis_field_from_esmf_field, RegridOperation
+
+import ocgis
+from ocgis.conv.esmpy import ESMPyConverter
+from ocgis.exc import RegriddingError, CornersInconsistentError, CannotFormatTimeError
+from ocgis.regrid.base import check_fields_for_regridding, iter_regridded_fields, get_esmf_grid, \
+    iter_esmf_fields, get_ocgis_grid_from_esmf_grid, get_ocgis_field_from_esmf_field, RegridOperation
 from ocgis.test.base import attr, TestBase
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.helpers import make_poly, set_new_value_mask_for_field
 from ocgis.util.itester import itr_products_keywords
+from ocgis.variable.crs import CoordinateReferenceSystem, Spherical
 
 
 class TestRegrid(TestSimpleBase):
@@ -127,7 +127,7 @@ class TestRegrid(TestSimpleBase):
 
         gcm = self.test_data.get_rd('cancm4_tas')
         gcm = gcm.get()
-        poly = make_poly([37, 43], [-104+360, -94+360])
+        poly = make_poly([37, 43], [-104 + 360, -94 + 360])
         gcm = gcm.get_intersects(poly)
         gcm.spatial.crs = Spherical()
 
@@ -160,8 +160,8 @@ class TestRegrid(TestSimpleBase):
         dst.spatial.crs = Spherical()
         src = deepcopy(dst[0, 0, 0, :, :])
 
-        egrid_dst = get_esmf_grid_from_sdim(dst.spatial)
-        egrid_src = get_esmf_grid_from_sdim(src.spatial)
+        egrid_dst = get_esmf_grid(dst.spatial)
+        egrid_src = get_esmf_grid(src.spatial)
         self.assertEqual(egrid_dst.mask[0].sum(), 25)
         self.assertEqual(egrid_src.mask[0].sum(), 25)
         self.assertNumpyAll(egrid_dst.coords[0][0], egrid_src.coords[0][0])
@@ -373,7 +373,7 @@ class TestRegrid(TestSimpleBase):
                 sdim.grid.col.remove_bounds()
                 self.assertIsNone(sdim.grid.corners)
 
-            egrid = get_esmf_grid_from_sdim(sdim)
+            egrid = get_esmf_grid(sdim)
 
             if not k.has_mask:
                 egrid.mask[0][2, 2] = 0
@@ -381,7 +381,7 @@ class TestRegrid(TestSimpleBase):
                 if k.has_corners:
                     sdim.grid.corners.mask[:, 2, 2] = True
 
-            nsdim = get_sdim_from_esmf_grid(egrid, crs=k.crs)
+            nsdim = get_ocgis_grid_from_esmf_grid(egrid, crs=k.crs)
             self.assertEqual(nsdim.crs, k.crs)
 
             self.assertNumpyAll(sdim.grid.value, nsdim.grid.value)
@@ -399,13 +399,21 @@ class TestRegrid(TestSimpleBase):
                                   vector_wrap=False)
         ret = ops.execute()
         field = ret[23]['tas']
-        egrid = get_esmf_grid_from_sdim(field.spatial)
+        egrid = get_esmf_grid(field.spatial)
         actual = np.array([[0, 0, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]], dtype=np.int32)
         self.assertNumpyAll(egrid.mask[0], actual)
 
-        sdim = get_sdim_from_esmf_grid(egrid)
+        sdim = get_ocgis_grid_from_esmf_grid(egrid)
         self.assertNumpyAll(sdim.get_mask(), field.spatial.get_mask())
-        actual = np.array([[[[True, True, True, True], [True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]]], [[[True, True, True, True], [True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]]]])
+        actual = np.array([[[[True, True, True, True], [True, True, True, True], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]]],
+                           [[[True, True, True, True], [True, True, True, True], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False],
+                             [False, False, False, False]]]])
         self.assertNumpyAll(actual, sdim.grid.corners.mask)
 
     @attr('esmf')
@@ -423,7 +431,7 @@ class TestRegrid(TestSimpleBase):
                 self.assertIsNone(sdim.grid.row.bounds)
                 self.assertIsNone(sdim.grid.col.bounds)
 
-            egrid = get_esmf_grid_from_sdim(sdim)
+            egrid = get_esmf_grid(sdim)
 
             # ocgis is row major with esmf being column major (i.e. in ocgis rows are stored in the zero index)
             for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
@@ -457,7 +465,7 @@ class TestRegrid(TestSimpleBase):
 
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        egrid = get_esmf_grid_from_sdim(field.spatial)
+        egrid = get_esmf_grid(field.spatial)
 
         for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
             coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
@@ -473,7 +481,7 @@ class TestRegrid(TestSimpleBase):
         field.spatial.grid.row._value = np.flipud(field.spatial.grid.row.value)
         field.spatial.grid.row.bounds = np.fliplr(np.flipud(field.spatial.grid.row.bounds))
 
-        egrid = get_esmf_grid_from_sdim(field.spatial)
+        egrid = get_esmf_grid(field.spatial)
 
         for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
             coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
@@ -504,7 +512,7 @@ class TestRegrid(TestSimpleBase):
         field.spatial.grid.col._value = np.flipud(field.spatial.grid.col.value)
         field.spatial.grid.col.bounds = np.fliplr(np.flipud(field.spatial.grid.col.bounds))
 
-        egrid = get_esmf_grid_from_sdim(field.spatial)
+        egrid = get_esmf_grid(field.spatial)
 
         for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
             coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
@@ -537,7 +545,7 @@ class TestRegrid(TestSimpleBase):
         field.spatial.grid.col._value = np.flipud(field.spatial.grid.col.value)
         field.spatial.grid.col.bounds = np.fliplr(np.flipud(field.spatial.grid.col.bounds))
 
-        egrid = get_esmf_grid_from_sdim(field.spatial)
+        egrid = get_esmf_grid(field.spatial)
 
         for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
             coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
@@ -545,12 +553,17 @@ class TestRegrid(TestSimpleBase):
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         corner_row = corner[1]
-        corner_row_actual = np.array([[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5], [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
+        corner_row_actual = np.array(
+            [[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5],
+             [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_row, corner_row_actual)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         corner_col = corner[0]
-        corner_col_actual = np.array([[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
+        corner_col_actual = np.array(
+            [[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_col, corner_col_actual)
 
     @attr('esmf')
@@ -562,7 +575,7 @@ class TestRegrid(TestSimpleBase):
         np.random.seed(1)
         self.assertFalse(np.any(field.spatial.get_mask()))
         value_mask = np.random.randint(0, 2, field.spatial.get_mask().shape)
-        egrid = get_esmf_grid_from_sdim(field.spatial, value_mask=value_mask)
+        egrid = get_esmf_grid(field.spatial, value_mask=value_mask)
         self.assertNumpyAll(egrid.mask[0], np.invert(value_mask.astype(bool)).astype(egrid.mask[0].dtype))
 
     @attr('esmf')
@@ -699,7 +712,7 @@ class TestRegrid(TestSimpleBase):
         rd = ocgis.RequestDataset(**self.get_dataset())
         field = rd.get()
         self.assertIsNotNone(field.spatial.grid.corners)
-        egrid = get_esmf_grid_from_sdim(field.spatial, with_corners=False)
+        egrid = get_esmf_grid(field.spatial, with_corners=False)
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         for idx in [0, 1]:
             self.assertIsNone(corner[idx])

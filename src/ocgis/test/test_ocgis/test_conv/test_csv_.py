@@ -7,8 +7,8 @@ import numpy as np
 
 from ocgis import OcgOperations, RequestDataset
 from ocgis import constants, env
-from ocgis.api.subset import OperationsEngine
 from ocgis.conv.csv_ import CsvShapefileConverter, CsvConverter
+from ocgis.ops.engine import OperationsEngine
 from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_conv.test_base import AbstractTestConverter
 from ocgis.util.addict import Dict

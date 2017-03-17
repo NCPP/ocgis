@@ -10,7 +10,7 @@ from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants
 from ocgis import env
 from ocgis.base import orphaned
-from ocgis.constants import MPIWriteMode, MPIDistributionMode, DimensionMapKeys, KeywordArguments, DriverKeys
+from ocgis.constants import MPIWriteMode, MPIDistributionMode, DimensionMapKeys, KeywordArguments, DriverKeys, CFNames
 from ocgis.driver.base import AbstractDriver, get_group, driver_scope
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
 from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list
@@ -533,7 +533,7 @@ def get_crs_variable(metadata, to_search=None):
     return crs
 
 
-def get_dimension_map_entry(axis, variables, dimensions):
+def get_dimension_map_entry(axis, variables, dimensions, strict=False):
     axis_vars = []
     for variable in variables.values():
         vattrs = variable['attributes']
@@ -544,12 +544,20 @@ def get_dimension_map_entry(axis, variables, dimensions):
                 pass
             else:
                 axis_vars.append(variable['name'])
+
+    # Try to find by default names.
+    if not strict and len(axis_vars) == 0:
+        possible_names = CFNames.get_name_mapping().get(axis, [])
+        for pn in possible_names:
+            if pn in variables.keys():
+                axis_vars.append(variables[pn]['name'])
+
     if len(axis_vars) == 1:
         var_name = axis_vars[0]
         ret = {'variable': var_name, 'names': list(variables[var_name]['dimensions'])}
     elif len(axis_vars) > 1:
-        msg = 'Multiple axis attributes with value "{}" found on variables "{}". Use a dimension map to specify the ' \
-              'appropriate coordinate dimensions.'
+        msg = 'Multiple axis (axis="{}") possibilities found using variable(s) "{}". Use a dimension map to specify ' \
+              'the appropriate coordinate dimensions.'
         w = OcgWarning(msg.format(axis, axis_vars))
         warn(w)
         ret = None

@@ -4,9 +4,6 @@ from unittest import SkipTest
 
 import fiona
 import numpy as np
-from ocgis.driver.request.driver.base import iter_all_group_keys, get_group
-from ocgis.interface.base.dimension.spatial import SpatialGeometryPolygonDimension, SpatialGeometryDimension, \
-    SpatialDimension
 from shapely.geometry.geo import shape
 
 from ocgis import GeomCabinet
@@ -15,6 +12,8 @@ from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
 from ocgis.constants import MPIDistributionMode
+from ocgis.driver.base import get_group
+from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
@@ -513,6 +512,13 @@ class TestDriverNetcdfCF(TestBase):
         d = self.get_drivernetcdf()
         dmap = d.get_dimension_map(metadata)
         self.assertIsNone(dmap.get('level', {}).get('variable'))
+
+    def test_get_dimension_map_no_time_axis(self):
+        metadata = {'variables': {'time': {'name': 'time', 'attributes': {}, 'dimensions': ['time']}},
+                    'dimensions': {}}
+        d = self.get_drivernetcdf()
+        dmap = d.get_dimension_map(metadata)
+        self.assertEqual(dmap.get('time', {}).get('variable'), 'time')
 
     def test_get_field(self):
         driver = self.get_drivernetcdf()

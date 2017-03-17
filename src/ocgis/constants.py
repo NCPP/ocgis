@@ -324,3 +324,14 @@ class DriverKeys(object):
 class MPITags(IntEnum):
     BARRIER = 0
     SCATTER = 1
+
+
+class CFNames(object):
+    TIME = ('time',)
+    X = ['x', 'xc', 'longitude', 'lon']
+    Y = ['y', 'yc', 'latitude', 'lat']
+    Z = ['z', 'zc', 'level', 'lvl', 'height']
+
+    @classmethod
+    def get_name_mapping(cls):
+        return {'T': cls.TIME, 'X': cls.X, 'Y': cls.Y, 'Z': cls.Z}

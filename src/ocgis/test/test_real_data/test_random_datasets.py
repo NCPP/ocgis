@@ -10,8 +10,8 @@ import numpy as np
 from shapely.geometry.point import Point
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import constants
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import MaskedDataError, ExtentError, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr

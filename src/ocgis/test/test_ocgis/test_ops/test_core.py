@@ -10,11 +10,11 @@ from numpy import dtype
 from shapely.geometry import Point
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
 from ocgis.collection.field import OcgField
 from ocgis.constants import WrappedState, HeaderNames
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import DefinitionValidationError, DimensionNotFound, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition

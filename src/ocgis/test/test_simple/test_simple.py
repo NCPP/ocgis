@@ -17,13 +17,13 @@ from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import exc, env, constants
 from ocgis import osr
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, KeywordArguments, TagNames, HeaderNames
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter

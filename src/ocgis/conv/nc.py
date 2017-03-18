@@ -1,6 +1,7 @@
 import datetime
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
@@ -9,7 +10,6 @@ from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.constants import KeywordArguments
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import DefinitionValidationError
 from ocgis.variable.crs import CFWGS84
 

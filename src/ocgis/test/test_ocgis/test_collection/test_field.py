@@ -5,17 +5,17 @@ from copy import deepcopy
 
 import numpy as np
 from nose.plugins.skip import SkipTest
-from ocgis.driver.request.driver.nc import DriverNetcdf
-from ocgis.driver.request.driver.vector import DriverVector
 from shapely.geometry import Point
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.collection.field import OcgField
 from ocgis.constants import HeaderNames, KeywordArguments, DriverKeys
 from ocgis.driver.csv_ import DriverCSV
-from ocgis.driver.request import RequestDataset
+from ocgis.driver.nc import DriverNetcdf
+from ocgis.driver.vector import DriverVector
 from ocgis.spatial.grid import GridXY
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply

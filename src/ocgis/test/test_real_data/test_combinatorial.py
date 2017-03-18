@@ -10,7 +10,7 @@ from shapely import wkt
 
 import ocgis
 from ocgis import OcgOperations, env, constants
-from ocgis.driver.request import RequestDataset
+from ocgis import RequestDataset
 from ocgis.exc import DefinitionValidationError, ExtentError
 from ocgis.spatial.fiona_maker import FionaMaker
 from ocgis.test.base import TestBase, attr

@@ -3,11 +3,11 @@ from copy import deepcopy
 import numpy as np
 
 from ocgis import OcgOperations, FunctionRegistry
+from ocgis import RequestDataset
 from ocgis import env
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
     AbstractMultivariateFunction, AbstractParameterizedFunction, AbstractFieldFunction
 from ocgis.collection.field import OcgField
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
 from ocgis.ops.parms.definition_helpers import MetadataAttributes
 from ocgis.test.base import TestBase, AbstractTestField

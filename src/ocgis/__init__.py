@@ -6,7 +6,8 @@ import osgeo
 from osgeo import osr, ogr
 from ocgis.environment import env
 from ocgis.variable.base import SourcedVariable, Variable, VariableCollection, Dimension
-from ocgis.driver.request import RequestDataset
+from ocgis.driver.request.core import RequestDataset
+from ocgis.driver.request.multi_request import MultiRequestDataset
 from ocgis.ops.core import OcgOperations
 from ocgis.calc.library.register import FunctionRegistry
 from ocgis.spatial.grid import GridXY

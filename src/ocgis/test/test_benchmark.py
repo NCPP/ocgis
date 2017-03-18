@@ -1,5 +1,5 @@
 import ocgis
-from ocgis.driver.request import RequestDataset
+from ocgis import RequestDataset
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, attr
 

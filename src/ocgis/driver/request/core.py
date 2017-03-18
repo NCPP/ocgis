@@ -6,9 +6,9 @@ from copy import deepcopy
 
 from ocgis import constants
 from ocgis import env
-from ocgis.base import AbstractOcgisObject
 from ocgis.constants import DriverKeys
 from ocgis.driver.registry import get_driver_class, driver_registry
+from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.exc import RequestValidationError, NoDataVariablesFound, VariableNotFoundError
 from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple, get_by_sequence
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -17,7 +17,7 @@ from ocgis.vm.mpi import MPI_COMM
 
 
 # tdk: clean-up
-class RequestDataset(AbstractOcgisObject):
+class RequestDataset(AbstractRequestObject):
     # todo: document vector format
     """
     A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time

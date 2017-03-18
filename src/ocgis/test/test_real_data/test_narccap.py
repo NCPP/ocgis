@@ -4,7 +4,7 @@ import numpy as np
 from ocgis.driver.operations import OcgOperations
 
 import ocgis
-from ocgis.driver.request import RequestDataset
+from ocgis import RequestDataset
 from ocgis.exc import DefinitionValidationError, ExtentError
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.variable.crs import CFRotatedPole, CFWGS84

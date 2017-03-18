@@ -10,11 +10,11 @@ import numpy as np
 from ocgis.driver.request.driver.vector import DriverVector
 
 import ocgis
+from ocgis import RequestDataset, get_is_none, get_autodiscovered_driver
 from ocgis import env
 from ocgis.collection.field import OcgField
 from ocgis.constants import TagNames, MiscNames
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
-from ocgis.driver.request import RequestDataset, get_is_none, get_autodiscovered_driver
 from ocgis.exc import DefinitionValidationError, VariableNotFoundError, RequestValidationError, \
     NoDataVariablesFound
 from ocgis.spatial.geom_cabinet import GeomCabinet

@@ -8,9 +8,9 @@ import numpy as np
 from netCDF4 import date2num, num2date
 from netcdftime import netcdftime
 
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.constants import HeaderNames, KeywordArguments
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import CannotFormatTimeError, IncompleteSeasonError
 from ocgis.ops.parms.definition import CalcGrouping
 from ocgis.test.base import attr, AbstractTestInterface

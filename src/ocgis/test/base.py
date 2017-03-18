@@ -20,12 +20,12 @@ import numpy as np
 from shapely import wkt
 from shapely.geometry import Point
 
+from ocgis import RequestDataset
 from ocgis import SourcedVariable
 from ocgis import Variable, Dimension, VariableCollection
 from ocgis import env
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.driver.request import RequestDataset
 from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.spatial.grid import GridXY, get_geometry_variable
 from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list
@@ -435,7 +435,7 @@ class TestBase(unittest.TestCase):
         exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
         return exact
 
-    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False):
+    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False, variable_name='foo'):
         """
         :param int nlevel: The number of level elements.
         :param int nrlz: The number of realization elements.
@@ -445,6 +445,7 @@ class TestBase(unittest.TestCase):
         :type ntime: int
         :param with_bounds: If ``True``, extrapolate bounds on spatial dimensions.
         :type with_bounds: bool
+        :param str variable_name: The field's data variable name.
         :returns: A small field object for testing.
         :rtype: `~ocgis.Field`
         """
@@ -491,7 +492,7 @@ class TestBase(unittest.TestCase):
             # realization = VectorDimension(value=range(1, nrlz + 1), name='realization')
             realization = Variable(value=range(1, nrlz + 1), name='realization', dimensions='realization')
 
-        variable = Variable(name='foo', value=np.random.rand(nrlz, ntime, nlevel, 2, 2),
+        variable = Variable(name=variable_name, value=np.random.rand(nrlz, ntime, nlevel, 2, 2),
                             dimensions=['realization', 'time', 'level', 'row', 'col'])
         field = OcgField(grid=grid, time=temporal, is_data=variable, level=level, realization=realization, crs=crs)
 

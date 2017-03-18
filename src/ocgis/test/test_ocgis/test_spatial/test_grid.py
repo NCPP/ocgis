@@ -10,11 +10,11 @@ from shapely.geometry import Point, box, MultiPolygon, shape
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
+from ocgis import RequestDataset
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
 from ocgis.constants import KeywordArguments
 from ocgis.driver.nc import DriverNetcdfCF
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
 from ocgis.spatial.grid import GridXY, expand_grid, GridGeometryProcessor
 from ocgis.test.base import attr, AbstractTestInterface

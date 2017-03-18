@@ -3,8 +3,8 @@ import os
 import numpy as np
 from shapely.geometry import box
 
+from ocgis import RequestDataset
 from ocgis.base import get_variable_names
-from ocgis.driver.request import RequestDataset
 from ocgis.spatial.grid_splitter import GridSplitter, does_contain
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable

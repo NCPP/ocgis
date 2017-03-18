@@ -16,6 +16,7 @@ from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
@@ -23,7 +24,7 @@ from ocgis.calc.library import register
 from ocgis.collection.field import OcgField
 from ocgis.constants import WrapAction, DimensionMapKeys, KeywordArguments
 from ocgis.conv.base import get_converter, get_converter_map
-from ocgis.driver.request import RequestDataset
+from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.parms import base
 from ocgis.ops.parms.definition_helpers import MetadataAttributes
@@ -453,7 +454,7 @@ class Dataset(base.AbstractParameter):
             super(Dataset, self).__init__(init_value)
 
     def __iter__(self):
-        non_iterables = [RequestDataset, dict, OcgField]
+        non_iterables = [AbstractRequestObject, dict, OcgField]
         if env.USE_ESMF:
             import ESMF
             non_iterables.append(ESMF.Field)

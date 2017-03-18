@@ -8,8 +8,8 @@ from shapely import wkt
 from shapely.geometry import Point, box, MultiPoint, LineString, MultiPolygon
 from shapely.geometry.multilinestring import MultiLineString
 
+from ocgis import RequestDataset
 from ocgis import env, CoordinateReferenceSystem
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.grid import GridXY, get_geometry_variable
 from ocgis.spatial.index import SpatialIndex

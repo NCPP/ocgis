@@ -4,10 +4,10 @@ from copy import deepcopy
 import numpy as np
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
 from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
-from ocgis.driver.request import RequestDataset
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.spatial.geom_cabinet import GeomCabinet

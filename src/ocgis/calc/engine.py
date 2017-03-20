@@ -3,7 +3,7 @@ import logging
 import numpy as np
 
 from ocgis.base import get_variable_names, orphaned
-from ocgis.calc.base import AbstractMultivariateFunction, AbstractFieldFunction
+from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.constants import DimensionMapKeys
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -13,34 +13,15 @@ class OcgCalculationEngine(object):
     """
     :type grouping: list of temporal groupings (e.g. ['month','year'])
     :type funcs: list of function dictionaries
-    :param raw: If True, perform calculations on raw data values.
-    :type raw: bool
-    :param agg: If True, data needs to be spatially aggregated (using weights) following a calculation.
-    :type agg: bool
     :param bool calc_sample_size:
     :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
     """
 
     def __init__(self, grouping, funcs, calc_sample_size=False, spatial_aggregation=False, progress=None):
-        # self.raw = raw
-        # self.agg = agg
         self.grouping = grouping
         self.funcs = funcs
         self.calc_sample_size = calc_sample_size
         self.spatial_aggregation = spatial_aggregation
-
-        # Select which value data to pull based on raw and agg arguments.
-        # tdk: i think these may be removed. best to wait until other tests are passing.
-        # if self.raw and self.agg is False:
-        #     self.use_raw_values = False
-        # elif self.raw is False and self.agg is True:
-        #     self.use_raw_values = False
-        # elif self.raw and self.agg:
-        #     self.use_raw_values = True
-        # elif not self.raw and not self.agg:
-        #     self.use_raw_values = False
-        # else:
-        #     raise NotImplementedError
 
         self._tgds = {}
         self._progress = progress
@@ -151,8 +132,8 @@ class OcgCalculationEngine(object):
                 # Format the returned field. Doing things like removing original data variables and modifying the
                 # time dimension if necessary. Field functions handle all field modifications on their own, so bypass
                 # in that case.
-                if not self._check_calculation_members_(self.funcs, AbstractFieldFunction):
-                    format_return_field(function_tag, out_field, new_temporal=new_temporal)
+                # if not self._check_calculation_members_(self.funcs, AbstractFieldFunction):
+                format_return_field(function_tag, out_field, new_temporal=new_temporal)
 
                 # Add the calculation variables.
                 for variable in out_vc.values():
@@ -167,9 +148,14 @@ class OcgCalculationEngine(object):
 
 def format_return_field(function_tag, out_field, new_temporal=None):
     # Remove the variables used by the calculation.
-    to_remove = get_variable_names(out_field.get_by_tag(function_tag))
-    for tr in to_remove:
-        out_field.pop(tr)
+    try:
+        to_remove = get_variable_names(out_field.get_by_tag(function_tag))
+    except KeyError:
+        # Let this fail quietly as the tag may not exist on incoming fields.
+        pass
+    else:
+        for tr in to_remove:
+            out_field.pop(tr)
 
     # Remove the original time variable and replace with the new one if there is a new time dimension. New
     # time dimensions may not be present for calculations that do not compute one.

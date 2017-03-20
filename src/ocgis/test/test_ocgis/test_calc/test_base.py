@@ -1,13 +1,16 @@
 from copy import deepcopy
+from datetime import datetime
 
 import numpy as np
 
 from ocgis import OcgOperations, FunctionRegistry
 from ocgis import RequestDataset
 from ocgis import env
+from ocgis.base import get_variable_names
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
     AbstractMultivariateFunction, AbstractParameterizedFunction, AbstractFieldFunction
 from ocgis.collection.field import OcgField
+from ocgis.driver.request.multi_request import MultiRequestDataset
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
 from ocgis.ops.parms.definition_helpers import MetadataAttributes
 from ocgis.test.base import TestBase, AbstractTestField
@@ -224,6 +227,65 @@ class TestMockMultiParamFunction(TestBase):
         ret = ops.execute()
         actual = RequestDataset(ret).get()['my_mvp']
         self.assertEqual(actual.get_value().tolist(), self.desired_value)
+
+
+class MockFieldParamFunction(AbstractFieldFunction, AbstractParameterizedFunction):
+    key = 'mfpf'
+    long_name = 'field function test with parameters'
+    standard_name = 'mock_field_param_function'
+    description = 'Used for testing a field function taking parameters'
+    parms_definition = {'basis': OcgField, 'reference': tuple}
+
+    def calculate(self, reference=None, basis=None):
+        basis_var = basis['basis_var']
+        basis_value = basis_var.get_value()
+        for varname in reference:
+            res_value = self.field[varname].get_value() - basis_value
+            variable = self.get_fill_variable(self.field[varname], 'diff_{}_{}'.format(varname, 'basis_var'),
+                                              basis_var.dimensions, variable_value=res_value)
+            self.vc.add_variable(variable)
+
+
+class TestMockFieldParamFunction(TestBase):
+    def setUp(self):
+        super(self.__class__, self).setUp()
+        FunctionRegistry.append(MockFieldParamFunction)
+
+    def tearDown(self):
+        super(self.__class__, self).tearDown()
+        FunctionRegistry.reg.pop(0)
+
+    def write_field_data(self, variable_name):
+        path = self.get_temporary_file_path('{}.nc'.format(variable_name))
+        field = self.get_field(variable_name=variable_name, ntime=365)
+        field.write(path)
+        return path
+
+    def test(self):
+        path1 = self.write_field_data('data1')
+        path2 = self.write_field_data('data2')
+        path3 = self.write_field_data('basis_var')
+
+        time_range = [datetime(2000, 3, 1), datetime(2000, 3, 31)]
+        rds = [RequestDataset(p, time_range=time_range) for p in [path1, path2]]
+        mrd = MultiRequestDataset(rds)
+
+        basis = RequestDataset(path3, time_range=[datetime(2000, 8, 1), datetime(2000, 8, 31)])
+        basis_field = basis.get()
+
+        calc = [{'func': 'mfpf',
+                 'name': 'output_mfpf',
+                 'kwds': {'reference': ('data1', 'data2'),
+                          'basis': basis_field}}]
+        ops = OcgOperations(dataset=mrd, calc=calc)
+        ret = ops.execute()
+        actual_field = ret.get_element()
+        actual_variables = get_variable_names(actual_field.data_variables)
+        self.assertEqual(actual_variables, ('diff_data1_basis_var', 'diff_data2_basis_var'))
+
+        sums = [v.get_value().sum() for v in actual_field.data_variables]
+        for s in sums:
+            self.assertAlmostEqual(s, 7.8071042497325145)
 
 
 class MockAbstractMultivariateFunction(AbstractMultivariateFunction):

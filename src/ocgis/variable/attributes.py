@@ -36,11 +36,13 @@ class Attributes(AbstractOcgisObject):
             if k.startswith('_') or v is None:
                 # Do not write private/protected attributes used by netCDF or None values.
                 continue
+            if isinstance(v, basestring):
+                v = str(v)
             if k == 'axis' and isinstance(v, basestring):
                 # HACK: Axis writing was causing a strange netCDF failure.
                 target.axis = str(v)
             else:
-                target.setncattr(k, v)
+                target.setncattr(str(k), v)
 
     def _get_attrs_(self):
         return OrderedDict()

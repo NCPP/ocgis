@@ -132,7 +132,7 @@ class DriverNetcdf(AbstractDriver):
         if write_mode != MPIWriteMode.FILL:
             var.write_attributes_to_netcdf_object(ncvar)
             if var.units is not None:
-                ncvar.units = var.units
+                ncvar.setncattr('units', str(var.units))
 
         dataset.sync()
 

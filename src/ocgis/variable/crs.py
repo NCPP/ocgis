@@ -104,6 +104,10 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         return str(self.value)
 
     @property
+    def attrs(self):
+        return {}
+
+    @property
     def has_allocated_value(self):
         return False
 

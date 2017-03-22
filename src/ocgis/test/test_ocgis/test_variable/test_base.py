@@ -244,6 +244,13 @@ class TestVariable(AbstractTestInterface):
             self.assertNumpyAll(new_var.value, var.value)
             self.assertEqual(new_var.dimensions[0], dim)
 
+    def test_system_string_data(self):
+        var = Variable(name='strings', value=['a.nc', 'b.nc'], dtype=str, dimensions='dstr')
+        path = self.get_temporary_file_path('foo.nc')
+        var.parent.write(path)
+        invar = RequestDataset(path).get()['strings']
+        self.assertEqual(invar.dtype, 'S1')
+
     @attr('mpi')
     def test_system_with_distributed_dimensions_from_file_netcdf(self):
         """Test a distributed read from file."""

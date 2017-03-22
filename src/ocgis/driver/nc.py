@@ -89,8 +89,16 @@ class DriverNetcdf(AbstractDriver):
             dtype = cls.get_variable_write_dtype(var)
             if isinstance(dtype, ObjectType):
                 dtype = dtype.create_vltype(dataset, dimensions[0].name + '_VLType')
+            # Assume we are writing string data if the data type is object.
+            elif dtype == str:
+                dtype = 'S1'
 
             if len(dimensions) > 0:
+                # Special handling for string variables.
+                if dtype == 'S1':
+                    max_length = max([len(e) for e in var.get_value()])
+                    dimensions = [var.dimensions[0],
+                                  Dimension('{}_ocgis_slen'.format(var.name), max_length)]
                 dimensions = list(dimensions)
                 # Convert the unlimited dimension to fixed size if requested.
                 for idx, d in enumerate(dimensions):
@@ -126,7 +134,13 @@ class DriverNetcdf(AbstractDriver):
             else:
                 fill_slice = get_slice_sequence_using_local_bounds(var)
                 data_value = cls.get_variable_write_value(var)
-                ncvar.__setitem__(fill_slice, data_value)
+                if var.dtype == str:
+                    for idx in range(fill_slice[0].start, fill_slice[0].stop):
+                        curr_value = data_value[idx]
+                        for sidx, sval in enumerate(curr_value):
+                            ncvar[idx, sidx] = sval
+                else:
+                    ncvar.__setitem__(fill_slice, data_value)
 
         # Only set variable attributes if this is not a fill operation.
         if write_mode != MPIWriteMode.FILL:

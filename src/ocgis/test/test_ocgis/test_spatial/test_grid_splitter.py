@@ -26,6 +26,7 @@ class TestGridSplitter(AbstractTestInterface):
 
     @attr('mpi')
     def test(self):
+        # self.add_barrier = False
         src_grid = self.get_gridxy_global(wrapped=False, with_bounds=True)
         dst_grid = self.get_gridxy_global(wrapped=False, with_bounds=True, resolution=0.5)
 
@@ -50,9 +51,10 @@ class TestGridSplitter(AbstractTestInterface):
 
         src_template = os.path.join(self.current_dir_output, 'src_{}.nc')
         dst_template = os.path.join(self.current_dir_output, 'dst_{}.nc')
+        index_path = os.path.join(self.current_dir_output, 'index_path.nc')
 
         # barrier_print('before write_subsets')
-        gs.write_subsets(src_template, dst_template)
+        gs.write_subsets(src_template, dst_template, 'esmf_weights_{}.nc', index_path)
         # barrier_print('after write_subsets')
 
         if MPI_RANK == 0:
@@ -83,3 +85,7 @@ class TestGridSplitter(AbstractTestInterface):
 
         if MPI_RANK == 0:
             self.assertAlmostEqual(desired_sum, np.sum(rank_sums))
+            self.assertTrue(os.path.exists(index_path))
+
+        index_field = RequestDataset(index_path).get()
+        self.assertTrue(len(index_field.keys()) > 2)

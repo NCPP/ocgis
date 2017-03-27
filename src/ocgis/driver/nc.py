@@ -511,7 +511,9 @@ def get_variable_value(variable, dimensions):
 
 def create_dimension_or_pass(dim, dataset, write_mode=MPIWriteMode.NORMAL):
     if dim.name not in dataset.dimensions:
-        if write_mode == MPIWriteMode.TEMPLATE:
+        if dim.is_unlimited:
+            size = None
+        elif write_mode == MPIWriteMode.TEMPLATE:
             lower, upper = dim.bounds_global
             size = upper - lower
         else:

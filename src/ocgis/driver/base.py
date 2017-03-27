@@ -402,7 +402,10 @@ class AbstractDriver(AbstractOcgisObject):
         if isinstance(variable, TemporalVariable):
             ret = cls.get_variable_for_writing(variable)
         else:
-            ret = cls.get_variable_for_writing(variable).get_masked_value()
+            if variable.has_mask:
+                ret = cls.get_variable_for_writing(variable).get_masked_value()
+            else:
+                ret = cls.get_variable_for_writing(variable).get_value()
         return ret
 
     def init_variable_from_source(self, variable):

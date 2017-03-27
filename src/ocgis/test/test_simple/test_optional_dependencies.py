@@ -24,9 +24,10 @@ class TestOptionalDependencies(TestSimpleBase):
         rd2 = deepcopy(rd1)
         ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc')
         ret = ops.execute()
-        ignore_attributes = {'time_bnds': ['units', 'calendar'], 'global': ['history'], 'foo': ['grid_mapping']}
-        ignore_variables = ['latitude_longitude']
-        self.assertNcEqual(ret, rd1.uri, ignore_attributes=ignore_attributes, ignore_variables=ignore_variables)
+
+        actual_value = RequestDataset(ret).get().data_variables[0].get_value()
+        desired_value = rd1.get().data_variables[0].get_value()
+        self.assertNumpyAllClose(actual_value, desired_value)
 
     @attr('icclim')
     def test_icclim(self):
@@ -34,7 +35,7 @@ class TestOptionalDependencies(TestSimpleBase):
         calc = [{'func': 'icclim_TG', 'name': 'TG'}]
         calc_grouping = ['month', 'year']
         ret = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping).execute()
-        self.assertEqual(ret[1]['foo'].variables['TG'].value.mean(), 2.5)
+        self.assertEqual(ret.get_element(variable_name='TG').get_value().mean(), 2.5)
 
     def test_rtree(self):
         from ocgis.spatial.index import SpatialIndex

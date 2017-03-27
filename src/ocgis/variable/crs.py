@@ -108,6 +108,10 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         return {}
 
     @property
+    def dtype(self):
+        return None
+
+    @property
     def has_allocated_value(self):
         return False
 
@@ -140,6 +144,14 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         sr = SpatialReference()
         sr.ImportFromProj4(to_string(self.value))
         return sr
+
+    @property
+    def shape(self):
+        return tuple([0])
+
+    @property
+    def size(self):
+        return 0
 
     def as_variable(self, with_proj4=True):
         from ocgis.variable.base import Variable

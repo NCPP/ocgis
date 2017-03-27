@@ -5,7 +5,7 @@ import numpy as np
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
 from shapely import wkt
-from shapely.geometry import Point, box, MultiPoint, LineString, MultiPolygon
+from shapely.geometry import Point, box, MultiPoint, LineString
 from shapely.geometry.multilinestring import MultiLineString
 
 from ocgis import RequestDataset
@@ -29,8 +29,8 @@ class TestGeometryProcessor(AbstractTestInterface):
             to_yield = [None] * 2
             to_yield[0] = box(1.0, 2.0, 3.0, 4.0)
             to_yield[1] = box(10.0, 20.0, 30.0, 40.0)
-            for ty in to_yield:
-                yield ty
+            for idx, ty in enumerate(to_yield):
+                yield idx, ty
 
         subset_geometry = box(1.5, 2.5, 2.5, 3.5)
 
@@ -62,7 +62,7 @@ class TestGeometryProcessor(AbstractTestInterface):
                     yld = None
                 else:
                     yld = Point(x[idx], y[idx])
-                yield yld
+                yield idx, yld
 
         subset_geometry = box(2.0, 7.0, 4.5, 9.5)
 
@@ -316,24 +316,6 @@ class TestGeometryVariable(AbstractTestInterface):
         sub = pa.get_intersects(polygon)
         self.assertEqual(sub.shape, (1,))
         self.assertEqual(sub.value[0], Point(1, 2))
-
-    def test_get_intersects_one_dimension(self):
-        raise SkipTest('This currently returns masked data. Index array slicing need to remove masked items.')
-
-        # Test no masked data is returned.
-        snames = ['Hawaii', 'Utah', 'France']
-        snames = Variable(name='state_names', value=snames, dimensions='ngeom')
-        snames.create_dimensions('ngeom')
-        backref = VariableCollection(variables=snames)
-        pts = [Point(1, 2), Point(3, 4), Point(4, 5)]
-        subset = MultiPolygon([Point(1, 2).buffer(0.1), Point(4, 5).buffer(0.1)])
-        gvar = GeometryVariable(value=pts, parent=backref, dimensions='ngeom', name='points')
-        gvar.create_dimensions('ngeom')
-        sub, slc = gvar.get_intersects(subset, return_slice=True)
-        self.assertFalse(sub.get_mask().any())
-        desired = snames.value[slc]
-        actual = sub.parent[snames.name].value
-        self.assertNumpyAll(actual, desired)
 
     def test_get_intersection(self):
         for return_indices in [True, False]:

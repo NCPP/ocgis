@@ -160,6 +160,7 @@ class TestSpatialSubsetOperation(TestBase):
 
     @attr('slow', 'mpi')
     def test_get_spatial_subset(self):
+        # self.add_barrier = False
         ctr_test = 0
         for ss, k in self:
             for geometry_record in self.get_subset_geometries():

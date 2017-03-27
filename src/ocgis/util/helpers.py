@@ -219,6 +219,34 @@ def get_default_or_apply(target, f, default=None):
     return ret
 
 
+def create_exact_field_value(longitude, latitude):
+    """
+    Create an exact field from spherical coordinates. Expects units of degrees - function will convert to radians.
+    """
+
+    longitude = np.atleast_1d(longitude)
+    latitude = np.atleast_1d(latitude)
+    select = longitude < 0
+    if np.any(select):
+        longitude = deepcopy(longitude)
+        longitude[select] += 360.
+    longitude_radians = longitude * 0.0174533
+    latitude_radians = latitude * 0.0174533
+    exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
+    return exact
+
+
+def create_zero_padded_integer(integer, nzeros):
+    sint = str(integer)
+    nstr_zeros = nzeros - len(sint)
+    if nstr_zeros <= 0:
+        ret = sint
+    else:
+        ret = '0' * nstr_zeros
+        ret += sint
+    return ret
+
+
 def get_extrapolated_corners_esmf(arr):
     """
     :param arr: Array of centroids.
@@ -468,7 +496,7 @@ def get_esmf_corners_from_ocgis_corners(ocorners, fill=None):
     """
 
     if fill is None:
-        fill = np.zeros([element + 1 for element in ocorners.shape[1:3]], dtype=ocorners.dtype)
+        fill = np.zeros([element + 1 for element in ocorners.shape[0:2]], dtype=ocorners.dtype)
     range_row = range(ocorners.shape[0])
     range_col = range(ocorners.shape[1])
 
@@ -499,7 +527,7 @@ def get_ocgis_corners_from_esmf_corners(ecorners):
     # ESMF corners have an extra row and column.
     base_shape = [xx - 1 for xx in ecorners.shape]
     grid_corners = np.zeros(base_shape + [4], dtype=ecorners.dtype)
-    # Uppler left, upper right, lower right, lower left
+    # Upper left, upper right, lower right, lower left
     slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
     for ii, jj in itertools.product(range(base_shape[0]), range(base_shape[1])):
         row_slice = slice(ii, ii + 2)
@@ -861,6 +889,17 @@ def set_new_value_mask_for_variable(mask, shape_field, value):
     for idx_r, idx_t, idx_l in itertools.product(rng_realization, rng_temporal, rng_level):
         ref = value[idx_r, idx_t, idx_l]
         ref.mask = ref_logical_or(ref.mask, mask)
+
+
+def update_or_pass(target, key, value):
+    """
+    :param dict target: The target dictionary to update.
+    :param key: The dictionary's key to update.
+    :param value: The dictionary's value to use for the update if the key is not present in `target`.
+    """
+
+    if key not in target:
+        target[key] = value
 
 
 def validate_time_subset(time_range, time_region):

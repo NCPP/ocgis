@@ -8,15 +8,17 @@ import numpy as np
 from shapely import wkt
 
 import ocgis
+from ocgis import SpatialCollection
 from ocgis import env, constants
 from ocgis.calc.library.index.duration import FrequencyDuration
+from ocgis.collection.field import OcgField
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.engine import OperationsEngine
 from ocgis.ops.parms.definition import OutputFormat
 from ocgis.test.base import TestBase, attr
-from ocgis.test.test_ocgis.test_ops.test_parms import TestGeom
+from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
 from ocgis.variable.crs import Spherical, CFWGS84, CFPolarStereographic, WGS84, CoordinateReferenceSystem
@@ -141,7 +143,7 @@ class TestOperationsEngine(TestBase):
                 continue
 
             if k.output_format == constants.OUTPUT_FORMAT_NUMPY:
-                self.assertIsInstance(ret[1]['foo'], Field)
+                self.assertIsInstance(ret[1]['foo'], OcgField)
                 continue
             if k.output_format == constants.OUTPUT_FORMAT_METADATA_OCGIS:
                 self.assertIsInstance(ret, basestring)

@@ -29,7 +29,6 @@ from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter
 from ocgis.ops.parms.definition import OutputFormat
 from ocgis.ops.parms.definition import SpatialOperation
-from ocgis.spatial.fiona_maker import FionaMaker
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import GridXY
 from ocgis.test import strings
@@ -477,7 +476,7 @@ class TestSimple(TestSimpleBase):
     def test_time_level_subset(self):
         ret = self.get_ret(time_range=[datetime.datetime(2000, 3, 1),
                                        datetime.datetime(2000, 3, 31, 23)],
-                           level_range=[1, 1])
+                           level_range=[50, 50])
         ref = ret.get_element(self.var)
         desired = {u'time_bnds': (31, 2), u'bounds_latitude': (4, 2), u'bounds_longitude': (4, 2),
                    u'level': (1,), u'level_bnds': (1, 2), u'longitude': (4,), u'time': (31,), u'latitude': (4,),
@@ -487,7 +486,7 @@ class TestSimple(TestSimpleBase):
     def test_time_level_subset_aggregate(self):
         ret = self.get_ret(kwds={'aggregate': True},
                            time_range=[datetime.datetime(2000, 3, 1), datetime.datetime(2000, 3, 31)],
-                           level_range=[1, 1], )
+                           level_range=[50, 50], )
         ref = ret.get_element(variable_name=self.var).masked_value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret.get_element()
@@ -733,16 +732,16 @@ class TestSimple(TestSimpleBase):
             OcgOperations(dataset=[rd1, rd2], output_format=constants.OUTPUT_FORMAT_NETCDF)
 
     def test_nc_conversion_level_subset(self):
-        rd = self.get_dataset(level_range=[1, 1])
-        ops = OcgOperations(dataset=rd, output_format='nc', prefix='no_level')
-        no_level = ops.execute()
+        rd = self.get_dataset(level_range=[50, 50])
+        ops = OcgOperations(dataset=rd, output_format='nc', prefix='one_level')
+        one_level = ops.execute()
 
-        ops = OcgOperations(dataset={'uri': no_level, 'variable': 'foo'}, output_format='nc', prefix='no_level_again')
-        no_level_again = ops.execute()
+        ops = OcgOperations(dataset={'uri': one_level, 'variable': 'foo'}, output_format='nc', prefix='one_level_again')
+        one_level_again = ops.execute()
 
-        self.assertNcEqual(no_level, no_level_again, ignore_attributes={'global': ['history']})
+        self.assertNcEqual(one_level, one_level_again, ignore_attributes={'global': ['history']})
 
-        ds = nc.Dataset(no_level_again)
+        ds = nc.Dataset(one_level_again)
         try:
             ref = ds.variables['foo'][:]
             self.assertEqual(ref.shape[1], 1)
@@ -1010,6 +1009,10 @@ class TestSimple(TestSimpleBase):
                     desired = {'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
                                'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
                                'CALC_KEY': 'divide', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'divide': '1.0'}
+                    if o == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
+                        # This will have a unique geometry identifier to link with the shapefile.
+                        desired = desired.copy()
+                        desired['GID'] = "1"
                     self.assertDictEqual(row, desired)
 
             if o == 'nc':
@@ -1160,6 +1163,7 @@ class TestSimpleMPI(TestSimpleBase):
         else:
             self.assertGreater(MPI_RANK, 1)
 
+    @attr('mpi-3', 'simple', 'mpi')
     def test_dist(self):
         """Test parallel distribution metadata."""
 
@@ -1635,8 +1639,6 @@ class TestSimpleProjected(TestSimpleBase):
             self.assertEqual(f.meta['crs']['proj'], 'lcc')
 
     def test_with_geometry(self):
-        # self.get_ret(kwds={'output_format': constants.OUTPUT_FORMAT_SHAPEFILE, 'prefix': 'as_polygon'})
-
         features = [
             {'NAME': 'a',
              'wkt': 'POLYGON((-425985.928175 -542933.565515,-425982.789465 -542933.633257,-425982.872261 -542933.881644,-425985.837852 -542933.934332,-425985.837852 -542933.934332,-425985.928175 -542933.565515))'},
@@ -1652,8 +1654,14 @@ class TestSimpleProjected(TestSimpleBase):
             feature['wkt'] = geom.wkt
 
         path = os.path.join(self.current_dir_output, 'ab_{0}.shp'.format('polygon'))
-        with FionaMaker(path, geometry='Polygon') as fm:
-            fm.write(features)
+
+        geoms = [wkt.loads(f['wkt']) for f in features]
+        names = [f['NAME'] for f in features]
+        g = GeometryVariable(name='geom', value=geoms, crs=WGS84(), dimensions='geom')
+        names = Variable(name='NAME', value=names, dimensions='geom')
+        field = OcgField(is_data=names, geom=g, crs=WGS84())
+        field.write(path, driver='vector')
+
         ocgis.env.DIR_GEOMCABINET = self.current_dir_output
 
         ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_SHAPEFILE,

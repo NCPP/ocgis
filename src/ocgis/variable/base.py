@@ -21,7 +21,7 @@ from ocgis.variable.attributes import Attributes
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.iterator import Iterator
-from ocgis.vm.mpi import create_nd_slices, get_global_to_local_slice, MPI_COMM, get_nonempty_ranks
+from ocgis.vm.mpi import create_nd_slices, get_global_to_local_slice, MPI_COMM
 
 
 def handle_empty(func):
@@ -815,8 +815,11 @@ class Variable(AbstractContainer, Attributes):
                     raise
 
         # Subset operation when bounds are not present.
-        if self.bounds is None or use_bounds == False:
-            value = self.value
+        if self.bounds is None or not use_bounds == False:
+            value = self.get_value()
+            # Allow single-valued dimensions to be subset.
+            if self.ndim == 0:
+                value = np.array([value])
             if closed:
                 select = np.logical_and(value > lower, value < upper)
             else:
@@ -853,7 +856,14 @@ class Variable(AbstractContainer, Attributes):
         if select.any() == False:
             raise EmptySubsetError(origin=self.name)
 
-        ret = self[select]
+        # Allow single-valued dimensions to be subset.
+        if self.ndim == 0:
+            if select[0]:
+                ret = self.copy()
+            else:
+                raise EmptySubsetError(origin=self.name)
+        else:
+            ret = self[select]
 
         if return_indices:
             indices = np.arange(select.shape[0])
@@ -872,6 +882,7 @@ class Variable(AbstractContainer, Attributes):
             new_dimensions[idx] = dimensions[idx].get_distributed_slice(slc[idx], comm=comm)
 
         is_or_will_be_empty = self.is_empty or any([nd.is_empty for nd in new_dimensions])
+
         if is_or_will_be_empty:
             ret = self.copy()
             ret.convert_to_empty()
@@ -885,19 +896,20 @@ class Variable(AbstractContainer, Attributes):
                     local_slc[idx] = slice(*local_slc_args)
             ret = self[local_slc]
 
-        non_empty_ranks = get_nonempty_ranks(ret, comm=comm)
-        non_empty_ranks = comm.bcast(non_empty_ranks)
-        # Synchronize the dimensions.
-        if rank in non_empty_ranks:
-            bounds_global = [d.bounds_global for d in new_dimensions]
-        else:
-            bounds_global = None
-        bounds_global = comm.bcast(bounds_global, root=non_empty_ranks[0])
+        # non_empty_ranks = get_nonempty_ranks(ret, comm=comm)
+        # non_empty_ranks = comm.bcast(non_empty_ranks)
+        # # Synchronize the dimensions.
+        # if rank in non_empty_ranks:
+        #     bounds_global = [d.bounds_global for d in new_dimensions]
+        # else:
+        #     bounds_global = None
+        # bounds_global = comm.bcast(bounds_global, root=non_empty_ranks[0])
         if not is_or_will_be_empty:
             ret.set_dimensions(new_dimensions, force=True)
-        else:
-            for dim, bg in zip(ret.dimensions, bounds_global):
-                dim.bounds_global = bg
+        # else:
+        #     pass
+        #     for dim, bg in zip(ret.dimensions, bounds_global):
+        #         dim.bounds_global = bg
 
         return ret
 
@@ -971,6 +983,17 @@ class Variable(AbstractContainer, Attributes):
         sizes = [len(self.parent.dimensions[dn]) for dn in dnames]
         for dct in iter_dict_slices(dnames, sizes):
             yield dct
+
+    def join_string_value(self):
+        """Join well-formed string values."""
+
+        new_value = np.zeros(self.shape[0], dtype=object)
+        value = self.get_value()
+        for ii in range(self.shape[0]):
+            curr = value[ii, :].tolist()
+            curr = ''.join(curr)
+            new_value[ii] = curr
+        return new_value
 
     def load(self, *args, **kwargs):
         """

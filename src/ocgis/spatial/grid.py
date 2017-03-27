@@ -17,7 +17,7 @@ from ocgis.variable.crs import CFRotatedPole
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, AbstractSpatialContainer, get_masking_slice, GeometryProcessor
 from ocgis.vm.mpi import MPI_COMM, get_standard_comm_state, \
-    get_nonempty_ranks, MPI_RANK
+    get_nonempty_ranks, MPI_RANK, MPI_SIZE
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -60,7 +60,7 @@ class GridGeometryProcessor(GeometryProcessor):
                         y = y_data[idx_row, idx_col]
                         x = x_data[idx_row, idx_col]
                     yld = Point(x, y)
-                yield yld
+                yield (idx_row, idx_col), yld
         elif abstraction == 'polygon':
             if grid.has_bounds:
                 # We want geometries for everything even if masked.
@@ -76,7 +76,7 @@ class GridGeometryProcessor(GeometryProcessor):
                             min_x, max_x = np.min(x_bounds[col, :]), np.max(x_bounds[col, :])
                             min_y, max_y = np.min(y_bounds[row, :]), np.max(y_bounds[row, :])
                             polygon = box(min_x, min_y, max_x, max_y)
-                        yield polygon
+                        yield (row, col), polygon
                 else:
                     # tdk: we should be able to avoid the creation of this corners array
                     corners = np.vstack((y_bounds, x_bounds))
@@ -89,7 +89,7 @@ class GridGeometryProcessor(GeometryProcessor):
                             coords = np.hstack((current_corner[1, :].reshape(-1, 1),
                                                 current_corner[0, :].reshape(-1, 1)))
                             polygon = Polygon(coords)
-                        yield polygon
+                        yield (row, col), polygon
             else:
                 msg = 'A grid must have bounds/corners to construct polygons. Consider using "set_extrapolated_bounds".'
                 raise GridDeficientError(msg)
@@ -183,6 +183,10 @@ class GridXY(AbstractSpatialContainer):
                 if include_bounds and var.has_bounds:
                     ret.append(var.bounds)
         return ret
+
+    @property
+    def dtype(self):
+        return self.archetype.dtype
 
     @property
     def extent_global(self):
@@ -299,15 +303,24 @@ class GridXY(AbstractSpatialContainer):
 
         ner = get_nonempty_ranks(self)
         ner = MPI_COMM.bcast(ner)
-        shapes = [None] * len(ner)
-        for idx, rank in enumerate(ner):
-            if MPI_RANK == rank:
-                shapes[idx] = [max(d.bounds_global) for d in self.dimensions]
-        return tuple(np.max(shapes, axis=0))
+
+        if self.is_empty:
+            maxd = None
+        else:
+            maxd = [max(d.bounds_global) for d in self.dimensions]
+        shapes = MPI_COMM.gather(maxd)
+        if MPI_RANK == 0:
+            shapes = [shapes[ii] for ii in ner]
+            shape_global = tuple(np.max(shapes, axis=0))
+        else:
+            shape_global = None
+        shape_global = MPI_COMM.bcast(shape_global)
+
+        return shape_global
 
     def get_value_stacked(self):
-        y = self.y.value
-        x = self.x.value
+        y = self.y.get_value()
+        x = self.x.get_value()
 
         if self.is_vectorized:
             x, y = np.meshgrid(x, y)
@@ -317,29 +330,9 @@ class GridXY(AbstractSpatialContainer):
         fill[1, :, :] = x
         return fill
 
-    # def get_masked_value_stacked(self):
-    #
-    #     value_stacked = self.get_value_stacked()
-    #
-    #     mask = self.get_mask()
-    #     if mask is not None:
-    #
-    #
-    #     y = self.y.masked_value
-    #     x = self.x.masked_value
-    #     fill = np.ma.zeros([2] + list(y.shape))
-    #     fill[0, :, :] = y
-    #     fill[1, :, :] = x
-    #     return fill
-
     @property
     def archetype(self):
         return self.parent[self._y_name]
-
-    # def allocate_geometry_variable(self, target):
-    #     targets = {'point': {'name': self._point_name, 'func': get_point_geometry_array},
-    #                'polygon': {'name': self._polygon_name, 'func': get_polygon_geometry_array}}
-    #     grid_set_geometry_variable_on_parent(targets[target]['func'], self, targets[target]['name'], alloc_only=True)
 
     def expand(self):
         expand_grid(self)
@@ -385,9 +378,13 @@ class GridXY(AbstractSpatialContainer):
         if cascade:
             grid_set_mask_cascade(self)
 
+    def copy(self):
+        ret = super(GridXY, self).copy()
+        ret.parent = ret.parent.copy()
+        return ret
+
     def get_distributed_slice(self, slc, **kwargs):
         """Collective!"""
-
         if isinstance(slc, dict):
             y_slc = slc[self.dimensions[0].name]
             x_slc = slc[self.dimensions[1].name]
@@ -395,9 +392,10 @@ class GridXY(AbstractSpatialContainer):
 
         ret = self.copy()
         if self.is_vectorized:
-            y_slc, x_slc = slc
-            ret.parent = ret.y.get_distributed_slice(y_slc, **kwargs).parent
-            ret.parent = ret.x.get_distributed_slice(x_slc, **kwargs).parent
+            dummy_var = Variable(name='__ocgis_dummy_var__', dimensions=ret.dimensions)
+            ret.parent.add_variable(dummy_var)
+            ret.parent = dummy_var.get_distributed_slice(slc, **kwargs).parent
+            ret.parent.pop(dummy_var.name)
         else:
             ret.parent = self.archetype.get_distributed_slice(slc, **kwargs).parent
         return ret
@@ -412,19 +410,9 @@ class GridXY(AbstractSpatialContainer):
         args.insert(0, 'intersection')
         return self.get_spatial_operation(*args, **kwargs)
 
-    # def get_spatial_operation(self, *args, **kwargs):
     def get_spatial_operation(self, spatial_op, subset_geom, return_slice=False, use_bounds='auto', original_mask=None,
                               keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True,
                               comm=None):
-        # kwargs = kwargs.copy()
-
-        # use_bounds = kwargs.pop(KeywordArguments.USE_BOUNDS, 'auto')
-        # return_slice = kwargs.get(KeywordArguments.RETURN_SLICE, False)
-        # original_mask = kwargs.get(KeywordArguments.ORIGINAL_MASK)
-        # keep_touches = kwargs.get(KeywordArguments.KEEP_TOUCHES, 'auto')
-        # cascade = kwargs.pop(KeywordArguments.CASCADE, True)
-        # optimized_bbox_subset = kwargs.pop(KeywordArguments.OPTIMIZED_BBOX_SUBSET, False)
-        # comm = kwargs.get(KeywordArguments.COMM)
 
         comm, rank, size = get_standard_comm_state(comm)
         original_subset_target = subset_geom
@@ -434,13 +422,10 @@ class GridXY(AbstractSpatialContainer):
                   'during a spatial subset operation.'
             raise ValueError(msg)
 
-        # spatial_op, original_subset_target = args
-
         if not isinstance(original_subset_target, BaseGeometry):
             msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
                 type(original_subset_target))
             raise ValueError(msg)
-        # args = (original_subset_target,)
 
         if use_bounds == 'auto':
             if self.abstraction == 'polygon':
@@ -460,6 +445,7 @@ class GridXY(AbstractSpatialContainer):
                 keep_touches = False
 
         buffer_value = None
+
         if original_mask is None:
             if not self.is_empty:
                 if not optimized_bbox_subset:
@@ -472,7 +458,7 @@ class GridXY(AbstractSpatialContainer):
 
                 for ctr, geom in enumerate(geom_itr):
                     if not optimized_bbox_subset:
-                        geom = geom.buffer(buffer_value)
+                        geom = geom.buffer(buffer_value).envelope
                     single_hint_mask = get_hint_mask_from_geometry_bounds(self, geom.bounds, invert=False)
 
                     if ctr == 0:
@@ -497,7 +483,7 @@ class GridXY(AbstractSpatialContainer):
             if not self.is_empty:
                 # If everything is masked, there is no reason to load the grid geometries.
                 if not original_mask.all():
-                    fill_mask = original_mask.flatten()
+                    fill_mask = original_mask
                     if perform_intersection:
                         geometry_fill = np.zeros(fill_mask.shape, dtype=object)
                     if size > 1:
@@ -510,9 +496,7 @@ class GridXY(AbstractSpatialContainer):
                         fill_mask[idx] = not intersects_logical
                         if perform_intersection and intersects_logical:
                             geometry_fill[idx] = current_geometry.intersection(original_subset_target)
-                    fill_mask = fill_mask.reshape(*original_mask.shape)
-                    if perform_intersection:
-                        geometry_fill = geometry_fill.reshape(*original_mask.shape)
+                            # fill_mask = fill_mask.reshape(*original_mask.shape)
             if perform_intersection:
                 if geometry_fill is None:
                     if use_bounds:
@@ -701,7 +685,7 @@ class GridXY(AbstractSpatialContainer):
         reorder_dimension = self.dimensions[1].name
         varying_dimension = self.dimensions[0].name
 
-        if self.dimensions[1].dist:
+        if self.dimensions[1].dist and MPI_SIZE > 1:
             raise ValueError('The reorder dimension may not be distributed.')
 
         # Reorder indices identify where the index translation occurs.
@@ -843,11 +827,10 @@ def get_geometry_variable(grid, value=None, mask=None, use_bounds=True):
         if value is None:
             gp = GridGeometryProcessor(grid, None, mask, use_bounds=use_bounds)
             itr = gp.get_geometry_iterable()
-            value = np.zeros(grid.shape, dtype=object).flatten()
-            for idx, geometry in enumerate(itr):
+            value = np.zeros(grid.shape, dtype=object)
+            for idx, geometry in itr:
                 if geometry is not None:
                     value[idx] = geometry
-            value = value.reshape(grid.shape)
     if grid.abstraction == 'point':
         name = grid._point_name
     else:
@@ -952,8 +935,6 @@ def grid_set_geometry_variable_on_parent(func, grid, name, alloc_only=False):
     dimensions = [d.name for d in grid.dimensions]
     ret = get_geometry_variable(func, grid, name=name, attrs={'axis': 'geom'}, alloc_only=alloc_only,
                                 dimensions=dimensions)
-    # ret.create_dimensions(names=[d.name for d in grid.dimensions])
-    # grid.parent.add_variable(ret)
     return ret
 
 
@@ -1002,8 +983,8 @@ def expand_grid(grid):
                                     dtype=original_y_bounds.dtype)
             new_x_bounds = new_y_bounds.copy()
             for idx_y, idx_x in itertools.product(range(original_y_bounds.shape[0]), range(original_x_bounds.shape[0])):
-                new_y_bounds[idx_y, idx_x, 0:2] = original_y_bounds[idx_y, 1]
-                new_y_bounds[idx_y, idx_x, 2:4] = original_y_bounds[idx_y, 0]
+                new_y_bounds[idx_y, idx_x, 0:2] = original_y_bounds[idx_y, 0]
+                new_y_bounds[idx_y, idx_x, 2:4] = original_y_bounds[idx_y, 1]
 
                 new_x_bounds[idx_y, idx_x, 0] = original_x_bounds[idx_x, 0]
                 new_x_bounds[idx_y, idx_x, 1] = original_x_bounds[idx_x, 1]

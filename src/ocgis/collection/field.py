@@ -513,6 +513,13 @@ class OcgField(VariableCollection):
         for var in self.get_by_tag(tag_name):
             yield var
 
+    def iter_mapped(self, include_crs=False):
+        for k, v in self.dimension_map.items():
+            if k == DimensionMapKeys.CRS and not include_crs:
+                continue
+            else:
+                yield k, getattr(self, k)
+
     def set_abstraction_geom(self, force=True, create_ugid=False, ugid_name=HeaderNames.ID_GEOMETRY, comm=None,
                              ugid_start=1, set_ugid_as_data=False):
         """Collective!"""
@@ -526,13 +533,23 @@ class OcgField(VariableCollection):
         if set_ugid_as_data:
             self.add_variable(self.geom.ugid, force=True, is_data=True)
 
+    def set_crs(self, value):
+        if self.crs is not None:
+            self.pop(self.crs.name)
+        if value is not None:
+            variable_name = value.name
+            self.add_variable(value)
+        else:
+            variable_name = None
+        self.dimension_map[DimensionMapKeys.CRS][DimensionMapKeys.VARIABLE] = variable_name
+
     def set_geom(self, variable, force=True):
         if variable is None:
             self.dimension_map[DimensionMapKeys.GEOM] = None
         else:
             dmap_entry = self.dimension_map[DimensionMapKeys.GEOM]
             dmap_entry[DimensionMapKeys.VARIABLE] = variable.name
-            if variable.crs != self.crs:
+            if variable.crs != self.crs and not self.is_empty:
                 raise ValueError('Geometry and field do not have matching coordinate reference systems.')
             self.add_variable(variable, force=force)
 
@@ -586,17 +603,23 @@ class OcgField(VariableCollection):
         return driver.write_field(*args, **kwargs)
 
 
-def get_field_property(field, name):
+def get_field_property(field, name, strict=False):
     variable = field.dimension_map[name]['variable']
     bounds = field.dimension_map[name].get('bounds')
     if variable is None:
         ret = None
     else:
-        ret = field[variable]
-        if not isinstance(ret, CoordinateReferenceSystem):
+        try:
+            ret = field[variable]
+        except KeyError:
+            if strict:
+                raise
+            else:
+                ret = None
+        if not isinstance(ret, CoordinateReferenceSystem) and ret is not None:
             ret.attrs.update(field.dimension_map[name]['attrs'])
             if bounds is not None:
-                ret.set_bounds(field[bounds], force=True)
+                ret.set_bounds(field.get(bounds), force=True)
     return ret
 
 

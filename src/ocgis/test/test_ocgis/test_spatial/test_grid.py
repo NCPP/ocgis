@@ -1,6 +1,5 @@
 import itertools
 from copy import deepcopy
-from unittest import SkipTest
 
 import fiona
 import numpy as np
@@ -40,6 +39,7 @@ class Test(AbstractTestInterface):
         for variable in [vx, vy]:
             self.assertEqual(grid.parent[variable.name].ndim, 1)
         expand_grid(grid)
+
         for variable in [vx, vy]:
             self.assertEqual(grid.parent[variable.name].ndim, 2)
 
@@ -222,22 +222,13 @@ class TestGridXY(AbstractTestInterface):
         actual_field.set_abstraction_geom()
         self.assertNumpyAll(actual_field.geom.get_mask(), grid.get_mask())
 
-    def test_corners_esmf(self):
-        raise SkipTest('move to test for get_esmf_corners_from_ocgis_corners')
-        x_bounds = Variable(value=[[-100.5, -99.5], [-99.5, -98.5], [-98.5, -97.5], [-97.5, -96.5]], name='x_bounds')
-        x = BoundedVariable(value=[-100., -99., -98., -97.], bounds=x_bounds, name='x')
+    def test_copy(self):
+        grid = self.get_gridxy()
 
-        y_bounds = Variable(value=[[40.5, 39.5], [39.5, 38.5], [38.5, 37.5]], name='y_bounds')
-        y = BoundedVariable(value=[40., 39., 38.], bounds=y_bounds, name='y')
-
-        grid = GridXY(x=x, y=y)
-
-        actual = np.array([[[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5],
-                            [38.5, 38.5, 38.5, 38.5, 38.5], [37.5, 37.5, 37.5, 37.5, 37.5]],
-                           [[-100.5, -99.5, -98.5, -97.5, -96.5], [-100.5, -99.5, -98.5, -97.5, -96.5],
-                            [-100.5, -99.5, -98.5, -97.5, -96.5], [-100.5, -99.5, -98.5, -97.5, -96.5]]],
-                          dtype=grid.value.dtype)
-        self.assertNumpyAll(actual, grid.corners_esmf)
+        grid_copy = grid.copy()
+        nuisance = Variable(name='nuisance')
+        grid_copy.parent.add_variable(nuisance)
+        self.assertNotIn(nuisance.name, grid.parent)
 
     @attr('mpi')
     def test_extent_global(self):
@@ -277,6 +268,18 @@ class TestGridXY(AbstractTestInterface):
         self.assertNumpyAll(sub.parent['tas'].value, orig_tas)
         self.assertNumpyAll(sub.parent['rhs'].value, orig_rhs)
         self.assertTrue(np.may_share_memory(sub.parent['tas'].value, grid.parent['tas'].value))
+
+    @attr('mpi', 'mpi-3')
+    def test_get_distributed_slice(self):
+        path = '/home/benkoziol/l/data/bekozi-work/esmf-optimizations/cr-grids/grid_cr_src.nc'
+        rd = RequestDataset(path)
+        grid = rd.get().grid
+        bounds_global = deepcopy([d.bounds_global for d in grid.dimensions])
+
+        for _ in range(10):
+            sub = grid.get_distributed_slice([slice(73, 157), slice(305, 386)])
+            bounds_global_grid_after_slice = [d.bounds_global for d in grid.dimensions]
+            self.assertEqual(bounds_global, bounds_global_grid_after_slice)
 
     @attr('mpi')
     def test_get_gridxy(self):

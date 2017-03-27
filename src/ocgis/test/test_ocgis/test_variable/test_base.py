@@ -212,7 +212,7 @@ class TestVariable(AbstractTestInterface):
         self.assertIsNone(var.get_mask())
         self.assertIsNone(var._mask)
 
-    @attr('mpi')
+    @attr('mpi', 'mpi-2')
     def test_system_scatter_gather_variable(self):
         """Test a proof-of-concept scatter and gather operation on a simple variable."""
 
@@ -489,6 +489,19 @@ class TestVariable(AbstractTestInterface):
         self.assertNumpyMayShareMemory(var.value, cvar.value)
         self.assertNumpyMayShareMemory(var.dimensions[0]._src_idx, cvar.dimensions[0]._src_idx)
 
+        # Test copied parent does not share reference.
+        var = Variable(name='foo', value=[1, 2], dimensions='two')
+        var2 = Variable(name='foo1', value=[5, 6, 7], dimensions='three')
+        var_copy = var.copy()
+        var_copy.parent.add_variable(var2)
+        self.assertNotIn(var2.name, var.parent)
+
+        # Test dimensions are not shared.
+        var = Variable(name='foo', value=[1, 2], dimensions='two')
+        var_copy = var.copy()
+        var_copy.parent.add_dimension(Dimension('dummy'))
+        self.assertNotIn('dummy', var.parent.dimensions)
+
     def test_deepcopy(self):
         var = Variable(value=[5], dimensions='one', name='o')
         var.set_bounds(Variable(value=[[4, 6]], dimensions=['one', 'bnds'], name='bounds'))
@@ -577,6 +590,18 @@ class TestVariable(AbstractTestInterface):
         sub = var[{'one': 1}]
         sub.get_value()[:] = 100.
         self.assertEqual(var.get_value()[1], 100.)
+
+        # Test dimension bounds are updated.
+        var = Variable(name='foo', value=np.zeros((31, 360, 720)), dimensions=['time', 'row', 'col'])
+        desired_bounds_global = [(0, 31), (0, 360), (0, 720)]
+        bounds_global = [d.bounds_global for d in var.dimensions]
+        self.assertEqual(bounds_global, desired_bounds_global)
+        slc = {'time': 1, 'row': slice(0, 180), 'col': slice(0, 360)}
+        desired_bounds_global_slice = [(0, 1), (0, 180), (0, 360)]
+        sub = var[slc]
+        bounds_global = [d.bounds_global for d in sub.dimensions]
+        self.assertEqual(desired_bounds_global_slice, bounds_global)
+        self.assertEqual(desired_bounds_global_slice, [d.bounds_local for d in sub.dimensions])
 
     def test_get_between_bounds(self):
         value = [0., 5., 10.]
@@ -691,20 +716,21 @@ class TestVariable(AbstractTestInterface):
 
         VariableCollection(variables=[var1, var2, var3, var4])
 
-        sub = var1.get_distributed_slice(7)
+        for _ in range(10):
+            sub = var1.get_distributed_slice(7)
 
-        non_empty = {1: 0, 2: 1, 3: 2, 5: 3}
-        ner = get_nonempty_ranks(sub)
-        ner = MPI_COMM.bcast(ner)
-        desired_nonempty = non_empty.get(MPI_SIZE, 3)
-        self.assertEqual(ner[0], desired_nonempty)
+            non_empty = {1: 0, 2: 1, 3: 2, 5: 3}
+            ner = get_nonempty_ranks(sub)
+            ner = MPI_COMM.bcast(ner)
+            desired_nonempty = non_empty.get(MPI_SIZE, 3)
+            self.assertEqual(ner[0], desired_nonempty)
 
-        desired = {'var1': [7], 'var2': [107], 'var3': var3.value.tolist(), 'var4': [[7], [7], [7]]}
-        if MPI_RANK == ner[0]:
-            actual = {var.name: var.value.tolist() for var in sub.parent.values()}
-            self.assertEqual(actual, desired)
-        else:
-            self.assertTrue(sub.is_empty)
+            desired = {'var1': [7], 'var2': [107], 'var3': var3.value.tolist(), 'var4': [[7], [7], [7]]}
+            if MPI_RANK == ner[0]:
+                actual = {var.name: var.value.tolist() for var in sub.parent.values()}
+                self.assertEqual(actual, desired)
+            else:
+                self.assertTrue(sub.is_empty)
 
     @attr('mpi')
     def test_get_distributed_slice_simple(self):

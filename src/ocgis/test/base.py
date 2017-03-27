@@ -25,10 +25,9 @@ from ocgis import SourcedVariable
 from ocgis import Variable, Dimension, VariableCollection
 from ocgis import env
 from ocgis.collection.field import OcgField
-from ocgis.collection.spatial import SpatialCollection
 from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.spatial.grid import GridXY, get_geometry_variable
-from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list
+from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list, create_exact_field_value
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem
@@ -404,36 +403,9 @@ class TestBase(unittest.TestCase):
         ret['trace'] = np.trace(arr)
         return ret
 
-    def get_esmf_field(self, **kwargs):
-        """
-        :keyword field: (``=None``) The field object. If ``None``, call :meth:`~ocgis.test.base.TestBase.get_field`
-        :type field: :class:`~ocgis.Field`
-        :param kwargs: Other keyword arguments to :meth:`ocgis.test.base.TestBase.get_field`.
-        :returns: An ESMF field object.
-        :rtype: :class:`ESMF.Field`
-        """
-
-        from ocgis.conv.esmpy import ESMPyConverter
-
-        field = kwargs.pop('field', None) or self.get_field(**kwargs)
-        coll = SpatialCollection()
-        coll.add_field(field, None)
-        conv = ESMPyConverter([coll])
-        efield = conv.write()
-        return efield
-
     @staticmethod
     def get_exact_field_value(longitude, latitude):
-        longitude = np.atleast_1d(longitude)
-        latitude = np.atleast_1d(latitude)
-        select = longitude < 0
-        if np.any(select):
-            longitude = deepcopy(longitude)
-            longitude[select] += 360.
-        longitude_radians = longitude * 0.0174533
-        latitude_radians = latitude * 0.0174533
-        exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
-        return exact
+        return create_exact_field_value(longitude, latitude)
 
     def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False, variable_name='foo'):
         """
@@ -451,18 +423,28 @@ class TestBase(unittest.TestCase):
         """
 
         np.random.seed(1)
-        # row = VectorDimension(value=[4., 5.], name='row')
         row = Variable(value=[4., 5.], name='row', dimensions='row')
         col = Variable(value=[40., 50.], name='col', dimensions='col')
-        # col = VectorDimension(value=[40., 50.], name='col')
 
         if with_bounds:
             row.set_extrapolated_bounds()
             col.set_extrapolated_bounds()
 
-        # grid = SpatialGridDimension(row=row, col=col)
-        # sdim = SpatialDimension(grid=grid, crs=crs)
         grid = GridXY(col, row)
+
+        variable_dimensions = []
+        variable_shape = []
+
+        if nrlz != 0:
+            if nrlz is None:
+                nrlz = 1
+                realization = None
+            else:
+                realization = Variable(value=range(1, nrlz + 1), name='realization', dimensions='realization')
+            variable_shape.append(nrlz)
+            variable_dimensions.append('realization')
+        else:
+            realization = None
 
         if ntime == 2:
             value_temporal = [datetime.datetime(2000, 1, 1), datetime.datetime(2000, 2, 1)]
@@ -475,25 +457,25 @@ class TestBase(unittest.TestCase):
                 value_temporal.append(start)
                 start += delta
                 ctr += 1
-        # temporal = TemporalDimension(value=value_temporal)
         temporal = TemporalVariable(value=value_temporal, dimensions='time', name='time')
+        variable_shape.append(temporal.shape[0])
+        variable_dimensions.append('time')
 
-        if nlevel is None:
-            nlevel = 1
+        if nlevel != 0:
+            if nlevel is None:
+                nlevel = 1
+                level = None
+            else:
+                level = Variable(value=range(1, nlevel + 1), name='level', dimensions='level')
+            variable_shape.append(nlevel)
+            variable_dimensions.append('level')
+        else:
             level = None
-        else:
-            # level = VectorDimension(value=range(1, nlevel + 1), name='level')
-            level = Variable(value=range(1, nlevel + 1), name='level', dimensions='level')
 
-        if nrlz is None:
-            nrlz = 1
-            realization = None
-        else:
-            # realization = VectorDimension(value=range(1, nrlz + 1), name='realization')
-            realization = Variable(value=range(1, nrlz + 1), name='realization', dimensions='realization')
+        variable_shape += [2, 2]
+        variable_dimensions += ['row', 'col']
 
-        variable = Variable(name=variable_name, value=np.random.rand(nrlz, ntime, nlevel, 2, 2),
-                            dimensions=['realization', 'time', 'level', 'row', 'col'])
+        variable = Variable(name=variable_name, value=np.random.rand(*variable_shape), dimensions=variable_dimensions)
         field = OcgField(grid=grid, time=temporal, is_data=variable, level=level, realization=realization, crs=crs)
 
         return field

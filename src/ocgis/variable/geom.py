@@ -215,7 +215,7 @@ class GeometryProcessor(AbstractOcgisObject):
         prepared_intersects = prepared.intersects
         subset_geometry_touches = subset_geometry.touches
 
-        for idx, geometry in enumerate(self.geometry_iterable):
+        for idx, geometry in self.geometry_iterable:
             yld = False
             # If the yielded geometry is None, then it should not be considered within the subset geometry.
             if geometry is not None:

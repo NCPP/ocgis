@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from ocgis.ops.parms import MetadataAttributes
+from ocgis.ops.parms.definition_helpers import MetadataAttributes
 from ocgis.test.base import TestBase
 
 

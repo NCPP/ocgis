@@ -140,6 +140,16 @@ class TestDimension(AbstractTestInterface):
 
         self.assertEqual(sub.bounds_global, (0, 2))
 
+        # Test global bounds are updated.
+        ompi = OcgMpi()
+        dim = ompi.create_dimension('tester', 768, dist=False)
+        ompi.update_dimension_bounds()
+
+        sub = dim.get_distributed_slice(slice(73, 157))
+        self.assertEqual(sub.size, 84)
+        self.assertEqual(sub.bounds_global, (0, 84))
+        self.assertEqual(sub.bounds_local, (0, 84))
+
     @attr('mpi')
     def test_get_distributed_slice_uneven_boundary(self):
         ompi = OcgMpi()

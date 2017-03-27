@@ -5,8 +5,6 @@ import os
 from collections import OrderedDict
 from copy import deepcopy, copy
 from os.path import exists
-from types import FunctionType
-from types import NoneType
 
 import numpy as np
 from shapely.geometry import MultiPoint
@@ -14,6 +12,8 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
+from types import FunctionType
+from types import NoneType
 
 import ocgis
 from ocgis import RequestDataset
@@ -31,7 +31,7 @@ from ocgis.ops.parms.definition_helpers import MetadataAttributes
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import GridXY
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.util.units import get_units_class
+from ocgis.util.units import get_units_class, get_units_object
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 
@@ -428,6 +428,13 @@ class ConformUnitsTo(base.AbstractParameter):
             ret.append(uc)
         return ret
 
+    def validate(self, value):
+        try:
+            get_units_object(value)
+        except ValueError:
+            msg = 'Units are to recognized by conversion backend: {}'.format(value)
+            raise DefinitionValidationError(self.__class__, msg)
+
     def _get_meta_(self):
         if self.value is None:
             ret = 'Units were not conformed.'
@@ -446,11 +453,19 @@ class Dataset(base.AbstractParameter):
     _check_input_type = False
     _check_output_type = False
 
-    def __init__(self, init_value):
+    def __init__(self, init_value, esmf_field_dimensions=('time', 'y', 'x')):
+        """
+
+        :param init_value: See :class:`ocgis.base.AbstractParameter`.
+        :param esmf_field_dimensions: Tuple of :class:`~ocgis.Dimensions` object corresponding to the names of the ESMF
+         field dimensions.
+        """
+
         if isinstance(init_value, self.__class__):
             # Allow the dataset object to be initialized by an instance of itself.
             self.__dict__ = init_value.__dict__
         else:
+            self.esmf_field_dimensions = esmf_field_dimensions
             super(Dataset, self).__init__(init_value)
 
     def __iter__(self):
@@ -469,7 +484,10 @@ class Dataset(base.AbstractParameter):
 
             if env.USE_ESMF and isinstance(element, ESMF.Field):
                 from ocgis.regrid.base import get_ocgis_field_from_esmf_field
-                element = get_ocgis_field_from_esmf_field(element)
+                dimension_map = {DimensionMapKeys.X: {DimensionMapKeys.VARIABLE: 'x', DimensionMapKeys.NAMES: ['x']},
+                                 DimensionMapKeys.Y: {DimensionMapKeys.VARIABLE: 'y', DimensionMapKeys.NAMES: ['y']}}
+                element = get_ocgis_field_from_esmf_field(element, dimensions=self.esmf_field_dimensions,
+                                                          dimension_map=dimension_map)
 
             try:
                 element = element.copy()
@@ -1022,10 +1040,9 @@ class RegridDestination(base.AbstractParameter):
 class RegridOptions(base.AbstractParameter):
     name = 'regrid_options'
     nullable = True
-    default = {'with_corners': 'auto', 'value_mask': None, 'split': True}
+    default = {'regrid_method': 'auto', 'value_mask': None, 'split': True}
     input_types = [dict]
     return_type = [dict]
-    _possible_with_options = ['auto', True, False]
     _possible_value_mask_types = [NoneType, np.ndarray]
 
     def _parse_(self, value):
@@ -1034,14 +1051,11 @@ class RegridOptions(base.AbstractParameter):
                 msg = 'The option "{0}" is not allowed.'.format(key)
                 raise DefinitionValidationError(self, msg)
 
-        if 'with_corners' not in value:
-            value['with_corners'] = 'auto'
+        if 'regrid_method' not in value:
+            value['regrid_method'] = 'auto'
         if 'value_mask' not in value:
             value['value_mask'] = None
 
-        if value['with_corners'] not in self._possible_with_options:
-            msg = 'Options for "with_corners" are: {0}'.format(self._possible_with_options)
-            raise DefinitionValidationError(self, msg)
         if not any(isinstance(value['value_mask'], t) for t in self._possible_value_mask_types):
             msg = 'Types for "value_mask" are: {0}'.format(self._possible_value_mask_types)
             raise DefinitionValidationError(self, msg)

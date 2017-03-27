@@ -45,10 +45,10 @@ class OperationsEngine(object):
         """:rtype: :class:`ocgis.collection.base.AbstractCollection`"""
 
         ocgis_lh('beginning iteration', logger='conv.__iter__', level=logging.DEBUG)
-        self._ugid_unique_store = []
-        self._geom_unique_store = []
+        # self._ugid_unique_store = []
+        # self._geom_unique_store = []
 
-        # simple iterator for serial operations
+        # Yields collections with all operations applied.
         for coll in self._iter_collections_():
             yield coll
 
@@ -133,18 +133,18 @@ class OperationsEngine(object):
                     # If there are no calculations, mark progress to indicate a geometry has been completed.
                     self._progress.mark()
 
-                # Spatially reorder the data.
-                ocgis_lh(msg='before spatial reorder', logger=self._subset_log, level=logging.DEBUG)
-                if self.ops.spatial_reorder:
-                    for field_to_reorder in coll.iter_fields():
-                        if field_to_reorder.grid is not None:
-                            wrapped_state = field_to_reorder.grid.wrapped_state
-                            if wrapped_state == WrappedState.WRAPPED:
-                                field_to_reorder.grid.reorder()
-                            else:
-                                msg = 'Reorder not supported for wrapped state "{}". Doing nothing.'.format(
-                                    str(wrapped_state))
-                                ocgis_lh(msg=msg, logger=self._subset_log, level=logging.WARN)
+                # # Spatially reorder the data.
+                # ocgis_lh(msg='before spatial reorder', logger=self._subset_log, level=logging.DEBUG)
+                # if self.ops.spatial_reorder:
+                #     for field_to_reorder in coll.iter_fields():
+                #         if field_to_reorder.grid is not None:
+                #             wrapped_state = field_to_reorder.grid.wrapped_state
+                #             if wrapped_state == WrappedState.WRAPPED:
+                #                 field_to_reorder.grid.reorder()
+                #             else:
+                #                 msg = 'Reorder not supported for wrapped state "{}". Doing nothing.'.format(
+                #                     str(wrapped_state))
+                #                 ocgis_lh(msg=msg, logger=self._subset_log, level=logging.WARN)
 
                 # Conversion of groups.
                 if self.ops.output_grouping is not None:
@@ -228,6 +228,19 @@ class OperationsEngine(object):
                     field = field.time.get_subset_by_function(self.ops.time_subset_func).parent
                 if self.ops.level_range is not None:
                     field = field.level.get_between(*self.ops.level_range).parent
+
+                # Spatially reorder the data.
+                ocgis_lh(msg='before spatial reorder', logger=self._subset_log, level=logging.DEBUG)
+                if self.ops.spatial_reorder:
+                    _update_wrapping_(self, field)
+                    if field.grid is not None:
+                        wrapped_state = field.grid.wrapped_state
+                        if wrapped_state == WrappedState.WRAPPED:
+                            field.grid.reorder()
+                        else:
+                            msg = 'Reorder not relevant for wrapped state "{}". Doing nothing.'.format(
+                                str(wrapped_state))
+                            ocgis_lh(msg=msg, logger=self._subset_log, level=logging.WARN)
 
                 # Extrapolate the spatial bounds if requested.
                 # TODO: Rename "interpolate" to "extrapolate".
@@ -356,27 +369,27 @@ class OperationsEngine(object):
         # subset_geom = subset_field.single.geom
         subset_geom = subset_field.geom.value.flatten()[0]
 
-        # Check for unique subset geometry identifiers. This is an issue with point subsetting as the buffer radius
-        # changes by dataset.
-        if subset_ugid in self._ugid_unique_store:
-            # Only update if the geometry is unique.
-            if not any([__.almost_equals(subset_geom) for __ in self._geom_unique_store]):
-                prev_ugid = subset_ugid
-                ugid = max(self._ugid_unique_store) + 1
-
-                # Update the geometry property and unique identifier.
-                subset_field.properties['UGID'][0] = ugid
-                subset_field.uid[:] = ugid
-
-                self._ugid_unique_store.append(ugid)
-                self._geom_unique_store.append(subset_geom)
-                msg = 'Updating UGID {0} to {1} to maintain uniqueness.'.format(prev_ugid, ugid)
-                ocgis_lh(msg, self._subset_log, level=logging.WARN, alias=alias, ugid=ugid)
-            else:
-                pass
-        else:
-            self._ugid_unique_store.append(subset_ugid)
-            self._geom_unique_store.append(subset_geom)
+        # # Check for unique subset geometry identifiers. This is an issue with point subsetting as the buffer radius
+        # # changes by dataset.
+        # if subset_ugid in self._ugid_unique_store:
+        #     # Only update if the geometry is unique.
+        #     if not any([__.almost_equals(subset_geom) for __ in self._geom_unique_store]):
+        #         prev_ugid = subset_ugid
+        #         ugid = max(self._ugid_unique_store) + 1
+        #
+        #         # Update the geometry property and unique identifier.
+        #         subset_field.properties['UGID'][0] = ugid
+        #         subset_field.uid[:] = ugid
+        #
+        #         self._ugid_unique_store.append(ugid)
+        #         self._geom_unique_store.append(subset_geom)
+        #         msg = 'Updating UGID {0} to {1} to maintain uniqueness.'.format(prev_ugid, ugid)
+        #         ocgis_lh(msg, self._subset_log, level=logging.WARN, alias=alias, ugid=ugid)
+        #     else:
+        #         pass
+        # else:
+        #     self._ugid_unique_store.append(subset_ugid)
+        #     self._geom_unique_store.append(subset_geom)
 
         ocgis_lh('executing spatial subset operation', self._subset_log, level=logging.DEBUG, alias=alias,
                  ugid=subset_ugid)
@@ -422,21 +435,21 @@ class OperationsEngine(object):
 
         return subset_field
 
-    def _get_regridded_field_with_subset_(self, sfield, subset_sdim_for_regridding=None, with_buffer=True):
+    def _get_regridded_field_with_subset_(self, sfield, subset_field_for_regridding=None, with_buffer=True):
         """
         Regrid ``sfield`` subsetting the regrid destination in the process.
 
         :param sfield: The input field to regrid.
-        :type sfield: :class:`ocgis.interface.base.field.Field`
-        :param subset_sdim_for_regridding: The original, unaltered spatial dimension to use for subsetting.
-        :type subset_sdim_for_regridding: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :type sfield: :class:`ocgis.OcgField`
+        :param subset_field_for_regridding: The original, unaltered spatial dimension to use for subsetting.
+        :type subset_field_for_regridding: :class:`ocgis.OcgField`
         :param bool with_buffer: If ``True``, buffer the geometry used to subset the destination grid.
-        :rtype: :class:`~ocgis.Field`
+        :rtype: :class:`~ocgis.OcgField`
         """
 
         from ocgis.regrid.base import RegridOperation
         ocgis_lh(logger=self._subset_log, msg='Starting regrid operation...', level=logging.INFO)
-        ro = RegridOperation(sfield, self.ops.regrid_destination, subset_sdim=subset_sdim_for_regridding,
+        ro = RegridOperation(sfield, self.ops.regrid_destination, subset_field=subset_field_for_regridding,
                              with_buffer=with_buffer, regrid_options=self.ops.regrid_options)
         sfield = ro.execute()
         ocgis_lh(logger=self._subset_log, msg='Regrid operation complete.', level=logging.INFO)
@@ -465,7 +478,7 @@ class OperationsEngine(object):
             if self.ops.regrid_destination is not None:
                 # If there is regridding, make another copy as this geometry may be manipulated during subsetting of
                 # sources.
-                subset_sdim_for_regridding = deepcopy(subset_field)
+                subset_field_for_regridding = deepcopy(subset_field)
 
             # Operate on the rotated pole coordinate system by first transforming it to CFWGS84.
             original_rotated_pole_crs = self._get_update_rotated_pole_state_(field, subset_field)
@@ -506,20 +519,10 @@ class OperationsEngine(object):
             if not self._request_base_size_only:
                 # Perform regridding operations if requested.
                 if self.ops.regrid_destination is not None and sfield._should_regrid:
-                    # TODO: This is called twice with a regridding error. Catch an exception specific to ESMF when it is avaiable.
-                    try:
-                        original_sfield_sdim = deepcopy(sfield.spatial)
-                        sfield = self._get_regridded_field_with_subset_(
-                            sfield,
-                            subset_sdim_for_regridding=subset_sdim_for_regridding,
-                            with_buffer=True)
-                    except ValueError:
-                        # Attempt without buffering the subset geometry for the target field.
-                        sfield.spatial = original_sfield_sdim
-                        sfield = self._get_regridded_field_with_subset_(sfield,
-                                                                        subset_sdim_for_regridding=subset_sdim_for_regridding,
-                                                                        with_buffer=False)
-
+                    sfield = self._get_regridded_field_with_subset_(
+                        sfield,
+                        subset_field_for_regridding=subset_field_for_regridding,
+                        with_buffer=True)
                 # If empty returns are allowed, there may be an empty field.
                 if sfield is not None:
                     # Only update spatial stuff if there are no calculations and, if there are calculations, those

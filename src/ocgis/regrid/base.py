@@ -3,20 +3,21 @@ from copy import deepcopy
 
 import ESMF
 import numpy as np
+from ESMF.api.constants import RegridMethod
+from types import NoneType
 
 from ocgis import constants
 from ocgis import env
-from ocgis.base import AbstractOcgisObject
+from ocgis.base import AbstractOcgisObject, get_dimension_names
 from ocgis.collection.field import OcgField
-from ocgis.constants import DimensionMapKeys
+from ocgis.constants import DimensionMapKeys, KeywordArguments
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import GridXY, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.helpers import iter_array, get_esmf_corners_from_ocgis_corners
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import Spherical, WGS84
-from ocgis.variable.temporal import TemporalVariable
+from ocgis.variable.crs import Spherical
 
 
 class RegridOperation(AbstractOcgisObject):
@@ -24,59 +25,54 @@ class RegridOperation(AbstractOcgisObject):
     Execute a regrid operation handling spatial subsetting and coordinate system transformations.
 
     :param field_src: The source field to regrid.
-    :type field_src: :class:`ocgis.Field`
+    :type field_src: :class:`ocgis.OcgField`
     :param field_dst: The destination regrid field.
-    :type field_dst: :class:`ocgis.Field`
-    :param subset_sdim: If provided, use this spatial dimension to subset the regridding fields.
-    :type subset_sdim: :class:`ocgis.SpatialDimension`
+    :type field_dst: :class:`ocgis.OcgField`
+    :param subset_field: If provided, use this field to subset the regridding fields.
+    :type subset_field: :class:`ocgis.OcgField`
     :param with_buffer: If ``True``, use a buffer during spatial subsetting.
     :type with_buffer: bool
-    :param regrid_options: A dictionary of keyword options to pass to :func:`~ocgis.regrid.base.iter_regridded_fields`.
+    :param regrid_options: A dictionary of keyword options to pass to :func:`~ocgis.regrid.base.regrid_field`.
     :type regrid_options: dict
+    :param bool revert_dst_crs: If ``True``, revert the destination grid coordinate system if it needed to be
+     transformed. Typically, a number of source fields are regridded to a common destination and this transform
+     should only occur once.
     """
 
-    def __init__(self, field_src, field_dst, subset_sdim=None, with_buffer=True, regrid_options=None):
+    def __init__(self, field_src, field_dst, subset_field=None, with_buffer=True, regrid_options=None,
+                 revert_dst_crs=False):
+        assert isinstance(field_src, OcgField)
+        assert isinstance(field_dst, OcgField)
+        assert isinstance(subset_field, (OcgField, NoneType))
+
         self.field_dst = field_dst
         self.field_src = field_src
-        self.subset_sdim = subset_sdim
+        self.subset_field = subset_field
+        self.revert_dst_crs = revert_dst_crs
         self.with_buffer = with_buffer
         if regrid_options is None:
             self.regrid_options = {}
         else:
             self.regrid_options = regrid_options
 
-        # If true, regridding required updating the coordinate system of the source field.
-        self._regrid_required_source_crs_update = False
-        # Holds original coordinate system of the source field for back transformations.
-        self._original_sfield_crs = None
-
     def execute(self):
         """
         Execute regridding operation.
 
-        :rtype: :class:`~ocgis.Field`
+        :rtype: :class:`ocgis.OcgField`
         """
 
-        destination_sdim = self._get_regrid_destination_()
-        self._update_regrid_source_coordinate_system_()
+        regrid_destination, backtransform_dst_crs = self._get_regrid_destination_()
+        regrid_source, backtransform_src_crs = self._get_regrid_source_()
 
         # Regrid the input field.
-        ocgis_lh(logger='regrid', msg='Creating regridded fields...', level=logging.INFO)
-        regridded_source = list(iter_regridded_fields([self.field_src], destination_sdim, **self.regrid_options))[0]
+        ocgis_lh(logger='regrid', msg='Creating regridded field...', level=logging.INFO)
+        regridded_source = regrid_field(regrid_source, regrid_destination, **self.regrid_options)
 
-        # Return the source field to its original coordinate system.
-        if self._regrid_required_source_crs_update:
-            ocgis_lh(logger='regrid', msg='Reverting source field to original coordinate system...', level=logging.INFO)
-            regridded_source.spatial.update_crs(self._original_sfield_crs)
-        else:
-            regridded_source.spatial.crs = self._original_sfield_crs
-
-        # Subset the output from the regrid operation as masked values may be introduced on the edges.
-        if self.subset_sdim is not None:
-            ss = SpatialSubsetOperation(regridded_source)
-            regridded_source = ss.get_spatial_subset('intersects', self.subset_sdim,
-                                                     use_spatial_index=env.USE_SPATIAL_INDEX,
-                                                     select_nearest=False)
+        if backtransform_src_crs is not None:
+            regridded_source.update_crs(backtransform_src_crs)
+        if backtransform_dst_crs is not None and self.revert_dst_crs:
+            self.field_dst.update_crs(backtransform_dst_crs)
 
         return regridded_source
 
@@ -84,89 +80,56 @@ class RegridOperation(AbstractOcgisObject):
         """
         Prepare destination field for regridding.
 
-        :rtype: :class:`~ocgis.SpatialDimension`
+        :rtype: (:class:`~ocgis.OcgField`, :class:`~ocgis.CoordinateReferenceSystem` or ``None``)
         """
 
+        # Transform the coordinate system of the regrid destination. ###################################################
+
+        # Update the regrid destination coordinate system must be updated to match the source.
+        if self.field_dst.crs != Spherical():
+            ocgis_lh(logger='regrid',
+                     msg='updating regrid destination to spherical. regrid destination crs is: {}'.format(
+                         self.field_dst.crs), level=logging.DEBUG)
+            backtransform_crs = deepcopy(self.field_dst.crs)
+            self.field_dst.update_crs(Spherical())
+        else:
+            backtransform_crs = None
+
         # Spatially subset the regrid destination. #####################################################################
-        if self.subset_sdim is None:
+        if self.subset_field is None:
             ocgis_lh(logger='regrid', msg='no spatial subsetting', level=logging.DEBUG)
             regrid_destination = self.field_dst
         else:
             if self.with_buffer:
-                # Buffer the subset geometry by the resolution of the source field to improve chances of overlap between
-                # source and destination extents.
-                buffer_value = self.field_src.spatial.grid.resolution
-                buffer_crs = self.field_src.spatial.crs
+                # Buffer the subset geometry by two times the resolution of the destination field to improve chances of
+                # overlap between source and destination extents.
+                buffer_value = 2.0 * self.field_src.grid.resolution
+                buffer_crs = self.field_src.crs
             else:
                 buffer_value, buffer_crs = [None, None]
             ss = SpatialSubsetOperation(self.field_dst)
-            regrid_destination = ss.get_spatial_subset('intersects', self.subset_sdim,
+            regrid_destination = ss.get_spatial_subset('intersects', self.subset_field.geom,
                                                        use_spatial_index=env.USE_SPATIAL_INDEX,
                                                        select_nearest=False, buffer_value=buffer_value,
                                                        buffer_crs=buffer_crs)
 
-        # Transform the coordinate system of the regrid destination. ###################################################
+        return regrid_destination, backtransform_crs
 
-        # Update the coordinate system of the regrid destination if required.
-        try:
-            destination_sdim = regrid_destination.spatial
-        except AttributeError:
-            # Likely a spatial dimension object already.
-            destination_sdim = regrid_destination
-        # If switched to true, the regrid destination coordinate system must be updated to match the source.
-        update_regrid_destination_crs = False
-        if not isinstance(regrid_destination.crs, Spherical):
-            if isinstance(regrid_destination, Field):
-                if isinstance(destination_sdim.crs, WGS84) and regrid_destination._has_assigned_coordinate_system:
-                    update_regrid_destination_crs = True
-                elif isinstance(destination_sdim.crs,
-                                WGS84) and not regrid_destination._has_assigned_coordinate_system:
-                    pass
-                else:
-                    update_regrid_destination_crs = True
-            else:
-                if not isinstance(destination_sdim.crs, Spherical):
-                    update_regrid_destination_crs = True
-        if update_regrid_destination_crs:
+    def _get_regrid_source_(self):
+        # Update the source coordinate system to spherical.
+        if self.field_src.crs != Spherical():
             ocgis_lh(logger='regrid',
-                     msg='updating regrid destination to spherical. regrid destination crs is: {}'.format(
-                         regrid_destination.crs), level=logging.DEBUG)
-            destination_sdim.update_crs(Spherical())
+                     msg='updating regrid source to spherical. regrid source crs is: {}'.format(
+                         self.field_src.crs), level=logging.DEBUG)
+            backtransform_crs = deepcopy(self.field_src.crs)
+            self.field_src.update_crs(Spherical())
         else:
-            destination_sdim.crs = Spherical()
+            backtransform_crs = None
 
-        # Remove the mask from the destination field. ##################################################################
-        new_mask = np.zeros(destination_sdim.shape, dtype=bool)
-        destination_sdim.set_mask(new_mask)
-
-        return destination_sdim
-
-    def _update_regrid_source_coordinate_system_(self):
-        # Alias the original coordinate system for the back-transform.
-        self._original_sfield_crs = self.field_src.spatial.crs
-
-        # Check coordinate system on the source field.
-        if not isinstance(self.field_src.spatial.crs, Spherical):
-            # This has an _assigned_ WGS84 CRS. Hence, we cannot assume the default CRS.
-            if isinstance(self.field_src.spatial.crs, WGS84) and self.field_src._has_assigned_coordinate_system:
-                self._regrid_required_source_crs_update = True
-            # The data has a coordinate system that is not WGS84.
-            elif not isinstance(self.field_src.spatial.crs, WGS84):
-                self._regrid_required_source_crs_update = True
-        if self._regrid_required_source_crs_update:
-            # Need to load values as source indices will disappear during CRS update.
-            for variable in self.field_src.variables.itervalues():
-                variable.value
-            ocgis_lh(logger='regrid', msg='updating regrid source to spherical. regrid source crs is: {}'.format(
-                self.field_src.spatial.crs), level=logging.DEBUG)
-            self.field_src.spatial.update_crs(Spherical())
-            ocgis_lh(logger='regrid', msg='completed crs update for regrid source'.format(self.field_src.spatial.crs),
-                     level=logging.DEBUG)
-        else:
-            self.field_src.spatial.crs = Spherical()
+        return self.field_src, backtransform_crs
 
 
-def get_ocgis_grid_from_esmf_grid(egrid, crs=None):
+def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     """
     Create an OCGIS :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension` object from an ESMF
     :class:`~ESMF.driver.grid.Grid`.
@@ -174,8 +137,13 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None):
     :type egrid: :class:`ESMF.driver.grid.Grid`
     :param crs: The coordinate system to attach to the output spatial dimension.
     :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
-    :rtype: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+    :param dict dimension_map: Dimension map for the outgoing OCGIS field/grid.
+    :rtype: :class:`~ocgis.GridXY`
     """
+
+    if dimension_map is None:
+        dimension_map = {DimensionMapKeys.X: {'variable': 'x', 'bounds': 'x_bounds', 'names': ['x']},
+                         DimensionMapKeys.Y: {'variable': 'y', 'bounds': 'y_bounds', 'names': ['y']}}
 
     # OCGIS grid values are built on centers.
     coords = egrid.coords[ESMF.StaggerLoc.CENTER]
@@ -210,115 +178,134 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None):
     if has_mask:
         # if there is a mask, update the grid values
         egrid_mask = egrid.mask[ESMF.StaggerLoc.CENTER]
-        try:
-            egrid_mask = np.invert(egrid_mask.astype(bool))
-        except:
-            tkk
-        mask_grid_value = np.zeros(grid_value.shape, dtype=bool)
-        mask_grid_value[:, :, :] = egrid_mask
-        if grid_corners is not None:
-            mask_grid_corners = np.zeros(grid_corners.shape, dtype=bool)
-            for ii, jj in iter_array(egrid_mask):
-                mask_grid_corners[:, ii, jj, :] = egrid_mask[ii, jj]
-    else:
-        mask_grid_value = False
-        mask_grid_corners = False
+        egrid_mask = np.invert(egrid_mask.astype(bool))
 
     # actually construct the masked arrays
-    grid_value = np.ma.array(grid_value, mask=mask_grid_value)
+    grid_value = np.ma.array(grid_value)
     if grid_corners is not None:
-        grid_corners = np.ma.array(grid_corners, mask=mask_grid_corners)
+        grid_corners = np.ma.array(grid_corners)
 
+    grid_dimensions = [dimension_map[DimensionMapKeys.Y][DimensionMapKeys.NAMES][0],
+                       dimension_map[DimensionMapKeys.X][DimensionMapKeys.NAMES][0]]
     if grid_corners is not None:
-        x_bounds = Variable(name='x_bounds', value=grid_corners[1, ...],
+        grid_bounds_dimensions = deepcopy(grid_dimensions)
+        grid_bounds_dimensions.append(constants.DEFAULT_NAME_CORNERS_DIMENSION)
+
+        name = dimension_map[DimensionMapKeys.X][DimensionMapKeys.BOUNDS]
+        x_bounds = Variable(name=name, value=grid_corners[1, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
-        y_bounds = Variable(name='y_bounds', value=grid_corners[0, ...],
+
+        name = dimension_map[DimensionMapKeys.Y][DimensionMapKeys.BOUNDS]
+        y_bounds = Variable(name=name, value=grid_corners[0, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
     else:
         x_bounds, y_bounds = [None] * 2
 
-    x = Variable(name='x', dimensions=['y', 'x'], value=grid_value[1, ...], bounds=x_bounds)
-    y = Variable(name='y', dimensions=['y', 'x'], value=grid_value[0, ...], bounds=y_bounds)
+    name = dimension_map[DimensionMapKeys.X][DimensionMapKeys.VARIABLE]
+    x = Variable(name=name, dimensions=grid_dimensions, value=grid_value[1, ...], bounds=x_bounds)
+
+    name = dimension_map[DimensionMapKeys.Y][DimensionMapKeys.VARIABLE]
+    y = Variable(name=name, dimensions=grid_dimensions, value=grid_value[0, ...], bounds=y_bounds)
 
     ogrid = GridXY(x, y, crs=crs)
 
+    if has_mask:
+        ogrid.set_mask(egrid_mask)
+
     return ogrid
+
+
+def get_esmf_field_from_ocgis_field(ofield, esmf_field_name=None, **kwargs):
+    """
+    :param ofield: The OCGIS field to convert to an ESMF field.
+    :type ofield: :class:`ocgis.OcgField`
+    :param str esmf_field_name: An optional ESMF field name. If ``None``, use the name of the data variable on
+     ``ofield``.
+    :param dict kwargs: Any keyword arguments to :func:`ocgis.regrid.base.get_esmf_grid`.
+    :return: An ESMF field object.
+    :rtype: :class:`ESMF.api.field.Field`
+    :raises: ValueError
+    """
+
+    if len(ofield.data_variables) > 1:
+        msg = 'Only one data variable may be converted.'
+        raise ValueError(msg)
+
+    if len(ofield.data_variables) == 1:
+        target_variable = ofield.data_variables[0]
+        if esmf_field_name is None:
+            esmf_field_name = target_variable.name
+    else:
+        target_variable = None
+
+    egrid = get_esmf_grid(ofield.grid, **kwargs)
+
+    # Find any dimension lengths that are not associated with the grid. These are considered "extra" dimensions in an
+    # ESMF field.
+    if target_variable is None:
+        dimension_names = get_dimension_names(ofield.grid.dimensions)
+    else:
+        dimension_names = get_dimension_names(target_variable.dimensions)
+    grid_dimension_names = get_dimension_names(ofield.grid.dimensions)
+
+    if dimension_names != grid_dimension_names:
+        if tuple(dimension_names[-2:]) != grid_dimension_names:
+            raise ValueError('Grid dimensions must be last two dimensions of the data variable dimensions.')
+        ndbounds = target_variable.shape[0:-2]
+    else:
+        # OCGIS field has no extra dimensions.
+        ndbounds = None
+
+    efield = ESMF.Field(egrid, name=esmf_field_name, ndbounds=ndbounds)
+
+    if target_variable is not None:
+        efield.data[:] = target_variable.get_value()
+
+    return efield
 
 
 def get_esmf_grid_has_corners(egrid):
     return egrid.has_corners
 
 
-def get_ocgis_field_from_esmf_field(efield, crs=None, dimensions=None):
+def get_ocgis_field_from_esmf_field(efield, dimensions=None, **kwargs):
     """
     :param efield: The ESMPy field object to convert to an OCGIS field.
     :type efield: :class:`ESMF.driver.field.Field`
     :param crs: The coordinate system of the ESMF field. If ``None``, this will default to a coordinate system
      mapped to the ``coord_sys`` attribute of the ESMF grid.
-    :param dimensions: A dictionary containing optional dimension definitions for realization, time, and level. The keys
-     of this dictionary are the appropriate dimension types. If no overload dimensions are provided and the incoming
-     field has shapes greater than one for non-spatial dimensions, values are filled using integer values starting with
-     one.
-    :type dimensions: dict
-
-    +-------------+------------------------------------+
-    |  Key        | Type                               |
-    +=============+====================================+
-    | temporal    | :class:`~ocgis.TemporalDimension`  |
-    +-------------+------------------------------------+
-    | level       | :class:`~ocgis.VectorDimension`    |
-    +-------------+------------------------------------+
-    | realization | :class:`~ocgis.VectorDimension`    |
-    +-------------+------------------------------------+
-
+    :param tuple dimensions: Tuple of :class:`ocgis.Dimensions` objects corresponding to the dimensions of ``efield``.
+     Required if there is an incoming data variable from ``efield``. If ``None``, assume there is no data variable to
+     create from the ESMF field.
+    :param dict kwargs: Any keyword arguments to the creation of the output OCGIS field. Values in ``kwargs`` are used
+     in preference over any internal default values created in this function. The keyword argument
+     :attrs:`~ocgis.constants.KeywordArguments.IS_DATA` may not be overloaded.
     :returns: An OCGIS field object.
-    :rtype: :class:`~ocgis.Field`
+    :rtype: :class:`~ocgis.OcgField`
     """
 
-    efield_shape = efield.data.shape
-    assert len(efield_shape) == 5
+    kwargs = kwargs.copy()
 
-    dimensions = dimensions or {}
-    out_dimensions = [DimensionMapKeys.REALIZATION, DimensionMapKeys.TIME, DimensionMapKeys.LEVEL, DimensionMapKeys.Y,
-                      DimensionMapKeys.X]
+    if dimensions is not None:
+        kwargs[KeywordArguments.IS_DATA] = Variable(name=efield.name, value=efield.data, dimensions=dimensions)
 
-    try:
-        realization = dimensions['realization']
-    except KeyError:
-        if efield_shape[0] > 1:
-            realization_values = np.arange(1, efield_shape[0] + 1)
-            realization = Variable(value=realization_values, name=DimensionMapKeys.REALIZATION,
-                                   dimensions=DimensionMapKeys.REALIZATION)
-        else:
-            realization = None
+    grid = kwargs.pop(KeywordArguments.GRID, None)
+    dimension_map = kwargs.pop(KeywordArguments.DIMENSION_MAP, None)
+    if grid is None:
+        crs = kwargs.pop(KeywordArguments.CRS, None)
+        if crs is None:
+            crs = get_crs_from_esmf_field(efield)
+        grid = get_ocgis_grid_from_esmf_grid(efield.grid, crs=crs, dimension_map=dimension_map)
+    kwargs[KeywordArguments.GRID] = grid
 
-    try:
-        temporal = dimensions['temporal']
-    except KeyError:
-        if efield_shape[1] > 1:
-            temporal_values = np.array([1] * efield_shape[1])
-            temporal = TemporalVariable(value=temporal_values, format_time=False, name=DimensionMapKeys.TIME,
-                                        dimensions=DimensionMapKeys.TIME)
-        else:
-            temporal = None
+    if KeywordArguments.CRS not in kwargs:
+        kwargs[KeywordArguments.CRS] = Spherical()
 
-    try:
-        level = dimensions['level']
-    except KeyError:
-        if efield_shape[2] > 1:
-            level_values = np.arange(1, efield_shape[2] + 1)
-            level = Variable(value=level_values, name=DimensionMapKeys.LEVEL, dimensions=DimensionMapKeys.LEVEL)
-        else:
-            level = None
+    field = OcgField(**kwargs)
 
-    # Choose the default coordinate system.
-    if crs is None:
-        crs = get_crs_from_esmf_field(efield)
-
-    variable = Variable(name=efield.name, value=efield.data, dimensions=out_dimensions)
-    grid = get_ocgis_grid_from_esmf_grid(efield.grid, crs=crs)
-    field = OcgField(variables=variable, realization=realization, time=temporal, level=level, grid=grid,
-                     is_data=variable)
+    grid_mask = grid.get_mask()
+    if grid_mask is not None:
+        field.grid.set_mask(grid_mask, cascade=True)
 
     return field
 
@@ -339,40 +326,39 @@ def get_crs_from_esmf_field(efield):
     return ret
 
 
-def get_esmf_grid(sdim, with_corners=True, value_mask=None):
+def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
     """
-    Create an ESMF :class:`~ESMF.driver.grid.Grid` object from an OCGIS
-    :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension` object.
+    Create an ESMF :class:`~ESMF.driver.grid.Grid` object from an OCGIS :class:`ocgis.GridXY` object.
 
-    :param sdim: The target spatial dimension to convert into an ESMF grid.
-    :type sdim: :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
-    :param bool with_corners: If ``True``, attempt to access corners from ``sdim``.
-    :param value_mask: If an ``bool`` :class:`numpy.array` with same shape as ``sdim``, use a logical *or* operation
+    :param ogrid: The target OCGIS grid to convert to an ESMF grid.
+    :type ogrid: :class:`~ocgis.GridXY`
+    :param regrid_method: If ``'auto'`` or :attr:`ESMF.api.constants.RegridMethod.CONSERVE`, use corners/bounds from the
+     grid object. If :attr:`ESMF.api.constants.RegridMethod.CONSERVE`, the corners/bounds must be present on the grid.
+    :param value_mask: If an ``bool`` :class:`numpy.array` with same shape as ``ogrid``, use a logical *or* operation
      with the OCGIS field mask when creating the input grid's mask. Values of ``True`` in ``value_mask`` are assumed to
-     be masked. If ``None`` is provided (the default) then the mask will be set using the first realization/time/level
-     from the first variable contained in ``ofield``. This will include the spatial mask.
+     be masked. If ``None`` is provided (the default) then the mask will be set using the spatial mask on ``ogrid``.
     :type value_mask: :class:`numpy.array`
     :rtype: :class:`ESMF.driver.grid.Grid`
     """
-
-    ogrid = sdim.grid
 
     pkwds = get_periodicity_parameters(ogrid)
 
     egrid = ESMF.Grid(max_index=np.array(ogrid.shape), staggerloc=ESMF.StaggerLoc.CENTER,
                       coord_sys=ESMF.CoordSys.SPH_DEG, num_peri_dims=pkwds['num_peri_dims'], pole_dim=pkwds['pole_dim'],
                       periodic_dim=pkwds['periodic_dim'])
-    row = egrid.get_coords(1, staggerloc=ESMF.StaggerLoc.CENTER)
-    row[:] = ogrid.y.value
-    col = egrid.get_coords(0, staggerloc=ESMF.StaggerLoc.CENTER)
-    col[:] = ogrid.x.value
 
-    # use a logical or operation to merge with value_mask if present
+    ovalue_stacked = ogrid.get_value_stacked()
+    row = egrid.get_coords(1, staggerloc=ESMF.StaggerLoc.CENTER)
+    row[:] = ovalue_stacked[0, ...]
+    col = egrid.get_coords(0, staggerloc=ESMF.StaggerLoc.CENTER)
+    col[:] = ovalue_stacked[1, ...]
+
+    # Use a logical or operation to merge with value_mask if present
     if value_mask is not None:
         # convert to boolean to make sure
         value_mask = value_mask.astype(bool)
         # do the logical or operation selecting values
-        value_mask = np.logical_or(value_mask, ogrid.get_mask())
+        value_mask = np.logical_or(value_mask, ogrid.get_mask(create=True))
     else:
         value_mask = ogrid.get_mask()
     # Follows SCRIP convention where 1 is unmasked and 0 is masked.
@@ -381,31 +367,33 @@ def get_esmf_grid(sdim, with_corners=True, value_mask=None):
         egrid.add_item(ESMF.GridItem.MASK, staggerloc=ESMF.StaggerLoc.CENTER, from_file=False)
         egrid.mask[0][:] = esmf_mask
 
-    # attempt to access corners if possible
-    if with_corners:
-        if ogrid.has_bounds:
-            # Conversion to ESMF objects requires an expanded grid (non-vectorized).
-            # TODO: Create ESMF grids from vectorized OCGIS grids.
-            expand_grid(ogrid)
-            # Convert to ESMF corners from OCGIS corners.
-            corners_esmf = np.zeros([2] + [element + 1 for element in ogrid.x.bounds.shape[0:2]],
-                                    dtype=ogrid.x.bounds.dtype)
-            get_esmf_corners_from_ocgis_corners(ogrid.y.bounds.value, fill=corners_esmf[0, :, :])
-            get_esmf_corners_from_ocgis_corners(ogrid.x.bounds.value, fill=corners_esmf[1, :, :])
+    # Attempt to access corners if requested.
+    if regrid_method == 'auto' and ogrid.has_bounds:
+        regrid_method = RegridMethod.CONSERVE
 
-            # adding corners. first tell the grid object to allocate corners
-            egrid.add_coords(staggerloc=[ESMF.StaggerLoc.CORNER])
-            # get the coordinate pointers and set the coordinates
-            grid_corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-            # Note indexing is reversed for ESMF v. OCGIS. In ESMF, the x-coordinate (longitude) is the first
-            # coordinate. If this is periodic, the last column corner wraps/connect to the first. This coordinate must
-            # be removed.
-            if pkwds['num_peri_dims'] is not None:
-                grid_corner[0][:] = corners_esmf[1][:, 0:-1]
-                grid_corner[1][:] = corners_esmf[0][:, 0:-1]
-            else:
-                grid_corner[0][:] = corners_esmf[1]
-                grid_corner[1][:] = corners_esmf[0]
+    if regrid_method == RegridMethod.CONSERVE:
+        # Conversion to ESMF objects requires an expanded grid (non-vectorized).
+        # TODO: Create ESMF grids from vectorized OCGIS grids.
+        expand_grid(ogrid)
+        # Convert to ESMF corners from OCGIS corners.
+        corners_esmf = np.zeros([2] + [element + 1 for element in ogrid.x.bounds.shape[0:2]],
+                                dtype=ogrid.archetype.bounds.dtype)
+        get_esmf_corners_from_ocgis_corners(ogrid.y.bounds.get_value(), fill=corners_esmf[0, :, :])
+        get_esmf_corners_from_ocgis_corners(ogrid.x.bounds.get_value(), fill=corners_esmf[1, :, :])
+
+        # adding corners. first tell the grid object to allocate corners
+        egrid.add_coords(staggerloc=[ESMF.StaggerLoc.CORNER])
+        # get the coordinate pointers and set the coordinates
+        grid_corner = egrid.coords[ESMF.StaggerLoc.CORNER]
+        # Note indexing is reversed for ESMF v. OCGIS. In ESMF, the x-coordinate (longitude) is the first
+        # coordinate. If this is periodic, the last column corner wraps/connect to the first. This coordinate must
+        # be removed.
+        if pkwds['num_peri_dims'] is not None:
+            grid_corner[0][:] = corners_esmf[1][:, 0:-1]
+            grid_corner[1][:] = corners_esmf[0][:, 0:-1]
+        else:
+            grid_corner[0][:] = corners_esmf[1]
+            grid_corner[1][:] = corners_esmf[0]
 
     return egrid
 
@@ -417,14 +405,14 @@ def get_periodicity_parameters(grid):
      1. A grid is periodic (i.e. it has global coverage). Periodicity is determined only with the x/longitude dimension.
      2. A grid is non-periodic (i.e. it has regional coverage).
 
-    :param grid: :class:`~ocgis.interface.base.dimension.spatial.SpatialGridDimension`
+    :param grid: :class:`~ocgis.GridXY`
     :return: A dictionary containing periodicity parameters.
     :rtype: dict
     """
     # Check if grid may be flagged as "periodic" by determining if its extent is global. Use the centroids and the grid
     # resolution to determine this.
     is_periodic = False
-    col = grid.x.value
+    col = grid.x.get_value()
     resolution = grid.resolution
     min_col, max_col = col.min(), col.max()
     # Work only with unwrapped coordinates.
@@ -457,14 +445,14 @@ def get_periodicity_parameters(grid):
     return ret
 
 
-def iter_esmf_fields(ofield, with_corners=True, value_mask=None, split=True):
+def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
     """
     For all data or a single time coordinate, yield an ESMF :class:`~ESMF.driver.field.Field` from the input OCGIS field
     ``ofield``. Only one realization and level are allowed.
 
     :param ofield: The input OCGIS Field object.
     :type ofield: :class:`ocgis.Field`
-    :param bool with_corners: See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param value_mask: See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param bool split: If ``True``, yield a single time slice/coordinate from the source field. If ``False``, yield all
      time coordinates. When ``False``, OCGIS uses ESMF's ``ndbounds`` argument to field creation. Use ``True`` if
@@ -476,7 +464,7 @@ def iter_esmf_fields(ofield, with_corners=True, value_mask=None, split=True):
     ===== ============================== ==================================================================================================
     Index Type                           Description
     ===== ============================== ==================================================================================================
-    0     str                            The alias of the variable currently being converted.
+    0     str                            The variable name currently being converted.
     1     :class:`~ESMF.driver.field.Field` The ESMF Field object.
     2     int                            The current time index of the yielded ESMF field. If ``split=False``, This will be ``slice(None)``.
     ===== ============================== ==================================================================================================
@@ -484,211 +472,222 @@ def iter_esmf_fields(ofield, with_corners=True, value_mask=None, split=True):
     :raises: AssertionError
     """
     # Only one level and realization allowed.
-    assert ofield.shape[0] == 1
-    assert ofield.shape[2] == 1
+    if ofield.level is not None and ofield.level.ndim > 0:
+        assert ofield.level.shape[0] == 1
+    if ofield.realization is not None:
+        assert ofield.realization.shape[0] == 1
 
     # Retrieve the mask from the first variable.
     if value_mask is None:
-        sfield = ofield[0, 0, 0, :, :]
-        variable = sfield.variables.first()
-        value_mask = variable.value.mask.reshape(sfield.shape[-2:])
-        assert np.all(value_mask.shape == sfield.shape[-2:])
+        if ofield.time is not None:
+            sfield = ofield.get_field_slice({'time': 0})
+        else:
+            sfield = ofield
+        archetype = sfield.data_variables[0]
+        value_mask = archetype.get_mask()
 
     # Create the ESMF grid.
-    egrid = get_esmf_grid(ofield.spatial, with_corners=with_corners, value_mask=value_mask)
+    egrid = get_esmf_grid(ofield.grid, regrid_method=regrid_method, value_mask=value_mask)
 
     # Produce a new ESMF field for each variable.
-    for variable_alias, variable in ofield.variables.iteritems():
+    if ofield.time is not None:
+        time_name = ofield.time.dimensions[0].name
+    else:
+        # If there is no time, there is no need to split anything by the time slice.
+        split = False
+        time_name = None
+
+    # These dimensions will become singletons.
+    dimension_names_to_squeeze = []
+    if ofield.level is not None and ofield.level.ndim > 0:
+        dimension_names_to_squeeze.append(ofield.level.dimensions[0].name)
+    if ofield.realization is not None:
+        dimension_names_to_squeeze.append(ofield.realization.dimensions[0].name)
+
+    for variable in ofield.data_variables:
+        variable = variable.extract()
+        dimensions_to_squeeze = [idx for idx, d in enumerate(variable.dimensions) if
+                                 d.name in dimension_names_to_squeeze]
+        extra_dimensions = [d.name for d in variable.dimensions if d.name != time_name]
+        slice_template = {name: None for name in extra_dimensions}
+        variable_name = variable.name
         if split:
-            for tidx in range(ofield.shape[1]):
-                efield = ESMF.Field(egrid, name=variable_alias)
-                efield.data[:] = variable.value[0, tidx, 0, :, :]
-                yield variable_alias, efield, tidx
+            for tidx in range(ofield.time.shape[0]):
+                efield = ESMF.Field(egrid, name=variable_name)
+                slice_template[time_name] = tidx
+                efield.data[:] = np.squeeze(variable[slice_template].get_value(), axis=dimensions_to_squeeze)
+                yield variable_name, efield, tidx
         else:
-            efield = ESMF.Field(egrid, name=variable_alias, ndbounds=[ofield.shape[1]])
-            efield.data[:] = variable.value[0, :, 0, :, :]
+            if ofield.time is not None:
+                ndbounds = [ofield.time.shape[0]]
+                slice_template[time_name] = None
+            else:
+                ndbounds = None
+            efield = ESMF.Field(egrid, name=variable_name, ndbounds=ndbounds)
+            slice_template[ofield.x.dimensions[0].name] = None
+            slice_template[ofield.y.dimensions[0].name] = None
+            efield.data[:] = np.squeeze(variable[slice_template].get_value(), axis=dimensions_to_squeeze)
             tidx = slice(None)
-            yield variable_alias, efield, tidx
+            yield variable_name, efield, tidx
 
 
-def check_fields_for_regridding(sources, destination, with_corners=True):
+def check_fields_for_regridding(source, destination, regrid_method='auto'):
     """
-    Perform a standard series of checks on inputs to regridding.
+    Perform a standard series of checks on regridding inputs.
 
-    :param sources: Sequence of source fields to regrid.
-    :type sources: sequence of :class:`ocgis.interface.base.field.Field`
-    :param destination: The target grid contained in a field or spatial dimension.
-    :type destination: :class:`ocgis.interface.base.field.Field` or
-     :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
-    :param bool with_corners: If ``True``, attempt to access corners from ``sdim``.
-    :rtype: :class:`ocgis.interface.base.field.Field`
+    :param source: The source field.
+    :type source: :class:`ocgis.OcgField`
+    :param destination: The destination field.
+    :type destination: :class:`ocgis.OcgField`
+    :param regrid_method: If ``'auto'``, attempt to do conservative regridding if bounds/corners are available on both
+      fields. Otherwise, do bilinear regridding. This may also be an ESMF regrid method flag.
+    :type regrid_method: str or :attr:`ESMF.api.constants.RegridMethod`
     :raises: RegriddingError, CornersInconsistentError
     """
 
-    def _assert_spherical_crs_(crs):
-        if type(crs) != Spherical:
+    # Check field objects are used.
+    for element in [source, destination]:
+        if not isinstance(element, OcgField):
+            raise RegriddingError('OCGIS field objects only for regridding.')
+
+    # Check their are grids on source and destination. Only structured grids are supported at this time.
+    for element in [source, destination]:
+        if element.grid is None:
+            raise RegriddingError('Fields must have grids to do regridding.')
+
+    # Check coordinate systems #########################################################################################
+
+    for element in [source, destination]:
+        if not isinstance(element.crs, Spherical):
             msg_a = 'Only spherical coordinate systems allowed for regridding.'
             raise RegriddingError(msg_a)
 
-    try:
-        sdim = destination.spatial
-    # likely a SpatialDimension object
-    except AttributeError:
-        sdim = destination
-    _assert_spherical_crs_(sdim.crs)
+    if source.crs != destination.crs:
+        msg = 'Source and destination coordinate systems must be equal.'
+        raise RegriddingError(msg)
 
-    ####################################################################################################################
-    # check that corners are available on all inputs if with_corners is True
-    ####################################################################################################################
+    # Check corners are available on all inputs ########################################################################
 
-    if with_corners:
-        has_corners_sources = []
-        for source in sources:
-            if source.spatial.grid.corners is not None:
-                has_corners_sources.append(True)
-            else:
-                has_corners_sources.append(False)
-        if sdim.grid.corners is not None:
-            has_corners_destination = True
-        else:
-            has_corners_destination = False
-        if not all(has_corners_sources) or not has_corners_destination:
-            msg = 'Corners are not available on all sources and destination. Consider setting "with_corners" to False.'
+    if regrid_method == ESMF.RegridMethod.CONSERVE:
+        has_corners_source = source.grid.has_bounds
+        has_corners_destination = destination.grid.has_bounds
+        if not has_corners_source or not has_corners_destination:
+            msg = 'Corners are not available on all sources and destination. Consider changing "regrid_method".'
             raise CornersInconsistentError(msg)
 
-    ####################################################################################################################
-    # check coordinate systems. need to make sure only spherical coordinate systems are used and the coordinate system
-    # definitions match.
-    ####################################################################################################################
 
-    for source in sources:
-        _assert_spherical_crs_(source.spatial.crs)
-        if source.spatial.crs != sdim.crs:
-            msg = 'Source and destination coordinate systems must be equal.'
-            raise RegriddingError(msg)
-
-
-def iter_regridded_fields(sources, destination, with_corners='auto', value_mask=None, split=True):
+def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True):
     """
-    Regrid ``sources`` to match the grid of ``destination``.
+    Regrid ``source`` data to match the grid of ``destination``.
 
-    :param sources: Sequence of source fields to regrid.
-    :type sources: sequence of :class:`ocgis.Field`
-    :param destination: The target grid contained in a field or spatial dimension.
-    :type destination: :class:`ocgis.Field` or :class:`ocgis.SpatialDimension`
-    :param with_corners: If ``'auto'``, automatically determine if corners should be used. They will be used if they
-     are available on all ``sources`` and the ``destination``. ``True`` or ``False`` is also acceptable - see
-     :func:`~ocgis.regrid.base.get_esmf_grid`.
-    :type with_corners: str or bool
+    :param source: The source field.
+    :type source: :class:`ocgis.OcgField`
+    :param destination: The destination field.
+    :type destination: :class:`ocgis.OcgField`
+    :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param value_mask: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
     :type value_mask: :class:`numpy.ndarray`
     :param bool split: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
-    :rtype: :class:`ocgis.Field`
+    :rtype: :class:`ocgis.OcgField`
     """
 
-    # The destination may be a field or spatial dimension.
-    try:
-        destination_sdim = destination.spatial
-    # Likely a spatial dimension.
-    except AttributeError:
-        destination_sdim = destination
-
     # This function runs a series of asserts to make sure the sources and destination are compatible.
-    try:
-        check_fields_for_regridding(sources, destination, with_corners=with_corners)
-    except CornersInconsistentError:
-        if with_corners == 'auto':
-            with_corners = False
-        else:
-            raise
+    check_fields_for_regridding(source, destination, regrid_method=regrid_method)
 
-    # Sources may be modified in the process, so make a copy of these grids.
-    sources = deepcopy(sources)
-    # This is the new shape of the output variables.
-    new_shape_spatial = destination_sdim.shape
     # Regrid each source.
     ocgis_lh(logger='iter_regridded_fields', msg='starting source regrid loop', level=logging.DEBUG)
-    for source in sources:
-        build = True
-        fills = {}
-        for variable_alias, efield, tidx in iter_esmf_fields(source, with_corners=with_corners, value_mask=value_mask,
-                                                             split=split):
+    # for source in sources:
+    build = True
+    fills = {}
+    for variable_name, src_efield, tidx in iter_esmf_fields(source, regrid_method=regrid_method,
+                                                            value_mask=value_mask, split=split):
 
-            # We need to generate new variables given the change in shape
-            if variable_alias not in fills:
-                new_shape = list(source.variables[variable_alias].shape)
-                new_shape[-2:] = new_shape_spatial
-                fill_var = source.variables[variable_alias].get_empty_like(shape=new_shape)
-                fills[variable_alias] = fill_var
+        # We need to generate new variables given the change in shape
+        if variable_name not in fills:
+            if source.time is not None:
+                new_dimensions = list(source.time.dimensions) + list(destination.grid.dimensions)
+            else:
+                new_dimensions = list(destination.grid.dimensions)
+            source_variable = source[variable_name]
+            new_variable = Variable(name=variable_name, dimensions=new_dimensions, dtype=source_variable.dtype,
+                                    fill_value=source_variable.fill_value)
+            fills[variable_name] = new_variable
 
-            # Only build the regrid objects once.
-            if build:
-                # Build the destination grid once.
-                esmf_destination_grid = get_esmf_grid(destination_sdim, with_corners=with_corners,
-                                                      value_mask=value_mask)
+        # Only build the regrid objects once.
+        if build:
+            # Build the destination grid once.
+            esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method, value_mask=value_mask)
 
-                # Check for corners on the destination grid. If they exist, conservative regridding is possible.
-                if get_esmf_grid_has_corners(esmf_destination_grid):
+            # Check for corners on the destination grid. If they exist, conservative regridding is possible.
+            if regrid_method == 'auto':
+                if get_esmf_grid_has_corners(esmf_destination_grid) and get_esmf_grid_has_corners(src_efield.grid):
                     regrid_method = ESMF.RegridMethod.CONSERVE
                 else:
                     regrid_method = None
 
-                # Place a deepcopy of the destination spatial dimension as the output spatial dimension for the
-                # regridded fields.
-                out_sdim = deepcopy(destination_sdim)
-                # If this is not conservative regridding then bounds and corners on the output should be stripped.
-                if not with_corners or regrid_method is None:
-                    if out_sdim.grid.row is not None:
-                        out_sdim.grid.row.remove_bounds()
-                        out_sdim.grid.col.remove_bounds()
-                        out_sdim.grid._corners = None
-                    # Remove any polygons if they exist.
-                    out_sdim.geom._polygon = None
-                    out_sdim.geom.grid = out_sdim.grid
+            if split:
+                ndbounds = None
+            else:
+                ndbounds = [source.time.shape[0]]
 
-                if split:
-                    ndbounds = None
-                else:
-                    ndbounds = [source.shape[1]]
+            build = False
 
-                build = False
+        dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
+        fill_variable = fills[variable_name]
+        fv = fill_variable.fill_value
+        if fv is None:
+            fv = np.ma.array([0], dtype=fill_variable.dtype).fill_value
+        dst_efield.data.fill(fv)
+        # Construct the regrid object. Weight generation actually occurs in this call.
+        regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
+                             regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+        # Perform the regrid operation. "zero_region" only fills values involved with regridding.
+        regridded_esmf_field = regrid(src_efield, dst_efield, zero_region=ESMF.Region.SELECT)
+        unmapped_mask = regridded_esmf_field.data[:] == fv
+        # If all data is masked, raise an exception.
+        if unmapped_mask.all():
+            # Destroy ESMF objects.
+            destroy_esmf_objects([regrid, dst_efield, esmf_destination_grid])
+            msg = 'All regridded elements are masked. Do the input spatial extents overlap?'
+            raise RegriddingError(msg)
+        # Fill the new variables.
+        fv_value = fill_variable.get_value()
+        fv_mask = fill_variable.get_mask(create=True)
+        try:
+            fv_value[tidx, :, :] = regridded_esmf_field.data
+        except IndexError:
+            # Assume no time index.
+            fv_value[:, :] = regridded_esmf_field.data
+        if regridded_esmf_field.grid.mask[0] is not None:
+            try:
+                fv_mask[tidx, :, :] = np.invert(regridded_esmf_field.grid.mask[0].astype(bool))
+            except IndexError:
+                # Assume no time index.
+                fv_mask[:, :] = np.invert(regridded_esmf_field.grid.mask[0].astype(bool))
+        try:
+            fill_variable_mask = np.logical_or(unmapped_mask, fv_mask[tidx, :, :])
+        except IndexError:
+            # Assume no time index.
+            fill_variable_mask = np.logical_or(unmapped_mask, fv_mask[:, :])
+        try:
+            fv_mask[tidx, :, :] = fill_variable_mask
+        except IndexError:
+            # Assume no time index.
+            fv_mask[:, :] = fill_variable_mask
+        fill_variable.set_mask(fv_mask)
 
-            esmf_destination_field = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
-            fill_variable = fills[variable_alias]
-            esmf_destination_field.data.fill(fill_variable.fill_value)
-            # Construct the regrid object. Weight generation actually occurs in this call.
-            regrid = ESMF.Regrid(efield, esmf_destination_field, unmapped_action=ESMF.UnmappedAction.IGNORE,
-                                 regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
-            # Perform the regrid operation. "zero_region" only fills values involved with regridding.
-            regridded_esmf_field = regrid(efield, esmf_destination_field, zero_region=ESMF.Region.SELECT)
-            unmapped_mask = regridded_esmf_field.data == fill_variable.fill_value
-            # If all data is masked, raise an exception.
-            if unmapped_mask.all():
-                # Destroy ESMF objects.
-                destroy_esmf_objects([regrid, esmf_destination_field, esmf_destination_grid])
-                msg = 'All regridded elements are masked. Do the input spatial extents overlap?'
-                raise RegriddingError(msg)
-            # Fill the new variables.
-            fill_variable.value.data[0, tidx, 0, :, :] = regridded_esmf_field.data
-            fill_variable.value.mask[0, tidx, 0, :, :] = np.invert(regridded_esmf_field.grid.mask[0].astype(bool))
-            fill_variable_mask = np.logical_or(unmapped_mask, fill_variable.value.mask[0, tidx, 0, :, :])
-            fill_variable.value.mask[0, tidx, 0, :, :] = fill_variable_mask
-
-            # Destroy ESMF objects, but keep the grid until all splits have finished. If split=False, there is only one
-            # split.
-            destroy_esmf_objects([regrid, esmf_destination_field, efield])
-
-        # Set the output spatial dimension of the regridded field.
-        source.spatial = out_sdim
+        # Destroy ESMF objects, but keep the grid until all splits have finished. If split=False, there is only one
+        # split.
+        destroy_esmf_objects([regrid, dst_efield, src_efield])
 
         # Create a new variable collection and add the variables to the output field.
-        source.variables = VariableCollection()
+        # source.variables = VariableCollection()
         for v in fills.itervalues():
-            source.variables.add_variable(v)
-
-        yield source
+            destination.add_variable(v, is_data=True, force=True)
 
     destroy_esmf_objects([esmf_destination_grid])
+
+    return destination
 
 
 def destroy_esmf_objects(objs):

@@ -4,39 +4,35 @@ import tempfile
 from copy import deepcopy
 from csv import DictReader
 
-import fiona
 import numpy as np
-from ocgis.driver.collection import SpatialCollection
-from ocgis.interface.base.dimension.spatial import SpatialDimension
-from shapely.geometry import Point
 
 import ocgis
+from ocgis import SpatialCollection
 from ocgis import constants
 from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter, \
     AbstractFileConverter
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
 from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
 from ocgis.conv.meta import MetaJSONConverter
-from ocgis.conv.nc import NcConverter, NcUgrid2DFlexibleMeshConverter
+from ocgis.conv.nc import NcConverter
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.test.base import attr
-from ocgis.variable.crs import WGS84
 
 
 class AbstractTestConverter(TestBase):
     def get_spatial_collection(self, field=None):
         rd = self.test_data.get_rd('cancm4_tas')
-        field = field or rd.get()[:, 0, :, 0, 0]
+        # field = field or rd.get()[:, 0, :, 0, 0]
+        if field is None:
+            field = rd.get().get_field_slice({'time': 0, 'x': 0, 'y': 0})
         coll = SpatialCollection()
-        coll.add_field(field)
+        coll.add_field(field, None)
         return coll
 
 
 class Test(TestBase):
     def test_get_converter_map(self):
         cmap = get_converter_map()
-        self.assertEqual(cmap[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],
-                         NcUgrid2DFlexibleMeshConverter)
         self.assertEqual(cmap[constants.OUTPUT_FORMAT_METADATA_JSON], MetaJSONConverter)
 
 
@@ -107,10 +103,10 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
         conv_klasses = [CsvConverter, NcConverter]
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        var2 = deepcopy(field.variables['tas'])
-        var2.alias = 'tas2'
-        field.variables.add_variable(deepcopy(var2), assign_new_uid=True)
-        field = field[:, 0:2, :, 0:5, 0:5]
+        var2 = deepcopy(field['tas'].extract())
+        var2.set_name('tas2')
+        field.add_variable(var2, is_data=True)
+        field = field.get_field_slice({'time': slice(0, 2), 'y': slice(0, 5), 'x': slice(0, 5)})
         coll = self.get_spatial_collection(field=field)
         for conv_klass in conv_klasses:
             if conv_klass == CsvConverter:
@@ -123,7 +119,7 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
             if conv_klass == CsvConverter:
                 with open(ret, 'r') as f:
                     reader = DictReader(f)
-                    aliases = set([row['ALIAS'] for row in reader])
+                    aliases = set([row['VARIABLE'] for row in reader])
                     self.assertEqual(set(['tas', 'tas2']), aliases)
             else:
                 with nc_scope(ret) as ds:
@@ -158,26 +154,6 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
     @attr('data')
     def test_overwrite_true_csv_shp(self):
         self.run_overwrite_true_tst(CsvShapefileConverter, include_ops=True)
-
-    def test_write(self):
-        records = [{'geom': Point(1, 2).buffer(1), 'properties': {'ID': 5, 'name': 'heaven'}},
-                   {'geom': Point(7, 8).buffer(1), 'properties': {'ID': 50, 'name': 'hell'}}]
-        sdim1 = SpatialDimension.from_records([records[0]], uid='ID')
-        sdim2 = SpatialDimension.from_records([records[1]], uid='ID')
-        field = self.get_field(crs=WGS84())
-        coll1 = SpatialCollection()
-        coll1.add_field(field, ugeom=sdim1)
-        coll2 = SpatialCollection()
-        coll2.add_field(field, ugeom=sdim2)
-        colls = [coll1, coll2]
-        f = FakeAbstractCollectionConverter(colls, outdir=self.current_dir_output, prefix='me')
-        ret = f.write()
-        path = os.path.join(ret, 'shp', 'me_ugid.shp')
-        with fiona.open(path, 'r') as source:
-            records = list(source)
-        self.assertEqual(len(records), 2)
-        self.assertEqual([r['properties']['ID'] for r in records], [5, 50])
-        self.assertEqual([r['properties']['name'] for r in records], ['heaven', 'hell'])
 
     @attr('data')
     def test_add_auxiliary_files_csv(self):

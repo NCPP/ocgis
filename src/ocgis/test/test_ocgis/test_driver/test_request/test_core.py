@@ -4,17 +4,18 @@ import pickle
 import shutil
 from collections import OrderedDict
 from datetime import datetime as dt
-from types import FunctionType
 
 import numpy as np
-from ocgis.driver.request.driver.vector import DriverVector
+from types import FunctionType
 
 import ocgis
-from ocgis import RequestDataset, get_is_none, get_autodiscovered_driver
+from ocgis import RequestDataset
 from ocgis import env
 from ocgis.collection.field import OcgField
 from ocgis.constants import TagNames, MiscNames
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
+from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
+from ocgis.driver.vector import DriverVector
 from ocgis.exc import DefinitionValidationError, VariableNotFoundError, RequestValidationError, \
     NoDataVariablesFound
 from ocgis.spatial.geom_cabinet import GeomCabinet

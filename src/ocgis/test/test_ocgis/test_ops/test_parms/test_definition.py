@@ -1,5 +1,6 @@
 import pickle
 import tempfile
+
 import types
 
 from ocgis.calc.library.statistics import Mean
@@ -8,6 +9,7 @@ from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import *
 from ocgis.ops.query import QueryInterface
+from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.test.base import TestBase, attr
 from ocgis.util.helpers import make_poly
@@ -355,8 +357,8 @@ class TestConformUnitsTo(TestBase):
         cc = ConformUnitsTo('kelvin')
         self.assertEqual(cc.value, 'kelvin')
 
-        cc = ConformUnitsTo('not_a_unit')
-        self.assertEqual(cc.value, 'not_a_unit')
+        with self.assertRaises(DefinitionValidationError):
+            ConformUnitsTo('not_a_unit')
 
         cc = ConformUnitsTo(get_units_object('celsius'))
         target = get_are_units_equal((cc.value, get_units_object('celsius')))
@@ -440,8 +442,10 @@ class TestDataset(TestBase):
 
     @attr('esmf')
     def test_init_esmf(self):
-        efield = self.get_esmf_field()
-        dd = Dataset(efield)
+        original_field = self.get_field()
+        dimensions = original_field.data_variables[0].dimensions
+        efield = get_esmf_field_from_ocgis_field(original_field)
+        dd = Dataset(efield, esmf_field_dimensions=dimensions)
         ofield = list(dd)[0]
         self.assertIsInstance(ofield, OcgField)
         dimensioned = ofield.get_by_tag(TagNames.DATA_VARIABLES)[0]
@@ -857,19 +861,16 @@ class TestRegridOptions(TestBase):
         self.assertDictEqual(ro.value, RegridOptions.default)
 
         with self.assertRaises(DefinitionValidationError):
-            RegridOptions({'with_corners': 'bad'})
-
-        with self.assertRaises(DefinitionValidationError):
             RegridOptions({'value_mask': 'foo'})
 
         with self.assertRaises(DefinitionValidationError):
             RegridOptions({'value_mask': np.array([5, 6, 7])})
 
-        ro = RegridOptions({'with_corners': True})
-        self.assertDictEqual(ro.value, {'with_corners': True, 'value_mask': None})
+        ro = RegridOptions({'regrid_method': True})
+        self.assertDictEqual(ro.value, {'regrid_method': True, 'value_mask': None})
 
         ro = RegridOptions({'value_mask': np.array([True, False])})
-        self.assertEqual(ro.value['with_corners'], 'auto')
+        self.assertEqual(ro.value['regrid_method'], 'auto')
         self.assertNumpyAll(ro.value['value_mask'], np.array([True, False]))
 
         with self.assertRaises(DefinitionValidationError):

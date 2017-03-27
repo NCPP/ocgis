@@ -25,7 +25,7 @@ class TestSpatialCollection(AbstractTestInterface):
         field['exact1'].set_name('exact2')
         field['exact2'].value[:] += 2
         field.set_name('exact2')
-        field.tags[TagNames.DATA_VARIABLES] = ['exact2']
+        field.append_to_tags(TagNames.DATA_VARIABLES, 'exact2')
         return field
 
     @property
@@ -45,6 +45,7 @@ class TestSpatialCollection(AbstractTestInterface):
             subset_geom = subset.value[0]
             container = poi.get_field_slice({'geom': ii})
             for field in [field1, field2]:
+                field.set_abstraction_geom()
                 subset_field = field.geom.get_intersects(subset_geom).parent
                 sc.add_field(subset_field, container)
 
@@ -59,7 +60,7 @@ class TestSpatialCollection(AbstractTestInterface):
         field1 = OcgField.from_variable_collection(gridxy.parent, dimension_map=dimension_map)
         field1.add_variable(exact)
         field1.set_name('exact1')
-        field1.tags[TagNames.DATA_VARIABLES].append('exact1')
+        field1.append_to_tags(TagNames.DATA_VARIABLES, 'exact1')
         return field1
 
     def get_subset_field(self):
@@ -99,15 +100,10 @@ class TestSpatialCollection(AbstractTestInterface):
         path = self.get_temporary_file_path('grid.shp')
         path2 = self.get_temporary_file_path('poi.shp')
         path3 = self.get_temporary_file_path('grid2.shp')
+
+        field2.set_abstraction_geom()
         field2.write(path, driver=DriverVector)
+
+        field1.set_abstraction_geom()
         field1.write(path3, driver=DriverVector)
         poi.write(path2, driver=DriverVector)
-
-    def test_iter(self):
-        sc = self.spatial_collection
-        for child_id, child in sc.children.items():
-            for grandchild_id, grandchild in child.children.items():
-                for row in grandchild.iter():
-                    self.fail('doesn not test anything')
-                    pass
-                    # print child_id, child.geom.value.flatten()[0], row

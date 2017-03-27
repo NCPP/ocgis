@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+import numpy as np
+
 from ocgis.collection.base import AbstractCollection
 from ocgis.test.base import TestBase
 

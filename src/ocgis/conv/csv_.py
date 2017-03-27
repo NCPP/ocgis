@@ -57,6 +57,10 @@ class CsvShapefileConverter(CsvConverter):
             raise ValueError('The argument "ops" may not be "None".')
 
     def _write_coll_(self, f, coll, add_geom_uid=True):
+        # Load the geometries. The geometry identifier is needed for the data write.
+        for field, container in coll.iter_fields(yield_container=True):
+            field.set_abstraction_geom(create_ugid=True)
+
         # Write the output CSV file.
         super(CsvShapefileConverter, self)._write_coll_(f, coll, add_geom_uid=add_geom_uid)
 
@@ -74,8 +78,6 @@ class CsvShapefileConverter(CsvConverter):
         else:
             # Write the geometries for each container/field combination.
             for field, container in coll.iter_fields(yield_container=True):
-                # Try to load the geometry from the collection.
-                field.set_abstraction_geom(create_ugid=True)
 
                 if not field.is_empty:
                     # The container may be empty. Only add the unique geometry identifier if the container has an

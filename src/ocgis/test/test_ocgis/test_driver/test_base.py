@@ -1,8 +1,7 @@
 from copy import deepcopy
 
-from ocgis.driver.request.driver.base import AbstractDriver
-
 from ocgis import OcgOperations
+from ocgis.driver.base import AbstractDriver
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 from ocgis.test.base import TestBase

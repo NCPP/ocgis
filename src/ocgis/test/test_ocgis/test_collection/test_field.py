@@ -62,6 +62,12 @@ class TestOcgField(AbstractTestInterface):
         field = OcgField(crs=desired_crs, geom=geom)
         self.assertEqual(field.crs, desired_crs)
 
+        # Test geometry coordinate system is not used. This must be set explicitly on the field.
+        crs = CoordinateReferenceSystem(epsg=2136)
+        g = GeometryVariable(name='foo', value=[Point(1, 2)], dimensions='geom', crs=crs)
+        f = OcgField(geom=g)
+        self.assertIsNone(f.crs)
+
     def test_system_crs_and_grid_abstraction(self):
         f = OcgField(grid_abstraction='point')
         grid = self.get_gridxy(with_xy_bounds=True)

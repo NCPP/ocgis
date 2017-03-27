@@ -4,6 +4,7 @@ from ocgis.ops.engine import OperationsEngine
 from ocgis.ops.interpreter import OcgInterpreter
 from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import *
+from ocgis.util.addict import Dict
 from ocgis.variable.crs import CFRotatedPole, WGS84, Spherical, CFWGS84
 
 
@@ -214,27 +215,42 @@ class OcgOperations(AbstractOcgisObject):
 
     def get_base_request_size(self):
         """
-        Return the estimated request size in kilobytes. This is the estimated size
-        of the requested data not the returned data product.
+        Return the estimated request size in kilobytes. This is the estimated size of the requested data not the 
+        returned data product.
 
-        :returns: Dictionary with keys ``'total'`` and ``'variables'``. The ``'variables'``
-         key maps a variable's alias to its estimated value and dimension sizes, shapes, and
-         data types.
+        :returns: Dictionary containing sizes of variables. Format is: ``dict['field'][<field name>][<variable name>]``.
         :return type: dict
 
+        >>> ops = OcgOperations(...)
         >>> ret = ops.get_base_request_size()
-        {'total':555.,
-         'variables':{
-                      'tas':{
-                             'value':{'kb':500.,'shape':(1,300,1,10,10),'dtype':dtype('float64')},
-                             'temporal':{'kb':50.,'shape':(300,),'dtype':dtype('float64')},
-                             'level':{'kb':o.,'shape':None,'dtype':None},
-                             'realization':{'kb':0.,'shape':None,'dtype':None},
-                             'row':{'kb':2.5,'shape':(10,),'dtype':dtype('float64')},
-                             'col':{'kb':2.5,'shape':(10,),'dtype':dtype('float64')}
-                             }
-                      }
-        }
+        {'field': {'tas': {u'height': {'dtype': dtype('float64'),
+                                       'kb': 0.0,
+                                       'shape': ()},
+                   u'lat': {'dtype': dtype('float64'),
+                            'kb': 0.5,
+                            'shape': (64,)},
+                   u'lat_bnds': {'dtype': dtype('float64'),
+                                 'kb': 1.0,
+                                 'shape': (64, 2)},
+                   'latitude_longitude': {'dtype': None,
+                                          'kb': 0.0,
+                                          'shape': (0,)},
+                   u'lon': {'dtype': dtype('float64'),
+                            'kb': 1.0,
+                            'shape': (128,)},
+                   u'lon_bnds': {'dtype': dtype('float64'),
+                                 'kb': 2.0,
+                                 'shape': (128, 2)},
+                   'tas': {'dtype': dtype('float32'),
+                           'kb': 116800.0,
+                           'shape': (3650, 64, 128)},
+                   u'time': {'dtype': dtype('float64'),
+                             'kb': 28.515625,
+                             'shape': (3650,)},
+                   u'time_bnds': {'dtype': dtype('float64'),
+                                  'kb': 57.03125,
+                                  'shape': (3650, 2)}}},
+         'total': 116890.046875}
         """
 
         if self.regrid_destination is not None:
@@ -245,39 +261,26 @@ class OcgOperations(AbstractOcgisObject):
             nbytes = np.array([1], dtype=dtype).nbytes
             return float((elements * nbytes) / 1024.0)
 
-        def _get_zero_or_kb_(dimension):
+        def _get_zero_or_kb_(var):
             ret = {'shape': None, 'kb': 0.0, 'dtype': None}
-            if dimension is not None:
-                try:
-                    ret['dtype'] = dimension.dtype
-                    ret['shape'] = dimension.shape
-                    ret['kb'] = _get_kb_(dimension.dtype, dimension.shape[0])
-                # dtype may not be available, check if it is the realization dimension. this is often not associated
-                # with a variable.
-                except ValueError:
-                    if dimension.axis != 'R':
-                        raise
+            ret['dtype'] = var.dtype
+            ret['shape'] = var.shape
+            ret['kb'] = _get_kb_(var.dtype, var.size)
             return ret
 
         ops_size = deepcopy(self)
         subset = OperationsEngine(ops_size, request_base_size_only=True)
-        ret = dict(variables={})
+        ret = Dict()
         for coll in subset:
-            for row in coll.get_iter_melted():
-                elements = reduce(lambda x, y: x * y, row['field'].shape)
-                kb = _get_kb_(row['variable'].dtype, elements)
-                ret['variables'][row['variable_alias']] = {}
-                ret['variables'][row['variable_alias']]['value'] = {'shape': row['field'].shape, 'kb': kb,
-                                                                    'dtype': row['variable'].dtype}
-                ret['variables'][row['variable_alias']]['realization'] = _get_zero_or_kb_(row['field'].realization)
-                ret['variables'][row['variable_alias']]['temporal'] = _get_zero_or_kb_(row['field'].temporal)
-                ret['variables'][row['variable_alias']]['level'] = _get_zero_or_kb_(row['field'].level)
-                ret['variables'][row['variable_alias']]['row'] = _get_zero_or_kb_(row['field'].spatial.grid.row)
-                ret['variables'][row['variable_alias']]['col'] = _get_zero_or_kb_(row['field'].spatial.grid.col)
+            for row in coll.iter_melted():
+                field = row['field']
+                curr = ret.field[field.name] = {}
+                for variable in field.values():
+                    curr[variable.name] = _get_zero_or_kb_(variable)
 
         total = 0.0
-        for v in ret.itervalues():
-            for v2 in v.itervalues():
+        for v in ret.values():
+            for v2 in v.values():
                 for v3 in v2.itervalues():
                     total += float(v3['kb'])
         ret['total'] = total

@@ -1,4 +1,5 @@
 import itertools
+import logging
 import os
 
 import numpy as np
@@ -8,8 +9,19 @@ from ocgis import Dimension
 from ocgis import Variable
 from ocgis.base import AbstractOcgisObject
 from ocgis.collection.field import OcgField
+from ocgis.driver.request.core import RequestDataset
+from ocgis.test.base import nc_scope
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection
 from ocgis.vm.mpi import OcgMpi, MPI_RANK
+
+
+class GridSplitterConstants(object):
+    class IndexFile(object):
+        NAME_INDEX_VARIABLE = 'grid_splitter_index'
+        NAME_DESTINATION_VARIABLE = 'grid_splitter_destination'
+        NAME_Y_BOUNDS_VARIABLE = 'y_bounds'
+        NAME_X_BOUNDS_VARIABLE = 'x_bounds'
 
 
 class GridSplitter(AbstractOcgisObject):
@@ -44,6 +56,46 @@ class GridSplitter(AbstractOcgisObject):
         self.dst_grid = dst_grid
         self.nsplits_dst = nsplits_dst
         self.check_contains = check_contains
+
+    @staticmethod
+    def insert_weighted(index_path, dst_wd, dst_master_path):
+        """
+        Inserted weighted, destination variable data into the master destination file.
+
+        :param str index_path: Path to the split index netCDF file.
+        :param str dst_wd: Working directory containing the destination files holding the weighted data.
+        :param str dst_master_path: Path to the destination master file.
+        """
+
+        index_field = RequestDataset(index_path).get()
+        gs_index_v = index_field[GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE]
+        dst_filenames = gs_index_v.attrs[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE]
+        dst_filenames = index_field[dst_filenames]
+
+        y_bounds = GridSplitterConstants.IndexFile.NAME_Y_BOUNDS_VARIABLE
+        y_bounds = gs_index_v.attrs[y_bounds]
+        y_bounds = index_field[y_bounds].get_value()
+
+        x_bounds = GridSplitterConstants.IndexFile.NAME_X_BOUNDS_VARIABLE
+        x_bounds = gs_index_v.attrs[x_bounds]
+        x_bounds = index_field[x_bounds].get_value()
+
+        joined = dst_filenames.join_string_value()
+        dst_master_field = RequestDataset(dst_master_path).get()
+        for data_variable in dst_master_field.data_variables:
+            assert data_variable.ndim == 3
+            assert not data_variable.has_allocated_value
+            for time_index in range(dst_master_field.time.shape[0]):
+                for vidx, source_path in enumerate(joined):
+                    source_path = os.path.join(dst_wd, source_path)
+                    slc = {dst_master_field.time.dimensions[0].name: time_index,
+                           dst_master_field.y.dimensions[0].name: slice(None),
+                           dst_master_field.x.dimensions[0].name: slice(None)}
+                    source_data = RequestDataset(source_path).get()[data_variable.name][slc]
+                    assert not source_data.has_allocated_value
+                    with nc_scope(dst_master_path, 'a') as ds:
+                        ds.variables[data_variable.name][time_index, y_bounds[vidx][0]:y_bounds[vidx][1],
+                        x_bounds[vidx][0]:x_bounds[vidx][1]] = source_data.get_value()
 
     def iter_dst_grid_slices(self):
         """
@@ -117,9 +169,15 @@ class GridSplitter(AbstractOcgisObject):
                 dst_grid_subset, dst_slice = yld
             else:
                 dst_grid_subset = yld
-            # barrier_print('dst_grid_subset ', dst_grid_subset.x.get_value().max())
-            sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value)
+
+            # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
+            sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value).envelope
+            ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG)
             src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=True)
+
+            if not src_grid_subset.is_empty:
+                assert not src_grid_subset.get_mask().any()
+
             if self.check_contains:
                 src_box = box(*src_grid_subset.extent_global)
                 dst_box = box(*dst_grid_subset.extent_global)
@@ -154,7 +212,11 @@ class GridSplitter(AbstractOcgisObject):
         wgt_filenames = []
         dst_slices = []
 
-        for ctr, (sub_src, sub_dst, dst_slc) in enumerate(self.iter_src_grid_subsets(yield_dst=True)):
+        # nzeros = len(str(reduce(lambda x, y: x * y, self.nsplits_dst)))
+
+        for ctr, (sub_src, sub_dst, dst_slc) in enumerate(self.iter_src_grid_subsets(yield_dst=True), start=1):
+            # padded = create_zero_padded_integer(ctr, nzeros)
+
             src_path = src_template.format(ctr)
             dst_path = dst_template.format(ctr)
             wgt_filename = wgt_template.format(ctr)
@@ -165,26 +227,37 @@ class GridSplitter(AbstractOcgisObject):
             dst_slices.append(dst_slc)
 
             for target, path in zip([sub_src, sub_dst], [src_path, dst_path]):
-                field = OcgField(grid=target)
+                if target.is_empty:
+                    is_empty = True
+                    target = None
+                else:
+                    is_empty = False
+                field = OcgField(grid=target, is_empty=is_empty)
+                ocgis_lh(msg='writing: {}'.format(path), level=logging.DEBUG)
                 field.write(path)
+                ocgis_lh(msg='finished writing: {}'.format(path), level=logging.DEBUG)
 
         if MPI_RANK == 0:
             dim = Dimension('nfiles', len(src_filenames))
             vname = ['source_filename', 'destination_filename', 'weights_filename']
             values = [src_filenames, dst_filenames, wgt_filenames]
+            grid_splitter_destination = GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE
             attrs = [{'esmf_role': 'grid_splitter_source'},
-                     {'esmf_role': 'grid_splitter_destination'},
+                     {'esmf_role': grid_splitter_destination},
                      {'esmf_role': 'grid_splitter_weights'}]
 
             vc = VariableCollection()
 
-            vidx = Variable(name='grid_splitter_index')
-            vidx.attrs['esmf_role'] = 'grid_splitter_index'
+            grid_splitter_index = GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE
+            vidx = Variable(name=grid_splitter_index)
+            vidx.attrs['esmf_role'] = grid_splitter_index
             vidx.attrs['grid_splitter_source'] = 'source_filename'
-            vidx.attrs['grid_splitter_destination'] = 'destination_filename'
+            vidx.attrs[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE] = 'destination_filename'
             vidx.attrs['grid_splitter_weights'] = 'weights_filename'
-            vidx.attrs['x_bounds'] = 'x_bounds'
-            vidx.attrs['y_bounds'] = 'y_bounds'
+            x_bounds = GridSplitterConstants.IndexFile.NAME_X_BOUNDS_VARIABLE
+            vidx.attrs[x_bounds] = x_bounds
+            y_bounds = GridSplitterConstants.IndexFile.NAME_Y_BOUNDS_VARIABLE
+            vidx.attrs[y_bounds] = y_bounds
             vc.add_variable(vidx)
 
             for idx in range(len(vname)):
@@ -192,14 +265,16 @@ class GridSplitter(AbstractOcgisObject):
                 vc.add_variable(v)
 
             bounds_dimension = Dimension(name='bounds', size=2)
-            xb = Variable(name='x_bounds', dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'x_split_bounds'},
+            xb = Variable(name=x_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'x_split_bounds'},
                           dtype=int)
-            yb = Variable(name='y_bounds', dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'y_split_bounds'},
+            yb = Variable(name=y_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'y_split_bounds'},
                           dtype=int)
 
+            x_name = self.dst_grid.x.dimensions[0].name
+            y_name = self.dst_grid.y.dimensions[0].name
             for idx, slc in enumerate(dst_slices):
-                xb.get_value()[idx, :] = slc['x'].start, slc['x'].stop
-                yb.get_value()[idx, :] = slc['y'].start, slc['y'].stop
+                xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
+                yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
             vc.add_variable(xb)
             vc.add_variable(yb)
 

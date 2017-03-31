@@ -2,7 +2,6 @@ import itertools
 from contextlib import contextmanager
 
 import numpy as np
-from mpi4py.MPI import COMM_NULL
 
 from ocgis.base import AbstractOcgisObject
 from ocgis.constants import MPIDistributionMode, DataTypes, MPITags
@@ -588,6 +587,8 @@ def get_rank_bounds(nelements, size, rank, esplit=None):
 
 @contextmanager
 def mpi_group_scope(ranks, comm=None):
+    from mpi4py.MPI import COMM_NULL
+
     comm, rank, size = get_standard_comm_state(comm=comm)
 
     base_group = comm.Get_group()

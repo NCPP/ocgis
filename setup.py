@@ -98,7 +98,7 @@ setup(
     version=VERSION,
     author='NESII/CIRES/NOAA-ESRL',
     author_email='ocgis_support@list.woc.noaa.gov',
-    url='http://ncpp.github.io/ocgis/install.html#installing-openclimategis',
+    url='http://ocgis.readthedocs.io/en/latest/install.html',
     license='NCSA License',
     platforms=['all'],
     packages=find_packages(where='./src'),
@@ -107,6 +107,6 @@ setup(
     cmdclass={'uninstall': UninstallCommand,
               'test': test,
               'test_all': test_all},
-    install_requires=['numpy', 'netCDF4', 'fiona', 'shapely'],
+    install_requires=['numpy', 'netCDF4', 'fiona', 'shapely', 'pyproj'],
     tests_require=['nose']
 )

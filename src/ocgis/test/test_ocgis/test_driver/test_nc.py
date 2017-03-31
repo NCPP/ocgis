@@ -19,7 +19,7 @@ from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
 from ocgis.spatial.grid import GridXY
 from ocgis.test.base import TestBase, attr
-from ocgis.variable.base import Variable, ObjectType, VariableCollection
+from ocgis.variable.base import Variable, ObjectType, VariableCollection, SourcedVariable
 from ocgis.variable.crs import WGS84, CFWGS84, CoordinateReferenceSystem, CFSpherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
@@ -60,8 +60,8 @@ class TestDriverNetcdf(TestBase):
         self.assertIsNone(nvc2['var2']._value)
         self.assertEqual(nvc2.name, 'vc2')
         nvc2.set_name('extraordinary')
-        self.assertIsNotNone(nvc2['var2'].value)
-        self.assertEqual(nvc2['var2'].value.tolist(), [4, 5, 6, 7])
+        self.assertIsNotNone(nvc2['var2'].get_value())
+        self.assertEqual(nvc2['var2'].get_value().tolist(), [4, 5, 6, 7])
 
         nvc.write(path2)
         rd2 = RequestDataset(path2)
@@ -199,7 +199,16 @@ class TestDriverNetcdf(TestBase):
         uri = [path1, path2]
         rd = RequestDataset(uri=uri, driver=DriverNetcdf)
         field = rd.get_variable_collection()
-        self.assertEqual(field['b'].value.tolist(), [0, 1])
+        self.assertEqual(field['b'].get_value().tolist(), [0, 1])
+
+    def test_write_variable(self):
+        path = self.get_temporary_file_path('foo.nc')
+        var = Variable(name='height', value=10.0, dimensions=[])
+        var.write(path)
+
+        rd = RequestDataset(path)
+        varin = SourcedVariable(name='height', request_dataset=rd)
+        self.assertEqual(varin.get_value(), var.get_value())
 
     @attr('mpi')
     def test_write_variable_collection(self):
@@ -230,7 +239,7 @@ class TestDriverNetcdf(TestBase):
     @attr('mpi')
     def test_write_variable_collection_isolated_variables(self):
         """Test writing a variable collection containing an isolated variable."""
-
+        # self.add_barrier = False
         if MPI_SIZE < 4:
             raise SkipTest('MPI procs < 4')
 
@@ -258,15 +267,16 @@ class TestDriverNetcdf(TestBase):
         self.assertIsNotNone(actual.dist)
         if MPI_RANK in ranks:
             self.assertFalse(actual.is_empty)
-            self.assertIsNotNone(actual.value)
+            self.assertIsNotNone(actual.get_value())
         else:
             self.assertTrue(actual.is_empty)
             self.assertIsNone(actual._value)
-            self.assertIsNone(actual.value)
+            self.assertIsNone(actual.get_value())
 
         vc.write(path_out)
 
-        if MPI_RANK in ranks:
+        MPI_COMM.Barrier()
+        if MPI_RANK == 0:
             self.assertNcEqual(path_in, path_out)
 
     def test_write_variable_collection_dataset_variable_kwargs(self):
@@ -405,6 +415,10 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(len(field.dimensions), 4)
         self.assertIsNotNone(field.crs)
         self.assertIsInstance(field.time, TemporalVariable)
+
+        # Geometry is not loaded automatically from the grid.
+        self.assertIsNone(field.geom)
+        field.set_abstraction_geom()
         self.assertIsInstance(field.geom, GeometryVariable)
 
         # Test overloading units.
@@ -482,7 +496,7 @@ class TestDriverNetcdfCF(TestBase):
 
     def test_get_dimension_map(self):
         d = self.get_drivernetcdf()
-        dmap = d.get_dimension_map(d.metadata_source)
+        dmap = d.get_dimension_map(d.metadata_source, strict=True)
         desired = {'crs': {'variable': 'latitude_longitude'},
                    'time': {'variable': u'time', 'bounds': u'time_bounds', 'names': ['time']}}
         self.assertEqual(dmap, desired)
@@ -498,20 +512,13 @@ class TestDriverNetcdfCF(TestBase):
         self.assertWarns(OcgWarning, _run_)
 
         # Test overloaded dimension map from request dataset is used.
-        dm = {'level': {'variable': 'does_not_exist'}}
+        dm = {'level': {'variable': 'does_not_exist', 'names': []}, 'crs': {}}
         driver = self.get_drivernetcdf(dimension_map=dm)
         self.assertDictEqual(driver.rd.dimension_map, dm)
         # The driver dimension map always loads from the data.
         self.assertNotEqual(dm, driver.get_dimension_map(driver.metadata_source))
         field = driver.get_field()
         self.assertIsNone(field.time)
-
-    def test_get_dimension_map_no_dimensions_on_axis_variable(self):
-        metadata = {'variables': {'height': {'name': 'height', 'attributes': {'axis': 'Z'}, 'dimensions': []}},
-                    'dimensions': {}}
-        d = self.get_drivernetcdf()
-        dmap = d.get_dimension_map(metadata)
-        self.assertIsNone(dmap.get('level', {}).get('variable'))
 
     def test_get_dimension_map_no_time_axis(self):
         metadata = {'variables': {'time': {'name': 'time', 'attributes': {}, 'dimensions': ['time']}},
@@ -522,7 +529,6 @@ class TestDriverNetcdfCF(TestBase):
 
     def test_get_field(self):
         driver = self.get_drivernetcdf()
-        # driver.inspect()
         field = driver.get_field(format_time=False)
         self.assertIsInstance(field.time, TemporalVariable)
         with self.assertRaises(CannotFormatTimeError):
@@ -534,11 +540,13 @@ class TestDriverNetcdfCF(TestBase):
         with self.nc_scope(path, 'w') as ds:
             v = ds.createVariable('latitude_longitude', np.int)
             v.grid_mapping_name = 'latitude_longitude'
+
         # First, test the default is found.
         rd = RequestDataset(uri=path)
         driver = DriverNetcdfCF(rd)
         self.assertEqual(driver.get_crs(driver.metadata_source), CFSpherical())
         self.assertEqual(driver.get_field().crs, CFSpherical())
+
         # Second, test the overloaded CRS is found.
         desired = CoordinateReferenceSystem(epsg=2136)
         rd = RequestDataset(uri=path, crs=desired)

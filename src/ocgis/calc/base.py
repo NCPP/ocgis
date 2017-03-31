@@ -8,7 +8,7 @@ import numpy as np
 
 from ocgis import constants
 from ocgis import env
-from ocgis.base import get_variables
+from ocgis.base import get_variables, get_dimension_names
 from ocgis.constants import TagNames, DimensionMapKeys, HeaderNames
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.conformer import conform_array_by_dimension_names
@@ -612,19 +612,29 @@ class AbstractUnivariateFunction(AbstractFunction):
     def _execute_(self):
         for variable, calculation_name in self.iter_calculation_targets():
             crosswalk = self._get_dimension_crosswalk_(variable)
+
             fill_dimensions = variable.dimensions
+            # Some calculations introduce a temporal group dimension during initialization and perform the temporal
+            # aggregation implicit to the function.
+            if self.tgd is not None and not self.should_temporally_aggregate:
+                time_dimension_name = self.field.time.dimensions[0].name
+                dimension_name = get_dimension_names(fill_dimensions)
+                time_index = dimension_name.index(time_dimension_name)
+                fill_dimensions = list(variable.dimensions)
+                fill_dimensions[time_index] = self.tgd.dimensions[0]
 
             fill = self.get_fill_variable(variable, calculation_name, fill_dimensions, self.file_only)
-            arr = self.get_variable_value(variable)
-            arr_fill = self.get_variable_value(fill)
-
-            for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, None):
-                carr, carr_fill = yld
-                res_calculation = self.calculate(carr, **self.parms)
-                carr_fill.data[:] = res_calculation.data
-                carr_fill.mask[:] = res_calculation.mask
 
             if not self.file_only:
+                arr = self.get_variable_value(variable)
+                arr_fill = self.get_variable_value(fill)
+
+                for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, None):
+                    carr, carr_fill = yld
+                    res_calculation = self.calculate(carr, **self.parms)
+                    carr_fill.data[:] = res_calculation.data
+                    carr_fill.mask[:] = res_calculation.mask
+
                 # Setting the values ensures the mask is updated on the output variables.
                 fill.set_value(arr_fill)
 
@@ -875,6 +885,7 @@ class AbstractMultivariateFunction(AbstractFunction):
 
                 # Ensure the mapped aliases exist.
                 fnames = []
+
                 for d in ops.dataset:
                     try:
                         for r in get_iter(d.rename_variable):
@@ -904,9 +915,6 @@ class AbstractMultivariateFunction(AbstractFunction):
                 match = get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=True)
                 if match == False:
                     raise UnitsValidationError(variable, target, self.key)
-
-    def _set_derived_variable_alias_(self, dv, parent_variables):
-        pass
 
 
 class AbstractKeyedOutputFunction(object):

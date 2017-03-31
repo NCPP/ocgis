@@ -47,8 +47,8 @@ class GridGeometryProcessor(GeometryProcessor):
             abstraction = 'point'
 
         if abstraction == 'point':
-            x_data = grid.x.value
-            y_data = grid.y.value
+            x_data = grid.x.get_value()
+            y_data = grid.y.get_value()
             for idx_row, idx_col in itertools.product(*[range(ii) for ii in grid.shape]):
                 if hint_mask is not None and hint_mask[idx_row, idx_col]:
                     yld = None
@@ -64,8 +64,8 @@ class GridGeometryProcessor(GeometryProcessor):
         elif abstraction == 'polygon':
             if grid.has_bounds:
                 # We want geometries for everything even if masked.
-                x_bounds = grid.x.bounds.value
-                y_bounds = grid.y.bounds.value
+                x_bounds = grid.x.bounds.get_value()
+                y_bounds = grid.y.bounds.get_value()
                 range_row = range(grid.shape[0])
                 range_col = range(grid.shape[1])
                 if is_vectorized:
@@ -280,8 +280,8 @@ class GridXY(AbstractSpatialContainer):
 
     @property
     def resolution(self):
-        y_value = self.y.value
-        x_value = self.x.value
+        y_value = self.y.get_value()
+        x_value = self.x.get_value()
         resolution_limit = constants.RESOLUTION_LIMIT
         if self.is_vectorized:
             targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit]))),
@@ -564,8 +564,8 @@ class GridXY(AbstractSpatialContainer):
             y = self.y
             x = self.x
 
-            value_row = self.y.value.reshape(-1)
-            value_col = self.x.value.reshape(-1)
+            value_row = self.y.get_value().reshape(-1)
+            value_col = self.x.get_value().reshape(-1)
 
             tvalue_col, tvalue_row = transform(src_proj4, dst_proj4, value_col, value_row)
 
@@ -573,8 +573,8 @@ class GridXY(AbstractSpatialContainer):
             self.y.set_value(tvalue_row.reshape(self.shape))
 
             if self.has_bounds:
-                corner_row = y.bounds.value.reshape(-1)
-                corner_col = x.bounds.value.reshape(-1)
+                corner_row = y.bounds.get_value().reshape(-1)
+                corner_col = x.bounds.get_value().reshape(-1)
                 tvalue_col, tvalue_row = transform(src_proj4, dst_proj4, corner_col, corner_row)
                 y.bounds.set_value(tvalue_row.reshape(y.bounds.shape))
                 x.bounds.set_value(tvalue_col.reshape(x.bounds.shape))
@@ -592,15 +592,15 @@ class GridXY(AbstractSpatialContainer):
         # tdk: test, doc
         if not self.is_vectorized:
             if self.has_bounds:
-                x_bounds = self.x.bounds.value
-                y_bounds = self.y.bounds.value
+                x_bounds = self.x.bounds.get_value()
+                y_bounds = self.y.bounds.get_value()
                 minx = x_bounds.min()
                 miny = y_bounds.min()
                 maxx = x_bounds.max()
                 maxy = y_bounds.max()
             else:
-                x_value = self.x.value
-                y_value = self.y.value
+                x_value = self.x.get_value()
+                y_value = self.y.get_value()
                 minx = x_value.min()
                 miny = y_value.min()
                 maxx = x_value.max()
@@ -609,15 +609,15 @@ class GridXY(AbstractSpatialContainer):
             row = self.y
             col = self.x
             if not self.has_bounds:
-                minx = col.value.min()
-                miny = row.value.min()
-                maxx = col.value.max()
-                maxy = row.value.max()
+                minx = col.get_value().min()
+                miny = row.get_value().min()
+                maxx = col.get_value().max()
+                maxy = row.get_value().max()
             else:
-                minx = col.bounds.value.min()
-                miny = row.bounds.value.min()
-                maxx = col.bounds.value.max()
-                maxy = row.bounds.value.max()
+                minx = col.bounds.get_value().min()
+                miny = row.bounds.get_value().min()
+                maxx = col.bounds.get_value().max()
+                maxy = row.bounds.get_value().max()
         return minx, miny, maxx, maxy
 
     @property
@@ -634,6 +634,18 @@ class GridXY(AbstractSpatialContainer):
     @abstraction.setter
     def abstraction(self, abstraction):
         self._abstraction = abstraction
+
+    def extract(self, clean_break=False):
+        build = True
+        for member in self.get_member_variables():
+            if build:
+                new_parent = member.extract(clean_break=clean_break, keep_bounds=False).parent
+                build = False
+            else:
+                extracted = member.extract(clean_break=clean_break, keep_bounds=False)
+                new_parent.add_variable(extracted)
+        self.parent = new_parent
+        return self
 
     def get_abstraction_geometry(self, **kwargs):
         if self.abstraction == 'point':
@@ -689,7 +701,7 @@ class GridXY(AbstractSpatialContainer):
             raise ValueError('The reorder dimension may not be distributed.')
 
         # Reorder indices identify where the index translation occurs.
-        wrapped = self.x.value
+        wrapped = self.x.get_value()
 
         if self.is_vectorized:
             wrapped = wrapped.reshape(1, -1)
@@ -705,14 +717,14 @@ class GridXY(AbstractSpatialContainer):
 
         if self.is_vectorized:
             shift_indices[:] = shift_indices[0]
-            reorder_array(shift_indices, self.x.value.reshape(1, -1), get_dimension_names(self.dimensions),
+            reorder_array(shift_indices, self.x.get_value().reshape(1, -1), get_dimension_names(self.dimensions),
                           reorder_dimension, varying_dimension)
 
         # Reorder all arrays that have the reorder and varying dimension.
         for var in self.parent.values():
             arr_dimension_names = get_dimension_names(var.dimensions)
             if reorder_dimension in arr_dimension_names and varying_dimension in arr_dimension_names:
-                reorder_array(shift_indices, var.value, arr_dimension_names, reorder_dimension, varying_dimension)
+                reorder_array(shift_indices, var.get_value(), arr_dimension_names, reorder_dimension, varying_dimension)
                 if var.has_masked_values:
                     mask = var.get_mask()
                     if mask is not None:
@@ -735,7 +747,8 @@ def create_grid_mask_variable(name, mask_value, dimensions):
     mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
                              fill_value=np.array([1], dtype=np.dtype('i1'))[0],
                              attrs={'ocgis_role': 'spatial_mask',
-                                    'description': '1=True (is masked); 0=False (not masked)'})
+                                    'description': 'values matching fill value are spatially masked'})
+    mask_variable.allocate_value()
     return mask_variable
 
 
@@ -770,8 +783,8 @@ def get_polygon_geometry_array(grid, fill):
 
     if grid.has_bounds:
         # We want geometries for everything even if masked.
-        x_bounds = grid.x.bounds.value
-        y_bounds = grid.y.bounds.value
+        x_bounds = grid.x.bounds.get_value()
+        y_bounds = grid.y.bounds.get_value()
         range_row = range(grid.shape[0])
         range_col = range(grid.shape[1])
         if is_vectorized:
@@ -800,8 +813,8 @@ def get_polygon_geometry_array(grid, fill):
 def get_point_geometry_array(grid, fill):
     """Create geometries for all the underlying coordinates regardless if the data is masked."""
 
-    x_data = grid.x.value
-    y_data = grid.y.value
+    x_data = grid.x.get_value()
+    y_data = grid.y.get_value()
     is_vectorized = grid.is_vectorized
 
     for idx_row, idx_col in itertools.product(*[range(ii) for ii in grid.shape]):
@@ -897,7 +910,7 @@ def get_extent_global(grid, comm=None):
 
 
 def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_target):
-    target_centers = grid_target.value
+    target_centers = grid_target.get_value()
 
     res_target = np.array(get_arr_intersects_bounds(target_centers, min_target, max_target, keep_touches=keep_touches))
     res_target = res_target.reshape(-1)
@@ -906,8 +919,8 @@ def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_targ
 
 
 def get_hint_mask_from_geometry_bounds(grid, bbox, invert=True):
-    grid_x = grid.x.value
-    grid_y = grid.y.value
+    grid_x = grid.x.get_value()
+    grid_y = grid.y.get_value()
 
     minx, miny, maxx, maxy = bbox
 
@@ -951,8 +964,8 @@ def expand_grid(grid):
     if y.ndim == 1:
         if y.has_bounds:
             if not grid_is_empty:
-                original_y_bounds = y.bounds.value
-                original_x_bounds = x.bounds.value
+                original_y_bounds = y.bounds.get_value()
+                original_x_bounds = x.bounds.get_value()
             original_bounds_dimension_name = y.bounds.dimensions[-1].name
             has_bounds = True
             name_y = y.bounds.name
@@ -961,7 +974,7 @@ def expand_grid(grid):
             has_bounds = False
 
         if not grid_is_empty:
-            new_x_value, new_y_value = np.meshgrid(x.value, y.value)
+            new_x_value, new_y_value = np.meshgrid(x.get_value(), y.get_value())
         new_dimensions = [y.dimensions[0], x.dimensions[0]]
 
         x.set_bounds(None)

@@ -39,7 +39,7 @@ class TestDriverCSV(TestBase):
         vc = rd.get_variable_collection()
 
         for v in vc.values():
-            self.assertIsNotNone(v.value)
+            self.assertIsNotNone(v.get_value())
 
         field = rd.get()
         self.assertIsInstance(field, OcgField)

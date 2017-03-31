@@ -129,8 +129,8 @@ class Test(AbstractTestTemporal):
         itr = list(itr)
         self.assertEqual(len(itr), 1)
         for dgroup, sub in itr:
-            self.assertEqual(sub.value[0].year, 1900)
-            self.assertEqual(sub.value[0].month, 12)
+            self.assertEqual(sub.get_value()[0].year, 1900)
+            self.assertEqual(sub.get_value()[0].month, 12)
 
 
 class TestTemporalVariable(AbstractTestTemporal):
@@ -312,7 +312,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertTrue(get_are_units_equivalent((target, temporal.cfunits, temporal_orig.cfunits)))
         self.assertEqual(temporal.calendar, '365_day')
         self.assertEqual(temporal_orig.calendar, '365_day')
-        self.assertNumpyNotAll(temporal.value, temporal_orig.value)
+        self.assertNumpyNotAll(temporal.get_value(), temporal_orig.get_value())
         self.assertNumpyAll(temporal.value_datetime, temporal_orig.value_datetime)
 
     def test_extent_datetime_and_extent_numtime(self):
@@ -338,7 +338,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                 td.bounds._value = td.bounds.value_numtime
                 td._value_datetime = None
                 td._bounds_datetime = None
-                self.assertTrue(get_datetime_conversion_state(td.value.flatten()[0]))
+                self.assertTrue(get_datetime_conversion_state(td.get_value().flatten()[0]))
             res = td.get_between(dt(1899, 1, 4, 12, 0), dt(1899, 1, 10, 12, 0), return_indices=False)
             self.assertEqual(res.shape, (7,))
             self.assertIsNone(td._value_datetime)
@@ -365,7 +365,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         for dgroup in dgroups:
             sub = td[dgroup]
             # (upper and lower values of time vector, count of elements in time group, the middle value of the vector)
-            to_test.append([sub.extent, sub.shape[0], sub[sub.shape[0] / 2].value[0]])
+            to_test.append([sub.extent, sub.shape[0], sub[sub.shape[0] / 2].get_value()[0]])
         correct = [[(datetime.datetime(2012, 3, 1, 0, 0), datetime.datetime(2012, 5, 31, 0, 0)), 92,
                     datetime.datetime(2012, 4, 16, 0, 0)],
                    [(datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)), 92,
@@ -390,8 +390,12 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertNumpyAll(dts, res)
 
         td = self.init_temporal_variable(value=[5, 6], units='months since 1978-12')
-        res = td.get_datetime(td.value)
+        res = td.get_datetime(td.get_value())
         self.assertEqual(res[0], dt(1979, 5, 16))
+
+        td = self.init_temporal_variable(value=[15, 16], units='months since 1978-12')
+        res = td.get_datetime(td.get_value())
+        self.assertEqual(res[0], dt(1980, 3, 16))
 
         units = 'days since 0001-01-01 00:00:00'
         calendar = '365_day'
@@ -399,7 +403,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         ndts = np.array([ndt(0000, 2, 30), ndt(0000, 2, 31)])
         narr = date2num(ndts, units, calendar=calendar)
         td = self.init_temporal_variable(value=narr, units=units, calendar=calendar)
-        res = td.get_datetime(td.value)
+        res = td.get_datetime(td.get_value())
         self.assertTrue(all([isinstance(element, ndt) for element in res.flat]))
 
     def test_get_datetime_with_template_units(self):
@@ -424,7 +428,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         td = tv.get_between(datetime.datetime(1900, 1, 1), datetime.datetime(1900, 12, 31, 23, 59))
         self.assertEqual(td.bounds.shape, (365, 2))
         tgd = td.get_grouping(['year'])
-        self.assertEqual(tgd.value, np.array([datetime.datetime(1900, 7, 1)]))
+        self.assertEqual(tgd.get_value(), np.array([datetime.datetime(1900, 7, 1)]))
 
         # Test with a 360_day calendar and 3-hourly data.
         start = 0.0625
@@ -449,7 +453,7 @@ class TestTemporalVariable(AbstractTestTemporal):
             td = self.get_temporalvariable(add_bounds=b)
             tgd = td.get_grouping('all')
             self.assertEqual(tgd.dgroups, [slice(None)])
-            self.assertEqual(td.value[546], tgd.value[0])
+            self.assertEqual(td.get_value()[546], tgd.get_value()[0])
             if b:
                 self.assertNumpyAll(tgd.bounds.masked_value, np.ma.array([[datetime.datetime(1899, 1, 1),
                                                                            datetime.datetime(1902, 1, 1)]]))
@@ -486,16 +490,16 @@ class TestTemporalVariable(AbstractTestTemporal):
         # Standard seasonal group.
         calc_grouping = [[6, 7, 8]]
         tg = td.get_grouping(calc_grouping)
-        self.assertEqual(len(tg.value), 1)
-        selected_months = [s.month for s in td.value[tg.dgroups[0]].flat]
-        not_selected_months = [s.month for s in td.value[np.invert(tg.dgroups[0])]]
+        self.assertEqual(len(tg.get_value()), 1)
+        selected_months = [s.month for s in td.get_value()[tg.dgroups[0]].flat]
+        not_selected_months = [s.month for s in td.get_value()[np.invert(tg.dgroups[0])]]
         self.assertEqual(set(calc_grouping[0]), set(selected_months))
         self.assertFalse(set(not_selected_months).issubset(set(calc_grouping[0])))
 
         # Seasons with different sizes.
         calc_grouping = [[4, 5, 6, 7], [8, 9, 10]]
         tg = td.get_grouping(calc_grouping)
-        self.assertEqual(len(tg.value), 2)
+        self.assertEqual(len(tg.get_value()), 2)
         self.assertNumpyAll(tg.dgroups[0], np.invert(tg.dgroups[1]))
 
         # Crosses year boundary.
@@ -503,14 +507,14 @@ class TestTemporalVariable(AbstractTestTemporal):
         dates = get_date_list(dt(2012, 10, 1), dt(2013, 3, 31), 1)
         td = self.init_temporal_variable(value=dates)
         tg = td.get_grouping(calc_grouping)
-        selected_months = [s.month for s in td.value[tg.dgroups[0]].flat]
+        selected_months = [s.month for s in td.get_value()[tg.dgroups[0]].flat]
         self.assertEqual(set(calc_grouping[0]), set(selected_months))
-        self.assertEqual(tg.value[0], dt(2012, 12, 16))
+        self.assertEqual(tg.get_value()[0], dt(2012, 12, 16))
 
         # Use real data.
         td = TemporalVariable(request_dataset=self.get_request_dataset())
         tg = td.get_grouping([[3, 4, 5]])
-        self.assertEqual(tg.value[0], dt(2005, 4, 16))
+        self.assertEqual(tg.get_value()[0], dt(2005, 4, 16))
 
     def test_get_grouping_seasonal_empty_with_year_missing_month(self):
         dt1 = datetime.datetime(1900, 01, 01)
@@ -520,7 +524,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         group = [[12, 1, 2], 'unique']
         tg = td.get_grouping(group)
         # There should be a month missing from the last season (february) and it should not be considered complete.
-        self.assertEqual(tg.value.shape[0], 2)
+        self.assertEqual(tg.get_value().shape[0], 2)
 
     @attr('data')
     def test_get_grouping_seasonal_real_data_all_seasons(self):
@@ -532,9 +536,9 @@ class TestTemporalVariable(AbstractTestTemporal):
         tv = TemporalVariable(request_dataset=rd, bounds=tv_bounds)
         tgd = tv.get_grouping(calc_grouping)
         self.assertEqual(tgd.shape, (4,))
-        self.assertEqual([xx[1] for xx in calc_grouping], [xx.month for xx in tgd.value.flat])
-        self.assertEqual(set([xx.day for xx in tgd.value.flat]), {constants.CALC_MONTH_CENTROID})
-        self.assertEqual([2006, 2005, 2005, 2005], [xx.year for xx in tgd.value.flat])
+        self.assertEqual([xx[1] for xx in calc_grouping], [xx.month for xx in tgd.get_value().flat])
+        self.assertEqual(set([xx.day for xx in tgd.get_value().flat]), {constants.CALC_MONTH_CENTROID})
+        self.assertEqual([2006, 2005, 2005, 2005], [xx.year for xx in tgd.get_value().flat])
         self.assertNumpyAll(tgd.bounds.value_numtime.data,
                             np.array([[55115.0, 58765.0], [55174.0, 58551.0], [55266.0, 58643.0], [55358.0, 58734.0]]))
 
@@ -556,9 +560,9 @@ class TestTemporalVariable(AbstractTestTemporal):
         for software, manual in itertools.izip(tg.dgroups, dgroups):
             self.assertNumpyAll(software, manual)
         self.assertEqual(len(tg.dgroups), 2)
-        self.assertEqual(tg.value.tolist(),
+        self.assertEqual(tg.get_value().tolist(),
                          [datetime.datetime(2012, 7, 17, 0, 0), datetime.datetime(2013, 7, 17, 0, 0)])
-        self.assertEqual(tg.bounds.value.tolist(),
+        self.assertEqual(tg.bounds.get_value().tolist(),
                          [[datetime.datetime(2012, 6, 1, 0, 0), datetime.datetime(2012, 8, 31, 0, 0)],
                           [datetime.datetime(2013, 6, 1, 0, 0), datetime.datetime(2013, 8, 31, 0, 0)]])
 
@@ -586,21 +590,21 @@ class TestTemporalVariable(AbstractTestTemporal):
         group = td.get_grouping(calc_grouping)
 
         for idx in range(group.shape[0]):
-            bounds_lower = group.bounds.value[idx, 0]
-            bounds_upper = group.bounds.value[idx, 1]
+            bounds_lower = group.bounds.get_value()[idx, 0]
+            bounds_upper = group.bounds.get_value()[idx, 1]
 
             sub = td[group.dgroups[idx]]
             self.assertEqual(sub.masked_value.compressed().min(), bounds_lower)
             self.assertEqual(sub.masked_value.compressed().max(), bounds_upper)
 
-        self.assertEqual(group.value.tolist(),
+        self.assertEqual(group.get_value().tolist(),
                          [datetime.datetime(1900, 4, 16, 0, 0), datetime.datetime(1900, 7, 17, 0, 0),
                           datetime.datetime(1900, 10, 16, 0, 0), datetime.datetime(1901, 1, 15, 0, 0),
                           datetime.datetime(1901, 4, 16, 0, 0), datetime.datetime(1901, 7, 17, 0, 0),
                           datetime.datetime(1901, 10, 16, 0, 0), datetime.datetime(1902, 1, 15, 0, 0),
                           datetime.datetime(1902, 4, 16, 0, 0), datetime.datetime(1902, 7, 17, 0, 0),
                           datetime.datetime(1902, 10, 16, 0, 0)])
-        self.assertEqual(group.bounds.value.tolist(),
+        self.assertEqual(group.bounds.get_value().tolist(),
                          [[datetime.datetime(1900, 3, 1, 0, 0), datetime.datetime(1900, 5, 31, 0, 0)],
                           [datetime.datetime(1900, 6, 1, 0, 0), datetime.datetime(1900, 8, 31, 0, 0)],
                           [datetime.datetime(1900, 9, 1, 0, 0), datetime.datetime(1900, 11, 30, 0, 0)],
@@ -622,8 +626,8 @@ class TestTemporalVariable(AbstractTestTemporal):
         td = self.init_temporal_variable(value=dates)
         group = [[12, 1, 2], 'unique']
         tg = td.get_grouping(group)
-        self.assertEqual(tg.value.shape[0], 2)
-        self.assertEqual(tg.bounds.value.tolist(),
+        self.assertEqual(tg.get_value().shape[0], 2)
+        self.assertEqual(tg.bounds.get_value().tolist(),
                          [[datetime.datetime(1900, 12, 1, 0, 0), datetime.datetime(1901, 2, 28, 0, 0)],
                           [datetime.datetime(1901, 12, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
 
@@ -633,7 +637,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         td = self.init_temporal_variable(value=dates)
         calc_grouping = [[6, 7, 8], 'year']
         tg = td.get_grouping(calc_grouping)
-        self.assertEqual(tg.value.shape[0], 2)
+        self.assertEqual(tg.get_value().shape[0], 2)
 
         # '[datetime.datetime(2012, 7, 16, 0, 0) datetime.datetime(2013, 7, 16, 0, 0)]'
         actual = np.loads(
@@ -697,13 +701,13 @@ class TestTemporalVariable(AbstractTestTemporal):
         td = self.init_temporal_variable(value=dates)
 
         ret, indices = td.get_time_region({'month': [8]}, return_indices=True)
-        self.assertEqual(set([8]), set([d.month for d in ret.value.flat]))
+        self.assertEqual(set([8]), set([d.month for d in ret.get_value().flat]))
 
         ret, indices = td.get_time_region({'year': [2008, 2004]}, return_indices=True)
-        self.assertEqual(set([2008, 2004]), set([d.year for d in ret.value.flat]))
+        self.assertEqual(set([2008, 2004]), set([d.year for d in ret.get_value().flat]))
 
         ret, indices = td.get_time_region({'day': [20, 31]}, return_indices=True)
-        self.assertEqual(set([20, 31]), set([d.day for d in ret.value.flat]))
+        self.assertEqual(set([20, 31]), set([d.day for d in ret.get_value().flat]))
 
         ret, indices = td.get_time_region({'day': [20, 31], 'month': [9, 10], 'year': [2003]}, return_indices=True)
         self.assertNumpyAll(ret.masked_value, np.ma.array([dt(2003, 9, 20), dt(2003, 10, 20), dt(2003, 10, 31, )]))
@@ -824,7 +828,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         r2 = datetime.datetime(1950, 12, 31)
         td = self.init_temporal_variable(value=dates)
         ret = td.get_between(r1, r2)
-        self.assertEqual(ret.value[-1], datetime.datetime(1950, 12, 30, 12, 0))
+        self.assertEqual(ret.get_value()[-1], datetime.datetime(1950, 12, 30, 12, 0))
         delta = datetime.timedelta(hours=12)
         lower = dates - delta
         upper = dates + delta
@@ -833,8 +837,9 @@ class TestTemporalVariable(AbstractTestTemporal):
         bounds[:, 1] = upper
         bounds = self.init_temporal_variable(value=bounds, name='time_bounds', dimensions=['time', 'bounds'])
         td = self.init_temporal_variable(value=dates, bounds=bounds, dimensions=['time'])
+        self.assertTrue(td.has_bounds)
         ret = td.get_between(r1, r2)
-        self.assertEqual(ret.value[-1], datetime.datetime(1950, 12, 31, 12, 0))
+        self.assertEqual(ret.get_value()[-1], datetime.datetime(1950, 12, 31, 12, 0))
 
     def test_value_datetime_and_value_numtime(self):
         value_datetime = np.array([dt(2000, 1, 15), dt(2000, 2, 15)])

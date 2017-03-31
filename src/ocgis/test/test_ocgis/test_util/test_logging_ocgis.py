@@ -79,15 +79,16 @@ class TestOcgisLogging(TestBase):
         with self.assertRaises(AssertionError):
             self.assertWarns(OcgWarning, _run_)
 
-    def test_combinations(self):
+    def test_system_combinations(self):
         _to_stream = [
-            # True,
+            True,
             False
         ]
         _to_file = [
             os.path.join(env.DIR_OUTPUT, 'test_ocgis_log.log'),
             None
         ]
+
         _level = [logging.INFO, logging.DEBUG, logging.WARN]
         for ii, (to_file, to_stream, level) in enumerate(itertools.product(_to_file, _to_stream, _level)):
             ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level)
@@ -106,14 +107,7 @@ class TestOcgisLogging(TestBase):
             finally:
                 logging.shutdown()
 
-    def test_configure(self):
-        # test suppressing warnings in the logger
-        self.assertIsNone(logging._warnings_showwarning)
-        env.SUPPRESS_WARNINGS = False
-        ocgis_lh.configure()
-        self.assertFalse(logging._warnings_showwarning)
-
-    def test_exc(self):
+    def test_system_exc(self):
         to_file = os.path.join(env.DIR_OUTPUT, 'test_ocgis_log.log')
         to_stream = False
         ocgis_lh.configure(to_file=to_file, to_stream=to_stream)
@@ -123,14 +117,7 @@ class TestOcgisLogging(TestBase):
             with self.assertRaises(ValueError):
                 ocgis_lh('something happened', exc=e)
 
-    def test_shutdown(self):
-        env.SUPPRESS_WARNINGS = False
-        ocgis_lh.configure(to_stream=True)
-        self.assertFalse(logging._warnings_showwarning)
-        ocgis_lh.shutdown()
-        self.assertIsNone(logging._warnings_showwarning)
-
-    def test_simple(self):
+    def test_system_simple(self):
         to_file = os.path.join(env.DIR_OUTPUT, 'test_ocgis_log.log')
         to_stream = False
 
@@ -140,7 +127,7 @@ class TestOcgisLogging(TestBase):
         subset = ocgis_lh.get_logger('subset')
         subset.info('a subset message')
 
-    def test_with_callback(self):
+    def test_system_with_callback(self):
         fp = get_temp_path(wd=self.current_dir_output)
 
         def callback(message, path=fp):
@@ -166,13 +153,28 @@ class TestOcgisLogging(TestBase):
         self.assertEqual(lines, ['this is a test message\n', 'this is a second test message\n',
                                  'FooError: foo message for value error\n'])
 
+    def test_configure(self):
+        # test suppressing warnings in the logger
+        self.assertIsNone(logging._warnings_showwarning)
+        env.SUPPRESS_WARNINGS = False
+        ocgis_lh.configure()
+        self.assertFalse(logging._warnings_showwarning)
+
+    def test_shutdown(self):
+        env.SUPPRESS_WARNINGS = False
+        ocgis_lh.configure(to_stream=True)
+        self.assertFalse(logging._warnings_showwarning)
+        ocgis_lh.shutdown()
+        self.assertIsNone(logging._warnings_showwarning)
+
     @attr('data')
     def test_writing(self):
+        env.ENABLE_FILE_LOGGING = True
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format='csv')
         ret = ops.execute()
         folder = os.path.split(ret)[0]
-        log = os.path.join(folder, '{}-rank-0.log'.format(ops.prefix))
+        log = os.path.join(folder, 'logs', '{}-rank-0.log'.format(ops.prefix))
         with open(log) as f:
             lines = f.readlines()
             self.assertTrue(len(lines) >= 4)

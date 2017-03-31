@@ -111,7 +111,7 @@ class TestIterator(TestBase):
         as_list = list(itr)
         actual = as_list[1][var.name]
         self.assertIsNone(actual)
-        self.assertEqual(as_list[2][var.name], str(var.value[2]))
+        self.assertEqual(as_list[2][var.name], str(var.get_value()[2]))
         self.assertEqual(as_list[0]['modified'], 1000)
 
     def test_iter_melted(self):
@@ -140,7 +140,7 @@ class TestIterator(TestBase):
     def test_iter_repeater(self):
         var1 = Variable(name='var1', value=[1, 2, 3], dimensions='dim')
         var2 = Variable(name='var2', value=[1, 2, 3], dimensions='dim')
-        var2.value[:] *= 9
+        var2.get_value()[:] *= 9
         repeater = ('i_am', 'a_repeater')
         itr = Iterator(var1, followers=[var2], repeaters=[repeater])
 
@@ -166,8 +166,8 @@ class TestIterator(TestBase):
         var = Variable(name='bounded', value=[1, 2, 3, 4], dtype=float, dimensions='dim')
         var.set_extrapolated_bounds('the_bounds', 'bounds')
 
-        lower = Variable(name='lower_bounds', value=var.bounds.value[:, 0], dimensions=var.dimensions)
-        upper = Variable(name='upper_bounds', value=var.bounds.value[:, 1], dimensions=var.dimensions)
+        lower = Variable(name='lower_bounds', value=var.bounds.get_value()[:, 0], dimensions=var.dimensions)
+        upper = Variable(name='upper_bounds', value=var.bounds.get_value()[:, 1], dimensions=var.dimensions)
 
         itr = Iterator(var, followers=[lower, upper])
 

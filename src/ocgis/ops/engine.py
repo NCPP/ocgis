@@ -175,13 +175,17 @@ class OperationsEngine(object):
 
         ocgis_lh('processing...', self._subset_log, alias=alias, level=logging.DEBUG)
         # Create the field object. Field objects may be passed directly to operations.
+        # Look for field optimizations. Field optimizations typically include pre-loaded datetime objects.
+        if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
+            ocgis_lh('applying optimizations', self._subset_log, level=logging.DEBUG)
+            field = [self.ops.optimizations['fields'][rd.field_name].copy() for rd in rds]
+            has_field_optimizations = True
+        else:
+            # Indicates no field optimizations loaded.
+            has_field_optimizations = False
         try:
-            # Look for field optimizations. Field optimizations typically include pre-loaded datetime objects.
-            if self.ops.optimizations is not None and 'fields' in self.ops.optimizations:
-                ocgis_lh('applying optimizations', self._subset_log, level=logging.DEBUG)
-                field = [self.ops.optimizations['fields'][rd.field_name] for rd in rds]
-            # No field optimizations.
-            else:
+            # No field optimizations and data should be loaded from source.
+            if not has_field_optimizations:
                 ocgis_lh('creating field objects', self._subset_log, level=logging.DEBUG)
                 len_rds = len(rds)
                 field = [None] * len_rds
@@ -201,24 +205,28 @@ class OperationsEngine(object):
 
                     field[ii] = field_object
 
-                # Multivariate calculations require pulling variables across fields.
-                if self._has_multivariate_calculations and len(field) > 1:
-                    for midx in range(1, len(field)):
-                        # Use the data variable tag if it is available. Otherwise, attempt to merge the fields raising
-                        # warning if the variable exists in the squashed field.
-                        if len(field[midx].data_variables) > 0:
-                            vitr = field[midx].data_variables
-                            is_data = True
-                        else:
-                            vitr = field[midx].values()
-                            is_data = False
-                        for mvar in vitr:
-                            mvar = mvar.extract()
-                            field[0].add_variable(mvar, is_data=is_data)
+            # Multivariate calculations require pulling variables across fields.
+            if self._has_multivariate_calculations and len(field) > 1:
+                for midx in range(1, len(field)):
+                    # Use the data variable tag if it is available. Otherwise, attempt to merge the fields raising
+                    # warning if the variable exists in the squashed field.
+                    if len(field[midx].data_variables) > 0:
+                        vitr = field[midx].data_variables
+                        is_data = True
+                    else:
+                        vitr = field[midx].values()
+                        is_data = False
+                    for mvar in vitr:
+                        mvar = mvar.extract()
+                        field[0].add_variable(mvar, is_data=is_data)
+                    new_field_name = '_'.join([str(f.name) for f in field])
+                    field[0].set_name(new_field_name)
 
-                # The first field in the list is always the target for other operations.
-                field = field[0]
+            # The first field in the list is always the target for other operations.
+            field = field[0]
+            assert isinstance(field, OcgField)
 
+            if not has_field_optimizations:
                 # Apply any time or level subsetting provided through operations.
                 if self.ops.time_range is not None:
                     field = field.time.get_between(*self.ops.time_range).parent
@@ -297,10 +305,10 @@ class OperationsEngine(object):
         system.
 
         :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
+        :type field: :class:`ocgis.OcgField`
         :param subset_field:
-        :type subset_field: :class:`ocgis.new_interface.field.OcgField` or None
-        :rtype: None or :class:`ocgis.interface.base.crs.CFRotatedPole`
+        :type subset_field: :class:`ocgis.OcgField` or None
+        :rtype: None or :class:`ocgis.variable.crs.CFRotatedPole`
         :raises: AssertionError
         """
 
@@ -321,8 +329,8 @@ class OperationsEngine(object):
         """
         Assert the spatial abstraction may be loaded on the field object if one is provided in the operations.
 
-        :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
+        :param field: The field to check for a spatial abstraction.
+        :type field: :class:`ocgis.OcgField`
         """
 
         if self.ops.abstraction != 'auto':
@@ -335,9 +343,9 @@ class OperationsEngine(object):
         """
         Slice the incoming field if a slice or snippet argument is present.
 
-        :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
-        :rtype: :class:`ocgis.new_interface.field.OcgField`
+        :param field: The field to slice.
+        :type field: :class:`ocgis.OcgField`
+        :rtype: :class:`ocgis.OcgField`
         """
 
         # If there is a snippet, return the first realization, time, and level.
@@ -354,42 +362,18 @@ class OperationsEngine(object):
 
     def _get_spatially_subsetted_field_(self, alias, field, subset_field, subset_ugid):
         """
-        Spatially subset a field with a selection geometry.
+        Spatially subset a field with a selection field.
 
         :param str alias: The request data alias currently being processed.
-        :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
-        :param subset_field:
-        :type subset_field: :class:`ocgis.new_interface.field.OcgField`
-        :rtype: :class:`ocgis.new_interface.field.OcgField`
+        :param field: Target field to subset.
+        :type field: :class:`ocgis.OcgField`
+        :param subset_field: The field to use for subsetting.
+        :type subset_field: :class:`ocgis.OcgField`
+        :rtype: :class:`ocgis.OcgField`
         :raises: AssertionError, ExtentError
         """
+
         assert subset_field is not None
-
-        # subset_geom = subset_field.single.geom
-        subset_geom = subset_field.geom.value.flatten()[0]
-
-        # # Check for unique subset geometry identifiers. This is an issue with point subsetting as the buffer radius
-        # # changes by dataset.
-        # if subset_ugid in self._ugid_unique_store:
-        #     # Only update if the geometry is unique.
-        #     if not any([__.almost_equals(subset_geom) for __ in self._geom_unique_store]):
-        #         prev_ugid = subset_ugid
-        #         ugid = max(self._ugid_unique_store) + 1
-        #
-        #         # Update the geometry property and unique identifier.
-        #         subset_field.properties['UGID'][0] = ugid
-        #         subset_field.uid[:] = ugid
-        #
-        #         self._ugid_unique_store.append(ugid)
-        #         self._geom_unique_store.append(subset_geom)
-        #         msg = 'Updating UGID {0} to {1} to maintain uniqueness.'.format(prev_ugid, ugid)
-        #         ocgis_lh(msg, self._subset_log, level=logging.WARN, alias=alias, ugid=ugid)
-        #     else:
-        #         pass
-        # else:
-        #     self._ugid_unique_store.append(subset_ugid)
-        #     self._geom_unique_store.append(subset_geom)
 
         ocgis_lh('executing spatial subset operation', self._subset_log, level=logging.DEBUG, alias=alias,
                  ugid=subset_ugid)
@@ -423,19 +407,19 @@ class OperationsEngine(object):
         accordingly. If the subset geometry is a polygon, pass through.
 
         :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
+        :type field: :class:`ocgis.OcgField`
         :param subset_field:
-        :type subset_field: :class:`ocgis.new_interface.field.OcgField`
+        :type subset_field: :class:`ocgis.OcgField`
         """
 
-        if subset_field.geom.geom_type in ['Point', 'MultiPoint']:
+        if subset_field.geom.geom_type in ['Point', 'MultiPoint'] and self.ops.search_radius_mult is not None:
             ocgis_lh(logger=self._subset_log, msg='buffering point geometry', level=logging.DEBUG)
             subset_field = subset_field.geom.get_buffer(self.ops.search_radius_mult * field.grid.resolution).parent
-        assert subset_field.geom.geom_type in ['Polygon', 'MultiPolygon']
+            assert subset_field.geom.geom_type in ['Polygon', 'MultiPolygon']
 
         return subset_field
 
-    def _get_regridded_field_with_subset_(self, sfield, subset_field_for_regridding=None, with_buffer=True):
+    def _get_regridded_field_with_subset_(self, sfield, subset_field_for_regridding=None):
         """
         Regrid ``sfield`` subsetting the regrid destination in the process.
 
@@ -443,30 +427,27 @@ class OperationsEngine(object):
         :type sfield: :class:`ocgis.OcgField`
         :param subset_field_for_regridding: The original, unaltered spatial dimension to use for subsetting.
         :type subset_field_for_regridding: :class:`ocgis.OcgField`
-        :param bool with_buffer: If ``True``, buffer the geometry used to subset the destination grid.
         :rtype: :class:`~ocgis.OcgField`
         """
 
         from ocgis.regrid.base import RegridOperation
         ocgis_lh(logger=self._subset_log, msg='Starting regrid operation...', level=logging.INFO)
         ro = RegridOperation(sfield, self.ops.regrid_destination, subset_field=subset_field_for_regridding,
-                             with_buffer=with_buffer, regrid_options=self.ops.regrid_options)
+                             regrid_options=self.ops.regrid_options)
         sfield = ro.execute()
         ocgis_lh(logger=self._subset_log, msg='Regrid operation complete.', level=logging.INFO)
         return sfield
 
     def _process_geometries_(self, itr, field, alias):
         """
-        :param sequence itr: An iterator yielding :class:`~ocgis.SpatialDimension` objects.
-        :param :class:`ocgis.interface.Field` field: The field object to use for
-         operations.
-        :param sequence headers: Sequence of strings to use as headers for the
-         creation of the collection.
-        :param sequence value_keys: Sequence of strings to use as headers for the
-         keyed output functions.
+        :param itr: An iterator yielding :class:`~ocgis.OcgField` objects for subsetting.
+        :type itr: [None] or [:class:`~ocgis.OcgField`, ...]
+        :param :class:`ocgis.OcgField` field: The target field for operations.
         :param str alias: The request data alias currently being processed.
-        :rtype: :class:~`ocgis.SpatialCollection`
+        :rtype: :class:`~ocgis.SpatialCollection`
         """
+
+        assert isinstance(field, OcgField)
 
         ocgis_lh('processing geometries', self._subset_log, level=logging.DEBUG)
         # Process each geometry.
@@ -480,7 +461,7 @@ class OperationsEngine(object):
                 # sources.
                 subset_field_for_regridding = deepcopy(subset_field)
 
-            # Operate on the rotated pole coordinate system by first transforming it to CFWGS84.
+            # Operate on the rotated pole coordinate system by first transforming it to the default coordinate system.
             original_rotated_pole_crs = self._get_update_rotated_pole_state_(field, subset_field)
 
             # Initialize the collection storage.
@@ -497,7 +478,7 @@ class OperationsEngine(object):
                 msg = 'No selection geometry. Returning all data. No unique geometry identifier.'
                 subset_ugid = None
             else:
-                subset_ugid = subset_field.geom.ugid.value[0]
+                subset_ugid = subset_field.geom.ugid.get_value()[0]
                 msg = 'Subsetting with selection geometry having UGID={0}'.format(subset_ugid)
             ocgis_lh(msg=msg, logger=self._subset_log)
 
@@ -505,7 +486,7 @@ class OperationsEngine(object):
                 # If the CRS's differ, update the spatial dimension to match the field.
                 if subset_field.crs is not None and subset_field.crs != field.crs:
                     subset_field.update_crs(field.crs)
-                # If the geometry is a point, it needs to be buffered.
+                # If the geometry is a point, it needs to be buffered if there is a search radius multiplier.
                 subset_field = self._get_buffered_subset_geometry_if_point_(field, subset_field)
 
             # If there is a selection geometry present, use it for the spatial subset. if not, all the field's data is
@@ -518,11 +499,9 @@ class OperationsEngine(object):
             # If the base size is being requested, bypass the rest of the operations.
             if not self._request_base_size_only:
                 # Perform regridding operations if requested.
-                if self.ops.regrid_destination is not None and sfield._should_regrid:
-                    sfield = self._get_regridded_field_with_subset_(
-                        sfield,
-                        subset_field_for_regridding=subset_field_for_regridding,
-                        with_buffer=True)
+                if self.ops.regrid_destination is not None and sfield.regrid_source:
+                    sfield = self._get_regridded_field_with_subset_(sfield,
+                                                                    subset_field_for_regridding=subset_field_for_regridding)
                 # If empty returns are allowed, there may be an empty field.
                 if sfield is not None:
                     # Only update spatial stuff if there are no calculations and, if there are calculations, those
@@ -551,7 +530,7 @@ def _update_aggregation_wrapping_crs_(obj, alias, original_rotated_pole_crs, sfi
 
         if subset_sdim is not None and subset_sdim.geom is not None:
             # Add the unique geometry identifier variable. This should match the selection geometry's identifier.
-            new_gid_variable = Variable(name=HeaderNames.ID_GEOMETRY, value=subset_sdim.geom.ugid.value,
+            new_gid_variable = Variable(name=HeaderNames.ID_GEOMETRY, value=subset_sdim.geom.ugid.get_value(),
                                         dimensions=sfield.geom.dimensions)
             sfield.geom.set_ugid(new_gid_variable)
 
@@ -581,7 +560,7 @@ def _update_aggregation_wrapping_crs_(obj, alias, original_rotated_pole_crs, sfi
     # Transform back to rotated pole if necessary.
     if original_rotated_pole_crs is not None:
         if not isinstance(obj.ops.output_crs, CFWGS84):
-            sfield.spatial.update_crs(original_rotated_pole_crs)
+            sfield.update_crs(original_rotated_pole_crs)
 
     # Update the coordinate system of the data output.
     if obj.ops.output_crs is not None:

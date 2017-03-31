@@ -2,13 +2,13 @@ import os
 
 import fiona
 import numpy as np
-from ocgis.driver.request.driver.base import AbstractDriver
 from shapely.geometry import Point
 
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.collection.field import OcgField
 from ocgis.constants import MPIDistributionMode, MPIWriteMode, DimensionNames
+from ocgis.driver.base import AbstractDriver
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.base import Variable
@@ -52,12 +52,10 @@ class TestDriverVector(TestBase):
         path = self.get_temporary_file_path('grid.shp')
         field = rd.get()[{'time': slice(3, 6), 'lat': slice(10, 20), 'lon': slice(21, 27)}]
         variable_names = ['time', 'lat', 'lon', 'tas']
+        field.set_abstraction_geom()
         field.write(path, driver=DriverVector, variable_names=variable_names)
         read = RequestDataset(path).get()
         self.assertEqual(len(read.dimensions.values()[0]), 3 * 10 * 6)
-        desired_keys = [u'DID', u'TIME', u'LB_TIME', u'UB_TIME', u'YEAR', u'MONTH', u'DAY', u'tas', 'ocgis_geom',
-                        'ocgis_coordinate_system']
-        self.assertEqual(read.keys(), desired_keys)
         self.assertEqual(rd.get().crs, Spherical())
         self.assertEqual(read.crs, Spherical())
 
@@ -71,7 +69,7 @@ class TestDriverVector(TestBase):
         field.write(path, driver=DriverVector)
 
         field = RequestDataset(path, units='celsius', variable='temp', conform_units_to='fahrenheit').get()
-        self.assertNumpyAllClose(field['temp'].value, np.array([50., 68.]))
+        self.assertNumpyAllClose(field['temp'].get_value(), np.array([50., 68.]))
 
     def test_system_convert_to_geojson(self):
         """GeoJSON conversion does not support update/append write mode."""
@@ -110,19 +108,17 @@ class TestDriverVector(TestBase):
 
             data = Variable(name='data', value=np.random.rand(3, 2, 7, 4), dimensions=['time', 'extra', 'y', 'x'])
 
-            # geom_value = GridXY(x.copy(), y.copy()).abstraction_geometry.value
-            # geom = GeometryVariable(name='the_geom', value=geom_value, dimensions=['y', 'x'])
             dimension_map = {'x': {'variable': 'x', 'bounds': 'x_bounds'},
                              'y': {'variable': 'y', 'bounds': 'y_bounds'},
                              'time': {'variable': 'time', 'bounds': 'the_time_bounds'}}
 
             vc = OcgField(variables=[t, extra, x, y, data], dimension_map=dimension_map, is_data='data')
+            vc.set_abstraction_geom()
         else:
             path, vc = [None] * 2
 
         path = MPI_COMM.bcast(path)
         vc, _ = variable_collection_scatter(vc, ompi)
-
         vc.write(path, driver=DriverVector)
         MPI_COMM.Barrier()
 
@@ -144,7 +140,7 @@ class TestDriverVector(TestBase):
 
         rd = RequestDataset(uri=path)
         field2 = rd.get()
-        self.assertEqual(field2['TIME'].value.tolist(), ['0001-01-02 12:00:00', '0001-01-03 12:00:00'])
+        self.assertEqual(field2['TIME'].get_value().tolist(), ['0001-01-02 12:00:00', '0001-01-03 12:00:00'])
 
     def test_close(self):
         driver = self.get_driver()
@@ -188,7 +184,8 @@ class TestDriverVector(TestBase):
         self.assertIsInstance(field.crs, CoordinateReferenceSystem)
         self.assertIsNone(field.time)
         for v in field.values():
-            self.assertIsNotNone(v.value)
+            if not isinstance(v, CoordinateReferenceSystem):
+                self.assertIsNotNone(v.get_value())
 
         # Test slicing does not break loading from file.
         field = driver.get_field()
@@ -314,4 +311,4 @@ class TestDriverVector(TestBase):
                     if isinstance(v, CoordinateReferenceSystem):
                         self.assertEqual(v, field2.crs)
                     else:
-                        self.assertNumpyAll(v.value, field2[v.name].value)
+                        self.assertNumpyAll(v.get_value(), field2[v.name].get_value())

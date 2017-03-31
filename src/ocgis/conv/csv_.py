@@ -27,7 +27,7 @@ class CsvConverter(AbstractTabularConverter):
 
         for field, container in coll.iter_fields(yield_container=True):
             if container.geom is not None:
-                repeater = [(self.geom_uid, container.geom.ugid.value[0])]
+                repeater = [(self.geom_uid, container.geom.ugid.get_value()[0])]
             else:
                 repeater = None
 
@@ -85,7 +85,7 @@ class CsvShapefileConverter(CsvConverter):
                     if container.geom is not None:
                         ugid_var = Variable(name=container.geom.ugid.name, dimensions=field.geom.dimensions,
                                             dtype=constants.DEFAULT_NP_INT)
-                        ugid_var.value[:] = container.geom.ugid.value[0]
+                        ugid_var.get_value()[:] = container.geom.ugid.get_value()[0]
 
                     # Extract the variable components of the geometry file.
                     geom = field.geom.copy()

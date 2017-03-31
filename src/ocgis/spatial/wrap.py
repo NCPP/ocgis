@@ -64,7 +64,7 @@ class CoordinateArrayWrapper(AbstractWrapper):
         if not self.inplace:
             arr = arr.copy()
 
-        ret = np.atleast_2d(arr)
+        ret = np.atleast_1d(arr)
         select = ret > self.wrap_axis
         ret[select] -= np.asscalar(np.array(360.).astype(ret.dtype))
 
@@ -74,7 +74,7 @@ class CoordinateArrayWrapper(AbstractWrapper):
         if not self.inplace:
             arr = arr.copy()
 
-        ret = np.atleast_2d(arr)
+        ret = np.atleast_1d(arr)
         select = ret < self.center_axis
         ret[select] += np.asscalar(np.array(360.).astype(ret.dtype))
 

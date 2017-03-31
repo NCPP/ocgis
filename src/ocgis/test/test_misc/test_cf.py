@@ -1,5 +1,4 @@
 import os
-import unittest
 from datetime import datetime
 
 import netCDF4 as nc
@@ -14,7 +13,7 @@ class Test(TestBase):
     @attr('data')
     def test_missing_bounds(self):
         rd = self.test_data.get_rd('snippet_maurer_dtr')
-        rd.inspect_as_dct()
+        self.assertIsNotNone(rd.dimension_map)
 
     def test_climatology(self):
         # http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#idp5996336
@@ -57,10 +56,7 @@ class Test(TestBase):
 
         rd = ocgis.RequestDataset(path, 'tas', time_region={'month': [8]})
         ret = ocgis.OcgOperations(dataset=rd).execute()
-        self.assertEqual(ret[1]['tas'].temporal.bounds.shape, (1, 2))
-        self.assertEqual(ret[1]['tas'].temporal.value.shape, (1,))
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()
+        field = ret.get_element()
+        # field = ret[1]['tas']
+        self.assertEqual(field.temporal.bounds.shape, (1, 2))
+        self.assertEqual(field.temporal.get_value().shape, (1,))

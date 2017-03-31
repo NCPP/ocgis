@@ -92,7 +92,7 @@ class TestGeomCabinetIterator(TestBase):
                 self.assertEqual(field.geom.ugid.shape, (1,))
                 self.assertEqual(get_variable_names(field.data_variables), desired_data_variables)
                 self.assertEqual(field.crs, WGS84())
-                ugids.append(field.geom.ugid.value[0])
+                ugids.append(field.geom.ugid.get_value()[0])
 
     def test_iter(self):
         # Test with a select statement.
@@ -306,10 +306,9 @@ class TestGeomCabinet(TestBase):
         self.assertNotIn(env.DEFAULT_GEOM_UID, target[9]['properties'])
         self.assertEqual(int, type(target[7]['properties']['ID']))
 
-        target = list(sc.iter_geoms(path=new, uid='ID', as_spatial_dimension=True))
+        target = list(sc.iter_geoms(path=new, uid='ID', as_field=True))
         ref = target[4]
-        self.assertEqual(ref.uid[0, 0], 10)
-        self.assertNotIn(env.DEFAULT_GEOM_UID, ref.properties.dtype.names)
+        self.assertIsInstance(ref, OcgField)
 
         # Test with a different geometry unique identifier.
         path = self.get_shapefile_path_with_no_ugid()

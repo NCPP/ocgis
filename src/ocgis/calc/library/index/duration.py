@@ -11,7 +11,7 @@ from ocgis.util.helpers import iter_array
 class Duration(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
     key = 'duration'
     parms_definition = {'threshold': float, 'operation': str, 'summary': str}
-    # output data type will vary by the summary operation (e.g. float for mean, int for max)
+    # Output data type will vary by the summary operation (e.g. float for mean, int for max)
 
     description = 'Summarizes consecutive occurrences in a sequence where the logical operation returns TRUE. The summary operation is applied to the sequences within a temporal aggregation.'
     standard_name = 'duration'
@@ -120,8 +120,7 @@ class FrequencyDuration(base.AbstractKeyedOutputFunction, Duration):
             store[ii] = summary
         store.resize(shp_out)
 
-        # update the output mask. this only applies to geometries so pick the
-        # first masked time field
+        # Update the output mask. this only applies to geometries so pick the first masked time field
         store = np.ma.array(store, mask=values.mask[0, :, :])
 
         return store

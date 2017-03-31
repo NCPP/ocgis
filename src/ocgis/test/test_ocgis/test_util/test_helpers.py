@@ -1,46 +1,21 @@
-import itertools
-import os
-from collections import OrderedDict
 from datetime import datetime as dt, datetime
 
-import fiona
-import numpy as np
-from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
-from shapely.geometry import Point, mapping
-
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
-from ocgis.exc import SingleElementError, ShapeError
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
-from ocgis.util.helpers import format_bool, iter_array, validate_time_subset, \
-    get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask, \
-    get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
-    get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, \
-    get_is_increasing, \
-    get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
-    add_shapefile_unique_identifier, get_tuple, set_new_value_mask_for_field, get_optimal_slice_from_array, \
-    get_swap_chain
+from ocgis.util.helpers import *
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem
 
 
-class Test1(AbstractTestSpatialDimension):
+class Test1(TestBase):
     def test_get_bounds_from_1d(self):
-        sdim = self.get_sdim(bounds=False)
-        test_sdim = self.get_sdim(bounds=True)
-
-        row_bounds = get_bounds_from_1d(sdim.grid.row.value)
-        col_bounds = get_bounds_from_1d(sdim.grid.col.value)
-
-        self.assertNumpyAll(row_bounds, test_sdim.grid.row.bounds)
-        self.assertNumpyAll(col_bounds, test_sdim.grid.col.bounds)
-
         across_180 = np.array([-180, -90, 0, 90, 180], dtype=float)
         bounds_180 = get_bounds_from_1d(across_180)
         self.assertEqual(bounds_180.tostring(),
                          '\x00\x00\x00\x00\x00 l\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00 l@')
 
-        dates = get_date_list(datetime(2000, 1, 31), datetime(2002, 12, 31), 1)
+        dates = get_date_list(datetime.datetime(2000, 1, 31), datetime.datetime(2002, 12, 31), 1)
         with self.assertRaises(NotImplementedError):
             get_bounds_from_1d(np.array(dates))
 
@@ -208,18 +183,6 @@ class Test1(AbstractTestSpatialDimension):
         centroids = np.array([2, -1], dtype=float)
         ret = get_bounds_vector_from_centroids(centroids)
         self.assertNumpyAll(ret, np.array([3.5, 0.5, -2.5]))
-
-    def test_get_ocgis_corners_from_esmf_corners(self):
-        sdim = self.get_sdim()
-        ecorners = sdim.grid.corners_esmf
-        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
-        self.assertNumpyAll(ocorners, sdim.grid.corners)
-
-        sdim = self.get_sdim()[0, 0]
-        self.assertEqual(sdim.shape, (1, 1))
-        ecorners = sdim.grid.corners_esmf
-        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
-        self.assertNumpyAll(ocorners, sdim.grid.corners)
 
 
 class Test2(TestBase):
@@ -470,8 +433,8 @@ class Test2(TestBase):
     def test_get_trimmed_array_by_mask_all_masked(self):
         arr = np.random.rand(4, 4)
         arr = np.ma.array(arr, mask=True)
-        ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
-        self.assertEqual(ret.shape, (0, 0))
+        with self.assertRaises(AllElementsMaskedError):
+            get_trimmed_array_by_mask(arr, return_adjustments=True)
 
     def test_get_trimmed_array_by_mask_1d(self):
         arr = np.ma.array([1, 2, 3], mask=[True, False, True])
@@ -562,14 +525,6 @@ class Test2(TestBase):
 
         self.assertEqual(a.name, 'evil_twin')
         self.assertEqual(b.name, 'harbringer')
-
-    def test_set_new_value_mask_for_field(self):
-        field = self.get_field()
-        self.assertFalse(field.variables.first().value.mask.any())
-        mask = np.array([True, False, True, False]).reshape(2, 2)
-        set_new_value_mask_for_field(field, mask)
-        self.assertTrue(field.variables.first().value.mask.any())
-        self.assertEqual(field.variables.first().value.mask.sum(), 4)
 
     def test_validate_time_subset(self):
         time_range = [dt(2000, 1, 1), dt(2001, 1, 1)]

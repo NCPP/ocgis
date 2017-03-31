@@ -2,7 +2,6 @@ import datetime
 
 import ocgis
 from ocgis import RequestDataset
-from ocgis import constants
 from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import OcgCalculationEngine
@@ -148,14 +147,13 @@ class NcConverter(AbstractCollectionConverter):
                         ret = env.NETCDF_FILE_FORMAT
         return ret
 
-    def _write_archetype_(self, arch, write_kwargs, is_file_only, variable_kwargs):
+    def _write_archetype_(self, arch, write_kwargs, variable_kwargs):
         """
         Write a field to a netCDF dataset object.
 
         :param arch: The field to write.
         :type arch: :class:`ocgis.new_interface.field.OcgField`
         :param dict write_kwargs: Dictionary of parameters needed for the write.
-        :param bool is_file_only: If ``True``, this is writing the template file only and there is no data fill.
         :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
          See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
         """
@@ -170,7 +168,6 @@ class NcConverter(AbstractCollectionConverter):
         unlimited_to_fixedsize = self.options.get(KeywordArguments.UNLIMITED_TO_FIXED_SIZE, False)
         write_kwargs[KeywordArguments.VARIABLE_KWARGS] = variable_kwargs
         variable_kwargs[KeywordArguments.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
-        variable_kwargs[KeywordArguments.FILE_ONLY] = is_file_only
 
         # This is the output path. The driver handles MPI writing.
         path = write_kwargs.pop(KeywordArguments.PATH)
@@ -192,51 +189,4 @@ class NcConverter(AbstractCollectionConverter):
         arch = coll.archetype_field
         """:type arch: :class:`ocgis.Field`"""
 
-        # Get from operations if this is file only.
-        try:
-            is_file_only = self.ops.file_only
-        except AttributeError:
-            # No operations object available.
-            is_file_only = False
-
-        self._write_archetype_(arch, ds, is_file_only, self._variable_kwargs)
-
-
-class NcUgrid2DFlexibleMeshConverter(NcConverter):
-    @classmethod
-    def validate_ops(cls, ops):
-        from ocgis.ops.parms.definition import OutputFormat
-
-        NcConverter.validate_ops(ops)
-        should_raise = False
-        if ops.abstraction == 'point':
-            should_raise = True
-        else:
-            for ds in ops.dataset.itervalues():
-                try:
-                    abstraction = ds.s_abstraction
-                except AttributeError:
-                    # Likely a field object.
-                    abstraction = ds.spatial.abstraction
-                if abstraction == 'point':
-                    should_raise = True
-                    break
-
-        if should_raise:
-            msg = 'Only polygons may be written to "{0}"'. \
-                format(constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, ops.abstraction)
-            raise DefinitionValidationError(OutputFormat, msg)
-
-    @staticmethod
-    def _write_archetype_(self, arch, write_kwargs, is_file_only):
-        poly = arch.spatial.geom.polygon
-        """:type poly: :class:`ocgis.SpatialGeometryPolygonDimension`"""
-
-        try:
-            poly.write_to_netcdf_dataset_ugrid(dataset)
-        except AttributeError:
-            if poly is None:
-                msg = 'Field does not have a polygon representation.'
-                raise ValueError(msg)
-            else:
-                raise
+        self._write_archetype_(arch, ds, self._variable_kwargs)

@@ -33,12 +33,12 @@ class OcgField(VariableCollection):
         dimension_map = deepcopy(kwargs.pop('dimension_map', None))
         self.dimension_map = get_merged_dimension_map(dimension_map)
 
-        # Flag updated by driver for regridding in operations.
-        self._should_regrid = False
         # Flag updated by driver to indicate if the coordinate system is assigned or implied.
         self._has_assigned_coordinate_system = False
         # Flag to indicate if this is a regrid destination.
         self.regrid_destination = kwargs.pop('regrid_destination', False)
+        # Flag to indicate if this is a regrid source.
+        self.regrid_source = kwargs.pop('regrid_source', True)
 
         # Add grid variable metadata to dimension map.
         grid = kwargs.pop('grid', None)
@@ -102,6 +102,40 @@ class OcgField(VariableCollection):
             self.add_variable(crs, force=True)
         if geom is not None:
             self.add_variable(geom, force=True)
+
+    @property
+    def _should_regrid(self):
+        raise NotImplementedError
+
+    @property
+    def axes_shapes(self):
+        ret = {}
+        if self.realization is None:
+            r = 1
+        else:
+            r = self.realization.shape[0]
+        ret['R'] = r
+        if self.time is None:
+            t = 0
+        else:
+            t = self.time.shape[0]
+        ret['T'] = t
+        if self.level is None or self.level.ndim == 0:
+            l = 0
+        else:
+            l = self.level.shape[0]
+        ret['L'] = l
+        if self.y is None:
+            y = 0
+        else:
+            y = self.y.shape[0]
+        ret['Y'] = y
+        if self.x is None:
+            x = 0
+        else:
+            x = self.x.shape[0]
+        ret['X'] = x
+        return ret
 
     @property
     def crs(self):
@@ -317,7 +351,7 @@ class OcgField(VariableCollection):
                     if k == uid.name:
                         continue
 
-                    field[k].value[idx] = v
+                    field[k].get_value()[idx] = v
 
         data_variables = [uid.name]
         if not union:
@@ -553,6 +587,13 @@ class OcgField(VariableCollection):
                 raise ValueError('Geometry and field do not have matching coordinate reference systems.')
             self.add_variable(variable, force=force)
 
+    def set_grid(self, grid, force=True):
+        for member in grid.get_member_variables():
+            self.add_variable(member, force=force)
+        self.grid_abstraction = grid.abstraction
+        self.set_x(grid.x, grid.dimensions[1])
+        self.set_y(grid.y, grid.dimensions[0])
+
     def set_geom_from_grid(self, force=True):
         new_geom = self.grid.get_abstraction_geometry()
         self.set_geom(new_geom, force=force)
@@ -572,6 +613,14 @@ class OcgField(VariableCollection):
         self.dimension_map[DimensionMapKeys.TIME][DimensionMapKeys.VARIABLE] = variable.name
         if variable.has_bounds:
             self.dimension_map[DimensionMapKeys.TIME][DimensionMapKeys.BOUNDS] = variable.bounds.name
+
+    def set_x(self, variable, dimension, force=True):
+        self.add_variable(variable, force=force)
+        update_dimension_map_with_variable(self.dimension_map, DimensionMapKeys.X, variable, dimension)
+
+    def set_y(self, variable, dimension, force=True):
+        self.add_variable(variable, force=force)
+        update_dimension_map_with_variable(self.dimension_map, DimensionMapKeys.Y, variable, dimension)
 
     def unwrap(self):
         wrap_or_unwrap(self, WrapAction.UNWRAP)

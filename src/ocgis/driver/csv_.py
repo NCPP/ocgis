@@ -31,8 +31,8 @@ class DriverCSV(AbstractTabularDriver):
                 for tl in to_load:
                     if not tl.has_allocated_value:
                         tl.allocate_value()
-                    tl.value[idx - bounds_local[0]] = row[tl.name]
-        return variable.value
+                    tl.get_value()[idx - bounds_local[0]] = row[tl.name]
+        return variable.get_value()
 
     def _get_metadata_main_(self):
         with driver_scope(self) as f:

@@ -166,6 +166,9 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
     def extract(self):
         return self
 
+    def get_mask(self):
+        return None
+
     def load(self, *args, **kwargs):
         """Compatibility with variable."""
         pass
@@ -259,11 +262,11 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
             elif target.is_empty:
                 ret = None
             elif isinstance(target, GridXY):
-                ret = self._get_wrapped_state_from_array_(target.x.value)
+                ret = self._get_wrapped_state_from_array_(target.x.get_value())
             else:
                 stops = (WrappedState.WRAPPED, WrappedState.UNWRAPPED)
                 ret = WrappedState.UNKNOWN
-                geoms = target.value.flat
+                geoms = target.get_value().flat
                 for geom in geoms:
                     flag = self._get_wrapped_state_from_geometry_(geom)
                     if flag in stops:
@@ -307,7 +310,7 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         elif isinstance(target, GridXY):
             ca = CoordinateArrayWrapper()
             func = getattr(ca, attr)
-            func(target.x.value)
+            func(target.x.get_value())
             target.remove_bounds()
             if target.has_allocated_point:
                 getattr(target.get_point(), attr)()
@@ -672,7 +675,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         grid.remove_bounds()
         grid.expand()
 
-        rlon, rlat = get_lonlat_rotated_pole_transform(grid.x.value.flatten(), grid.y.value.flatten(),
+        rlon, rlat = get_lonlat_rotated_pole_transform(grid.x.get_value().flatten(), grid.y.get_value().flatten(),
                                                        self._trans_proj, inverse=inverse)
 
         grid.x.set_value(rlon.reshape(*grid.shape))

@@ -65,7 +65,6 @@ class OcgisLogging(object):
         logging.captureWarnings(None)
 
     def __call__(self, msg=None, logger=None, level=logging.INFO, alias=None, ugid=None, exc=None):
-
         # attach a default exception to messages to handle warnings if an exception is not provided
         if level == logging.WARN:
             if exc is None:
@@ -95,7 +94,6 @@ class OcgisLogging(object):
             if alias is not None:
                 msg = self.get_formatted_msg(msg, alias, ugid=ugid)
             if exc is None:
-                msg += ' (rank={})'.format(self.rank)
                 dest_logger.log(dest_level, msg)
             else:
                 if level == logging.WARN:
@@ -129,15 +127,17 @@ class OcgisLogging(object):
             # Always configure the file handler. This goes to to null if there is no file path.
             fh = logging.FileHandler(filename, 'w')
             fh.setLevel(level)
-            fh.setFormatter(logging.Formatter(fmt='%(name)s: %(levelname)s: %(asctime)s: %(message)s',
-                                              datefmt='%Y-%m-%d %H:%M'))
+            fh.setFormatter(
+                logging.Formatter(fmt='%(name)s: rank={}: %(levelname)s: %(asctime)s: %(message)s'.format(self.rank),
+                                  datefmt='%Y-%m-%d %H:%M:%S'))
             self.parent.addHandler(fh)
             # This is the stdout logger.
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
-                console.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s: %(name)s: %(message)s',
-                                                       datefmt='%Y-%m-%d %H:%M:%S'))
+                console.setFormatter(logging.Formatter(
+                    fmt='[%(asctime)s]: rank={}: %(levelname)s: %(name)s: %(message)s'.format(self.rank),
+                    datefmt='%Y-%m-%d %H:%M:%S'))
                 self.parent.addHandler(console)
 
             # Capture warnings if requested by the environment.

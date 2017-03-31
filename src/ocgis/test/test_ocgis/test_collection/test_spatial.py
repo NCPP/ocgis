@@ -23,7 +23,7 @@ class TestSpatialCollection(AbstractTestInterface):
     def field2(self):
         field = self.get_field()
         field['exact1'].set_name('exact2')
-        field['exact2'].value[:] += 2
+        field['exact2'].get_value()[:] += 2
         field.set_name('exact2')
         field.append_to_tags(TagNames.DATA_VARIABLES, 'exact2')
         return field
@@ -42,7 +42,7 @@ class TestSpatialCollection(AbstractTestInterface):
         sc = SpatialCollection()
         for ii in range(poi.geom.shape[0]):
             subset = poi.geom[ii]
-            subset_geom = subset.value[0]
+            subset_geom = subset.get_value()[0]
             container = poi.get_field_slice({'geom': ii})
             for field in [field1, field2]:
                 field.set_abstraction_geom()
@@ -88,11 +88,13 @@ class TestSpatialCollection(AbstractTestInterface):
         self.assertEqual(geoms.crs, crs)
         self.assertEqual(poi.crs, crs)
 
-        self.assertTrue(sc.children[110101].children['exact1'].geom.value[0, 0].intersects(Point(100.972, 41.941)))
-        self.assertTrue(sc.children[110101].children['exact2'].geom.value[0, 0].intersects(Point(100.972, 41.941)))
+        self.assertTrue(
+            sc.children[110101].children['exact1'].geom.get_value()[0, 0].intersects(Point(100.972, 41.941)))
+        self.assertTrue(
+            sc.children[110101].children['exact2'].geom.get_value()[0, 0].intersects(Point(100.972, 41.941)))
 
-        self.assertTrue(sc.children[12103].children['exact1'].geom.value[0, 0].intersects(Point(102.898, 40.978)))
-        self.assertTrue(sc.children[12103].children['exact2'].geom.value[0, 0].intersects(Point(102.898, 40.978)))
+        self.assertTrue(sc.children[12103].children['exact1'].geom.get_value()[0, 0].intersects(Point(102.898, 40.978)))
+        self.assertTrue(sc.children[12103].children['exact2'].geom.get_value()[0, 0].intersects(Point(102.898, 40.978)))
 
         self.assertEqual(len(sc.properties), 2)
         self.assertEqual(sc.crs, crs)

@@ -110,13 +110,13 @@ class TestGeometryVariable(AbstractTestInterface):
         line1 = LineString([(0, 0), (1, 1)])
         line2 = LineString([(1, 1), (2, 2)])
         gvar = GeometryVariable(value=[line1, line2], dimensions='two')
-        self.assertTrue(gvar.value[1].almost_equals(line2))
+        self.assertTrue(gvar.get_value()[1].almost_equals(line2))
         self.assertEqual(gvar.geom_type, line1.geom_type)
         lines = MultiLineString([line1, line2])
         lines2 = [lines, lines]
         for actual in [lines, lines2, lines]:
             gvar2 = GeometryVariable(value=actual, dimensions='ngeom')
-            self.assertTrue(gvar2.value[0].almost_equals(lines))
+            self.assertTrue(gvar2.get_value()[0].almost_equals(lines))
             self.assertEqual(gvar2.geom_type, lines.geom_type)
             self.assertTrue(gvar2.shape[0] > 0)
             self.assertIsNone(gvar2.get_mask())
@@ -130,7 +130,7 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(field_shp.crs, WGS84())
 
         try:
-            index_geom = np.where(field_shp['STATE_NAME'].value == 'Nebraska')[0][0]
+            index_geom = np.where(field_shp['STATE_NAME'].get_value() == 'Nebraska')[0][0]
         except IndexError:
             # Not found on rank.
             polygon_field = None
@@ -144,7 +144,7 @@ class TestGeometryVariable(AbstractTestInterface):
                     break
         polygon_field = MPI_COMM.bcast(polygon_field)
         polygon_field.unwrap()
-        polygon = polygon_field.geom.value[0]
+        polygon = polygon_field.geom.get_value()[0]
 
         field_nc = rd_nc.get()
         sub_field_nc = field_nc.get_field_slice({'time': slice(0, 10)})
@@ -156,7 +156,7 @@ class TestGeometryVariable(AbstractTestInterface):
         if unioned is not None:
             tas = unioned.parent['tas']
             self.assertFalse(tas.is_empty)
-            self.assertAlmostEqual(tas.value.mean(), 273.45197, places=5)
+            self.assertAlmostEqual(tas.get_value().mean(), 273.45197, places=5)
 
     def test_area(self):
         gvar = self.get_geometryvariable()
@@ -203,7 +203,7 @@ class TestGeometryVariable(AbstractTestInterface):
         d = gvar.deepcopy()
         d.crs = WGS84()
         self.assertEqual(gvar.crs, Spherical())
-        self.assertFalse(np.may_share_memory(gvar.value, d.value))
+        self.assertFalse(np.may_share_memory(gvar.get_value(), d.get_value()))
         self.assertIsNotNone(d.crs)
 
     def test_getitem(self):
@@ -214,20 +214,20 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertIsNotNone(pa._value)
         sub = pa[2:4, 1]
         self.assertEqual(sub.shape, (2, 1))
-        self.assertEqual(sub.value.shape, (2, 1))
+        self.assertEqual(sub.get_value().shape, (2, 1))
 
         # Test slicing with a parent.
         pa = self.get_geometryvariable_with_parent()
         desired_obj = pa.parent['tas']
         self.assertIsNotNone(pa.parent)
-        desired = desired_obj[:, 1].value
+        desired = desired_obj[:, 1].get_value()
         self.assertIsNotNone(pa.parent)
         desired_shapes = OrderedDict([('tas', (10, 3)), ('point', (3,))])
         self.assertEqual(pa.parent.shapes, desired_shapes)
 
         sub = pa[1]
         backref_tas = sub.parent['tas']
-        self.assertNumpyAll(backref_tas.value, desired)
+        self.assertNumpyAll(backref_tas.get_value(), desired)
         self.assertEqual(backref_tas.shape, (10, 1))
 
     def test_geom_type(self):
@@ -297,14 +297,15 @@ class TestGeometryVariable(AbstractTestInterface):
             else:
                 self.assertTrue(sub.is_empty)
 
-        desired_points_slc = pa.get_distributed_slice(slc).value
+        desired_points_slc = pa.get_distributed_slice(slc).get_value()
         if not pa.is_empty:
-            desired_points_manual = [Point(x, y) for x, y in itertools.product(grid.x.value.flat, grid.y.value.flat)]
+            desired_points_manual = [Point(x, y) for x, y in
+                                     itertools.product(grid.x.get_value().flat, grid.y.get_value().flat)]
             desired_points_manual = [pt for pt in desired_points_manual if pt.intersects(polygon)]
             for desired_points in [desired_points_manual, desired_points_slc.flat]:
                 for pt in desired_points:
                     found = False
-                    for pt_actual in sub.value.flat:
+                    for pt_actual in sub.get_value().flat:
                         if pt_actual.almost_equals(pt):
                             found = True
                             break
@@ -315,7 +316,7 @@ class TestGeometryVariable(AbstractTestInterface):
         polygon = box(0.5, 1.5, 1.5, 2.5)
         sub = pa.get_intersects(polygon)
         self.assertEqual(sub.shape, (1,))
-        self.assertEqual(sub.value[0], Point(1, 2))
+        self.assertEqual(sub.get_value()[0], Point(1, 2))
 
     def test_get_intersection(self):
         for return_indices in [True, False]:
@@ -326,9 +327,9 @@ class TestGeometryVariable(AbstractTestInterface):
                 lhs, slc = lhs
                 # self.assertEqual(slc, (slice(0, -1, None),))
             self.assertEqual(lhs.shape, (1,))
-            self.assertEqual(lhs.value[0], Point(1, 2))
+            self.assertEqual(lhs.get_value()[0], Point(1, 2))
             if return_indices:
-                self.assertEqual(pa.value[slc][0], Point(1, 2))
+                self.assertEqual(pa.get_value()[slc][0], Point(1, 2))
 
     @attr('mpi')
     def test_get_mask_from_intersects(self):
@@ -379,7 +380,7 @@ class TestGeometryVariable(AbstractTestInterface):
         for target in [target1, target2]:
             res, slc = pa.get_nearest(target, return_indices=True)
             self.assertIsInstance(res, GeometryVariable)
-            self.assertEqual(res.value[0], Point(1, 2))
+            self.assertEqual(res.get_value()[0], Point(1, 2))
             self.assertEqual(slc, (0,))
             self.assertEqual(res.shape, (1,))
 
@@ -408,20 +409,20 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(unioned.crs, WGS84())
         self.assertEqual(unioned.shape, (1,))
         desired = MultiPoint([[1.0, 2.0], [3.0, 4.0]])
-        self.assertEqual(unioned.value[0], desired)
+        self.assertEqual(unioned.get_value()[0], desired)
         self.assertEqual(len(unioned.dimensions[0]), 1)
         self.assertIsNone(unioned.get_mask())
-        self.assertEqual(unioned.ugid.value[0], 100)
+        self.assertEqual(unioned.ugid.get_value()[0], 100)
         self.assertNotEqual(id(unioned), id(pa))
 
     def test_get_unioned_spatial_average(self):
         pa = self.get_geometryvariable()
         to_weight = Variable(name='to_weight', dimensions=pa.dimensions, dtype=float)
-        to_weight.value[:] = 5.0
+        to_weight.get_value()[:] = 5.0
         pa.parent.add_variable(to_weight)
         unioned = pa.get_unioned(spatial_average='to_weight')
-        self.assertEqual(unioned.parent[to_weight.name].value.tolist(), [5.0])
-        self.assertEqual(pa.parent[to_weight.name].value.shape, (2,))
+        self.assertEqual(unioned.parent[to_weight.name].get_value().tolist(), [5.0])
+        self.assertEqual(pa.parent[to_weight.name].get_value().shape, (2,))
         self.assertEqual(unioned.dimensions, unioned.parent[to_weight.name].dimensions)
         self.assertEqual(id(unioned.dimensions[0]), id(unioned.parent[to_weight.name].dimensions[0]))
 
@@ -429,15 +430,15 @@ class TestGeometryVariable(AbstractTestInterface):
         pa = self.get_geometryvariable()
 
         to_weight = Variable(name='to_weight', dimensions=pa.dimensions, dtype=float)
-        to_weight.value[0] = 5.0
-        to_weight.value[1] = 10.0
+        to_weight.get_value()[0] = 5.0
+        to_weight.get_value()[1] = 10.0
         pa.parent.add_variable(to_weight)
 
         to_weight2 = Variable(name='to_weight2',
                               dimensions=[Dimension('time', 10), Dimension('level', 3), pa.dimensions[0]], dtype=float)
         for time_idx in range(to_weight2.shape[0]):
             for level_idx in range(to_weight2.shape[1]):
-                to_weight2.value[time_idx, level_idx] = (time_idx + 2) + (level_idx + 2) ** (level_idx + 1)
+                to_weight2.get_value()[time_idx, level_idx] = (time_idx + 2) + (level_idx + 2) ** (level_idx + 1)
         pa.parent.add_variable(to_weight2)
 
         unioned = pa.get_unioned(spatial_average=['to_weight', 'to_weight2'])
@@ -445,10 +446,10 @@ class TestGeometryVariable(AbstractTestInterface):
         actual = unioned.parent[to_weight2.name]
         self.assertEqual(actual.shape, (10, 3, 1))
         self.assertEqual(to_weight2.shape, (10, 3, 2))
-        self.assertNumpyAll(actual.value, to_weight2.value[:, :, 0].reshape(10, 3, 1))
+        self.assertNumpyAll(actual.get_value(), to_weight2.get_value()[:, :, 0].reshape(10, 3, 1))
         self.assertEqual(actual.dimension_names, ('time', 'level', 'ocgis_geom_union'))
 
-        self.assertEqual(unioned.parent[to_weight.name].value[0], 7.5)
+        self.assertEqual(unioned.parent[to_weight.name].get_value()[0], 7.5)
 
     @attr('mpi')
     def test_get_unioned_spatial_average_parallel(self):
@@ -479,7 +480,7 @@ class TestGeometryVariable(AbstractTestInterface):
         if unioned is not None:
             self.assertIsInstance(unioned, GeometryVariable)
             actual = unioned.parent[data.name]
-            self.assertAlmostEqual(actual.value.mean(), 5.1481481481481488)
+            self.assertAlmostEqual(actual.get_value().mean(), 5.1481481481481488)
         else:
             self.assertIsNone(unioned)
 
@@ -487,9 +488,9 @@ class TestGeometryVariable(AbstractTestInterface):
         geom = box(195, -40, 225, -30)
         gvar = GeometryVariable(name='geoms', value=geom, crs=Spherical(), dimensions='geoms')
         gvar.wrap()
-        self.assertEqual(gvar.value[0].bounds, (-165.0, -40.0, -135.0, -30.0))
+        self.assertEqual(gvar.get_value()[0].bounds, (-165.0, -40.0, -135.0, -30.0))
         gvar.unwrap()
-        self.assertEqual(gvar.value[0].bounds, (195.0, -40.0, 225.0, -30.0))
+        self.assertEqual(gvar.get_value()[0].bounds, (195.0, -40.0, 225.0, -30.0))
 
     def test_update_crs(self):
         pa = self.get_geometryvariable(crs=WGS84(), name='g', dimensions='gg')
@@ -498,8 +499,8 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(pa.crs, to_crs)
         v0 = [1629871.494956261, -967769.9070825744]
         v1 = [2358072.3857447207, -239270.87548993886]
-        np.testing.assert_almost_equal(pa.value[0], v0)
-        np.testing.assert_almost_equal(pa.value[1], v1)
+        np.testing.assert_almost_equal(pa.get_value()[0], v0)
+        np.testing.assert_almost_equal(pa.get_value()[1], v1)
 
     def test_weights(self):
         value = [Point(2, 3), Point(4, 5), Point(5, 6)]
@@ -512,7 +513,7 @@ class TestGeometryVariable(AbstractTestInterface):
         geom = box(195, -40, 225, -30)
         gvar = GeometryVariable(name='geoms', value=geom, crs=Spherical(), dimensions='geoms')
         gvar.wrap()
-        self.assertEqual(gvar.value[0].bounds, (-165.0, -40.0, -135.0, -30.0))
+        self.assertEqual(gvar.get_value()[0].bounds, (-165.0, -40.0, -135.0, -30.0))
 
 
 class TestGeometryVariablePolygons(AbstractTestInterface):

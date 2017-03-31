@@ -321,6 +321,10 @@ class RequestDataset(AbstractRequestObject):
             ret = self._field_name
         return ret
 
+    @field_name.setter
+    def field_name(self, value):
+        self._field_name = value
+
     @property
     def has_data_variables(self):
         """Return ``True`` if data variables are found in the target dataset."""
@@ -349,6 +353,11 @@ class RequestDataset(AbstractRequestObject):
         else:
             ret = get_first_or_tuple(list(get_iter(self._rename_variable)))
         return ret
+
+    @rename_variable.setter
+    def rename_variable(self, value):
+        value = get_tuple(value)
+        self._rename_variable = value
 
     @property
     def rename_variable_map(self):

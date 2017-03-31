@@ -110,11 +110,11 @@ class TestOcgField(AbstractTestInterface):
         self.assertIsNone(f.realization)
         self.assertIsNone(f.time)
         f.dimension_map['time']['variable'] = time.name
-        self.assertNumpyAll(f.time.value, time.value)
+        self.assertNumpyAll(f.time.get_value(), time.get_value())
         self.assertEqual(f.time.attrs['axis'], 'T')
         self.assertIsNone(f.time.bounds)
         f.dimension_map['time']['bounds'] = time_bounds.name
-        self.assertNumpyAll(f.time.bounds.value, time_bounds.value)
+        self.assertNumpyAll(f.time.bounds.get_value(), time_bounds.get_value())
         self.assertIn('other', f.time.parent)
 
         f.dimension_map['time']['names'] += ['times', 'times_again', 'the_time']
@@ -189,7 +189,7 @@ class TestOcgField(AbstractTestInterface):
         field.add_variable(geom2)
         self.assertIn(geom2.name, field)
 
-        desired_tas_sum = field['tas'].value.sum()
+        desired_tas_sum = field['tas'].get_value().sum()
 
         keywords = {'standardize': [True, False], 'melted': [False, True],
                     KeywordArguments.DRIVER: [DriverKeys.CSV, None]}
@@ -303,7 +303,7 @@ class TestOcgField(AbstractTestInterface):
         field = OcgField(variables=[x, y], dimension_map=dmap)
         desired_value_stacked = field.grid.get_value_stacked()
 
-        self.assertEqual(field.grid.parent['x'].value.shape, (2,))
+        self.assertEqual(field.grid.parent['x'].get_value().shape, (2,))
         self.assertTrue(field.grid.is_vectorized)
 
         field.write(path)
@@ -322,9 +322,9 @@ class TestOcgField(AbstractTestInterface):
             field.write(ds)
         self.assertTrue(field.grid.is_vectorized)
         with self.nc_scope(path) as ds:
-            self.assertNumpyAll(ds.variables[grid.x.name][:], grid.x.value)
+            self.assertNumpyAll(ds.variables[grid.x.name][:], grid.x.get_value())
             var = ds.variables[grid.y.name]
-            self.assertNumpyAll(var[:], grid.y.value)
+            self.assertNumpyAll(var[:], grid.y.get_value())
             self.assertEqual(var.axis, 'Y')
             self.assertIn(grid.crs.name, ds.variables)
 
@@ -338,7 +338,7 @@ class TestOcgField(AbstractTestInterface):
         # self.ncdump(path)
         with self.nc_scope(path) as ds:
             var = ds.variables['y']
-            self.assertNumpyAll(var[:], grid.y.value)
+            self.assertNumpyAll(var[:], grid.y.get_value())
 
         # Test writing a vectorized grid with corners.
         grid = self.get_gridxy()

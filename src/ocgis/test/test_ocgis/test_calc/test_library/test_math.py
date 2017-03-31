@@ -19,8 +19,8 @@ class TestNaturalLogarithm(AbstractTestField):
         field = self.get_field(with_value=True, month_count=2)
         ln = NaturalLogarithm(field=field)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape, (2, 60, 2, 3, 4))
-        self.assertNumpyAllClose(ret['ln'].value, np.log(field['tmax'].value))
+        self.assertEqual(ret['ln'].get_value().shape, (2, 60, 2, 3, 4))
+        self.assertNumpyAllClose(ret['ln'].get_value(), np.log(field['tmax'].get_value()))
 
         ln = NaturalLogarithm(field=field, calc_sample_size=True)
         ret = ln.execute()
@@ -40,8 +40,8 @@ class TestNaturalLogarithm(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         ln = NaturalLogarithm(field=field, tgd=tgd, calc_sample_size=True, spatial_aggregation=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln'].value.mean(), 30.0)
+        self.assertEqual(ret['ln'].get_value().shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].get_value().mean(), 30.0)
 
     def test_execute_temporally_grouped(self):
         field = self.get_field(with_value=True, month_count=2)
@@ -49,38 +49,40 @@ class TestNaturalLogarithm(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         ln = NaturalLogarithm(field=field, tgd=tgd)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['ln'].get_value().shape, (2, 2, 2, 3, 4))
 
-        to_test = np.log(field['tmax'].value)
+        to_test = np.log(field['tmax'].get_value())
         to_test = np.ma.mean(to_test[0, tgd.dgroups[0], 0, :, :], axis=0)
-        to_test2 = ret['ln'].value[0, 0, 0, :, :]
+        to_test2 = ret['ln'].get_value()[0, 0, 0, :, :]
         self.assertNumpyAllClose(to_test, to_test2)
 
         ln = NaturalLogarithm(field=field, tgd=tgd, calc_sample_size=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln'].value.mean(), 30.0)
+        self.assertEqual(ret['ln'].get_value().shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].get_value().mean(), 30.0)
 
 
 class TestDivide(AbstractTestField):
     def test_execute(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.add_variable(Variable(value=field['tmax'].value + 5, name='tmin', dimensions=field['tmax'].dimensions))
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions))
         dv = Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'})
         ret = dv.execute()
-        self.assertNumpyAllClose(ret['divide'].value, field['tmax'].value / field['tmin'].value)
+        self.assertNumpyAllClose(ret['divide'].get_value(), field['tmax'].get_value() / field['tmin'].get_value())
 
         with self.assertRaises(SampleSizeNotImplemented):
             Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'}, calc_sample_size=True)
 
     def test_execute_temporal_grouping(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.add_variable(Variable(value=field['tmax'].value + 5, name='tmin', dimensions=field['tmax'].dimensions))
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions))
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         dv = Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'}, tgd=tgd)
         ret = dv.execute()
-        self.assertEqual(ret['divide'].value.shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['divide'].get_value().shape, (2, 2, 2, 3, 4))
         self.assertNumpyAllClose(ret['divide'].masked_value[0, 1, 1, :, 2],
                                  np.ma.array([0.0833001563436, 0.0940192653632, 0.0916398919876],
                                              mask=False, fill_value=1e20))
@@ -93,7 +95,7 @@ class TestThreshold(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         dv = Threshold(field=field, parms={'threshold': 0.5, 'operation': 'gte'}, tgd=tgd)
         ret = dv.execute()
-        self.assertEqual(ret['threshold'].value.shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['threshold'].get_value().shape, (2, 2, 2, 3, 4))
         self.assertNumpyAllClose(ret['threshold'].masked_value[1, 1, 1, 0, :],
                                  np.ma.array([13, 16, 15, 12], mask=False))
 
@@ -113,8 +115,8 @@ class TestSum(AbstractTestField):
         grid = GridXY(col, row)
         time = TemporalVariable(name='time', value=[1, 2], dimensions='time')
         data = Variable(name='data', dimensions=[time.dimensions[0]] + list(grid.dimensions))
-        data.value[0, :] = 1
-        data.value[1, :] = 2
+        data.get_value()[0, :] = 1
+        data.get_value()[1, :] = 2
         field = OcgField(grid=grid, time=time, is_data=data)
 
         calc = [{'func': 'sum', 'name': 'sum'}]
@@ -141,7 +143,7 @@ class TestConvolve1D(AbstractTestField):
         field = self.get_field(month_count=1, with_value=True)
         # field = field[:, 0:slice_stop, :, :, :]
         field = field.get_field_slice({'time': slice(0, slice_stop)})
-        field['tmax'].value[:] = 1
+        field['tmax'].get_value()[:] = 1
         mask = field['tmax'].get_mask(create=True)
         # field['tmax'].value.mask[:, :, :, 1, 1] = True
         mask[:, :, :, 1, 1] = True
@@ -174,7 +176,7 @@ class TestConvolve1D(AbstractTestField):
                                   [[[2.0, 2.0, 2.0, 2.0], [2.0, 0.0, 2.0, 2.0], [2.0, 2.0, 2.0, 2.0]],
                                    [[2.0, 2.0, 2.0, 2.0], [2.0, 0.0, 2.0, 2.0], [2.0, 2.0, 2.0, 2.0]]]]],
                              dtype=env.NP_FLOAT)
-        self.assertAlmostEqual(actual.sum(), vc['convolve_1d'].value.sum())
+        self.assertAlmostEqual(actual.sum(), vc['convolve_1d'].get_value().sum())
 
     def test_execute_valid(self):
         """Test convolution with the 'valid' mode."""
@@ -186,7 +188,7 @@ class TestConvolve1D(AbstractTestField):
         vc = cd.execute()
         actual = '\x80\x02cnumpy.ma.core\n_mareconstruct\nq\x01(cnumpy.ma.core\nMaskedArray\nq\x02cnumpy\nndarray\nq\x03K\x00\x85q\x04U\x01btRq\x05(K\x01(K\x02K\x02K\x02K\x03K\x04tcnumpy\ndtype\nq\x06U\x02f4K\x00K\x01\x87Rq\x07(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tb\x89T\x80\x01\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00\x00\x00\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@\x00\x00@@U`\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00cnumpy.core.multiarray\n_reconstruct\nq\x08h\x03K\x00\x85U\x01b\x87Rq\t(K\x01)h\x06U\x02f8K\x00K\x01\x87Rq\n(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tb\x89U\x08@\x8c\xb5x\x1d\xaf\x15Dtbtb.'
         actual = np.ma.loads(actual).astype(env.NP_FLOAT)
-        self.assertNumpyAll(actual.sum(), vc['convolve_1d'].value.sum())
+        self.assertNumpyAll(actual.sum(), vc['convolve_1d'].get_value().sum())
         # Non-valid regions are entirely masked with 'valid' mode.
         self.assertTrue(vc['convolve_1d'].get_mask()[:, -2:, :, :, :].all())
 

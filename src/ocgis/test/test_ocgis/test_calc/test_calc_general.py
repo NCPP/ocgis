@@ -12,11 +12,12 @@ from ocgis.test.base import attr
 
 
 class AbstractCalcBase(TestBase):
-    def get_reshaped(self, arr):
+    @staticmethod
+    def get_reshaped(arr):
         ret = arr.reshape(arr.shape[0], 1, 1)
         ret = np.ma.array(ret, mask=False)
-        assert (len(ret.shape) == 3)
-        return (ret)
+        assert len(ret.shape) == 3
+        return ret
 
     def run_standard_operations(self, calc, capture=False, output_format=None):
         _aggregate = [False, True]
@@ -35,26 +36,23 @@ class AbstractCalcBase(TestBase):
                                     prefix=('standard_ops_' + str(ii)))
                 ret = ops.execute()
                 if output_format == constants.OUTPUT_FORMAT_NUMPY:
-                    ref = ret[25]['tas'].variables[calc[0]['name']].value
+                    refv = ret.get_element(variable_name=calc[0]['name'], container_ugid=25)
+                    ref = refv.get_value()
                     if aggregate:
-                        space_shape = [1, 1]
+                        space_shape = [1]
                     else:
-                        space_shape = [5, 4]
+                        space_shape = [4, 4]
                     if calc_grouping == ['month']:
                         shp1 = [12]
                     elif calc_grouping == 'all':
                         raise NotImplementedError('calc_grouping all')
                     else:
                         shp1 = [24]
-                    test_shape = [1] + shp1 + [1] + space_shape
+                    test_shape = shp1 + space_shape
                     self.assertEqual(ref.shape, tuple(test_shape))
                     if not aggregate:
-                        # ensure the geometry mask is appropriately update by the function
-                        try:
-                            self.assertTrue(np.ma.is_masked(ref[0, 0, 0, 0, 0]))
-                        # likely a structure array where testing requires using the mask property
-                        except TypeError:
-                            self.assertTrue(ref.mask[0, 0, 0, 0, 0])
+                        # Ensure the geometry mask is appropriately updated by the function.
+                        self.assertTrue(refv.get_mask()[0, 0, 0])
             except ValueError:
                 raise
             except AssertionError:
@@ -149,45 +147,7 @@ class Test(AbstractCalcBase):
             ref = ds.variables['time'][:]
             self.assertEqual(len(ref), 12)
             self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
-                             set([u'units', u'long_name', u'standard_name', 'grid_mapping']))
-
-    def test_frequency_percentiles(self):
-        ## data comes in as 4-dimensional array. (time,level,row,column)
-
-        perc = 0.95
-        round_method = 'ceil'  # floor
-
-        ## generate gaussian sequence
-        np.random.seed(1)
-        seq = np.random.normal(size=(31, 1, 2, 2))
-        seq = np.ma.array(seq, mask=False)
-        ## sort the data
-        cseq = seq.copy()
-        cseq.sort(axis=0)
-        ## reference the time vector length
-        n = cseq.shape[0]
-        ## calculate the index
-        idx = getattr(np, round_method)(perc * n)
-        ## get the percentiles
-        ret = cseq[idx, :, :, :]
-        self.assertAlmostEqual(7.2835104624617717, ret.sum())
-
-        ## generate gaussian sequence
-        np.random.seed(1)
-        seq = np.random.normal(size=(31, 1, 2, 2))
-        mask = np.zeros((31, 1, 2, 2))
-        mask[:, :, 1, 1] = True
-        seq = np.ma.array(seq, mask=mask)
-        ## sort the data
-        cseq = seq.copy()
-        cseq.sort(axis=0)
-        ## reference the time vector length
-        n = cseq.shape[0]
-        ## calculate the index
-        idx = getattr(np, round_method)(perc * n)
-        ## get the percentiles
-        ret = cseq[idx, :, :, :]
-        self.assertAlmostEqual(5.1832553259829295, ret.sum())
+                             {u'units', u'long_name', u'standard_name', 'grid_mapping'})
 
     @attr('data')
     def test_system_date_groups(self):

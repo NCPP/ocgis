@@ -278,7 +278,7 @@ class Test(AbstractTestInterface):
         if MPI_RANK < 2:
             self.assertFalse(svc['all_in'].is_empty)
             self.assertEqual(svc['all_in'].dist, MPIDistributionMode.REPLICATED)
-            self.assertNumpyAll(svc['all_in'].value, np.arange(10) + 10)
+            self.assertNumpyAll(svc['all_in'].get_value(), np.arange(10) + 10)
             self.assertFalse(svc.is_empty)
             self.assertFalse(svc['i_could_be_a_coordinate_system'].is_empty)
         else:
@@ -287,9 +287,9 @@ class Test(AbstractTestInterface):
             self.assertTrue(svc['i_could_be_a_coordinate_system'].is_empty)
 
         if MPI_RANK == 0:
-            self.assertNumpyAll(var.value, vc[var.name].value)
+            self.assertNumpyAll(var.get_value(), vc[var.name].get_value())
 
-        actual = svc['holds_five'].value
+        actual = svc['holds_five'].get_value()
         if MPI_SIZE == 2:
             desired = {0: np.arange(3), 1: np.arange(3, 5)}
             self.assertNumpyAll(actual, desired[MPI_RANK])
@@ -320,7 +320,7 @@ class Test(AbstractTestInterface):
         mask_gather = variable_gather(mask)
 
         if MPI_RANK == 0:
-            self.assertNumpyAll(mask_gather.value, mask_value)
+            self.assertNumpyAll(mask_gather.get_value(), mask_value)
             self.assertNumpyAll(mask_gather.dimensions[0]._src_idx, np.arange(3) * 10)
             self.assertNumpyAll(mask_gather.dimensions[1]._src_idx, np.arange(4, dtype=DataTypes.DIMENSION_SRC_INDEX))
             for dim in mask_gather.dimensions:
@@ -343,7 +343,7 @@ class Test(AbstractTestInterface):
             dim_src_idx = dim._src_idx.copy()
             var = Variable('the_five', value=var_value, mask=var_mask, dimensions=dim)
             var.set_extrapolated_bounds('the_five_bounds', 'bounds')
-            var_bounds_value = var.bounds.value
+            var_bounds_value = var.bounds.get_value()
 
             dest_mpi = deepcopy(src_mpi)
             for drank in range(MPI_SIZE):
@@ -358,13 +358,13 @@ class Test(AbstractTestInterface):
         dim_src_idx = MPI_COMM.bcast(dim_src_idx)
 
         if MPI_RANK > 1:
-            self.assertIsNone(svar.value)
+            self.assertIsNone(svar.get_value())
             self.assertTrue(svar.is_empty)
         else:
             dest_dim = dest_mpi.get_dimension('five')
-            self.assertNumpyAll(var_value[slice(*dest_dim.bounds_local)], svar.value)
+            self.assertNumpyAll(var_value[slice(*dest_dim.bounds_local)], svar.get_value())
             self.assertNumpyAll(var_mask[slice(*dest_dim.bounds_local)], svar.get_mask())
-            self.assertNumpyAll(var_bounds_value[slice(*dest_dim.bounds_local)], svar.bounds.value)
+            self.assertNumpyAll(var_bounds_value[slice(*dest_dim.bounds_local)], svar.bounds.get_value())
             self.assertNumpyAll(dim_src_idx[slice(*dest_dim.bounds_local)], svar.dimensions[0]._src_idx)
             self.assertNumpyAll(dim_src_idx[slice(*dest_dim.bounds_local)], svar.bounds.dimensions[0]._src_idx)
 
@@ -563,21 +563,22 @@ class TestOcgMpi(AbstractTestInterface):
     @attr('mpi')
     def test_update_dimension_bounds(self):
         ompi = OcgMpi()
-        dim = ompi.create_dimension('five', 5, dist=True)
+        dim1 = ompi.create_dimension('five', 5, dist=True)
         ompi.update_dimension_bounds()
-        self.assertEqual(dim.bounds_global, (0, 5))
+        self.assertEqual(dim1.bounds_global, (0, 5))
         if MPI_SIZE > 1:
             if MPI_SIZE == 2:
                 if MPI_RANK == 0:
-                    self.assertEqual(dim.bounds_local, (0, 3))
+                    self.assertEqual(dim1.bounds_local, (0, 3))
                 else:
-                    self.assertEqual(dim.bounds_local, (3, 5))
+                    self.assertEqual(dim1.bounds_local, (3, 5))
 
         # Test updating on single processor.
         if MPI_SIZE == 1:
             ompi = OcgMpi(size=2)
-            dim = ompi.create_dimension('five', 5, dist=True)
+            ompi.create_dimension('five', 5, dist=True)
             ompi.update_dimension_bounds()
+            dim = ompi.get_dimension('five')
             self.assertEqual(dim.bounds_global, (0, 5))
             for rank in range(2):
                 actual = ompi.get_dimension('five', rank=rank)
@@ -603,8 +604,9 @@ class TestOcgMpi(AbstractTestInterface):
 
     def test_update_dimension_bounds_single_simple_dimension(self):
         ompi = OcgMpi(size=2)
-        d1 = ompi.create_dimension('d1', 2, dist=True)
+        ompi.create_dimension('d1', 2, dist=True)
         ompi.update_dimension_bounds(min_elements=2)
+        d1 = ompi.get_dimension('d1')
         for rank in range(2):
             actual = ompi.get_dimension(d1.name, rank=rank)
             if rank == 0:

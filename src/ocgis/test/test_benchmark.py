@@ -1,3 +1,5 @@
+from zmq.tests import SkipTest
+
 import ocgis
 from ocgis import RequestDataset
 from ocgis.ops.core import OcgOperations
@@ -7,6 +9,7 @@ from ocgis.test.base import TestBase, attr
 class Test(TestBase):
     @attr('benchmark')
     def test(self):
+        raise SkipTest('benchmarking only')
         # development laptop: 8 procs: 146 seconds
         ocgis.env.VERBOSE = True
         uri = '/home/benkoziol/l/data/bekozi-work/lisa-rensi-nwm/nwm.t00z.analysis_assim.terrain_rt.tm00.conus.nc_georeferenced.nc'

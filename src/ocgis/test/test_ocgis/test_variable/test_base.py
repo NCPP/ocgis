@@ -48,7 +48,7 @@ class TestVariable(AbstractTestInterface):
         self.assertIn(var.name, var.parent)
         self.assertEqual(var.shape, tuple())
         self.assertEqual(var.dimensions, tuple())
-        self.assertEqual(var.value, None)
+        self.assertEqual(var.get_value(), None)
         self.assertEqual(var.get_mask(), None)
         self.assertIsNotNone(var.parent)
 
@@ -82,10 +82,10 @@ class TestVariable(AbstractTestInterface):
 
         # Test a scalar variable.
         v = Variable(value=2.0, name='scalar', dimensions=[])
-        self.assertEqual(v.value, 2.0)
-        self.assertIsInstance(v.value, ndarray)
+        self.assertEqual(v.get_value(), 2.0)
+        self.assertIsInstance(v.get_value(), ndarray)
         self.assertEqual(v.shape, tuple())
-        self.assertEqual(v.value.dtype, np.float)
+        self.assertEqual(v.get_value().dtype, np.float)
         self.assertEqual(v.dimensions, tuple())
         self.assertEqual(v.ndim, 0)
 
@@ -95,21 +95,21 @@ class TestVariable(AbstractTestInterface):
 
         # Test with dimensions only.
         v = Variable(dimensions=[Dimension('a', 3), Dimension('b', 8)], dtype=np.int8, fill_value=2, name='only dims')
-        self.assertNumpyAll(v.value, np.zeros((3, 8), dtype=np.int8))
+        self.assertNumpyAll(v.get_value(), np.zeros((3, 8), dtype=np.int8))
 
         # Test with an unlimited dimension.
         v = Variable(dimensions=Dimension('unlimited'), name='unhinged')
         with self.assertRaises(ValueError):
-            v.value
+            v.get_value()
 
         # Test value converted to dtype and fill_value.
         value = [4.5, 5.5, 6.5]
         desired = np.array(value, dtype=np.int8)
         var = Variable(value=value, dtype=np.int8, fill_value=4, name='conversion', dimensions='the_dimension')
-        self.assertNumpyAll(var.value, desired)
+        self.assertNumpyAll(var.get_value(), desired)
         var._value = None
         var.set_value(np.array(value))
-        self.assertNumpyAll(var.value, desired)
+        self.assertNumpyAll(var.get_value(), desired)
         var._value = None
         var.set_value(desired)
         assert_equal(var.get_mask(create=True, check_value=True), [True, False, False])
@@ -120,11 +120,11 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(id(time), id(var.dimensions[0]))
         self.assertEqual(var.name, 'time_value')
         self.assertEqual(var.shape, (len(value),))
-        self.assertNumpyAll(var.value, np.array(value, dtype=var.dtype))
+        self.assertNumpyAll(var.get_value(), np.array(value, dtype=var.dtype))
         sub = var[2:4]
         self.assertIsInstance(sub, Variable)
         self.assertEqual(sub.shape, (2,))
-        self.assertNumpyAll(sub.value, var.value[2:4])
+        self.assertNumpyAll(sub.get_value(), var.get_value()[2:4])
         self.assertNotEqual(id(var), id(sub))
 
         # Test conforming data types.
@@ -132,12 +132,12 @@ class TestVariable(AbstractTestInterface):
         fill_value = 33.0
         var = Variable('foo', value=value, dimensions=time, dtype=dtype, fill_value=fill_value)
         self.assertEqual(var.dtype, dtype)
-        self.assertEqual(var.value.dtype, dtype)
+        self.assertEqual(var.get_value().dtype, dtype)
         self.assertEqual(var.fill_value, fill_value)
 
         var = Variable('foo', value=[4, 5, 6], dimensions='dim')
         self.assertEqual(var.shape, (3,))
-        self.assertEqual(var.dtype, var.value.dtype)
+        self.assertEqual(var.dtype, var.get_value().dtype)
         self.assertEqual(var.fill_value, var.fill_value)
         sub = var[1]
         self.assertEqual(sub.shape, (1,))
@@ -147,13 +147,13 @@ class TestVariable(AbstractTestInterface):
         value = np.ma.array(value, mask=[False, True, False], dtype=float)
         var = Variable(value=value, dtype=int, name='the_name', dimensions='three')
         self.assertNumpyAll(var.get_mask(), value.mask)
-        self.assertEqual(var.value.dtype, int)
+        self.assertEqual(var.get_value().dtype, int)
 
         # Test with bounds.
         desired_bounds_value = [[0.5, 1.5], [1.5, 2.5]]
         bounds = Variable(value=desired_bounds_value, name='n_bnds', dimensions=['ens_dims', 'bounds'])
         var = Variable(value=[1, 2], bounds=bounds, name='n', dimensions='ens_dims')
-        self.assertNumpyAll(var.bounds.value, np.array(desired_bounds_value))
+        self.assertNumpyAll(var.bounds.get_value(), np.array(desired_bounds_value))
         self.assertEqual(var.parent.keys(), ['n', 'n_bnds'])
         self.assertEqual(var.attrs['bounds'], bounds.name)
 
@@ -169,13 +169,13 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(v.dtype, ObjectType(object))
         self.assertEqual(v.shape, (3,))
         for idx in range(v.shape[0]):
-            actual = v[idx].value[0]
+            actual = v[idx].get_value()[0]
             desired = value[idx]
             self.assertEqual(actual, desired)
 
         # Test converting object arrays.
         v = Variable(value=value, dtype=ObjectType(float), name='convert', dimensions='three')
-        self.assertEqual(v.value[0].dtype, ObjectType(float))
+        self.assertEqual(v.get_value()[0].dtype, ObjectType(float))
 
         v = Variable(value=value, name='foo', dtype=ObjectType(np.float32), dimensions='three')
         path = self.get_temporary_file_path('foo.nc')
@@ -185,7 +185,7 @@ class TestVariable(AbstractTestInterface):
         with self.nc_scope(path) as ds:
             desired = ds.variables['foo'][:]
         for idx in np.arange(v.shape[0]):
-            self.assertNumpyAll(np.array(v.value[idx]), desired[idx])
+            self.assertNumpyAll(np.array(v.get_value()[idx]), desired[idx])
         v_actual = SourcedVariable(request_dataset=RequestDataset(uri=path, variable='foo'), name='foo')
 
         actual = v[1].masked_value[0]
@@ -193,8 +193,8 @@ class TestVariable(AbstractTestInterface):
         self.assertNumpyAll(desired, actual)
 
         for idx in range(v.shape[0]):
-            a = v_actual[idx].value[0]
-            d = v[idx].value[0]
+            a = v_actual[idx].get_value()[0]
+            d = v[idx].get_value()[0]
             self.assertNumpyAll(a, d)
 
     def test_system_empty_dimensions(self):
@@ -207,7 +207,7 @@ class TestVariable(AbstractTestInterface):
         self.assertTrue(var.is_empty)
         self.assertEqual(var.shape, (3, 0, 10))
 
-        self.assertIsNone(var.value)
+        self.assertIsNone(var.get_value())
         self.assertIsNone(var._value)
         self.assertIsNone(var.get_mask())
         self.assertIsNone(var._mask)
@@ -231,7 +231,7 @@ class TestVariable(AbstractTestInterface):
 
         lvar = MPI_COMM.scatter(to_scatter)
 
-        self.assertNumpyAll(lvar.value, var_value[slices[MPI_RANK]])
+        self.assertNumpyAll(lvar.get_value(), var_value[slices[MPI_RANK]])
         self.assertEqual(lvar.dimensions[0], Dimension('five', 5)[slices[MPI_RANK]])
 
         gathered = MPI_COMM.gather(lvar)
@@ -239,9 +239,9 @@ class TestVariable(AbstractTestInterface):
         if MPI_RANK == 0:
             size = sum([len(v.dimensions[0]) for v in gathered])
             new_dim = Dimension(gathered[0].dimensions[0].name, size)
-            new_value = hgather([v.value for v in gathered])
+            new_value = hgather([v.get_value() for v in gathered])
             new_var = Variable(gathered[0].name, value=new_value, dimensions=new_dim)
-            self.assertNumpyAll(new_var.value, var.value)
+            self.assertNumpyAll(new_var.get_value(), var.get_value())
             self.assertEqual(new_var.dimensions[0], dim)
 
     def test_system_string_data(self):
@@ -298,14 +298,14 @@ class TestVariable(AbstractTestInterface):
             self.assertFalse(fvar.dimensions[1].dist)
             if MPI_RANK <= 1:
                 self.assertFalse(fvar.is_empty)
-                self.assertIsNotNone(fvar.value)
+                self.assertIsNotNone(fvar.get_value())
                 self.assertEqual(fvar.shape[1], 3)
                 if MPI_SIZE == 2:
                     self.assertLessEqual(fvar.shape[0], 3)
             else:
                 self.assertTrue(fvar.is_empty)
 
-            values = MPI_COMM.gather(fvar.value, root=0)
+            values = MPI_COMM.gather(fvar.get_value(), root=0)
             if MPI_RANK == 0:
                 values = [v for v in values if v is not None]
                 values = [v.flatten() for v in values]
@@ -328,7 +328,7 @@ class TestVariable(AbstractTestInterface):
         geometry_dimension_name = DimensionNames.GEOMETRY_DIMENSION
         metadata['dimensions'][geometry_dimension_name]['dist'] = False
         var_desired = SourcedVariable(name='STATE_NAME', request_dataset=rd_desired)
-        value_desired = var_desired.value.tolist()
+        value_desired = var_desired.get_value().tolist()
 
         rd = RequestDataset(uri=path, driver=DriverVector)
         metadata = rd.metadata
@@ -337,11 +337,11 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(len(rd.driver.dist.get_group()['dimensions']), 1)
 
         self.assertTrue(fvar.dimensions[0].dist)
-        self.assertIsNotNone(fvar.value)
+        self.assertIsNotNone(fvar.get_value())
         if MPI_SIZE > 1:
             self.assertLessEqual(fvar.shape[0], 26)
 
-        values = MPI_COMM.gather(fvar.value)
+        values = MPI_COMM.gather(fvar.get_value())
         if MPI_RANK == 0:
             values = hgather(values)
             self.assertEqual(values.tolist(), value_desired)
@@ -437,7 +437,7 @@ class TestVariable(AbstractTestInterface):
         av.units = 'celsius'
         av.cfunits_conform('K')
         self.assertIsNone(av._dtype)
-        self.assertEqual(av.dtype, av.value.dtype)
+        self.assertEqual(av.dtype, av.get_value().dtype)
 
         # Test with bounds.
         bv = Variable(value=[5., 10., 15.], units='celsius', name='tas', dimensions=['ll'])
@@ -465,7 +465,7 @@ class TestVariable(AbstractTestInterface):
         var = Variable(value=[1, 2, 3], mask=[True, False, True], dimensions='alpha', name='to_convert')
         var.convert_to_empty()
         self.assertTrue(var.is_empty)
-        self.assertIsNone(var.value)
+        self.assertIsNone(var.get_value())
         self.assertIsNone(var.get_mask())
         self.assertIsNotNone(var.dimensions)
 
@@ -474,10 +474,10 @@ class TestVariable(AbstractTestInterface):
         cvar = var.copy()
         self.assertNotEqual(id(var), id(cvar))
         self.assertNotEqual(id(var.parent), id(cvar.parent))
-        self.assertNotEqual(id(var.value), id(cvar.value))
+        self.assertNotEqual(id(var.get_value()), id(cvar.get_value()))
         self.assertNotEqual(id(var.get_mask()), id(cvar.get_mask()))
         cvar.set_value([10])
-        self.assertNotEqual(var.value[0], cvar.value[0])
+        self.assertNotEqual(var.get_value()[0], cvar.get_value()[0])
         cvar.attrs['new_attr'] = 'new'
         self.assertNotIn('new_attr', var.attrs)
         cvar.set_dimensions(Dimension('overload', 1))
@@ -486,7 +486,7 @@ class TestVariable(AbstractTestInterface):
         # Test this is not a deepcopy.
         var = Variable(value=[10, 11, 12], dimensions=Dimension('three', 3, src_idx='auto'), name='no deepcopies!')
         cvar = var.copy()
-        self.assertNumpyMayShareMemory(var.value, cvar.value)
+        self.assertNumpyMayShareMemory(var.get_value(), cvar.get_value())
         self.assertNumpyMayShareMemory(var.dimensions[0]._src_idx, cvar.dimensions[0]._src_idx)
 
         # Test copied parent does not share reference.
@@ -509,8 +509,8 @@ class TestVariable(AbstractTestInterface):
         var.parent.add_variable(misc)
 
         dvar = var.deepcopy()
-        self.assertFalse(np.may_share_memory(var.value, dvar.value))
-        self.assertFalse(np.may_share_memory(var.bounds.value, dvar.bounds.value))
+        self.assertFalse(np.may_share_memory(var.get_value(), dvar.get_value()))
+        self.assertFalse(np.may_share_memory(var.bounds.get_value(), dvar.bounds.get_value()))
 
     def test_dimensions(self):
         # Test dimensions on bounds variables are updated when the dimensions on the parent variable are updated.
@@ -535,6 +535,15 @@ class TestVariable(AbstractTestInterface):
 
         self.assertNotIn(ancillary.name, csrc.parent)
         self.assertIn(ancillary.name, src.parent)
+
+        # Test with a clean break.
+        v1 = Variable('one')
+        v2 = Variable('two')
+        v3 = Variable('three')
+        vc = VariableCollection(variables=[v1, v2, v3])
+        v1e = v1.extract(clean_break=True)
+        self.assertNotIn(v1.name, vc)
+        self.assertEqual(vc.keys(), ['two', 'three'])
 
     def test_get_between(self):
         bv = Variable('foo', value=[0], dimensions='uni')
@@ -576,7 +585,7 @@ class TestVariable(AbstractTestInterface):
         bv = self.get_boundedvariable()
         sub = bv[1]
         self.assertEqual(sub.bounds.shape, (1, 2))
-        self.assertNumpyAll(sub.bounds.value, bv.bounds[1, :].value)
+        self.assertNumpyAll(sub.bounds.get_value(), bv.bounds[1, :].get_value())
 
         # Test with a boolean array.
         var = Variable(value=[1, 2, 3, 4, 5], name='five', dimensions='five')
@@ -624,10 +633,10 @@ class TestVariable(AbstractTestInterface):
             vdim_between = vdim.get_between(1, 3)
             self.assertEqual(len(vdim_between), 2)
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.value.tostring(),
+                self.assertEqual(vdim_between.bounds.get_value().tostring(),
                                  '\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
             else:
-                self.assertEqual(vdim_between.bounds.value.tostring(),
+                self.assertEqual(vdim_between.bounds.get_value().tostring(),
                                  '\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
             self.assertEqual(vdim.resolution, 5.0)
 
@@ -646,11 +655,23 @@ class TestVariable(AbstractTestInterface):
 
             vdim_between = vdim.get_between(2.5, 7.5)
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.value.tostring(),
+                self.assertEqual(vdim_between.bounds.get_value().tostring(),
                                  '\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
             else:
-                self.assertEqual(vdim_between.bounds.value.tostring(),
+                self.assertEqual(vdim_between.bounds.get_value().tostring(),
                                  '\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
+
+    def test_get_between_bounds_again(self):
+        """Test for simpler bounds subsettting."""
+
+        var = Variable(name='data', value=[1, 2, 3, 4], dtype=float, dimensions='dim')
+        var.set_extrapolated_bounds('data_bounds', 'bounds')
+        # print var.get_value()
+        # print var.bounds.get_value()
+
+        sub = var.get_between(2., 3.)
+        # print sub.get_value()
+        # print sub.bounds.get_value()
 
     def test_get_between_use_bounds(self):
         value = [3., 5.]
@@ -677,7 +698,7 @@ class TestVariable(AbstractTestInterface):
         dist.update_dimension_bounds()
 
         if not var.is_empty:
-            var.value[:] = MPI_RANK
+            var.get_value()[:] = MPI_RANK
 
         sub = var.get_distributed_slice([slice(None), slice(2, 4), slice(3, 4)])
 
@@ -725,9 +746,9 @@ class TestVariable(AbstractTestInterface):
             desired_nonempty = non_empty.get(MPI_SIZE, 3)
             self.assertEqual(ner[0], desired_nonempty)
 
-            desired = {'var1': [7], 'var2': [107], 'var3': var3.value.tolist(), 'var4': [[7], [7], [7]]}
+            desired = {'var1': [7], 'var2': [107], 'var3': var3.get_value().tolist(), 'var4': [[7], [7], [7]]}
             if MPI_RANK == ner[0]:
-                actual = {var.name: var.value.tolist() for var in sub.parent.values()}
+                actual = {var.name: var.get_value().tolist() for var in sub.parent.values()}
                 self.assertEqual(actual, desired)
             else:
                 self.assertTrue(sub.is_empty)
@@ -746,7 +767,7 @@ class TestVariable(AbstractTestInterface):
         dist.update_dimension_bounds(min_elements=1)
 
         if not var.is_empty:
-            var.value[:] = (MPI_RANK + 1) ** 3 * (np.arange(var.shape[0]) + 1)
+            var.get_value()[:] = (MPI_RANK + 1) ** 3 * (np.arange(var.shape[0]) + 1)
 
         sub = var.get_distributed_slice(slice(2, 4))
 
@@ -765,13 +786,13 @@ class TestVariable(AbstractTestInterface):
             svar = SourcedVariable('var', request_dataset=rd)
             self.assertEqual(svar.shape, (2,))
             if MPI_SIZE == 1:
-                self.assertEqual(svar.value.tolist(), [3., 4.])
+                self.assertEqual(svar.get_value().tolist(), [3., 4.])
             elif MPI_SIZE == 2:
-                self.assertEqual(svar.value.tolist(), [3., 8.])
+                self.assertEqual(svar.get_value().tolist(), [3., 8.])
             elif MPI_SIZE == 3:
-                self.assertEqual(svar.value.tolist(), [8., 16.])
+                self.assertEqual(svar.get_value().tolist(), [8., 16.])
             elif MPI_SIZE == 8:
-                self.assertEqual(svar.value.tolist(), [27., 64.])
+                self.assertEqual(svar.get_value().tolist(), [27., 64.])
 
     def test_get_iter(self):
         # Test two repeat records.
@@ -791,13 +812,13 @@ class TestVariable(AbstractTestInterface):
         self.assertIsNone(var.get_mask())
         cpy = var.copy()
         cpy.set_mask([False, True, False])
-        cpy.value.fill(10)
-        self.assertTrue(np.all(var.value == 10))
+        cpy.get_value().fill(10)
+        self.assertTrue(np.all(var.get_value() == 10))
         self.assertIsNone(var.get_mask())
 
         var = Variable(value=np.random.rand(2, 3, 4), fill_value=200, name='random',
                        dimensions=['two', 'three', 'four'])
-        var.value[1, 1] = 200
+        var.get_value()[1, 1] = 200
         self.assertTrue(np.all(var.get_mask(create=True, check_value=True)[1, 1]))
         self.assertEqual(var.get_mask().sum(), 4)
 
@@ -819,6 +840,17 @@ class TestVariable(AbstractTestInterface):
         for slc in ((0, 1), (2, 0)):
             self.assertTrue(np.all(bounds_mask[slc]))
         self.assertEqual(bounds_mask.sum(), 8)
+
+        # Test reference is shared.
+        vars = [Variable('foo', [1, 2, 3], 'three', float, [False, False, False]),
+                Variable('foo', np.ma.array([1, 2, 3], mask=[False, False, False]), 'three', float),
+                Variable('foo', np.ma.array([1, 2, 3], mask=False), 'three', float)]
+        for var in vars:
+            vmask = var.get_mask()
+            vmask[1] = True
+            self.assertEqual(id(vmask), id(var.get_mask()))
+            self.assertTrue(var.get_mask()[1])
+            self.assertTrue(var._mask[1])
 
     def test_group(self):
         var = Variable(name='lonely')
@@ -865,7 +897,7 @@ class TestVariable(AbstractTestInterface):
         var = Variable(value=[10, 10, 10, 10, 10], name='tens', dimensions='dim')
         var2 = Variable(value=[2, 3, 4], mask=[True, True, False], name='var2', dimensions='three')
         var[1:4] = var2
-        self.assertEqual(var.value.tolist(), [10, 2, 3, 4, 10])
+        self.assertEqual(var.get_value().tolist(), [10, 2, 3, 4, 10])
         self.assertEqual(var.get_mask().tolist(), [False, True, True, False, False])
 
         # Test 2 dimensions.
@@ -874,15 +906,15 @@ class TestVariable(AbstractTestInterface):
         with self.assertRaises(IndexError):
             var[1] = Variable(value=4500, name='scalar', dimensions=[])
         var[1, 1:3] = Variable(value=6700, name='scalar', dimensions=[])
-        self.assertTrue(np.all(var.value[1, 1:3] == 6700))
-        self.assertAlmostEqual(var.value.mean(), 1116.66666666)
+        self.assertTrue(np.all(var.get_value()[1, 1:3] == 6700))
+        self.assertAlmostEqual(var.get_value().mean(), 1116.66666666)
 
         # Test with bounds.
         bv = self.get_boundedvariable()
         bounds = Variable(value=[[500, 700]], name='b', dimensions=['a', 'b'])
         bv2 = Variable(value=[600], bounds=bounds, name='c', dimensions=['d'])
         bv[1] = bv2
-        self.assertEqual(bv.bounds.value[1, :].tolist(), [500, 700])
+        self.assertEqual(bv.bounds.get_value()[1, :].tolist(), [500, 700])
 
     def test_shape(self):
         # Test shape with unlimited dimension.
@@ -951,7 +983,7 @@ class TestVariable(AbstractTestInterface):
         self.assertTrue(var.dimensions[0].is_unlimited)
         for unlimited_to_fixed_size in [False, True]:
             with self.nc_scope(path, 'w') as ds:
-                var.write(ds, unlimited_to_fixed_size=unlimited_to_fixed_size)
+                var.write(ds, unlimited_to_fixedsize=unlimited_to_fixed_size)
             # subprocess.check_call(['ncdump', path])
             with self.nc_scope(path) as ds:
                 rdim = ds.dimensions['time']
@@ -975,7 +1007,7 @@ class TestVariable(AbstractTestInterface):
         with self.nc_scope(path, 'r') as ds:
             var = ds.variables[bv.name]
             self.assertEqual(var.bounds, bv.bounds.name)
-            self.assertNumpyAll(ds.variables[bv.bounds.name][:], bv.bounds.value)
+            self.assertNumpyAll(ds.variables[bv.bounds.name][:], bv.bounds.get_value())
 
 
 class TestSourcedVariable(AbstractTestInterface):
@@ -1009,7 +1041,7 @@ class TestSourcedVariable(AbstractTestInterface):
         # Test protecting data.
         sv = self.get_sourcedvariable(protected=True)
         with self.assertRaises(PayloadProtectedError):
-            sv.value
+            sv.get_value()
         self.assertIsNone(sv._value)
 
     def test_init_bounds(self):
@@ -1061,7 +1093,7 @@ class TestSourcedVariable(AbstractTestInterface):
         rd = RequestDataset(uri=path)
         sv = SourcedVariable(name='var', request_dataset=rd)
         self.assertEqual(sv.dtype, np.float)
-        self.assertTrue(np.all(sv.value == [100.5, 101., 101.5, 102]))
+        self.assertTrue(np.all(sv.get_value() == [100.5, 101., 101.5, 102]))
         self.assertNotIn('add_offset', sv.attrs)
         self.assertNotIn('scale_factor', sv.attrs)
 
@@ -1086,12 +1118,12 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertEqual(actual, desired)
 
     @attr('data')
-    def test_conform_units_to_data(self):
+    def test_system_conform_units_to(self):
         rd = self.get_request_dataset(conform_units_to='celsius')
         sv = SourcedVariable('tas', request_dataset=rd)[5:9, 5, 9]
         self.assertIsNone(sv._value)
-        self.assertEqual(sv.units, 'K')
-        self.assertLess(sv.value.mean(), 200)
+        self.assertEqual(sv.units, 'celsius')
+        self.assertLess(sv.get_value().sum(), 200)
         self.assertEqual(sv.units, 'celsius')
 
     def test_getitem(self):
@@ -1122,14 +1154,14 @@ class TestSourcedVariable(AbstractTestInterface):
             var = ds.variables[sv.name]
             actual = var[5:11, 3:6, 5:8]
 
-        self.assertNumpyAll(sub.value, actual)
+        self.assertNumpyAll(sub.get_value(), actual)
 
         # Test value may be set to None and value is not reloaded.
         sv = self.get_sourcedvariable()
         self.assertIsNone(sv._value)
-        self.assertIsNotNone(sv.value)
+        self.assertIsNotNone(sv.get_value())
         sv.set_value(None)
-        self.assertIsNone(sv.value)
+        self.assertIsNone(sv.get_value())
 
     def test_init_from_source(self):
         sv = self.get_sourcedvariable()
@@ -1158,7 +1190,7 @@ class TestSourcedVariable(AbstractTestInterface):
         var1 = Variable('data', value=np.arange(7), dimensions='dim_data', parent=vc)
         var2_mask = np.zeros(var1.shape, dtype=bool)
         var2_mask[0] = True
-        var2 = Variable('data2', value=var1.value + 10, dimensions='dim_data', parent=vc, mask=var2_mask)
+        var2 = Variable('data2', value=var1.get_value() + 10, dimensions='dim_data', parent=vc, mask=var2_mask)
         vc.write(path, ranks_to_write=[0])
 
         rd = RequestDataset(path)
@@ -1186,8 +1218,8 @@ class TestSourcedVariable(AbstractTestInterface):
     def test_value(self):
         sv = self.get_sourcedvariable()
         sub = sv[5:11, 3:6, 5:8]
-        self.assertTrue(sv.value.mean() > 0)
-        self.assertEqual(sub.value.shape, (6, 3, 3))
+        self.assertTrue(sv.get_value().mean() > 0)
+        self.assertEqual(sub.get_value().shape, (6, 3, 3))
 
 
 class TestVariableCollection(AbstractTestInterface):
@@ -1242,14 +1274,15 @@ class TestVariableCollection(AbstractTestInterface):
         sub = vc[slc]
         self.assertEqual(sub['lower'].shape, (1, 3))
         self.assertNotEqual(sub.shapes, vc.shapes)
-        self.assertTrue(np.may_share_memory(vc['lower'].value, sub['lower'].value))
+        self.assertTrue(np.may_share_memory(vc['lower'].get_value(), sub['lower'].get_value()))
 
     def test_system_as_spatial_collection(self):
         """Test creating a variable collection that is similar to a spatial collection."""
 
         uid = Variable(name='the_uid', value=[4], dimensions='geom')
         geom = GeometryVariable(name='the_geom', value=[Point(1, 2)], dimensions='geom')
-        container = OcgField(name=uid.value[0], variables=[uid, geom], dimension_map={'geom': {'variable': 'the_geom'}})
+        container = OcgField(name=uid.get_value()[0], variables=[uid, geom],
+                             dimension_map={'geom': {'variable': 'the_geom'}})
         geom.set_ugid(uid)
         coll = VariableCollection()
         coll.add_child(container)
@@ -1270,7 +1303,7 @@ class TestVariableCollection(AbstractTestInterface):
         for v in vc.values():
             self.assertIsNotNone(v.attrs)
             self.assertIsNone(v._value)
-            self.assertIsNotNone(v.value)
+            self.assertIsNotNone(v.get_value())
 
     def test_system_nested(self):
         # Test with nested collections.
@@ -1284,7 +1317,7 @@ class TestVariableCollection(AbstractTestInterface):
         # RequestDataset(path).inspect()
         rvc = VariableCollection.read(path)
         self.assertIn('nest', rvc.children)
-        self.assertNumpyAll(rvc.children['nest']['desired'].value, desired.value)
+        self.assertNumpyAll(rvc.children['nest']['desired'].get_value(), desired.get_value())
 
     def test_system_as_variable_parent(self):
         # Test slicing variables.
@@ -1293,12 +1326,12 @@ class TestVariableCollection(AbstractTestInterface):
         for slc in [slc1, slc2]:
             vc = self.get_variablecollection()
             sub = vc['lower'][slc]
-            self.assertNumpyAll(sub.value, np.array([10, 13], dtype=np.float32).reshape(2, 1))
+            self.assertNumpyAll(sub.get_value(), np.array([10, 13], dtype=np.float32).reshape(2, 1))
             sub_vc = sub.parent
-            self.assertNumpyAll(sub_vc['foo'].value, np.array([5]))
-            self.assertNumpyAll(sub_vc['wunderbar'].value, np.array([5]))
+            self.assertNumpyAll(sub_vc['foo'].get_value(), np.array([5]))
+            self.assertNumpyAll(sub_vc['wunderbar'].get_value(), np.array([5]))
             self.assertEqual(sub_vc['how_far'].shape, (4,))
-            self.assertNumpyAll(sub_vc['lower'].value, sub.value)
+            self.assertNumpyAll(sub_vc['lower'].get_value(), sub.get_value())
             self.assertIn('coordinate_system', sub_vc)
 
     def test_add_variable(self):
@@ -1334,9 +1367,9 @@ class TestVariableCollection(AbstractTestInterface):
         vc.add_variable(var2)
         vc_copy = vc.copy()
         vc_copy['a'].set_value([4, 5, 6])
-        self.assertEqual(var.value.tolist(), [1, 2, 3])
+        self.assertEqual(var.get_value().tolist(), [1, 2, 3])
         self.assertNotEqual(id(vc['b']), id(vc_copy['b']))
-        self.assertNotEqual(id(vc['b'].value), id(vc_copy['b'].value))
+        self.assertNotEqual(id(vc['b'].get_value()), id(vc_copy['b'].get_value()))
 
     def test_write_netcdf_and_read_netcdf(self):
         vc = self.get_variablecollection()

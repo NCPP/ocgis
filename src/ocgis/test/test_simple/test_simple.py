@@ -245,7 +245,7 @@ class TestSimple(TestSimpleBase):
         ret_without_optimizations = ops.execute()
         t1 = ret_with_optimizations.get_element(variable_name='mean')
         t2 = ret_without_optimizations.get_element(variable_name='mean')
-        self.assertNumpyAll(t1.value, t2.value)
+        self.assertNumpyAll(t1.get_value(), t2.get_value())
 
     def test_optimizations_in_calculations_bad_calc_grouping(self):
         # Bad calculations groupings in the optimizations should be caught and raise a value error.
@@ -292,7 +292,7 @@ class TestSimple(TestSimpleBase):
         rd = RequestDataset(**self.get_dataset())
         geom = [-103.5, 38.5]
         for of in [constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_SHAPEFILE]:
-            ops = ocgis.OcgOperations(dataset=rd, geom=geom, output_format=of, prefix=of)
+            ops = ocgis.OcgOperations(dataset=rd, geom=geom, output_format=of, prefix=of, search_radius_mult=2.0)
             ops.execute()
 
     def test_overwrite_add_auxiliary_files(self):
@@ -382,8 +382,8 @@ class TestSimple(TestSimpleBase):
         ops.execute()
 
     def test_point_subset(self):
-        ops = self.get_ops(kwds={'geom': [-103.5, 38.5, ]})
-        self.assertEqual(type(ops.geom[0].geom.value[0]), Point)
+        ops = self.get_ops(kwds={'geom': [-103.5, 38.5, ], 'search_radius_mult': 2.0})
+        self.assertEqual(type(ops.geom[0].geom.get_value()[0]), Point)
         ret = ops.execute()
         ref = ret.get_element()
         self.assertEqual(ref.grid.shape, (4, 4))
@@ -393,7 +393,7 @@ class TestSimple(TestSimpleBase):
         ref = ret.get_element()
         ref.set_abstraction_geom()
         self.assertEqual(ref.grid.shape, (1, 1))
-        self.assertTrue(ref.geom.value[0, 0].intersects(ops.geom[0].geom.value[0]))
+        self.assertTrue(ref.geom.get_value()[0, 0].intersects(ops.geom[0].geom.get_value()[0]))
 
         ops = self.get_ops(kwds={'geom': [-103, 38, ], 'abstraction': 'point', 'search_radius_mult': 0.01})
         ret = ops.execute()
@@ -407,12 +407,12 @@ class TestSimple(TestSimpleBase):
         ops = self.get_ops(kwds={'slice': [None, None, 0, [0, 2], [0, 2]]})
         ret = ops.execute()
         ref = ret.get_element(variable_name=self.var)
-        self.assertTrue(np.all(ref.value.flatten() == 1.0))
+        self.assertTrue(np.all(ref.get_value().flatten() == 1.0))
         self.assertEqual(ref.shape, (61, 1, 2, 2))
 
         ops = self.get_ops(kwds={'slice': [0, None, None, [1, 3], [1, 3]]})
         ret = ops.execute()
-        ref = ret.get_element(variable_name='foo').value
+        ref = ret.get_element(variable_name='foo').get_value()
         self.assertTrue(np.all(np.array([1., 2., 3., 4.] == ref[0, 0, :].flatten())))
 
         # Pass only three slices.
@@ -426,7 +426,7 @@ class TestSimple(TestSimpleBase):
 
         ds = nc.Dataset(ret, 'r')
         try:
-            self.assertTrue(isinstance(ds.variables['my_mean'][:].sum(), np.ma.core.MaskedConstant))
+            self.assertTrue(ds.variables['my_mean'][:].mask.all())
             actual = set(ds.variables['my_mean'].ncattrs())
             self.assertEqual(actual, {'units', 'long_name', 'standard_name', 'grid_mapping'})
         finally:
@@ -459,7 +459,7 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ref.shapes, desired)
         for tidx, lidx in itertools.product(range(0, 61), range(0, 2)):
             sub = ref.get_field_slice({'time': tidx, 'level': lidx})
-            idx = self.base_value == sub[self.var].value
+            idx = self.base_value == sub[self.var].get_value()
             self.assertTrue(np.all(idx))
 
     def test_aggregate(self):
@@ -467,7 +467,7 @@ class TestSimple(TestSimpleBase):
 
         # Test area weighting.
         ref = ret.get_element(variable_name=self.var)
-        self.assertEqual(ref.value.flatten()[0], np.mean(self.base_value))
+        self.assertEqual(ref.get_value().flatten()[0], np.mean(self.base_value))
 
         # Test geometry reduction.
         ref = ret.get_element()
@@ -490,7 +490,7 @@ class TestSimple(TestSimpleBase):
         ref = ret.get_element(variable_name=self.var).masked_value
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret.get_element()
-        self.assertEqual(ref.level.value.shape, (1,))
+        self.assertEqual(ref.level.get_value().shape, (1,))
 
     def test_time_region_subset(self):
         """Test subsetting a Field object by a time region."""
@@ -540,7 +540,7 @@ class TestSimple(TestSimpleBase):
         poly = Polygon(((-103.5, 39.5), (-102.5, 38.5), (-103.5, 37.5), (-104.5, 38.5)))
         ret = self.get_ret(kwds={'output_format': 'numpy', 'geom': poly,
                                  'prefix': 'subset', 'spatial_operation': 'clip', 'aggregate': True})
-        actual = ret.get_element(variable_name=self.var).value.mean()
+        actual = ret.get_element(variable_name=self.var).get_value().mean()
         self.assertEqual(actual, 2.5)
 
     def test_spatial(self):
@@ -549,7 +549,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'geom': geom})
         ret = ret.get_element()
         self.assertEqual(ret[self.var].shape, (61, 2, 2, 2))
-        actual = ret[self.var].value[0, 0, :, :].tolist()
+        actual = ret[self.var].get_value()[0, 0, :, :].tolist()
         desired = [[1.0, 2.0], [3.0, 4.0]]
         self.assertEqual(actual, desired)
 
@@ -558,7 +558,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'geom': geom, 'spatial_operation': 'clip'})
         ret = ret.get_element()
         self.assertEqual(ret[self.var].shape, (61, 2, 2, 2))
-        intersection_areas = [g.area for g in ret.geom.value.flat]
+        intersection_areas = [g.area for g in ret.geom.get_value().flat]
         self.assertAlmostEqual(np.mean(intersection_areas), 0.25)
 
         # Intersection + Aggregation.
@@ -566,8 +566,8 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'geom': geom, 'spatial_operation': 'clip', 'aggregate': True})
         ref = ret.get_element()
         self.assertEqual(ref.geom.shape, (1,))
-        self.assertAlmostEqual(ref.geom.value[0].area, 1.0)
-        self.assertAlmostEqual(ref[self.var].value.mean(), 2.5)
+        self.assertAlmostEqual(ref.geom.get_value()[0].area, 1.0)
+        self.assertAlmostEqual(ref[self.var].get_value().mean(), 2.5)
 
     def test_empty_intersects(self):
         geom = make_poly((20, 25), (-90, -80))
@@ -601,7 +601,7 @@ class TestSimple(TestSimpleBase):
         self.assertDictEqual(field.shapes, desired)
         with nc_scope(os.path.join(self.current_dir_output, self.fn)) as ds:
             to_test = ds.variables['foo'][0, 0, :, :].reshape(1, 1, 4, 4)
-            self.assertNumpyAll(to_test, field['foo'].value)
+            self.assertNumpyAll(to_test, field['foo'].get_value())
 
         calc = [{'func': 'mean', 'name': 'my_mean'}]
         group = ['month', 'year']
@@ -627,7 +627,7 @@ class TestSimple(TestSimpleBase):
             ret = self.get_ret(kwds={'calc': calc, 'calc_grouping': group, 'aggregate': True, 'calc_raw': calc_raw})
             ref = ret.get_element('foo', variable_name='my_mean')
             self.assertEqual(ref.shape, (2, 2, 1))
-            self.assertEqual(ref.value.flatten().mean(), 2.5)
+            self.assertEqual(ref.get_value().flatten().mean(), 2.5)
             actual = ret.children[None].children['foo']['my_mean'].attrs
             self.assertDictEqual(actual, {'long_name': 'Mean', 'standard_name': 'mean', 'units': 'K'})
 
@@ -675,11 +675,18 @@ class TestSimple(TestSimpleBase):
                 continue
             ret = ops.execute()
             if of == 'numpy':
-                actual = ret.get_element(variable_name='foo3').value.mean()
+                actual = ret.get_element(variable_name='foo3').get_value().mean()
                 self.assertAlmostEqual(actual, 9.0)
             if of == 'nc':
                 with nc_scope(ret) as ds:
                     self.assertEqual(ds.variables['foo3'][:].mean(), 9.0)
+
+    def test_metadata_output(self):
+        rd = RequestDataset(**self.get_dataset())
+        of = constants.OUTPUT_FORMAT_METADATA_OCGIS
+        ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format=of)
+        ret = ops.execute()
+        self.assertTrue(len(ret) > 100)
 
     def test_nc_conversion(self):
         rd = self.get_dataset()
@@ -1119,7 +1126,7 @@ class TestSimpleMask(TestSimpleBase):
         # Test with aggregation
         ret = self.get_ret(kwds={'aggregate': True})
         ref = ret.get_element(variable_name=self.var)
-        self.assertAlmostEqual(ref.value.mean(), 2.58333333333, 5)
+        self.assertAlmostEqual(ref.get_value().mean(), 2.58333333333, 5)
 
 
 @attr('simple', 'mpi')
@@ -1240,7 +1247,7 @@ class TestSimpleMPI(TestSimpleBase):
 
             data_dimensions = ['lat', 'time', 'extra', 'lon']
             data = Variable(name='data', dimensions=data_dimensions, parent=field, dtype=np.float32)
-            data.value[:] = 1.0
+            data.get_value()[:] = 1.0
             field.append_to_tags(TagNames.DATA_VARIABLES, data)
 
             field.write(path, ranks_to_write=[0])
@@ -1291,9 +1298,9 @@ class TestSimpleMPI(TestSimpleBase):
                 self.assertFalse(data_in.has_allocated_value)
 
                 if data_in.is_empty:
-                    self.assertIsNone(data_in.value)
+                    self.assertIsNone(data_in.get_value())
                 else:
-                    self.assertEqual(data_in.value.mean(), 1.0)
+                    self.assertEqual(data_in.get_value().mean(), 1.0)
 
         MPI_COMM.Barrier()
 
@@ -1322,11 +1329,11 @@ class TestSimpleMultivariate(TestSimpleBase):
         return [rd1, rd2]
 
     def run_field_tst(self, field):
-        self.assertEqual(field.data_variables[0].value.mean(), 2.5)
-        self.assertEqual(field.data_variables[1].value.mean(), 5.5)
+        self.assertEqual(field.data_variables[0].get_value().mean(), 2.5)
+        self.assertEqual(field.data_variables[1].get_value().mean(), 5.5)
         sub = field.get_field_slice({'time': 3, 'level': 1, 'y': slice(1, 3), 'x': slice(1, 3)}, strict=False)
-        self.assertNumpyAll(sub.data_variables[0].value.flatten(), np.array([1.0, 2.0, 3.0, 4.0]))
-        self.assertNumpyAll(sub.data_variables[1].value.flatten(), np.array([1.0, 2.0, 3.0, 4.0]) + 3)
+        self.assertNumpyAll(sub.data_variables[0].get_value().flatten(), np.array([1.0, 2.0, 3.0, 4.0]))
+        self.assertNumpyAll(sub.data_variables[1].get_value().flatten(), np.array([1.0, 2.0, 3.0, 4.0]) + 3)
 
     def test_field(self):
         rd = self.get_request_dataset()
@@ -1420,9 +1427,9 @@ class TestSimpleMultivariate(TestSimpleBase):
             self.assertTrue(row['variable'].name.startswith('mean'))
             self.assertEqual(row['variable'].shape, (2, 2, 4, 4))
             if row['variable'].name in ['mean_f1', 'mean_ff1']:
-                self.assertEqual(row['variable'].value.mean(), 2.5)
+                self.assertEqual(row['variable'].get_value().mean(), 2.5)
             elif row['variable'].name in ['mean_f2', 'mean_ff2']:
-                self.assertEqual(row['variable'].value.mean(), 5.5)
+                self.assertEqual(row['variable'].get_value().mean(), 5.5)
             else:
                 self.fail()
 

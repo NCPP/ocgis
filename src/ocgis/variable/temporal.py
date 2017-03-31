@@ -96,8 +96,8 @@ class TemporalVariable(SourcedVariable):
         if not self.format_time:
             raise CannotFormatTimeError('value_datetime')
         if self._value_datetime is None:
-            if get_datetime_conversion_state(self.value.flatten()[0]):
-                self._value_datetime = np.ma.array(self.get_datetime(self.value), mask=self.get_mask(), ndmin=1,
+            if get_datetime_conversion_state(self.get_value().flatten()[0]):
+                self._value_datetime = np.ma.array(self.get_datetime(self.get_value()), mask=self.get_mask(), ndmin=1,
                                                    fill_value=None)
             else:
                 self._value_datetime = self.masked_value
@@ -106,8 +106,8 @@ class TemporalVariable(SourcedVariable):
     @property
     def value_numtime(self):
         if self._value_numtime is None:
-            if not get_datetime_conversion_state(self.value.flatten()[0]):
-                self._value_numtime = np.ma.array(self.get_numtime(self.value), mask=self.get_mask(), ndmin=1)
+            if not get_datetime_conversion_state(self.get_value().flatten()[0]):
+                self._value_numtime = np.ma.array(self.get_numtime(self.get_value()), mask=self.get_mask(), ndmin=1)
             else:
                 self._value_numtime = self.masked_value
         return self._value_numtime
@@ -166,7 +166,7 @@ class TemporalVariable(SourcedVariable):
         return ret
 
     def get_between(self, lower, upper, return_indices=False):
-        if get_datetime_conversion_state(self.value[0]):
+        if get_datetime_conversion_state(self.get_value()[0]):
             lower, upper = tuple(self.get_numtime([lower, upper]))
         return super(TemporalVariable, self).get_between(lower, upper, return_indices=return_indices)
 
@@ -399,7 +399,7 @@ class TemporalVariable(SourcedVariable):
         # the group should be set to select all data.
         dgroups = [slice(None)]
         # the representative datetime is the center of the value array.
-        repr_dt = np.array([value[int((self.value.shape[0] / 2) - 1)]])
+        repr_dt = np.array([value[int((self.get_value().shape[0] / 2) - 1)]])
 
         return (new_bounds, date_parts, repr_dt, dgroups)
 
@@ -415,7 +415,7 @@ class TemporalVariable(SourcedVariable):
 
         # this array will hold the value data constructed differently depending
         # on if temporal bounds are present
-        value = np.empty((self.value.shape[0], 3), dtype=object)
+        value = np.empty((self.get_value().shape[0], 3), dtype=object)
 
         # reference the value and bounds datetime object arrays
         value_datetime = self.value_datetime
@@ -437,7 +437,7 @@ class TemporalVariable(SourcedVariable):
             return ([dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second])
 
         # extract the date parts
-        parts = np.empty((len(self.value), len(self._date_parts)), dtype=int)
+        parts = np.empty((len(self.get_value()), len(self._date_parts)), dtype=int)
         for row in range(parts.shape[0]):
             parts[row, :] = _get_attrs_(value[row, 1])
 
@@ -673,7 +673,7 @@ class TemporalVariable(SourcedVariable):
 
     def set_value(self, value, **kwargs):
         # Special handling for template units.
-        if self.units == 'day as %Y%m%d.%f':
+        if str(self.units) == 'day as %Y%m%d.%f':
             value = get_datetime_from_template_time_units(value)
             # Update the units.
             self.units = constants.DEFAULT_TEMPORAL_UNITS
@@ -732,6 +732,9 @@ def get_datetime_from_months_time_units(vec, units, month_centroid=16):
     origin_month = origin.month
     current_year = origin.year
     current_month_correction = 0
+    if vec[0] >= 12:
+        current_year += int(vec[0] / 12)
+        vec = vec - (int(vec[0] / 12) * 12)
     ret = np.ones(len(vec), dtype=object)
     for ii, offset_month in enumerate(vec):
         try:

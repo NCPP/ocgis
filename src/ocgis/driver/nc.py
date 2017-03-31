@@ -17,7 +17,7 @@ from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, ge
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, ObjectType, VariableCollection, \
     get_slice_sequence_using_local_bounds
-from ocgis.variable.crs import CFCoordinateReferenceSystem
+from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vm.mpi import MPI_COMM, barrier_ranks
@@ -126,21 +126,25 @@ class DriverNetcdf(AbstractDriver):
             ncvar = dataset.createVariable(var.name, dtype, dimensions=dimensions, fill_value=fill_value, **kwargs)
 
         # Do not fill values on file_only calls. Also, only fill values for variables with dimension greater than zero.
-        if not file_only and var.ndim > 0 and not var.is_empty:
+        if not file_only and not var.is_empty and not isinstance(var, CoordinateReferenceSystem):
             if isinstance(var.dtype, ObjectType) and not isinstance(var, TemporalVariable):
                 bounds_local = var.dimensions[0].bounds_local
                 for idx in range(bounds_local[0], bounds_local[1]):
-                    ncvar[idx] = np.array(var.value[idx - bounds_local[0]])
+                    ncvar[idx] = np.array(var.get_value()[idx - bounds_local[0]])
             else:
                 fill_slice = get_slice_sequence_using_local_bounds(var)
                 data_value = cls.get_variable_write_value(var)
-                if var.dtype == str:
-                    for idx in range(fill_slice[0].start, fill_slice[0].stop):
-                        curr_value = data_value[idx]
-                        for sidx, sval in enumerate(curr_value):
-                            ncvar[idx, sidx] = sval
-                else:
-                    ncvar.__setitem__(fill_slice, data_value)
+                # Only write allocated values.
+                if data_value is not None:
+                    if var.dtype == str:
+                        for idx in range(fill_slice[0].start, fill_slice[0].stop):
+                            curr_value = data_value[idx]
+                            for sidx, sval in enumerate(curr_value):
+                                ncvar[idx, sidx] = sval
+                    elif var.ndim == 0:
+                        ncvar[:] = data_value
+                    else:
+                        ncvar.__setitem__(fill_slice, data_value)
 
         # Only set variable attributes if this is not a fill operation.
         if write_mode != MPIWriteMode.FILL:
@@ -242,7 +246,7 @@ class DriverNetcdfCF(DriverNetcdf):
     _default_crs = env.DEFAULT_COORDSYS
     _priority = True
 
-    def get_dimension_map(self, group_metadata):
+    def get_dimension_map(self, group_metadata, strict=False):
         # Get dimension variable metadata. This involves checking for the presence of any bounds variables.
         variables = group_metadata['variables']
         dimensions = group_metadata['dimensions']
@@ -252,7 +256,7 @@ class DriverNetcdfCF(DriverNetcdf):
 
         # Get the main entry for each axis.
         for k, v in axes.items():
-            axes[k] = get_dimension_map_entry(v, variables, dimensions)
+            axes[k] = get_dimension_map_entry(v, variables, dimensions, strict=strict)
 
         # Attempt to find bounds for each entry (ignoring realizations).
         for k in check_bounds:
@@ -273,16 +277,9 @@ class DriverNetcdfCF(DriverNetcdf):
         ret = {k: v for k, v in axes.items() if v is not None}
 
         # Check for coordinate system variables. This will check every variable.
-        crs_name = None
-        if self.rd._has_assigned_coordinate_system:
-            if self.rd._crs is not None:
-                crs_name = self.rd._crs.name
-        else:
-            crs = self.get_crs(group_metadata)
-            if crs is not None:
-                crs_name = crs.name
+        crs_name = get_coordinate_system_variable_name(self, group_metadata)
         if crs_name is not None:
-            ret['crs'] = {'variable': crs_name}
+            ret[DimensionMapKeys.CRS] = {DimensionMapKeys.VARIABLE: crs_name}
 
         return ret
 
@@ -425,6 +422,23 @@ def init_variable_using_metadata_for_netcdf(driver, variable, metadata):
             continue
         if k not in variable_attrs:
             variable_attrs[k] = deepcopy(v)
+    # The conform units to value should be the default units value. Units will be converted on variable load.
+    conform_units_to = var.get('conform_units_to')
+    if conform_units_to is not None:
+        variable_attrs['units'] = conform_units_to
+
+
+def get_coordinate_system_variable_name(driver_object, group_metadata):
+    rd = driver_object.rd
+    crs_name = None
+    if rd._has_assigned_coordinate_system:
+        if rd._crs is not None:
+            crs_name = rd._crs.name
+    else:
+        crs = driver_object.get_crs(group_metadata)
+        if crs is not None:
+            crs_name = crs.name
+    return crs_name
 
 
 def get_dimensions_from_netcdf_metadata(metadata, desired_dimensions):

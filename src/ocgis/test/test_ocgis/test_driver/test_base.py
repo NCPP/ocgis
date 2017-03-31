@@ -42,11 +42,11 @@ class TestAbstractDriver(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         driver = DriverNetcdf(rd)
         field = driver.get_field()
-        self.assertTrue(field._should_regrid)
+        self.assertTrue(field.regrid_source)
         rd.regrid_source = False
         driver = DriverNetcdf(rd)
         field = driver.get_field()
-        self.assertFalse(field._should_regrid)
+        self.assertFalse(field.regrid_source)
 
         # test flag with an assigned coordinate system
         rd = self.test_data.get_rd('cancm4_tas')

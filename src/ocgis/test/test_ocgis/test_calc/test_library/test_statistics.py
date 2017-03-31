@@ -26,7 +26,7 @@ class TestDailyPercentile(AbstractTestField):
         ret = compute(ops, 2, verbose=False)
 
         rd = ocgis.RequestDataset(uri=ret)
-        self.assertEqual(rd.get().shape, (1, 365, 1, 4, 3))
+        self.assertEqual(rd.get().data_variables[0].shape, (365, 3, 3))
 
     @attr('data', 'slow')
     def test_system_operations(self):
@@ -49,7 +49,7 @@ class TestDailyPercentile(AbstractTestField):
         dp = DailyPercentile(field=field, parms=parms)
         vc = dp.execute()
 
-        self.assertAlmostEqual(vc['daily_perc'].value.mean(), 0.76756388346354165)
+        self.assertAlmostEqual(vc['daily_perc'].get_value().mean(), 0.76756388346354165)
 
     @attr('data')
     def test_get_daily_percentile_from_request_dataset(self):
@@ -85,7 +85,7 @@ class TestMovingWindow(AbstractTestField):
     def test_execute(self):
         field = self.get_field(month_count=1, with_value=True)
         field = field.get_field_slice({'time': slice(0, 4)})
-        field['tmax'].value[:] = 1
+        field['tmax'].get_value()[:] = 1
 
         mask = field['tmax'].get_mask(create=True)
         mask[:, :, :, 1, 1] = True
@@ -97,12 +97,12 @@ class TestMovingWindow(AbstractTestField):
                 ma = MovingWindow(field=field, parms=parms)
                 vc = ma.execute()
                 if mode == 'same':
-                    self.assertEqual(vc['moving_window'].value.shape, field['tmax'].shape)
+                    self.assertEqual(vc['moving_window'].get_value().shape, field['tmax'].shape)
                 else:
                     actual_mask = vc['moving_window'].get_mask()
                     self.assertTrue(np.all(actual_mask[:, 0, :, :, :]))
                     self.assertTrue(np.all(actual_mask[:, -1, :, :, :]))
-                    self.assertEqual(vc['moving_window'].value.shape, (2, 4, 2, 3, 4))
+                    self.assertEqual(vc['moving_window'].get_value().shape, (2, 4, 2, 3, 4))
 
     @attr('data')
     def test_execute_valid_through_operations(self):
@@ -227,9 +227,9 @@ class TestMean(AbstractTestField):
         dvc = mu.execute()
         dv = dvc['my_mean']
         self.assertEqual(dv.name, 'my_mean')
-        self.assertEqual(dv.value.shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAll(np.ma.mean(field['tmax'].value[1, tgd.dgroups[1], 0, :, :], axis=0),
-                            dv.value[1, 1, 0, :, :])
+        self.assertEqual(dv.get_value().shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAll(np.ma.mean(field['tmax'].get_value()[1, tgd.dgroups[1], 0, :, :], axis=0),
+                            dv.get_value()[1, 1, 0, :, :])
 
     @attr('data')
     def test_execute_file_only(self):
@@ -255,9 +255,9 @@ class TestMean(AbstractTestField):
         dvc = mu.execute()
         dv = dvc['my_mean']
         self.assertEqual(dv.name, 'my_mean')
-        self.assertEqual(dv.value.shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAll(np.ma.mean(field['tmax'].value[1, tgd.dgroups[1], 0, :, :], axis=0),
-                            dv.value[1, 1, 0, :, :])
+        self.assertEqual(dv.get_value().shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAll(np.ma.mean(field['tmax'].get_value()[1, tgd.dgroups[1], 0, :, :], axis=0),
+                            dv.get_value()[1, 1, 0, :, :])
 
         ret = dvc['n_my_mean']
         self.assertNumpyAll(ret.masked_value[0, 0, 0],
@@ -275,25 +275,29 @@ class TestMean(AbstractTestField):
         """Test running a field with two variables through the mean calculation."""
 
         field = self.get_field(with_value=True, month_count=2)
-        field.add_variable(Variable(value=field['tmax'].value + 5, name='tmin', dimensions=field['tmax'].dimensions),
-                           is_data=True)
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions),
+            is_data=True)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64)
         ret = mu.execute()
         self.assertEqual(len(ret), 2)
-        self.assertAlmostEqual(5.0, abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
+        self.assertAlmostEqual(5.0,
+                               abs(ret['my_mean_tmax'].get_value().mean() - ret['my_mean_tmin'].get_value().mean()))
 
     def test_execute_two_variables_sample_size(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.add_variable(Variable(value=field['tmax'].value + 5, name='tmin', dimensions=field['tmax'].dimensions),
-                           is_data=True)
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions),
+            is_data=True)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64, calc_sample_size=True)
         ret = mu.execute()
         self.assertEqual(len(ret), 4)
-        self.assertAlmostEqual(5.0, abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
+        self.assertAlmostEqual(5.0,
+                               abs(ret['my_mean_tmax'].get_value().mean() - ret['my_mean_tmin'].get_value().mean()))
         self.assertEqual({'my_mean_tmax', 'n_my_mean_tmax', 'my_mean_tmin', 'n_my_mean_tmin'},
                          set(ret.keys()))
 

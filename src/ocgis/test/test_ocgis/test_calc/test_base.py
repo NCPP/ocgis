@@ -389,8 +389,8 @@ class TestAbstractUnivariateFunction(AbstractTestField):
         field = self.get_field(with_value=True)
         fnu = MockNeedsUnits(field=field)
         ret = fnu.execute()
-        self.assertNumpyAll(field['tmax'].value.astype(MockNeedsUnits.get_default_dtype()),
-                            ret['fnu'].value)
+        self.assertNumpyAll(field['tmax'].get_value().astype(MockNeedsUnits.get_default_dtype()),
+                            ret['fnu'].get_value())
 
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)

@@ -47,8 +47,9 @@ class TestEvalFunction(TestBase):
         ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
         var = field['tas']
-        actual_value = 6.1078 * np.exp(np.log(17.08085) * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
-        self.assertNumpyAll(ret['es'].value, actual_value)
+        actual_value = 6.1078 * np.exp(
+            np.log(17.08085) * (var.get_value() - 273.16) / (234.175 + (var.get_value() - 273.16)))
+        self.assertNumpyAll(ret['es'].get_value(), actual_value)
 
     @attr('data')
     def test_calculation_one_variable_exp_only(self):
@@ -57,15 +58,15 @@ class TestEvalFunction(TestBase):
         # field = field[:, 0:10, :, :, :]
         field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
-        ef = EvalFunction(expr=expr, field=field, add_parents=True)
+        ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
         self.assertEqual(ret.keys(), ['es'])
         self.assertEqual(ret['es'].units, None)
         self.assertEqual(ret['es'].name, 'es')
 
         var = field['tas']
-        actual_value = 6.1078 * np.exp(17.08085 * (var.value - 273.16) / (234.175 + (var.value - 273.16)))
-        self.assertNumpyAll(ret['es'].value, actual_value)
+        actual_value = 6.1078 * np.exp(17.08085 * (var.get_value() - 273.16) / (234.175 + (var.get_value() - 273.16)))
+        self.assertNumpyAll(ret['es'].get_value(), actual_value)
 
     @attr('data')
     def test_calculation_two_variables_exp_only(self):
@@ -79,15 +80,14 @@ class TestEvalFunction(TestBase):
 
         field = field.get_field_slice({'time': slice(0, 10)})
         expr = 'foo=log(1000*(tasmax-tas))/3'
-        ef = EvalFunction(expr=expr, field=field, add_parents=True)
+        ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
         self.assertEqual(ret.keys(), ['foo'])
-        # self.assertEqual(set(ret['foo'].parents.keys()), {'tas', 'tasmax'})
 
         tas = field['tas']
         tasmax = field['tasmax']
-        actual_value = np.log(1000 * (tasmax.value - tas.value)) / 3
-        self.assertNumpyAll(ret['foo'].value, actual_value)
+        actual_value = np.log(1000 * (tasmax.get_value() - tas.get_value())) / 3
+        self.assertNumpyAll(ret['foo'].get_value(), actual_value)
 
     def test_get_eval_string(self):
         expr = 'es=6.1078*exp(log(17.08085)*(tas-273.16)/(234.175+(tas-273.16)))'

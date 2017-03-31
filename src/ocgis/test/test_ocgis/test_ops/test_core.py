@@ -5,7 +5,7 @@ import os
 from datetime import datetime as dt
 
 import numpy as np
-from shapely.geometry import Point
+from shapely.geometry import Point, LineString
 
 import ocgis
 from ocgis import RequestDataset
@@ -191,8 +191,8 @@ class TestOcgOperations(TestBase):
         slc = [None, [0, 10], None, [0, 10], [0, 10]]
         for output_format in ['numpy', 'csv']:
             ops = OcgOperations(dataset=rd, output_format=output_format, aggregate=True, slice=slc, melted=True)
-            # Spatial operations on rotated pole require the output crs be WGS84.
-            self.assertEqual(ops.output_crs, CFWGS84())
+            # Spatial operations on rotated pole require the output be spherical.
+            self.assertEqual(ops.output_crs, Spherical())
             ret = ops.execute()
             if output_format == constants.OUTPUT_FORMAT_NUMPY:
                 field = ret.get_element()
@@ -561,11 +561,14 @@ class TestOcgOperations(TestBase):
         rd._field_name = 'f1'
         rd2 = self.test_data.get_rd('cancm4_tas')
         rd2._field_name = 'f2'
+
+        self.assertEqual(rd.get().time.calendar, '365_day')
+
         tr = [datetime.datetime(2002, 1, 1), datetime.datetime(2002, 3, 1)]
         ops = ocgis.OcgOperations(dataset=[rd, rd2], time_range=tr)
         ret = ops.execute()
         for field in ret.iter_fields():
-            self.assertEqual(field.time.extent, (55480.0, 55539.0))
+            self.assertEqual(field.time.extent, (55480.0, 55540.0))
 
     @attr('data')
     def test_keyword_time_range_and_time_region_null_parms(self):
@@ -703,6 +706,29 @@ class TestOcgOperationsNoData(TestBase):
         actual = ret.get_element()
         self.assertEqual(field.keys(), actual.keys())
 
+    def test_system_file_only(self):
+        """Test file only writing."""
+
+        field = self.get_field(nlevel=3, nrlz=4, ntime=62)
+
+        for fo in [True, False]:
+            ops = OcgOperations(dataset=field, calc=[{'func': 'mean', 'name': 'mean'}], calc_grouping=['month'],
+                                output_format='nc', file_only=fo, prefix=str(fo))
+            ret = ops.execute()
+
+            out_field = RequestDataset(ret).get()
+            for var in out_field.values():
+                if fo and var.name == 'mean':
+                    self.assertFalse(var.has_allocated_value)
+                else:
+                    self.assertIsNone(var.get_mask())
+
+            actual = out_field['mean']
+            if fo:
+                self.assertTrue(actual.get_mask().all())
+            else:
+                self.assertTrue(actual.get_value().sum() > 5)
+
     def test_system_geometry_identifer_added(self):
         """Test geometry identifier is added for linked dataset geometry formats."""
 
@@ -752,9 +778,33 @@ class TestOcgOperationsNoData(TestBase):
         actual = ret.get_element()
         self.assertEqual(actual.time.shape, (1,))
         self.assertEqual(actual.time.value_datetime[0].year, 2004)
-        self.assertEqual(actual.level.value.tolist(), [30, 40])
+        self.assertEqual(actual.level.get_value().tolist(), [30, 40])
         self.assertAlmostEqual(actual.data_variables[0].get_value().mean(), -17.511663542109229)
         self.assertEqual(actual.data_variables[0].units, 'celsius')
+
+    def test_system_line_subsetting(self):
+        """Test subsetting with a line."""
+
+        line = LineString([(-0.4, 0.2), (1.35, 0.3), (1.38, -0.716)])
+        geom = [{'geom': line, 'crs': None}]
+
+        x = Variable('x', [-1, -0.5, 0.5, 1.5, 2], 'x')
+        y = Variable('y', [-0.5, 0.5, 1.5], 'y')
+        grid = GridXY(x, y)
+        grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
+        field = OcgField(grid=grid)
+
+        ops = OcgOperations(dataset=field, geom=geom)
+        ret = ops.execute()
+        field = ret.get_element()
+
+        desired = [[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], [[-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5]]]
+        actual = field.grid.get_value_stacked().tolist()
+        self.assertEqual(actual, desired)
+
+        desired = [[True, True, False], [False, False, False]]
+        actual = field.grid.get_mask().tolist()
+        self.assertEqual(actual, desired)
 
     def test_system_user_geometry_identifer_added(self):
         """Test geometry identifier is added for linked dataset geometry formats."""
@@ -785,14 +835,14 @@ class TestOcgOperationsNoData(TestBase):
         self.assertIsNone(field.temporal._value)
 
         desired = [0., 1., 2., 366., 367., 368.]
-        actual = field.temporal.value.tolist()
+        actual = field.temporal.get_value().tolist()
         self.assertEqual(actual, desired)
 
         ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_NETCDF)
         ret = ops.execute()
 
         out_rd = RequestDataset(uri=ret)
-        self.assertEqual(out_rd.get().temporal.value.tolist(), desired)
+        self.assertEqual(out_rd.get().temporal.get_value().tolist(), desired)
 
     @attr('mpi')
     def test_system_spatial_wrapping_and_reorder(self):

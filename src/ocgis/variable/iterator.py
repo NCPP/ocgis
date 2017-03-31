@@ -87,8 +87,9 @@ class Iterator(AbstractOcgisObject):
                     raise ValueError(msg)
                 if follower_dimensions != dimensions:
                     follower_slice_remap = []
-                    for d in set_dimensions.intersection(set_follower_dimensions):
-                        follower_slice_remap.append(dimensions.index(d))
+                    for d in follower_dimensions:
+                        if d in set_dimensions:
+                            follower_slice_remap.append(dimensions.index(d))
                     iterator.slice_remap = follower_slice_remap
                     iterator.shape = self.shape
                 iterator._is_lead = False

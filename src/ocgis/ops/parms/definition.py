@@ -7,9 +7,7 @@ from copy import deepcopy, copy
 from os.path import exists
 
 import numpy as np
-from shapely.geometry import MultiPoint
 from shapely.geometry.base import BaseGeometry
-from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 from types import FunctionType
@@ -611,8 +609,7 @@ class Geom(base.AbstractParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [list, tuple, GeomCabinetIterator, Polygon, MultiPolygon, Point, MultiPoint, OcgField,
-                   GeometryVariable]
+    input_types = [list, tuple, GeomCabinetIterator, BaseGeometry, OcgField, GeometryVariable]
     return_type = [GeomCabinetIterator, tuple]
     _shp_key = None
     _bounds = None
@@ -1079,13 +1076,16 @@ class RegridOptions(base.AbstractParameter):
 class SearchRadiusMultiplier(base.AbstractParameter):
     input_types = [float]
     name = 'search_radius_mult'
-    nullable = False
+    nullable = True
     return_type = [float]
-    default = 2.0
+    default = None
 
     def _get_meta_(self):
-        msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(
-            self.value)
+        if self.value is not None:
+            msg = 'If point geometries were used for selection, a modifier of {0} times the data resolution was used to spatially select data.'.format(
+                self.value)
+        else:
+            msg = 'No buffering applied to point selection geometries.'
         return msg
 
     def _validate_(self, value):

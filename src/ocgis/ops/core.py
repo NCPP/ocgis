@@ -5,7 +5,7 @@ from ocgis.ops.interpreter import OcgInterpreter
 from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import *
 from ocgis.util.addict import Dict
-from ocgis.variable.crs import CFRotatedPole, WGS84, Spherical, CFWGS84
+from ocgis.variable.crs import CFRotatedPole, WGS84, Spherical
 
 
 class OcgOperations(AbstractOcgisObject):
@@ -120,7 +120,7 @@ class OcgOperations(AbstractOcgisObject):
                  geom_select_uid=None, geom_uid=None, aggregate=False, calc=None, calc_grouping=None,
                  calc_raw=False, abstraction='auto', snippet=False, backend='ocg', prefix=None, output_format='numpy',
                  agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False, dir_output=None,
-                 slice=None, file_only=False, format_time=True, calc_sample_size=False, search_radius_mult=2.0,
+                 slice=None, file_only=False, format_time=True, calc_sample_size=False, search_radius_mult=None,
                  output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True, optimizations=None,
                  callback=None, time_range=None, time_region=None, time_subset_func=None, level_range=None,
                  conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None,
@@ -357,16 +357,16 @@ class OcgOperations(AbstractOcgisObject):
         # clip and/or aggregation operations may not be written back to CFRotatedPole at this time. hence, the output
         # crs must be set to CFWGS84.
         if CFRotatedPole in map(type, projections):
-            if self.output_crs is not None and not isinstance(self.output_crs, WGS84):
-                msg = ('{0} data may only be written to the same coordinate system (i.e. "output_crs=None") '
-                       'or {1}.').format(CFRotatedPole.__name__, CFWGS84.__name__)
+            if self.output_crs is not None and self.output_crs != Spherical():
+                msg = '{0} data may only be written to the same coordinate system (i.e. "output_crs=None") or spherical.'
+                msg = msg.format(CFRotatedPole.__name__)
                 _raise_(msg, obj=OutputCRS)
             if self.aggregate or self.spatial_operation == 'clip':
                 msg = (
                     '{0} data if clipped or spatially averaged must be written to ' '{1}. The "output_crs" is being updated to {2}.').format(
-                    CFRotatedPole.__name__, CFWGS84.__name__, CFWGS84.__name__)
+                    CFRotatedPole.__name__, env.DEFAULT_COORDSYS.name, env.DEFAULT_COORDSYS.name)
                 ocgis_lh(level=logging.WARN, msg=msg, logger='operations')
-                self._get_object_('output_crs')._value = CFWGS84()
+                self._get_object_('output_crs')._value = Spherical()
 
         # Only WGS84 coordinate system may be written to GeoJSON.
         if self.output_format == constants.OUTPUT_FORMAT_GEOJSON:

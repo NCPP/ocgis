@@ -153,9 +153,9 @@ class AbstractSpatialVariable(SourcedVariable, AbstractOperationsSpatialObject):
             ret.crs = ret.crs.deepcopy()
         return ret
 
-    def extract(self):
+    def extract(self, **kwargs):
         crs = self.crs
-        ret = super(AbstractSpatialVariable, self).extract()
+        ret = super(AbstractSpatialVariable, self).extract(**kwargs)
         if crs is not None:
             self.parent.add_variable(crs)
         return ret
@@ -337,8 +337,8 @@ class GeometryVariable(AbstractSpatialVariable):
         geom_type = kwargs.pop('geom_type', 'auto')
 
         ret = self.copy()
-        new_value = np.empty_like(ret.value, dtype=object)
-        to_buffer = self.value
+        new_value = np.empty_like(ret.get_value(), dtype=object)
+        to_buffer = self.get_value()
         mask = self.get_mask()
         for idx, mask_value in iter_array(mask, return_value=True):
             if not mask_value:
@@ -369,7 +369,7 @@ class GeometryVariable(AbstractSpatialVariable):
         ret, ret_mask, ret_slice = get_masking_slice(intersects_mask_value, ret, comm=comm)
 
         if not ret.is_empty:
-            ret.set_mask(ret_mask.value, cascade=cascade, update=True)
+            ret.set_mask(ret_mask.get_value(), cascade=cascade, update=True)
         else:
             for var in ret.parent.values():
                 assert var.is_empty
@@ -431,7 +431,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
         if not obj.is_empty:
             if not inplace:
-                obj.set_value(deepcopy(obj.value))
+                obj.set_value(deepcopy(obj.get_value()))
             obj_value = obj.get_masked_value()
             for idx, geom in iter_array(obj_value, return_value=True):
                 obj_value.data[idx] = geom.intersection(subset_geometry)
@@ -570,10 +570,10 @@ class GeometryVariable(AbstractSpatialVariable):
                     sub = self[dslc]
                     sub_mask = sub.get_mask()
                     if sub_mask is None:
-                        to_union.append(sub.value.flatten()[0])
+                        to_union.append(sub.get_value().flatten()[0])
                     else:
                         if not sub_mask.flatten()[0]:
-                            to_union.append(sub.value.flatten()[0])
+                            to_union.append(sub.get_value().flatten()[0])
 
                 # Execute the union operation.
                 processed_to_union = deque()
@@ -646,7 +646,7 @@ class GeometryVariable(AbstractSpatialVariable):
                         if should_squeeze:
                             data_to_weight = np_squeeze(data_to_weight, axis=tuple(squeeze_out))
                         weighted_value = np_atleast_1d(np_ma_average(data_to_weight, weights=weights))
-                        target[w_slc].value[:] = weighted_value
+                        target[w_slc].get_value()[:] = weighted_value
                 else:
                     weighted_value = np.atleast_1d(np.ma.average(var_to_weight.masked_value, weights=weights))
                     target = ret.parent[var_to_weight.name]
@@ -676,7 +676,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     slc = {union_dimension.name: 0}
                     for idx_slc in var_to_weight.iter_dict_slices(dimensions=dimensions_to_itr):
                         idx_slc.update(slc)
-                        to_weight = var_to_weight[idx_slc].value.flatten()[0]
+                        to_weight = var_to_weight[idx_slc].get_value().flatten()[0]
 
                         if rank == root:
                             collected_to_weight = [to_weight]
@@ -688,7 +688,7 @@ class GeometryVariable(AbstractSpatialVariable):
                                     recv_to_weight = comm.recv(source=tner)
                                     collected_to_weight.append(recv_to_weight)
                             weighted = np.atleast_1d(np.ma.average(collected_to_weight, weights=rank_weights))
-                            var_to_weight[idx_slc].value[:] = weighted
+                            var_to_weight[idx_slc].get_value()[:] = weighted
 
         if rank == root:
             return ret
@@ -702,7 +702,7 @@ class GeometryVariable(AbstractSpatialVariable):
             return
 
         # Be sure and project masked geometries to maintain underlying geometries.
-        r_value = self.value.reshape(-1)
+        r_value = self.get_value().reshape(-1)
         r_loads = wkb.loads
         r_create = ogr.CreateGeometryFromWkb
         to_sr = to_crs.sr
@@ -718,7 +718,7 @@ class GeometryVariable(AbstractSpatialVariable):
         if use_mask:
             to_itr = self.masked_value.compressed()
         else:
-            to_itr = self.value.flat
+            to_itr = self.get_value().flat
         r_geom_class = GEOM_TYPE_MAPPING[self.geom_type]
 
         for idx, geom in enumerate(to_itr):
@@ -903,7 +903,7 @@ def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=
     global_index = np.ma.array(global_index, mask=original_mask).compressed()
     # Select the geometry targets. If an original mask is provided, use this. It may be modified to limit the search
     # area for intersects operations. Useful for speeding up grid subsetting operations.
-    geometry_target = np.ma.array(gvar.value, mask=original_mask).compressed()
+    geometry_target = np.ma.array(gvar.get_value(), mask=original_mask).compressed()
 
     if use_spatial_index:
         si = gvar.get_spatial_index(target=geometry_target)

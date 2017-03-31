@@ -257,8 +257,7 @@ class AbstractIcclimPercentileDictionaryIndice(AbstractIcclimPercentileIndice):
 
     def _get_percentile_basis_(self, value):
         percentile_basis = get_percentile_dict(value, self.field.temporal.value_datetime, self.percentile,
-                                               self.window_width, self.field.temporal.calendar,
-                                               self.field.temporal.units, only_leap_years=self.only_leap_years)
+                                               self.window_width, only_leap_years=self.only_leap_years)
         return percentile_basis
 
 

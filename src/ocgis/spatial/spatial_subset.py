@@ -72,7 +72,7 @@ class SpatialSubsetOperation(object):
 
         if not isinstance(geom, GeometryVariable):
             geom = GeometryVariable(value=geom, name='geom', dimensions='one', crs=geom_crs)
-        if geom.value.flatten().shape != (1,):
+        if geom.get_value().flatten().shape != (1,):
             msg = 'Only one subset geometry allowed. The shape of the geometry variable is {}.'.format(geom.shape)
             raise ValueError(msg)
         if optimized_bbox_subset:
@@ -89,7 +89,7 @@ class SpatialSubsetOperation(object):
 
         self._prepare_target_()
         prepared = self._prepare_geometry_(geom)
-        base_geometry = prepared.value.flatten()[0]
+        base_geometry = prepared.get_value().flatten()[0]
 
         # execute the spatial operation
         if operation == 'intersects':
@@ -149,7 +149,7 @@ class SpatialSubsetOperation(object):
         to_buffer = deepcopy(geom)
         if buffer_crs is not None:
             to_buffer.update_crs(buffer_crs)
-        to_buffer.value[0] = to_buffer.value[0].buffer(buffer_value, cap_style=3)
+        to_buffer.get_value()[0] = to_buffer.get_value()[0].buffer(buffer_value, cap_style=3)
         if buffer_crs is not None:
             to_buffer.update_crs(geom.crs)
         return to_buffer
@@ -194,7 +194,8 @@ class SpatialSubsetOperation(object):
                 msg = "The subset geometry has no assigned CRS and the target field does. Set the subset geometry's " \
                       "CRS to continue."
                 raise ValueError(msg)
-            prepared.update_crs(self.field.crs)
+            if prepared.crs is not None and self.field.crs is not None:
+                prepared.update_crs(self.field.crs)
         field_wrapped_state = self.field.wrapped_state
         prepared_wrapped_state = prepared.wrapped_state
         if field_wrapped_state == WrappedState.UNWRAPPED:

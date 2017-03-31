@@ -11,34 +11,34 @@ from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
 
 
 class TestDuration(AbstractCalcBase):
-    def test_duration(self):
+    def test_calculate(self):
         duration = Duration()
 
-        # # three consecutive days over 3
+        # Three consecutive days over 3
         values = np.array([1, 2, 3, 3, 3, 1, 1], dtype=float)
         values = self.get_reshaped(values)
         ret = duration.calculate(values, 2, operation='gt', summary='max')
         self.assertEqual(3.0, ret.flatten()[0])
 
-        # # no duration over the threshold
+        # No duration over the threshold
         values = np.array([1, 2, 1, 2, 1, 2, 1], dtype=float)
         values = self.get_reshaped(values)
         ret = duration.calculate(values, 2, operation='gt', summary='max')
         self.assertEqual(0., ret.flatten()[0])
 
-        ## no duration over the threshold
+        # No duration over the threshold
         values = np.array([1, 2, 1, 2, 1, 2, 1], dtype=float)
         values = self.get_reshaped(values)
         ret = duration.calculate(values, 2, operation='gte', summary='max')
         self.assertEqual(1., ret.flatten()[0])
 
-        ## average duration
+        # Average duration
         values = np.array([1, 5, 5, 2, 5, 5, 5], dtype=float)
         values = self.get_reshaped(values)
         ret = duration.calculate(values, 4, operation='gte', summary='mean')
         self.assertEqual(2.5, ret.flatten()[0])
 
-        ## add some masked values
+        # Add some masked values
         values = np.array([1, 5, 5, 2, 5, 5, 5], dtype=float)
         mask = [0, 0, 0, 0, 0, 1, 0]
         values = np.ma.array(values, mask=mask)
@@ -46,7 +46,7 @@ class TestDuration(AbstractCalcBase):
         ret = duration.calculate(values, 4, operation='gte', summary='max')
         self.assertEqual(2., ret.flatten()[0])
 
-        ## test with an actual matrix
+        # Test with an actual matrix
         values = np.array([1, 5, 5, 2, 5, 5, 5, 4, 4, 0, 2, 4, 4, 4, 3, 3, 5, 5, 6, 9], dtype=float)
         values = values.reshape(5, 2, 2)
         values = np.ma.array(values, mask=False)
@@ -54,7 +54,7 @@ class TestDuration(AbstractCalcBase):
         self.assertNumpyAll(np.ma.array([4., 2., 1.5, 1.5], dtype=ret.dtype), ret.flatten())
 
     @attr('data')
-    def test_standard_operations(self):
+    def test_system_standard_operations(self):
         ret = self.run_standard_operations(
             [{'func': 'duration', 'name': 'max_duration',
               'kwds': {'operation': 'gt', 'threshold': 2, 'summary': 'max'}}],
@@ -74,8 +74,8 @@ class TestFrequencyDuration(AbstractCalcBase):
 
     @attr('data')
     def test_calculate(self):
-        fduration = FrequencyDuration()
 
+        fduration = FrequencyDuration()
         values = np.array([1, 2, 3, 3, 3, 1, 1, 3, 3, 3, 4, 4, 1, 4, 4, 1, 10, 10], dtype=float)
         values = self.get_reshaped(values)
         ret = fduration.calculate(values, threshold=2, operation='gt')
@@ -106,8 +106,7 @@ class TestFrequencyDuration(AbstractCalcBase):
                                    'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
                             calc_grouping=['month', 'year'],
                             geom='us_counties', select_ugid=[2778], aggregate=True,
-                            calc_raw=False, spatial_operation='clip',
-                            headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key', 'value'], )
+                            calc_raw=False, spatial_operation='clip')
         ret = ops.execute()
 
         with open(ret, 'r') as f:
@@ -137,7 +136,7 @@ class TestFrequencyDuration(AbstractCalcBase):
             ret = ops.execute()
 
             if output_format == 'numpy':
-                ref = ret[2778]['tasmax'].variables['Frequency Duration'].value
+                ref = ret[2778]['tasmax'].variables['Frequency Duration'].get_value()
                 self.assertEqual(ref.compressed()[0].shape, (2,))
 
             if output_format == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:

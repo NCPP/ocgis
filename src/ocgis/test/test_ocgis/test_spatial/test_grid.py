@@ -98,7 +98,7 @@ class TestGridXY(AbstractTestInterface):
 
         # Assert polygon constructed from grid corners contains the associated centroid value.
         for ii, jj in itertools.product(range(grid.shape[0]), range(grid.shape[1])):
-            pt = Point(grid.value.data[1, ii, jj], grid.value.data[0, ii, jj])
+            pt = Point(grid.get_value().data[1, ii, jj], grid.get_value().data[0, ii, jj])
             poly_corners = grid.corners.data[:, ii, jj]
             rtup = (poly_corners[0, :].min(), poly_corners[0, :].max())
             ctup = (poly_corners[1, :].min(), poly_corners[1, :].max())
@@ -106,7 +106,7 @@ class TestGridXY(AbstractTestInterface):
             self.assertTrue(poly.contains(pt))
 
         # Assert masks are equivalent between value and corners.
-        for (ii, jj), m in iter_array(grid.value.mask[0, :, :], return_value=True):
+        for (ii, jj), m in iter_array(grid.get_value().mask[0, :, :], return_value=True):
             if m:
                 self.assertTrue(grid.corners.mask[:, ii, jj].all())
             else:
@@ -115,8 +115,10 @@ class TestGridXY(AbstractTestInterface):
         grid_y = grid._y
         grid_x = grid._x
         if grid_y is not None or grid_x is not None:
-            self.assertEqual(_get_is_ascending_(grid_y.value), _get_is_ascending_(grid.corners.data[0, :, 0][:, 0]))
-            self.assertEqual(_get_is_ascending_(grid_x.value), _get_is_ascending_(grid.corners.data[1, 0, :][:, 0]))
+            self.assertEqual(_get_is_ascending_(grid_y.get_value()),
+                             _get_is_ascending_(grid.corners.data[0, :, 0][:, 0]))
+            self.assertEqual(_get_is_ascending_(grid_x.get_value()),
+                             _get_is_ascending_(grid.corners.data[1, 0, :][:, 0]))
 
     def get_iter_gridxy(self, return_kwargs=False):
         poss = [True, False]
@@ -144,8 +146,8 @@ class TestGridXY(AbstractTestInterface):
         x = Variable(name='col', value=[1], dimensions='col')
         y = Variable(name='row', value=[2], dimensions='row')
         grid = GridXY(x, y)
-        assert_equal(grid.x.value, [1])
-        assert_equal(grid.y.value, [2])
+        assert_equal(grid.x.get_value(), [1])
+        assert_equal(grid.y.get_value(), [2])
 
         # Test point and polygon representations.
         grid = self.get_gridxy(crs=WGS84())
@@ -178,7 +180,7 @@ class TestGridXY(AbstractTestInterface):
         self.assertEqual(len(fgrid.dimensions), 2)
         for target in [fgrid._y_name, fgrid._x_name]:
             fgrid.parent[target].protected = False
-        actual = np.mean([fgrid.x.value.mean(), fgrid.y.value.mean()])
+        actual = np.mean([fgrid.x.get_value().mean(), fgrid.y.get_value().mean()])
         self.assertEqual(actual, 71.75)
 
     def test_system_masking(self):
@@ -243,31 +245,31 @@ class TestGridXY(AbstractTestInterface):
         sub = grid[2, 1]
         self.assertNotIn('point', sub.parent)
         self.assertNotIn('polygon', sub.parent)
-        self.assertEqual(sub.x.value, 102.)
-        self.assertEqual(sub.y.value, 42.)
+        self.assertEqual(sub.x.get_value(), 102.)
+        self.assertEqual(sub.y.get_value(), 42.)
 
         # Test with two-dimensional x and y values.
         grid = self.get_gridxy(with_2d_variables=True)
         sub = grid[1:3, 1:3]
         actual_x = [[102.0, 103.0], [102.0, 103.0]]
-        self.assertEqual(sub.x.value.tolist(), actual_x)
+        self.assertEqual(sub.x.get_value().tolist(), actual_x)
         actual_y = [[41.0, 41.0], [42.0, 42.0]]
-        self.assertEqual(sub.y.value.tolist(), actual_y)
+        self.assertEqual(sub.y.get_value().tolist(), actual_y)
 
         # Test with parent.
         grid = self.get_gridxy(with_parent=True)
         self.assertEqual(id(grid.x.parent), id(grid.y.parent))
-        orig_tas = grid.parent['tas'].value[slice(None), slice(1, 2), slice(2, 4)]
-        orig_rhs = grid.parent['rhs'].value[slice(2, 4), slice(1, 2), slice(None)]
+        orig_tas = grid.parent['tas'].get_value()[slice(None), slice(1, 2), slice(2, 4)]
+        orig_rhs = grid.parent['rhs'].get_value()[slice(2, 4), slice(1, 2), slice(None)]
         self.assertEqual(grid.shape, (4, 3))
 
         sub = grid[2:4, 1]
         self.assertEqual(grid.shape, (4, 3))
         self.assertEqual(sub.parent['tas'].shape, (10, 1, 2))
         self.assertEqual(sub.parent['rhs'].shape, (2, 1, 10))
-        self.assertNumpyAll(sub.parent['tas'].value, orig_tas)
-        self.assertNumpyAll(sub.parent['rhs'].value, orig_rhs)
-        self.assertTrue(np.may_share_memory(sub.parent['tas'].value, grid.parent['tas'].value))
+        self.assertNumpyAll(sub.parent['tas'].get_value(), orig_tas)
+        self.assertNumpyAll(sub.parent['rhs'].get_value(), orig_rhs)
+        self.assertTrue(np.may_share_memory(sub.parent['tas'].get_value(), grid.parent['tas'].get_value()))
 
     @attr('mpi', 'mpi-3')
     def test_get_distributed_slice(self):
@@ -406,8 +408,8 @@ class TestGridXY(AbstractTestInterface):
             bg2 = grid.get_intersects(bounds_sequence, use_bounds=k.use_bounds)
 
             for target in ['x', 'y']:
-                original = getattr(grid, target).value
-                sub = getattr(bg2, target).value
+                original = getattr(grid, target).get_value()
+                sub = getattr(bg2, target).get_value()
                 self.assertNumpyAll(original, sub)
 
         # Test mask is not shared with subsetted grid.
@@ -485,8 +487,8 @@ class TestGridXY(AbstractTestInterface):
             sub = grid.get_intersects(actual_bbox, **k)
 
             if should_wrap and not sub.is_empty:
-                current_x_value = sub.x.value
-                current_x_value[sub.x.value < 0] += 360
+                current_x_value = sub.x.get_value()
+                current_x_value[sub.x.get_value() < 0] += 360
 
             self.assertEqual(sub.extent_global, (170.0, -10.0, 190.0, 5.0))
 
@@ -532,7 +534,7 @@ class TestGridXY(AbstractTestInterface):
 
             # Test geometries are filled appropriately after allocation.
             if not grid_sub.is_empty:
-                for t in grid_sub.get_abstraction_geometry().value.flat:
+                for t in grid_sub.get_abstraction_geometry().get_value().flat:
                     self.assertIsInstance(t, BaseGeometry)
             self.assertIsInstance(grid_sub, GridXY)
             if k.keep_touches:
@@ -665,8 +667,8 @@ class TestGridXY(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_intersects_state_boundaries(self):
+        # self.add_barrier = False
         path_shp = self.path_state_boundaries
-        # path_shp = '/home/benkoziol/Dropbox/NESII/project/ocg/bin/shp/world_countries/world_countries.shp'
         geoms = []
         with fiona.open(path_shp) as source:
             for record in source:
@@ -684,7 +686,6 @@ class TestGridXY(AbstractTestInterface):
         subset = MPI_COMM.bcast(subset)
         resolution = 1.0
 
-        # for with_bounds in [True]:
         for with_bounds in [False, True]:
             grid = self.get_gridxy_global(resolution=resolution, with_bounds=with_bounds)
             # barrier_print('before get_intersects:', with_bounds)
@@ -700,7 +701,7 @@ class TestGridXY(AbstractTestInterface):
             mask = variable_gather(mask)
 
             if MPI_RANK == 0:
-                mask_sum = np.invert(mask.value).sum()
+                mask_sum = np.invert(mask.get_value()).sum()
                 mask_shape = mask.shape
             else:
                 mask_sum = None
@@ -714,8 +715,9 @@ class TestGridXY(AbstractTestInterface):
                 self.assertEqual(mask_sum, 1358)
             else:
                 if MPI_SIZE == 2:
-                    grid_bounds_global = [dim.bounds_global for dim in grid_sub.dimensions]
-                    self.assertEqual(grid_bounds_global, [(0, 52), (0, 105)])
+                    if not grid_sub.is_empty:
+                        grid_bounds_global = [dim.bounds_global for dim in grid_sub.dimensions]
+                        self.assertEqual(grid_bounds_global, [(0, 52), (0, 105)])
                 self.assertEqual(mask_shape, (52, 105))
                 self.assertEqual(slc, (slice(109, 161, None), slice(8, 113, None)))
                 self.assertEqual(mask_sum, 1087)
@@ -756,8 +758,8 @@ class TestGridXY(AbstractTestInterface):
 
         data = Variable(name='data', value=np.zeros((3, 5, 7)),
                         dimensions=['dimt', 'dimy', 'dimx'], dtype=float)
-        data.value[:] = 10.
-        data.value[:, :, 3:x.shape[0]] = 20.
+        data.get_value()[:] = 10.
+        data.get_value()[:, :, 3:x.shape[0]] = 20.
         data_mask = data.get_mask(create=True)
         data_mask[:, :, 3:x.shape[0]] = 1
         data.set_mask(data_mask)
@@ -765,24 +767,24 @@ class TestGridXY(AbstractTestInterface):
         parent = VariableCollection(variables=[x, y, t, data])
 
         grid = GridXY(parent['lon'], parent['lat'], crs=Spherical(), parent=parent)
-        desired_y = grid.y.value.copy()
+        desired_y = grid.y.get_value().copy()
 
         grid.wrap()
 
-        self.assertFalse(np.any(data[:, :, 0:3].value == 20.))
+        self.assertFalse(np.any(data[:, :, 0:3].get_value() == 20.))
         self.assertFalse(np.any(data.get_mask()[:, :, 0:3]))
 
         grid.reorder()
-        actual = grid.x.value.tolist()
+        actual = grid.x.get_value().tolist()
         desired = [-179.5, -119.66666666666666, -59.833333333333314, 0.0, 1.0, 60.833333333333336, 120.66666666666667]
         self.assertEqual(actual, desired)
 
-        self.assertNumpyAll(desired_y, grid.y.value)
+        self.assertNumpyAll(desired_y, grid.y.get_value())
         rdata = grid.parent['data']
-        self.assertTrue(np.all(rdata[:, :, 0:3].value == 20.))
+        self.assertTrue(np.all(rdata[:, :, 0:3].get_value() == 20.))
         self.assertTrue(np.all(rdata.get_mask()[:, :, 0:4]))
         self.assertFalse(np.any(rdata.get_mask()[:, :, 4:]))
-        self.assertNumpyMayShareMemory(rdata.value, data.value)
+        self.assertNumpyMayShareMemory(rdata.get_value(), data.get_value())
 
     def test_resolution(self):
         for grid in self.get_iter_gridxy():
@@ -814,8 +816,8 @@ class TestGridXY(AbstractTestInterface):
             except BoundsAlreadyAvailableError:
                 self.assertTrue(should_extrapolate)
             else:
-                np.testing.assert_equal(grid.y.bounds.value, actual_corners[0])
-                np.testing.assert_equal(grid.x.bounds.value, actual_corners[1])
+                np.testing.assert_equal(grid.y.bounds.get_value(), actual_corners[0])
+                np.testing.assert_equal(grid.x.bounds.get_value(), actual_corners[1])
 
         # Test vectorized.
         y = Variable(name='y', value=[1., 2., 3.], dimensions='yy')
@@ -856,8 +858,8 @@ class TestGridXY(AbstractTestInterface):
         self.assertTrue(grid2.get_mask().all())
         grid[:, :] = grid2
         self.assertTrue(np.all(grid.get_mask()))
-        self.assertEqual(grid.x.value.mean(), 111)
-        self.assertEqual(grid.y.value.mean(), 222)
+        self.assertEqual(grid.x.get_value().mean(), 111)
+        self.assertEqual(grid.y.get_value().mean(), 222)
 
     def test_set_mask(self):
         grid = self.get_gridxy()
@@ -918,5 +920,5 @@ class TestGridXY(AbstractTestInterface):
         grid.update_crs(to_crs)
         self.assertEqual(grid.crs, to_crs)
         for element in [grid.x, grid.y]:
-            for target in [element.value, element.bounds.value]:
+            for target in [element.get_value(), element.bounds.get_value()]:
                 self.assertTrue(np.all(target > 10000))

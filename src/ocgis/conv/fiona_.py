@@ -33,13 +33,16 @@ class AbstractFionaConverter(AbstractTabularConverter):
 
         for field, container in coll.iter_fields(yield_container=True):
             # Try to load the geometry from the grid.
-            field.set_abstraction_geom(create_ugid=True)
+            set_ugid_as_data = False
+            if len(field.data_variables) == 0:
+                set_ugid_as_data = True
+            field.set_abstraction_geom(create_ugid=True, set_ugid_as_data=set_ugid_as_data)
 
             if add_geom_uid and field.geom is not None and field.geom.ugid is None:
                 field.geom.create_ugid_global(HeaderNames.ID_GEOMETRY)
 
             if container.geom is not None:
-                repeater = [(self.geom_uid, container.geom.ugid.value[0])]
+                repeater = [(self.geom_uid, container.geom.ugid.get_value()[0])]
             else:
                 repeater = None
             iter_kwargs[KeywordArguments.REPEATERS] = repeater

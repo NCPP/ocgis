@@ -874,23 +874,6 @@ def set_name_attributes(name_mapping):
             target.name = name
 
 
-def set_new_value_mask_for_field(field, mask):
-    shape_field = field.shape
-    for var in field.variables.itervalues():
-        if var._value is not None:
-            set_new_value_mask_for_variable(mask, shape_field, var.value)
-
-
-def set_new_value_mask_for_variable(mask, shape_field, value):
-    rng_realization = range(shape_field[0])
-    rng_temporal = range(shape_field[1])
-    rng_level = range(shape_field[2])
-    ref_logical_or = np.logical_or
-    for idx_r, idx_t, idx_l in itertools.product(rng_realization, rng_temporal, rng_level):
-        ref = value[idx_r, idx_t, idx_l]
-        ref.mask = ref_logical_or(ref.mask, mask)
-
-
 def update_or_pass(target, key, value):
     """
     :param dict target: The target dictionary to update.

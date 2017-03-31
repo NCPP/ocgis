@@ -30,8 +30,6 @@ class RegridOperation(AbstractOcgisObject):
     :type field_dst: :class:`ocgis.OcgField`
     :param subset_field: If provided, use this field to subset the regridding fields.
     :type subset_field: :class:`ocgis.OcgField`
-    :param with_buffer: If ``True``, use a buffer during spatial subsetting.
-    :type with_buffer: bool
     :param regrid_options: A dictionary of keyword options to pass to :func:`~ocgis.regrid.base.regrid_field`.
     :type regrid_options: dict
     :param bool revert_dst_crs: If ``True``, revert the destination grid coordinate system if it needed to be
@@ -39,8 +37,7 @@ class RegridOperation(AbstractOcgisObject):
      should only occur once.
     """
 
-    def __init__(self, field_src, field_dst, subset_field=None, with_buffer=True, regrid_options=None,
-                 revert_dst_crs=False):
+    def __init__(self, field_src, field_dst, subset_field=None, regrid_options=None, revert_dst_crs=False):
         assert isinstance(field_src, OcgField)
         assert isinstance(field_dst, OcgField)
         assert isinstance(subset_field, (OcgField, NoneType))
@@ -49,7 +46,6 @@ class RegridOperation(AbstractOcgisObject):
         self.field_src = field_src
         self.subset_field = subset_field
         self.revert_dst_crs = revert_dst_crs
-        self.with_buffer = with_buffer
         if regrid_options is None:
             self.regrid_options = {}
         else:
@@ -71,6 +67,7 @@ class RegridOperation(AbstractOcgisObject):
 
         if backtransform_src_crs is not None:
             regridded_source.update_crs(backtransform_src_crs)
+            # self.field_src.update_crs(backtransform_src_crs)
         if backtransform_dst_crs is not None and self.revert_dst_crs:
             self.field_dst.update_crs(backtransform_dst_crs)
 
@@ -100,18 +97,10 @@ class RegridOperation(AbstractOcgisObject):
             ocgis_lh(logger='regrid', msg='no spatial subsetting', level=logging.DEBUG)
             regrid_destination = self.field_dst
         else:
-            if self.with_buffer:
-                # Buffer the subset geometry by two times the resolution of the destination field to improve chances of
-                # overlap between source and destination extents.
-                buffer_value = 2.0 * self.field_src.grid.resolution
-                buffer_crs = self.field_src.crs
-            else:
-                buffer_value, buffer_crs = [None, None]
             ss = SpatialSubsetOperation(self.field_dst)
             regrid_destination = ss.get_spatial_subset('intersects', self.subset_field.geom,
                                                        use_spatial_index=env.USE_SPATIAL_INDEX,
-                                                       select_nearest=False, buffer_value=buffer_value,
-                                                       buffer_crs=buffer_crs)
+                                                       select_nearest=False)
 
         return regrid_destination, backtransform_crs
 
@@ -630,6 +619,11 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
             else:
                 ndbounds = [source.time.shape[0]]
 
+            # Prepare the regridded sourced field. This amounts to exchanging the grids between the objects.
+            regridded_source = source.copy()
+            regridded_source.grid.extract(clean_break=True)
+            regridded_source.set_grid(destination.grid.extract())
+
             build = False
 
         dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
@@ -682,12 +676,12 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
 
         # Create a new variable collection and add the variables to the output field.
         # source.variables = VariableCollection()
-        for v in fills.itervalues():
-            destination.add_variable(v, is_data=True, force=True)
+        for v in fills.values():
+            regridded_source.add_variable(v, is_data=True, force=True)
 
     destroy_esmf_objects([esmf_destination_grid])
 
-    return destination
+    return regridded_source
 
 
 def destroy_esmf_objects(objs):

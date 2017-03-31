@@ -2,11 +2,10 @@ import json
 from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
-
-import numpy as np
-from ocgis.interface.base.dimension.temporal import TemporalDimension
+from unittest import SkipTest
 
 import ocgis
+from ocgis import TemporalVariable
 from ocgis.base import orphaned
 from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.calc.library.statistics import Mean
@@ -48,7 +47,8 @@ class TestAbstractIcclimFunction(TestBase):
 
     def get(self, grouping=None):
         field = self.get_field()
-        temporal = TemporalDimension(value=self.get_time_series(datetime(2000, 1, 1), datetime(2001, 12, 31)))
+        temporal = TemporalVariable(value=self.get_time_series(datetime(2000, 1, 1), datetime(2001, 12, 31)),
+                                    dimensions='time')
         grouping = grouping or [[12, 1, 2]]
         tgd = temporal.get_grouping(grouping)
         aa = FakeAbstractIcclimFunction(field, tgd)
@@ -82,7 +82,7 @@ class TestAbstractIcclimPercentileArrayIndice(TestBase):
             # Values less than 1 mm/day will be masked inside icclim.
             # var = field.variables.first()
             var = field.get_by_tag(TagNames.DATA_VARIABLES)[0]
-            var.value[:] = var.value * mod
+            var.get_value()[:] = var.get_value() * mod
             tgd = field.temporal.get_grouping(['month'])
 
             for klass in klasses:
@@ -110,6 +110,7 @@ class TestLibraryIcclim(TestBase):
 
     @attr('slow')
     def test_icclim_combinatorial(self):
+        raise SkipTest('release only')
         shapes = ([('month',), 12], [('month', 'year'), 24], [('year',), 2])
         ocgis.env.OVERWRITE = True
         keys = set(library_icclim._icclim_function_map.keys())
@@ -122,7 +123,7 @@ class TestLibraryIcclim(TestBase):
                 keys.remove(subclass.key)
 
                 for cg in CalcGrouping.iter_possible():
-                    print cg
+                    # print cg
                     calc = [{'func': subclass.key, 'name': subclass.key.split('_')[1]}]
                     if klass == AbstractIcclimUnivariateSetFunction:
                         rd = self.test_data.get_rd('cancm4_tas')
@@ -175,7 +176,9 @@ class TestLibraryIcclim(TestBase):
         ret_ocgis = ops_ocgis.execute()
         ops_icclim = OcgOperations(calc=calc_icclim, calc_grouping=cg, slice=slc, dataset=rd)
         ret_icclim = ops_icclim.execute()
-        self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value, ret_icclim[1]['tas'].variables['TG'].value)
+        desired = ret_ocgis.get_element(variable_name='mean').get_masked_value()
+        actual = ret_icclim.get_element(variable_name='TG').get_masked_value()
+        self.assertNumpyAll(desired, actual)
 
 
 @attr('icclim')
@@ -186,28 +189,25 @@ class TestTG10p(TestBase):
     @attr('data', 'slow')
     def test_execute(self):
         tas = self.test_data.get_rd('cancm4_tas').get()
-        # tas = tas[:, :, :, 10:12, 20:22]
         tas = tas.get_field_slice({'y': slice(10, 12), 'x': slice(20, 22)})
         tgd = tas.temporal.get_grouping(['month'])
         tg = IcclimTG10p(field=tas, tgd=tgd)
         ret = tg.execute()
         self.assertEqual(ret['icclim_TG10p'].shape, (12, 2, 2))
-        self.assertEqual(ret['icclim_TG10p'].value.mean(), 30.0625)
+        self.assertEqual(ret['icclim_TG10p'].get_value().mean(), 30.0625)
 
         # Test with a percentile dictionary.
-        # field_pd = tas[0, 0:800, 0, :, :]
         field_pd = tas.get_field_slice({'time': slice(0, 800)})
         arr = field_pd['tas'].masked_value.squeeze()
         dt_arr = field_pd.temporal.value_datetime
         percentile = 10
         window_width = 5
-        pd = tg.get_percentile_dict(arr, dt_arr, percentile, window_width, field_pd.temporal.calendar,
-                                    field_pd.temporal.units)
+        pd = tg.get_percentile_dict(arr, dt_arr, percentile, window_width)
         tg = IcclimTG10p(field=tas, tgd=tgd, parms={'percentile_dict': pd})
         ret = tg.execute()
         self.assertEqual(ret['icclim_TG10p'].shape, (12, 2, 2))
         # This value should change since we are using a different base period.
-        self.assertEqual(ret['icclim_TG10p'].value.mean(), 31.0)
+        self.assertEqual(ret['icclim_TG10p'].get_value().mean(), 31.0)
 
     @attr('data', 'slow')
     def test_large_array_compute_local(self):
@@ -222,7 +222,7 @@ class TestTG10p(TestBase):
         ret = compute(ops, 5, verbose=False)
 
         with nc_scope(ret) as ds:
-            self.assertAlmostEqual(ds.variables['itg'][:].mean(), 29.518518, 6)
+            self.assertAlmostEqual(ds.variables['itg'][:].sum(), 2121.0, 6)
 
 
 @attr('icclim')
@@ -235,13 +235,12 @@ class TestDTR(TestBase):
         field_tasmax = tasmax.get()
         variable_to_add = field_tasmax['tasmax']
         with orphaned(variable_to_add):
-            field.add_variable(variable_to_add)
-        field.add_dimensioned(variable_to_add)
+            field.add_variable(variable_to_add, is_data=True)
         field = field.get_field_slice({'time': slice(0, 600), 'y': slice(25, 50), 'x': slice(25, 50)})
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimDTR(field=field, tgd=tgd)
         ret = dtr.execute()
-        self.assertEqual(ret['icclim_DTR'].value.shape, (12, 25, 25))
+        self.assertEqual(ret['icclim_DTR'].get_value().shape, (12, 25, 25))
 
     @attr('data')
     def test_bad_keyword_mapping(self):
@@ -280,20 +279,19 @@ class TestETR(TestBase):
         field = tasmin.get()
         field_tasmax = tasmax.get()
         with orphaned(field_tasmax['tasmax']):
-            field.add_variable(field_tasmax['tasmax'])
-        field.add_dimensioned(field_tasmax['tasmax'])
+            field.add_variable(field_tasmax['tasmax'], is_data=True)
         field = field.get_field_slice({'time': slice(0, 600), 'y': slice(25, 50), 'x': slice(25, 50)})
         tgd = field.temporal.get_grouping(['month'])
         dtr = IcclimETR(field=field, tgd=tgd)
         ret = dtr.execute()
-        self.assertEqual(ret['icclim_ETR'].value.shape, (12, 25, 25))
+        self.assertEqual(ret['icclim_ETR'].get_value().shape, (12, 25, 25))
 
     @attr('data')
     def test_calculate_rotated_pole(self):
         tasmin_fake = self.test_data.get_rd('rotated_pole_ichec')
-        tasmin_fake.alias = 'tasmin'
+        tasmin_fake.rename_variable = 'tasmin'
         tasmax_fake = deepcopy(tasmin_fake)
-        tasmax_fake.alias = 'tasmax'
+        tasmax_fake.rename_variable = 'tasmax'
         rds = [tasmin_fake, tasmax_fake]
         for rd in rds:
             rd.time_region = {'year': [1973]}
@@ -322,7 +320,9 @@ class TestTx(TestBase):
             ret_ocgis = ops_ocgis.execute()
             ops_icclim = OcgOperations(calc=calc_icclim, calc_grouping=cg, slice=slc, dataset=rd)
             ret_icclim = ops_icclim.execute()
-            self.assertNumpyAll(ret_ocgis[1]['tas'].variables['mean'].value, ret_icclim[1]['tas'].variables['TG'].value)
+            desired = ret_ocgis.get_element(variable_name='mean').get_masked_value()
+            actual = ret_icclim.get_element(variable_name='TG').get_masked_value()
+            self.assertNumpyAll(desired, actual)
 
     @attr('data')
     def test_calculation_operations_to_nc(self):
@@ -343,7 +343,7 @@ class TestTx(TestBase):
             self.assertEqual(ds.__dict__[AbstractIcclimFunction._global_attribute_source_name], actual)
             # load the original source attributes from the JSON string
             json.loads(ds.__dict__[AbstractIcclimFunction._global_attribute_source_name])
-            actual = {'_FillValue': np.float32(1e20), u'units': u'K', 'grid_mapping': 'latitude_longitude',
+            actual = {u'units': u'K', 'grid_mapping': 'latitude_longitude',
                       u'standard_name': AbstractIcclimFunction.standard_name,
                       u'long_name': u'Mean of daily mean temperature'}
             self.assertEqual(dict(var.__dict__), actual)
@@ -361,7 +361,7 @@ class TestTx(TestBase):
                 ret_icclim = itg.execute()
                 mean = Mean(field=field, tgd=tgd)
                 ret_ocgis = mean.execute()
-                self.assertNumpyAll(ret_icclim[klass.key].value, ret_ocgis['mean'].value)
+                self.assertNumpyAll(ret_icclim[klass.key].get_value(), ret_ocgis['mean'].get_value())
 
 
 @attr('icclim')
@@ -377,7 +377,7 @@ class TestSU(TestBase):
             ret_icclim = itg.execute()
             threshold = Threshold(field=field, tgd=tgd, parms={'threshold': 298.15, 'operation': 'gt'})
             ret_ocgis = threshold.execute()
-            self.assertNumpyAll(ret_icclim['icclim_SU'].value, ret_ocgis['threshold'].value)
+            self.assertNumpyAll(ret_icclim['icclim_SU'].get_value(), ret_ocgis['threshold'].get_value())
 
     @attr('data')
     def test_calculation_operations_bad_units(self):
@@ -409,8 +409,7 @@ class TestSU(TestBase):
             self.assertDictEqual(to_test, actual)
             var = ds.variables['SU']
             to_test = dict(var.__dict__)
-            dtype_cmp = rd.get().variables['tasmax'].dtype
-            self.assertEqual(to_test, {'_FillValue': np.array(1e20, dtype=dtype_cmp), u'units': u'days',
+            self.assertEqual(to_test, {u'units': u'days',
                                        u'standard_name': AbstractIcclimFunction.standard_name,
                                        u'long_name': 'Summer days (number of days where daily maximum temperature > 25 degrees)',
                                        'grid_mapping': 'latitude_longitude'})

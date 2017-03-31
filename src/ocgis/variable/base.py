@@ -184,7 +184,7 @@ class Variable(AbstractContainer, Attributes):
         self.set_value(value)
         self.set_dimensions(dimensions)
         if value is not None:
-            update_unlimited_dimension_length(self.value, self.dimensions)
+            update_unlimited_dimension_length(self.get_value(), self.dimensions)
         self.set_bounds(bounds)
 
         # Set the mask after setting the bounds. Bounds mask will be updated with the parent mask.
@@ -210,7 +210,7 @@ class Variable(AbstractContainer, Attributes):
     def __setitem__(self, slc, variable):
         # tdk: order
         slc = get_formatted_slice(slc, self.ndim)
-        self.value[slc] = variable.value
+        self.get_value()[slc] = variable.get_value()
 
         variable_mask = variable.get_mask()
         if variable_mask is not None:
@@ -441,15 +441,15 @@ class Variable(AbstractContainer, Attributes):
         # tdk: test
         # tdk: not sure where this belongs exactly. maybe on a value dimension?
 
-        if not self.has_bounds and self.value.shape[0] < 2:
+        if not self.has_bounds and self.get_value().shape[0] < 2:
             msg = 'With no bounds and only a single coordinate, approximate resolution may not be determined.'
             raise ResolutionError(msg)
         elif self.has_bounds:
-            res_bounds = self.bounds.value[0:constants.RESOLUTION_LIMIT]
+            res_bounds = self.bounds.get_value()[0:constants.RESOLUTION_LIMIT]
             res_array = res_bounds[:, 1] - res_bounds[:, 0]
             ret = np.abs(res_array).mean()
         else:
-            res_array = np.diff(np.abs(self.value[0:constants.RESOLUTION_LIMIT]))
+            res_array = np.diff(np.abs(self.get_value()[0:constants.RESOLUTION_LIMIT]))
             ret = np.abs(res_array).mean()
         return ret
 
@@ -490,9 +490,7 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def value(self):
-        if self._value is None:
-            self._value = self._get_value_()
-        return self._value
+        raise NotImplementedError('Use <object>.get_value()')
 
     @property
     def masked_value(self):
@@ -635,7 +633,7 @@ class Variable(AbstractContainer, Attributes):
 
         new_shape = [len(dimension) for dimension in args[0]]
 
-        original_value = self.value
+        original_value = self.get_value()
         if self.has_mask:
             original_mask = self.get_mask()
         else:
@@ -665,12 +663,12 @@ class Variable(AbstractContainer, Attributes):
         bounds_value = None
         if self.ndim == 1:
             if not self.is_empty:
-                bounds_value = get_bounds_from_1d(self.value)
+                bounds_value = get_bounds_from_1d(self.get_value())
             bounds_dimension_size = 2
         else:
             # tdk: consider renaming this functions to get_bounds_from_2d
             if not self.is_empty:
-                bounds_value = get_extrapolated_corners_esmf(self.value)
+                bounds_value = get_extrapolated_corners_esmf(self.get_value())
                 bounds_value = get_ocgis_corners_from_esmf_corners(bounds_value)
             bounds_dimension_size = 4
 
@@ -706,7 +704,7 @@ class Variable(AbstractContainer, Attributes):
                 if check_value:
                     fill_value = self.fill_value
                     if fill_value is not None:
-                        is_equal = self.value == fill_value
+                        is_equal = self.get_value() == fill_value
                         ret[is_equal] = True
                 self.set_mask(ret)
         return ret
@@ -756,7 +754,7 @@ class Variable(AbstractContainer, Attributes):
                 if clobber_masked:
                     value = self.fill_value
                 else:
-                    value = self.value.flatten()[0]
+                    value = self.get_value().flatten()[0]
             if pytypes:
                 value = np.array(value).tolist()
             ret = OrderedDict(([HeaderNames.DATASET_IDENTIFER, self.parent.uid], [name, value]))
@@ -784,15 +782,33 @@ class Variable(AbstractContainer, Attributes):
 
         return ret
 
-    def extract(self, keep_bounds=True):
+    def extract(self, keep_bounds=True, clean_break=False):
+        """
+        
+        :param bool keep_bounds: If ``True``, maintain any bounds associated with the target variable. 
+        :param bool clean_break: If ``True``, remove the target from the containing collection entirely. 
+        :return: 
+        """
         if self.has_initialized_parent:
-            keep = [self.name]
-            self.parent = self.parent.copy()
-            if self.has_bounds and keep_bounds:
-                keep.append(self.bounds.name)
-            for var in self.parent.values():
-                if var.name not in keep:
-                    self.parent.pop(var.name)
+            to_keep = [self.name]
+            if keep_bounds and self.has_bounds:
+                to_keep.append(self.bounds.name)
+
+            if clean_break:
+                original_parent = self.parent
+                new_parent = self.parent.copy()
+                to_pop_in_new = set(original_parent.keys()).difference(set(to_keep))
+                for tk in to_keep:
+                    original_parent.remove_variable(tk)
+                for tp in to_pop_in_new:
+                    new_parent.pop(tp)
+                self.parent = new_parent
+            else:
+                self.parent = self.parent.copy()
+                for var in self.parent.values():
+                    if var.name not in to_keep:
+                        self.parent.pop(var.name)
+
         return self.parent[self.name]
 
     def get_between(self, lower, upper, return_indices=False, closed=False, use_bounds=True):
@@ -802,8 +818,8 @@ class Variable(AbstractContainer, Attributes):
         # Determine if data bounds are contiguous (if bounds exists for the data). Bounds must also have more than one
         # row.
         is_contiguous = False
-        if self.bounds is not None:
-            bounds_value = self.bounds.value
+        if self.has_bounds:
+            bounds_value = self.bounds.get_value()
             try:
                 if len(set(bounds_value[0, :]).intersection(set(bounds_value[1, :]))) > 0:
                     is_contiguous = True
@@ -815,7 +831,7 @@ class Variable(AbstractContainer, Attributes):
                     raise
 
         # Subset operation when bounds are not present.
-        if self.bounds is None or not use_bounds == False:
+        if not self.has_bounds or not use_bounds:
             value = self.get_value()
             # Allow single-valued dimensions to be subset.
             if self.ndim == 0:
@@ -853,7 +869,7 @@ class Variable(AbstractContainer, Attributes):
                     select_upper = np.logical_or(bounds_min <= upper, bounds_max <= upper)
             select = np.logical_and(select_lower, select_upper)
 
-        if select.any() == False:
+        if not select.any():
             raise EmptySubsetError(origin=self.name)
 
         # Allow single-valued dimensions to be subset.
@@ -919,7 +935,7 @@ class Variable(AbstractContainer, Attributes):
         :rtype: list[str, ...]
         """
         lines = ['Name = {0}'.format(self.name),
-                 'Count = {0}'.format(self.value.shape[0]),
+                 'Count = {0}'.format(self.get_value().shape[0]),
                  'Has Bounds = {0}'.format(self.has_bounds),
                  'Data Type = {0}'.format(self.dtype)]
         return lines
@@ -929,7 +945,9 @@ class Variable(AbstractContainer, Attributes):
         return slices
 
     def get_value(self):
-        return self.value
+        if self._value is None:
+            self._value = self._get_value_()
+        return self._value
 
     def get_iter(self, **kwargs):
         add_bounds = kwargs.pop(KeywordArguments.ADD_BOUNDS, False)
@@ -1026,7 +1044,7 @@ class Variable(AbstractContainer, Attributes):
         driver.write_variable(*args, **kwargs)
 
     def _get_to_conform_value_(self):
-        return self.masked_value
+        return self.get_masked_value()
 
     def _set_to_conform_value_(self, value):
         self.set_value(value)

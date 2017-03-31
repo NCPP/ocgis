@@ -4,9 +4,11 @@ import netCDF4 as nc
 import numpy as np
 
 import ocgis
+from ocgis import constants
 from ocgis.calc import tile
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.constants import TagNames
 from ocgis.ops.core import OcgOperations
 from ocgis.util.helpers import ProgressBar
 
@@ -31,17 +33,16 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
 
     >>> from ocgis import RequestDataset, OcgOperations
     >>> from ocgis.util.large_array import compute
-    >>> rd = RequestDataset(uri='/path/to/file',variable='tas')
+    >>> rd = RequestDataset(uri='/path/to/file', variable='tas')
     >>> ops = OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],output_format='nc')
     >>> ret = compute(ops, 25)
     """
 
-    # validate arguments
-    assert (isinstance(ops, OcgOperations))
-    assert (ops.calc is not None)
-    assert (ops.output_format == 'nc')
+    assert isinstance(ops, OcgOperations)
+    assert ops.calc is not None
+    assert ops.output_format == constants.OUTPUT_FORMAT_NETCDF
 
-    # ensure that progress is not showing 100% at first
+    # Ensure that progress is not showing 100% at first.
     if ops.callback is not None:
         orgcallback = ops.callback
 
@@ -52,16 +53,16 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
 
     tile_dimension = int(tile_dimension)
     if tile_dimension <= 0:
-        raise (ValueError('"tile_dimension" must be greater than 0'))
+        raise ValueError('"tile_dimension" must be greater than 0')
 
-    # determine if we are working with a multivariate function
+    # Determine if we are working with a multivariate function.
     if OcgCalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
-        # only one multivariate calculation allowed
-        assert (len(ops.calc) == 1)
+        # Only one multivariate calculation allowed.
+        assert len(ops.calc) == 1
         has_multivariate = True
     else:
-        # only one calculation allowed
-        assert (len(ops.dataset) == 1)
+        # Only one dataset allowed.
+        assert len(list(ops.dataset)) == 1
         has_multivariate = False
 
     # work on a copy of the operations to create the template file
@@ -76,8 +77,10 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         ocgis.env.OPTIMIZE_FOR_CALC = True
 
         # first, write the template file
-        if verbose: print('getting fill file...')
+        if verbose:
+            print('getting fill file...')
         fill_file = ops_file_only.execute()
+
         # if there is a geometry, we have to find the offset for the slice. we
         # also need to account for the subset mask.
         if ops.geom is not None:
@@ -90,21 +93,14 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             ops_offset.snippet = False
             coll = ops_offset.execute()
 
-            for row in coll.get_iter_melted():
-                # assert the values are not loaded...
-                assert (row['variable']._value is None)
-                # assert only 3 or 4 dimensional data is being used
-                assert (row['field'].shape_as_dict['R'] == 1)
+            for row in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+                assert row['variable']._value is None
 
-            ref_spatial = coll[1][ops_offset.dataset.first().name].spatial
-            try:
-                row_offset = ref_spatial.grid.row._src_idx[0]
-                col_offset = ref_spatial.grid.col._src_idx[0]
-            except (AttributeError, TypeError):
-                # Likely no row and column for a 2-dimensional grid.
-                row_offset = ref_spatial.grid._src_idx['row'][0]
-                col_offset = ref_spatial.grid._src_idx['col'][0]
-            mask_spatial = ref_spatial.get_mask()
+            ref_field = coll.get_element()
+            ref_grid = ref_field.grid
+            row_offset = ref_grid.dimensions[0]._src_idx[0]
+            col_offset = ref_grid.dimensions[1]._src_idx[0]
+            mask_spatial = ref_grid.get_mask()
         # otherwise the offset is zero...
         else:
             row_offset = 0
@@ -114,44 +110,44 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         # get the shape for the tile schema
         if verbose:
             print('getting tile schema shape inputs...')
-        # if has_multivariate == False:
-        #            shp_variable = '{0}_{1}'.format(ops.calc[0]['name'],ops.dataset[0].alias)
-        #        else:
-        #            shp_variable = ops.calc[0]['name']
         shp_variable = ops.calc[0]['name']
         template_rd = ocgis.RequestDataset(uri=fill_file, variable=shp_variable)
         template_field = template_rd.get()
-        shp = template_field.shape[-2:]
+        shp = template_field.grid.shape
 
         if use_optimizations:
             # if there is a calculation grouping, optimize for it. otherwise, pass
             # this value as None.
             try:
-                tgd_field = ops.dataset.first().get()
+                # tgd_field = ops.dataset.first().get()
+                archetype_dataset = list(ops.dataset)[0]
+                tgd_field = archetype_dataset.get()
                 template_tgd = tgd_field.temporal.get_grouping(deepcopy(ops.calc_grouping))
                 if not has_multivariate:
-                    key = ops.dataset.first().name
+                    key = archetype_dataset.field_name
                 else:
-                    key = '_'.join([__.name for __ in ops.dataset.itervalues()])
+                    key = '_'.join([__.field_name for __ in ops.dataset])
                 optimizations = {'tgds': {key: template_tgd}}
             except TypeError:
                 optimizations = None
 
             # load the fields and pass those for optimization
             field_optimizations = {}
-            for rd in ops.dataset.itervalues():
+            for rd in ops.dataset:
                 gotten_field = rd.get(format_time=ops.format_time)
-                field_optimizations.update({rd.name: gotten_field})
+                field_optimizations.update({rd.field_name: gotten_field})
             optimizations = optimizations or {}
             optimizations['fields'] = field_optimizations
         else:
             optimizations = None
 
-        if verbose: print('getting tile schema...')
+        if verbose:
+            print('getting tile schema...')
         schema = tile.get_tile_schema(shp[0], shp[1], tile_dimension)
         lschema = len(schema)
 
-        # Create new callbackfunction where the 0-100% range is converted to a subset corresponding to the no. of blocks to be calculated
+        # Create new callbackfunction where the 0-100% range is converted to a subset corresponding to the no. of
+        # blocks to be calculated
         if ops.callback is not None:
             percentageDone = 0
             callback = ops.callback
@@ -185,33 +181,29 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                 ops_slice.optimizations = optimizations
                 # return the object slice
                 ret = ops_slice.execute()
-                for field_map in ret.itervalues():
-                    for field in field_map.itervalues():
-                        field_shape = field.shape_as_dict
-                        for alias, variable in field.variables.iteritems():
-                            vref = fds.variables[alias]
-                            assert (isinstance(variable.value, np.ma.MaskedArray))
-                            # we need to remove the offsets to adjust for the zero-based
-                            # fill file.
-                            slice_row = slice(row[0] - row_offset, row[1] - row_offset)
-                            slice_col = slice(col[0] - col_offset, col[1] - col_offset)
-                            # if there is a spatial mask, update accordingly
-                            if mask_spatial is not None:
-                                set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col)
-                            # squeeze out extra dimensions from ocgis
-                            fill_value = np.squeeze(variable.value)
-                            # fill the netCDF container variable adjusting for shape
-                            if len(vref.shape) == 3:
-                                reshape = (field_shape['T'], field_shape['Y'], field_shape['X'])
-                                vref[:, slice_row, slice_col] = fill_value.reshape(*reshape)
-                            elif len(vref.shape) == 4:
-                                reshape = (field_shape['T'], field_shape['Z'], field_shape['Y'], field_shape['X'])
-                                vref[:, :, slice_row, slice_col] = fill_value.reshape(*reshape)
-                            else:
-                                raise (NotImplementedError(vref.shape))
+                for field in ret.iter_fields():
+                    for variable in field.data_variables:
+                        vref = fds.variables[variable.name]
+                        # we need to remove the offsets to adjust for the zero-based fill file.
+                        slice_row = slice(row[0] - row_offset, row[1] - row_offset)
+                        slice_col = slice(col[0] - col_offset, col[1] - col_offset)
+                        # if there is a spatial mask, update accordingly
+                        if mask_spatial is not None:
+                            set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col)
+                            fill_mask = field.grid.get_mask(create=True)
+                            fill_mask[:, :] = mask_spatial[slice_row, slice_col]
+                            fill_mask = np.ma.array(np.zeros(fill_mask.shape), mask=fill_mask)
+                            fds.variables[field.grid.mask_variable.name][slice_row, slice_col] = fill_mask
+                        fill_value = variable.get_masked_value()
+                        # fill the netCDF container variable adjusting for shape
+                        if len(vref.shape) == 3:
+                            vref[:, slice_row, slice_col] = fill_value
+                        elif len(vref.shape) == 4:
+                            vref[:, :, slice_row, slice_col] = fill_value
+                        else:
+                            raise NotImplementedError(vref.shape)
 
-                            # write the data to disk
-                            fds.sync()
+                        fds.sync()
                 if verbose:
                     progress.progress(int((float(ctr) / lschema) * 100))
                 if ops.callback is not None and callback:
@@ -224,7 +216,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         progress.endProgress()
         print('complete.')
 
-    return (fill_file)
+    return fill_file
 
 
 def set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col):
@@ -243,6 +235,8 @@ def set_variable_spatial_mask(variable, mask_spatial, slice_row, slice_col):
     :type slice_col: slice
     """
 
-    fill_mask = np.zeros(variable.value.shape, dtype=bool)
+    fill_mask = np.zeros(variable.shape, dtype=bool)
     fill_mask[..., :, :] = mask_spatial[slice_row, slice_col]
-    variable.value.mask = np.logical_or(fill_mask, variable.value.mask[..., :, :])
+    vmask = variable.get_mask(create=True)
+    vmask = np.logical_or(fill_mask, vmask[:, :])
+    variable.set_mask(vmask)

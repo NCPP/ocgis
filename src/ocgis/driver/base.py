@@ -101,8 +101,7 @@ class AbstractDriver(AbstractOcgisObject):
         else:
             cls._close_(obj)
 
-    @staticmethod
-    def format_dimension_map(group_dimension_map, group_metadata):
+    def format_dimension_map(self, group_dimension_map, group_metadata):
         """Any standardization of the dimension map to pass to the field."""
 
         to_evaluate = [DimensionMapKeys.X, DimensionMapKeys.Y, DimensionMapKeys.LEVEL, DimensionMapKeys.REALIZATION,
@@ -120,6 +119,10 @@ class AbstractDriver(AbstractOcgisObject):
                         raise RequestValidationError('dimension_map', msg)
                     else:
                         group_dimension_map[te][DimensionMapKeys.NAMES] = list(vdims)
+        if DimensionMapKeys.CRS not in group_dimension_map:
+            crs = self.get_crs(group_metadata)
+            if crs is not None:
+                group_dimension_map[DimensionMapKeys.CRS] = {DimensionMapKeys.VARIABLE: crs.name}
         for group_key in iter_all_group_keys(group_dimension_map, has_root=False):
             group_dimension_map = get_group(group_dimension_map, group_key, has_root=False)
             group_metadata = get_group(group_metadata, group_key, has_root=False)
@@ -261,6 +264,7 @@ class AbstractDriver(AbstractOcgisObject):
         to_add = None
         crs = self.get_crs(group_metadata)
         if self.rd._has_assigned_coordinate_system:
+            to_add = self.rd._crs
             if crs is not None:
                 to_remove = crs.name
         else:
@@ -283,8 +287,7 @@ class AbstractDriver(AbstractOcgisObject):
         field = OcgField.from_variable_collection(vc, *args, **kwargs)
 
         # If this is a source grid for regridding, ensure the flag is updated.
-        if self.rd.regrid_source:
-            field._should_regrid = True
+        field.regrid_source = self.rd.regrid_source
         # Update the assigned coordinate system flag.
         field._has_assigned_coordinate_system = self.rd._has_assigned_coordinate_system
 
@@ -399,13 +402,16 @@ class AbstractDriver(AbstractOcgisObject):
     @classmethod
     def get_variable_write_value(cls, variable):
         from ocgis.variable.temporal import TemporalVariable
-        if isinstance(variable, TemporalVariable):
-            ret = cls.get_variable_for_writing(variable)
-        else:
-            if variable.has_mask:
-                ret = cls.get_variable_for_writing(variable).get_masked_value()
+        if variable.has_allocated_value:
+            if isinstance(variable, TemporalVariable):
+                ret = cls.get_variable_for_writing(variable)
             else:
-                ret = cls.get_variable_for_writing(variable).get_value()
+                if variable.has_mask:
+                    ret = cls.get_variable_for_writing(variable).get_masked_value()
+                else:
+                    ret = cls.get_variable_for_writing(variable).get_value()
+        else:
+            ret = None
         return ret
 
     def init_variable_from_source(self, variable):
@@ -428,6 +434,7 @@ class AbstractDriver(AbstractOcgisObject):
 
     def init_variable_value(self, variable):
         """Set the variable value from source data conforming units in the process."""
+        from ocgis.variable.temporal import TemporalVariable
 
         value = self.get_variable_value(variable)
         variable.set_value(value, update_mask=True)
@@ -436,7 +443,14 @@ class AbstractDriver(AbstractOcgisObject):
         meta = get_variable_metadata_from_request_dataset(self, variable)
         conform_units_to = meta.get('conform_units_to')
         if conform_units_to is not None:
-            variable.cfunits_conform(conform_units_to)
+            # The initialized units for the variable are overloaded by the destination / conform to units.
+            if isinstance(variable, TemporalVariable):
+                from_units = TemporalVariable(units=meta['attributes']['units'],
+                                              calendar=meta['attributes'].get('calendar'))
+                from_units = from_units.cfunits
+            else:
+                from_units = meta['attributes']['units']
+            variable.cfunits_conform(conform_units_to, from_units=from_units)
 
     @staticmethod
     def inquire_opened_state(opened_or_path):

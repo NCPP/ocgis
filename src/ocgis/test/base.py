@@ -148,7 +148,7 @@ class TestBase(unittest.TestCase):
     def assertIsInstances(self, actual, desired):
         self.assertTrue(isinstance, desired)
 
-    def assertNumpyAll(self, arr1, arr2, check_fill_value_dtype=True, check_arr_dtype=True, check_arr_type=True,
+    def assertNumpyAll(self, arr1, arr2, check_fill_value=True, check_arr_dtype=True, check_arr_type=True,
                        rtol=None):
         """
         Asserts arrays are equal according to the test criteria.
@@ -157,7 +157,7 @@ class TestBase(unittest.TestCase):
         :type arr1: :class:`numpy.ndarray`
         :param arr2: An array to compare.
         :type arr2: :class:`numpy.ndarray`
-        :param bool check_fill_value_dtype: If ``True``, check that the data type for masked array fill values are equal.
+        :param bool check_fill_value: If ``True``, check that the data type for masked array fill values are equal.
         :param bool check_arr_dtype: If ``True``, check the data types of the arrays are equal.
         :param bool check_arr_type: If ``True``, check the types of the incoming arrays.
 
@@ -178,12 +178,13 @@ class TestBase(unittest.TestCase):
         if check_arr_dtype:
             self.assertEqual(arr1.dtype, arr2.dtype)
         if isinstance(arr1, np.ma.MaskedArray) or isinstance(arr2, np.ma.MaskedArray):
-            data_to_check = (arr1.data, arr2.data)
-            self.assertTrue(np.all(arr1.mask == arr2.mask))
-            if check_fill_value_dtype:
-                self.assertEqual(arr1.fill_value, arr2.fill_value)
+            if check_fill_value:
+                data_to_check = (arr1.data, arr2.data)
             else:
-                self.assertTrue(np.equal(arr1.fill_value, arr2.fill_value.astype(arr1.fill_value.dtype)))
+                data_to_check = (arr1, arr2)
+            self.assertTrue(np.all(arr1.mask == arr2.mask))
+            if check_fill_value:
+                self.assertEqual(arr1.fill_value, arr2.fill_value)
         else:
             data_to_check = (arr1, arr2)
 
@@ -198,7 +199,7 @@ class TestBase(unittest.TestCase):
         self.assertTrue(np.may_share_memory(*args, **kwargs))
 
     def assertNcEqual(self, uri_src, uri_dest, check_types=True, close=False, metadata_only=False,
-                      ignore_attributes=None, ignore_variables=None):
+                      ignore_attributes=None, ignore_variables=None, check_fill_value=True):
         """
         Assert two netCDF files are equal according to the test criteria.
 
@@ -252,10 +253,11 @@ class TestBase(unittest.TestCase):
                             if close:
                                 self.assertNumpyAllClose(var_value, dvar_value)
                             else:
-                                self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types)
+                                self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types,
+                                                    check_fill_value=check_fill_value)
                 except (AssertionError, AttributeError):
-                    # Zero-length netCDF variables should not be tested for value equality. Values are meaningless and
-                    # only the attributes should be tested for equality.
+                    # Some zero-length netCDF variables should not be tested for value equality. Values are meaningless
+                    # and only the attributes should be tested for equality.
                     if len(dvar.dimensions) == 0:
                         self.assertEqual(len(var.dimensions), 0)
                     else:
@@ -1015,7 +1017,7 @@ class AbstractTestInterface(TestBase):
 
         return grid
 
-    def get_gridxy_global(self, resolution=1.0, with_bounds=True, wrapped=True):
+    def get_gridxy_global(self, resolution=1.0, with_bounds=True, wrapped=True, crs=None):
         half_resolution = 0.5 * resolution
         y = np.arange(-90.0 + half_resolution, 90.0, resolution)
         if wrapped:
@@ -1036,7 +1038,7 @@ class AbstractTestInterface(TestBase):
         x, _ = variable_scatter(x, ompi)
         y, _ = variable_scatter(y, ompi)
 
-        grid = GridXY(x, y)
+        grid = GridXY(x, y, crs=crs)
         if with_bounds:
             grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
 

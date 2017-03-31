@@ -34,7 +34,7 @@ class SpatialCollection(VariableCollection):
         ret = OrderedDict()
         for k, v in self.children.items():
             if v.geom is not None:
-                ret[k] = v.geom.value[0]
+                ret[k] = v.geom.get_value()[0]
         return ret
 
     @property
@@ -51,13 +51,13 @@ class SpatialCollection(VariableCollection):
         for k, v in self.children.items():
             ret[k] = OrderedDict()
             for variable in v.iter_data_variables():
-                ret[k][variable.name] = variable.value[0]
+                ret[k][variable.name] = variable.get_value()[0]
         return ret
 
     def add_field(self, field, container, force=False):
         # Assume a NoneType container if there is no geometry associated with the container.
         if container is not None and container.geom is not None:
-            ugid = container.geom.ugid.value[0]
+            ugid = container.geom.ugid.get_value()[0]
             if ugid not in self.children:
                 self.children[ugid] = container
             container.add_child(field, force=force)

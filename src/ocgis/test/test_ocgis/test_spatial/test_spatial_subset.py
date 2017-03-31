@@ -122,7 +122,7 @@ class TestSpatialSubsetOperation(TestBase):
                 buffer_value = 10
 
             ret = SpatialSubsetOperation._get_buffered_geometry_(gvar, buffer_value, buffer_crs=buffer_crs)
-            ref = ret.value[0]
+            ref = ret.get_value()[0]
 
             if buffer_crs is None:
                 self.assertEqual(ref.bounds, (-105.0, 35.0, -94.0, 45.0))
@@ -132,9 +132,9 @@ class TestSpatialSubsetOperation(TestBase):
             self.assertEqual(gvar.crs, ret.crs)
 
             # check deepcopy
-            ret.value[0] = make_poly((1, 2), (3, 4))
-            ref_buffered = ret.value[0]
-            ref_original = gvar.value[0]
+            ret.get_value()[0] = make_poly((1, 2), (3, 4))
+            ref_buffered = ret.get_value()[0]
+            ref_original = gvar.get_value()[0]
             with self.assertRaises(AssertionError):
                 self.assertNumpyAllClose(np.array(ref_buffered.bounds), np.array(ref_original.bounds))
 
@@ -280,8 +280,8 @@ class TestSpatialSubsetOperation(TestBase):
                 gvar = GeometryVariable(value=geometry_record['geom'], dimensions='dim', crs=WGS84())
                 self.assertIsNotNone(gvar.crs)
                 prepared = ss._prepare_geometry_(gvar)
-                self.assertNotEqual(gvar.value[0].bounds, prepared.value[0].bounds)
-                self.assertFalse(np.may_share_memory(gvar.value, prepared.value))
+                self.assertNotEqual(gvar.get_value()[0].bounds, prepared.get_value()[0].bounds)
+                self.assertFalse(np.may_share_memory(gvar.get_value(), prepared.get_value()))
                 try:
                     self.assertEqual(prepared.crs, ss.field.crs)
                 except AssertionError:

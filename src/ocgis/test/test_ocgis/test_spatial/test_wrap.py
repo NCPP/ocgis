@@ -12,27 +12,15 @@ from ocgis.util.helpers import write_geom_dict, get_iter
 
 
 class TestCoordinateWrapper(TestBase):
-    def run_wrap(self, arr, desired_not_reordered, desired_reordered):
-        kwds = {'reorder': [True, False], 'inplace': [True, False], 'return_imap': [True, False]}
+    def run_wrap(self, arr, desired):
+        kwds = {'inplace': [True, False]}
         for k in self.iter_product_keywords(kwds):
             arr_copy = deepcopy(arr)
             w = CoordinateArrayWrapper(inplace=k.inplace)
-            try:
-                res = w.wrap(arr_copy, return_imap=k.return_imap, reorder=k.reorder)
-            except ValueError:
-                self.assertFalse(k.reorder)
-                self.assertTrue(k.return_imap)
-                continue
+            res = w.wrap(arr_copy)
 
-            if k.return_imap:
-                actual, imap = res
-            else:
-                actual = res
+            actual = res
 
-            if k.reorder:
-                desired = desired_reordered
-            else:
-                desired = desired_not_reordered
             self.assertNumpyAll(actual, desired)
 
             may_share = np.may_share_memory(arr_copy, actual)
@@ -40,9 +28,6 @@ class TestCoordinateWrapper(TestBase):
                 self.assertTrue(may_share)
             else:
                 self.assertFalse(may_share)
-
-            if k.return_imap:
-                self.assertGreater(imap.sum(), 0)
 
     def test_apply_wrapping_index_map(self):
         imap = np.array([[1, 0], [3, 2]])
@@ -55,28 +40,15 @@ class TestCoordinateWrapper(TestBase):
     def test_wrap(self):
         # Test with one-dimensional coordinates.
         arr = np.array([1, 90, 180, 270, 359], dtype=float)
-        desired_reordered = np.array([-90., -1., 1., 90., 180.])
-        desired_not_reordered = np.array([1., 90., 180., -90., -1.])
-        self.run_wrap(arr, desired_not_reordered, desired_reordered)
+        desired = np.array([1., 90., 180., -90., -1.])
+        self.run_wrap(arr, desired)
 
         # Test with two-dimensional coordinates.
         arr = np.array([[1, 90, 180, 270, 359],
                         [0.5, 89.5, 179.5, 269.5, 358.5]], dtype=float)
-        desired_reordered = np.array([[-90., -1., 1., 90., 180.],
-                                      [-90.5, -1.5, 0.5, 89.5, 179.5]])
-        desired_not_reordered = np.array([[1., 90., 180., -90., -1.],
-                                          [0.5, 89.5, 179.5, -90.5, -1.5]])
-        self.run_wrap(arr, desired_not_reordered, desired_reordered)
-
-        # Test wrapping a bounds-like coordinate array.
-        desired = np.array([[-179.5, -178.5], [-178.5, -177.5], [178.5, 179.5], [179.5, -179.5]])
-        bounds = np.array([[178.5, 179.5], [179.5, 180.5], [180.5, 181.5], [181.5, 182.5]])
-        centers = np.array([179., 180., 181., 182.])
-        w = CoordinateArrayWrapper()
-        actual, imap = w.wrap(centers, reorder=True, return_imap=True)
-        actual_bounds = w.wrap(bounds)
-        new_bounds = actual_bounds[imap, :]
-        self.assertNumpyAll(new_bounds, desired)
+        desired = np.array([[1., 90., 180., -90., -1.],
+                            [0.5, 89.5, 179.5, -90.5, -1.5]])
+        self.run_wrap(arr, desired)
 
 
 class TestGeometryWrapper(TestBase):

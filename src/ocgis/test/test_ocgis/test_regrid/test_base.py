@@ -101,7 +101,7 @@ class TestRegrid(TestSimpleBase):
 
         regridded = regrid_field(downscaled, gcm)
         dv = regridded.data_variables[0]
-        self.assertEqual(dv.shape, (3650, 3, 5))
+        self.assertEqual(dv.shape, (28, 3, 5))
         self.assertEqual(dv.name, 'tas')
         vmask = dv.get_mask()
         self.assertEqual(vmask.sum(), 252)

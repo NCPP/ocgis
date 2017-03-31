@@ -2,6 +2,8 @@ import itertools
 import re
 from copy import deepcopy
 
+import numpy as np
+
 from ocgis import constants
 from ocgis.calc.base import AbstractUnivariateFunction
 
@@ -25,6 +27,9 @@ class EvalFunction(AbstractUnivariateFunction):
     long_name = ''
 
     def __init__(self, **kwargs):
+        # Tricks PyCharm into not removing the import on import optimizations.
+        assert np
+
         self.expr = kwargs.pop('expr')
         AbstractUnivariateFunction.__init__(self, **kwargs)
 
@@ -71,28 +76,7 @@ class EvalFunction(AbstractUnivariateFunction):
                 carr_fill.data[:] = res.data
                 carr_fill.mask[:] = res.mask
 
-        # # update the local variable dictionary so when the string expression is evaluated they will be available
-        # for k, v in map_vars.iteritems():
-        #     locals()[v.split('.')[0]] = self.field[k]
-        #     # locals()[v.split('.')[0]] = self.field.variables[k]
-        #
-        # # if the output is file only, do no perform any calculations.
-        # if self.file_only:
-        #     fill = self._empty_fill
-        #     dtype = self.dtype or env.NP_FLOAT
-        #     fill_value = np.ma.array([1], dtype=dtype).fill_value
-        # evaluate the expression and update the data type.
-
-        # todo: with numpy 1.8.+ you can do the type modification inplace. this
-        # # will make the type conversion operation less memory intensive.
-        # else:
-        #     fill = eval(expr)
-        #     dtype = fill.dtype
-        #     fill_value = fill.fill_value
-
         self._add_to_collection_({'fill': fill})
-        # self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), units=None,
-        #                          dtype=dtype, alias=self.alias, fill_value=fill_value)
 
     @staticmethod
     def is_multivariate(expr):

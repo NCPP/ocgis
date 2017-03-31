@@ -433,7 +433,7 @@ class TestDataset(TestBase):
         field = self.get_field()
         d = Dataset(field)
         rfield = list(d)[0]
-        self.assertNumpyMayShareMemory(field.values()[0].value, rfield.values()[0].value)
+        self.assertNumpyMayShareMemory(field.values()[0].get_value(), rfield.values()[0].get_value())
 
         # We do want a deepcopy on non-field objects.
         rd = self.test_data.get_rd('cancm4_tas')
@@ -449,8 +449,8 @@ class TestDataset(TestBase):
         ofield = list(dd)[0]
         self.assertIsInstance(ofield, OcgField)
         dimensioned = ofield.get_by_tag(TagNames.DATA_VARIABLES)[0]
-        self.assertTrue(np.may_share_memory(dimensioned.value, efield.data))
-        self.assertNumpyAll(dimensioned.value, efield.data)
+        self.assertTrue(np.may_share_memory(dimensioned.get_value(), efield.data))
+        self.assertNumpyAll(dimensioned.get_value(), efield.data)
 
     @attr('data')
     def test_from_query(self):
@@ -527,7 +527,7 @@ class TestGeom(TestBase):
         self.assertEqual(str(g), 'geom=None')
 
         g = Geom('-120|40|-110|50')
-        self.assertEqual(g.value[0].geom.value[0].bounds, (-120.0, 40.0, -110.0, 50.0))
+        self.assertEqual(g.value[0].geom.get_value()[0].bounds, (-120.0, 40.0, -110.0, 50.0))
         self.assertEqual(str(g), 'geom=-120.0|40.0|-110.0|50.0')
 
         ocgis.env.DIR_GEOMCABINET = self.path_bin
@@ -555,7 +555,7 @@ class TestGeom(TestBase):
 
         bbox = [-120, 40, -110, 50]
         g = Geom(bbox)
-        self.assertEqual(g.value[0].geom.value[0].bounds, tuple(map(float, bbox)))
+        self.assertEqual(g.value[0].geom.get_value()[0].bounds, tuple(map(float, bbox)))
 
         sui = GeomUid('ID')
         g = Geom(bbox, geom_uid=sui)
@@ -597,8 +597,8 @@ class TestGeom(TestBase):
                     self.assertIsInstance(field.crs, crs.__class__)
                 self.assertEqual(set([v.name for v in field.data_variables]), set(['UGID', 'COUNTRY']))
                 self.assertEqual(field.geom.ugid.shape[0], 1)
-                self.assertEqual(field['UGID'].value[0], gdict['properties']['UGID'])
-                self.assertEqual(field['COUNTRY'].value[0], gdict['properties']['COUNTRY'])
+                self.assertEqual(field['UGID'].get_value()[0], gdict['properties']['UGID'])
+                self.assertEqual(field['COUNTRY'].get_value()[0], gdict['properties']['COUNTRY'])
 
     def test_init_field(self):
         """Test using a field as initial value."""

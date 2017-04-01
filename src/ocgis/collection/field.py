@@ -90,7 +90,7 @@ class OcgField(VariableCollection):
 
         # Add grid variables to the variable collection.
         if grid is not None:
-            for var in grid.parent.values():
+            for var in list(grid.parent.values()):
                 self.add_variable(var, force=True)
         if tvar is not None:
             self.add_variable(tvar, force=True)
@@ -338,16 +338,16 @@ class OcgField(VariableCollection):
             for idx, record in enumerate(records):
                 if idx == 0 and not has_schema:
                     schema = {'properties': OrderedDict()}
-                    for k, v in record['properties'].items():
+                    for k, v in list(record['properties'].items()):
                         schema['properties'][k] = get_fiona_type_from_pydata(v)
                 if idx == 0:
-                    for k, v in schema['properties'].items():
+                    for k, v in list(schema['properties'].items()):
                         if k == uid.name:
                             continue
                         dtype = get_dtype_from_fiona_type(v)
                         var = Variable(name=k, dtype=dtype, dimensions=dim)
                         field.add_variable(var)
-                for k, v in record['properties'].items():
+                for k, v in list(record['properties'].items()):
                     if k == uid.name:
                         continue
 
@@ -355,7 +355,7 @@ class OcgField(VariableCollection):
 
         data_variables = [uid.name]
         if not union:
-            data_variables += [k for k in schema['properties'].keys() if k != uid.name]
+            data_variables += [k for k in list(schema['properties'].keys()) if k != uid.name]
         field.append_to_tags(TagNames.DATA_VARIABLES, data_variables, create=True)
 
         return field
@@ -371,7 +371,7 @@ class OcgField(VariableCollection):
         kwargs['children'] = vc.children
         kwargs['uid'] = vc.uid
         ret = cls(*args, **kwargs)
-        for v in vc.values():
+        for v in list(vc.values()):
             ret.add_variable(v, force=True)
         return ret
 
@@ -381,7 +381,7 @@ class OcgField(VariableCollection):
             # When strict is False, we don't care about extra dimension names in the slice. This is useful for a general
             # slicing operation such as slicing for time with or without the dimension.
             if not strict:
-                to_pop = [dname for dname in dslice.keys() if dname not in self.dimensions]
+                to_pop = [dname for dname in list(dslice.keys()) if dname not in self.dimensions]
                 for dname in to_pop:
                     dslice.pop(dname)
             if distributed:
@@ -416,7 +416,7 @@ class OcgField(VariableCollection):
                          ['=== Geometry ===================', 'geom'],
                          ['=== Grid =======================', 'grid']])
         lines = []
-        for k, v in m.iteritems():
+        for k, v in m.items():
             sub = [k, '']
             dim = getattr(field, v)
             if dim is None:
@@ -428,7 +428,7 @@ class OcgField(VariableCollection):
 
         if should_print:
             for line in lines:
-                print line
+                print(line)
 
         return lines
 
@@ -548,7 +548,7 @@ class OcgField(VariableCollection):
             yield var
 
     def iter_mapped(self, include_crs=False):
-        for k, v in self.dimension_map.items():
+        for k, v in list(self.dimension_map.items()):
             if k == DimensionMapKeys.CRS and not include_crs:
                 continue
             else:
@@ -641,7 +641,7 @@ class OcgField(VariableCollection):
 
         # Attempt to load all instrumented dimensions once. Do not do this for the geometry variable. This is done to
         # ensure proper attributes are applied to dimension variables before writing.
-        for k in self.dimension_map.keys():
+        for k in list(self.dimension_map.keys()):
             if k != 'geom':
                 getattr(self, k)
 
@@ -676,11 +676,11 @@ def get_merged_dimension_map(dimension_map):
     dimension_map_template = deepcopy(_DIMENSION_MAP)
     # Merge incoming dimension map with the template.
     if dimension_map is not None:
-        for k, v in dimension_map.items():
+        for k, v in list(dimension_map.items()):
             # Groups in dimension maps don't matter to the target field. Each field keeps its own copy.
             if k == 'groups':
                 continue
-            for k2, v2, in v.items():
+            for k2, v2, in list(v.items()):
                 if k2 == 'attrs':
                     dimension_map_template[k][k2].update(v2)
                 else:
@@ -690,7 +690,7 @@ def get_merged_dimension_map(dimension_map):
 
 def get_name_mapping(dimension_map):
     name_mapping = {}
-    for k, v in dimension_map.items():
+    for k, v in list(dimension_map.items()):
         # Do not slice the coordinate system variable.
         if k == DimensionMapKeys.CRS:
             continue

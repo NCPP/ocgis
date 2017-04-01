@@ -60,7 +60,7 @@ class TestEvalFunction(TestBase):
         expr = 'es=6.1078*exp(17.08085*(tas-273.16)/(234.175+(tas-273.16)))'
         ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
-        self.assertEqual(ret.keys(), ['es'])
+        self.assertEqual(list(ret.keys()), ['es'])
         self.assertEqual(ret['es'].units, None)
         self.assertEqual(ret['es'].name, 'es')
 
@@ -82,7 +82,7 @@ class TestEvalFunction(TestBase):
         expr = 'foo=log(1000*(tasmax-tas))/3'
         ef = EvalFunction(expr=expr, field=field)
         ret = ef.execute()
-        self.assertEqual(ret.keys(), ['foo'])
+        self.assertEqual(list(ret.keys()), ['foo'])
 
         tas = field['tas']
         tasmax = field['tasmax']

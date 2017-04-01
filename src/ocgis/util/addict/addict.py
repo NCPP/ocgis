@@ -2,6 +2,8 @@ import copy
 import re
 from inspect import isgenerator
 
+import six
+
 
 class Dict(dict):
     """
@@ -42,7 +44,7 @@ class Dict(dict):
             if not arg:
                 continue
             elif isinstance(arg, dict):
-                for key, val in arg.items():
+                for key, val in list(arg.items()):
                     self[key] = self._hook(val)
             elif isinstance(arg, tuple) and (not isinstance(arg[0], tuple)):
                 self[arg[0]] = self._hook(arg[1])
@@ -53,7 +55,7 @@ class Dict(dict):
                 raise TypeError("Dict does not understand "
                                 "{0} types".format(type(arg)))
 
-        for key, val in kwargs.items():
+        for key, val in list(kwargs.items()):
             self[key] = val
 
     def __setattr__(self, name, value):
@@ -117,8 +119,8 @@ class Dict(dict):
         letter or underscore).  Also includes attributes of parent dict class.
         """
         dict_keys = []
-        for k in self.keys():
-            if isinstance(k, str):
+        for k in list(self.keys()):
+            if isinstance(k, six.string_types):
                 m = self._re_pattern.match(k)
                 if m:
                     dict_keys.append(m.string)
@@ -128,7 +130,7 @@ class Dict(dict):
         return dict_keys + obj_attrs
 
     def _ipython_display_(self):
-        print(str(self))  # pragma: no cover
+        print((str(self)))  # pragma: no cover
 
     def _repr_html_(self):
         return str(self)
@@ -206,7 +208,7 @@ class Dict(dict):
     def to_dict(self):
         """ Recursively turn your addict Dicts into dicts. """
         base = {}
-        for key, value in self.items():
+        for key, value in list(self.items()):
             if isinstance(value, type(self)):
                 base[key] = value.to_dict()
             elif isinstance(value, (list, tuple)):
@@ -231,14 +233,14 @@ class Dict(dict):
 
         y = self.__class__()
         memo[id(self)] = y
-        for key, value in self.items():
+        for key, value in list(self.items()):
             y[copy.deepcopy(key, memo)] = copy.deepcopy(value, memo)
         return y
 
     def update(self, d):
         """ Recursively merge d into self. """
 
-        for k, v in d.items():
+        for k, v in list(d.items()):
             if ((k not in self) or
                     (not isinstance(self[k], dict)) or
                     (not isinstance(v, dict))):

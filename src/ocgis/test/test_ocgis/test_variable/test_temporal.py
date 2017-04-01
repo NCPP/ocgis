@@ -2,11 +2,9 @@ import datetime
 import itertools
 import os
 from collections import deque, OrderedDict
-from datetime import datetime as dt
 
 import numpy as np
-from netCDF4 import date2num, num2date
-from netcdftime import netcdftime
+from netCDF4 import date2num, num2date, netcdftime
 
 from ocgis import RequestDataset
 from ocgis import constants
@@ -19,7 +17,8 @@ from ocgis.util.units import get_units_object, get_are_units_equal, get_are_unit
 from ocgis.variable.temporal import get_datetime_conversion_state, get_datetime_from_months_time_units, \
     get_datetime_from_template_time_units, get_difference_in_months, get_is_interannual, get_num_from_months_time_units, \
     get_origin_datetime_from_months_units, get_sorted_seasons, TemporalVariable, iter_boolean_groups_from_time_regions, \
-    TemporalGroupVariable, get_time_regions
+    TemporalGroupVariable, get_time_regions, get_datetime_or_netcdftime
+from ocgis.variable.temporal import get_datetime_or_netcdftime as dt
 
 
 class AbstractTestTemporal(AbstractTestInterface):
@@ -44,7 +43,7 @@ class Test(AbstractTestTemporal):
 
     def test_get_datetime_from_months_time_units(self):
         units = "months since 1978-12"
-        vec = range(0, 36)
+        vec = list(range(0, 36))
         datetimes = get_datetime_from_months_time_units(vec, units)
         test_datetimes = [datetime.datetime(1978, 12, 16, 0, 0), datetime.datetime(1979, 1, 16, 0, 0),
                           datetime.datetime(1979, 2, 16, 0, 0), datetime.datetime(1979, 3, 16, 0, 0),
@@ -89,7 +88,7 @@ class Test(AbstractTestTemporal):
 
     def test_get_num_from_months_time_units_1d_array(self):
         units = "months since 1978-12"
-        vec = range(0, 36)
+        vec = list(range(0, 36))
         datetimes = get_datetime_from_months_time_units(vec, units)
         num = get_num_from_months_time_units(datetimes, units, dtype=np.int32)
         self.assertNumpyAll(num, np.array(vec, dtype=np.int32))
@@ -135,8 +134,10 @@ class Test(AbstractTestTemporal):
 
 class TestTemporalVariable(AbstractTestTemporal):
     def get_temporalvariable(self, add_bounds=True, start=None, stop=None, days=1, name=None, format_time=True):
-        start = start or datetime.datetime(1899, 1, 1, 12)
-        stop = stop or datetime.datetime(1901, 12, 31, 12)
+        dt = datetime.datetime
+        # dt = get_datetime_or_netcdftime
+        start = start or dt(1899, 1, 1, 12)
+        stop = stop or dt(1901, 12, 31, 12)
         dates = get_date_list(start, stop, days=days)
         if add_bounds:
             delta = datetime.timedelta(hours=12)
@@ -148,6 +149,22 @@ class TestTemporalVariable(AbstractTestTemporal):
             bounds = TemporalVariable(name='time_bounds', value=bounds, dimensions=['time', 'bounds'])
         else:
             bounds = None
+
+        # Earlier versions of netcdftime do not support the delta operation.
+        dt = get_datetime_or_netcdftime
+        dates = np.array(dates)
+        dates = dates.flatten()
+        for idx in range(len(dates)):
+            curr = dates[idx]
+            dates[idx] = dt(curr.year, curr.month, curr.day, curr.hour)
+        if add_bounds:
+            bfill = bounds.get_value().flatten()
+            for idx in range(len(bfill)):
+                curr = bfill[idx]
+                bfill[idx] = dt(curr.year, curr.month, curr.day, curr.hour)
+            bfill = bfill.reshape(bounds.shape)
+            bounds.set_value(bfill)
+
         td = TemporalVariable(value=dates, bounds=bounds, name=name, format_time=format_time, dimensions='time')
         return td
 
@@ -205,7 +222,7 @@ class TestTemporalVariable(AbstractTestTemporal):
             sub = tv[0]
             kwds = {KeywordArguments.BOUNDS_NAMES: k.bounds_names}
             record = sub.as_record(**kwds)
-            for v in record.values():
+            for v in list(record.values()):
                 self.assertNotIsInstance(v, float)
             self.assertEqual(len(record), 7)
 
@@ -231,8 +248,8 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertEqual(sub.shape, (3,))
 
     def test_360_day_calendar(self):
-        months = range(1, 13)
-        days = range(1, 31)
+        months = list(range(1, 13))
+        days = list(range(1, 31))
         vec = []
         for month in months:
             for day in days:
@@ -404,12 +421,13 @@ class TestTemporalVariable(AbstractTestTemporal):
         narr = date2num(ndts, units, calendar=calendar)
         td = self.init_temporal_variable(value=narr, units=units, calendar=calendar)
         res = td.get_datetime(td.get_value())
-        self.assertTrue(all([isinstance(element, ndt) for element in res.flat]))
+        self.assertTrue(all([element.year == 0000 for element in res.flat]))
 
     def test_get_datetime_with_template_units(self):
         """Template units are present in some non-CF conforming files."""
 
         td = self.get_template_units()
+        self.assertIsNotNone(td.value_numtime)
         self.assertIsNotNone(td.value_datetime)
         self.assertEqual(td.value_datetime[2], datetime.datetime(1971, 1, 3, 22, 30))
         td2 = self.init_temporal_variable(value=td.value_numtime, units=td.units, calendar='proleptic_gregorian')
@@ -454,33 +472,115 @@ class TestTemporalVariable(AbstractTestTemporal):
             tgd = td.get_grouping('all')
             self.assertEqual(tgd.dgroups, [slice(None)])
             self.assertEqual(td.get_value()[546], tgd.get_value()[0])
+
+            actual = date2num(tgd.bounds.get_value(), td.units, td.calendar).tolist()
+
             if b:
-                self.assertNumpyAll(tgd.bounds.masked_value, np.ma.array([[datetime.datetime(1899, 1, 1),
-                                                                           datetime.datetime(1902, 1, 1)]]))
+                desired = [[693232.0, 694327.0]]
             else:
-                self.assertNumpyAll(tgd.bounds.masked_value, np.ma.array([[datetime.datetime(1899, 1, 1, 12),
-                                                                           datetime.datetime(1901, 12, 31, 12)]]))
+                desired = [[693232.5, 694326.5]]
+            self.assertEqual(actual, desired)
 
     def test_get_grouping_other(self):
         tdim = self.get_temporalvariable()
         grouping = [[12, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], 'year']
         new_bounds, date_parts, repr_dt, dgroups = tdim._get_grouping_other_(grouping)
 
-        actual_repr_dt = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x0c\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07k\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07k\x04\x10\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07k\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07k\n\x10\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07l\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07l\x04\x10\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07l\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07l\n\x10\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07m\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07m\x04\x10\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07m\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07m\n\x10\x00\x00\x00\x00\x00\x00\x85Rq\x13etb.')
-        self.assertNumpyAll(repr_dt, actual_repr_dt)
+        repr_dt = date2num(repr_dt, tdim.units, calendar=tdim.calendar).tolist()
+        desired = [693247.0, 693337.0, 693428.0, 693520.0, 693612.0, 693702.0, 693793.0, 693885.0, 693977.0, 694067.0,
+                   694158.0, 694250.0]
+        self.assertEqual(repr_dt, desired)
 
-        actual_new_bounds = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x0cK\x02\x86cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07k\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07l\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07k\x03\x01\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07k\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07k\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07k\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07k\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07k\x0c\x01\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07l\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07m\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07l\x03\x01\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07l\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07l\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07l\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07l\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07l\x0c\x01\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07m\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07n\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07m\x03\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07m\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07m\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07m\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07m\t\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07m\x0c\x01\x00\x00\x00\x00\x00\x00\x85Rq\x1fetb.')
-        self.assertNumpyAll(new_bounds, actual_new_bounds)
+        new_bounds = date2num(new_bounds, tdim.units, calendar=tdim.calendar).tolist()
+        desired = [[693232.0, 693597.0], [693291.0, 693383.0], [693383.0, 693475.0], [693475.0, 693566.0],
+                   [693597.0, 693962.0], [693656.0, 693748.0], [693748.0, 693840.0], [693840.0, 693931.0],
+                   [693962.0, 694327.0], [694021.0, 694113.0], [694113.0, 694205.0], [694205.0, 694296.0]]
+        self.assertEqual(new_bounds, desired)
 
-        actual_dgroups = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01MG\x04\x85cnumpy\ndtype\nq\x04U\x02b1K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tb\x89TG\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00tb.')
-        self.assertNumpyAll(actual_dgroups, dgroups[4])
+        desired = [False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False]
+        self.assertEqual(dgroups[4].tolist(), desired)
 
-        actual_date_parts = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x0c\x85cnumpy\ndtype\nq\x04U\x03V16K\x00K\x01\x87Rq\x05(K\x03U\x01|NU\x06monthsq\x06U\x04yearq\x07\x86q\x08}q\t(h\x06h\x04U\x02O8K\x00K\x01\x87Rq\n(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tbK\x00\x86h\x07h\x04U\x02i8K\x00K\x01\x87Rq\x0b(K\x03U\x01<NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK\x00tbK\x08\x86uK\x10K\x01K\x1btb\x89]q\x0c(]q\r(K\x0cK\x01K\x02eMk\x07\x86q\x0e]q\x0f(K\x03K\x04K\x05eMk\x07\x86q\x10]q\x11(K\x06K\x07K\x08eMk\x07\x86q\x12]q\x13(K\tK\nK\x0beMk\x07\x86q\x14h\rMl\x07\x86q\x15h\x0fMl\x07\x86q\x16h\x11Ml\x07\x86q\x17h\x13Ml\x07\x86q\x18h\rMm\x07\x86q\x19h\x0fMm\x07\x86q\x1ah\x11Mm\x07\x86q\x1bh\x13Mm\x07\x86q\x1cetb.')
-        self.assertNumpyAll(actual_date_parts, date_parts)
+        desired = [([12, 1, 2], 1899), ([3, 4, 5], 1899), ([6, 7, 8], 1899), ([9, 10, 11], 1899), ([12, 1, 2], 1900),
+                   ([3, 4, 5], 1900), ([6, 7, 8], 1900), ([9, 10, 11], 1900), ([12, 1, 2], 1901), ([3, 4, 5], 1901),
+                   ([6, 7, 8], 1901), ([9, 10, 11], 1901)]
+        self.assertEqual(date_parts.tolist(), desired)
 
     @attr('data')
     def test_get_grouping_seasonal(self):
@@ -517,7 +617,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertEqual(tg.get_value()[0], dt(2005, 4, 16))
 
     def test_get_grouping_seasonal_empty_with_year_missing_month(self):
-        dt1 = datetime.datetime(1900, 01, 01)
+        dt1 = datetime.datetime(1900, 0o1, 0o1)
         dt2 = datetime.datetime(1903, 1, 31)
         dates = get_date_list(dt1, dt2, days=1)
         td = self.init_temporal_variable(value=dates)
@@ -557,7 +657,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         base_select = np.zeros(td.shape[0], dtype=bool)
         dgroups = deque()
 
-        for software, manual in itertools.izip(tg.dgroups, dgroups):
+        for software, manual in zip(tg.dgroups, dgroups):
             self.assertNumpyAll(software, manual)
         self.assertEqual(len(tg.dgroups), 2)
         self.assertEqual(tg.get_value().tolist(),
@@ -620,7 +720,7 @@ class TestTemporalVariable(AbstractTestTemporal):
     def test_get_grouping_seasonal_unique_flag_winter_season(self):
         """Test with a single winter season using the unique flag."""
 
-        dt1 = datetime.datetime(1900, 01, 01)
+        dt1 = datetime.datetime(1900, 0o1, 0o1)
         dt2 = datetime.datetime(1902, 12, 31)
         dates = get_date_list(dt1, dt2, days=1)
         td = self.init_temporal_variable(value=dates)
@@ -632,45 +732,109 @@ class TestTemporalVariable(AbstractTestTemporal):
                           [datetime.datetime(1901, 12, 1, 0, 0), datetime.datetime(1902, 2, 28, 0, 0)]])
 
     def test_get_grouping_seasonal_year_flag(self):
-        # test with year flag
+        """Test with a year flag."""
+
         dates = get_date_list(dt(2012, 1, 1), dt(2013, 12, 31), 1)
         td = self.init_temporal_variable(value=dates)
         calc_grouping = [[6, 7, 8], 'year']
         tg = td.get_grouping(calc_grouping)
         self.assertEqual(tg.get_value().shape[0], 2)
 
-        # '[datetime.datetime(2012, 7, 16, 0, 0) datetime.datetime(2013, 7, 16, 0, 0)]'
-        actual = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdc\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq\tetb.')
-        self.assertNumpyAll(tg.masked_value, np.ma.array(actual))
+        actual = date2num(tg.get_value(), td.units, calendar=td.calendar).tolist()
+        desired = [734701.0, 735066.0]
+        self.assertEqual(actual, desired)
 
-        # '[datetime.datetime(2012, 6, 1, 0, 0) datetime.datetime(2012, 6, 2, 0, 0)\n datetime.datetime(2012, 6, 3, 0, 0) datetime.datetime(2012, 6, 4, 0, 0)\n datetime.datetime(2012, 6, 5, 0, 0) datetime.datetime(2012, 6, 6, 0, 0)\n datetime.datetime(2012, 6, 7, 0, 0) datetime.datetime(2012, 6, 8, 0, 0)\n datetime.datetime(2012, 6, 9, 0, 0) datetime.datetime(2012, 6, 10, 0, 0)\n datetime.datetime(2012, 6, 11, 0, 0) datetime.datetime(2012, 6, 12, 0, 0)\n datetime.datetime(2012, 6, 13, 0, 0) datetime.datetime(2012, 6, 14, 0, 0)\n datetime.datetime(2012, 6, 15, 0, 0) datetime.datetime(2012, 6, 16, 0, 0)\n datetime.datetime(2012, 6, 17, 0, 0) datetime.datetime(2012, 6, 18, 0, 0)\n datetime.datetime(2012, 6, 19, 0, 0) datetime.datetime(2012, 6, 20, 0, 0)\n datetime.datetime(2012, 6, 21, 0, 0) datetime.datetime(2012, 6, 22, 0, 0)\n datetime.datetime(2012, 6, 23, 0, 0) datetime.datetime(2012, 6, 24, 0, 0)\n datetime.datetime(2012, 6, 25, 0, 0) datetime.datetime(2012, 6, 26, 0, 0)\n datetime.datetime(2012, 6, 27, 0, 0) datetime.datetime(2012, 6, 28, 0, 0)\n datetime.datetime(2012, 6, 29, 0, 0) datetime.datetime(2012, 6, 30, 0, 0)\n datetime.datetime(2012, 7, 1, 0, 0) datetime.datetime(2012, 7, 2, 0, 0)\n datetime.datetime(2012, 7, 3, 0, 0) datetime.datetime(2012, 7, 4, 0, 0)\n datetime.datetime(2012, 7, 5, 0, 0) datetime.datetime(2012, 7, 6, 0, 0)\n datetime.datetime(2012, 7, 7, 0, 0) datetime.datetime(2012, 7, 8, 0, 0)\n datetime.datetime(2012, 7, 9, 0, 0) datetime.datetime(2012, 7, 10, 0, 0)\n datetime.datetime(2012, 7, 11, 0, 0) datetime.datetime(2012, 7, 12, 0, 0)\n datetime.datetime(2012, 7, 13, 0, 0) datetime.datetime(2012, 7, 14, 0, 0)\n datetime.datetime(2012, 7, 15, 0, 0) datetime.datetime(2012, 7, 16, 0, 0)\n datetime.datetime(2012, 7, 17, 0, 0) datetime.datetime(2012, 7, 18, 0, 0)\n datetime.datetime(2012, 7, 19, 0, 0) datetime.datetime(2012, 7, 20, 0, 0)\n datetime.datetime(2012, 7, 21, 0, 0) datetime.datetime(2012, 7, 22, 0, 0)\n datetime.datetime(2012, 7, 23, 0, 0) datetime.datetime(2012, 7, 24, 0, 0)\n datetime.datetime(2012, 7, 25, 0, 0) datetime.datetime(2012, 7, 26, 0, 0)\n datetime.datetime(2012, 7, 27, 0, 0) datetime.datetime(2012, 7, 28, 0, 0)\n datetime.datetime(2012, 7, 29, 0, 0) datetime.datetime(2012, 7, 30, 0, 0)\n datetime.datetime(2012, 7, 31, 0, 0) datetime.datetime(2012, 8, 1, 0, 0)\n datetime.datetime(2012, 8, 2, 0, 0) datetime.datetime(2012, 8, 3, 0, 0)\n datetime.datetime(2012, 8, 4, 0, 0) datetime.datetime(2012, 8, 5, 0, 0)\n datetime.datetime(2012, 8, 6, 0, 0) datetime.datetime(2012, 8, 7, 0, 0)\n datetime.datetime(2012, 8, 8, 0, 0) datetime.datetime(2012, 8, 9, 0, 0)\n datetime.datetime(2012, 8, 10, 0, 0) datetime.datetime(2012, 8, 11, 0, 0)\n datetime.datetime(2012, 8, 12, 0, 0) datetime.datetime(2012, 8, 13, 0, 0)\n datetime.datetime(2012, 8, 14, 0, 0) datetime.datetime(2012, 8, 15, 0, 0)\n datetime.datetime(2012, 8, 16, 0, 0) datetime.datetime(2012, 8, 17, 0, 0)\n datetime.datetime(2012, 8, 18, 0, 0) datetime.datetime(2012, 8, 19, 0, 0)\n datetime.datetime(2012, 8, 20, 0, 0) datetime.datetime(2012, 8, 21, 0, 0)\n datetime.datetime(2012, 8, 22, 0, 0) datetime.datetime(2012, 8, 23, 0, 0)\n datetime.datetime(2012, 8, 24, 0, 0) datetime.datetime(2012, 8, 25, 0, 0)\n datetime.datetime(2012, 8, 26, 0, 0) datetime.datetime(2012, 8, 27, 0, 0)\n datetime.datetime(2012, 8, 28, 0, 0) datetime.datetime(2012, 8, 29, 0, 0)\n datetime.datetime(2012, 8, 30, 0, 0) datetime.datetime(2012, 8, 31, 0, 0)]'
-        actual = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\\\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdc\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdc\x06\x02\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdc\x06\x03\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdc\x06\x04\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07\xdc\x06\x05\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07\xdc\x06\x06\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07\xdc\x06\x07\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07\xdc\x06\x08\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07\xdc\x06\t\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07\xdc\x06\n\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07\xdc\x06\x0b\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07\xdc\x06\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07\xdc\x06\r\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07\xdc\x06\x0e\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07\xdc\x06\x0f\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07\xdc\x06\x10\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07\xdc\x06\x11\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07\xdc\x06\x12\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07\xdc\x06\x13\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07\xdc\x06\x14\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07\xdc\x06\x15\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07\xdc\x06\x16\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07\xdc\x06\x17\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07\xdc\x06\x18\x00\x00\x00\x00\x00\x00\x85Rq\x1fh\x07U\n\x07\xdc\x06\x19\x00\x00\x00\x00\x00\x00\x85Rq h\x07U\n\x07\xdc\x06\x1a\x00\x00\x00\x00\x00\x00\x85Rq!h\x07U\n\x07\xdc\x06\x1b\x00\x00\x00\x00\x00\x00\x85Rq"h\x07U\n\x07\xdc\x06\x1c\x00\x00\x00\x00\x00\x00\x85Rq#h\x07U\n\x07\xdc\x06\x1d\x00\x00\x00\x00\x00\x00\x85Rq$h\x07U\n\x07\xdc\x06\x1e\x00\x00\x00\x00\x00\x00\x85Rq%h\x07U\n\x07\xdc\x07\x01\x00\x00\x00\x00\x00\x00\x85Rq&h\x07U\n\x07\xdc\x07\x02\x00\x00\x00\x00\x00\x00\x85Rq\'h\x07U\n\x07\xdc\x07\x03\x00\x00\x00\x00\x00\x00\x85Rq(h\x07U\n\x07\xdc\x07\x04\x00\x00\x00\x00\x00\x00\x85Rq)h\x07U\n\x07\xdc\x07\x05\x00\x00\x00\x00\x00\x00\x85Rq*h\x07U\n\x07\xdc\x07\x06\x00\x00\x00\x00\x00\x00\x85Rq+h\x07U\n\x07\xdc\x07\x07\x00\x00\x00\x00\x00\x00\x85Rq,h\x07U\n\x07\xdc\x07\x08\x00\x00\x00\x00\x00\x00\x85Rq-h\x07U\n\x07\xdc\x07\t\x00\x00\x00\x00\x00\x00\x85Rq.h\x07U\n\x07\xdc\x07\n\x00\x00\x00\x00\x00\x00\x85Rq/h\x07U\n\x07\xdc\x07\x0b\x00\x00\x00\x00\x00\x00\x85Rq0h\x07U\n\x07\xdc\x07\x0c\x00\x00\x00\x00\x00\x00\x85Rq1h\x07U\n\x07\xdc\x07\r\x00\x00\x00\x00\x00\x00\x85Rq2h\x07U\n\x07\xdc\x07\x0e\x00\x00\x00\x00\x00\x00\x85Rq3h\x07U\n\x07\xdc\x07\x0f\x00\x00\x00\x00\x00\x00\x85Rq4h\x07U\n\x07\xdc\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq5h\x07U\n\x07\xdc\x07\x11\x00\x00\x00\x00\x00\x00\x85Rq6h\x07U\n\x07\xdc\x07\x12\x00\x00\x00\x00\x00\x00\x85Rq7h\x07U\n\x07\xdc\x07\x13\x00\x00\x00\x00\x00\x00\x85Rq8h\x07U\n\x07\xdc\x07\x14\x00\x00\x00\x00\x00\x00\x85Rq9h\x07U\n\x07\xdc\x07\x15\x00\x00\x00\x00\x00\x00\x85Rq:h\x07U\n\x07\xdc\x07\x16\x00\x00\x00\x00\x00\x00\x85Rq;h\x07U\n\x07\xdc\x07\x17\x00\x00\x00\x00\x00\x00\x85Rq<h\x07U\n\x07\xdc\x07\x18\x00\x00\x00\x00\x00\x00\x85Rq=h\x07U\n\x07\xdc\x07\x19\x00\x00\x00\x00\x00\x00\x85Rq>h\x07U\n\x07\xdc\x07\x1a\x00\x00\x00\x00\x00\x00\x85Rq?h\x07U\n\x07\xdc\x07\x1b\x00\x00\x00\x00\x00\x00\x85Rq@h\x07U\n\x07\xdc\x07\x1c\x00\x00\x00\x00\x00\x00\x85RqAh\x07U\n\x07\xdc\x07\x1d\x00\x00\x00\x00\x00\x00\x85RqBh\x07U\n\x07\xdc\x07\x1e\x00\x00\x00\x00\x00\x00\x85RqCh\x07U\n\x07\xdc\x07\x1f\x00\x00\x00\x00\x00\x00\x85RqDh\x07U\n\x07\xdc\x08\x01\x00\x00\x00\x00\x00\x00\x85RqEh\x07U\n\x07\xdc\x08\x02\x00\x00\x00\x00\x00\x00\x85RqFh\x07U\n\x07\xdc\x08\x03\x00\x00\x00\x00\x00\x00\x85RqGh\x07U\n\x07\xdc\x08\x04\x00\x00\x00\x00\x00\x00\x85RqHh\x07U\n\x07\xdc\x08\x05\x00\x00\x00\x00\x00\x00\x85RqIh\x07U\n\x07\xdc\x08\x06\x00\x00\x00\x00\x00\x00\x85RqJh\x07U\n\x07\xdc\x08\x07\x00\x00\x00\x00\x00\x00\x85RqKh\x07U\n\x07\xdc\x08\x08\x00\x00\x00\x00\x00\x00\x85RqLh\x07U\n\x07\xdc\x08\t\x00\x00\x00\x00\x00\x00\x85RqMh\x07U\n\x07\xdc\x08\n\x00\x00\x00\x00\x00\x00\x85RqNh\x07U\n\x07\xdc\x08\x0b\x00\x00\x00\x00\x00\x00\x85RqOh\x07U\n\x07\xdc\x08\x0c\x00\x00\x00\x00\x00\x00\x85RqPh\x07U\n\x07\xdc\x08\r\x00\x00\x00\x00\x00\x00\x85RqQh\x07U\n\x07\xdc\x08\x0e\x00\x00\x00\x00\x00\x00\x85RqRh\x07U\n\x07\xdc\x08\x0f\x00\x00\x00\x00\x00\x00\x85RqSh\x07U\n\x07\xdc\x08\x10\x00\x00\x00\x00\x00\x00\x85RqTh\x07U\n\x07\xdc\x08\x11\x00\x00\x00\x00\x00\x00\x85RqUh\x07U\n\x07\xdc\x08\x12\x00\x00\x00\x00\x00\x00\x85RqVh\x07U\n\x07\xdc\x08\x13\x00\x00\x00\x00\x00\x00\x85RqWh\x07U\n\x07\xdc\x08\x14\x00\x00\x00\x00\x00\x00\x85RqXh\x07U\n\x07\xdc\x08\x15\x00\x00\x00\x00\x00\x00\x85RqYh\x07U\n\x07\xdc\x08\x16\x00\x00\x00\x00\x00\x00\x85RqZh\x07U\n\x07\xdc\x08\x17\x00\x00\x00\x00\x00\x00\x85Rq[h\x07U\n\x07\xdc\x08\x18\x00\x00\x00\x00\x00\x00\x85Rq\\h\x07U\n\x07\xdc\x08\x19\x00\x00\x00\x00\x00\x00\x85Rq]h\x07U\n\x07\xdc\x08\x1a\x00\x00\x00\x00\x00\x00\x85Rq^h\x07U\n\x07\xdc\x08\x1b\x00\x00\x00\x00\x00\x00\x85Rq_h\x07U\n\x07\xdc\x08\x1c\x00\x00\x00\x00\x00\x00\x85Rq`h\x07U\n\x07\xdc\x08\x1d\x00\x00\x00\x00\x00\x00\x85Rqah\x07U\n\x07\xdc\x08\x1e\x00\x00\x00\x00\x00\x00\x85Rqbh\x07U\n\x07\xdc\x08\x1f\x00\x00\x00\x00\x00\x00\x85Rqcetb.')
-        sub0 = td.masked_value[tg.dgroups[0]]
-        self.assertNumpyAll(sub0, np.ma.array(actual))
+        actual = tg.dgroups[0].tolist()
+        desired = [False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                   True, True, True, True, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                   False, False, False, False, False, False, False, False, False, False, False, False, False, False]
+        self.assertEqual(actual, desired)
 
-        # '[datetime.datetime(2013, 6, 1, 0, 0) datetime.datetime(2013, 6, 2, 0, 0)\n datetime.datetime(2013, 6, 3, 0, 0) datetime.datetime(2013, 6, 4, 0, 0)\n datetime.datetime(2013, 6, 5, 0, 0) datetime.datetime(2013, 6, 6, 0, 0)\n datetime.datetime(2013, 6, 7, 0, 0) datetime.datetime(2013, 6, 8, 0, 0)\n datetime.datetime(2013, 6, 9, 0, 0) datetime.datetime(2013, 6, 10, 0, 0)\n datetime.datetime(2013, 6, 11, 0, 0) datetime.datetime(2013, 6, 12, 0, 0)\n datetime.datetime(2013, 6, 13, 0, 0) datetime.datetime(2013, 6, 14, 0, 0)\n datetime.datetime(2013, 6, 15, 0, 0) datetime.datetime(2013, 6, 16, 0, 0)\n datetime.datetime(2013, 6, 17, 0, 0) datetime.datetime(2013, 6, 18, 0, 0)\n datetime.datetime(2013, 6, 19, 0, 0) datetime.datetime(2013, 6, 20, 0, 0)\n datetime.datetime(2013, 6, 21, 0, 0) datetime.datetime(2013, 6, 22, 0, 0)\n datetime.datetime(2013, 6, 23, 0, 0) datetime.datetime(2013, 6, 24, 0, 0)\n datetime.datetime(2013, 6, 25, 0, 0) datetime.datetime(2013, 6, 26, 0, 0)\n datetime.datetime(2013, 6, 27, 0, 0) datetime.datetime(2013, 6, 28, 0, 0)\n datetime.datetime(2013, 6, 29, 0, 0) datetime.datetime(2013, 6, 30, 0, 0)\n datetime.datetime(2013, 7, 1, 0, 0) datetime.datetime(2013, 7, 2, 0, 0)\n datetime.datetime(2013, 7, 3, 0, 0) datetime.datetime(2013, 7, 4, 0, 0)\n datetime.datetime(2013, 7, 5, 0, 0) datetime.datetime(2013, 7, 6, 0, 0)\n datetime.datetime(2013, 7, 7, 0, 0) datetime.datetime(2013, 7, 8, 0, 0)\n datetime.datetime(2013, 7, 9, 0, 0) datetime.datetime(2013, 7, 10, 0, 0)\n datetime.datetime(2013, 7, 11, 0, 0) datetime.datetime(2013, 7, 12, 0, 0)\n datetime.datetime(2013, 7, 13, 0, 0) datetime.datetime(2013, 7, 14, 0, 0)\n datetime.datetime(2013, 7, 15, 0, 0) datetime.datetime(2013, 7, 16, 0, 0)\n datetime.datetime(2013, 7, 17, 0, 0) datetime.datetime(2013, 7, 18, 0, 0)\n datetime.datetime(2013, 7, 19, 0, 0) datetime.datetime(2013, 7, 20, 0, 0)\n datetime.datetime(2013, 7, 21, 0, 0) datetime.datetime(2013, 7, 22, 0, 0)\n datetime.datetime(2013, 7, 23, 0, 0) datetime.datetime(2013, 7, 24, 0, 0)\n datetime.datetime(2013, 7, 25, 0, 0) datetime.datetime(2013, 7, 26, 0, 0)\n datetime.datetime(2013, 7, 27, 0, 0) datetime.datetime(2013, 7, 28, 0, 0)\n datetime.datetime(2013, 7, 29, 0, 0) datetime.datetime(2013, 7, 30, 0, 0)\n datetime.datetime(2013, 7, 31, 0, 0) datetime.datetime(2013, 8, 1, 0, 0)\n datetime.datetime(2013, 8, 2, 0, 0) datetime.datetime(2013, 8, 3, 0, 0)\n datetime.datetime(2013, 8, 4, 0, 0) datetime.datetime(2013, 8, 5, 0, 0)\n datetime.datetime(2013, 8, 6, 0, 0) datetime.datetime(2013, 8, 7, 0, 0)\n datetime.datetime(2013, 8, 8, 0, 0) datetime.datetime(2013, 8, 9, 0, 0)\n datetime.datetime(2013, 8, 10, 0, 0) datetime.datetime(2013, 8, 11, 0, 0)\n datetime.datetime(2013, 8, 12, 0, 0) datetime.datetime(2013, 8, 13, 0, 0)\n datetime.datetime(2013, 8, 14, 0, 0) datetime.datetime(2013, 8, 15, 0, 0)\n datetime.datetime(2013, 8, 16, 0, 0) datetime.datetime(2013, 8, 17, 0, 0)\n datetime.datetime(2013, 8, 18, 0, 0) datetime.datetime(2013, 8, 19, 0, 0)\n datetime.datetime(2013, 8, 20, 0, 0) datetime.datetime(2013, 8, 21, 0, 0)\n datetime.datetime(2013, 8, 22, 0, 0) datetime.datetime(2013, 8, 23, 0, 0)\n datetime.datetime(2013, 8, 24, 0, 0) datetime.datetime(2013, 8, 25, 0, 0)\n datetime.datetime(2013, 8, 26, 0, 0) datetime.datetime(2013, 8, 27, 0, 0)\n datetime.datetime(2013, 8, 28, 0, 0) datetime.datetime(2013, 8, 29, 0, 0)\n datetime.datetime(2013, 8, 30, 0, 0) datetime.datetime(2013, 8, 31, 0, 0)]'
-        actual = np.loads(
-            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\\\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdd\x06\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x06\x02\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdd\x06\x03\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdd\x06\x04\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07\xdd\x06\x05\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07\xdd\x06\x06\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07\xdd\x06\x07\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07\xdd\x06\x08\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07\xdd\x06\t\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07\xdd\x06\n\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07\xdd\x06\x0b\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07\xdd\x06\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07\xdd\x06\r\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07\xdd\x06\x0e\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07\xdd\x06\x0f\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07\xdd\x06\x10\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07\xdd\x06\x11\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07\xdd\x06\x12\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07\xdd\x06\x13\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07\xdd\x06\x14\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07\xdd\x06\x15\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07\xdd\x06\x16\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07\xdd\x06\x17\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07\xdd\x06\x18\x00\x00\x00\x00\x00\x00\x85Rq\x1fh\x07U\n\x07\xdd\x06\x19\x00\x00\x00\x00\x00\x00\x85Rq h\x07U\n\x07\xdd\x06\x1a\x00\x00\x00\x00\x00\x00\x85Rq!h\x07U\n\x07\xdd\x06\x1b\x00\x00\x00\x00\x00\x00\x85Rq"h\x07U\n\x07\xdd\x06\x1c\x00\x00\x00\x00\x00\x00\x85Rq#h\x07U\n\x07\xdd\x06\x1d\x00\x00\x00\x00\x00\x00\x85Rq$h\x07U\n\x07\xdd\x06\x1e\x00\x00\x00\x00\x00\x00\x85Rq%h\x07U\n\x07\xdd\x07\x01\x00\x00\x00\x00\x00\x00\x85Rq&h\x07U\n\x07\xdd\x07\x02\x00\x00\x00\x00\x00\x00\x85Rq\'h\x07U\n\x07\xdd\x07\x03\x00\x00\x00\x00\x00\x00\x85Rq(h\x07U\n\x07\xdd\x07\x04\x00\x00\x00\x00\x00\x00\x85Rq)h\x07U\n\x07\xdd\x07\x05\x00\x00\x00\x00\x00\x00\x85Rq*h\x07U\n\x07\xdd\x07\x06\x00\x00\x00\x00\x00\x00\x85Rq+h\x07U\n\x07\xdd\x07\x07\x00\x00\x00\x00\x00\x00\x85Rq,h\x07U\n\x07\xdd\x07\x08\x00\x00\x00\x00\x00\x00\x85Rq-h\x07U\n\x07\xdd\x07\t\x00\x00\x00\x00\x00\x00\x85Rq.h\x07U\n\x07\xdd\x07\n\x00\x00\x00\x00\x00\x00\x85Rq/h\x07U\n\x07\xdd\x07\x0b\x00\x00\x00\x00\x00\x00\x85Rq0h\x07U\n\x07\xdd\x07\x0c\x00\x00\x00\x00\x00\x00\x85Rq1h\x07U\n\x07\xdd\x07\r\x00\x00\x00\x00\x00\x00\x85Rq2h\x07U\n\x07\xdd\x07\x0e\x00\x00\x00\x00\x00\x00\x85Rq3h\x07U\n\x07\xdd\x07\x0f\x00\x00\x00\x00\x00\x00\x85Rq4h\x07U\n\x07\xdd\x07\x10\x00\x00\x00\x00\x00\x00\x85Rq5h\x07U\n\x07\xdd\x07\x11\x00\x00\x00\x00\x00\x00\x85Rq6h\x07U\n\x07\xdd\x07\x12\x00\x00\x00\x00\x00\x00\x85Rq7h\x07U\n\x07\xdd\x07\x13\x00\x00\x00\x00\x00\x00\x85Rq8h\x07U\n\x07\xdd\x07\x14\x00\x00\x00\x00\x00\x00\x85Rq9h\x07U\n\x07\xdd\x07\x15\x00\x00\x00\x00\x00\x00\x85Rq:h\x07U\n\x07\xdd\x07\x16\x00\x00\x00\x00\x00\x00\x85Rq;h\x07U\n\x07\xdd\x07\x17\x00\x00\x00\x00\x00\x00\x85Rq<h\x07U\n\x07\xdd\x07\x18\x00\x00\x00\x00\x00\x00\x85Rq=h\x07U\n\x07\xdd\x07\x19\x00\x00\x00\x00\x00\x00\x85Rq>h\x07U\n\x07\xdd\x07\x1a\x00\x00\x00\x00\x00\x00\x85Rq?h\x07U\n\x07\xdd\x07\x1b\x00\x00\x00\x00\x00\x00\x85Rq@h\x07U\n\x07\xdd\x07\x1c\x00\x00\x00\x00\x00\x00\x85RqAh\x07U\n\x07\xdd\x07\x1d\x00\x00\x00\x00\x00\x00\x85RqBh\x07U\n\x07\xdd\x07\x1e\x00\x00\x00\x00\x00\x00\x85RqCh\x07U\n\x07\xdd\x07\x1f\x00\x00\x00\x00\x00\x00\x85RqDh\x07U\n\x07\xdd\x08\x01\x00\x00\x00\x00\x00\x00\x85RqEh\x07U\n\x07\xdd\x08\x02\x00\x00\x00\x00\x00\x00\x85RqFh\x07U\n\x07\xdd\x08\x03\x00\x00\x00\x00\x00\x00\x85RqGh\x07U\n\x07\xdd\x08\x04\x00\x00\x00\x00\x00\x00\x85RqHh\x07U\n\x07\xdd\x08\x05\x00\x00\x00\x00\x00\x00\x85RqIh\x07U\n\x07\xdd\x08\x06\x00\x00\x00\x00\x00\x00\x85RqJh\x07U\n\x07\xdd\x08\x07\x00\x00\x00\x00\x00\x00\x85RqKh\x07U\n\x07\xdd\x08\x08\x00\x00\x00\x00\x00\x00\x85RqLh\x07U\n\x07\xdd\x08\t\x00\x00\x00\x00\x00\x00\x85RqMh\x07U\n\x07\xdd\x08\n\x00\x00\x00\x00\x00\x00\x85RqNh\x07U\n\x07\xdd\x08\x0b\x00\x00\x00\x00\x00\x00\x85RqOh\x07U\n\x07\xdd\x08\x0c\x00\x00\x00\x00\x00\x00\x85RqPh\x07U\n\x07\xdd\x08\r\x00\x00\x00\x00\x00\x00\x85RqQh\x07U\n\x07\xdd\x08\x0e\x00\x00\x00\x00\x00\x00\x85RqRh\x07U\n\x07\xdd\x08\x0f\x00\x00\x00\x00\x00\x00\x85RqSh\x07U\n\x07\xdd\x08\x10\x00\x00\x00\x00\x00\x00\x85RqTh\x07U\n\x07\xdd\x08\x11\x00\x00\x00\x00\x00\x00\x85RqUh\x07U\n\x07\xdd\x08\x12\x00\x00\x00\x00\x00\x00\x85RqVh\x07U\n\x07\xdd\x08\x13\x00\x00\x00\x00\x00\x00\x85RqWh\x07U\n\x07\xdd\x08\x14\x00\x00\x00\x00\x00\x00\x85RqXh\x07U\n\x07\xdd\x08\x15\x00\x00\x00\x00\x00\x00\x85RqYh\x07U\n\x07\xdd\x08\x16\x00\x00\x00\x00\x00\x00\x85RqZh\x07U\n\x07\xdd\x08\x17\x00\x00\x00\x00\x00\x00\x85Rq[h\x07U\n\x07\xdd\x08\x18\x00\x00\x00\x00\x00\x00\x85Rq\\h\x07U\n\x07\xdd\x08\x19\x00\x00\x00\x00\x00\x00\x85Rq]h\x07U\n\x07\xdd\x08\x1a\x00\x00\x00\x00\x00\x00\x85Rq^h\x07U\n\x07\xdd\x08\x1b\x00\x00\x00\x00\x00\x00\x85Rq_h\x07U\n\x07\xdd\x08\x1c\x00\x00\x00\x00\x00\x00\x85Rq`h\x07U\n\x07\xdd\x08\x1d\x00\x00\x00\x00\x00\x00\x85Rqah\x07U\n\x07\xdd\x08\x1e\x00\x00\x00\x00\x00\x00\x85Rqbh\x07U\n\x07\xdd\x08\x1f\x00\x00\x00\x00\x00\x00\x85Rqcetb.')
-        sub1 = td.masked_value[tg.dgroups[1]]
-        self.assertNumpyAll(sub1, np.ma.array(actual))
+        actual = date2num(td.get_masked_value()[tg.dgroups[1]], td.units, calendar=td.calendar).tolist()
+        desired = [735021.0, 735022.0, 735023.0, 735024.0, 735025.0, 735026.0, 735027.0, 735028.0, 735029.0, 735030.0,
+                   735031.0, 735032.0, 735033.0, 735034.0, 735035.0, 735036.0, 735037.0, 735038.0, 735039.0, 735040.0,
+                   735041.0, 735042.0, 735043.0, 735044.0, 735045.0, 735046.0, 735047.0, 735048.0, 735049.0, 735050.0,
+                   735051.0, 735052.0, 735053.0, 735054.0, 735055.0, 735056.0, 735057.0, 735058.0, 735059.0, 735060.0,
+                   735061.0, 735062.0, 735063.0, 735064.0, 735065.0, 735066.0, 735067.0, 735068.0, 735069.0, 735070.0,
+                   735071.0, 735072.0, 735073.0, 735074.0, 735075.0, 735076.0, 735077.0, 735078.0, 735079.0, 735080.0,
+                   735081.0, 735082.0, 735083.0, 735084.0, 735085.0, 735086.0, 735087.0, 735088.0, 735089.0, 735090.0,
+                   735091.0, 735092.0, 735093.0, 735094.0, 735095.0, 735096.0, 735097.0, 735098.0, 735099.0, 735100.0,
+                   735101.0, 735102.0, 735103.0, 735104.0, 735105.0, 735106.0, 735107.0, 735108.0, 735109.0, 735110.0,
+                   735111.0, 735112.0]
+        self.assertEqual(actual, desired)
 
-        # test crossing year boundary
+        # Test crossing year boundary.
         for calc_grouping in [[[12, 1, 2], 'year'], ['year', [12, 1, 2]]]:
             tg = td.get_grouping(calc_grouping)
 
-            # '[datetime.datetime(2012, 1, 16, 0, 0) datetime.datetime(2013, 1, 16, 0, 0)]'
-            self.assertNumpyAll(tg.masked_value, np.ma.array(np.loads(
-                '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdc\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\tetb.')))
+            actual = tg.value_numtime.tolist()
+            desired = [734519.0, 734885.0]
+            self.assertEqual(actual, desired)
 
-            # '[[datetime.datetime(2012, 1, 1, 0, 0) datetime.datetime(2012, 12, 31, 0, 0)]\n [datetime.datetime(2013, 1, 1, 0, 0) datetime.datetime(2013, 12, 31, 0, 0)]]'
-            self.assertNumpyAll(tg.bounds.masked_value, np.ma.array(np.loads(
-                '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02K\x02\x86cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdc\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdc\x0c\x1f\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdd\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdd\x0c\x1f\x00\x00\x00\x00\x00\x00\x85Rq\x0betb.')))
+            actual = tg.bounds.value_numtime.tolist()
+            desired = [[734504.0, 734869.0], [734870.0, 735234.0]]
+            self.assertEqual(actual, desired)
 
-            # '[datetime.datetime(2013, 1, 1, 0, 0) datetime.datetime(2013, 1, 2, 0, 0)\n datetime.datetime(2013, 1, 3, 0, 0) datetime.datetime(2013, 1, 4, 0, 0)\n datetime.datetime(2013, 1, 5, 0, 0) datetime.datetime(2013, 1, 6, 0, 0)\n datetime.datetime(2013, 1, 7, 0, 0) datetime.datetime(2013, 1, 8, 0, 0)\n datetime.datetime(2013, 1, 9, 0, 0) datetime.datetime(2013, 1, 10, 0, 0)\n datetime.datetime(2013, 1, 11, 0, 0) datetime.datetime(2013, 1, 12, 0, 0)\n datetime.datetime(2013, 1, 13, 0, 0) datetime.datetime(2013, 1, 14, 0, 0)\n datetime.datetime(2013, 1, 15, 0, 0) datetime.datetime(2013, 1, 16, 0, 0)\n datetime.datetime(2013, 1, 17, 0, 0) datetime.datetime(2013, 1, 18, 0, 0)\n datetime.datetime(2013, 1, 19, 0, 0) datetime.datetime(2013, 1, 20, 0, 0)\n datetime.datetime(2013, 1, 21, 0, 0) datetime.datetime(2013, 1, 22, 0, 0)\n datetime.datetime(2013, 1, 23, 0, 0) datetime.datetime(2013, 1, 24, 0, 0)\n datetime.datetime(2013, 1, 25, 0, 0) datetime.datetime(2013, 1, 26, 0, 0)\n datetime.datetime(2013, 1, 27, 0, 0) datetime.datetime(2013, 1, 28, 0, 0)\n datetime.datetime(2013, 1, 29, 0, 0) datetime.datetime(2013, 1, 30, 0, 0)\n datetime.datetime(2013, 1, 31, 0, 0) datetime.datetime(2013, 2, 1, 0, 0)\n datetime.datetime(2013, 2, 2, 0, 0) datetime.datetime(2013, 2, 3, 0, 0)\n datetime.datetime(2013, 2, 4, 0, 0) datetime.datetime(2013, 2, 5, 0, 0)\n datetime.datetime(2013, 2, 6, 0, 0) datetime.datetime(2013, 2, 7, 0, 0)\n datetime.datetime(2013, 2, 8, 0, 0) datetime.datetime(2013, 2, 9, 0, 0)\n datetime.datetime(2013, 2, 10, 0, 0) datetime.datetime(2013, 2, 11, 0, 0)\n datetime.datetime(2013, 2, 12, 0, 0) datetime.datetime(2013, 2, 13, 0, 0)\n datetime.datetime(2013, 2, 14, 0, 0) datetime.datetime(2013, 2, 15, 0, 0)\n datetime.datetime(2013, 2, 16, 0, 0) datetime.datetime(2013, 2, 17, 0, 0)\n datetime.datetime(2013, 2, 18, 0, 0) datetime.datetime(2013, 2, 19, 0, 0)\n datetime.datetime(2013, 2, 20, 0, 0) datetime.datetime(2013, 2, 21, 0, 0)\n datetime.datetime(2013, 2, 22, 0, 0) datetime.datetime(2013, 2, 23, 0, 0)\n datetime.datetime(2013, 2, 24, 0, 0) datetime.datetime(2013, 2, 25, 0, 0)\n datetime.datetime(2013, 2, 26, 0, 0) datetime.datetime(2013, 2, 27, 0, 0)\n datetime.datetime(2013, 2, 28, 0, 0) datetime.datetime(2013, 12, 1, 0, 0)\n datetime.datetime(2013, 12, 2, 0, 0) datetime.datetime(2013, 12, 3, 0, 0)\n datetime.datetime(2013, 12, 4, 0, 0) datetime.datetime(2013, 12, 5, 0, 0)\n datetime.datetime(2013, 12, 6, 0, 0) datetime.datetime(2013, 12, 7, 0, 0)\n datetime.datetime(2013, 12, 8, 0, 0) datetime.datetime(2013, 12, 9, 0, 0)\n datetime.datetime(2013, 12, 10, 0, 0)\n datetime.datetime(2013, 12, 11, 0, 0)\n datetime.datetime(2013, 12, 12, 0, 0)\n datetime.datetime(2013, 12, 13, 0, 0)\n datetime.datetime(2013, 12, 14, 0, 0)\n datetime.datetime(2013, 12, 15, 0, 0)\n datetime.datetime(2013, 12, 16, 0, 0)\n datetime.datetime(2013, 12, 17, 0, 0)\n datetime.datetime(2013, 12, 18, 0, 0)\n datetime.datetime(2013, 12, 19, 0, 0)\n datetime.datetime(2013, 12, 20, 0, 0)\n datetime.datetime(2013, 12, 21, 0, 0)\n datetime.datetime(2013, 12, 22, 0, 0)\n datetime.datetime(2013, 12, 23, 0, 0)\n datetime.datetime(2013, 12, 24, 0, 0)\n datetime.datetime(2013, 12, 25, 0, 0)\n datetime.datetime(2013, 12, 26, 0, 0)\n datetime.datetime(2013, 12, 27, 0, 0)\n datetime.datetime(2013, 12, 28, 0, 0)\n datetime.datetime(2013, 12, 29, 0, 0)\n datetime.datetime(2013, 12, 30, 0, 0)\n datetime.datetime(2013, 12, 31, 0, 0)]'
-            self.assertNumpyAll(td.masked_value[tg.dgroups[1]], np.ma.array(np.loads(
-                '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01KZ\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xdd\x01\x01\x00\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xdd\x01\x02\x00\x00\x00\x00\x00\x00\x85Rq\th\x07U\n\x07\xdd\x01\x03\x00\x00\x00\x00\x00\x00\x85Rq\nh\x07U\n\x07\xdd\x01\x04\x00\x00\x00\x00\x00\x00\x85Rq\x0bh\x07U\n\x07\xdd\x01\x05\x00\x00\x00\x00\x00\x00\x85Rq\x0ch\x07U\n\x07\xdd\x01\x06\x00\x00\x00\x00\x00\x00\x85Rq\rh\x07U\n\x07\xdd\x01\x07\x00\x00\x00\x00\x00\x00\x85Rq\x0eh\x07U\n\x07\xdd\x01\x08\x00\x00\x00\x00\x00\x00\x85Rq\x0fh\x07U\n\x07\xdd\x01\t\x00\x00\x00\x00\x00\x00\x85Rq\x10h\x07U\n\x07\xdd\x01\n\x00\x00\x00\x00\x00\x00\x85Rq\x11h\x07U\n\x07\xdd\x01\x0b\x00\x00\x00\x00\x00\x00\x85Rq\x12h\x07U\n\x07\xdd\x01\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x13h\x07U\n\x07\xdd\x01\r\x00\x00\x00\x00\x00\x00\x85Rq\x14h\x07U\n\x07\xdd\x01\x0e\x00\x00\x00\x00\x00\x00\x85Rq\x15h\x07U\n\x07\xdd\x01\x0f\x00\x00\x00\x00\x00\x00\x85Rq\x16h\x07U\n\x07\xdd\x01\x10\x00\x00\x00\x00\x00\x00\x85Rq\x17h\x07U\n\x07\xdd\x01\x11\x00\x00\x00\x00\x00\x00\x85Rq\x18h\x07U\n\x07\xdd\x01\x12\x00\x00\x00\x00\x00\x00\x85Rq\x19h\x07U\n\x07\xdd\x01\x13\x00\x00\x00\x00\x00\x00\x85Rq\x1ah\x07U\n\x07\xdd\x01\x14\x00\x00\x00\x00\x00\x00\x85Rq\x1bh\x07U\n\x07\xdd\x01\x15\x00\x00\x00\x00\x00\x00\x85Rq\x1ch\x07U\n\x07\xdd\x01\x16\x00\x00\x00\x00\x00\x00\x85Rq\x1dh\x07U\n\x07\xdd\x01\x17\x00\x00\x00\x00\x00\x00\x85Rq\x1eh\x07U\n\x07\xdd\x01\x18\x00\x00\x00\x00\x00\x00\x85Rq\x1fh\x07U\n\x07\xdd\x01\x19\x00\x00\x00\x00\x00\x00\x85Rq h\x07U\n\x07\xdd\x01\x1a\x00\x00\x00\x00\x00\x00\x85Rq!h\x07U\n\x07\xdd\x01\x1b\x00\x00\x00\x00\x00\x00\x85Rq"h\x07U\n\x07\xdd\x01\x1c\x00\x00\x00\x00\x00\x00\x85Rq#h\x07U\n\x07\xdd\x01\x1d\x00\x00\x00\x00\x00\x00\x85Rq$h\x07U\n\x07\xdd\x01\x1e\x00\x00\x00\x00\x00\x00\x85Rq%h\x07U\n\x07\xdd\x01\x1f\x00\x00\x00\x00\x00\x00\x85Rq&h\x07U\n\x07\xdd\x02\x01\x00\x00\x00\x00\x00\x00\x85Rq\'h\x07U\n\x07\xdd\x02\x02\x00\x00\x00\x00\x00\x00\x85Rq(h\x07U\n\x07\xdd\x02\x03\x00\x00\x00\x00\x00\x00\x85Rq)h\x07U\n\x07\xdd\x02\x04\x00\x00\x00\x00\x00\x00\x85Rq*h\x07U\n\x07\xdd\x02\x05\x00\x00\x00\x00\x00\x00\x85Rq+h\x07U\n\x07\xdd\x02\x06\x00\x00\x00\x00\x00\x00\x85Rq,h\x07U\n\x07\xdd\x02\x07\x00\x00\x00\x00\x00\x00\x85Rq-h\x07U\n\x07\xdd\x02\x08\x00\x00\x00\x00\x00\x00\x85Rq.h\x07U\n\x07\xdd\x02\t\x00\x00\x00\x00\x00\x00\x85Rq/h\x07U\n\x07\xdd\x02\n\x00\x00\x00\x00\x00\x00\x85Rq0h\x07U\n\x07\xdd\x02\x0b\x00\x00\x00\x00\x00\x00\x85Rq1h\x07U\n\x07\xdd\x02\x0c\x00\x00\x00\x00\x00\x00\x85Rq2h\x07U\n\x07\xdd\x02\r\x00\x00\x00\x00\x00\x00\x85Rq3h\x07U\n\x07\xdd\x02\x0e\x00\x00\x00\x00\x00\x00\x85Rq4h\x07U\n\x07\xdd\x02\x0f\x00\x00\x00\x00\x00\x00\x85Rq5h\x07U\n\x07\xdd\x02\x10\x00\x00\x00\x00\x00\x00\x85Rq6h\x07U\n\x07\xdd\x02\x11\x00\x00\x00\x00\x00\x00\x85Rq7h\x07U\n\x07\xdd\x02\x12\x00\x00\x00\x00\x00\x00\x85Rq8h\x07U\n\x07\xdd\x02\x13\x00\x00\x00\x00\x00\x00\x85Rq9h\x07U\n\x07\xdd\x02\x14\x00\x00\x00\x00\x00\x00\x85Rq:h\x07U\n\x07\xdd\x02\x15\x00\x00\x00\x00\x00\x00\x85Rq;h\x07U\n\x07\xdd\x02\x16\x00\x00\x00\x00\x00\x00\x85Rq<h\x07U\n\x07\xdd\x02\x17\x00\x00\x00\x00\x00\x00\x85Rq=h\x07U\n\x07\xdd\x02\x18\x00\x00\x00\x00\x00\x00\x85Rq>h\x07U\n\x07\xdd\x02\x19\x00\x00\x00\x00\x00\x00\x85Rq?h\x07U\n\x07\xdd\x02\x1a\x00\x00\x00\x00\x00\x00\x85Rq@h\x07U\n\x07\xdd\x02\x1b\x00\x00\x00\x00\x00\x00\x85RqAh\x07U\n\x07\xdd\x02\x1c\x00\x00\x00\x00\x00\x00\x85RqBh\x07U\n\x07\xdd\x0c\x01\x00\x00\x00\x00\x00\x00\x85RqCh\x07U\n\x07\xdd\x0c\x02\x00\x00\x00\x00\x00\x00\x85RqDh\x07U\n\x07\xdd\x0c\x03\x00\x00\x00\x00\x00\x00\x85RqEh\x07U\n\x07\xdd\x0c\x04\x00\x00\x00\x00\x00\x00\x85RqFh\x07U\n\x07\xdd\x0c\x05\x00\x00\x00\x00\x00\x00\x85RqGh\x07U\n\x07\xdd\x0c\x06\x00\x00\x00\x00\x00\x00\x85RqHh\x07U\n\x07\xdd\x0c\x07\x00\x00\x00\x00\x00\x00\x85RqIh\x07U\n\x07\xdd\x0c\x08\x00\x00\x00\x00\x00\x00\x85RqJh\x07U\n\x07\xdd\x0c\t\x00\x00\x00\x00\x00\x00\x85RqKh\x07U\n\x07\xdd\x0c\n\x00\x00\x00\x00\x00\x00\x85RqLh\x07U\n\x07\xdd\x0c\x0b\x00\x00\x00\x00\x00\x00\x85RqMh\x07U\n\x07\xdd\x0c\x0c\x00\x00\x00\x00\x00\x00\x85RqNh\x07U\n\x07\xdd\x0c\r\x00\x00\x00\x00\x00\x00\x85RqOh\x07U\n\x07\xdd\x0c\x0e\x00\x00\x00\x00\x00\x00\x85RqPh\x07U\n\x07\xdd\x0c\x0f\x00\x00\x00\x00\x00\x00\x85RqQh\x07U\n\x07\xdd\x0c\x10\x00\x00\x00\x00\x00\x00\x85RqRh\x07U\n\x07\xdd\x0c\x11\x00\x00\x00\x00\x00\x00\x85RqSh\x07U\n\x07\xdd\x0c\x12\x00\x00\x00\x00\x00\x00\x85RqTh\x07U\n\x07\xdd\x0c\x13\x00\x00\x00\x00\x00\x00\x85RqUh\x07U\n\x07\xdd\x0c\x14\x00\x00\x00\x00\x00\x00\x85RqVh\x07U\n\x07\xdd\x0c\x15\x00\x00\x00\x00\x00\x00\x85RqWh\x07U\n\x07\xdd\x0c\x16\x00\x00\x00\x00\x00\x00\x85RqXh\x07U\n\x07\xdd\x0c\x17\x00\x00\x00\x00\x00\x00\x85RqYh\x07U\n\x07\xdd\x0c\x18\x00\x00\x00\x00\x00\x00\x85RqZh\x07U\n\x07\xdd\x0c\x19\x00\x00\x00\x00\x00\x00\x85Rq[h\x07U\n\x07\xdd\x0c\x1a\x00\x00\x00\x00\x00\x00\x85Rq\\h\x07U\n\x07\xdd\x0c\x1b\x00\x00\x00\x00\x00\x00\x85Rq]h\x07U\n\x07\xdd\x0c\x1c\x00\x00\x00\x00\x00\x00\x85Rq^h\x07U\n\x07\xdd\x0c\x1d\x00\x00\x00\x00\x00\x00\x85Rq_h\x07U\n\x07\xdd\x0c\x1e\x00\x00\x00\x00\x00\x00\x85Rq`h\x07U\n\x07\xdd\x0c\x1f\x00\x00\x00\x00\x00\x00\x85Rqaetb.')))
+            actual = td.value_numtime[tg.dgroups[1]].tolist()
+            desired = [734870.0, 734871.0, 734872.0, 734873.0, 734874.0, 734875.0, 734876.0, 734877.0, 734878.0,
+                       734879.0, 734880.0, 734881.0, 734882.0, 734883.0, 734884.0, 734885.0, 734886.0, 734887.0,
+                       734888.0, 734889.0, 734890.0, 734891.0, 734892.0, 734893.0, 734894.0, 734895.0, 734896.0,
+                       734897.0, 734898.0, 734899.0, 734900.0, 734901.0, 734902.0, 734903.0, 734904.0, 734905.0,
+                       734906.0, 734907.0, 734908.0, 734909.0, 734910.0, 734911.0, 734912.0, 734913.0, 734914.0,
+                       734915.0, 734916.0, 734917.0, 734918.0, 734919.0, 734920.0, 734921.0, 734922.0, 734923.0,
+                       734924.0, 734925.0, 734926.0, 734927.0, 734928.0, 735204.0, 735205.0, 735206.0, 735207.0,
+                       735208.0, 735209.0, 735210.0, 735211.0, 735212.0, 735213.0, 735214.0, 735215.0, 735216.0,
+                       735217.0, 735218.0, 735219.0, 735220.0, 735221.0, 735222.0, 735223.0, 735224.0, 735225.0,
+                       735226.0, 735227.0, 735228.0, 735229.0, 735230.0, 735231.0, 735232.0, 735233.0, 735234.0]
+            self.assertEqual(actual, desired)
 
     def test_get_subset_by_function(self):
 
@@ -727,7 +891,7 @@ class TestTemporalVariable(AbstractTestTemporal):
 
     def test_months_in_time_units(self):
         units = "months since 1978-12"
-        vec = range(0, 36)
+        vec = list(range(0, 36))
         datetimes = get_datetime_from_months_time_units(vec, units)
         td = self.init_temporal_variable(value=vec, units=units, calendar='standard')
         self.assertTrue(td._has_months_units)
@@ -735,14 +899,14 @@ class TestTemporalVariable(AbstractTestTemporal):
 
     def test_months_in_time_units_are_bad_netcdftime(self):
         units = "months since 1978-12"
-        vec = range(0, 36)
+        vec = list(range(0, 36))
         calendar = "standard"
         with self.assertRaises((TypeError, ValueError)):
             num2date(vec, units, calendar=calendar)
 
     def test_months_in_time_units_between(self):
         units = "months since 1978-12"
-        vec = range(0, 36)
+        vec = list(range(0, 36))
         datetimes = get_datetime_from_months_time_units(vec, units)
         td = self.init_temporal_variable(value=vec, units=units, calendar='standard')
         ret = td.get_between(datetimes[0], datetimes[3])
@@ -754,6 +918,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         td = self.init_temporal_variable(value=value, units=units, calendar='standard')
         self.assertFalse(td._has_months_units)
 
+    @attr('cfunits')
     def test_units(self):
         # Test calendar is maintained when setting units.
         td = self.init_temporal_variable(value=[5])
@@ -821,10 +986,10 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertEqual(actual, target)
 
     def test_time_range_subset(self):
-        dt1 = datetime.datetime(1950, 01, 01, 12)
+        dt1 = datetime.datetime(1950, 0o1, 0o1, 12)
         dt2 = datetime.datetime(1950, 12, 31, 12)
         dates = np.array(get_date_list(dt1, dt2, 1))
-        r1 = datetime.datetime(1950, 01, 01)
+        r1 = datetime.datetime(1950, 0o1, 0o1)
         r2 = datetime.datetime(1950, 12, 31)
         td = self.init_temporal_variable(value=dates)
         ret = td.get_between(r1, r2)

@@ -42,10 +42,10 @@ class TestAbstractCollection(TestBase):
         self.assertEqual(coll, deepcopy(coll))
 
     def test_values(self):
-        self.assertEqual(self.get_coll().values(), ['a', 'b'])
+        self.assertEqual(list(self.get_coll().values()), ['a', 'b'])
 
     def test_keys(self):
-        self.assertEqual(self.get_coll().keys(), [2, 1])
+        self.assertEqual(list(self.get_coll().keys()), [2, 1])
 
     def test_pop(self):
         self.assertEqual(self.get_coll().pop('hi', 'there'), 'there')
@@ -75,7 +75,7 @@ class TestAbstractCollection(TestBase):
     def test_update(self):
         coll = self.get_coll()
         coll.update({'t': 'time'})
-        self.assertEqual(coll.keys(), [2, 1, 't'])
+        self.assertEqual(list(coll.keys()), [2, 1, 't'])
 
     def test_iter(self):
         self.assertEqual(list(self.get_coll().__iter__()), [2, 1])

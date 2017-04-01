@@ -14,6 +14,13 @@ class TestOptionalDependencies(TestSimpleBase):
     nc_factory = SimpleNcNoLevel
     fn = 'test_simple_spatial_no_level_01.nc'
 
+    @attr('mpi-only', 'mpi')
+    def test_mpi4py(self):
+        from mpi4py.MPI import COMM_WORLD
+
+        self.assertGreaterEqual(COMM_WORLD.Get_size(), 1)
+
+    @attr('cfunits')
     def test_cfunits(self):
         units = get_units_object('K')
         self.assertEqual(str(units), 'K')
@@ -37,6 +44,7 @@ class TestOptionalDependencies(TestSimpleBase):
         ret = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping).execute()
         self.assertEqual(ret.get_element(variable_name='TG').get_value().mean(), 2.5)
 
+    @attr('rtree')
     def test_rtree(self):
         from ocgis.spatial.index import SpatialIndex
 

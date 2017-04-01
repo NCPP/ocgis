@@ -15,24 +15,24 @@ class SpatialCollection(VariableCollection):
 
     def __repr__(self):
         msg = '<{klass}(Containers :: {ids})>'.format(klass=self.__class__.__name__,
-                                                      ids=pformat(self.children.keys()))
+                                                      ids=pformat(list(self.children.keys())))
         return msg
 
     @property
     def archetype_field(self):
-        for child in self.children.values():
-            for grandchild in child.children.values():
+        for child in list(self.children.values()):
+            for grandchild in list(child.children.values()):
                 return grandchild
 
     @property
     def crs(self):
-        for child in self.children.values():
+        for child in list(self.children.values()):
             return child.crs
 
     @property
     def geoms(self):
         ret = OrderedDict()
-        for k, v in self.children.items():
+        for k, v in list(self.children.items()):
             if v.geom is not None:
                 ret[k] = v.geom.get_value()[0]
         return ret
@@ -41,14 +41,14 @@ class SpatialCollection(VariableCollection):
     def has_container_geometries(self):
         ret = False
         if len(self.children) > 0:
-            if self.children.keys()[0] is not None:
+            if list(self.children.keys())[0] is not None:
                 ret = True
         return ret
 
     @property
     def properties(self):
         ret = OrderedDict()
-        for k, v in self.children.items():
+        for k, v in list(self.children.items()):
             ret[k] = OrderedDict()
             for variable in v.iter_data_variables():
                 ret[k][variable.name] = variable.get_value()[0]
@@ -69,12 +69,12 @@ class SpatialCollection(VariableCollection):
 
     def get_element(self, field_name=None, variable_name=None, container_ugid=None):
         if container_ugid is None:
-            for ret in self.children.values():
+            for ret in list(self.children.values()):
                 break
         else:
             ret = self.children[container_ugid]
         if field_name is None:
-            for ret in ret.children.values():
+            for ret in list(ret.children.values()):
                 break
         else:
             ret = ret.children[field_name]
@@ -83,8 +83,8 @@ class SpatialCollection(VariableCollection):
         return ret
 
     def iter_fields(self, yield_container=False):
-        for ugid, container in self.children.items():
-            for field in container.children.values():
+        for ugid, container in list(self.children.items()):
+            for field in list(container.children.values()):
                 if yield_container:
                     yld = field, container
                 else:
@@ -92,12 +92,12 @@ class SpatialCollection(VariableCollection):
                 yield yld
 
     def iter_melted(self, tag=None):
-        for ugid, container in self.children.items():
-            for field_name, field in container.children.items():
+        for ugid, container in list(self.children.items()):
+            for field_name, field in list(container.children.items()):
                 if tag is not None:
                     variables_to_itr = field.get_by_tag(tag)
                 else:
-                    variables_to_itr = field.values()
+                    variables_to_itr = list(field.values())
                 for variable in variables_to_itr:
                     yield dict(ugid=ugid, field_name=field_name, field=field, variable_name=variable.name,
                                variable=variable)

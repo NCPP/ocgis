@@ -1,4 +1,4 @@
-from urlparse import parse_qs
+from six.moves.urllib_parse import parse_qs
 
 from ocgis import OcgOperations
 from ocgis.ops.parms.base import AbstractParameter
@@ -33,7 +33,7 @@ class QueryInterface(object):
 
         kwds[Dataset.name] = Dataset.from_query(self)
 
-        for k, v in self.query_dict.iteritems():
+        for k, v in self.query_dict.items():
             try:
                 kwds[k] = pmap[k].from_query(self)
             except KeyError:

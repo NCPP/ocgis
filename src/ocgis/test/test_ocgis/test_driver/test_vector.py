@@ -2,6 +2,7 @@ import os
 
 import fiona
 import numpy as np
+import six
 from shapely.geometry import Point
 
 from ocgis import RequestDataset
@@ -25,7 +26,7 @@ class TestDriverVector(TestBase):
             self.assertEqual(len(source), desired)
 
     def assertPrivateValueIsNone(self, field_like):
-        for v in field_like.values():
+        for v in list(field_like.values()):
             if not isinstance(v, CoordinateReferenceSystem):
                 self.assertIsNone(v._value)
 
@@ -55,10 +56,11 @@ class TestDriverVector(TestBase):
         field.set_abstraction_geom()
         field.write(path, driver=DriverVector, variable_names=variable_names)
         read = RequestDataset(path).get()
-        self.assertEqual(len(read.dimensions.values()[0]), 3 * 10 * 6)
+        self.assertEqual(len(list(read.dimensions.values())[0]), 3 * 10 * 6)
         self.assertEqual(rd.get().crs, Spherical())
         self.assertEqual(read.crs, Spherical())
 
+    @attr('cfunits')
     def test_system_conform_units(self):
         """Test conforming units on data read from shapefile."""
 
@@ -140,7 +142,12 @@ class TestDriverVector(TestBase):
 
         rd = RequestDataset(uri=path)
         field2 = rd.get()
-        self.assertEqual(field2['TIME'].get_value().tolist(), ['0001-01-02 12:00:00', '0001-01-03 12:00:00'])
+
+        # netcdftime worthlessness
+        poss = [['0001-01-02 12:00:00', '0001-01-03 12:00:00'], ['1-01-02 12:00:00', '1-01-03 12:00:00']]
+        actual = field2['TIME'].get_value().tolist()
+        res = [p == actual for p in poss]
+        self.assertTrue(any(res))
 
     def test_close(self):
         driver = self.get_driver()
@@ -154,17 +161,17 @@ class TestDriverVector(TestBase):
     def test_get_data_variable_names(self):
         driver = self.get_driver()
         actual = driver.get_data_variable_names(driver.rd.metadata, driver.rd.dimension_map)
-        self.assertEqual(actual, (u'UGID', u'STATE_FIPS', u'ID', u'STATE_NAME', u'STATE_ABBR'))
+        self.assertEqual(actual, ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
 
     def test_get_dimensions(self):
         driver = self.get_driver()
         actual = driver.get_dist().mapping[MPI_RANK]
         desired = {None: {
-            'variables': {u'STATE_FIPS': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          u'STATE_ABBR': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          u'UGID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          u'ID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          u'STATE_NAME': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)}},
+            'variables': {'STATE_FIPS': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
+                          'STATE_ABBR': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
+                          'UGID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
+                          'ID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
+                          'STATE_NAME': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)}},
             'dimensions': {
                 'ocgis_geom': Dimension(name='ocgis_geom', size=51, size_current=51, dist=True, src_idx='auto')},
             'groups': {}}}
@@ -183,7 +190,7 @@ class TestDriverVector(TestBase):
         self.assertIsInstance(field.geom, GeometryVariable)
         self.assertIsInstance(field.crs, CoordinateReferenceSystem)
         self.assertIsNone(field.time)
-        for v in field.values():
+        for v in list(field.values()):
             if not isinstance(v, CoordinateReferenceSystem):
                 self.assertIsNotNone(v.get_value())
 
@@ -198,7 +205,7 @@ class TestDriverVector(TestBase):
         driver = self.get_driver()
         vc = driver.get_variable_collection()
         self.assertEqual(len(vc), 7)
-        for v in vc.values():
+        for v in list(vc.values()):
             if not isinstance(v, CoordinateReferenceSystem):
                 self.assertEqual(len(v.dimensions[0]), 51)
                 self.assertIsNone(v._value)
@@ -238,7 +245,8 @@ class TestDriverVector(TestBase):
         field.write(path, iter_kwargs={'followers': ['some_lats', 'some_lons']}, driver=DriverVector)
         read = RequestDataset(uri=path).get()
         self.assertTrue(len(read) > 2)
-        self.assertEqual(read.keys(), ['data', 'some_lats', 'some_lons', constants.DimensionNames.GEOMETRY_DIMENSION])
+        self.assertEqual(list(read.keys()),
+                         ['data', 'some_lats', 'some_lons', constants.DimensionNames.GEOMETRY_DIMENSION])
 
         # Test writing a subset of the variables.
         path = self.get_temporary_file_path('limited.shp')
@@ -284,7 +292,7 @@ class TestDriverVector(TestBase):
         # Only test open file objects on a single processor.
         if MPI_SIZE == 1:
             fiona_crs = get_fiona_crs(field)
-            fiona_schema = get_fiona_schema(field.geom.geom_type, field.iter().next()[1])
+            fiona_schema = get_fiona_schema(field.geom.geom_type, six.next(field.iter())[1])
             fobject = fiona.open(path2, mode='w', schema=fiona_schema, crs=fiona_crs, driver='ESRI Shapefile')
         else:
             fobject = None
@@ -296,7 +304,7 @@ class TestDriverVector(TestBase):
 
             field.write(target, driver=DriverVector)
 
-            if isinstance(target, basestring):
+            if isinstance(target, six.string_types):
                 path = path1
             else:
                 path = path2
@@ -307,7 +315,7 @@ class TestDriverVector(TestBase):
                     self.assertEqual(len(source), 51)
                 rd = RequestDataset(uri=path)
                 field2 = rd.get()
-                for v in field.values():
+                for v in list(field.values()):
                     if isinstance(v, CoordinateReferenceSystem):
                         self.assertEqual(v, field2.crs)
                     else:

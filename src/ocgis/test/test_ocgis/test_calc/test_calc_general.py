@@ -147,7 +147,7 @@ class Test(AbstractCalcBase):
             ref = ds.variables['time'][:]
             self.assertEqual(len(ref), 12)
             self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
-                             {u'units', u'long_name', u'standard_name', 'grid_mapping'})
+                             {'units', 'long_name', 'standard_name', 'grid_mapping'})
 
     @attr('data')
     def test_system_date_groups(self):
@@ -177,7 +177,8 @@ class Test(AbstractCalcBase):
         ref = ret.get_element(container_ugid=25).time
         rdt = ref.value_datetime
         self.assertTrue(
-            np.all(rdt == [dt(year, month, 16) for year, month in itertools.product(range(2011, 2021), range(1, 13))]))
+            np.all(rdt == [dt(year, month, 16) for year, month in
+                           itertools.product(list(range(2011, 2021)), list(range(1, 13)))]))
 
         calc_grouping = ['day']
         ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, geom='state_boundaries',

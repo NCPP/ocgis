@@ -7,8 +7,9 @@ from decimal import Decimal
 import netCDF4 as nc
 import netcdftime
 import numpy as np
+import six
 
-from ocgis import constants
+from ocgis import constants, env
 from ocgis.constants import HeaderNames, KeywordArguments
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
@@ -181,7 +182,15 @@ class TemporalVariable(SourcedVariable):
         # If there are month units, call the special procedure to convert those to datetime objects.
         if not self._has_months_units:
             arr = np.atleast_1d(nc.num2date(arr, str(self.units), calendar=self.calendar))
-            dt = datetime.datetime
+
+            # try:
+            #     raise AttributeError
+            #     dt = netcdftime.datetime
+            # except AttributeError:
+            #     # NetCDF4 datetime library changed. Just default to datetimes if the import fails.
+            #     dt = datetime.datetime
+            dt = get_datetime_or_netcdftime
+
             for idx, t in iter_array(arr, return_value=True):
                 # Attempt to convert times to datetime objects.
                 try:
@@ -256,7 +265,14 @@ class TemporalVariable(SourcedVariable):
             if self._has_months_units:
                 ret = get_num_from_months_time_units(arr, self.units, dtype=None)
             else:
-                raise
+                # Odd behavior in netcdftime objects? Try with datetime objects.
+                flat_arr = arr.flatten()
+                fill = np.zeros(flat_arr.shape, dtype=object)
+                for idx, element in enumerate(flat_arr):
+                    fill[idx] = datetime.datetime(element.year, element.month, element.day, element.hour,
+                                                  element.minute, element.second, element.microsecond)
+                fill = fill.reshape(arr.shape)
+                ret = np.atleast_1d(nc.date2num(fill, str(self.units), calendar=self.calendar))
         return ret
 
     def get_report(self):
@@ -342,7 +358,7 @@ class TemporalVariable(SourcedVariable):
         # remove any none values in the time_region dictionary. this will save
         # time in iteration.
         time_region = time_region.copy()
-        time_region = {k: v for k, v in time_region.iteritems() if v is not None}
+        time_region = {k: v for k, v in time_region.items() if v is not None}
         assert len(time_region) > 0
 
         # this is the boolean selection array.
@@ -358,7 +374,7 @@ class TemporalVariable(SourcedVariable):
                 row = bounds[idx_row, :]
             else:
                 row = value[idx_row]
-            for ii, (k, v) in enumerate(time_region.iteritems()):
+            for ii, (k, v) in enumerate(time_region.items()):
                 if use_bounds:
                     to_include = []
                     for element in v:
@@ -399,9 +415,9 @@ class TemporalVariable(SourcedVariable):
         # the group should be set to select all data.
         dgroups = [slice(None)]
         # the representative datetime is the center of the value array.
-        repr_dt = np.array([value[int((self.get_value().shape[0] / 2) - 1)]])
+        repr_dt = np.array([value[int((self.shape[0] / 2) - 1)]])
 
-        return (new_bounds, date_parts, repr_dt, dgroups)
+        return new_bounds, date_parts, repr_dt, dgroups
 
     def _get_grouping_other_(self, grouping):
         """
@@ -410,8 +426,8 @@ class TemporalVariable(SourcedVariable):
 
         # map date parts to index positions in date part storage array and flip
         # they key-value pairs
-        group_map = dict(zip(range(0, len(self._date_parts)), self._date_parts, ))
-        group_map_rev = dict(zip(self._date_parts, range(0, len(self._date_parts)), ))
+        group_map = dict(list(zip(list(range(0, len(self._date_parts))), self._date_parts, )))
+        group_map_rev = dict(list(zip(self._date_parts, list(range(0, len(self._date_parts))), )))
 
         # this array will hold the value data constructed differently depending
         # on if temporal bounds are present
@@ -443,7 +459,7 @@ class TemporalVariable(SourcedVariable):
 
         # grouping is different for date part combinations v. seasonal
         # aggregation.
-        if all([isinstance(ii, basestring) for ii in grouping]):
+        if all([isinstance(ii, six.string_types) for ii in grouping]):
             unique = deque()
             for idx in range(parts.shape[1]):
                 if group_map[idx] in grouping:
@@ -453,8 +469,8 @@ class TemporalVariable(SourcedVariable):
                 unique.append(fill)
 
             select = deque()
-            idx2_seq = range(len(self._date_parts))
-            for idx in itertools.product(*[range(len(u)) for u in unique]):
+            idx2_seq = list(range(len(self._date_parts)))
+            for idx in itertools.product(*[list(range(len(u))) for u in unique]):
                 select.append([unique[idx2][idx[idx2]] for idx2 in idx2_seq])
             select = np.array(select)
             dgroups = deque()
@@ -663,7 +679,7 @@ class TemporalVariable(SourcedVariable):
         try:
             self.calendar = value.calendar
         except AttributeError:
-            if value is not None and not isinstance(value, basestring):
+            if value is not None and not isinstance(value, six.string_types):
                 raise
         # "cfunits" appends the calendar name to the string representation.
         value = str(value)
@@ -699,7 +715,7 @@ def get_datetime_conversion_state(archetype):
     :rtype: bool
     """
 
-    if isinstance(archetype, (datetime.datetime, netcdftime.datetime)):
+    if hasattr(archetype, 'year') and hasattr(archetype, 'month'):
         ret = False
     else:
         ret = True
@@ -755,7 +771,8 @@ def get_datetime_from_template_time_units(vec):
     :rtype: :class:`numpy.ndarray`
     """
 
-    dt = datetime.datetime
+    dt = get_datetime_or_netcdftime
+
     fill = np.empty_like(vec, dtype=object)
     for idx, element in enumerate(vec.flat):
         ymd, hm = str(int(element)), element - int(element)
@@ -765,16 +782,22 @@ def get_datetime_from_template_time_units(vec):
         hour = 24 * hm
         minute = int((Decimal(hour) % 1) * 60)
         hour = int(hour)
-        fill[idx] = dt(year, month, day, hour=hour, minute=minute)
+        fill[idx] = dt(year, month, day, hour, minute)
     return fill
 
 
-def get_datetime_or_netcdftime(year, month, day, **kwargs):
-    try:
-        ret = datetime.datetime(year, month, day, **kwargs)
-    except ValueError:
-        # Assume the datetime object is not compatible with the arguments. Return a netcdftime object.
-        ret = netcdftime.datetime(year, month, day, **kwargs)
+def get_datetime_or_netcdftime(*args, **kwargs):
+    if env.PREFER_NETCDFTIME:
+        try:
+            ret = netcdftime.datetime(*args, **kwargs)
+        except ValueError:
+            # Assume the datetime object is not compatible with the arguments. Return a netcdftime object.
+            ret = datetime.datetime(*args, **kwargs)
+    else:
+        try:
+            ret = datetime.datetime(*args, **kwargs)
+        except ValueError:
+            ret = netcdftime.datetime(*args, **kwargs)
     return ret
 
 
@@ -806,7 +829,7 @@ def get_difference_in_months(origin, target):
             elif direction == 'backward':
                 curr_month -= 1
             else:
-                raise (NotImplementedError(direction))
+                raise NotImplementedError
 
             if curr_month == 13:
                 curr_month = 1
@@ -916,7 +939,7 @@ def get_sorted_seasons(seasons, method='max'):
     for ii, season in enumerate(seasons):
         season_map[ii] = season
     max_map = {}
-    for key, value in season_map.iteritems():
+    for key, value in season_map.items():
         max_map[methods[method](value)] = key
     sorted_maxes = sorted(max_map)
     ret = [seasons[max_map[s]] for s in sorted_maxes]
@@ -934,7 +957,7 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
     years = list(set([d.year for d in dates]))
     years.sort()
     # determine if any of the seasons are interannual
-    interannual_check = map(get_is_interannual, seasons)
+    interannual_check = list(map(get_is_interannual, seasons))
     # holds the return value
     time_regions = []
     # the interannual cases requires two time region sequences to properly extract
@@ -942,7 +965,7 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
         # loop over years first to ensure each year is accounted for in the time region output
         for ii_year, year in enumerate(years):
             # the interannual flag is used internally for simple optimization
-            for ic, cg in itertools.izip(interannual_check, seasons):
+            for ic, cg in zip(interannual_check, seasons):
                 # if no exception is raised for an incomplete season, this flag indicate whether to append to the output
                 append_to_time_regions = True
                 if ic:
@@ -966,7 +989,7 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
                         except IndexError:
                             # don't just blow through an incomplete season unless asked to
                             if raise_if_incomplete:
-                                raise (IncompleteSeasonError(_cg, year))
+                                raise IncompleteSeasonError(None, None, None)
                             else:
                                 append_to_time_regions = False
                                 continue

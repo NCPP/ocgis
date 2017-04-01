@@ -80,20 +80,6 @@ class Test(TestBase):
             with self.assertRaises(ExtentError):
                 ops.execute()
 
-    # @attr('data')
-    # def test_collection_field_geometries_equivalent(self):
-    #     rd = self.test_data.get_rd('cancm4_tas', kwds=dict(time_region={'month': [6, 7, 8]}))
-    #     geom = ['state_boundaries',
-    #             [{'properties': {'UGID': 16}, 'geom': Point([-99.80780059778753, 41.52315831343389])}]]
-    #     for vw, g in itertools.product([True, False], geom):
-    #         ops = ocgis.OcgOperations(dataset=rd, select_ugid=[16, 32], geom=g,
-    #                                   aggregate=True, vector_wrap=vw, spatial_operation='clip')
-    #         coll = ops.execute()
-    #         coll_geom = coll.geoms[16]
-    #         field_geom = coll[16]['tas'].spatial.geom.polygon.value[0, 0]
-    #         self.assertTrue(coll_geom.bounds, field_geom.bounds)
-    #         self.assertTrue(coll_geom.area, field_geom.area)
-
     @attr('data')
     def test_empty_subset_multi_geometry_wrapping(self):
         # Adjacent state boundaries were causing an error with wrapping where a reference to the source field was being

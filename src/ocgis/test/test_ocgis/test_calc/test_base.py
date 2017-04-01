@@ -140,7 +140,7 @@ class TestAbstractFieldFunction(TestBase):
         actual_variable = actual_field['my_mff']
         self.assertEqual(actual_variable.attrs['long_name'], MockFieldFunction.long_name)
         self.assertEqual(actual_variable.get_value().tolist(), self.desired_value)
-        self.assertNotIn('data', actual_field.keys())
+        self.assertNotIn('data', list(actual_field.keys()))
 
         # Test writing output to netCDF.
         ops = OcgOperations(dataset=self.field_for_test, calc=[{'func': 'mff', 'name': 'my_mff'}], output_format='nc')
@@ -392,6 +392,7 @@ class TestAbstractUnivariateFunction(AbstractTestField):
         self.assertNumpyAll(field['tmax'].get_value().astype(MockNeedsUnits.get_default_dtype()),
                             ret['fnu'].get_value())
 
+    @attr('cfunits')
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         field['tmax'].units = 'celsius'
@@ -408,6 +409,7 @@ class TestAbstractUnivariateSetFunction(AbstractTestField):
         fnu = MockNeedsUnitsSet(field=field, tgd=tgd)
         fnu.execute()
 
+    @attr('cfunits')
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])

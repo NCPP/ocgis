@@ -1,14 +1,16 @@
+import abc
 import csv
 import datetime
 import itertools
 import os.path
-from abc import ABCMeta, abstractproperty
+from abc import abstractproperty
 from collections import OrderedDict
 from copy import deepcopy
 
 import fiona
 import netCDF4 as nc
 import numpy as np
+import six
 from fiona.crs import from_string
 from nose.plugins.skip import SkipTest
 from shapely import wkt
@@ -46,9 +48,8 @@ from ocgis.variable.temporal import TemporalVariable
 from ocgis.vm.mpi import MPI_SIZE, MPI_RANK, MPI_COMM, OcgMpi, get_standard_comm_state
 
 
+@six.add_metaclass(abc.ABCMeta)
 class TestSimpleBase(TestBase):
-    __metaclass__ = ABCMeta
-
     base_value = None
     return_shp = False
     var = 'foo'
@@ -342,7 +343,7 @@ class TestSimple(TestSimpleBase):
         # Check all request datasets are accounted for in the output spatial collection.
         ops = ocgis.OcgOperations(dataset=rds)
         ret = ops.execute()
-        self.assertEqual(ret.children[None].children.keys(), aliases)
+        self.assertEqual(list(ret.children[None].children.keys()), aliases)
 
     def test_agg_selection(self):
         features = [
@@ -453,11 +454,11 @@ class TestSimple(TestSimpleBase):
         # Confirm value array.
         ref = ret.get_element(self.var)
         desired = OrderedDict(
-            [(u'time', (61,)), (u'time_bnds', (61, 2)), (u'level', (2,)), (u'level_bnds', (2, 2)), (u'longitude', (4,)),
-             (u'latitude', (4,)), (u'bounds_longitude', (4, 2)), (u'bounds_latitude', (4, 2)), ('foo', (61, 2, 4, 4)),
+            [('time', (61,)), ('time_bnds', (61, 2)), ('level', (2,)), ('level_bnds', (2, 2)), ('longitude', (4,)),
+             ('latitude', (4,)), ('bounds_longitude', (4, 2)), ('bounds_latitude', (4, 2)), ('foo', (61, 2, 4, 4)),
              ('ocgis_polygon', (4, 4))])
         self.assertEqual(ref.shapes, desired)
-        for tidx, lidx in itertools.product(range(0, 61), range(0, 2)):
+        for tidx, lidx in itertools.product(list(range(0, 61)), list(range(0, 2))):
             sub = ref.get_field_slice({'time': tidx, 'level': lidx})
             idx = self.base_value == sub[self.var].get_value()
             self.assertTrue(np.all(idx))
@@ -478,9 +479,9 @@ class TestSimple(TestSimpleBase):
                                        datetime.datetime(2000, 3, 31, 23)],
                            level_range=[50, 50])
         ref = ret.get_element(self.var)
-        desired = {u'time_bnds': (31, 2), u'bounds_latitude': (4, 2), u'bounds_longitude': (4, 2),
-                   u'level': (1,), u'level_bnds': (1, 2), u'longitude': (4,), u'time': (31,), u'latitude': (4,),
-                   u'foo': (31, 1, 4, 4)}
+        desired = {'time_bnds': (31, 2), 'bounds_latitude': (4, 2), 'bounds_longitude': (4, 2),
+                   'level': (1,), 'level_bnds': (1, 2), 'longitude': (4,), 'time': (31,), 'latitude': (4,),
+                   'foo': (31, 1, 4, 4)}
         self.assertDictEqual(ref.shapes, desired)
 
     def test_time_level_subset_aggregate(self):
@@ -595,9 +596,9 @@ class TestSimple(TestSimpleBase):
         sc = self.get_ret(kwds={'snippet': True})
         field = sc.get_element(self.var)
         self.assertEqual(field.time.shape, (1,))
-        desired = {u'time_bnds': (1, 2), u'bounds_latitude': (4, 2), u'bounds_longitude': (4, 2), u'level': (1,),
-                   u'level_bnds': (1, 2), u'longitude': (4,), u'time': (1,), u'latitude': (4,),
-                   u'foo': (1, 1, 4, 4)}
+        desired = {'time_bnds': (1, 2), 'bounds_latitude': (4, 2), 'bounds_longitude': (4, 2), 'level': (1,),
+                   'level_bnds': (1, 2), 'longitude': (4,), 'time': (1,), 'latitude': (4,),
+                   'foo': (1, 1, 4, 4)}
         self.assertDictEqual(field.shapes, desired)
         with nc_scope(os.path.join(self.current_dir_output, self.fn)) as ds:
             to_test = ds.variables['foo'][0, 0, :, :].reshape(1, 1, 4, 4)
@@ -704,7 +705,7 @@ class TestSimple(TestSimpleBase):
 
         with self.nc_scope(ret) as ds:
             expected = {'time': 'T', 'level': 'Z', 'latitude': 'Y', 'longitude': 'X'}
-            for k, v in expected.iteritems():
+            for k, v in expected.items():
                 var = ds.variables[k]
                 self.assertEqual(var.axis, v)
         with self.nc_scope(ret) as ds:
@@ -805,19 +806,19 @@ class TestSimple(TestSimpleBase):
                     target = f.meta['schema']['properties']
                     if k.melted:
                         schema_properties = OrderedDict(
-                            [(u'DID', 'int:10'), (u'GID', 'int:10'), (u'TIME', 'str:50'), (u'LB_TIME', 'str:50'),
-                             (u'UB_TIME', 'str:50'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'VARIABLE', 'str:50'), (u'VALUE', 'float:24.15')])
+                            [('DID', 'int:10'), ('GID', 'int:10'), ('TIME', 'str:50'), ('LB_TIME', 'str:50'),
+                             ('UB_TIME', 'str:50'), ('YEAR', 'int:10'), ('MONTH', 'int:10'), ('DAY', 'int:10'),
+                             ('LEVEL', 'int:10'), ('LB_LEVEL', 'int:10'), ('UB_LEVEL', 'int:10'),
+                             ('VARIABLE', 'str:50'), ('VALUE', 'float:24.15')])
                     else:
                         schema_properties = OrderedDict(
-                            [(u'DID', 'int:10'), (u'GID', 'int:10'), (u'TIME', 'str:50'), (u'LB_TIME', 'str:50'),
-                             (u'UB_TIME', 'str:50'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'foo', 'float:24.15')])
-                    self.assertAsSetEqual(target.keys(), schema_properties.keys())
-                    fiona_meta_actual = {'crs': {u'a': 6370997, u'no_defs': True, u'b': 6370997, u'proj': u'longlat'},
-                                         'driver': u'ESRI Shapefile',
+                            [('DID', 'int:10'), ('GID', 'int:10'), ('TIME', 'str:50'), ('LB_TIME', 'str:50'),
+                             ('UB_TIME', 'str:50'), ('YEAR', 'int:10'), ('MONTH', 'int:10'), ('DAY', 'int:10'),
+                             ('LEVEL', 'int:10'), ('LB_LEVEL', 'int:10'), ('UB_LEVEL', 'int:10'),
+                             ('foo', 'float:24.15')])
+                    self.assertAsSetEqual(list(target.keys()), list(schema_properties.keys()))
+                    fiona_meta_actual = {'crs': {'a': 6370997, 'no_defs': True, 'b': 6370997, 'proj': 'longlat'},
+                                         'driver': 'ESRI Shapefile',
                                          'schema': {'geometry': 'Polygon', 'properties': schema_properties}}
                     self.assertFionaMetaEqual(f.meta, fiona_meta_actual, abs_dtype=False)
                     self.assertEqual(len(f), 1952)
@@ -825,19 +826,19 @@ class TestSimple(TestSimpleBase):
                 with fiona.open(ret) as f:
                     if k.melted:
                         actual = OrderedDict(
-                            [(u'DID', 'int:10'), (u'GID', 'int:10'), (u'TIME', 'str:50'), (u'LB_TIME', 'str:50'),
-                             (u'UB_TIME', 'str:50'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'CALC_KEY', 'str:50'), (u'SRC_VAR', 'str:50'), (u'VARIABLE', 'str:50'),
-                             (u'VALUE', 'float:24.15')])
+                            [('DID', 'int:10'), ('GID', 'int:10'), ('TIME', 'str:50'), ('LB_TIME', 'str:50'),
+                             ('UB_TIME', 'str:50'), ('YEAR', 'int:10'), ('MONTH', 'int:10'), ('DAY', 'int:10'),
+                             ('LEVEL', 'int:10'), ('LB_LEVEL', 'int:10'), ('UB_LEVEL', 'int:10'),
+                             ('CALC_KEY', 'str:50'), ('SRC_VAR', 'str:50'), ('VARIABLE', 'str:50'),
+                             ('VALUE', 'float:24.15')])
                     else:
                         actual = OrderedDict(
-                            [(u'DID', 'int:10'), (u'GID', 'int:10'), (u'TIME', 'str:50'), (u'LB_TIME', 'str:50'),
-                             (u'UB_TIME', 'str:50'), (u'YEAR', 'int:10'), (u'MONTH', 'int:10'), (u'DAY', 'int:10'),
-                             (u'LEVEL', 'int:10'), (u'LB_LEVEL', 'int:10'), (u'UB_LEVEL', 'int:10'),
-                             (u'my_mean', 'float:24.15'), (u'CALC_KEY', 'str:50'), (u'SRC_VAR', 'str:50')])
-                    fiona_meta_actual = {'crs': {u'a': 6370997, u'no_defs': True, u'b': 6370997, u'proj': u'longlat'},
-                                         'driver': u'ESRI Shapefile',
+                            [('DID', 'int:10'), ('GID', 'int:10'), ('TIME', 'str:50'), ('LB_TIME', 'str:50'),
+                             ('UB_TIME', 'str:50'), ('YEAR', 'int:10'), ('MONTH', 'int:10'), ('DAY', 'int:10'),
+                             ('LEVEL', 'int:10'), ('LB_LEVEL', 'int:10'), ('UB_LEVEL', 'int:10'),
+                             ('my_mean', 'float:24.15'), ('CALC_KEY', 'str:50'), ('SRC_VAR', 'str:50')])
+                    fiona_meta_actual = {'crs': {'a': 6370997, 'no_defs': True, 'b': 6370997, 'proj': 'longlat'},
+                                         'driver': 'ESRI Shapefile',
                                          'schema': {'geometry': 'Polygon', 'properties': actual}}
                     self.assertFionaMetaEqual(f.meta, fiona_meta_actual, abs_dtype=False)
                     self.assertEqual(len(f), 64)
@@ -922,7 +923,7 @@ class TestSimple(TestSimpleBase):
                               'ocgis_output_did.csv', 'ocgis_output.csv'})
             with open(ret, 'r') as f:
                 reader = csv.DictReader(f)
-                row = reader.next()
+                row = next(reader)
                 if melted:
                     actual = {'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1', 'TIME': '2000-03-01 12:00:00', 'VALUE': '1.0',
                               'MONTH': '3', 'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00',
@@ -938,7 +939,7 @@ class TestSimple(TestSimpleBase):
             uri = os.path.join(self.current_dir_output, self.fn)
             with open(did_file, 'r') as f:
                 reader = csv.DictReader(f)
-                row = reader.next()
+                row = next(reader)
                 self.assertDictEqual(row, {'GROUP': '', 'LONG_NAME': 'foo_foo', 'DID': '1',
                                            'URI': uri, 'UNITS': 'K',
                                            'STANDARD_NAME': 'Maximum Temperature Foo', 'VARIABLE': 'foo'})
@@ -958,7 +959,7 @@ class TestSimple(TestSimpleBase):
 
             with open(ret, 'r') as f:
                 reader = csv.DictReader(f)
-                row = reader.next()
+                row = next(reader)
                 if melted:
                     desired = {'SRC_VAR': 'foo', 'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1',
                                'TIME': '2000-03-16 00:00:00', 'VALUE': '1.0', 'MONTH': '3', 'UB_LEVEL': '100',
@@ -1012,7 +1013,7 @@ class TestSimple(TestSimpleBase):
             if o in [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE]:
                 with open(ret, 'r') as f:
                     reader = csv.DictReader(f)
-                    row = reader.next()
+                    row = next(reader)
                     desired = {'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
                                'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
                                'CALC_KEY': 'divide', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'divide': '1.0'}
@@ -1029,7 +1030,7 @@ class TestSimple(TestSimpleBase):
 
             if o == 'shp':
                 with fiona.open(ret) as f:
-                    row = f.next()
+                    row = next(f)
                     self.assertIn('divide', row['properties'])
 
     def test_meta_conversion(self):
@@ -1065,7 +1066,7 @@ class TestSimple(TestSimpleBase):
         with fiona.open(gid_path) as f:
             to_test = list(f)
         self.assertEqual(len(to_test), 4)
-        self.assertEqual(to_test[1]['properties'], {'DID': 1, u'UGID': 1, u'GID': 2})
+        self.assertEqual(to_test[1]['properties'], {'DID': 1, 'UGID': 1, 'GID': 2})
 
         ugid_path = os.path.join(shp_path, 'with_ugid_ugid.shp')
         with fiona.open(ugid_path) as f:
@@ -1085,7 +1086,7 @@ class TestSimple(TestSimpleBase):
 
         self.assertEqual(to_test, [{'geometry': {'type': 'Polygon', 'coordinates': [
             [(-104.0, 38.0), (-104.0, 39.0), (-103.0, 39.0), (-103.0, 38.0), (-104.0, 38.0)]]}, 'type': 'Feature',
-                                    'id': '0', 'properties': OrderedDict([(u'UGID', 1)])}])
+                                    'id': '0', 'properties': OrderedDict([('UGID', 1)])}])
 
 
 @attr('simple')
@@ -1120,7 +1121,7 @@ class TestSimpleMask(TestSimpleBase):
                         [False, False, False, True],
                         [False, False, False, False],
                         [True, True, False, False]])
-        for tidx, lidx in itertools.product(range(0, ref.shape[0]), range(ref.shape[1])):
+        for tidx, lidx in itertools.product(list(range(0, ref.shape[0])), list(range(ref.shape[1]))):
             self.assertTrue(np.all(cmp == ref[tidx, lidx, :]))
 
         # Test with aggregation
@@ -1166,7 +1167,7 @@ class TestSimpleMPI(TestSimpleBase):
 
         if not ret.is_empty:
             self.assertEqual(len(days), 31)
-            self.assertAsSetEqual(days, range(1, 32))
+            self.assertAsSetEqual(days, list(range(1, 32)))
         else:
             self.assertGreater(MPI_RANK, 1)
 

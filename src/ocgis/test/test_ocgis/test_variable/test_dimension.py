@@ -1,4 +1,5 @@
 import numpy as np
+import six
 
 from ocgis.constants import DataTypes
 from ocgis.test.base import attr, AbstractTestInterface
@@ -265,5 +266,5 @@ class TestDimension(AbstractTestInterface):
                 self.assertEqual(len(dim), k.size)
             if k.src_idx is None:
                 self.assertIsNone(dim._src_idx)
-            elif isinstance(k.src_idx, basestring) and k.src_idx == 'auto' and k.size is not None:
+            elif isinstance(k.src_idx, six.string_types) and k.src_idx == 'auto' and k.size is not None:
                 self.assertIsNotNone(dim._src_idx)

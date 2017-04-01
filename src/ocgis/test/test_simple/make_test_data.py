@@ -1,9 +1,11 @@
+import abc
 import datetime
 import os.path
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import abstractproperty, abstractmethod
 
 import netCDF4 as nc
 import numpy as np
+import six
 from shapely.geometry.point import Point
 
 from ocgis import env
@@ -11,9 +13,8 @@ from ocgis.util.helpers import iter_array, project_shapely_geometry
 from ocgis.variable.crs import CoordinateReferenceSystem
 
 
+@six.add_metaclass(abc.ABCMeta)
 class NcFactory(object):
-    __metaclass__ = ABCMeta
-
     @abstractproperty
     def filename(self): pass
 

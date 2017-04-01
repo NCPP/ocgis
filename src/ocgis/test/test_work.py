@@ -26,8 +26,8 @@ class Test20150119(TestBase):
         ret = ops.execute()
         rd2 = RequestDataset(ret)
         field2 = rd2.get()
-        self.assertAsSetEqual(field.keys() + [HeaderNames.ID_GEOMETRY], field2.keys())
-        self.assertEqual((5,), field2.data_variables[0].shape)
+        self.assertAsSetEqual(list(field.keys()) + [HeaderNames.ID_GEOMETRY], list(field2.keys()))
+        self.assertEqual((1,), field2.data_variables[0].shape)
 
     def test_shapefile_through_operations(self):
         path = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
@@ -37,7 +37,7 @@ class Test20150119(TestBase):
         ret = ops.execute()
         rd2 = RequestDataset(ret)
         field2 = rd2.get()
-        self.assertAsSetEqual(field.keys() + [HeaderNames.ID_GEOMETRY], field2.keys())
+        self.assertAsSetEqual(list(field.keys()) + [HeaderNames.ID_GEOMETRY], list(field2.keys()))
         self.assertEqual((51,), field2.data_variables[0].shape)
 
 
@@ -61,18 +61,18 @@ class Test20150224(TestBase):
             if of == constants.OUTPUT_FORMAT_NUMPY:
                 for element in geom_select_uid:
                     self.assertIn(element, ret.children)
-                self.assertAsSetEqual(ret.properties[8].keys(), ['STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'])
+                self.assertAsSetEqual(list(ret.properties[8].keys()), ['STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'])
             else:
                 with open(ret) as f:
                     reader = DictReader(f)
-                    row = reader.next()
-                    self.assertIn(geom_uid, row.keys())
-                    self.assertNotIn(env.DEFAULT_GEOM_UID, row.keys())
+                    row = next(reader)
+                    self.assertIn(geom_uid, list(row.keys()))
+                    self.assertNotIn(env.DEFAULT_GEOM_UID, list(row.keys()))
 
                 shp_path = os.path.split(ret)[0]
                 shp_path = os.path.join(shp_path, 'shp', '{0}_gid.shp'.format(ops.prefix))
                 with fiona.open(shp_path) as source:
-                    record = source.next()
+                    record = next(source)
                     self.assertIn(geom_uid, record['properties'])
                     self.assertNotIn(env.DEFAULT_GEOM_UID, record['properties'])
 
@@ -88,8 +88,8 @@ class Test20150327(TestBase):
         ops = OcgOperations(dataset=rd, geom_select_sql_where=s, geom='state_boundaries', snippet=True)
         ret = ops.execute()
         self.assertEqual(len(ret.children), 2)
-        self.assertEqual(ret.children.keys(), [8, 10])
-        for v in ret.properties.itervalues():
+        self.assertEqual(list(ret.children.keys()), [8, 10])
+        for v in ret.properties.values():
             self.assertIn(v['STATE_NAME'], states)
 
         # Make sure the sql select has preference over UID.
@@ -97,18 +97,18 @@ class Test20150327(TestBase):
                             geom_select_uid=[500, 600, 700])
         ret = ops.execute()
         self.assertEqual(len(ret.children), 2)
-        for v in ret.properties.itervalues():
+        for v in ret.properties.values():
             self.assertIn(v['STATE_NAME'], states)
 
         # test possible interaction with geom_uid
         path = self.get_shapefile_path_with_no_ugid()
         ops = OcgOperations(dataset=rd, geom=path, geom_select_sql_where=s)
         ret = ops.execute()
-        self.assertEqual(ret.children.keys(), [7, 9])
+        self.assertEqual(list(ret.children.keys()), [7, 9])
 
         ops = OcgOperations(dataset=rd, geom=path, geom_select_sql_where=s, geom_uid='ID')
         ret = ops.execute()
-        self.assertEqual(ret.children.keys(), [13, 15])
+        self.assertEqual(list(ret.children.keys()), [13, 15])
 
 
 class Test20150608(TestBase):

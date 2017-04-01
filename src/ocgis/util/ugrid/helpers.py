@@ -7,7 +7,7 @@ from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import orient
 
-from constants import PYUGRID_LINK_ATTRIBUTE_NAME, PYUGRID_CONVENTIONS_VERSION
+from .constants import PYUGRID_LINK_ATTRIBUTE_NAME, PYUGRID_CONVENTIONS_VERSION
 
 
 def convert_multipart_to_singlepart(path_in, path_out, uid=None, new_uid_name=PYUGRID_LINK_ATTRIBUTE_NAME):
@@ -172,13 +172,13 @@ def get_mesh2_variables(features):
                 # increment the point index
                 idx_point += 1
             # map the node indices for the face
-            Mesh2_face_nodes[fid, 0:idx_point] = range(0, idx_point)
+            Mesh2_face_nodes[fid, 0:idx_point] = list(range(0, idx_point))
             # construct the edges. compress the node slice to remove any masked values at the tail.
             for start_node_idx, end_node_idx in iter_edge_nodes(Mesh2_face_nodes[fid, :].compressed()):
                 Mesh2_edge_nodes.append((start_node_idx, end_node_idx))
                 idx_edge += 1
             # map the edges to faces
-            Mesh2_face_edges[fid, 0:idx_edge] = range(0, idx_edge)
+            Mesh2_face_edges[fid, 0:idx_edge] = list(range(0, idx_edge))
             # switch the loop flag to indicate the first face has been dealt with
             first = False
         else:

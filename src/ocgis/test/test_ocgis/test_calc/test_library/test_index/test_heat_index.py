@@ -20,7 +20,7 @@ class TestHeatIndex(AbstractTestField):
         with self.assertRaises(UnitsValidationError):
             ops.execute()
 
-    @attr('data')
+    @attr('data', 'cfunits')
     def test_system_units_conform_to(self):
         ocgis.env.OVERWRITE = True
         kwds = {'time_range': [dt(2011, 1, 1), dt(2011, 12, 31, 23, 59, 59)]}

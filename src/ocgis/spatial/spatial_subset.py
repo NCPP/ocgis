@@ -46,8 +46,8 @@ class SpatialSubsetOperation(object):
             ret = False
         return ret
 
-    def get_spatial_subset(self, operation, geom, use_spatial_index=True, buffer_value=None, buffer_crs=None,
-                           geom_crs=None, select_nearest=False, optimized_bbox_subset=False):
+    def get_spatial_subset(self, operation, geom, use_spatial_index=env.USE_SPATIAL_INDEX, buffer_value=None,
+                           buffer_crs=None, geom_crs=None, select_nearest=False, optimized_bbox_subset=False):
         """
         Perform a spatial subset operation on ``target``.
 

@@ -5,10 +5,14 @@ from shapely import wkt
 from shapely.geometry.geo import mapping
 from shapely.geometry.point import Point
 
-from ocgis.spatial.index import SpatialIndex
-from ocgis.test.base import TestBase
+from ocgis import env
+from ocgis.test.base import TestBase, attr
+
+if env.USE_SPATIAL_INDEX:
+    from ocgis.spatial.index import SpatialIndex
 
 
+@attr('rtree')
 class TestSpatialIndex(TestBase):
     @property
     def geom_michigan(self):
@@ -51,7 +55,7 @@ class TestSpatialIndex(TestBase):
     def test_get_intersection_rtree(self):
         points = self.geom_michigan_point_grid
         si = SpatialIndex()
-        ids = points.keys()
+        ids = list(points.keys())
         geoms = [points[i] for i in ids]
         si.add(ids, geoms)
         ids = list(si._get_intersection_rtree_(self.geom_michigan))
@@ -62,7 +66,7 @@ class TestSpatialIndex(TestBase):
     def test_iter_intersects(self):
         points = self.geom_michigan_point_grid
         si = SpatialIndex()
-        ids = points.keys()
+        ids = list(points.keys())
         geoms = [points[i] for i in ids]
         si.add(ids, geoms)
         intersects_ids = list(si.iter_intersects(self.geom_michigan, points))
@@ -71,7 +75,7 @@ class TestSpatialIndex(TestBase):
     def test_keep_touches(self):
         points = self.geom_michigan_point_grid
         si = SpatialIndex()
-        ids = points.keys()
+        ids = list(points.keys())
         geoms = [points[i] for i in ids]
         si.add(ids, geoms)
         touch_geom = Point(*mapping(self.geom_michigan)['coordinates'][0][0][3])
@@ -88,7 +92,7 @@ class TestSpatialIndex(TestBase):
         polygon = self.geom_michigan[1]
         si = SpatialIndex()
         points = self.geom_michigan_point_grid
-        ids = points.keys()
+        ids = list(points.keys())
         geoms = [points[i] for i in ids]
         si.add(ids, geoms)
         intersects_ids = list(si.iter_intersects(polygon, points))

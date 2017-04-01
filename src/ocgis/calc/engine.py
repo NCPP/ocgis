@@ -71,8 +71,8 @@ class OcgCalculationEngine(object):
                         tgds_to_use[field.name] = field.time.get_grouping(self.grouping)
 
         # Iterate over functions.
-        for ugid, container in coll.children.items():
-            for field_name, field in container.children.items():
+        for ugid, container in list(coll.children.items()):
+            for field_name, field in list(container.children.items()):
                 new_temporal = tgds_to_use.get(field_name)
                 if new_temporal is not None:
                     new_temporal = new_temporal.copy()
@@ -108,7 +108,7 @@ class OcgCalculationEngine(object):
                     # Return the variable collection from the calculations.
                     out_vc = function.execute()
 
-                    for dv in out_vc.itervalues():
+                    for dv in out_vc.values():
                         # Any outgoing variables from a calculation must have an associated data type.
                         try:
                             assert dv.dtype is not None
@@ -136,11 +136,11 @@ class OcgCalculationEngine(object):
                 format_return_field(function_tag, out_field, new_temporal=new_temporal)
 
                 # Add the calculation variables.
-                for variable in out_vc.values():
+                for variable in list(out_vc.values()):
                     with orphaned(variable):
                         out_field.add_variable(variable)
                 # Tag the calculation data as data variables.
-                out_field.append_to_tags(function_tag, out_vc.keys())
+                out_field.append_to_tags(function_tag, list(out_vc.keys()))
 
                 coll.children[ugid].children[field_name] = out_field
         return coll

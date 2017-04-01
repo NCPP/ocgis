@@ -1,6 +1,8 @@
 import os
 from copy import deepcopy
 
+import six
+
 from ocgis import OcgOperations
 from ocgis import constants
 from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter, AbstractMetaConverter
@@ -27,7 +29,7 @@ class TestMetaJSONConverter(TestBase):
     @attr('data')
     def test_operations(self):
         ops = self.get_operations()
-        self.assertIsInstance(ops.execute(), basestring)
+        self.assertIsInstance(ops.execute(), six.string_types)
 
     @attr('data')
     def test_validate_ops(self):
@@ -48,7 +50,7 @@ class TestMetaJSONConverter(TestBase):
     def test_write(self):
         mj = self.get()
         ret = mj.write()
-        self.assertIsInstance(ret, basestring)
+        self.assertIsInstance(ret, six.string_types)
 
 
 class TestMetaOCGISConverter(TestBase):

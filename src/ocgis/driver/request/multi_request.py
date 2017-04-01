@@ -1,4 +1,4 @@
-from types import NoneType
+import six
 
 from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.util.helpers import get_iter
@@ -98,7 +98,7 @@ def get_request_dataset_iterable_attribute(obj, attr):
     nested = [getattr(target, attr) for target in obj.request_datasets]
     flattened = []
     for n in get_iter(nested):
-        if isinstance(n, (basestring, NoneType)):
+        if isinstance(n, six.string_types) or n is None:
             flattened.append(n)
         else:
             flattened += list(n)

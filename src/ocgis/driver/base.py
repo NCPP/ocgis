@@ -1,9 +1,10 @@
 import abc
 import json
-from abc import ABCMeta
 from contextlib import contextmanager
 from copy import deepcopy
 from warnings import warn
+
+import six
 
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject
@@ -20,13 +21,12 @@ from ocgis.vm.mpi import find_dimension_in_sequence, OcgMpi, get_nonempty_ranks,
 
 # TODO: Make the driver accept no arguments at initialization. The request dataset should be passed around as a parameter.
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractDriver(AbstractOcgisObject):
     """
     :param rd: The input request dataset object.
     :type rd: :class:`~ocgis.RequestDataset`
     """
-
-    __metaclass__ = abc.ABCMeta
 
     _default_crs = None
     _priority = False
@@ -170,7 +170,7 @@ class AbstractDriver(AbstractOcgisObject):
 
             # Add the dimensions to the distribution object.
             dimensions = self._get_dimensions_main_(group_meta)
-            for dimension_name, dimension_meta in group_meta['dimensions'].items():
+            for dimension_name, dimension_meta in list(group_meta['dimensions'].items()):
                 target_dimension = find_dimension_in_sequence(dimension_name, dimensions)
                 target_dimension.dist = group_meta['dimensions'][dimension_name].get('dist', False)
                 dist.add_dimension(target_dimension, group=group_index)
@@ -189,7 +189,7 @@ class AbstractDriver(AbstractOcgisObject):
                         distributed_dimension.dist = True
 
             # Add the variables to the distribution object.
-            for variable_name, variable_meta in group_meta['variables'].items():
+            for variable_name, variable_meta in list(group_meta['variables'].items()):
                 # If the variable has any distributed dimensions, the variable is always distributed. Otherwise, allow
                 # the variable to determine if it is replicated or isolated. Default is replicated.
                 ranks = 'all'
@@ -227,7 +227,7 @@ class AbstractDriver(AbstractOcgisObject):
         else:
             indent += 2
         lines += get_dump_report_for_group(group_metadata, global_attributes_name=global_attributes_name, indent=indent)
-        for group_name, group_metadata in group_metadata.get('groups', {}).items():
+        for group_name, group_metadata in list(group_metadata.get('groups', {}).items()):
             lines.append('')
             lines.append(' ' * indent + 'group: ' + group_name + ' {')
             dump_lines = self.get_dump_report(group_metadata=group_metadata, first=False, indent=indent,
@@ -312,7 +312,7 @@ class AbstractDriver(AbstractOcgisObject):
         for dvn in data_variable_names:
             field.append_to_tags(TagNames.DATA_VARIABLES, dvn, create=True)
 
-        for child in field.children.values():
+        for child in list(field.children.values()):
             kwargs['vc'] = child
             field.children[child.name] = self.get_field(*args, **kwargs)
 
@@ -333,7 +333,7 @@ class AbstractDriver(AbstractOcgisObject):
         # tdk: test
 
         def _jsonformat_(d):
-            for k, v in d.iteritems():
+            for k, v in d.items():
                 if isinstance(v, dict):
                     _jsonformat_(v)
                 else:
@@ -353,9 +353,9 @@ class AbstractDriver(AbstractOcgisObject):
         :rtype: :class:`ocgis.new_interface.variable.VariableCollection`
         """
 
-        dimension = self.dist.get_group()['dimensions'].values()[0]
+        dimension = list(self.dist.get_group()['dimensions'].values())[0]
         ret = VariableCollection(**kwargs)
-        for v in self.metadata_source['variables'].values():
+        for v in list(self.metadata_source['variables'].values()):
             nvar = SourcedVariable(name=v['name'], dimensions=dimension, dtype=v['dtype'], request_dataset=self.rd)
             ret.add_variable(nvar)
         return ret
@@ -460,7 +460,8 @@ class AbstractDriver(AbstractOcgisObject):
         :param opened_or_path: Output file path or an open file object.
         :rtype: bool
         """
-        if isinstance(opened_or_path, (basestring, tuple, list)):
+        poss = tuple(list(six.string_types) + [tuple, list])
+        if isinstance(opened_or_path, poss):
             ret = False
         else:
             ret = True
@@ -472,7 +473,7 @@ class AbstractDriver(AbstractOcgisObject):
         """
 
         for line in self.get_dump_report():
-            print line
+            print(line)
 
     @staticmethod
     def iterator_formatter(name, value, mask):
@@ -565,7 +566,7 @@ class AbstractDriver(AbstractOcgisObject):
         """
 
         gmd = group_metadata['dimensions']
-        dims = [Dimension(dref['name'], size=dref['size'], src_idx='auto') for dref in gmd.values()]
+        dims = [Dimension(dref['name'], size=dref['size'], src_idx='auto') for dref in list(gmd.values())]
         return tuple(dims)
 
     @abc.abstractmethod
@@ -614,12 +615,11 @@ class AbstractDriver(AbstractOcgisObject):
         """
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractTabularDriver(AbstractDriver):
-    __metaclass__ = ABCMeta
-
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
         """Return the preferred distributed dimension name."""
-        return dimensions_metadata.values()[0]['name']
+        return list(dimensions_metadata.values())[0]['name']
 
     @staticmethod
     def iterator_formatter_time_bounds(name, value, mask):
@@ -683,15 +683,15 @@ def driver_scope(ocgis_driver, opened_or_path=None, mode='r', **kwargs):
 
 def find_variable_by_attribute(variables_metadata, attribute_name, attribute_value):
     ret = []
-    for variable_name, variable_metadata in variables_metadata.items():
-        for k, v in variable_metadata['attributes'].items():
+    for variable_name, variable_metadata in list(variables_metadata.items()):
+        for k, v in list(variable_metadata['attributes'].items()):
             if k == attribute_name and v == attribute_value:
                 ret.append(variable_name)
     return ret
 
 
 def format_attribute_for_dump_report(attr_value):
-    if isinstance(attr_value, basestring):
+    if isinstance(attr_value, six.string_types):
         ret = '"{}"'.format(attr_value)
     else:
         ret = attr_value
@@ -707,7 +707,7 @@ def get_dimension_map_raw(driver, group_metadata, group_name=None, update_target
     if group_name is not None:
         update_target['groups'][group_name] = dimension_map
     if 'groups' in group_metadata:
-        for group_name, sub_group_metadata in group_metadata['groups'].items():
+        for group_name, sub_group_metadata in list(group_metadata['groups'].items()):
             get_dimension_map_raw(driver, sub_group_metadata, group_name=group_name,
                                   update_target=update_target)
     return update_target
@@ -719,7 +719,7 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
     if len(group['dimensions']) > 0:
         lines.append('dimensions:')
         template = '    {0} = {1} ;{2}'
-        for key, value in group['dimensions'].items():
+        for key, value in list(group['dimensions'].items()):
             if value.get('isunlimited', False):
                 one = 'ISUNLIMITED'
                 two = ' // {0} currently'.format(value['size'])
@@ -732,11 +732,11 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
         lines.append('variables:')
         var_template = '    {0} {1}({2}) ;'
         attr_template = '      {0}:{1} = {2} ;'
-        for key, value in group['variables'].items():
+        for key, value in list(group['variables'].items()):
             dims = [str(d) for d in value['dimensions']]
             dims = ', '.join(dims)
             lines.append(var_template.format(value['dtype'], key, dims))
-            for key2, value2 in value.get('attributes', {}).iteritems():
+            for key2, value2 in value.get('attributes', {}).items():
                 lines.append(attr_template.format(key, key2, format_attribute_for_dump_report(value2)))
 
     global_attributes = group.get('global_attributes', {})
@@ -744,7 +744,7 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
         lines.append('')
         lines.append('// {} attributes:'.format(global_attributes_name))
         template = '    :{0} = {1} ;'
-        for key, value in global_attributes.items():
+        for key, value in list(global_attributes.items()):
             try:
                 lines.append(template.format(key, format_attribute_for_dump_report(value)))
             except UnicodeEncodeError:
@@ -767,7 +767,7 @@ def get_group(ddict, keyseq, has_root=True):
 
     if keyseq is None:
         keyseq = [None]
-    elif isinstance(keyseq, basestring):
+    elif isinstance(keyseq, six.string_types):
         keyseq = [keyseq]
 
     if keyseq[0] is not None:

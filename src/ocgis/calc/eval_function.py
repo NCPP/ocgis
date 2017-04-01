@@ -1,4 +1,3 @@
-import itertools
 import re
 from copy import deepcopy
 
@@ -53,7 +52,7 @@ class EvalFunction(AbstractUnivariateFunction):
         self.alias, self.key = out_variable_name, out_variable_name
 
         # Construct conformed array iterator.
-        keys = map_vars.keys()
+        keys = list(map_vars.keys())
         crosswalks = [self._get_dimension_crosswalk_(calculation_targets[k]) for k in keys]
         variable_shapes = [calculation_targets[k].shape for k in keys]
         arrs = [self.get_variable_value(calculation_targets[k]) for k in keys]
@@ -68,7 +67,7 @@ class EvalFunction(AbstractUnivariateFunction):
             itrs = [self._iter_conformed_arrays_(crosswalks[idx], variable_shapes[idx], arrs[idx], arr_fill, None)
                     for idx in range(len(crosswalks))]
 
-            for yld in itertools.izip(*itrs):
+            for yld in zip(*itrs):
                 for idx in range(len(keys)):
                     locals()[map_vars[keys[idx]]] = yld[idx][0]
                 res = eval(expr)
@@ -138,7 +137,7 @@ class EvalFunction(AbstractUnivariateFunction):
         # "strings" must be entirely composed of enabled numpy functions and the variable aliases originating from the
         # keys in "map_vars"
         for s in strings:
-            if s not in constants.ENABLED_NUMPY_UFUNCS and s not in map_vars.keys():
+            if s not in constants.ENABLED_NUMPY_UFUNCS and s not in list(map_vars.keys()):
                 raise ValueError('Unable to parse expression string: "{0}". '
                                  'Ensure the NumPy functions are enabled and appropriate '
                                  'variables have been requested. The problem string value is "{1}".'.format(expr, s))
@@ -147,7 +146,7 @@ class EvalFunction(AbstractUnivariateFunction):
             expr = expr.replace(np_func, 'np.' + np_func)
         # update the variable aliases to match the key-value relationship in "map_vars"
         max_ctr = len(expr)
-        for k, v in map_vars.iteritems():
+        for k, v in map_vars.items():
             for r in re_expr_base:
                 re_expr = r.format(k, math_set)
                 ctr = 0

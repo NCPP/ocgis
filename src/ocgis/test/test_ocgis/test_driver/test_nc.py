@@ -100,15 +100,15 @@ class TestDriverNetcdf(TestBase):
             # All dimensions are not distributed.
             for keyseq in iter_all_group_keys(actual[MPI_RANK]):
                 group = get_group(actual[MPI_RANK], keyseq)
-                for dim in group['dimensions'].values():
+                for dim in list(group['dimensions'].values()):
                     self.assertFalse(dim.dist)
 
             if k.dim_count == 0 and k.nested:
                 desired = {None: {'variables': {}, 'dimensions': {}, 'groups': {
-                    u'nest1': {'variables': {}, 'dimensions': {}, 'groups': {
-                        u'nest2': {'variables': {}, 'dimensions': {}, 'groups': {u'nest1': {'variables': {},
+                    'nest1': {'variables': {}, 'dimensions': {}, 'groups': {
+                        'nest2': {'variables': {}, 'dimensions': {}, 'groups': {'nest1': {'variables': {},
                                                                                             'dimensions': {
-                                                                                                u'outlier': Dimension(
+                                                                                                'outlier': Dimension(
                                                                                                     name='outlier',
                                                                                                     size=4,
                                                                                                     size_current=4,
@@ -127,7 +127,7 @@ class TestDriverNetcdf(TestBase):
                 nest1['groups']['nest2']['groups']['nest1'] = deepcopy(template)
                 nest1['groups']['nest2']['groups']['nest3'] = deepcopy(template)
                 nest1['groups']['nest2']['groups']['nest1']['dimensions'].append(Dimension('outlier', 4))
-                desired = {None: {'dimensions': two_dimensions, 'groups': {u'nest1': nest1}}}
+                desired = {None: {'dimensions': two_dimensions, 'groups': {'nest1': nest1}}}
                 groups_actual = list(iter_all_group_keys((actual[MPI_RANK])))
                 groups_desired = list(iter_all_group_keys(desired))
                 self.assertEqual(groups_actual, groups_desired)
@@ -179,9 +179,9 @@ class TestDriverNetcdf(TestBase):
         lines = driver.get_dump_report()
         desired = ['OCGIS Driver Key: netcdf {', 'dimensions:', '    dim_root = 5 ;', 'variables:',
                    '    float64 var1_root(dim_root) ;', '      var1_root:who_knew = "I did not." ;', '',
-                   '// global attributes:', '    :convention = "CF Free-For-All 0.99" ;', '', u'group: group1 {',
+                   '// global attributes:', '    :convention = "CF Free-For-All 0.99" ;', '', 'group: group1 {',
                    '  dimensions:', '      dim_group1 = 7 ;', '  variables:', '      int64 var1_group1(dim_group1) ;',
-                   '        var1_group1:whatever = "End of the line!" ;', '', u'  group: group1_group1 {',
+                   '        var1_group1:whatever = "End of the line!" ;', '', '  group: group1_group1 {',
                    '    dimensions:', '        dim_group1_group1 = 10 ;', '    variables:',
                    '        float64 bitter_end(dim_group1_group1) ;', '          bitter_end:foo = 70 ;',
                    '    } // group: group1_group1', '  } // group: group1', '}']
@@ -378,7 +378,7 @@ class TestDriverNetcdfCF(TestBase):
                 if build:
                     nrows = len(source)
                     dtype = []
-                    for k, v in source.schema['properties'].iteritems():
+                    for k, v in source.schema['properties'].items():
                         if v.startswith('str'):
                             v = str('|S{0}'.format(v.split(':')[1]))
                         else:
@@ -498,7 +498,7 @@ class TestDriverNetcdfCF(TestBase):
         d = self.get_drivernetcdf()
         dmap = d.get_dimension_map(d.metadata_source, strict=True)
         desired = {'crs': {'variable': 'latitude_longitude'},
-                   'time': {'variable': u'time', 'bounds': u'time_bounds', 'names': ['time']}}
+                   'time': {'variable': 'time', 'bounds': 'time_bounds', 'names': ['time']}}
         self.assertEqual(dmap, desired)
 
         def _run_():

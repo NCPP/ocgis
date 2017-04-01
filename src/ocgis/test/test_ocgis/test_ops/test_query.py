@@ -15,7 +15,7 @@ class TestQueryInterface(TestBase):
         self.assertDictEqual(qi.query_dict, {'foo': ['a'], 'bar': ['45']})
         self.assertEqual(qi.query_string, qs)
 
-    @attr('data')
+    @attr('data', 'cfunits')
     def test_get_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
         qs = "uri={0}&spatial_operation=intersects&geom=state_boundaries&geom_select_uid=20|30&output_format=shp&snippet=true".format(
@@ -36,7 +36,7 @@ class TestQueryInterface(TestBase):
         qi = QueryInterface(qs)
         ops = qi.get_operations()
         ret = ops.execute()
-        self.assertEqual(ret.children.keys(), [20, 30])
+        self.assertEqual(list(ret.children.keys()), [20, 30])
         # self.assertEqual(ret[20]["calcs"].variables.keys(), ["the_mean", "the_median", "the_p"])
         self.assertEqual(get_variable_names(ret.get_element(container_ugid=20).data_variables),
                          ("the_mean", "the_median", "the_p"))

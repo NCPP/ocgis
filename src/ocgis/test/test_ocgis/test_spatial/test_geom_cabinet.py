@@ -96,7 +96,7 @@ class TestGeomCabinetIterator(TestBase):
 
     def test_iter(self):
         # Test with a select statement.
-        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME in ("Wisconsin", "Vermont")')
+        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where="STATE_NAME in ('Wisconsin', 'Vermont')")
         for row in sci:
             self.assertIn(row['properties']['STATE_NAME'], ("Wisconsin", "Vermont"))
 
@@ -129,7 +129,7 @@ class TestGeomCabinetIterator(TestBase):
         sci = GeomCabinetIterator(path=path, select_uid=[16, 19])
         self.assertEqual(len(sci), 2)
 
-        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where='STATE_NAME = "Vermont"')
+        sci = GeomCabinetIterator(key='state_boundaries', select_sql_where="STATE_NAME = 'Vermont'")
         self.assertEqual(len(sci), 1)
 
         sci = GeomCabinetIterator(key='state_boundaries', slc=[4, 10, 20])
@@ -177,13 +177,14 @@ class TestGeomCabinet(TestBase):
             ocgis.env.reset()
 
     def test_get_features_object(self):
-        # test with a shapefile not having the default unique geometry identifier
+        # Test with a shapefile not having the default unique geometry identifier
         path = self.get_shapefile_path_with_no_ugid()
         keywords = dict(uid=[None, 'ID'],
                         select_uid=[None, [8, 11, 13]],
-                        select_sql_where=[None, 'STATE_NAME = "Wisconsin"'])
+                        select_sql_where=[None, "STATE_NAME = 'Hawaii'"])
 
         for k in self.iter_product_keywords(keywords):
+            # print(k)
             ds = ogr.Open(path)
             try:
                 try:
@@ -205,7 +206,7 @@ class TestGeomCabinet(TestBase):
             finally:
                 ds.Destroy()
 
-        # test on a shapefile having the default unique geometry identifier
+        # Test on a shapefile having the default unique geometry identifier
         path = GeomCabinet().get_shp_path('state_boundaries')
         ds = ogr.Open(path)
         try:
@@ -225,7 +226,7 @@ class TestGeomCabinet(TestBase):
             finally:
                 ds.Destroy()
 
-        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+        s = "STATE_NAME in ('Wisconsin', 'Vermont')"
 
         def f(obj):
             self.assertEqual(len(obj), 2)
@@ -233,21 +234,21 @@ class TestGeomCabinet(TestBase):
 
         _run_(s, f)
 
-        s = 'STATE_NAME in ("Wisconsin", "Vermont") and STATE_ABBR in ("NV", "OH")'
+        s = "STATE_NAME in ('Wisconsin', 'Vermont') and STATE_ABBR in ('NV', 'OH')"
 
         def f(obj):
             self.assertEqual(len(obj), 0)
 
         _run_(s, f)
 
-        s = 'STATE_NAME in ("Wisconsin", "Vermont") or STATE_ABBR in ("NV", "OH")'
+        s = "STATE_NAME in ('Wisconsin', 'Vermont') or STATE_ABBR in ('NV', 'OH')"
 
         def f(obj):
             self.assertEqual(len(obj), 4)
 
         _run_(s, f)
 
-        s = 'STATE_NAMEE in ("Wisconsin", "Vermont")'
+        s = "STATE_NAMEE in ('Wisconsin', 'Vermont')"
         with self.assertRaises(RuntimeError):
             _run_(s, lambda x: None)
 
@@ -321,7 +322,7 @@ class TestGeomCabinet(TestBase):
 
     def test_iter_geoms_select_sql_where(self):
         sc = GeomCabinet()
-        sql = 'STATE_NAME = "New Hampshire"'
+        sql = "STATE_NAME = 'New Hampshire'"
         self.assertEqual(len(list(sc.iter_geoms('state_boundaries', select_sql_where=sql))), 1)
 
     def test_iter_geoms_select_ugid(self):
@@ -344,7 +345,7 @@ class TestGeomCabinet(TestBase):
         sc = GeomCabinet()
         path = sc.get_shp_path('state_boundaries')
         ds = ogr.Open(path)
-        ret = ds.ExecuteSQL('select * from state_boundaries where state_name = "New Jersey"')
+        ret = ds.ExecuteSQL("select * from state_boundaries where state_name = 'New Jersey'")
         ret.ResetReading()
         self.assertEqual(len(ret), 1)
 
@@ -352,7 +353,7 @@ class TestGeomCabinet(TestBase):
         if path is not None:
             env.DIR_GEOMCABINET = path
         sc = GeomCabinet()
-        ret = sc.keys()
+        ret = list(sc.keys())
         target_keys = ['state_boundaries']
         self.assertEqual(len(set(target_keys).intersection(set(ret))), len(target_keys))
 

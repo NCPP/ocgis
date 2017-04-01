@@ -97,7 +97,7 @@ class TestGridXY(AbstractTestInterface):
             return ret
 
         # Assert polygon constructed from grid corners contains the associated centroid value.
-        for ii, jj in itertools.product(range(grid.shape[0]), range(grid.shape[1])):
+        for ii, jj in itertools.product(list(range(grid.shape[0])), list(range(grid.shape[1]))):
             pt = Point(grid.get_value().data[1, ii, jj], grid.get_value().data[0, ii, jj])
             poly_corners = grid.corners.data[:, ii, jj]
             rtup = (poly_corners[0, :].min(), poly_corners[0, :].max())
@@ -331,7 +331,7 @@ class TestGridXY(AbstractTestInterface):
         mask_slice = {'ydim': slice(1, 2), 'xdim': slice(1, 3)}
 
         sub_member_variables = get_variable_names(sub.get_member_variables())
-        for v in sub.parent.values():
+        for v in list(sub.parent.values()):
             if v.name in sub_member_variables and not isinstance(v,
                                                                  GeometryVariable) and v.name != sub.mask_variable.name:
                 self.assertIsNone(v.get_mask())

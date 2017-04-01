@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from itertools import izip, product
+from itertools import product
 
 import numpy as np
 
@@ -140,7 +140,7 @@ class Iterator(AbstractOcgisObject):
             len_melted = len(melted)
 
         if self._is_recursing:
-            for idx in product(*[range(s) for s in self.shape]):
+            for idx in product(*[list(range(s)) for s in self.shape]):
                 if slice_remap is not None:
                     idx = tuple([idx[ii] for ii in slice_remap])
 
@@ -168,7 +168,7 @@ class Iterator(AbstractOcgisObject):
             try:
                 for itr in self.iterators:
                     itr._is_recursing = True
-                for record in izip(*self.iterators):
+                for record in zip(*self.iterators):
                     if not allow_masked and any([r == should_skip_flag for r in record]):
                         continue
                     else:

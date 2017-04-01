@@ -24,12 +24,12 @@ class MetadataAttributes(object):
     def merge(self, other):
         other = other.copy()
         is_hierarchical = False
-        for k, v in other.iteritems():
+        for k, v in other.items():
             if isinstance(v, dict):
                 is_hierarchical = True
                 break
         if is_hierarchical:
-            for k, v in other.iteritems():
+            for k, v in other.items():
                 self.value[k] = v
         else:
             self.value[self._keys[self._key_variable_index]] = other

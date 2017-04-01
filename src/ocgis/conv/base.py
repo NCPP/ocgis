@@ -5,26 +5,27 @@ import os.path
 from pprint import pformat
 
 import fiona
+import six
 
 from ocgis import constants
 from ocgis import env
 from ocgis import messages
+from ocgis.base import AbstractOcgisObject
 from ocgis.constants import TagNames, MPIWriteMode, KeywordArguments
 from ocgis.driver.vector import DriverVector
 from ocgis.util.helpers import get_iter, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.vm.mpi import MPI_RANK
 
-FIONA_FIELD_TYPES_REVERSED = {v: k for k, v in fiona.FIELD_TYPES_MAP.iteritems()}
+FIONA_FIELD_TYPES_REVERSED = {v: k for k, v in fiona.FIELD_TYPES_MAP.items()}
 FIONA_FIELD_TYPES_REVERSED[str] = 'str'
 
 
-class AbstractConverter(object):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractConverter(AbstractOcgisObject):
     """
     Base class for all converter objects.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     @classmethod
     def validate_ops(cls, ops):
@@ -43,6 +44,7 @@ class AbstractConverter(object):
         """
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractFileConverter(AbstractConverter):
     """
     Base class for all converters writing to file.
@@ -58,8 +60,6 @@ class AbstractFileConverter(AbstractConverter):
     :param options: (``=None``) A dictionary of converter-specific options. See converters for options documentation.
     :type options: dict
     """
-
-    __metaclass__ = abc.ABCMeta
     _ext = None
 
     def __init__(self, prefix=None, outdir=None, overwrite=False, options=None):
@@ -84,6 +84,7 @@ class AbstractFileConverter(AbstractConverter):
         self._log = ocgis_lh.get_logger('conv')
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractCollectionConverter(AbstractFileConverter):
     """
     Base converter object for convert sequences of collections.
@@ -99,8 +100,6 @@ class AbstractCollectionConverter(AbstractFileConverter):
     :param add_auxiliary_files: (``=True``) If ``False``, do not create an output folder. Write only the target ouput file.
     :type add_auxiliary_files: bool
     """
-
-    __metaclass__ = abc.ABCMeta
     _add_did_file = True  # Add a descriptor file for the request datasets.
     _add_ugeom = False  # Add user geometry in the output folder.
     _add_ugeom_nest = True  # Nest the user geometry in a overview geometry shapefile folder.
@@ -134,8 +133,8 @@ class AbstractCollectionConverter(AbstractFileConverter):
         """
 
         ret = self.get_iter_from_spatial_collection(coll)
-        ret = ret.next()
-        ret = ret[1].keys()
+        ret = next(ret)
+        ret = list(ret[1].keys())
         return ret
 
     def get_iter_from_spatial_collection(self, coll):
@@ -231,7 +230,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
             self._write_coll_(f, coll)
 
             if write_ugeom and MPI_RANK == 0:
-                for subset_field in coll.children.values():
+                for subset_field in list(coll.children.values()):
                     # TODO: this should react to live ranks and not assume rank 0 is going to hit this every time.
                     enter_value = subset_field._is_empty
                     subset_field._is_empty = False
@@ -272,6 +271,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
         return ret
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractTabularConverter(AbstractCollectionConverter):
     """
     .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractFileConverter`.

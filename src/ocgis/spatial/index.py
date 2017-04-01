@@ -1,4 +1,4 @@
-from itertools import izip
+
 
 from rtree import index
 from shapely.prepared import prep
@@ -28,7 +28,7 @@ class SpatialIndex(object):
         except AttributeError:
             # likely a sequence
             _insert = self._index.insert
-            for ig, sg in izip(id_geom, shapely_geom):
+            for ig, sg in zip(id_geom, shapely_geom):
                 _insert(ig, sg.bounds)
 
     def iter_intersects(self, shapely_geom, arr, keep_touches=True):

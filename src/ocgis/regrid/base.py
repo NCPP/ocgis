@@ -676,7 +676,7 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
 
         # Create a new variable collection and add the variables to the output field.
         # source.variables = VariableCollection()
-        for v in fills.values():
+        for v in list(fills.values()):
             regridded_source.add_variable(v, is_data=True, force=True)
 
     destroy_esmf_objects([esmf_destination_grid])

@@ -159,8 +159,8 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             ops.callback = newcallback
 
         if verbose:
-            print('output file is: {0}'.format(fill_file))
-            print('tile count: {0}'.format(lschema))
+            print(('output file is: {0}'.format(fill_file)))
+            print(('tile count: {0}'.format(lschema)))
 
         fds = nc.Dataset(fill_file, 'a')
         try:
@@ -168,7 +168,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                 progress = ProgressBar('tiles progress')
             if ops.callback is not None and callback:
                 callback(0, "Initializing calculation")
-            for ctr, indices in enumerate(schema.itervalues(), start=1):
+            for ctr, indices in enumerate(iter(schema.values()), start=1):
                 # appropriate adjust the slices to account for the spatial subset
                 row = [ii + row_offset for ii in indices['row']]
                 col = [ii + col_offset for ii in indices['col']]

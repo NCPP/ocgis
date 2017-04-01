@@ -131,8 +131,8 @@ class TestGeometryWrapper(TestBase):
         """Test different geometry types are appropriately unwrapped."""
 
         wrapper = GeometryWrapper()
-        path = tempfile.mkdtemp()
-        for desc, geom in self.possible.iteritems():
+        # path = tempfile.mkdtemp()
+        for desc, geom in self.possible.items():
             unwrapped = wrapper.unwrap(geom)
             if desc in self.actual_unwrapped:
                 self.assertTrue(self.actual_unwrapped[desc].almost_equals(unwrapped, decimal=5))
@@ -145,7 +145,13 @@ class TestGeometryWrapper(TestBase):
                 else:
                     raise
 
-            self.assertFalse(np.any(np.array(unwrapped) < 0.0))
+            if isinstance(unwrapped, Polygon):
+                coords = np.array(unwrapped.exterior)
+            elif isinstance(unwrapped, MultiPolygon):
+                coords = np.array([np.array(u.exterior).min() for u in unwrapped])
+            else:
+                coords = np.array(unwrapped)
+            self.assertFalse(np.any(coords < 0.0))
             if isinstance(unwrapped, (MultiPolygon, Polygon)):
                 it = get_iter(unwrapped)
                 for polygon in it:
@@ -157,7 +163,7 @@ class TestGeometryWrapper(TestBase):
         """Test different geometry types are appropriately wrapped."""
 
         wrapper = GeometryWrapper()
-        for desc, geom in self.possible.iteritems():
+        for desc, geom in self.possible.items():
             unwrapped = wrapper.unwrap(geom)
             wrapped = wrapper.wrap(unwrapped)
             try:

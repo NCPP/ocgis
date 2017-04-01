@@ -5,6 +5,7 @@ from warnings import warn
 
 import netCDF4 as nc
 import numpy as np
+import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 
 from ocgis import constants
@@ -202,7 +203,7 @@ class DriverNetcdf(AbstractDriver):
                         with orphaned(variable, keep_dimensions=True):
                             variable.write(dataset, write_mode=write_mode, **variable_kwargs)
                     # Recurse the children.
-                    for child in vc.children.values():
+                    for child in list(vc.children.values()):
                         if write_mode != MPIWriteMode.FILL:
                             group = nc.Group(dataset, child.name)
                         else:
@@ -212,7 +213,7 @@ class DriverNetcdf(AbstractDriver):
             barrier_ranks(ranks_to_write, comm=comm)
 
     def _get_dimensions_main_(self, group_metadata):
-        return tuple(get_dimensions_from_netcdf_metadata(group_metadata, group_metadata['dimensions'].keys()))
+        return tuple(get_dimensions_from_netcdf_metadata(group_metadata, list(group_metadata['dimensions'].keys())))
 
     def _get_metadata_main_(self):
         with driver_scope(self) as ds:
@@ -229,7 +230,7 @@ class DriverNetcdf(AbstractDriver):
         """
         group_indexing = kwargs.pop('group_indexing', None)
 
-        if isinstance(uri, basestring):
+        if isinstance(uri, six.string_types):
             ret = nc.Dataset(uri, mode=mode, **kwargs)
         else:
             ret = nc.MFDataset(uri, **kwargs)
@@ -251,11 +252,11 @@ class DriverNetcdfCF(DriverNetcdf):
         variables = group_metadata['variables']
         dimensions = group_metadata['dimensions']
         axes = {'realization': 'R', 'time': 'T', 'level': 'Z', 'x': 'X', 'y': 'Y'}
-        check_bounds = axes.keys()
+        check_bounds = list(axes.keys())
         check_bounds.pop(check_bounds.index('realization'))
 
         # Get the main entry for each axis.
-        for k, v in axes.items():
+        for k, v in list(axes.items()):
             axes[k] = get_dimension_map_entry(v, variables, dimensions, strict=strict)
 
         # Attempt to find bounds for each entry (ignoring realizations).
@@ -274,7 +275,7 @@ class DriverNetcdfCF(DriverNetcdf):
                 axes[k]['bounds'] = bounds_var
 
         # Create the template dimension map dictionary.
-        ret = {k: v for k, v in axes.items() if v is not None}
+        ret = {k: v for k, v in list(axes.items()) if v is not None}
 
         # Check for coordinate system variables. This will check every variable.
         crs_name = get_coordinate_system_variable_name(self, group_metadata)
@@ -298,7 +299,7 @@ class DriverNetcdfCF(DriverNetcdf):
                 return tuple()
         dimension_names_needed = set(dimension_names_needed)
 
-        for vk, vv in group_metadata['variables'].items():
+        for vk, vv in list(group_metadata['variables'].items()):
             variable_dimension_names = set(vv['dimensions'])
             intersection = dimension_names_needed.intersection(variable_dimension_names)
             if len(intersection) == len(axes_needed):
@@ -347,7 +348,7 @@ def parse_metadata(rootgrp, fill=None):
     if 'groups' not in fill:
         fill['groups'] = OrderedDict()
     update_group_metadata(rootgrp, fill)
-    for group in rootgrp.groups.values():
+    for group in list(rootgrp.groups.values()):
         new_fill = fill['groups'][group.name] = OrderedDict()
         parse_metadata(group, fill=new_fill)
     return fill
@@ -364,11 +365,11 @@ def read_from_collection(target, request_dataset, parent=None, name=None, source
 
     ret = VariableCollection(attrs=get_netcdf_attributes(target), parent=parent, name=name, source_name=source_name,
                              uid=uid)
-    for varname, ncvar in target.variables.iteritems():
+    for varname, ncvar in target.variables.items():
         source_name = varname
         name = rename_variable_map.get(varname, varname)
         ret[name] = SourcedVariable(name=name, request_dataset=request_dataset, parent=ret, source_name=source_name)
-    for group_name, ncgroup in target.groups.items():
+    for group_name, ncgroup in list(target.groups.items()):
         child = read_from_collection(ncgroup, request_dataset, parent=ret, name=group_name, uid=uid)
         ret.add_child(child)
     return ret
@@ -417,7 +418,7 @@ def init_variable_using_metadata_for_netcdf(driver, variable, metadata):
     # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
     # tdk: consider supporting offset and scale factors
     exclude = ['add_offset', 'scale_factor']
-    for k, v in var['attributes'].items():
+    for k, v in list(var['attributes'].items()):
         if k in exclude:
             continue
         if k not in variable_attrs:
@@ -486,7 +487,7 @@ def get_value_from_request_dataset(variable):
 def get_variables_to_write(vc, write_mode, rank, ranks_to_write):
     from ocgis.variable.geom import GeometryVariable
     ret = []
-    for variable in vc.values():
+    for variable in list(vc.values()):
         if isinstance(variable, GeometryVariable):
             continue
         else:
@@ -539,7 +540,7 @@ def get_crs_variable(metadata, to_search=None):
     found = []
     variables = metadata['variables']
 
-    for vname, var in variables.items():
+    for vname, var in list(variables.items()):
         if to_search is not None:
             if vname not in to_search:
                 continue
@@ -565,7 +566,7 @@ def get_crs_variable(metadata, to_search=None):
 
 def get_dimension_map_entry(axis, variables, dimensions, strict=False):
     axis_vars = []
-    for variable in variables.values():
+    for variable in list(variables.values()):
         vattrs = variable['attributes']
         if vattrs.get('axis') == axis:
             if len(variable['dimensions']) == 0:
@@ -579,7 +580,7 @@ def get_dimension_map_entry(axis, variables, dimensions, strict=False):
     if not strict and len(axis_vars) == 0:
         possible_names = CFNames.get_name_mapping().get(axis, [])
         for pn in possible_names:
-            if pn in variables.keys():
+            if pn in list(variables.keys()):
                 axis_vars.append(variables[pn]['name'])
 
     if len(axis_vars) == 1:
@@ -617,7 +618,7 @@ def update_group_metadata(rootgrp, fill):
 
     # get variables
     variables = OrderedDict()
-    for key, value in rootgrp.variables.iteritems():
+    for key, value in rootgrp.variables.items():
         subvar = OrderedDict()
         for attr in value.ncattrs():
             subvar.update({attr: getattr(value, attr)})
@@ -650,7 +651,7 @@ def update_group_metadata(rootgrp, fill):
 
     # get dimensions
     dimensions = OrderedDict()
-    for key, value in rootgrp.dimensions.iteritems():
+    for key, value in rootgrp.dimensions.items():
         subdim = {key: {'name': key, 'size': len(value), 'isunlimited': value.isunlimited()}}
         dimensions.update(subdim)
     fill.update({'dimensions': dimensions})

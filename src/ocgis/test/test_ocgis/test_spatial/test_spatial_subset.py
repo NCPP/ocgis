@@ -31,7 +31,7 @@ class TestSpatialSubsetOperation(TestBase):
         for k in itr_products_keywords(keywords, as_namedtuple=True):
             kwargs = k._asdict()
             target = kwargs.pop('target')
-            ss = SpatialSubsetOperation(target.values()[0], **kwargs)
+            ss = SpatialSubsetOperation(list(target.values())[0], **kwargs)
             yield (ss, k)
 
     @property
@@ -84,8 +84,8 @@ class TestSpatialSubsetOperation(TestBase):
         field_rotated_pole = self.rd_rotated_pole.get()
 
         # 4: field with lambert conformal coordinate system
-        lambert_dmap = {'crs': {'variable': u'Lambert_Conformal'}, 'groups': {},
-                        'time': {'variable': u'time', 'names': [u'time'], 'bounds': u'time_bnds'},
+        lambert_dmap = {'crs': {'variable': 'Lambert_Conformal'}, 'groups': {},
+                        'time': {'variable': 'time', 'names': ['time'], 'bounds': 'time_bnds'},
                         'x': {'variable': 'xc', 'names': ['xc']},
                         'y': {'variable': 'yc', 'names': ['yc']}}
         rd = self.test_data.get_rd('narccap_lambert_conformal', kwds={'dimension_map': lambert_dmap})
@@ -190,10 +190,10 @@ class TestSpatialSubsetOperation(TestBase):
                             raise
                     except EmptySubsetError:
                         try:
-                            self.assertEqual(k.target.keys()[0], 'lambert')
+                            self.assertEqual(list(k.target.keys())[0], 'lambert')
                             self.assertEqual(geometry_record['properties']['DESC'], 'Germany')
                         except AssertionError:
-                            self.assertEqual(k.target.keys()[0], 'rotated_pole')
+                            self.assertEqual(list(k.target.keys())[0], 'rotated_pole')
                             self.assertEqual(geometry_record['properties']['DESC'], 'Nebraska')
                         continue
                     else:
@@ -210,10 +210,10 @@ class TestSpatialSubsetOperation(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         buffered = [element['geom'].buffer(rd.get().grid.resolution * 2) for element in geoms]
         for buff in buffered:
-            ss = SpatialSubsetOperation(rd.get(), wrap=True)
+            ss = SpatialSubsetOperation(rd.get(), wrap=False)
             gvar = GeometryVariable(value=buff, name='geom', dimensions='dim', crs=WGS84())
             ret = ss.get_spatial_subset('intersects', gvar)
-            self.assertTrue(np.all(ret.grid.extent > 0))
+            self.assertTrue(np.all(ret.grid.x.get_value() >= 0))
 
     @attr('data')
     def test_get_spatial_subset_output_crs(self):

@@ -5,10 +5,12 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import six
+from six.moves import zip_longest
 
 from ocgis import constants
 from ocgis import env
-from ocgis.base import get_variables, get_dimension_names
+from ocgis.base import get_variables, get_dimension_names, AbstractOcgisObject
 from ocgis.constants import TagNames, DimensionMapKeys, HeaderNames
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.conformer import conform_array_by_dimension_names
@@ -22,7 +24,8 @@ STANDARD_DIMENSIONS = (DimensionMapKeys.REALIZATION, DimensionMapKeys.TIME, Dime
                        DimensionMapKeys.Y, DimensionMapKeys.X)
 
 
-class AbstractFunction(object):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractFunction(AbstractOcgisObject):
     """
     Required class attributes to overload:
 
@@ -54,8 +57,6 @@ class AbstractFunction(object):
     :type meta_attrs: :class:`ocgis.driver.parms.definition_helpers.MetadataAttributes`
     :param str tag: The tag to use for variable iteration on the source field (the source variables for calculation).
     """
-
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
     def description(self):
@@ -406,7 +407,7 @@ class AbstractFunction(object):
         crosswalk = []
         for dim in variable.dimensions:
             found = False
-            for k, v in self.field.dimension_map.items():
+            for k, v in list(self.field.dimension_map.items()):
                 names = v.get(DimensionMapKeys.NAMES, [])
                 if v.get(DimensionMapKeys.VARIABLE) is not None and dim.name in names:
                     crosswalk.append(k)
@@ -420,13 +421,14 @@ class AbstractFunction(object):
     def _get_extra_indices_itr_and_src_names_(self, crosswalk, variable_shape):
         extra = [dn for dn in crosswalk if dn not in STANDARD_DIMENSIONS]
         extra = {e: {'index': crosswalk.index(e)} for e in extra}
-        for v in extra.values():
+        for v in list(extra.values()):
             v['size'] = variable_shape[v['index']]
 
         # Remove the extra dimensions. The only dimension names remaining are standard field names.
         src_names_extra_removed = [dn for dn in crosswalk if dn not in extra]
         # Handles extra dimensions in the outer loop.
-        izl = [itertools.izip_longest([v['index']], range(v['size']), fillvalue=v['index']) for v in extra.values()]
+        izl = [zip_longest([v['index']], list(range(v['size'])), fillvalue=v['index']) for v in
+               list(extra.values())]
         itr = itertools.product(*izl)
         return itr, src_names_extra_removed
 
@@ -479,8 +481,8 @@ class AbstractFunction(object):
                 self._current_conformed_array = carr
 
                 # Standard field dimension iterators.
-                standard_itrs = [range(carr.shape[ii]) for ii in [0, 2]]
-                standard_itrs.append(range(self.tgd.shape[0]))
+                standard_itrs = [list(range(carr.shape[ii])) for ii in [0, 2]]
+                standard_itrs.append(list(range(self.tgd.shape[0])))
 
                 # Execute the calculation.
                 for ir, il, it in itertools.product(*standard_itrs):
@@ -563,9 +565,8 @@ class AbstractFunction(object):
             ocgis_lh(logger='calc.base', level=logging.WARNING, msg=msg)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractFieldFunction(AbstractFunction):
-    __metaclass__ = abc.ABCMeta
-
     @abc.abstractmethod
     def calculate(self, **kwargs):
         """
@@ -580,6 +581,7 @@ class AbstractFieldFunction(AbstractFunction):
         return self.calculate(**self.parms)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractUnivariateFunction(AbstractFunction):
     """
     Base class for functions accepting a single univariate input.
@@ -588,8 +590,6 @@ class AbstractUnivariateFunction(AbstractFunction):
     # Some calculations use a temporal group dimension but do not want any temporal aggregation to occur after the
     # calculation.
     should_temporally_aggregate = True
-
-    __metaclass__ = abc.ABCMeta
     #: Optional sequence of acceptable string units definitions for input variables. If this is set to ``None``, no unit
     #: validation will occur.
     required_units = None
@@ -604,7 +604,7 @@ class AbstractUnivariateFunction(AbstractFunction):
 
     def validate_units(self, variable):
         if self.required_units is not None:
-            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=True) \
+            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=env.USE_CFUNITS) \
                        for target in self.required_units]
             if not any(matches):
                 raise UnitsValidationError(variable, self.required_units, self.key)
@@ -647,11 +647,11 @@ class AbstractUnivariateFunction(AbstractFunction):
             self._add_to_collection_(fill)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractParameterizedFunction(AbstractFunction):
     """
     Base class for functions accepting parameters.
     """
-    __metaclass__ = abc.ABCMeta
 
     #: Set to a tuple containing keys of required parameters. The keys correspond to keys in ``parms_definition``.
     parms_required = None
@@ -693,7 +693,7 @@ class AbstractParameterizedFunction(AbstractFunction):
                 for r in required:
                     kwds.pop(r, None)
 
-            if not set(kwds.keys()).issubset(cls.parms_definition.keys()):
+            if not set(kwds.keys()).issubset(list(cls.parms_definition.keys())):
                 msg = 'Keyword arguments incorrect. Correct keyword arguments are: {0}'.format(cls.parms_definition)
                 raise DefinitionValidationError(Calc, msg)
 
@@ -710,7 +710,7 @@ class AbstractParameterizedFunction(AbstractFunction):
         """
 
         ret = {}
-        for k, v in values.iteritems():
+        for k, v in values.items():
             try:
                 if isinstance(v, self.parms_definition[k]):
                     formatted = v
@@ -732,12 +732,11 @@ class AbstractParameterizedFunction(AbstractFunction):
         return ret
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
     """
     Base class for functions operating on a single variable but always reducing input data along the time dimension.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def aggregate_temporal(self, *args, **kwargs):
         """
@@ -762,12 +761,11 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
             ocgis_lh(exc=DefinitionValidationError(Calc, msg), logger='calc.base')
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractMultivariateFunction(AbstractFunction):
     """
     Base class for functions operating on multivariate inputs.
     """
-
-    __metaclass__ = abc.ABCMeta
     # : Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
     required_units = None
@@ -799,7 +797,7 @@ class AbstractMultivariateFunction(AbstractFunction):
             ret = AbstractFunction._get_slice_and_calculation_(self, f, ir, il, parms, value=value)
         else:
             new_parms = {}
-            for k, v in parms.iteritems():
+            for k, v in parms.items():
                 if k in self.required_variables:
                     new_parms[k] = v[ir, self._curr_group, il, :, :]
                 else:
@@ -827,7 +825,7 @@ class AbstractMultivariateFunction(AbstractFunction):
 
         # Synchronize the parameters that only contain the variable mappings with the other parameters passed in at
         # calculation initialization.
-        keys = calculation_targets.keys()
+        keys = list(calculation_targets.keys())
         crosswalks = [self._get_dimension_crosswalk_(calculation_targets[k]) for k in keys]
         variable_shapes = [calculation_targets[k].shape for k in keys]
         arrs = [self.get_variable_value(calculation_targets[k]) for k in keys]
@@ -840,11 +838,11 @@ class AbstractMultivariateFunction(AbstractFunction):
         itrs = [self._iter_conformed_arrays_(crosswalks[idx], variable_shapes[idx], arrs[idx], arr_fill, None)
                 for idx in range(len(crosswalks))]
 
-        for yld in itertools.izip(*itrs):
+        for yld in zip(*itrs):
             parms = {}
             for idx in range(len(keys)):
                 parms[keys[idx]] = yld[idx][0]
-            for k, v in self.parms.iteritems():
+            for k, v in self.parms.items():
                 if k not in self.required_variables:
                     parms.update({k: v})
             res = self.calculate(**parms)
@@ -892,7 +890,7 @@ class AbstractMultivariateFunction(AbstractFunction):
                             fnames.append(r)
                     except AttributeError:
                         # Fields do not have a rename variable attribute.
-                        fnames += d.keys()
+                        fnames += list(d.keys())
                 for xx in cls.required_variables:
                     to_check = kwds[xx]
                     if to_check not in fnames:
@@ -912,14 +910,13 @@ class AbstractMultivariateFunction(AbstractFunction):
                 variable = self.field[alias_variable]
                 source = variable.units
                 target = self.required_units[required_variable]
-                match = get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=True)
-                if match == False:
+                match = get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=env.USE_CFUNITS)
+                if not match:
                     raise UnitsValidationError(variable, target, self.key)
 
 
-class AbstractKeyedOutputFunction(object):
-    __metaclass__ = abc.ABCMeta
-
+@six.add_metaclass(abc.ABCMeta)
+class AbstractKeyedOutputFunction(AbstractOcgisObject):
     @abc.abstractproperty
     def structure_dtype(self):
         dict

@@ -3,6 +3,7 @@ import itertools
 import tempfile
 
 import numpy as np
+import six
 from fiona.crs import from_string, to_string
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
@@ -44,11 +45,16 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         self.dist = None
         self.ranks = None
         self._is_empty = False
+        self._epsg = epsg
+
+        # Some basic overloaded for WGS84.
+        if epsg == 4326:
+            value = WGS84().value
 
         # Add a special check for init keys in value dictionary.
         if value is not None:
-            if 'init' in value and value.values()[0].startswith('epsg'):
-                epsg = int(value.values()[0].split(':')[1])
+            if 'init' in value and list(value.values())[0].startswith('epsg'):
+                epsg = int(list(value.values())[0].split(':')[1])
                 value = None
 
         if value is None:
@@ -63,8 +69,8 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
                 raise ValueError(msg)
         else:
             # Remove unicode to avoid strange issues with proj and fiona.
-            for k, v in value.iteritems():
-                if type(v) == unicode:
+            for k, v in value.items():
+                if isinstance(v, six.string_types):
                     value[k] = str(v)
                 else:
                     try:
@@ -137,7 +143,11 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
 
     @property
     def proj4(self):
-        return self.sr.ExportToProj4()
+        if self._epsg == 4326:
+            ret = WGS84().proj4
+        else:
+            ret = self.sr.ExportToProj4()
+        return ret
 
     @property
     def sr(self):
@@ -409,13 +419,30 @@ class WGS84(CoordinateReferenceSystem):
     """
 
     def __init__(self):
-        CoordinateReferenceSystem.__init__(self, epsg=4326, name='latitude_longitude')
+        value = {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}
+        try:
+            CoordinateReferenceSystem.__init__(self, value=value, name='WGS84_EPSG_4326')
+        except:
+            value['ellps'] = value['datum']
+            CoordinateReferenceSystem.__init__(self, value=value, name='WGS84_EPSG_4326')
+
+    def __eq__(self, other):
+        ret = super(WGS84, self).__eq__(other)
+        if not ret:
+            # Versions handle values differently in GDAL/PROJ.4.
+            try:
+                ret = other.value == {'proj': 'longlat', 'datum': 'WGS84', 'no_defs': True}
+            except AttributeError:
+                ret = False
+        return ret
+
+    @property
+    def proj4(self):
+        return '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs '
 
 
+@six.add_metaclass(abc.ABCMeta)
 class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
-    __metaclass__ = abc.ABCMeta
-
-    # If False, no attempt to read projection coordinates will be made. they will be set to a None default.
     _find_projection_coordinates = True
 
     # Alternative grid mapping names to check. Should be a tuple in subclasses.
@@ -431,15 +458,15 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         # Always provide a default name for the CF-based coordinate systems.
         name = kwds.pop('name', self.grid_mapping_name)
 
-        check_keys = kwds.keys()
-        for key in kwds.keys():
+        check_keys = list(kwds.keys())
+        for key in list(kwds.keys()):
             check_keys.remove(key)
         if len(check_keys) > 0:
             raise ValueError('The keyword parameter(s) "{0}" was/were not provided.')
 
         self.map_parameters_values = kwds
         crs = {'proj': self.proj_name}
-        for k in self.map_parameters.keys():
+        for k in list(self.map_parameters.keys()):
             if k in self.iterable_parameters:
                 v = getattr(self, self.iterable_parameters[k])(kwds[k])
                 crs.update(v)
@@ -493,7 +520,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
 
         def _get_projection_coordinate_(target, meta):
             key = 'projection_{0}_coordinate'.format(target)
-            for k, v in meta['variables'].items():
+            for k, v in list(meta['variables'].items()):
                 if 'standard_name' in v['attributes']:
                     if v['attributes']['standard_name'] == key:
                         return k
@@ -508,7 +535,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
             if not strict:
                 r_grid_mapping = None
                 fuzzy_names = cls.get_fuzzy_names()
-                for var_meta in meta['variables'].values():
+                for var_meta in list(meta['variables'].values()):
                     if var_meta['name'] in fuzzy_names:
                         r_grid_mapping = var_meta
                         break
@@ -551,7 +578,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     def write_to_rootgrp(self, rootgrp, with_proj4=False):
         variable = super(CFCoordinateReferenceSystem, self).write_to_rootgrp(rootgrp, with_proj4=with_proj4)
         variable.grid_mapping_name = self.grid_mapping_name
-        for k, v in self.map_parameters_values.iteritems():
+        for k, v in self.map_parameters_values.items():
             if v is None:
                 v = ''
             setattr(variable, k, v)
@@ -714,11 +741,11 @@ def get_lonlat_rotated_pole_transform(lon, lat, transform, inverse=False, is_vec
         lineterminator = '\n'
         delimiter = '\t'
 
-    f = tempfile.NamedTemporaryFile()
+    f = tempfile.NamedTemporaryFile(mode='w')
     try:
         writer = csv.writer(f, dialect=ProjDialect)
         if is_vectorized:
-            for lon_idx, lat_idx in itertools.product(*[range(lon.shape[0]), range(lat.shape[0])]):
+            for lon_idx, lat_idx in itertools.product(*[list(range(lon.shape[0])), list(range(lat.shape[0]))]):
                 writer.writerow([lon[lon_idx], lat[lat_idx]])
         else:
             for idx in range(lon.shape[0]):
@@ -735,6 +762,7 @@ def get_lonlat_rotated_pole_transform(lon, lat, transform, inverse=False, is_vec
     finally:
         f.close()
 
+    capture = capture.decode()
     coords = capture.split('\n')
     new_coords = []
 
@@ -742,7 +770,7 @@ def get_lonlat_rotated_pole_transform(lon, lat, transform, inverse=False, is_vec
         coord = coord.replace('"', '')
         coord = coord.split('\t')
         try:
-            coord = map(float, coord)
+            coord = list(map(float, coord))
         # likely empty string
         except ValueError:
             if coord[0] == '':

@@ -11,9 +11,10 @@ from ocgis.variable.crs import Spherical, CoordinateReferenceSystem
 class Test1(TestBase):
     def test_get_bounds_from_1d(self):
         across_180 = np.array([-180, -90, 0, 90, 180], dtype=float)
+
         bounds_180 = get_bounds_from_1d(across_180)
-        self.assertEqual(bounds_180.tostring(),
-                         '\x00\x00\x00\x00\x00 l\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00 l@')
+        desired = [[-225.0, -135.0], [-135.0, -45.0], [-45.0, 45.0], [45.0, 135.0], [135.0, 225.0]]
+        self.assertEqual(bounds_180.tolist(), desired)
 
         dates = get_date_list(datetime.datetime(2000, 1, 31), datetime.datetime(2002, 12, 31), 1)
         with self.assertRaises(NotImplementedError):
@@ -23,16 +24,16 @@ class Test1(TestBase):
             get_bounds_from_1d(np.array([0], dtype=float))
 
         just_two = get_bounds_from_1d(np.array([50, 75], dtype=float))
-        self.assertEqual(just_two.tostring(),
-                         '\x00\x00\x00\x00\x00\xc0B@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xe0U@')
+        desired = [[37.5, 62.5], [62.5, 87.5]]
+        self.assertEqual(just_two.tolist(), desired)
 
         just_two_reversed = get_bounds_from_1d(np.array([75, 50], dtype=float))
-        self.assertEqual(just_two_reversed.tostring(),
-                         '\x00\x00\x00\x00\x00\xe0U@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xc0B@')
+        desired = [[87.5, 62.5], [62.5, 37.5]]
+        self.assertEqual(just_two_reversed.tolist(), desired)
 
         zero_origin = get_bounds_from_1d(np.array([0, 50, 100], dtype=float))
-        self.assertEqual(zero_origin.tostring(),
-                         '\x00\x00\x00\x00\x00\x009\xc0\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00@_@')
+        desired = [[-25.0, 25.0], [25.0, 75.0], [75.0, 125.0]]
+        self.assertEqual(zero_origin.tolist(), desired)
 
     def test_get_is_increasing(self):
         ret = get_is_increasing(np.array([1, 2, 3]))
@@ -588,6 +589,6 @@ class Test2(TestBase):
 
     def test_format_bool(self):
         mmap = {0: False, 1: True, 't': True, 'True': True, 'f': False, 'False': False}
-        for key, value in mmap.iteritems():
+        for key, value in mmap.items():
             ret = format_bool(key)
             self.assertEqual(ret, value)

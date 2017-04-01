@@ -1,4 +1,5 @@
 import numpy as np
+import six
 
 from ocgis import constants
 from ocgis.base import AbstractNamedObject
@@ -10,7 +11,7 @@ from ocgis.vm.mpi import get_global_to_local_slice, MPI_COMM, get_nonempty_ranks
 class Dimension(AbstractNamedObject):
     def __init__(self, name, size=None, size_current=None, src_idx=None, dist=False, is_empty=False,
                  source_name=constants.UNINITIALIZED, aliases=None, uid=None):
-        if isinstance(src_idx, basestring):
+        if isinstance(src_idx, six.string_types):
             if src_idx != 'auto' and size is None and size_current is None:
                 raise ValueError('Unsized dimensions should not have source indices.')
             if src_idx != 'auto':
@@ -36,7 +37,7 @@ class Dimension(AbstractNamedObject):
     def __eq__(self, other):
         ret = True
         skip = ('__src_idx__', '_aliases', '_source_name', '_bounds_local', '_bounds_global')
-        for k, v in self.__dict__.items():
+        for k, v in list(self.__dict__.items()):
             if k in skip:
                 continue
             else:
@@ -227,7 +228,7 @@ class Dimension(AbstractNamedObject):
 
     def set_size(self, value, src_idx=None):
         if value is not None:
-            if isinstance(src_idx, basestring) and src_idx == 'auto':
+            if isinstance(src_idx, six.string_types) and src_idx == 'auto':
                 src_idx = create_src_idx(0, value, dtype=DataTypes.DIMENSION_SRC_INDEX)
         elif value is None:
             src_idx = None
@@ -257,7 +258,7 @@ class Dimension(AbstractNamedObject):
             except TypeError:
                 # Likely a NoneType slice.
                 if slc.start is None:
-                    if slc.stop > 0:
+                    if slc.stop is not None and slc.stop > 0:
                         length = length_self
                     elif slc.stop is None:
                         length = length_self

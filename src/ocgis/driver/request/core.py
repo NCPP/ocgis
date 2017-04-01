@@ -1,8 +1,9 @@
-import itertools
 import logging
 import os
 import re
 from copy import deepcopy
+
+import six
 
 from ocgis import constants
 from ocgis import env
@@ -436,7 +437,7 @@ class RequestDataset(AbstractRequestObject):
             ret = self.driver.get_data_variable_names(self.metadata, self.dimension_map)
         else:
             for vname in self._variable:
-                if vname not in self.metadata['variables'].keys():
+                if vname not in list(self.metadata['variables'].keys()):
                     raise VariableNotFoundError(self.uri, vname)
             ret = self._variable
 
@@ -517,7 +518,7 @@ def get_is_none(value):
 def validate_units(keyword, sequence):
     # Check all units are convertible into the appropriate backend.
     try:
-        map(get_units_object, sequence)
+        list(map(get_units_object, sequence))
     except ValueError as e:
         raise RequestValidationError(keyword, e.message)
 
@@ -525,8 +526,8 @@ def validate_units(keyword, sequence):
 def validate_unit_equivalence(src_units, dst_units):
     from ocgis.ops.parms.definition import ConformUnitsTo
 
-    for s, d in itertools.izip(src_units, dst_units):
-        s, d = map(get_units_object, (s, d))
+    for s, d in zip(src_units, dst_units):
+        s, d = list(map(get_units_object, (s, d)))
         if not get_are_units_equivalent((s, d)):
             msg = 'The units specified in "{2}" ("{0}") are not equivalent to the source units "{1}".'
             raise RequestValidationError(ConformUnitsTo.name, msg.format(s, d, ConformUnitsTo.name))
@@ -576,7 +577,7 @@ def get_driver(driver):
 
 def get_uri(uri, ignore_errors=False, followlinks=True):
     out_uris = []
-    if isinstance(uri, basestring):
+    if isinstance(uri, six.string_types):
         uris = [uri]
     else:
         uris = uri
@@ -589,7 +590,7 @@ def get_uri(uri, ignore_errors=False, followlinks=True):
         # if it does not exist, check the directory locations
         else:
             if env.DIR_DATA is not None:
-                if isinstance(env.DIR_DATA, basestring):
+                if isinstance(env.DIR_DATA, six.string_types):
                     dirs = [env.DIR_DATA]
                 else:
                     dirs = env.DIR_DATA

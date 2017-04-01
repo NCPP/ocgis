@@ -247,10 +247,11 @@ class GeomCabinetIterator(object):
     :param str uid: The name of the attribute containing the unique identifier. If ``None``,
      :attr:`ocgis.env.DEFAULT_GEOM_UID` will be used if present. If no unique identifier is found, add one with name
      :attr:`ocgis.env.DEFAULT_GEOM_UID`.
-    :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
-     for documentation (section titled "WHERE").
+    :param str select_sql_where: SINGLE QUOTES MUST BE USED INSIDE DOUBLE QUOTES FOR PYTHON 3! A string suitable for 
+     insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html for documentation 
+     (section titled "WHERE").
 
-    >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
+    >>> select_sql_where = "STATE_NAME = 'Wisconsin'"
 
     :param slice: A two-element integer sequence: [start, stop].
 

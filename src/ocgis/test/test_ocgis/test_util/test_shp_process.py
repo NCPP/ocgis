@@ -42,4 +42,4 @@ class TestShpProcess(TestBase):
         path = os.path.join(out_folder, 'world_countries.shp')
         with fiona.open(path, 'r') as sci:
             uids = [record['properties']['new_id'] for record in sci]
-        self.assertEqual(uids, range(1, 212))
+        self.assertEqual(uids, list(range(1, 212)))

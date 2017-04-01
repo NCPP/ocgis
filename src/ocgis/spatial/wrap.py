@@ -1,6 +1,8 @@
-from abc import ABCMeta, abstractmethod
+import abc
+from abc import abstractmethod
 
 import numpy as np
+import six
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
@@ -11,10 +13,9 @@ from ocgis.base import AbstractOcgisObject
 from ocgis.util.helpers import make_poly
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractWrapper(AbstractOcgisObject):
     """Base class for wrapping objects."""
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, center_axis=0.0, wrap_axis=180.0):
         """
@@ -148,8 +149,8 @@ class GeometryWrapper(AbstractWrapper):
                 try:
                     processed = MultiPolygon(left_polygons + right_polygons)
                 except TypeError:
-                    left = filter(lambda x: type(x) != LineString, left_polygons)
-                    right = filter(lambda x: type(x) != LineString, right_polygons)
+                    left = [x for x in left_polygons if type(x) != LineString]
+                    right = [x for x in right_polygons if type(x) != LineString]
                     processed = MultiPolygon(left + right)
 
                 # Return a single polygon if the output multigeometry has only one component. otherwise, explode the
@@ -210,8 +211,8 @@ class GeometryWrapper(AbstractWrapper):
                 try:
                     new_geom = MultiPolygon(left + right)
                 except TypeError:
-                    left = filter(lambda x: type(x) != LineString, left)
-                    right = filter(lambda x: type(x) != LineString, right)
+                    left = [x for x in left if type(x) != LineString]
+                    right = [x for x in right if type(x) != LineString]
                     new_geom = MultiPolygon(left + right)
             # Otherwise, the polygon coordinates are not affected by wrapping and the geometry may be passed through.
             else:

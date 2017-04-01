@@ -38,7 +38,7 @@ class TestDriverCSV(TestBase):
         rd = RequestDataset(uri=path)
         vc = rd.get_variable_collection()
 
-        for v in vc.values():
+        for v in list(vc.values()):
             self.assertIsNotNone(v.get_value())
 
         field = rd.get()
@@ -67,7 +67,7 @@ class TestDriverCSV(TestBase):
         out_path = MPI_COMM.bcast(out_path)
 
         rd = RequestDataset(in_path)
-        rd.metadata['dimensions'].values()[0]['dist'] = True
+        list(rd.metadata['dimensions'].values())[0]['dist'] = True
         vc = rd.get_variable_collection()
         vc.write(out_path, driver=DriverCSV)
 

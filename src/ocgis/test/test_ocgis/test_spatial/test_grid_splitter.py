@@ -21,7 +21,7 @@ class TestGridSplitter(AbstractTestInterface):
         tdim = Dimension(name='time', size=None)
         value = np.random.rand(31, ydim.size, xdim.size)
         data = Variable(name='data', dimensions=[tdim, ydim, xdim], value=value)
-        tvar = TemporalVariable(name='time', value=range(31), dimensions=tdim, attrs={'axis': 'T'})
+        tvar = TemporalVariable(name='time', value=list(range(31)), dimensions=tdim, attrs={'axis': 'T'})
         grid.parent.add_variable(data)
         grid.parent.add_variable(tvar)
 
@@ -92,7 +92,7 @@ class TestGridSplitter(AbstractTestInterface):
             self.assertTrue(os.path.exists(index_path))
 
         index_field = RequestDataset(index_path).get()
-        self.assertTrue(len(index_field.keys()) > 2)
+        self.assertTrue(len(list(index_field.keys())) > 2)
 
     @attr('slow')
     def test_insert_weighted(self):
@@ -128,5 +128,5 @@ class TestGridSplitter(AbstractTestInterface):
             dv_value = data_variable.get_value()
             dv_sum = dv_value.sum()
             actual_sums[data_variable.name] = dv_sum
-        for k, v in actual_sums.items():
+        for k, v in list(actual_sums.items()):
             self.assertAlmostEqual(v, desired_sums[k])

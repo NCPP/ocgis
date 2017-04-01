@@ -214,7 +214,7 @@ class OperationsEngine(object):
                         vitr = field[midx].data_variables
                         is_data = True
                     else:
-                        vitr = field[midx].values()
+                        vitr = list(field[midx].values())
                         is_data = False
                     for mvar in vitr:
                         mvar = mvar.extract()

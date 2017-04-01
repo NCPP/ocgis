@@ -4,6 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+from netCDF4 import netcdftime
 from nose.plugins.skip import SkipTest
 from shapely.geometry import Point
 from shapely.geometry import box
@@ -202,8 +203,12 @@ class TestOcgField(AbstractTestInterface):
                     self.assertNotIn(geom2.name, data)
                     self.assertIsInstance(geom, BaseGeometry)
                     if k.standardize and k.driver is None:
-                        self.assertIsInstance(data['LB_TIME'], datetime.datetime)
-                        self.assertIsInstance(data['UB_TIME'], datetime.datetime)
+                        try:
+                            self.assertIsInstance(data['LB_TIME'], datetime.datetime)
+                            self.assertIsInstance(data['UB_TIME'], datetime.datetime)
+                        except AssertionError:
+                            self.assertIsInstance(data['LB_TIME'], netcdftime.datetime)
+                            self.assertIsInstance(data['UB_TIME'], netcdftime.datetime)
                     if k.melted:
                         data_value = data[HeaderNames.VALUE]
                         actual_tas_sum += data_value
@@ -361,7 +366,7 @@ class TestOcgField(AbstractTestInterface):
         if MPI_SIZE != 3 and MPI_SIZE != 1:
             raise SkipTest('serial or mpi-3 only')
 
-        ranks = range(MPI_SIZE)
+        ranks = list(range(MPI_SIZE))
 
         for base_rank in ranks:
             for driver in [

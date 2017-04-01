@@ -59,7 +59,7 @@ class Test(TestBase):
 
     @attr('slow')
     def test_timing_use_optimizations(self):
-        n = range(10)
+        n = list(range(10))
         t = {True: [], False: []}
 
         for use_optimizations in [True, False]:
@@ -75,7 +75,7 @@ class Test(TestBase):
                 compute(ops, 5, verbose=False, use_optimizations=use_optimizations)
                 t2 = time.time()
                 t[use_optimizations].append(t2 - t1)
-        tmean = {k: {'mean': np.array(v).mean(), 'stdev': np.array(v).std()} for k, v in t.iteritems()}
+        tmean = {k: {'mean': np.array(v).mean(), 'stdev': np.array(v).std()} for k, v in t.items()}
         self.assertTrue(tmean[True]['mean'] < tmean[False]['mean'])
 
     @attr('data')
@@ -208,7 +208,7 @@ class Test(TestBase):
             col = tidx['col']
             self.assertTrue(np.all(x[row[0]:row[1], col[0]:col[1]] == x[0:tdim, 0:tdim]))
             running_sum = 0.0
-            for value in schema.itervalues():
+            for value in schema.values():
                 row, col = value['row'], value['col']
                 slice = x[row[0]:row[1], col[0]:col[1]]
                 y[row[0]:row[1], col[0]:col[1]] = slice

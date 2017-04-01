@@ -1,7 +1,10 @@
-from abc import ABCMeta
+import abc
+
+import six
 
 from ocgis.base import AbstractInterfaceObject
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractRequestObject(AbstractInterfaceObject):
-    __metaclass__ = ABCMeta
+    pass

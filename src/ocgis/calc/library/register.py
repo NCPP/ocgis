@@ -1,9 +1,9 @@
-import math
-import statistics
-import thresholds
 from ocgis.calc.library.index import heat_index, duration
 from ocgis.calc.library.math import Convolve1D
 from ocgis.util.helpers import itersubclasses
+from . import math
+from . import statistics
+from . import thresholds
 
 
 class FunctionRegistry(dict):

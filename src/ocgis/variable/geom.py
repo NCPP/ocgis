@@ -1,9 +1,11 @@
-from abc import ABCMeta, abstractmethod
+import abc
+from abc import abstractmethod
 from collections import deque
 from copy import copy, deepcopy
-from itertools import ifilter, product
+from itertools import product
 
 import numpy as np
+import six
 from numpy.core.multiarray import ndarray
 from shapely import wkb
 from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
@@ -81,9 +83,8 @@ class AbstractSpatialObject(AbstractInterfaceObject):
                 self.crs.wrap_or_unwrap(WrapAction.WRAP, self)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractOperationsSpatialObject(AbstractSpatialObject):
-    __metaclass__ = ABCMeta
-
     @property
     def envelope(self):
         return box(*self.extent)
@@ -128,9 +129,8 @@ class AbstractOperationsSpatialObject(AbstractSpatialObject):
         """Generate fiona-compatible records."""
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObject):
-    __metaclass__ = ABCMeta
-
     def __init__(self, **kwargs):
         crs = kwargs.pop('crs', None)
         parent = kwargs.pop('parent', None)
@@ -139,9 +139,8 @@ class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObjec
         AbstractOperationsSpatialObject.__init__(self, crs=crs)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractSpatialVariable(SourcedVariable, AbstractOperationsSpatialObject):
-    __metaclass__ = ABCMeta
-
     def __init__(self, **kwargs):
         crs = kwargs.pop('crs', None)
         SourcedVariable.__init__(self, **kwargs)
@@ -371,7 +370,7 @@ class GeometryVariable(AbstractSpatialVariable):
         if not ret.is_empty:
             ret.set_mask(ret_mask.get_value(), cascade=cascade, update=True)
         else:
-            for var in ret.parent.values():
+            for var in list(ret.parent.values()):
                 assert var.is_empty
 
         # tdk: need to implement fancy index-based slicing for the one-dimensional unstructured case
@@ -447,7 +446,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
         return Iterator(self, followers=followers, **kwargs)
 
-    def get_mask_from_intersects(self, geometry_or_bounds, use_spatial_index=True, keep_touches=False,
+    def get_mask_from_intersects(self, geometry_or_bounds, use_spatial_index=env.USE_SPATIAL_INDEX, keep_touches=False,
                                  original_mask=None):
         # Transform bounds sequence to a geometry.
         if not isinstance(geometry_or_bounds, BaseGeometry):
@@ -560,12 +559,12 @@ class GeometryVariable(AbstractSpatialVariable):
 
         if not self.is_empty:
             # Destination indices in the return variable are filled with non-masked, unioned geometries.
-            for dst_indices in product(*[range(dl) for dl in get_dimension_lengths(new_dimensions)]):
+            for dst_indices in product(*[list(range(dl)) for dl in get_dimension_lengths(new_dimensions)]):
                 dst_slc = {new_dimensions[ii].name: dst_indices[ii] for ii in range(len(new_dimensions))}
 
                 # Select the geometries to union skipping any masked geometries.
                 to_union = deque()
-                for indices in product(*[range(dl) for dl in dimension_lengths]):
+                for indices in product(*[list(range(dl)) for dl in dimension_lengths]):
                     dslc = {dimension_names[ii]: indices[ii] for ii in range(len(dimension_names))}
                     sub = self[dslc]
                     sub_mask = sub.get_mask()
@@ -592,7 +591,7 @@ class GeometryVariable(AbstractSpatialVariable):
         # Spatial average shared dimensions.
         if spatial_average is not None and not self.is_empty:
             # Get source data to weight.
-            for var_to_weight in ifilter(lambda ii: ii.name in variable_names_to_weight, self.parent.values()):
+            for var_to_weight in filter(lambda ii: ii.name in variable_names_to_weight, list(self.parent.values())):
                 # Holds sizes of dimensions to iterate. These dimension are not squeezed by the weighted averaging.
                 range_to_itr = []
                 # Holds the names of dimensions to squeeze.
@@ -638,7 +637,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     np_squeeze = np.squeeze
                     np_atleast_1d = np.atleast_1d
                     np_ma_average = np.ma.average
-                    for nonweighted_indices in product(*[range(ri) for ri in range_to_itr]):
+                    for nonweighted_indices in product(*[list(range(ri)) for ri in range_to_itr]):
                         w_slc = {names_to_itr[ii]: nonweighted_indices[ii] for ii in range(len_names_to_itr)}
                         for nsa in names_to_slice_all:
                             w_slc[nsa] = slice_none
@@ -670,7 +669,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     live_rank_areas = np.array(live_rank_areas)
                     rank_weights = live_rank_areas / np.max(live_rank_areas)
 
-                for var_to_weight in ifilter(lambda ii: ii.name in variable_names_to_weight, ret.parent.values()):
+                for var_to_weight in filter(lambda ii: ii.name in variable_names_to_weight, list(ret.parent.values())):
                     dimensions_to_itr = [dim.name for dim in var_to_weight.dimensions if
                                          dim.name != union_dimension.name]
                     slc = {union_dimension.name: 0}
@@ -701,17 +700,19 @@ class GeometryVariable(AbstractSpatialVariable):
         if self.is_empty:
             return
 
-        # Be sure and project masked geometries to maintain underlying geometries.
-        r_value = self.get_value().reshape(-1)
-        r_loads = wkb.loads
-        r_create = ogr.CreateGeometryFromWkb
-        to_sr = to_crs.sr
-        from_sr = self.crs.sr
-        for idx, geom in enumerate(r_value.flat):
-            ogr_geom = r_create(geom.wkb)
-            ogr_geom.AssignSpatialReference(from_sr)
-            ogr_geom.TransformTo(to_sr)
-            r_value[idx] = r_loads(ogr_geom.ExportToWkb())
+        if self.crs != to_crs:
+            # Be sure and project masked geometries to maintain underlying geometries.
+            r_value = self.get_value().reshape(-1)
+            r_loads = wkb.loads
+            r_create = ogr.CreateGeometryFromWkb
+            to_sr = to_crs.sr
+            from_sr = self.crs.sr
+            for idx, geom in enumerate(r_value.flat):
+                ogr_geom = r_create(geom.wkb)
+                ogr_geom.AssignSpatialReference(from_sr)
+                ogr_geom.TransformTo(to_sr)
+                r_value[idx] = r_loads(ogr_geom.ExportToWkb())
+        # Even if coordinate systems are measured equivalent, for consistency the new crs is the destination crs.
         self.crs = to_crs
 
     def iter_records(self, use_mask=True):
@@ -889,8 +890,8 @@ def get_spatial_operation(sc, name, args, kwargs):
     return ret
 
 
-def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=True, keep_touches=False,
-                                              original_mask=None):
+def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=env.USE_SPATIAL_INDEX,
+                                              keep_touches=False, original_mask=None):
     # Create the fill array and reference the mask. This is the output geometry value array.
     if original_mask is None:
         original_mask = gvar.get_mask(create=True)

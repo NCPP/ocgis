@@ -1,4 +1,4 @@
-from zmq.tests import SkipTest
+from unittest import SkipTest
 
 import ocgis
 from ocgis import RequestDataset

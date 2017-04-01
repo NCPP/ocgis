@@ -25,7 +25,7 @@ class Test(AbstractTestInterface):
         vc.add_variable(var1)
         vc.add_variable(var2)
         with renamed_dimensions_on_variables(vc, {'geom': ['ocgis_geom']}):
-            for var in vc.values():
+            for var in list(vc.values()):
                 self.assertEqual(var.dimensions[0].name, 'geom')
-        for var in vc.values():
+        for var in list(vc.values()):
             self.assertEqual(var.dimensions[0].name, 'ocgis_geom')

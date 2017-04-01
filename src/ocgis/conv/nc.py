@@ -1,5 +1,7 @@
 import datetime
 
+import six
+
 import ocgis
 from ocgis import RequestDataset
 from ocgis import env
@@ -132,7 +134,7 @@ class NcConverter(AbstractCollectionConverter):
                             continue
                         else:
                             raise
-                    if isinstance(rr, basestring):
+                    if isinstance(rr, six.string_types):
                         tu = [rr]
                     else:
                         tu = rr

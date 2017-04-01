@@ -3,6 +3,8 @@ import logging
 import os
 from warnings import warn
 
+import six
+
 import ocgis
 from ocgis import env
 from ocgis.exc import OcgWarning
@@ -87,7 +89,7 @@ class OcgisLogging(object):
         else:
             dest_level = level or self.level
             # get the logger by string name
-            if isinstance(logger, basestring):
+            if isinstance(logger, six.string_types):
                 dest_logger = self.get_logger(logger)
             else:
                 dest_logger = logger or self.parent
@@ -97,7 +99,7 @@ class OcgisLogging(object):
                 dest_logger.log(dest_level, msg)
             else:
                 if level == logging.WARN:
-                    wmsg = '{0}: {1}'.format(exc.__class__.__name__, exc.message)
+                    wmsg = '{0}: {1}'.format(exc.__class__.__name__, str(exc))
                     dest_logger.warn(wmsg)
                 else:
                     dest_logger.exception(msg)
@@ -176,7 +178,7 @@ class OcgisLogging(object):
 
     def _log_versions_(self):
         versions = get_versions()
-        versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.iteritems()])
+        versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.items()])
 
         self.parent.log(logging.DEBUG, 'Dependency versions: {0}'.format(versions))
 

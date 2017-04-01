@@ -1,6 +1,6 @@
 import netCDF4 as nc
 
-from helpers import get_features_from_fiona, mesh2_to_fiona, write_netcdf, mesh2_to_fiona_iter
+from .helpers import get_features_from_fiona, mesh2_to_fiona, write_netcdf, mesh2_to_fiona_iter
 
 
 def mesh2_nc_to_fiona(in_nc, out_path, crs=None, driver='ESRI Shapefile'):

@@ -7,8 +7,8 @@ class FooAbstractParameter(AbstractParameter):
     name = 'foo_abstract'
     default = 'the_default!'
     nullable = True
-    input_types = [basestring]
-    return_type = [basestring]
+    input_types = [str]
+    return_type = [str]
 
     def _get_meta_(self):
         raise NotImplementedError

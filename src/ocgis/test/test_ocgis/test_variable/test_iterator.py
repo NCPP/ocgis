@@ -23,7 +23,7 @@ class TestIterator(TestBase):
         field = rd.get().get_field_slice({'time': slice(0, 100)}, strict=False)
         follower_names = ['time', 'lon', 'lat']
         itr = Iterator(field['tas'], followers=[field[ii] for ii in follower_names])
-        print field.shapes
+        print(field.shapes)
         list(itr)
 
     def test_system_profile_iterator(self):

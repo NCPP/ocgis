@@ -1,16 +1,14 @@
 import os
-import re
 import sys
 
 import nose
+import six
 
-import ocgis
 
-
-class RunOcgis(nose.plugins.Plugin):
-    name = 'ocgis'
+class RunAll(nose.plugins.Plugin):
+    name = 'test_all'
     target = 'ocgis'
-    _attrs_standard = '!slow,!remote,!data,!benchmark'
+    _attrs_standard = '!benchmark!remote'
 
     def __init__(self, *args, **kwargs):
         self.attrs = kwargs.pop('attrs', self._attrs_standard)
@@ -21,12 +19,12 @@ class RunOcgis(nose.plugins.Plugin):
         os.environ['OCGIS_DIR_GEOMCABINET'] = os.path.expanduser(dir_shpcabinet)
         os.environ['OCGIS_DIR_TEST_DATA'] = os.path.expanduser(dir_test_data)
 
-        super(RunOcgis, self).__init__(*args, **kwargs)
+        super(RunAll, self).__init__(*args, **kwargs)
 
     def get_argv(self):
         argv = [sys.argv[0], '--with-{0}'.format(self.name), '-s']
 
-        if isinstance(self.attrs, basestring):
+        if isinstance(self.attrs, six.string_types):
             attrs = [self.attrs]
         else:
             attrs = self.attrs
@@ -43,29 +41,35 @@ class RunOcgis(nose.plugins.Plugin):
         return []
 
 
-class RunNoESMF(RunOcgis):
+class RunMore(RunAll):
+    name = 'test_more'
+    _attrs_standard = '!slow,!remote,!data,!benchmark'
+
+
+class RunNoESMF(RunAll):
     name = 'no-esmf'
-    _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
+    # _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
     _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data,!benchmark'
 
-    def wantFile(self, file):
-        match = re.search(self._exclude, file)
-        if match is None:
-            ret = None
-        else:
-            ret = False
-        return ret
+    # def wantFile(self, file):
+    #     match = re.search(self._exclude, file)
+    #     if match is None:
+    #         ret = None
+    #     else:
+    #         ret = False
+    #     return ret
 
 
-class RunSimple(RunOcgis):
-    _attrs_standard = 'simple,!optional'
+class RunSimple(RunAll):
+    name = 'test_simple'
+    _attrs_standard = 'simple'
 
-    @property
-    def target(self):
-        path = os.path.realpath(ocgis.__file__)
-        path = os.path.split(path)[0]
-        path = os.path.join(path, 'test', 'test_simple')
-        return path
+    # @property
+    # def target(self):
+    #     path = os.path.realpath(ocgis.__file__)
+    #     path = os.path.split(path)[0]
+    #     path = os.path.join(path, 'test', 'test_simple')
+    #     return path
 
 
 def _run_tests_(nose_plugin):
@@ -74,8 +78,13 @@ def _run_tests_(nose_plugin):
         sys.exit(1)
 
 
+def run_more(**kwargs):
+    nose_plugin = RunMore(**kwargs)
+    _run_tests_(nose_plugin)
+
+
 def run_all(**kwargs):
-    nose_plugin = RunOcgis(**kwargs)
+    nose_plugin = RunAll(**kwargs)
     _run_tests_(nose_plugin)
 
 

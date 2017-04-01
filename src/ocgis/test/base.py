@@ -8,7 +8,6 @@ import sys
 import tempfile
 import unittest
 import warnings
-from abc import ABCMeta
 from collections import OrderedDict
 from contextlib import contextmanager
 from copy import deepcopy, copy
@@ -17,6 +16,7 @@ from pprint import pprint
 import fiona
 import netCDF4 as nc
 import numpy as np
+import six
 from shapely import wkt
 from shapely.geometry import Point
 
@@ -46,7 +46,7 @@ Definitions for various "attrs":
  * icclim: test requires ICCLIM
  * benchmark: test used for benchmarking/performance
 
-nosetests -vs --with-id -a '!slow,!remote' ocgis
+nosetests -vs --with-id -a '!slow,!remote' ocgisf
 """
 
 
@@ -56,13 +56,12 @@ class ToTest(Exception):
     """
 
 
+@six.add_metaclass(abc.ABCMeta)
 class TestBase(unittest.TestCase):
     """
     All tests should inherit from this. It allows test data to be written to a temporary folder and removed easily.
     Also simplifies access to static files.
     """
-
-    __metaclass__ = abc.ABCMeta
     # add MPI barrier during test tear down
     add_barrier = True
     # set to false to not resent the environment before each test
@@ -95,7 +94,7 @@ class TestBase(unittest.TestCase):
 
     def assertDescriptivesAlmostEqual(self, desired_descriptives, actual_arr):
         actual_descriptives = self.get_descriptive_statistics(actual_arr)
-        for k, v in desired_descriptives.items():
+        for k, v in list(desired_descriptives.items()):
             if k == 'shape':
                 self.assertEqual(v, actual_descriptives['shape'])
             else:
@@ -114,7 +113,7 @@ class TestBase(unittest.TestCase):
         try:
             unittest.TestCase.assertDictEqual(self, d1, d2, msg=msg)
         except AssertionError:
-            for k, v in d1.iteritems():
+            for k, v in d1.items():
                 try:
                     msg = 'Issue with key "{0}". Values are {1}.'.format(k, (v, d2[k]))
                 except KeyError:
@@ -135,7 +134,7 @@ class TestBase(unittest.TestCase):
         properties_meta = schema_meta['properties']
         properties_actual = schema_actual['properties']
 
-        for km in properties_meta.iterkeys():
+        for km in properties_meta.keys():
             if abs_dtype:
                 self.assertEqual(properties_meta[km], properties_actual[km])
             else:
@@ -227,11 +226,11 @@ class TestBase(unittest.TestCase):
         try:
             self.assertEqual(src.data_model, dest.data_model)
 
-            for dimname, dim in src.dimensions.iteritems():
+            for dimname, dim in src.dimensions.items():
                 self.assertEqual(len(dim), len(dest.dimensions[dimname]))
             self.assertEqual(set(src.dimensions.keys()), set(dest.dimensions.keys()))
 
-            for varname, var in src.variables.iteritems():
+            for varname, var in src.variables.items():
 
                 if varname in ignore_variables:
                     continue
@@ -267,7 +266,7 @@ class TestBase(unittest.TestCase):
                     self.assertEqual(var_value.dtype, dvar_value.dtype)
 
                 # check values of attributes on all variables
-                for k, v in var.__dict__.iteritems():
+                for k, v in var.__dict__.items():
                     try:
                         to_test_attr = getattr(dvar, k)
                     except AttributeError:
@@ -286,7 +285,7 @@ class TestBase(unittest.TestCase):
                         self.assertEqual(v, to_test_attr)
 
                 # check values of attributes on all variables
-                for k, v in dvar.__dict__.iteritems():
+                for k, v in dvar.__dict__.items():
                     try:
                         to_test_attr = getattr(var, k)
                     except AttributeError:
@@ -318,7 +317,7 @@ class TestBase(unittest.TestCase):
             if 'global' not in ignore_attributes:
                 self.assertDictEqual(src.__dict__, dest.__dict__)
             else:
-                for k, v in src.__dict__.iteritems():
+                for k, v in src.__dict__.items():
                     if k not in ignore_attributes['global']:
                         to_test = dest.__dict__[k]
                         try:
@@ -442,7 +441,7 @@ class TestBase(unittest.TestCase):
                 nrlz = 1
                 realization = None
             else:
-                realization = Variable(value=range(1, nrlz + 1), name='realization', dimensions='realization')
+                realization = Variable(value=list(range(1, nrlz + 1)), name='realization', dimensions='realization')
             variable_shape.append(nrlz)
             variable_dimensions.append('realization')
         else:
@@ -468,7 +467,7 @@ class TestBase(unittest.TestCase):
                 nlevel = 1
                 level = None
             else:
-                level = Variable(value=range(1, nlevel + 1), name='level', dimensions='level')
+                level = Variable(value=list(range(1, nlevel + 1)), name='level', dimensions='level')
             variable_shape.append(nlevel)
             variable_dimensions.append('level')
         else:
@@ -695,7 +694,7 @@ class TestBase(unittest.TestCase):
 
     def panoply(self, *args):
         paths = args[0]
-        if isinstance(paths, basestring):
+        if isinstance(paths, six.string_types):
             paths = [paths]
         paths = list(paths)
         cmd = ['/home/benkoziol/sandbox/PanoplyJ/panoply.sh'] + paths
@@ -766,7 +765,7 @@ class TestData(OrderedDict):
         """
 
         total = 0
-        for key in self.keys():
+        for key in list(self.keys()):
             path = self.get_uri(key)
             # path is returned as a sequence...sometimes
             for element in get_iter(path):
@@ -825,7 +824,7 @@ class TestData(OrderedDict):
 
         # determine if the filename is a string or a sequence of paths
         filename = ref['filename']
-        if isinstance(filename, basestring):
+        if isinstance(filename, six.string_types):
             coll.append(filename)
             uri = os.path.join(*coll)
         else:
@@ -836,11 +835,11 @@ class TestData(OrderedDict):
                 uri.append(os.path.join(*copy_coll))
 
         # ensure the uris exist, if not, we may need to download
-        if isinstance(uri, basestring):
-            assert (os.path.exists(uri))
+        if isinstance(uri, six.string_types):
+            assert os.path.exists(uri)
         else:
             for element in uri:
-                assert (os.path.exists(element))
+                assert os.path.exists(element)
 
         return uri
 
@@ -876,7 +875,7 @@ def attr(*args, **kwargs):
     def wrap_ob(ob):
         for name in args:
             setattr(ob, name, True)
-        for name, value in kwargs.iteritems():
+        for name, value in kwargs.items():
             setattr(ob, name, value)
         return ob
 
@@ -927,9 +926,8 @@ def print_scope():
         sys.stdout = prev_stdout
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractTestInterface(TestBase):
-    __metaclass__ = ABCMeta
-
     @property
     def path_state_boundaries(self):
         path_shp = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')

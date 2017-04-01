@@ -74,7 +74,7 @@ def format_return(ret_path, ops, with_auxiliary_files=False):
     '''
     ## can do nothing with numpy returns
     if ops.output_format == 'numpy':
-        raise (NotImplementedError('numpy formats have no use here - only disk outputs.'))
+        raise NotImplementedError
     ## the folder containing all output files
     folder = os.path.split(ret_path)[0]
     ## name for output zipfile

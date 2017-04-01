@@ -50,7 +50,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
 
         # perform the moving average on the time axis
         axes = [0, 2]
-        itrs = [range(values.shape[axis]) for axis in axes]
+        itrs = [list(range(values.shape[axis])) for axis in axes]
         for ie, il in itertools.product(*itrs):
             values_slice = values[ie, :, il, :, :]
             build = True
@@ -95,14 +95,14 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
         :raises: AssertionError, NotImplementedError
         """
 
-        assert (k % 2 != 0)
-        assert (k >= 3)
-        assert (values.ndim == 3)
+        assert k % 2 != 0
+        assert k >= 3
+        assert values.ndim == 3
 
         # used to track the current value for the centered window.
         origin = 0
         # size of one side of the window used to determine the slice for the kernel
-        shift = (k - 1) / 2
+        shift = int((k - 1) / 2)
         # reference for the length of the value array
         shape_values = values.shape[0]
 
@@ -165,7 +165,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         fill = np.zeros(shape_fill, dtype=self.dtype)
         fill = np.ma.array(fill, mask=False)
         month_day_map = {(dt.month, dt.day): ii for ii, dt in enumerate(self.tgd.value_datetime)}
-        for key, value in dp.iteritems():
+        for key, value in dp.items():
             fill[0, month_day_map[key], 0, :, :] = value
         for idx in range(fill.shape[1]):
             fill.mask[0, idx, 0, :, :] = values.mask[0, 0, 0, :, :]
@@ -219,7 +219,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         dt_hour = dt_arr[
             0].hour  # (we get hour of a date only one time, because usually the hour is the same for all dates in input dt_arr)
 
-        for month in dic_caldays.keys():
+        for month in list(dic_caldays.keys()):
             for day in dic_caldays[month]:
                 # step2: we do a mask for the datetime vector for current calendar day (day/month)
                 dt_arr_mask = self.get_mask_dt_arr(dt_arr, month, day, dt_hour, window_width, only_leap_years)
@@ -260,7 +260,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         for dt in dt_arr:
             dic[dt.month].append(dt.day)
 
-        for key in dic.keys():
+        for key in list(dic.keys()):
             dic[key] = list(set(dic[key]))
 
         return dic
@@ -289,7 +289,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
 
         yyyy = current_date.year
 
-        if day == 29 and month == 02:
+        if day == 29 and month == 0o2:
             if calendar.isleap(yyyy):
                 dt1 = datetime(yyyy, month, day, hour)
                 diff = abs(current_date - dt1).days
@@ -298,7 +298,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
                 if only_leap_years:
                     toReturn = True
                 else:
-                    dt1 = datetime(yyyy, 02, 28, hour)
+                    dt1 = datetime(yyyy, 0o2, 28, hour)
                     diff = (current_date - dt1).days
                     toReturn = (diff < (-(window_width / 2) + 1)) or (diff > window_width / 2)
         else:

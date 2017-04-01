@@ -4,6 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import six
 from icclim import calc_indice
 from icclim import set_globattr
 from icclim import set_longname_units as slu
@@ -77,8 +78,8 @@ class NcAttributesSimulator(object):
         self.attrs[key] = value
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimFunction(object):
-    __metaclass__ = abc.ABCMeta
     description = None
     standard_name = 'ECA_indice'
     long_name = ''
@@ -159,7 +160,7 @@ class AbstractIcclimFunction(object):
         """
 
         dct = deepcopy(dct)
-        for k, v in dct.iteritems():
+        for k, v in dct.items():
             try:
                 v = v.tolist()
             except AttributeError:
@@ -168,9 +169,8 @@ class AbstractIcclimFunction(object):
         return json.dumps(dct)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction, AbstractUnivariateSetFunction):
-    __metaclass__ = abc.ABCMeta
-
     def calculate(self, values):
         return self._get_icclim_func_()(values, values.fill_value)
 
@@ -183,17 +183,16 @@ class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction, AbstractUnivar
         return _icclim_function_map[self.key]['func']
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimMultivariateFunction(AbstractIcclimFunction, AbstractMultivariateFunction):
-    __metaclass__ = abc.ABCMeta
-
     @classmethod
     def validate(cls, ops):
         cls.validate_icclim(ops)
         super(AbstractIcclimMultivariateFunction, cls).validate(ops)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, AbstractParameterizedFunction):
-    __metaclass__ = abc.ABCMeta
     window_width = 5
 
     def __init__(self, *args, **kwargs):
@@ -237,8 +236,8 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
         """Return the percentile basis for the subclass."""
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileDictionaryIndice(AbstractIcclimPercentileIndice):
-    __metaclass__ = abc.ABCMeta
     parms_definition = {'percentile_dict': dict}
     only_leap_years = False
 
@@ -261,8 +260,8 @@ class AbstractIcclimPercentileDictionaryIndice(AbstractIcclimPercentileIndice):
         return percentile_basis
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileArrayIndice(AbstractIcclimPercentileIndice):
-    __metaclass__ = abc.ABCMeta
     parms_definition = {'percentile_arr': ndarray}
 
     def calculate(self, values, percentile_arr=None):

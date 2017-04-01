@@ -1,6 +1,8 @@
 import csv
 from collections import OrderedDict
 
+import six
+
 from ocgis.constants import MPIWriteMode, KeywordArguments, DriverKeys
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.vm.mpi import barrier_ranks
@@ -17,7 +19,7 @@ class DriverCSV(AbstractTabularDriver):
         if variable.parent is None:
             to_load = [variable]
         else:
-            to_load = variable.parent.values()
+            to_load = list(variable.parent.values())
 
         with driver_scope(self) as f:
             reader = csv.DictReader(f)
@@ -39,7 +41,7 @@ class DriverCSV(AbstractTabularDriver):
             meta = {}
             # Get variable names assuming headers are always on the first row.
             reader = csv.reader(f)
-            variable_names = reader.next()
+            variable_names = six.next(reader)
 
             # Fill in variable and dimension metadata.
             meta['variables'] = OrderedDict()
@@ -57,7 +59,7 @@ class DriverCSV(AbstractTabularDriver):
         if vc.is_empty:
             fieldnames = None
         else:
-            fieldnames = vc.iter(**iter_kwargs).next()[1].keys()
+            fieldnames = list(six.next(vc.iter(**iter_kwargs))[1].keys())
 
         if rank == ranks_to_write[0] and write_mode != MPIWriteMode.FILL:
             with driver_scope(cls, opened_or_path, mode='w') as opened:

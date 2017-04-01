@@ -1,6 +1,8 @@
 import abc
 import datetime
 
+import six
+
 import ocgis
 from ocgis import constants
 from ocgis.collection.field import OcgField
@@ -31,6 +33,7 @@ HEADERS = {
 }
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractMetaConverter(AbstractConverter):
     """
     Base class for all metadata converters.
@@ -38,8 +41,6 @@ class AbstractMetaConverter(AbstractConverter):
     :param ops: An OpenClimateGIS operations object.
     :type ops: :class:`ocgis.driver.operations.OcgOperations`
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, ops):
         self.ops = ops
@@ -86,14 +87,17 @@ class MetaOCGISConverter(AbstractMetaConverter):
         lines.append('')
         lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
-        for v in sorted(self.ops.__dict__.itervalues()):
-            if isinstance(v, AbstractParameter):
-                lines.append(v.get_meta())
+
+        sorted_keys = sorted(self.ops.__dict__)
+        for key in sorted_keys:
+            curr = self.ops.__dict__[key]
+            if isinstance(curr, AbstractParameter):
+                lines.append(curr.get_meta())
 
         # collapse lists
         ret = []
         for line in lines:
-            if not isinstance(line, basestring):
+            if not isinstance(line, six.string_types):
                 for item in line:
                     ret.append(item)
             else:

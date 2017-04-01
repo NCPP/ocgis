@@ -112,7 +112,7 @@ class TestOcgisLogging(TestBase):
         to_stream = False
         ocgis_lh.configure(to_file=to_file, to_stream=to_stream)
         try:
-            raise (ValueError('some exception information'))
+            raise ValueError
         except Exception as e:
             with self.assertRaises(ValueError):
                 ocgis_lh('something happened', exc=e)

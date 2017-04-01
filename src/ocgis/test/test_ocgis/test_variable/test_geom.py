@@ -12,7 +12,6 @@ from ocgis import RequestDataset
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.grid import GridXY, get_geometry_variable
-from ocgis.spatial.index import SpatialIndex
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical
@@ -354,7 +353,11 @@ class TestGeometryVariable(AbstractTestInterface):
             pa = None
         pa, dist = variable_scatter(pa, dist)
 
-        keywords = dict(use_spatial_index=[True, False])
+        usi = [False]
+        if env.USE_SPATIAL_INDEX:
+            usi.append(True)
+
+        keywords = dict(use_spatial_index=usi)
         for k in self.iter_product_keywords(keywords):
             ret = pa.get_mask_from_intersects(poly, use_spatial_index=k.use_spatial_index)
             desired_mask_local = desired_mask[slice(*ydim.bounds_local), slice(*xdim.bounds_local)]
@@ -384,7 +387,10 @@ class TestGeometryVariable(AbstractTestInterface):
             self.assertEqual(slc, (0,))
             self.assertEqual(res.shape, (1,))
 
+    @attr('rtree')
     def test_get_spatial_index(self):
+        from ocgis.spatial.index import SpatialIndex
+
         pa = self.get_geometryvariable()
         si = pa.get_spatial_index()
         self.assertIsInstance(si, SpatialIndex)
@@ -493,14 +499,15 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(gvar.get_value()[0].bounds, (195.0, -40.0, 225.0, -30.0))
 
     def test_update_crs(self):
-        pa = self.get_geometryvariable(crs=WGS84(), name='g', dimensions='gg')
+        from_crs = WGS84()
+        pa = self.get_geometryvariable(crs=from_crs, name='g', dimensions='gg')
         to_crs = CoordinateReferenceSystem(epsg=2136)
         pa.update_crs(to_crs)
         self.assertEqual(pa.crs, to_crs)
         v0 = [1629871.494956261, -967769.9070825744]
         v1 = [2358072.3857447207, -239270.87548993886]
-        np.testing.assert_almost_equal(pa.get_value()[0], v0)
-        np.testing.assert_almost_equal(pa.get_value()[1], v1)
+        np.testing.assert_almost_equal(pa.get_value()[0], v0, decimal=3)
+        np.testing.assert_almost_equal(pa.get_value()[1], v1, decimal=3)
 
     def test_weights(self):
         value = [Point(2, 3), Point(4, 5), Point(5, 6)]

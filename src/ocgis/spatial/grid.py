@@ -49,7 +49,7 @@ class GridGeometryProcessor(GeometryProcessor):
         if abstraction == 'point':
             x_data = grid.x.get_value()
             y_data = grid.y.get_value()
-            for idx_row, idx_col in itertools.product(*[range(ii) for ii in grid.shape]):
+            for idx_row, idx_col in itertools.product(*[list(range(ii)) for ii in grid.shape]):
                 if hint_mask is not None and hint_mask[idx_row, idx_col]:
                     yld = None
                 else:
@@ -66,8 +66,8 @@ class GridGeometryProcessor(GeometryProcessor):
                 # We want geometries for everything even if masked.
                 x_bounds = grid.x.bounds.get_value()
                 y_bounds = grid.y.bounds.get_value()
-                range_row = range(grid.shape[0])
-                range_col = range(grid.shape[1])
+                range_row = list(range(grid.shape[0]))
+                range_col = list(range(grid.shape[1]))
                 if is_vectorized:
                     for row, col in itertools.product(range_row, range_col):
                         if hint_mask is not None and hint_mask[row, col]:
@@ -721,7 +721,7 @@ class GridXY(AbstractSpatialContainer):
                           reorder_dimension, varying_dimension)
 
         # Reorder all arrays that have the reorder and varying dimension.
-        for var in self.parent.values():
+        for var in list(self.parent.values()):
             arr_dimension_names = get_dimension_names(var.dimensions)
             if reorder_dimension in arr_dimension_names and varying_dimension in arr_dimension_names:
                 reorder_array(shift_indices, var.get_value(), arr_dimension_names, reorder_dimension, varying_dimension)
@@ -785,8 +785,8 @@ def get_polygon_geometry_array(grid, fill):
         # We want geometries for everything even if masked.
         x_bounds = grid.x.bounds.get_value()
         y_bounds = grid.y.bounds.get_value()
-        range_row = range(grid.shape[0])
-        range_col = range(grid.shape[1])
+        range_row = list(range(grid.shape[0]))
+        range_col = list(range(grid.shape[1]))
         if is_vectorized:
             for row, col in itertools.product(range_row, range_col):
                 min_x, max_x = np.min(x_bounds[col, :]), np.max(x_bounds[col, :])
@@ -817,7 +817,7 @@ def get_point_geometry_array(grid, fill):
     y_data = grid.y.get_value()
     is_vectorized = grid.is_vectorized
 
-    for idx_row, idx_col in itertools.product(*[range(ii) for ii in grid.shape]):
+    for idx_row, idx_col in itertools.product(*[list(range(ii)) for ii in grid.shape]):
         if is_vectorized:
             y = y_data[idx_row]
             x = x_data[idx_col]
@@ -883,7 +883,7 @@ def grid_update_mask(grid, bounds_sequence, keep_touches=True):
 
 
 def remove_nones(target):
-    ret = filter(lambda x: x is not None, target)
+    ret = [x for x in target if x is not None]
     return ret
 
 
@@ -995,7 +995,8 @@ def expand_grid(grid):
             new_y_bounds = np.zeros((original_y_bounds.shape[0], original_x_bounds.shape[0], 4),
                                     dtype=original_y_bounds.dtype)
             new_x_bounds = new_y_bounds.copy()
-            for idx_y, idx_x in itertools.product(range(original_y_bounds.shape[0]), range(original_x_bounds.shape[0])):
+            for idx_y, idx_x in itertools.product(list(range(original_y_bounds.shape[0])),
+                                                  list(range(original_x_bounds.shape[0]))):
                 new_y_bounds[idx_y, idx_x, 0:2] = original_y_bounds[idx_y, 0]
                 new_y_bounds[idx_y, idx_x, 2:4] = original_y_bounds[idx_y, 1]
 
@@ -1038,7 +1039,7 @@ def reorder_array(reorder_indices, arr, arr_dimensions, reorder_dimension, varyi
         if idx == reorder_index:
             itrs[idx] = [slice(None)]
         else:
-            itrs[idx] = range(arr.shape[idx])
+            itrs[idx] = list(range(arr.shape[idx]))
 
     for yld in itertools.product(*itrs):
         curr_varying_index = yld[varying_index]

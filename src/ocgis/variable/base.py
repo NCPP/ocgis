@@ -1,11 +1,14 @@
+import abc
 import itertools
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import abstractproperty, abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import six
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
+from numpy.ma.core import MaskedConstant
 
 from ocgis import constants
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
@@ -35,9 +38,8 @@ def handle_empty(func):
     return wrapped
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractContainer(AbstractNamedObject):
-    __metaclass__ = ABCMeta
-
     def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, parent=None, uid=None):
         self._parent = parent
 
@@ -109,7 +111,7 @@ class AbstractContainer(AbstractNamedObject):
         except (NotImplementedError, IndexError) as e:
             # Assume it is a dictionary slice.
             try:
-                slc = {k: get_formatted_slice(v, 1)[0] for k, v in slc.items()}
+                slc = {k: get_formatted_slice(v, 1)[0] for k, v in list(slc.items())}
             except:
                 raise e
         return self, slc
@@ -129,7 +131,12 @@ class ObjectType(object):
         self.dtype = np.dtype(dtype)
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        try:
+            ret = self.__dict__ == other.__dict__
+        except AttributeError:
+            # Numpy object types no longer have a __dict__ attribute in newer versions.
+            ret = False
+        return ret
 
     def create_vltype(self, dataset, name):
         if self.dtype == object:
@@ -308,7 +315,7 @@ class Variable(AbstractContainer, Attributes):
 
     def set_dimensions(self, dimensions, force=False):
         if dimensions is not None:
-            dimensions = list(get_iter(dimensions, dtype=(Dimension, basestring)))
+            dimensions = list(get_iter(dimensions, dtype=(Dimension, str)))
             dimension_names = [None] * len(dimensions)
             for idx, dimension in enumerate(dimensions):
                 try:
@@ -517,7 +524,12 @@ class Variable(AbstractContainer, Attributes):
         if value is not None:
             if isinstance(value, MaskedArray):
                 should_set_mask = True
-                self._fill_value = value.fill_value
+                try:
+                    self._fill_value = value.fill_value
+                except AttributeError:
+                    # Use default fill values in this case.
+                    if not isinstance(value, MaskedConstant):
+                        raise
                 mask = value.mask.copy()
                 if np.isscalar(mask):
                     new_mask = np.zeros(value.shape, dtype=bool)
@@ -773,7 +785,7 @@ class Variable(AbstractContainer, Attributes):
                         ret[bounds_names[index]] = v
 
             if formatter:
-                for k, v in ret.items():
+                for k, v in list(ret.items()):
                     ret[k] = formatter(v)
 
             # Add the repeat record. Assume this is formatted appropriately by the client.
@@ -805,7 +817,7 @@ class Variable(AbstractContainer, Attributes):
                 self.parent = new_parent
             else:
                 self.parent = self.parent.copy()
-                for var in self.parent.values():
+                for var in list(self.parent.values()):
                     if var.name not in to_keep:
                         self.parent.pop(var.name)
 
@@ -1009,6 +1021,7 @@ class Variable(AbstractContainer, Attributes):
         value = self.get_value()
         for ii in range(self.shape[0]):
             curr = value[ii, :].tolist()
+            curr = [c.decode() for c in curr]
             curr = ''.join(curr)
             new_value[ii] = curr
         return new_value
@@ -1115,7 +1128,7 @@ class SourcedVariable(Variable):
         if not self._has_initialized_value:
             self._get_value_()
         if cascade and self.parent is not None:
-            for var in self.parent.values():
+            for var in list(self.parent.values()):
                 var.load()
 
     def set_value(self, value, **kwargs):
@@ -1165,10 +1178,10 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 raise DimensionsRequiredError
 
             ret = self.copy()
-            for dimension_name, slc in item_or_slc.items():
+            for dimension_name, slc in list(item_or_slc.items()):
                 ret.dimensions[dimension_name] = self_dimensions[dimension_name].__getitem__(slc)
             names = set(item_or_slc.keys())
-            for k, v in ret.items():
+            for k, v in list(ret.items()):
                 with orphaned(v):
                     if v.ndim > 0:
                         v_dimension_names = set(v.dimension_names)
@@ -1211,7 +1224,8 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     @property
     def shapes(self):
-        return OrderedDict([[k, v.shape] for k, v in self.items() if not isinstance(v, CoordinateReferenceSystem)])
+        return OrderedDict(
+            [[k, v.shape] for k, v in list(self.items()) if not isinstance(v, CoordinateReferenceSystem)])
 
     # tdk: remove me
     @property
@@ -1243,9 +1257,9 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             self[variable.name] = variable
             variable.parent = self
         else:
-            for dimension in variable.parent.dimensions.values():
+            for dimension in list(variable.parent.dimensions.values()):
                 self.add_dimension(dimension, force=force)
-            for var in variable.parent.values():
+            for var in list(variable.parent.values()):
                 var.parent = None
                 self.add_variable(var, force=force)
 
@@ -1270,7 +1284,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         self._tags[tag] = names
 
     def convert_to_empty(self):
-        for v in self.values():
+        for v in list(self.values()):
             with orphaned(v):
                 v.convert_to_empty()
 
@@ -1278,7 +1292,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         ret = AbstractCollection.copy(self)
         ret._tags = deepcopy(self._tags)
         ret._dimensions = ret._dimensions.copy()
-        for v in ret.values():
+        for v in list(ret.values()):
             with orphaned(v):
                 ret[v.name] = v.copy()
             ret[v.name].parent = ret
@@ -1320,7 +1334,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
     def load(self):
         """Load all variable values from source."""
 
-        for v in self.values():
+        for v in list(self.values()):
             v.load()
 
     def iter(self, **kwargs):
@@ -1345,7 +1359,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             geom_name = get_variable_names(geom)[0]
 
         if variable is None:
-            possible = self.values()
+            possible = list(self.values())
             if geom_name is not None:
                 possible = [p for p in possible if p.name != geom_name]
             variable = possible[0]
@@ -1369,7 +1383,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         if header_map is None:
             header_map_keys = None
         else:
-            header_map_keys = header_map.keys()
+            header_map_keys = list(header_map.keys())
 
         for yld in itr:
             if geom_name is None:
@@ -1378,7 +1392,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 geom_value = yld.pop(geom_name)
             if header_map is not None:
                 new_yld = OrderedDict()
-                for k, v in header_map.items():
+                for k, v in list(header_map.items()):
                     try:
                         new_yld[v] = yld[k]
                     except KeyError:
@@ -1389,7 +1403,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                     new_yld[HeaderNames.VARIABLE] = yld[HeaderNames.VARIABLE]
                     new_yld[HeaderNames.VALUE] = yld[HeaderNames.VALUE]
                 if not strict:
-                    for k, v in yld.items():
+                    for k, v in list(yld.items()):
                         if k not in header_map_keys:
                             new_yld[k] = v
                 yld = new_yld
@@ -1398,7 +1412,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     def iter_variables_by_dimensions(self, dimensions):
         names = get_dimension_names(dimensions)
-        for var in self.values():
+        for var in list(self.values()):
             if len(set(var.dimension_names).intersection(names)) == len(names):
                 yield var
 
@@ -1410,7 +1424,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     def remove_variable(self, variable):
         variable_name = get_variable_names(variable)[0]
-        for v in self._tags.values():
+        for v in list(self._tags.values()):
             if variable_name in v:
                 v.remove(variable_name)
         self.pop(variable_name)
@@ -1421,7 +1435,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             exclude = get_variable_names(exclude)
         update = kwargs.pop(KeywordArguments.UPDATE, False)
         names_container = [d.name for d in variable.dimensions]
-        for k, v in self.items():
+        for k, v in list(self.items()):
             if exclude is not None and k in exclude:
                 continue
             if variable.name != k and v.ndim > 0:
@@ -1489,9 +1503,9 @@ def get_dslice(dimensions, slc):
 
 def get_is_empty_recursive(target):
     if target._is_empty is None:
-        ret = any([v.is_empty for v in target.values()])
+        ret = any([v.is_empty for v in list(target.values())])
         if not ret:
-            for child in target.children.values():
+            for child in list(target.children.values()):
                 ret = get_is_empty_recursive(child)
     else:
         ret = target._is_empty
@@ -1575,7 +1589,7 @@ def set_bounds_mask_from_parent(mask, bounds):
         mask_bounds = np.hstack((mask_bounds, mask_bounds))
     elif mask.ndim == 2:
         mask_bounds = np.zeros(list(mask.shape) + [4], dtype=bool)
-        for idx_row, idx_col in itertools.product(range(mask.shape[0]), range(mask.shape[1])):
+        for idx_row, idx_col in itertools.product(list(range(mask.shape[0])), list(range(mask.shape[1]))):
             if mask[idx_row, idx_col]:
                 mask_bounds[idx_row, idx_col, :] = True
     else:
@@ -1606,7 +1620,7 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
             if mask_target is None:
                 mask_target = np.zeros(target_variable.shape, dtype=bool)
             template = [slice(None)] * target_variable.ndim
-            for slc in itertools.product(*[range(ii) for ii in source_variable.shape]):
+            for slc in itertools.product(*[list(range(ii)) for ii in source_variable.shape]):
                 # slc = [slice(s, s + 1) for s in slc]
                 if mask_source[slc]:
                     for m in slice_map:

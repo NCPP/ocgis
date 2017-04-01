@@ -1,17 +1,12 @@
 from copy import deepcopy
 
-import ESMF
 import numpy as np
-from ESMF.api.constants import RegridMethod
 
 from ocgis import OcgOperations
 from ocgis import RequestDataset
 from ocgis import Variable
 from ocgis.collection.field import OcgField
 from ocgis.exc import RegriddingError, CornersInconsistentError
-from ocgis.regrid.base import check_fields_for_regridding, regrid_field, get_esmf_grid, \
-    iter_esmf_fields, get_ocgis_grid_from_esmf_grid, get_ocgis_field_from_esmf_field, RegridOperation, \
-    get_esmf_field_from_ocgis_field
 from ocgis.spatial.grid import GridXY
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.test.test_simple.make_test_data import SimpleNc
@@ -41,6 +36,8 @@ class TestRegrid(TestSimpleBase):
 
     @attr('esmf')
     def test_check_fields_for_regridding(self):
+        from ESMF import RegridMethod
+        from ocgis.regrid.base import check_fields_for_regridding
 
         source = self.get_ofield()
         destination = deepcopy(source)
@@ -99,6 +96,7 @@ class TestRegrid(TestSimpleBase):
         self.assertFalse(downscaled.grid.get_mask().any())
         self.assertFalse(gcm.grid.get_mask().any())
 
+        from ocgis.regrid.base import regrid_field
         regridded = regrid_field(downscaled, gcm)
         dv = regridded.data_variables[0]
         self.assertEqual(dv.shape, (28, 3, 5))
@@ -118,6 +116,7 @@ class TestRegrid(TestSimpleBase):
         keywords = dict(split=[False, True])
 
         for k in itr_products_keywords(keywords, as_namedtuple=True):
+            from ocgis.regrid.base import regrid_field
             regridded = regrid_field(source, destination, split=k.split)
             self.assertIsInstance(regridded, OcgField)
             self.assertNumpyAll(regridded.grid.get_value_stacked(), desired.grid.get_value_stacked())
@@ -137,7 +136,9 @@ class TestRegrid(TestSimpleBase):
 
         self.assertEqual(source.grid.abstraction, 'polygon')
 
+        from ESMF import RegridMethod
         for regrid_method in ['auto', RegridMethod.BILINEAR]:
+            from ocgis.regrid.base import regrid_field
             regrid_field(source, destination, regrid_method=regrid_method)
 
     @attr('esmf')
@@ -149,10 +150,13 @@ class TestRegrid(TestSimpleBase):
         source.set_crs(CoordinateReferenceSystem(epsg=2136))
 
         with self.assertRaises(RegriddingError):
+            from ocgis.regrid.base import regrid_field
             regrid_field(source, destination)
 
+    @attr('esmf')
     def test_regrid_field_value_mask(self):
         """Test with a value mask on the destination."""
+        from ocgis.regrid.base import regrid_field
 
         source = self.get_ofield()
         source.set_crs(Spherical())
@@ -176,6 +180,7 @@ class TestRegrid(TestSimpleBase):
         destination = coll.get_element(container_ugid=16)
 
         with self.assertRaises(RegriddingError):
+            from ocgis.regrid.base import regrid_field
             regrid_field(source, destination)
 
     @attr('data', 'esmf')
@@ -190,6 +195,7 @@ class TestRegrid(TestSimpleBase):
         source = coll.get_element(container_ugid=23)
         destination = coll.get_element(container_ugid=25)
 
+        from ocgis.regrid.base import regrid_field
         res = regrid_field(source, destination)
         self.assertEqual(res['tas'].get_mask().sum(), 11)
 
@@ -204,6 +210,7 @@ class TestRegrid(TestSimpleBase):
 
         dtype = [('variable_alias', object), ('efield', object), ('tidx', object)]
         fill = np.array([], dtype=dtype)
+        from ocgis.regrid.base import iter_esmf_fields
         for row in iter_esmf_fields(ofield, value_mask=None, split=False):
             app = np.zeros(1, dtype=dtype)
             app[0] = row
@@ -238,6 +245,7 @@ class TestRegrid(TestSimpleBase):
 
     @attr('esmf')
     def test_get_esmf_grid(self):
+        import ESMF
         rd = RequestDataset(**self.get_dataset())
 
         have_ocgis_bounds = [True, False]
@@ -249,6 +257,7 @@ class TestRegrid(TestSimpleBase):
                 ogrid.remove_bounds()
                 self.assertFalse(ogrid.has_bounds)
 
+            from ocgis.regrid.base import get_esmf_grid
             egrid = get_esmf_grid(ogrid)
 
             # ocgis is row major with esmf being column major (i.e. in ocgis rows are stored in the zero index)
@@ -282,6 +291,10 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_bilinear_regrid_method(self):
         """Test with a regrid method that does not require corners."""
 
+        from ocgis.regrid.base import get_esmf_grid
+        from ESMF import RegridMethod
+        import ESMF
+
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
         self.assertTrue(field.grid.has_bounds)
@@ -293,6 +306,9 @@ class TestRegrid(TestSimpleBase):
     @attr('esmf')
     def test_get_esmf_grid_change_origin_col(self):
         """Test with different column grid origin."""
+
+        import ESMF
+        from ocgis.regrid.base import get_esmf_grid
 
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
@@ -325,6 +341,9 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_change_origin_row(self):
         """Test with different row grid origin."""
 
+        from ocgis.regrid.base import get_esmf_grid
+        import ESMF
+
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
 
@@ -355,6 +374,9 @@ class TestRegrid(TestSimpleBase):
     @attr('esmf')
     def test_get_esmf_grid_change_origin_row_and_col(self):
         """Test with different row and column grid origin."""
+
+        from ocgis.regrid.base import get_esmf_grid
+        import ESMF
 
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
@@ -390,6 +412,8 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_with_mask(self):
         """Test with masked data."""
 
+        from ocgis.regrid.base import get_esmf_grid
+
         x = Variable(name='x', value=[1, 2, 3], dimensions='x')
         y = Variable(name='y', value=[4, 5, 6], dimensions='y')
         grid = GridXY(x, y)
@@ -412,6 +436,8 @@ class TestRegrid(TestSimpleBase):
 
     @attr('esmf')
     def test_get_ocgis_field_from_esmf_field(self):
+        from ocgis.regrid.base import get_esmf_field_from_ocgis_field
+        from ocgis.regrid.base import get_ocgis_field_from_esmf_field
 
         ofield = self.get_field(nlevel=0, nrlz=0)
         ogrid = ofield.grid
@@ -436,6 +462,9 @@ class TestRegrid(TestSimpleBase):
     def test_get_ocgis_field_from_esmf_spatial_only(self):
         """Test with spatial information only."""
 
+        from ocgis.regrid.base import get_esmf_field_from_ocgis_field
+        from ocgis.regrid.base import get_ocgis_field_from_esmf_field
+
         row = Variable(name='row', value=[5, 6], dimensions='row')
         col = Variable(name='col', value=[7, 8], dimensions='col')
         grid = GridXY(col, row)
@@ -449,6 +478,9 @@ class TestRegrid(TestSimpleBase):
 
     @attr('esmf')
     def test_get_ocgis_grid_from_esmf_grid(self):
+        from ocgis.regrid.base import get_esmf_grid
+        from ocgis.regrid.base import get_ocgis_grid_from_esmf_grid
+
         rd = RequestDataset(**self.get_dataset())
 
         keywords = dict(has_corners=[True, False],
@@ -496,6 +528,8 @@ class TestRegridOperation(AbstractTestInterface):
     @attr('slow', 'esmf')
     def test_system_global_grid_combinations(self):
         """Test regridding with different global grid configurations."""
+
+        from ocgis.regrid.base import RegridOperation
 
         boolmix = [[True, True], [False, False], [True, False], [False, True]]
 

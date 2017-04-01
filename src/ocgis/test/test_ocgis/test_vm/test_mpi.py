@@ -3,7 +3,6 @@ from copy import deepcopy
 from unittest import SkipTest
 
 import numpy as np
-from mpi4py.MPI import COMM_NULL
 
 from ocgis.constants import MPIDistributionMode, DataTypes
 from ocgis.test.base import attr, AbstractTestInterface
@@ -28,8 +27,10 @@ class Test(AbstractTestInterface):
         if MPI_RANK != 1:
             barrier_ranks(ranks)
 
-    @attr('mpi', 'mpi-8')
+    @attr('mpi', 'mpi-8', 'mpi-only')
     def test_groups(self):
+        from mpi4py.MPI import COMM_NULL
+
         if MPI_SIZE != 8:
             raise SkipTest('mpi-8 only')
         world_group = MPI_COMM.Get_group()
@@ -521,37 +522,7 @@ class TestOcgMpi(AbstractTestInterface):
                                                                               size=None,
                                                                               size_current=None)},
                                                                       'groups': {}}}}}}}}
-        # print(ocmpi.mapping)
-        # self.pprint(ocmpi.mapping)
         self.assertDictEqual(ocmpi.mapping, desired)
-
-    @attr('mpi')
-    def test_gather_dimensions(self):
-        raise SkipTest('Gather dimensions will be implemented differently.')
-        ompi = self.get_ocgmpi_01()
-        desired = deepcopy(ompi.get_group())
-
-        ompi.update_dimension_bounds()
-
-        if MPI_SIZE == 1:
-            root = 0
-        else:
-            root = 1
-
-        actual = ompi.gather_dimensions(root=root)
-
-        if ompi.rank == root:
-            for actual_dim, desired_dim in zip(actual['dimensions'], desired['dimensions']):
-                try:
-                    self.assertEqual(actual_dim, desired_dim)
-                except:
-                    self.log.debug(actual_dim.__dict__)
-                    self.log.debug(desired_dim.__dict__)
-                    raise
-                self.assertFalse(actual_dim.is_empty)
-                self.assertEqual(actual_dim, ompi.get_dimension(actual_dim.name))
-        else:
-            self.assertIsNone(actual)
 
     def test_get_empty_ranks(self):
         ompi = OcgMpi(size=5)

@@ -2,7 +2,6 @@ import datetime
 import itertools
 from collections import OrderedDict
 from copy import deepcopy
-from types import NoneType
 
 import fiona
 import numpy as np
@@ -29,13 +28,13 @@ class DriverVector(AbstractTabularDriver):
         value = self.get_variable_value(variable)
 
         if variable.parent is None:
-            variable.set_value(value.values()[0])
+            variable.set_value(list(value.values())[0])
         else:
-            for k, v in value.items():
+            for k, v in list(value.items()):
                 variable.parent[k].set_value(v)
 
         # Conform the units if requested.
-        for k in value.keys():
+        for k in list(value.keys()):
             if variable.parent is None:
                 v = variable
             else:
@@ -73,7 +72,7 @@ class DriverVector(AbstractTabularDriver):
 
     def get_variable_collection(self, **kwargs):
         parent = VariableCollection(**kwargs)
-        for n, v in self.metadata_source['variables'].items():
+        for n, v in list(self.metadata_source['variables'].items()):
             SourcedVariable(name=n, request_dataset=self.rd, parent=parent)
         GeometryVariable(name=DimensionNames.GEOMETRY_DIMENSION, request_dataset=self.rd, parent=parent)
         crs = self.get_crs(self.metadata_source)
@@ -107,12 +106,12 @@ class DriverVector(AbstractTabularDriver):
             else:
                 ret = {}
                 # Initialize the variable data as zero arrays.
-                for v in variable.parent.values():
+                for v in list(variable.parent.values()):
                     if not isinstance(v, CoordinateReferenceSystem):
                         ret[v.name] = np.ma.array(np.zeros(v.shape, dtype=v.dtype), mask=False)
                 # Fill those arrays.
                 for idx, row in enumerate(g):
-                    for dv in variable.parent.values():
+                    for dv in list(variable.parent.values()):
                         if isinstance(dv, (CoordinateReferenceSystem, GeometryVariable)):
                             continue
                         dv = dv.name
@@ -149,7 +148,7 @@ class DriverVector(AbstractTabularDriver):
             # Groups are not currently supported in vector formats but metadata expects groups.
             m['groups'] = OrderedDict()
 
-            for p, d in m['schema']['properties'].items():
+            for p, d in list(m['schema']['properties'].items()):
                 d = get_dtype_from_fiona_type(d)
                 m['variables'][p] = {'dimensions': (geom_dimension_name,), 'dtype': d, 'name': p,
                                      'attributes': OrderedDict()}
@@ -165,7 +164,7 @@ class DriverVector(AbstractTabularDriver):
             variable_object.dtype = variable_metadata['dtype']
 
         variable_attrs = variable_object._attrs
-        for k, v in variable_metadata['attributes'].items():
+        for k, v in list(variable_metadata['attributes'].items()):
             if k not in variable_attrs:
                 variable_attrs[k] = deepcopy(v)
 
@@ -207,7 +206,7 @@ class DriverVector(AbstractTabularDriver):
                 if vc.crs is not None:
                     fiona_crs = vc.crs.value
             if not vc.is_empty:
-                _, archetype_record = vc.iter(**iter_kwargs).next()
+                _, archetype_record = next(vc.iter(**iter_kwargs))
                 archetype_record = format_record_for_fiona(fiona_driver, archetype_record)
                 if fiona_schema is None:
                     fiona_schema = get_fiona_schema(geom_variable.geom_type, archetype_record)
@@ -244,7 +243,7 @@ def format_record_for_fiona(driver, record):
     ret = record
     if driver == 'ESRI Shapefile':
         ret = OrderedDict()
-        for k, v in record.items():
+        for k, v in list(record.items()):
             if len(k) > 10:
                 k = k[0:10]
             ret[k] = v
@@ -270,7 +269,7 @@ def get_fiona_crs(vc_or_field):
         ret = vc_or_field.crs.value
     except AttributeError:
         ret = None
-        for v in vc_or_field.values():
+        for v in list(vc_or_field.values()):
             if isinstance(v, CoordinateReferenceSystem):
                 ret = v
                 break
@@ -281,7 +280,7 @@ def get_fiona_schema(geom_type, archetype_record):
     ret = {'geometry': geom_type, 'properties': OrderedDict()}
 
     p = ret['properties']
-    for k, v in archetype_record.items():
+    for k, v in list(archetype_record.items()):
         p[k] = get_fiona_type_from_pydata(v, string_width=constants.FIONA_STRING_LENGTH)
 
     return ret
@@ -301,8 +300,6 @@ def get_fiona_type_from_pydata(pydata, string_width=None):
     m = {datetime.date: 'str',
          datetime.datetime: 'str',
          np.int64: 'int',
-         # None types may be problematic for output vector format. Set default type to integer.
-         NoneType: 'int',
          np.float64: 'float',
          np.float32: 'float',
          np.float16: 'float',
@@ -317,16 +314,20 @@ def get_fiona_type_from_pydata(pydata, string_width=None):
          float: 'float',
          object: 'str',
          np.dtype('O'): 'str'}
-    # dtype = DriverVector.get_variable_write_dtype(variable)
-    dtype = type(pydata)
-    try:
-        ftype = m[dtype]
-    except KeyError:
-        # This may be a NumPy string type.
-        if str(dtype).startswith('|S'):
-            ftype = 'str'
-        else:
-            raise
+
+    if pydata is None:
+        # None types may be problematic for output vector format. Set default type to integer.
+        ftype = 'int'
+    else:
+        dtype = type(pydata)
+        try:
+            ftype = m[dtype]
+        except KeyError:
+            # This may be a NumPy string type.
+            if str(dtype).startswith('|S'):
+                ftype = 'str'
+            else:
+                raise
 
     if ftype == 'str':
         if string_width is None:
@@ -340,7 +341,7 @@ def iter_field_slices_for_records(vc_like, dimension_names, variable_names):
     dimensions = [vc_like.dimensions[d] for d in dimension_names]
     target = vc_like.copy()
     to_pop = []
-    for v in target.values():
+    for v in list(target.values()):
         if v.name not in variable_names:
             to_pop.append(v.name)
     for tp in to_pop:
@@ -349,7 +350,7 @@ def iter_field_slices_for_records(vc_like, dimension_names, variable_names):
     # Load all values from source.
     target.load()
 
-    iterators = [range(len(d)) for d in dimensions]
+    iterators = [list(range(len(d))) for d in dimensions]
     for indices in itertools.product(*iterators):
         dslice = {d.name: indices[idx] for idx, d in enumerate(dimensions)}
         yield target[dslice]
@@ -369,7 +370,7 @@ def get_geometry_variable(field_like):
         # Try to get the geometry assuming it is a field object.
         geom = field_like.geom
     except AttributeError:
-        for v in field_like.values():
+        for v in list(field_like.values()):
             if isinstance(v, GeometryVariable):
                 geom = v
     if geom is None:

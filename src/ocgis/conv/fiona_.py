@@ -1,15 +1,16 @@
 import abc
 from abc import abstractproperty
 
+import six
+
 from ocgis.constants import KeywordArguments, HeaderNames
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.driver.vector import DriverVector
 from ocgis.exc import DefinitionValidationError
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractFionaConverter(AbstractTabularConverter):
-    __metaclass__ = abc.ABCMeta
-
     _add_ugeom = True
     _add_ugeom_nest = False
 
@@ -42,7 +43,7 @@ class AbstractFionaConverter(AbstractTabularConverter):
                 field.geom.create_ugid_global(HeaderNames.ID_GEOMETRY)
 
             if container.geom is not None:
-                repeater = [(self.geom_uid, container.geom.ugid.get_value()[0])]
+                repeater = [(self.geom_uid, container.geom.ugid.get_value().tolist()[0])]
             else:
                 repeater = None
             iter_kwargs[KeywordArguments.REPEATERS] = repeater

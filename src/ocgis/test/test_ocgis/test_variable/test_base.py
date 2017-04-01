@@ -154,7 +154,7 @@ class TestVariable(AbstractTestInterface):
         bounds = Variable(value=desired_bounds_value, name='n_bnds', dimensions=['ens_dims', 'bounds'])
         var = Variable(value=[1, 2], bounds=bounds, name='n', dimensions='ens_dims')
         self.assertNumpyAll(var.bounds.get_value(), np.array(desired_bounds_value))
-        self.assertEqual(var.parent.keys(), ['n', 'n_bnds'])
+        self.assertEqual(list(var.parent.keys()), ['n', 'n_bnds'])
         self.assertEqual(var.attrs['bounds'], bounds.name)
 
         # Test with a unique identifier.
@@ -273,7 +273,7 @@ class TestVariable(AbstractTestInterface):
         try:
             rd_a.driver.get_dist()
         except AttributeError as e:
-            self.assertEqual(e.message, "'str' object has no attribute 'has_updated_dimensions'")
+            self.assertEqual(str(e), "'str' object has no attribute 'has_updated_dimensions'")
 
         use_overloaded_dist = [False, True]
         for u in use_overloaded_dist:
@@ -380,7 +380,7 @@ class TestVariable(AbstractTestInterface):
         extra2 = Variable(value=7.0, name='remember', dimensions=[])
         parent = VariableCollection(variables=extra2)
         var = Variable(name='host', value=[1.5, 3.5], dimensions='a', bounds=bounds, parent=parent)
-        self.assertEqual(var.parent.keys(), ['remember', 'host', 'time_value', 'the_bounds'])
+        self.assertEqual(list(var.parent.keys()), ['remember', 'host', 'time_value', 'the_bounds'])
 
     def test_as_record(self):
         var = Variable(name='foo', value=[1], dimensions='one',
@@ -543,7 +543,7 @@ class TestVariable(AbstractTestInterface):
         vc = VariableCollection(variables=[v1, v2, v3])
         v1e = v1.extract(clean_break=True)
         self.assertNotIn(v1.name, vc)
-        self.assertEqual(vc.keys(), ['two', 'three'])
+        self.assertEqual(list(vc.keys()), ['two', 'three'])
 
     def test_get_between(self):
         bv = Variable('foo', value=[0], dimensions='uni')
@@ -632,34 +632,36 @@ class TestVariable(AbstractTestInterface):
 
             vdim_between = vdim.get_between(1, 3)
             self.assertEqual(len(vdim_between), 2)
+
+            actual = vdim_between.bounds.get_value()
+
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.get_value().tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x04\xc0\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@')
+                desired = [[-2.5, 2.5], [2.5, 7.5]]
+                self.assertEqual(actual.tolist(), desired)
             else:
-                self.assertEqual(vdim_between.bounds.get_value().tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x04\xc0')
+                self.assertEqual(actual.tolist(), [[7.5, 2.5], [2.5, -2.5]])
             self.assertEqual(vdim.resolution, 5.0)
 
             # Preference is given to the lower bound in the case of "ties" where the value could be assumed part of the
             # lower or upper cell.
             vdim_between = vdim.get_between(2.5, 2.5)
             self.assertEqual(len(vdim_between), 1)
+            actual = vdim_between.bounds.masked_value
             if key == 'original':
-                self.assertNumpyAll(vdim_between.bounds.masked_value, np.ma.array([[2.5, 7.5]]))
+                self.assertNumpyAll(actual, np.ma.array([[2.5, 7.5]]))
             else:
-                self.assertNumpyAll(vdim_between.bounds.masked_value, np.ma.array([[7.5, 2.5]]))
+                self.assertNumpyAll(actual, np.ma.array([[7.5, 2.5]]))
 
             # If the interval is closed and the subset range falls only on bounds value then the subset will be empty.
             with self.assertRaises(EmptySubsetError):
                 vdim.get_between(2.5, 2.5, closed=True)
 
             vdim_between = vdim.get_between(2.5, 7.5)
+            actual = vdim_between.bounds.get_value()
             if key == 'original':
-                self.assertEqual(vdim_between.bounds.get_value().tostring(),
-                                 '\x00\x00\x00\x00\x00\x00\x04@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00)@')
+                self.assertEqual(actual.tolist(), [[2.5, 7.5], [7.5, 12.5]])
             else:
-                self.assertEqual(vdim_between.bounds.get_value().tostring(),
-                                 '\x00\x00\x00\x00\x00\x00)@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x1e@\x00\x00\x00\x00\x00\x00\x04@')
+                self.assertEqual(actual.tolist(), [[12.5, 7.5], [7.5, 2.5]])
 
     def test_get_between_bounds_again(self):
         """Test for simpler bounds subsettting."""
@@ -748,7 +750,7 @@ class TestVariable(AbstractTestInterface):
 
             desired = {'var1': [7], 'var2': [107], 'var3': var3.get_value().tolist(), 'var4': [[7], [7], [7]]}
             if MPI_RANK == ner[0]:
-                actual = {var.name: var.get_value().tolist() for var in sub.parent.values()}
+                actual = {var.name: var.get_value().tolist() for var in list(sub.parent.values())}
                 self.assertEqual(actual, desired)
             else:
                 self.assertTrue(sub.is_empty)
@@ -1117,7 +1119,7 @@ class TestSourcedVariable(AbstractTestInterface):
                    (slice(0, 3650, None), slice(32, 64, None), slice(64, 128, None)))
         self.assertEqual(actual, desired)
 
-    @attr('data')
+    @attr('data', 'cfunits')
     def test_system_conform_units_to(self):
         rd = self.get_request_dataset(conform_units_to='celsius')
         sv = SourcedVariable('tas', request_dataset=rd)[5:9, 5, 9]
@@ -1257,7 +1259,7 @@ class TestVariableCollection(AbstractTestInterface):
         var2 = self.get_variable()
         var2._name = 'wunderbar'
         vc = VariableCollection(variables=[var1, var2])
-        self.assertEqual(vc.keys(), ['foo', 'wunderbar'])
+        self.assertEqual(list(vc.keys()), ['foo', 'wunderbar'])
 
         self.assertEqual(vc.dimensions, {'x': Dimension(name='x', size=3)})
 
@@ -1295,12 +1297,12 @@ class TestVariableCollection(AbstractTestInterface):
     def test_system_cf_netcdf(self):
         rd = self.get_request_dataset()
         vc = VariableCollection.read(rd.uri)
-        for v in vc.values():
+        for v in list(vc.values()):
             self.assertIsNone(v._value)
         slc = {'lat': slice(10, 23), 'time': slice(0, 1), 'lon': slice(5, 10)}
         sub = vc['tas'][slc].parent
         self.assertNotEqual(vc.shapes, sub.shapes)
-        for v in vc.values():
+        for v in list(vc.values()):
             self.assertIsNotNone(v.attrs)
             self.assertIsNone(v._value)
             self.assertIsNotNone(v.get_value())
@@ -1386,7 +1388,7 @@ class TestVariableCollection(AbstractTestInterface):
         rd = self.get_request_dataset()
         rvc = VariableCollection.read(rd.uri)
         self.assertEqual(rvc.dimensions['time'].size_current, 3650)
-        for var in rvc.itervalues():
+        for var in rvc.values():
             self.assertIsNone(var._value)
         path3 = self.get_temporary_file_path('foo3.nc')
         rvc.write(path3, dataset_kwargs={'format': rd.metadata['file_format']})

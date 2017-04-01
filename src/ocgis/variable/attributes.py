@@ -1,5 +1,7 @@
 from collections import OrderedDict
 
+import six
+
 from ocgis.base import AbstractOcgisObject
 
 
@@ -32,13 +34,13 @@ class Attributes(AbstractOcgisObject):
         :type target: :class:`netCDF4.Variable` or :class:`netCDF4.Dataset`
         """
 
-        for k, v in self.attrs.iteritems():
+        for k, v in self.attrs.items():
             if k.startswith('_') or v is None:
                 # Do not write private/protected attributes used by netCDF or None values.
                 continue
-            if isinstance(v, basestring):
+            if isinstance(v, six.string_types):
                 v = str(v)
-            if k == 'axis' and isinstance(v, basestring):
+            if k == 'axis' and isinstance(v, six.string_types):
                 # HACK: Axis writing was causing a strange netCDF failure.
                 target.axis = str(v)
             else:

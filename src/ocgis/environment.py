@@ -14,6 +14,15 @@ except ImportError:
 
 # HACK!! the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
 # variable when installing.
+
+# Need to check for bad GDAL data directories.
+if 'GDAL_DATA' in os.environ:
+    if not os.path.exists(os.environ['GDAL_DATA']):
+        msg = 'The GDAL_DATA directory set in environment does not exist!: {}. It will be overloaded.'.format(
+            os.environ['GDAL_DATA'])
+        warn(msg)
+        os.environ.pop('GDAL_DATA')
+
 if 'GDAL_DATA' not in os.environ:
     try:
         if os.name == 'nt':
@@ -23,7 +32,8 @@ if 'GDAL_DATA' not in os.environ:
                 datadir = os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'gdal')
         else:
             # Try using the gdal-config executable to find the data directory.
-            datadir = subprocess.check_output(['gdal-config', '--datadir']).strip()
+            datadir = subprocess.check_output(['gdal-config', '--datadir']).decode().strip()
+            datadir = datadir.strip('\\n')
     except:
         pass
     else:
@@ -33,7 +43,7 @@ if 'GDAL_DATA' not in os.environ:
         warn(msg)
         from osgeo import gdal
 
-        gdal.SetConfigOption('GDAL_DATA', datadir)
+        gdal.SetConfigOption('GDAL_DATA', str(datadir))
 
 from osgeo import osr, ogr
 import numpy as np
@@ -66,6 +76,7 @@ class Environment(object):
         self.USE_SPATIAL_INDEX = EnvParmImport('USE_SPATIAL_INDEX', None, 'rtree')
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, ('cf_units', 'cfunits'))
         self.USE_ESMF = EnvParmImport('USE_ESMF', None, 'ESMF')
+        self.USE_ICCLIM = EnvParmImport('USE_ICCLIM', None, 'icclim')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
         self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)
@@ -73,6 +84,10 @@ class Environment(object):
         self.NP_INT = EnvParm('NP_INT', constants.DEFAULT_NP_INT)
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
         self.ADD_OPS_MPI_BARRIER = EnvParm('ADD_OPS_MPI_BARRIER', True, formatter=self._format_bool_)
+        self.PREFER_NETCDFTIME = EnvParm('PREFER_NETCDFTIME', None, formatter=self._format_bool_)
+
+        if self.PREFER_NETCDFTIME is None:
+            self.PREFER_NETCDFTIME = get_netcdftime_preference()
 
         from ocgis.variable.crs import CFSpherical
 
@@ -83,7 +98,7 @@ class Environment(object):
 
     def __str__(self):
         msg = []
-        for value in self.__dict__.itervalues():
+        for value in self.__dict__.values():
             if isinstance(value, EnvParm):
                 msg.append(str(value))
         msg.sort()
@@ -118,7 +133,7 @@ class Environment(object):
         Reset values to defaults (Values will be read from any overloaded system environment variables.
         """
 
-        for value in self.__dict__.itervalues():
+        for value in self.__dict__.values():
             if isinstance(value, EnvParm):
                 value._value = 'use_env'
                 getattr(value, 'value')
@@ -221,9 +236,6 @@ class EnvParmImport(EnvParm):
         return any(results)
 
 
-env = Environment()
-
-
 def get_dtype(string_name, netcdf_file_format=None):
     """
     :param string_name: The name of the data type: ``'int'`` or ``'float'``.
@@ -242,3 +254,19 @@ def get_dtype(string_name, netcdf_file_format=None):
         mp = {'int': constants.DEFAULT_NP_INT,
               'float': constants.DEFAULT_NP_FLOAT}
     return mp[string_name]
+
+
+def get_netcdftime_preference():
+    # netcdftime added more advanced operation in later versions. Check if __add__ is available on the class to
+    # determine usage preference.
+    from netCDF4 import netcdftime
+
+    if hasattr(netcdftime.datetime, '__add__'):
+        ret = True
+    else:
+        ret = False
+    return ret
+
+
+# Always keep this later to make sure functions may be used in environment set-up.
+env = Environment()

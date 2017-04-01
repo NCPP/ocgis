@@ -65,7 +65,7 @@ class TestDuration(AbstractCalcBase):
                 if cap['parms']['calc_grouping'] in [['month'], 'all']:
                     reraise = False
             if reraise:
-                raise (cap['exception'])
+                raise cap
 
 
 class TestFrequencyDuration(AbstractCalcBase):

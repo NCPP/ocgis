@@ -1,14 +1,16 @@
-from abc import ABCMeta, abstractproperty, abstractmethod
+import abc
+from abc import abstractproperty, abstractmethod
 from copy import deepcopy
-from types import NoneType
 
+import six
+
+from ocgis.base import AbstractOcgisObject
 from ocgis.exc import DefinitionValidationError
 
 
-class AbstractParameter(object):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractParameter(AbstractOcgisObject):
     """Abstract base class for input parameters."""
-
-    __metaclass__ = ABCMeta
     _lower_string = True  #: if set to False, do not lower input strings
     _perform_deepcopy = True  #: if False, do not perform deepcopy operation on value set
     _check_input_type = True
@@ -60,13 +62,13 @@ class AbstractParameter(object):
 
     def _set_value_(self, value):
         if self._check_input_type:
-            input_types = self.input_types + [basestring, NoneType]
-            type_matches = map(lambda x: isinstance(value, x), input_types)
-            if not any(type_matches):
+            input_types = self.input_types + list(six.string_types)
+            type_matches = [isinstance(value, x) for x in input_types]
+            if not any(type_matches) and value is not None:
                 msg = 'Input value type "{1}" is not in accepted types: {0}'
                 raise DefinitionValidationError(self, msg.format(input_types, type(value)))
 
-        if isinstance(value, basestring):
+        if isinstance(value, six.string_types):
             value = self.parse_string(value)
         else:
             if self._perform_deepcopy:
@@ -114,7 +116,7 @@ class AbstractParameter(object):
         """
 
         subrows = self._get_meta_()
-        if isinstance(subrows, basestring):
+        if isinstance(subrows, six.string_types):
             subrows = [subrows]
         rows = ['* ' + str(self)]
         rows.extend(subrows)
@@ -205,14 +207,13 @@ class BooleanParameter(AbstractParameter):
     def _parse_string_(self, value):
         m = {True: ['true', 't', '1'],
              False: ['false', 'f', '0']}
-        for k, v in m.iteritems():
+        for k, v in m.items():
             if value in v:
                 return k
 
 
+@six.add_metaclass(abc.ABCMeta)
 class StringParameter(AbstractParameter):
-    __metaclass__ = ABCMeta
-
     return_type = str
     input_types = [str]
 
@@ -221,9 +222,8 @@ class StringParameter(AbstractParameter):
         return ret
 
 
+@six.add_metaclass(abc.ABCMeta)
 class StringOptionParameter(StringParameter):
-    __metaclass__ = ABCMeta
-
     nullable = False
 
     @abstractproperty
@@ -236,9 +236,8 @@ class StringOptionParameter(StringParameter):
             raise DefinitionValidationError(self, msg.format(self.valid))
 
 
-class IterableParameter(object):
-    __metaclass__ = ABCMeta
-
+@six.add_metaclass(abc.ABCMeta)
+class IterableParameter(AbstractOcgisObject):
     split_string = '|'
 
     @abstractproperty
@@ -261,25 +260,24 @@ class IterableParameter(object):
             if self.unique:
                 try:
                     if len(set(ret)) < len(value):
-                        raise (DefinitionValidationError(self, 'Argument sequence must have unique elements.'))
+                        raise DefinitionValidationError(self, 'Element sequences must be unique.')
                 # elements may not be reduceable to a set. attempt to reduce the individual elements and compare by
                 # this method.
                 except TypeError:
                     for start_idx, element in enumerate(value):
                         # some element sequences may have string flags which should be ignored.
-                        if check_basestrings == False:
-                            if isinstance(element, basestring):
+                        if not check_basestrings:
+                            if isinstance(element, six.string_types):
                                 continue
                         element_set = set(element)
-                        # individual element sequences must be unique (i.e. [1,1,2] is not acceptable)
+                        # Individual element sequences must be unique (i.e. [1,1,2] is not acceptable)
                         if len(element_set) != len(element):
-                            raise (DefinitionValidationError(self,
-                                                             'Argument element sequences must be composed of unique values.'))
+                            raise DefinitionValidationError(self, 'Element sequences must be unique.')
                         # this compares the uniqueness of an element in the sequence to other components in the
                         # sequence.
                         for to_check in range(start_idx + 1, len(value)):
                             if len(element_set.intersection(set(value[to_check]))) > 0:
-                                raise (DefinitionValidationError(self, 'Argument sequence must have unique elements.'))
+                                raise DefinitionValidationError(self, '?')
             for idx in range(len(ret)):
                 msg_exc = 'Element type incorrect. Acceptable types are: {0}'
                 try:

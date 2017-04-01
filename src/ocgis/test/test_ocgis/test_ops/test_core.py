@@ -17,7 +17,6 @@ from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition
 from ocgis.ops.parms.definition import RegridOptions, OutputFormat, SpatialWrapping
-from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.spatial.grid import GridXY
 from ocgis.test.base import TestBase, attr
@@ -67,7 +66,7 @@ class TestOcgOperations(TestBase):
         geom = ops._get_object_('geom')
         self.assertEqual(geom.geom_uid, 'ID')
 
-        s = 'STATE_NAME in ("Wisconsin", "Vermont")'
+        s = "STATE_NAME in ('Wisconsin', 'Vermont')"
         ops = OcgOperations(dataset=self.datasets, geom_select_sql_where=s, geom='state_boundaries')
         self.assertEqual(ops.geom_select_sql_where, s)
         self.assertEqual(len(ops.geom), 2)
@@ -104,7 +103,7 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=rd)
         size = ops.get_base_request_size()
         self.assertAlmostEqual(size['total'], 116890.046875)
-        self.assertAsSetEqual(size['field']['tas'].keys(), rd.get().keys())
+        self.assertAsSetEqual(list(size['field']['tas'].keys()), list(rd.get().keys()))
 
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd).get_base_request_size()
@@ -139,7 +138,7 @@ class TestOcgOperations(TestBase):
 
     @attr('data')
     def test_get_base_request_size_test_data(self):
-        for key in self.test_data.keys():
+        for key in list(self.test_data.keys()):
             rd = self.test_data.get_rd(key)
             ops = OcgOperations(dataset=rd)
             ret = ops.get_base_request_size()
@@ -197,7 +196,7 @@ class TestOcgOperations(TestBase):
             if output_format == constants.OUTPUT_FORMAT_NUMPY:
                 field = ret.get_element()
                 self.assertEqual(field['pr'].shape, (10, 1))
-                self.assertAlmostEqual(manual_mean, field['pr'].get_value()[4])
+                self.assertAlmostEqual(float(manual_mean), float(field['pr'].get_value()[4]))
             else:
                 with open(ret, 'r') as f:
                     reader = csv.DictReader(f)
@@ -306,7 +305,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(len(app) > 15)
         self.assertEqual(app[-1][0], 100.0)
 
-    @attr('data')
+    @attr('data', 'cfunits')
     def test_keyword_conform_units_to(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -322,7 +321,7 @@ class TestOcgOperations(TestBase):
             diff = actual_sum - original
             self.assertFalse(np.isclose(diff, 0))
 
-    @attr('data')
+    @attr('data', 'cfunits')
     def test_keyword_conform_units_to_bad_units(self):
         rd = self.test_data.get_rd('cancm4_tas')
         with self.assertRaises(DefinitionValidationError):
@@ -331,6 +330,8 @@ class TestOcgOperations(TestBase):
     @attr('esmf', 'data')
     def test_keyword_dataset_esmf(self):
         """Test with operations on an ESMF Field."""
+
+        from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 
         efield = get_esmf_field_from_ocgis_field(self.get_field(nrlz=0, nlevel=0))
         output_format = OutputFormat.iter_possible()
@@ -528,7 +529,7 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=rd, geom=geom)
         ret = ops.execute()
         field = ret.get_element()
-        self.assertEqual(field.data_variables[0].shape, (365, 19, 144))
+        self.assertEqual(field.data_variables[0].shape, (365, 20, 144))
 
     @attr('data')
     def test_keyword_spatial_reorder(self):
@@ -688,7 +689,7 @@ class TestOcgOperationsNoData(TestBase):
 
         for field in ret.iter_fields():
             self.assertFalse(field.grid.has_allocated_abstraction_geometry)
-            for variable in field.values():
+            for variable in list(field.values()):
                 if isinstance(variable, CoordinateReferenceSystem):
                     continue
                 self.assertIsNotNone(variable._request_dataset.uid)
@@ -704,7 +705,7 @@ class TestOcgOperationsNoData(TestBase):
         ops = OcgOperations(dataset=field, output_format=constants.OUTPUT_FORMAT_NUMPY)
         ret = ops.execute()
         actual = ret.get_element()
-        self.assertEqual(field.keys(), actual.keys())
+        self.assertEqual(list(field.keys()), list(actual.keys()))
 
     def test_system_file_only(self):
         """Test file only writing."""
@@ -717,7 +718,7 @@ class TestOcgOperationsNoData(TestBase):
             ret = ops.execute()
 
             out_field = RequestDataset(ret).get()
-            for var in out_field.values():
+            for var in list(out_field.values()):
                 if fo and var.name == 'mean':
                     self.assertFalse(var.has_allocated_value)
                 else:
@@ -739,11 +740,12 @@ class TestOcgOperationsNoData(TestBase):
         ret = ops.execute()
 
         csv_field = RequestDataset(ret).get()
-        self.assertIn(gid_name, csv_field.keys())
+        self.assertIn(gid_name, list(csv_field.keys()))
         shp_path = os.path.join(ops.dir_output, ops.prefix, 'shp', ops.prefix + '_gid.shp')
         shp_field = RequestDataset(shp_path).get()
-        self.assertIn(gid_name, shp_field.keys())
+        self.assertIn(gid_name, list(shp_field.keys()))
 
+    @attr('cfunits')
     def test_system_request_dataset_modifiers(self):
         """
         Test request dataset arguments are applied in operations to fields. There are parameters that may be passed to a
@@ -817,14 +819,14 @@ class TestOcgOperationsNoData(TestBase):
         ugid_name = HeaderNames.ID_SELECTION_GEOMETRY
         csv_field = RequestDataset(ret).get()
 
-        self.assertIn(ugid_name, csv_field.keys())
+        self.assertIn(ugid_name, list(csv_field.keys()))
         shp_path = os.path.join(ops.dir_output, ops.prefix, 'shp', ops.prefix + '_gid.shp')
         shp_field = RequestDataset(shp_path).get()
-        self.assertIn(ugid_name, shp_field.keys())
+        self.assertIn(ugid_name, list(shp_field.keys()))
 
         shp_path = os.path.join(ops.dir_output, ops.prefix, 'shp', ops.prefix + '_ugid.shp')
         shp_field = RequestDataset(shp_path).get()
-        self.assertIn(ugid_name, shp_field.keys())
+        self.assertIn(ugid_name, list(shp_field.keys()))
 
     def test_system_mftime(self):
         """Test a multi-file dataset with varying units on the time variables."""

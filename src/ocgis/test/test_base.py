@@ -12,11 +12,11 @@ from ocgis.test.base import attr
 class TestTestBase(TestBase):
     def test_assertFionaMetaEqual(self):
         fiona_meta = {'crs': {'init': 'epsg:4326'},
-                      'driver': u'ESRI Shapefile',
+                      'driver': 'ESRI Shapefile',
                       'schema': {'geometry': 'Polygon',
                                  'properties': {'UGID': 'int:9'}}}
         fiona_meta_actual = {'crs': {'init': 'epsg:4326'},
-                             'driver': u'ESRI Shapefile',
+                             'driver': 'ESRI Shapefile',
                              'schema': {'geometry': 'Polygon',
                                         'properties': {'UGID': 'int:10'}}}
         with self.assertRaises(AssertionError):

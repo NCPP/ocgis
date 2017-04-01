@@ -105,7 +105,7 @@ class Test360(TestBase):
                 lon += 360
             return [lon, ctup[1]]
 
-        transformed = map(_transform_lon_, polygon.exterior.coords)
+        transformed = list(map(_transform_lon_, polygon.exterior.coords))
         new_polygon = Polygon(transformed)
         return new_polygon
 

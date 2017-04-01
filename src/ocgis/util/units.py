@@ -45,7 +45,8 @@ def get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=True):
     True
     """
 
-    units_sequence = [get_units_object(e) for e in (source, target)]
+    if try_cfunits:
+        units_sequence = [get_units_object(e) for e in (source, target)]
     try:
         if try_cfunits:
             match = get_are_units_equal(units_sequence)
@@ -57,7 +58,7 @@ def get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=True):
 
 
 def get_conformed_units(value, units_src, units_dst):
-    assert (isinstance(value, np.ndarray))
+    assert isinstance(value, np.ndarray)
 
     units_src = get_units_object(units_src)
     units_dst = get_units_object(units_dst)

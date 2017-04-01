@@ -1,19 +1,21 @@
+import abc
 import itertools
-from abc import ABCMeta
 from contextlib import contextmanager
 from copy import copy, deepcopy
+
+import six
 
 from ocgis import constants
 from ocgis.util.helpers import get_iter
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractOcgisObject(object):
-    __metaclass__ = ABCMeta
+    pass
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractInterfaceObject(AbstractOcgisObject):
-    __metaclass__ = ABCMeta
-
     def copy(self):
         """Return a shallow copy of self."""
         return copy(self)
@@ -23,9 +25,8 @@ class AbstractInterfaceObject(AbstractOcgisObject):
         return deepcopy(self)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractNamedObject(AbstractInterfaceObject):
-    __metaclass__ = ABCMeta
-
     def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, uid=None):
         self._aliases = None
         self._name = None
@@ -69,17 +70,17 @@ class AbstractNamedObject(AbstractInterfaceObject):
 
 
 def is_empty_decorator(*args, **kwargs):
-    print 'a', args, kwargs
+    print('a', args, kwargs)
 
     def wrapped_f(*args, **kwargs):
-        print args, kwargs
+        print(args, kwargs)
 
     return wrapped_f
 
 
 def get_dimension_names(target):
     from ocgis.variable.dimension import Dimension
-    itr = get_iter(target, dtype=(basestring, Dimension))
+    itr = get_iter(target, dtype=(str, Dimension))
     ret_names = []
     for element in itr:
         try:
@@ -114,7 +115,7 @@ def get_dimension_index(member, container):
 
 def get_variable_names(target):
     from ocgis.variable.base import Variable
-    itr = get_iter(target, dtype=(basestring, Variable))
+    itr = get_iter(target, dtype=(str, Variable))
     ret_names = []
     for element in itr:
         try:
@@ -136,7 +137,7 @@ def get_variables(target, parent):
 def iter_dict_slices(names, sizes, extra=None):
     extra = extra or []
     yld_extra = {e: slice(None) for e in extra}
-    for indices in itertools.product(*[range(s) for s in sizes]):
+    for indices in itertools.product(*[list(range(s)) for s in sizes]):
         yld = {n: i for n, i in zip(names, indices)}
         if extra is not None:
             yld.update(yld_extra)
@@ -170,7 +171,7 @@ def orphaned(target, keep_dimensions=False):
 def renamed_dimensions(dimensions, name_mapping):
     original_names = [d.name for d in dimensions]
     try:
-        items = name_mapping.items()
+        items = list(name_mapping.items())
         for d in dimensions:
             for k, v in items:
                 if d.name in v:
@@ -187,12 +188,12 @@ def renamed_dimensions_on_variables(vc, name_mapping):
     original_vc_dimensions = vc._dimensions
     original_names = {}
     new_vc_dimensions = copy(vc._dimensions)
-    original_variable_dimension_names = {v.name: v.dimension_names for v in vc.values()}
+    original_variable_dimension_names = {v.name: v.dimension_names for v in list(vc.values())}
     new_variable_dimension_names = copy(original_variable_dimension_names)
     mapping_meta = {}
     try:
-        for k, v in name_mapping.items():
-            for ki, vi in original_vc_dimensions.items():
+        for k, v in list(name_mapping.items()):
+            for ki, vi in list(original_vc_dimensions.items()):
                 if ki in v:
                     new_vc_dimensions[k] = vi
                     original_name = new_vc_dimensions[k]._name
@@ -200,33 +201,33 @@ def renamed_dimensions_on_variables(vc, name_mapping):
                     new_vc_dimensions[k]._name = k
                     if original_name != k:
                         new_vc_dimensions.pop(original_name)
-        for vname, vdimension_names in new_variable_dimension_names.items():
+        for vname, vdimension_names in list(new_variable_dimension_names.items()):
             to_set_dimensions = list(new_variable_dimension_names[vname])
             for vdn in vdimension_names:
-                for ki, vi in name_mapping.items():
+                for ki, vi in list(name_mapping.items()):
                     if vdn in vi:
                         to_set_dimensions[to_set_dimensions.index(vdn)] = ki
             new_variable_dimension_names[vname] = tuple(to_set_dimensions)
-        for var in vc.values():
+        for var in list(vc.values()):
             var._dimensions = new_variable_dimension_names[var.name]
         vc._dimensions = new_vc_dimensions
         mapping_meta['variable_dimensions'] = original_variable_dimension_names
         mapping_meta['dimension_name_backref'] = original_names
         yield mapping_meta
     finally:
-        for k, v in original_vc_dimensions.items():
+        for k, v in list(original_vc_dimensions.items()):
             v._name = k
         vc._dimensions = original_vc_dimensions
-        for var in vc.values():
+        for var in list(vc.values()):
             var._dimensions = original_variable_dimension_names[var.name]
 
 
 def revert_renamed_dimensions_on_variables(mapping_meta, vc):
-    for v in vc.values():
+    for v in list(vc.values()):
         v._dimensions = mapping_meta['variable_dimensions'][v.name]
     to_swap = []
-    for k, v in vc.dimensions.items():
-        for ki, vi in mapping_meta['dimension_name_backref'].items():
+    for k, v in list(vc.dimensions.items()):
+        for ki, vi in list(mapping_meta['dimension_name_backref'].items()):
             if k == vi and ki != vi:
                 vc.dimensions[k]._name = ki
                 vc.dimensions[ki] = vc.dimensions[k]

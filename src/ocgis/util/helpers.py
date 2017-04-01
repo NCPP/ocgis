@@ -10,7 +10,9 @@ from tempfile import mkdtemp
 
 import fiona
 import numpy as np
+import six
 from fiona.crs import from_epsg
+from netCDF4 import netcdftime
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from shapely.geometry import Point
@@ -207,7 +209,13 @@ def get_date_list(start, stop, days):
     check = start
     while check <= stop:
         ret.append(check)
-        check += delta
+        try:
+            check += delta
+        except TypeError:
+            # Probably an older netcdftime object
+            check = datetime.datetime(check.year, check.month, check.day, check.hour, check.second, check.microsecond)
+            check += delta
+            check = netcdftime.datetime(check.year, check.month, check.day, check.hour, check.second, check.microsecond)
     return ret
 
 
@@ -338,6 +346,12 @@ def get_extrapolated_corners_esmf_vector(vec):
 
 def get_formatted_slice(slc, n_dims):
     def _format_singleton_(single_slc):
+        # Avoid numpy typing by attempting to convert to an integer. Floats will be mangled, but whatever.
+        try:
+            single_slc = int(single_slc)
+        except:
+            pass
+
         if isinstance(single_slc, int):
             ret = slice(single_slc, single_slc + 1)
         elif isinstance(single_slc, slice):
@@ -372,7 +386,7 @@ def get_formatted_slice(slc, n_dims):
             assert len(slc) == n_dims
         except (TypeError, AssertionError):
             raise IndexError("Only {0}-d slicing allowed.".format(n_dims))
-        ret = map(_format_singleton_, slc)
+        ret = list(map(_format_singleton_, slc))
     else:
         raise NotImplementedError((slc, n_dims))
 
@@ -452,7 +466,7 @@ def get_iter(element, dtype=None):
         if isinstance(element, dtype):
             element = (element,)
 
-    if isinstance(element, (basestring, np.ndarray)):
+    if isinstance(element, tuple(list(six.string_types) + [np.ndarray])):
         it = iter([element])
     else:
         try:
@@ -497,8 +511,8 @@ def get_esmf_corners_from_ocgis_corners(ocorners, fill=None):
 
     if fill is None:
         fill = np.zeros([element + 1 for element in ocorners.shape[0:2]], dtype=ocorners.dtype)
-    range_row = range(ocorners.shape[0])
-    range_col = range(ocorners.shape[1])
+    range_row = list(range(ocorners.shape[0]))
+    range_col = list(range(ocorners.shape[1]))
 
     if isinstance(ocorners, MaskedArray):
         _corners = ocorners.data
@@ -529,7 +543,7 @@ def get_ocgis_corners_from_esmf_corners(ecorners):
     grid_corners = np.zeros(base_shape + [4], dtype=ecorners.dtype)
     # Upper left, upper right, lower right, lower left
     slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
-    for ii, jj in itertools.product(range(base_shape[0]), range(base_shape[1])):
+    for ii, jj in itertools.product(list(range(base_shape[0])), list(range(base_shape[1]))):
         row_slice = slice(ii, ii + 2)
         col_slice = slice(jj, jj + 2)
         corners = ecorners[row_slice, col_slice]
@@ -725,7 +739,7 @@ def get_tuple(value):
     :rtype: tuple
     """
 
-    if isinstance(value, basestring) or value is None:
+    if isinstance(value, six.string_types) or value is None:
         ret = (value,)
     else:
         ret = tuple(value)
@@ -780,7 +794,7 @@ def iter_array(arr, use_mask=True, return_value=False, mask=None):
     except AttributeError:
         arr = np.array(arr, ndmin=1)
         shp = arr.shape
-    iter_args = [range(0, ii) for ii in shp]
+    iter_args = [list(range(0, ii)) for ii in shp]
     if use_mask and not np.ma.isMaskedArray(arr) and mask is None:
         use_mask = False
     else:
@@ -823,7 +837,7 @@ def locate(pattern, root=os.curdir, followlinks=True):
     """
 
     for path, dirs, files in os.walk(os.path.abspath(root), followlinks=followlinks):
-        for filename in filter(lambda x: x == pattern, files):
+        for filename in [x for x in files if x == pattern]:
             yield os.path.join(path, filename)
 
 
@@ -832,12 +846,12 @@ def pprint_dict(target):
         ret = input
         if isinstance(ret, dict):
             ret = dict(input)
-            for k, v in ret.items():
+            for k, v in list(ret.items()):
                 ret[k] = _convert_(v)
         return ret
 
     to_print = _convert_(target)
-    print ''
+    print('')
     pprint(to_print)
 
 
@@ -869,7 +883,7 @@ def set_name_attributes(name_mapping):
      ``None``.
     """
 
-    for target, name in name_mapping.iteritems():
+    for target, name in name_mapping.items():
         if target is not None and target.name is None:
             target.name = name
 
@@ -982,9 +996,9 @@ def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
 
     crs = crs or from_epsg(epsg)
     driver = 'ESRI Shapefile'
-    schema = {'properties': {'UGID': 'int'}, 'geometry': dct.values()[0].geom_type}
+    schema = {'properties': {'UGID': 'int'}, 'geometry': list(dct.values())[0].geom_type}
     with fiona.open(path, 'w', driver=driver, crs=crs, schema=schema) as source:
-        for k, v in dct.iteritems():
+        for k, v in dct.items():
             rec = {'properties': {'UGID': k}, 'geometry': mapping(v)}
             source.write(rec)
     return path

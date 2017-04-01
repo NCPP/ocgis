@@ -184,7 +184,7 @@ class OcgOperations(AbstractOcgisObject):
 
     def __str__(self):
         msg = ['{0}('.format(self.__class__.__name__)]
-        for key, value in self.as_dict().iteritems():
+        for key, value in self.as_dict().items():
             if key == 'geom' and value is not None:
                 value = 'custom geometries'
             msg.append('{0}, '.format(self._get_object_(key)))
@@ -275,13 +275,13 @@ class OcgOperations(AbstractOcgisObject):
             for row in coll.iter_melted():
                 field = row['field']
                 curr = ret.field[field.name] = {}
-                for variable in field.values():
+                for variable in list(field.values()):
                     curr[variable.name] = _get_zero_or_kb_(variable)
 
         total = 0.0
-        for v in ret.values():
-            for v2 in v.values():
-                for v3 in v2.itervalues():
+        for v in list(ret.values()):
+            for v2 in list(v.values()):
+                for v3 in v2.values():
                     total += float(v3['kb'])
         ret['total'] = total
         return ret
@@ -295,7 +295,7 @@ class OcgOperations(AbstractOcgisObject):
         """:rtype: dict"""
 
         ret = {}
-        for value in self.__dict__.itervalues():
+        for value in self.__dict__.values():
             try:
                 ret.update({value.name: value.value})
             except AttributeError:
@@ -356,7 +356,7 @@ class OcgOperations(AbstractOcgisObject):
 
         # clip and/or aggregation operations may not be written back to CFRotatedPole at this time. hence, the output
         # crs must be set to CFWGS84.
-        if CFRotatedPole in map(type, projections):
+        if CFRotatedPole in list(map(type, projections)):
             if self.output_crs is not None and self.output_crs != Spherical():
                 msg = '{0} data may only be written to the same coordinate system (i.e. "output_crs=None") or spherical.'
                 msg = msg.format(CFRotatedPole.__name__)

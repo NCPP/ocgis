@@ -1,6 +1,7 @@
 import itertools
 
 import numpy as np
+from six.moves import zip_longest
 
 from ocgis.test.base import AbstractTestInterface
 from ocgis.util.conformer import conform_array_by_dimension_names
@@ -40,13 +41,14 @@ class Test(AbstractTestInterface):
 
         extra = [dn for dn in src_names if dn not in dst_and_field_names]
         extra = {e: {'index': src_names.index(e)} for e in extra}
-        for v in extra.values():
+        for v in list(extra.values()):
             v['size'] = arr.shape[v['index']]
 
         src_names_extra_removed = [dn for dn in src_names if dn not in extra]
 
         itr = itertools.product(
-            *[itertools.izip_longest([v['index']], range(v['size']), fillvalue=v['index']) for v in extra.values()])
+            *[zip_longest([v['index']], list(range(v['size'])), fillvalue=v['index']) for v in
+              list(extra.values())])
         for indices in itr:
             slc = [slice(None)] * arr.ndim
             for ii in indices:

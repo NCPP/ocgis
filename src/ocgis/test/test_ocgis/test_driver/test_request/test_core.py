@@ -9,7 +9,7 @@ from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
 from ocgis.exc import RequestValidationError, \
     NoDataVariablesFound
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.variable.crs import CoordinateReferenceSystem
@@ -96,6 +96,7 @@ class TestRequestDataset(TestSimpleBase):
         self.assertIsNone(field.source_name)
         field.load()
 
+    @attr('cfunits')
     def test_conform_units_to(self):
         rd = self.get_request_dataset_netcdf(variable='a', units='celsius', conform_units_to='fahrenheit')
         self.assertEqual(rd.conform_units_to, 'fahrenheit')
@@ -193,6 +194,7 @@ class TestRequestDataset(TestSimpleBase):
         self.assertEqual(field['unfoo'].source_name, self.var)
         self.assertIn('unfoo', field._tags[TagNames.DATA_VARIABLES])
 
+    @attr('cfunits')
     def test_t_conform_units_to(self):
         t_conform_units_to = 'hours since 2000-1-1'
         rd = self.get_request_dataset_netcdf(dimension_map={'time': {'variable': 'tt'}},

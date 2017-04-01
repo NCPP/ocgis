@@ -30,19 +30,33 @@ class TestCoordinateReferenceSystem(TestBase):
 
         prev_crs = None
         for k in itr_products_keywords(keywords):
+            if k['epsg'] is not None and k['value'] is None and k['proj4'] is None:
+                epsg_only = True
+                prev_crs = None
+            else:
+                epsg_only = False
+
             try:
                 crs = CoordinateReferenceSystem(**k)
             except ValueError:
-                if all([ii is None for ii in k.values()]):
+                if all([ii is None for ii in list(k.values())]):
                     continue
                 else:
                     raise
+
             self.assertEqual(crs.proj4, '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ')
-            self.assertDictEqual(crs.value,
-                                 {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
+            try:
+                self.assertDictEqual(crs.value,
+                                     {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat',
+                                      'towgs84': '0,0,0,0,0,0,0'})
+            except AssertionError:
+                self.assertDictEqual(crs.value,
+                                     {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat',
+                                      'towgs84': '0,0,0,0,0,0,0'})
             if prev_crs is not None:
                 self.assertEqual(crs, prev_crs)
-            prev_crs = deepcopy(crs)
+            if not epsg_only:
+                prev_crs = deepcopy(crs)
 
         # test with a name parameter
         crs = CoordinateReferenceSystem(epsg=4326)
@@ -223,10 +237,9 @@ class TestSpherical(TestBase):
 
 class TestWGS84(TestBase):
     def test_init(self):
-        self.assertEqual(WGS84(), CoordinateReferenceSystem(epsg=4326))
         self.assertTrue(WGS84().is_geographic)
         self.assertNotIsInstance(WGS84(), Spherical)
-        self.assertEqual(WGS84().name, 'latitude_longitude')
+        self.assertIn('towgs84', WGS84().value)
 
 
 class TestCFWGS84(TestBase):
@@ -317,7 +330,7 @@ class TestCFLambertConformalConic(TestBase):
         with nc_scope(path, 'w') as ds:
             variable = crs.write_to_rootgrp(ds)
             self.assertEqual(variable.grid_mapping_name, crs.grid_mapping_name)
-            for k, v in crs.map_parameters_values.iteritems():
+            for k, v in crs.map_parameters_values.items():
                 variable_v = variable.__dict__[k]
                 try:
                     self.assertEqual(variable_v, v)

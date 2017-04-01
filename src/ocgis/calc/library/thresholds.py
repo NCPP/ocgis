@@ -51,7 +51,7 @@ class Threshold(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFu
         elif operation == 'lte':
             idx = values <= threshold
         else:
-            raise (NotImplementedError('The operation "{0}" was not recognized.'.format(operation)))
+            raise NotImplementedError
 
         ret = np.ma.sum(idx, axis=0)
         return ret

@@ -7,11 +7,11 @@ from copy import deepcopy, copy
 from os.path import exists
 
 import numpy as np
+import six
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 from types import FunctionType
-from types import NoneType
 
 import ocgis
 from ocgis import RequestDataset
@@ -142,8 +142,8 @@ class Calc(base.IterableParameter, base.AbstractParameter):
             cb = deepcopy(self.value)
             for ii in cb:
                 ii.pop('ref')
-                for k, v in ii['kwds'].iteritems():
-                    if type(v) not in [str, unicode, float, int, basestring]:
+                for k, v in ii['kwds'].items():
+                    if type(v) not in [str, str, float, int, str]:
                         ii['kwds'][k] = type(v)
             ret = '{0}={1}'.format(self.name, cb)
         return ret
@@ -234,7 +234,7 @@ class Calc(base.IterableParameter, base.AbstractParameter):
             # make the keyword parameter definitions lowercase.
             else:
                 value['kwds'] = OrderedDict(value['kwds'])
-                for k, v in value['kwds'].iteritems():
+                for k, v in value['kwds'].items():
                     try:
                         value['kwds'][k] = v.lower()
                     except AttributeError:
@@ -325,26 +325,26 @@ class CalcGrouping(base.IterableParameter, base.AbstractParameter):
 
     def parse(self, value):
         try:
-            # # not interested in looking for unique letters in the "_flags"
+            # Not interested in looking for unique letters in the "_flags"
             parse_value = list(deepcopy(value))
-            # # if we do remove a flag, be sure and append it back
+            # If we do remove a flag, be sure and append it back
             add_back = None
             for flag in self._flags:
                 if flag in parse_value:
                     parse_value.remove(flag)
                     add_back = flag
-            ## call superclass method to parse the value for iteration
+            # Call superclass method to parse the value for iteration
             ret = base.IterableParameter.parse(self, parse_value, check_basestrings=False)
-            ## add the value back if it has been set
+            # Add the value back if it has been set
             if add_back is not None:
                 ret.append(add_back)
-        # # value is likely a NoneType
-        except TypeError as e:
+        # Value is likely none.
+        except TypeError:
             if value is None:
                 ret = None
             else:
-                raise (e)
-        return (ret)
+                raise
+        return ret
 
     def finalize(self):
         if self._value == ('all',):
@@ -358,33 +358,29 @@ class CalcGrouping(base.IterableParameter, base.AbstractParameter):
         return (msg)
 
     def _validate_(self, value):
-        # # the 'all' parameter will be reduced to a string eventually
+        # The 'all' parameter will be reduced to a string eventually
         if len(value) == 1 and value[0] == 'all':
             pass
         else:
             try:
                 for val in value:
                     if val not in self._standard_groups:
-                        raise (DefinitionValidationError(self,
-                                                         '"{0}" is not a valid temporal group or is currently not supported. Supported groupings are combinations of day, month, and year.'.format(
-                                                             val)))
-            # # the grouping may not be a date part but a seasonal aggregation
+                        raise DefinitionValidationError(self,
+                                                        'not in standard groups: {}'.format(self._standard_groups))
+            # The grouping may not be a date part but a seasonal aggregation
             except DefinitionValidationError:
-                months = range(1, 13)
+                months = list(range(1, 13))
                 for element in value:
-                    ## the keyword year and unique are okay for seasonal aggregations
+                    # The keyword year and unique are okay for seasonal aggregations
                     if element in self._flags:
                         continue
-                    elif isinstance(element, basestring):
+                    elif isinstance(element, six.string_types):
                         if element not in self._flags:
-                            raise (
-                                DefinitionValidationError(self, 'Seasonal flag not recognized: "{0}".'.format(element)))
+                            raise DefinitionValidationError(self, 'element not in flags: {}'.format(self._flags))
                     else:
                         for month in element:
                             if month not in months:
-                                raise (DefinitionValidationError(self,
-                                                                 'Month integer value is not recognized: {0}'.format(
-                                                                     month)))
+                                raise DefinitionValidationError(self, 'month not in months: {}'.format(months))
 
 
 class CalcRaw(base.BooleanParameter):
@@ -419,7 +415,7 @@ class ConformUnitsTo(base.AbstractParameter):
 
     @property
     def return_type(self):
-        ret = [str]
+        ret = [six.string_types]
         # CF units conversion packages are optional.
         uc = get_units_class(should_raise=False)
         if uc is not None:
@@ -427,11 +423,12 @@ class ConformUnitsTo(base.AbstractParameter):
         return ret
 
     def validate(self, value):
-        try:
-            get_units_object(value)
-        except ValueError:
-            msg = 'Units are to recognized by conversion backend: {}'.format(value)
-            raise DefinitionValidationError(self.__class__, msg)
+        if value is not None:
+            try:
+                get_units_object(value)
+            except ValueError:
+                msg = 'Units not recognized by conversion backend: {}'.format(value)
+                raise DefinitionValidationError(self.__class__, msg)
 
     def _get_meta_(self):
         if self.value is None:
@@ -570,11 +567,11 @@ class DirOutput(base.StringParameter):
 
     def _get_meta_(self):
         ret = 'At execution time, data was originally written to this processor-local location: {0}'.format(self.value)
-        return (ret)
+        return ret
 
     def _validate_(self, value):
         if not exists(value):
-            raise (DefinitionValidationError(self, 'Output directory does not exist: {0}'.format(value)))
+            raise DefinitionValidationError(self, 'Path does not exist: {}'.format(value))
 
 
 class FileOnly(base.BooleanParameter):
@@ -700,7 +697,7 @@ class Geom(base.AbstractParameter):
         return ret
 
     def parse_string(self, value):
-        if isinstance(value, basestring):
+        if isinstance(value, six.string_types):
             if os.path.isdir(value):
                 exc = DefinitionValidationError(self, 'The provided path is a directory.')
                 ocgis_lh(exc=exc, logger='definition')
@@ -769,14 +766,14 @@ class Geom(base.AbstractParameter):
         :rtype: tuple
         """
 
-        itr = [range(ii) for ii in field.geom.shape]
+        itr = [list(range(ii)) for ii in field.geom.shape]
         for slc in itertools.product(*itr):
             yield field.geom.__getitem__(slc).parent
 
 
 class GeomSelectSqlWhere(base.AbstractParameter):
     name = 'geom_select_sql_where'
-    return_type = [basestring]
+    return_type = [str]
     nullable = True
     default = None
     input_types = []
@@ -885,7 +882,7 @@ class Optimizations(base.AbstractParameter):
         if self.value is None:
             ret = 'No optimizations were used.'
         else:
-            ret = 'The following optimizations were used: {0}.'.format(self.value.keys())
+            ret = 'The following optimizations were used: {0}.'.format(list(self.value.keys()))
         return ret
 
     def _validate_(self, value):
@@ -926,7 +923,7 @@ class OutputCRS(base.AbstractParameter):
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
     default = constants.OUTPUT_FORMAT_NUMPY
-    valid = get_converter_map().keys()
+    valid = list(get_converter_map().keys())
 
     def __init__(self, init_value=None):
         try:
@@ -1001,7 +998,7 @@ class RegridDestination(base.AbstractParameter):
 
     def _parse_(self, value):
         # Get the request dataset from the collection if the value is a string.
-        if isinstance(value, basestring):
+        if isinstance(value, six.string_types):
             value_to_find = value
             value = None
             for d in list(self.dataset):
@@ -1040,11 +1037,11 @@ class RegridOptions(base.AbstractParameter):
     default = {'regrid_method': 'auto', 'value_mask': None, 'split': True}
     input_types = [dict]
     return_type = [dict]
-    _possible_value_mask_types = [NoneType, np.ndarray]
+    _possible_value_mask_types = [type(None), np.ndarray]
 
     def _parse_(self, value):
-        for key in value.keys():
-            if key not in self.default.keys():
+        for key in list(value.keys()):
+            if key not in list(self.default.keys()):
                 msg = 'The option "{0}" is not allowed.'.format(key)
                 raise DefinitionValidationError(self, msg)
 
@@ -1065,7 +1062,7 @@ class RegridOptions(base.AbstractParameter):
 
     def _get_meta_(self):
         ret = {}
-        for k, v in self.value.iteritems():
+        for k, v in self.value.items():
             if k == 'value_mask' and isinstance(v, np.ndarray):
                 ret[k] = np.ndarray
             else:
@@ -1106,7 +1103,7 @@ class Slice(base.IterableParameter, base.AbstractParameter):
     nullable = True
     default = None
     input_types = [list, tuple, dict, OrderedDict]
-    element_type = [NoneType, int, tuple, list, slice]
+    element_type = [type(None), int, tuple, list, slice]
     unique = False
 
     def __init__(self, init_value=None):
@@ -1269,23 +1266,23 @@ class TimeRegion(base.AbstractParameter):
     input_types = [dict, OrderedDict]
 
     def _get_meta_(self):
-        if self.value == None:
+        if self.value is None:
             msg = 'No time region subset.'
         else:
             msg = 'The following time region subset was applied to all request datasets: {0}'.format(self.value)
         return msg
 
     def _parse_(self, value):
-        if value != None:
-            # add missing keys
+        if value is not None:
+            # Add missing keys
             for add_key in ['month', 'year']:
                 if add_key not in value:
                     value.update({add_key: None})
-            # confirm only month and year keys are present
-            for key in value.keys():
+            # Confirm only month and year keys are present
+            for key in list(value.keys()):
                 if key not in ['month', 'year']:
-                    raise (DefinitionValidationError(self, 'Time region keys must be month and/or year.'))
-            if all([i is None for i in value.values()]):
+                    raise DefinitionValidationError(self, 'Only "month" and "year" keys allowed.')
+            if all([i is None for i in list(value.values())]):
                 value = None
         return value
 
